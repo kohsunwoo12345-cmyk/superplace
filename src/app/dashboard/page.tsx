@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,8 @@ import {
   MessageCircle,
   ArrowUpRight,
   Plus,
+  Sparkles,
+  Lightbulb,
 } from "lucide-react";
 
 export default function DashboardPage() {
