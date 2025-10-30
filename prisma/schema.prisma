@@ -1,0 +1,401 @@
+// Prisma Schema for SUPER PLACE Marketing Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Model
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String
+  phone         String?
+  company       String?
+  role          UserRole  @default(USER)
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  accounts      Account[]
+  sessions      Session[]
+  subscriptions Subscription[]
+  payments      Payment[]
+  
+  // Social Media Connections
+  naverBlog     NaverBlog[]
+  naverPlace    NaverPlace[]
+  instagram     Instagram[]
+  youtube       Youtube[]
+  tiktok        TikTok[]
+  karrot        Karrot[]
+  
+  // Analytics
+  analytics     Analytics[]
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+// NextAuth Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Subscription Model
+model Subscription {
+  id          String           @id @default(cuid())
+  userId      String
+  planType    PlanType
+  status      SubscriptionStatus
+  startDate   DateTime         @default(now())
+  endDate     DateTime
+  autoRenew   Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments    Payment[]
+}
+
+enum PlanType {
+  FREE
+  BASIC
+  PREMIUM
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PENDING
+}
+
+// Payment Model
+model Payment {
+  id              String          @id @default(cuid())
+  userId          String
+  subscriptionId  String
+  amount          Int
+  currency        String          @default("KRW")
+  status          PaymentStatus
+  paymentMethod   String
+  transactionId   String?
+  orderId         String          @unique
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription    Subscription    @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// Social Media Platform Models
+
+// Naver Blog
+model NaverBlog {
+  id            String      @id @default(cuid())
+  userId        String
+  blogId        String
+  blogName      String
+  accessToken   String?     @db.Text
+  refreshToken  String?     @db.Text
+  connected     Boolean     @default(true)
+  lastSynced    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts         BlogPost[]
+  
+  @@unique([userId, blogId])
+}
+
+model BlogPost {
+  id            String      @id @default(cuid())
+  naverBlogId   String
+  postId        String
+  title         String
+  content       String?     @db.Text
+  url           String
+  viewCount     Int         @default(0)
+  likeCount     Int         @default(0)
+  commentCount  Int         @default(0)
+  publishedAt   DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  naverBlog     NaverBlog   @relation(fields: [naverBlogId], references: [id], onDelete: Cascade)
+  
+  @@unique([naverBlogId, postId])
+}
+
+// Naver Place
+model NaverPlace {
+  id            String      @id @default(cuid())
+  userId        String
+  placeId       String
+  placeName     String
+  address       String?
+  category      String?
+  accessToken   String?     @db.Text
+  refreshToken  String?     @db.Text
+  connected     Boolean     @default(true)
+  lastSynced    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviews       PlaceReview[]
+  
+  @@unique([userId, placeId])
+}
+
+model PlaceReview {
+  id            String      @id @default(cuid())
+  naverPlaceId  String
+  reviewId      String
+  author        String
+  rating        Int
+  content       String?     @db.Text
+  reviewDate    DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  naverPlace    NaverPlace  @relation(fields: [naverPlaceId], references: [id], onDelete: Cascade)
+  
+  @@unique([naverPlaceId, reviewId])
+}
+
+// Instagram
+model Instagram {
+  id            String      @id @default(cuid())
+  userId        String
+  instagramId   String
+  username      String
+  accessToken   String?     @db.Text
+  refreshToken  String?     @db.Text
+  connected     Boolean     @default(true)
+  lastSynced    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts         InstagramPost[]
+  
+  @@unique([userId, instagramId])
+}
+
+model InstagramPost {
+  id            String      @id @default(cuid())
+  instagramId   String
+  postId        String
+  caption       String?     @db.Text
+  mediaType     String
+  mediaUrl      String?
+  permalink     String
+  likeCount     Int         @default(0)
+  commentCount  Int         @default(0)
+  publishedAt   DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  instagram     Instagram   @relation(fields: [instagramId], references: [id], onDelete: Cascade)
+  
+  @@unique([instagramId, postId])
+}
+
+// YouTube
+model Youtube {
+  id            String      @id @default(cuid())
+  userId        String
+  channelId     String
+  channelName   String
+  accessToken   String?     @db.Text
+  refreshToken  String?     @db.Text
+  connected     Boolean     @default(true)
+  lastSynced    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videos        YoutubeVideo[]
+  
+  @@unique([userId, channelId])
+}
+
+model YoutubeVideo {
+  id            String      @id @default(cuid())
+  youtubeId     String
+  videoId       String
+  title         String
+  description   String?     @db.Text
+  thumbnailUrl  String?
+  viewCount     Int         @default(0)
+  likeCount     Int         @default(0)
+  commentCount  Int         @default(0)
+  publishedAt   DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  youtube       Youtube     @relation(fields: [youtubeId], references: [id], onDelete: Cascade)
+  
+  @@unique([youtubeId, videoId])
+}
+
+// TikTok
+model TikTok {
+  id            String      @id @default(cuid())
+  userId        String
+  tiktokId      String
+  username      String
+  accessToken   String?     @db.Text
+  refreshToken  String?     @db.Text
+  connected     Boolean     @default(true)
+  lastSynced    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videos        TikTokVideo[]
+  
+  @@unique([userId, tiktokId])
+}
+
+model TikTokVideo {
+  id            String      @id @default(cuid())
+  tiktokId      String
+  videoId       String
+  description   String?     @db.Text
+  coverUrl      String?
+  videoUrl      String?
+  viewCount     Int         @default(0)
+  likeCount     Int         @default(0)
+  commentCount  Int         @default(0)
+  shareCount    Int         @default(0)
+  publishedAt   DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  tiktok        TikTok      @relation(fields: [tiktokId], references: [id], onDelete: Cascade)
+  
+  @@unique([tiktokId, videoId])
+}
+
+// Karrot (당근마켓)
+model Karrot {
+  id            String      @id @default(cuid())
+  userId        String
+  karrotId      String
+  nickname      String
+  regionName    String?
+  accessToken   String?     @db.Text
+  refreshToken  String?     @db.Text
+  connected     Boolean     @default(true)
+  lastSynced    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products      KarrotProduct[]
+  
+  @@unique([userId, karrotId])
+}
+
+model KarrotProduct {
+  id            String      @id @default(cuid())
+  karrotId      String
+  productId     String
+  title         String
+  price         Int
+  description   String?     @db.Text
+  imageUrl      String?
+  status        String
+  viewCount     Int         @default(0)
+  chatCount     Int         @default(0)
+  likeCount     Int         @default(0)
+  publishedAt   DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  karrot        Karrot      @relation(fields: [karrotId], references: [id], onDelete: Cascade)
+  
+  @@unique([karrotId, productId])
+}
+
+// Analytics Model
+model Analytics {
+  id            String      @id @default(cuid())
+  userId        String
+  platform      Platform
+  date          DateTime
+  impressions   Int         @default(0)
+  reach         Int         @default(0)
+  engagement    Int         @default(0)
+  clicks        Int         @default(0)
+  conversions   Int         @default(0)
+  revenue       Float       @default(0)
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, platform, date])
+}
+
+enum Platform {
+  NAVER_BLOG
+  NAVER_PLACE
+  INSTAGRAM
+  YOUTUBE
+  TIKTOK
+  KARROT
+}
