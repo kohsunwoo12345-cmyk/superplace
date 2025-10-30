@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   BarChart3,
@@ -16,10 +17,23 @@ import {
   Settings,
   Users,
   FileText,
+  Wrench,
+  Search,
+  Wand2,
 } from "lucide-react";
 
 const navigation = [
   { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+  { 
+    name: "마케팅 도구", 
+    href: "#", 
+    icon: Wrench, 
+    isSection: true,
+    children: [
+      { name: "키워드 분석", href: "/dashboard/tools/naver-keywords", icon: Search },
+      { name: "랜딩페이지 생성", href: "/dashboard/tools/landing-page-generator", icon: Wand2 },
+    ]
+  },
   { name: "네이버 블로그", href: "/dashboard/naver-blog", icon: MessageSquare },
   { name: "네이버 플레이스", href: "/dashboard/naver-place", icon: MapPin },
   { name: "인스타그램", href: "/dashboard/instagram", icon: Instagram },
@@ -29,11 +43,13 @@ const navigation = [
   { name: "분석", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "리포트", href: "/dashboard/reports", icon: FileText },
   { name: "구독 관리", href: "/dashboard/subscription", icon: CreditCard },
+  { name: "관리자", href: "/dashboard/admin", icon: Users, adminOnly: true },
   { name: "설정", href: "/dashboard/settings", icon: Settings },
 ];
 
 export default function DashboardSidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   return (
     <>
@@ -52,6 +68,44 @@ export default function DashboardSidebar() {
           {/* Navigation */}
           <nav className="flex-1 px-2 py-4 space-y-1">
             {navigation.map((item) => {
+              if (item.isSection && item.children) {
+                return (
+                  <div key={item.name} className="space-y-1">
+                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {item.name}
+                    </div>
+                    {item.children.map((child) => {
+                      const isActive = pathname === child.href;
+                      return (
+                        <Link
+                          key={child.name}
+                          href={child.href}
+                          className={cn(
+                            "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ml-4",
+                            isActive
+                              ? "bg-primary text-white"
+                              : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                          )}
+                        >
+                          <child.icon
+                            className={cn(
+                              "mr-3 flex-shrink-0 h-4 w-4",
+                              isActive ? "text-white" : "text-gray-500"
+                            )}
+                          />
+                          {child.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              }
+              
+              // Hide admin-only items for non-admin users
+              if (item.adminOnly && session?.user?.role !== "ADMIN" && session?.user?.role !== "SUPERADMIN") {
+                return null;
+              }
+              
               const isActive = pathname === item.href;
               return (
                 <Link

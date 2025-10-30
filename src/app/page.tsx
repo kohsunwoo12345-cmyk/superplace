@@ -22,6 +22,9 @@ export default function Home() {
             <span className="text-2xl font-bold">SUPER PLACE</span>
           </div>
           <nav className="hidden md:flex items-center space-x-6">
+            <Link href="/about" className="text-sm font-medium hover:text-primary">
+              회사 소개
+            </Link>
             <Link href="#features" className="text-sm font-medium hover:text-primary">
               기능
             </Link>
