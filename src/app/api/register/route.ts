@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(validatedData.password, 10);
 
-    // Create user
+    // Create user (관리자 승인 대기 상태)
     const user = await prisma.user.create({
       data: {
         email: validatedData.email,
@@ -39,19 +39,22 @@ export async function POST(req: Request) {
         password: hashedPassword,
         phone: validatedData.phone,
         company: validatedData.company,
+        approved: false, // 관리자 승인 필요
       },
       select: {
         id: true,
         email: true,
         name: true,
+        approved: true,
         createdAt: true,
       },
     });
 
     return NextResponse.json(
       { 
-        message: "회원가입이 완료되었습니다",
-        user 
+        message: "회원가입 신청이 완료되었습니다. 관리자 승인 후 로그인하실 수 있습니다.",
+        user,
+        pendingApproval: true
       },
       { status: 201 }
     );

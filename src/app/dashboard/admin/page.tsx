@@ -5,13 +5,26 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, CreditCard, TrendingUp, AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Users, CreditCard, TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
+
+interface PendingUser {
+  id: string;
+  email: string;
+  name: string;
+  phone?: string;
+  company?: string;
+  createdAt: string;
+}
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { toast } = useToast();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -26,6 +39,7 @@ export default function AdminPage() {
 
     if (status === "authenticated") {
       fetchStats();
+      fetchPendingUsers();
     }
   }, [status, session, router]);
 
@@ -40,6 +54,54 @@ export default function AdminPage() {
       console.error("Failed to fetch stats:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingUsers = async () => {
+    try {
+      const response = await fetch("/api/admin/users/pending");
+      if (response.ok) {
+        const data = await response.json();
+        setPendingUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch pending users:", error);
+    }
+  };
+
+  const handleApprove = async (userId: string) => {
+    setApprovingId(userId);
+    try {
+      const response = await fetch("/api/admin/users/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "승인 완료",
+          description: "사용자가 승인되었습니다. 이제 로그인할 수 있습니다.",
+        });
+        fetchPendingUsers();
+        fetchStats();
+      } else {
+        const data = await response.json();
+        toast({
+          title: "승인 실패",
+          description: data.error || "승인 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to approve user:", error);
+      toast({
+        title: "승인 실패",
+        description: "승인 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setApprovingId(null);
     }
   };
 
@@ -128,6 +190,69 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Pending Users Approval */}
+      {pendingUsers.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-orange-600" />
+              <CardTitle className="text-orange-900">승인 대기 중인 회원</CardTitle>
+            </div>
+            <CardDescription className="text-orange-700">
+              {pendingUsers.length}명의 회원이 승인을 기다리고 있습니다
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {pendingUsers.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between p-4 bg-white border border-orange-200 rounded-lg hover:shadow-sm transition-shadow"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-gray-900">{user.name}</div>
+                      <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full">
+                        승인 대기
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">{user.email}</div>
+                    <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                      {user.company && (
+                        <span>회사: {user.company}</span>
+                      )}
+                      {user.phone && (
+                        <span>전화: {user.phone}</span>
+                      )}
+                      <span>
+                        가입일: {new Date(user.createdAt).toLocaleDateString("ko-KR")}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => handleApprove(user.id)}
+                    disabled={approvingId === user.id}
+                    className="ml-4 bg-green-600 hover:bg-green-700"
+                  >
+                    {approvingId === user.id ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                        승인 중...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        승인하기
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* User Management */}
       <Card>

@@ -35,6 +35,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error("비밀번호가 일치하지 않습니다.");
         }
 
+        // 승인 여부 확인
+        if (!user.approved) {
+          throw new Error("관리자 승인 대기 중입니다. 승인 후 로그인하실 수 있습니다.");
+        }
+
         return {
           id: user.id,
           email: user.email,
