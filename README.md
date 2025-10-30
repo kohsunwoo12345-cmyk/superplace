@@ -48,7 +48,7 @@
 - **Runtime**: Node.js
 - **Framework**: Next.js API Routes
 - **ORM**: Prisma
-- **Database**: PostgreSQL
+- **Database**: SQLite (개발용) / PostgreSQL (프로덕션)
 - **Authentication**: NextAuth.js
 
 ### API 연동
@@ -104,13 +104,15 @@ KARROT_API_KEY="your-karrot-api-key"
 ### 3. 데이터베이스 설정
 
 \`\`\`bash
-# Prisma 마이그레이션
+# Prisma 클라이언트 생성 및 데이터베이스 동기화
 npx prisma generate
 npx prisma db push
 
 # Prisma Studio 실행 (선택사항)
 npm run db:studio
 \`\`\`
+
+**참고**: 현재 SQLite를 사용하여 즉시 실행 가능합니다. 별도의 데이터베이스 서버 설치가 필요 없습니다!
 
 ### 4. 개발 서버 실행
 
@@ -119,6 +121,42 @@ npm run dev
 \`\`\`
 
 브라우저에서 [http://localhost:3000](http://localhost:3000)을 열어 확인하세요.
+
+### 5. 회원가입 테스트
+
+회원가입 기능이 정상 작동하는지 테스트:
+
+**브라우저에서:**
+1. http://localhost:3000/register 접속
+2. 회원정보 입력 (이메일, 비밀번호, 이름 등)
+3. "회원가입" 버튼 클릭
+4. 성공 시 로그인 페이지로 리다이렉트
+
+**API 테스트 (curl):**
+\`\`\`bash
+curl -X POST http://localhost:3000/api/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "password123",
+    "name": "홍길동",
+    "phone": "010-1234-5678",
+    "company": "테스트 회사"
+  }'
+\`\`\`
+
+성공 응답:
+\`\`\`json
+{
+  "message": "회원가입이 완료되었습니다",
+  "user": {
+    "id": "...",
+    "email": "user@example.com",
+    "name": "홍길동",
+    "createdAt": "..."
+  }
+}
+\`\`\`
 
 ## 프로젝트 구조
 
