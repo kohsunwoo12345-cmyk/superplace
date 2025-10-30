@@ -33,7 +33,8 @@ const navigation = [
     icon: Wrench, 
     isSection: true,
     children: [
-      { name: "키워드 분석", href: "/dashboard/tools/naver-keywords", icon: Search },
+      { name: "네이버 키워드 분석", href: "/dashboard/tools/naver-keywords", icon: Search },
+      { name: "구글 트렌드 조회", href: "/dashboard/tools/google-trends", icon: BarChart3 },
       { name: "랜딩페이지 생성", href: "/dashboard/tools/landing-page-generator", icon: Wand2 },
       { name: "URL 단축기", href: "/dashboard/tools/url-shortener", icon: LinkIcon },
     ]
