@@ -5,8 +5,9 @@ import { prisma } from "@/lib/prisma";
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getServerSession(authOptions);
 
@@ -23,7 +24,7 @@ export async function DELETE(
     }
 
     const post = await prisma.scheduledPost.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!post) {
@@ -35,7 +36,7 @@ export async function DELETE(
     }
 
     await prisma.scheduledPost.update({
-      where: { id: params.id },
+      where: { id },
       data: { status: "CANCELLED" },
     });
 
