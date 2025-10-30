@@ -14,6 +14,42 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
+  const [aiInsights, setAiInsights] = useState<string[]>([]);
+  const [loadingInsights, setLoadingInsights] = useState(false);
+
+  useEffect(() => {
+    loadAIInsights();
+  }, []);
+
+  const loadAIInsights = async () => {
+    setLoadingInsights(true);
+    try {
+      const response = await fetch("/api/analytics/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: "all",
+          timeframe: "7days",
+          metrics: {
+            총조회수: 124582,
+            총참여도: 8432,
+            댓글리뷰: 1234,
+            신규팔로워: 892,
+          },
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAiInsights([...data.insights, ...data.recommendations].slice(0, 4));
+      }
+    } catch (error) {
+      console.error("Failed to load AI insights:", error);
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
+
   // Mock data - in production, this would come from your API
   const stats = [
     {
@@ -249,6 +285,57 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Insights */}
+      <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-purple-600" />
+                AI 인사이트
+              </CardTitle>
+              <CardDescription>
+                AI가 분석한 마케팅 성과와 추천사항
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadAIInsights}
+              disabled={loadingInsights}
+            >
+              새로고침
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loadingInsights ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+              <p className="text-sm text-muted-foreground mt-2">AI가 데이터를 분석하는 중...</p>
+            </div>
+          ) : aiInsights.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {aiInsights.map((insight, i) => (
+                <div
+                  key={i}
+                  className="bg-white border border-purple-100 rounded-lg p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start gap-3">
+                    <Lightbulb className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm">{insight}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-4">
+              AI 인사이트를 불러오는 중입니다...
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Quick Actions */}
       <Card>
