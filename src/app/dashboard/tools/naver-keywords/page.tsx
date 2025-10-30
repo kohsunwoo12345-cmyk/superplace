@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, Calendar, BarChart3 } from "lucide-react";
+import { Search, TrendingUp, Calendar, BarChart3, AlertCircle, CheckCircle } from "lucide-react";
 
 export default function NaverKeywordsPage() {
   const [keyword, setKeyword] = useState("");
@@ -71,6 +71,31 @@ export default function NaverKeywordsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Data Source Alert */}
+      {results && (
+        <Card className={results.isRealData ? "border-green-200 bg-green-50" : "border-yellow-200 bg-yellow-50"}>
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              {results.isRealData ? (
+                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+              )}
+              <div>
+                <p className={`font-medium ${results.isRealData ? "text-green-900" : "text-yellow-900"}`}>
+                  {results.isRealData ? "✅ 실제 네이버 데이터" : "⚠️ 샘플 데이터"}
+                </p>
+                <p className={`text-sm mt-1 ${results.isRealData ? "text-green-700" : "text-yellow-700"}`}>
+                  {results.isRealData 
+                    ? "네이버 광고 API에서 실시간으로 가져온 데이터입니다."
+                    : results.warning || "네이버 API 키가 설정되지 않아 샘플 데이터를 표시합니다. 실제 데이터를 보려면 .env 파일에 NAVER_CLIENT_ID와 NAVER_CLIENT_SECRET을 설정하세요."}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Results */}
       {results && (
