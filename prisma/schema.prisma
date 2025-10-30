@@ -363,3 +363,76 @@ model Analytics {
   
   @@unique([userId, platform, date])
 }
+
+// Scheduled Post Model (콘텐츠 스케줄링)
+model ScheduledPost {
+  id            String      @id @default(cuid())
+  userId        String
+  platform      String      // "naver_blog", "instagram", "youtube", etc.
+  title         String?
+  content       String
+  mediaUrls     String?     // JSON array of media URLs
+  scheduledFor  DateTime    // 예약 시간
+  status        String      @default("PENDING") // PENDING, PUBLISHED, FAILED, CANCELLED
+  publishedAt   DateTime?
+  error         String?
+  metadata      String?     // Platform-specific data
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@index([userId, status])
+  @@index([scheduledFor])
+}
+
+// Content Template Model (템플릿 라이브러리)
+model ContentTemplate {
+  id            String      @id @default(cuid())
+  userId        String
+  name          String
+  category      String      // "social", "blog", "email", etc.
+  platform      String?     // Platform-specific template
+  title         String?
+  content       String
+  thumbnail     String?
+  tags          String?     // JSON array
+  timesUsed     Int         @default(0)
+  isPublic      Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@index([userId, category])
+}
+
+// URL Shortener Model (URL 단축 및 트래킹)
+model ShortUrl {
+  id            String      @id @default(cuid())
+  userId        String
+  shortCode     String      @unique
+  originalUrl   String
+  title         String?
+  clickCount    Int         @default(0)
+  lastClickedAt DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  clicks        UrlClick[]
+  
+  @@index([userId])
+  @@index([shortCode])
+}
+
+model UrlClick {
+  id            String      @id @default(cuid())
+  shortUrlId    String
+  ipAddress     String?
+  userAgent     String?
+  referer       String?
+  country       String?
+  city          String?
+  clickedAt     DateTime    @default(now())
+  
+  shortUrl      ShortUrl    @relation(fields: [shortUrlId], references: [id], onDelete: Cascade)
+  
+  @@index([shortUrlId, clickedAt])
+}

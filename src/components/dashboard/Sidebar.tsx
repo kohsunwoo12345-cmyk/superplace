@@ -32,8 +32,11 @@ const navigation = [
     children: [
       { name: "키워드 분석", href: "/dashboard/tools/naver-keywords", icon: Search },
       { name: "랜딩페이지 생성", href: "/dashboard/tools/landing-page-generator", icon: Wand2 },
+      { name: "URL 단축기", href: "/dashboard/tools/url-shortener", icon: LinkIcon },
     ]
   },
+  { name: "콘텐츠 스케줄러", href: "/dashboard/scheduler", icon: Calendar },
+  { name: "템플릿 라이브러리", href: "/dashboard/templates", icon: FileStack },
   { name: "네이버 블로그", href: "/dashboard/platforms/naver-blog", icon: MessageSquare },
   { name: "네이버 플레이스", href: "/dashboard/platforms/naver-place", icon: MapPin },
   { name: "인스타그램", href: "/dashboard/platforms/instagram", icon: Instagram },
