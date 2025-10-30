@@ -20,6 +20,9 @@ import {
   Wrench,
   Search,
   Wand2,
+  Link as LinkIcon,
+  Calendar,
+  FileStack,
 } from "lucide-react";
 
 const navigation = [
