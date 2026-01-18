@@ -8,7 +8,6 @@ const registerSchema = z.object({
   password: z.string().min(8, "비밀번호는 최소 8자 이상이어야 합니다"),
   name: z.string().min(2, "이름은 최소 2자 이상이어야 합니다"),
   phone: z.string().optional(),
-  company: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -38,7 +37,6 @@ export async function POST(req: Request) {
         name: validatedData.name,
         password: hashedPassword,
         phone: validatedData.phone,
-        company: validatedData.company,
         approved: false, // 관리자 승인 필요
       },
       select: {
@@ -67,8 +65,12 @@ export async function POST(req: Request) {
     }
 
     console.error("Registration error:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
     return NextResponse.json(
-      { error: "회원가입 중 오류가 발생했습니다" },
+      { 
+        error: "회원가입 중 오류가 발생했습니다",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     );
   }
