@@ -86,7 +86,7 @@ export default function DashboardSidebar() {
           {/* Logo */}
           <div className="flex items-center flex-shrink-0 px-4 py-5 border-b">
             <GraduationCap className="h-8 w-8 text-primary" />
-            <span className="ml-2 text-xl font-bold">Smart Academy</span>
+            <span className="ml-2 text-xl font-bold">SUPER PLACE</span>
           </div>
 
           {/* User Info */}
@@ -132,7 +132,7 @@ export default function DashboardSidebar() {
           {/* Bottom section */}
           <div className="flex-shrink-0 border-t p-4">
             <div className="text-xs text-gray-500">
-              © 2024 Smart Academy
+              © 2024 SUPER PLACE
             </div>
           </div>
         </div>
