@@ -9,29 +9,97 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User Model - 학원장과 학생 모두 포함
+// 학원 모델
+model Academy {
+  id              String    @id @default(cuid())
+  name            String    // 학원 이름
+  description     String?
+  address         String?
+  phone           String?
+  email           String?
+  logoUrl         String?
+  subscriptionPlan String   @default("FREE") // FREE, BASIC, PRO, ENTERPRISE
+  maxStudents     Int       @default(10)     // 요금제별 학생 수 제한
+  maxTeachers     Int       @default(2)      // 요금제별 선생님 수 제한
+  aiUsageLimit    Int       @default(100)    // 월별 AI 사용 횟수 제한
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  users           User[]
+  subscriptions   Subscription[]
+  aiUsages        AIUsage[]
+  
+  @@index([subscriptionPlan])
+}
+
+// 구독/요금제 이력
+model Subscription {
+  id              String    @id @default(cuid())
+  academyId       String
+  plan            String    // FREE, BASIC, PRO, ENTERPRISE
+  status          String    @default("ACTIVE") // ACTIVE, EXPIRED, CANCELLED
+  startDate       DateTime  @default(now())
+  endDate         DateTime?
+  price           Decimal   @default(0)
+  paymentMethod   String?
+  transactionId   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  academy         Academy   @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  
+  @@index([academyId, status])
+  @@index([endDate])
+}
+
+// AI 사용량 추적
+model AIUsage {
+  id              String    @id @default(cuid())
+  academyId       String
+  userId          String
+  model           String    @default("gemini-pro") // gemini-pro, gemini-pro-vision
+  promptTokens    Int       @default(0)
+  completionTokens Int      @default(0)
+  totalTokens     Int       @default(0)
+  request         String    @db.Text // 요청 내용
+  response        String?   @db.Text // 응답 내용
+  createdAt       DateTime  @default(now())
+  
+  academy         Academy   @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([academyId, createdAt])
+  @@index([userId, createdAt])
+}
+
+// User Model - 시스템 관리자, 학원장, 선생님, 학생
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
   name          String
   password      String
   phone         String?
-  role          String    @default("STUDENT") // DIRECTOR(학원장), TEACHER(선생님), STUDENT(학생)
+  role          String    @default("STUDENT") // SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT
+  academyId     String?   // 소속 학원 (SUPER_ADMIN은 null)
   grade         String?   // 학년 (학생용)
   class         String?   // 반 (학생용)
   studentId     String?   @unique // 학번 (학생용)
   parentPhone   String?   // 학부모 연락처 (학생용)
   emailVerified DateTime?
   image         String?
-  approved      Boolean   @default(false) // 학원장 승인 필요
+  approved      Boolean   @default(false) // 학원장/관리자 승인 필요
   approvedBy    String?
   approvedAt    DateTime?
   lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
+  academy       Academy?  @relation(fields: [academyId], references: [id], onDelete: SetNull)
   accounts      Account[]
   sessions      Session[]
+  aiUsages      AIUsage[]
   
   // 학생 관련 데이터
   learningProgress  LearningProgress[]
@@ -42,6 +110,10 @@ model User {
   // 선생님이 생성한 자료
   createdMaterials  LearningMaterial[] @relation("CreatedBy")
   createdAssignments Assignment[] @relation("AssignedBy")
+  
+  @@index([academyId])
+  @@index([role])
+  @@index([approved])
 }
 
 // NextAuth Models
@@ -83,6 +155,7 @@ model VerificationToken {
 // 학습 자료 관리
 model LearningMaterial {
   id            String      @id @default(cuid())
+  academyId     String      // 소속 학원
   title         String
   description   String?
   subject       String      // 과목 (수학, 영어, 과학 등)
@@ -90,7 +163,7 @@ model LearningMaterial {
   category      String      // 카테고리 (강의, 교재, 연습문제 등)
   contentType   String      // 콘텐츠 타입 (video, pdf, quiz, text)
   contentUrl    String?     // 파일/동영상 URL
-  content       String?     // 텍스트 콘텐츠
+  content       String?     @db.Text // 텍스트 콘텐츠
   duration      Int?        // 예상 학습 시간 (분)
   difficulty    String      @default("MEDIUM") // EASY, MEDIUM, HARD
   tags          String?     // JSON array
@@ -105,6 +178,7 @@ model LearningMaterial {
   progress      LearningProgress[]
   assignments   Assignment[]
   
+  @@index([academyId])
   @@index([subject, grade])
   @@index([createdById])
 }
@@ -198,8 +272,9 @@ model Attendance {
 // 공지사항
 model Notice {
   id            String      @id @default(cuid())
+  academyId     String?     // null이면 전체 공지
   title         String
-  content       String
+  content       String      @db.Text
   author        String
   category      String      @default("GENERAL") // GENERAL, IMPORTANT, EVENT
   isPinned      Boolean     @default(false)
@@ -208,6 +283,7 @@ model Notice {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   
+  @@index([academyId])
   @@index([publishedAt])
   @@index([category, isPinned])
 }
