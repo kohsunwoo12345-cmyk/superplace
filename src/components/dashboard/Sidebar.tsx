@@ -23,33 +23,12 @@ import {
   Link as LinkIcon,
   Calendar,
   FileStack,
+  Home,
 } from "lucide-react";
 
 const navigation = [
+  { name: "홈으로", href: "/", icon: Home },
   { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
-  { 
-    name: "마케팅 도구", 
-    href: "#", 
-    icon: Wrench, 
-    isSection: true,
-    children: [
-      { name: "네이버 키워드 분석", href: "/dashboard/tools/naver-keywords", icon: Search },
-      { name: "구글 트렌드 조회", href: "/dashboard/tools/google-trends", icon: BarChart3 },
-      { name: "랜딩페이지 생성", href: "/dashboard/tools/landing-page-generator", icon: Wand2 },
-      { name: "URL 단축기", href: "/dashboard/tools/url-shortener", icon: LinkIcon },
-    ]
-  },
-  { name: "콘텐츠 스케줄러", href: "/dashboard/scheduler", icon: Calendar },
-  { name: "템플릿 라이브러리", href: "/dashboard/templates", icon: FileStack },
-  { name: "네이버 블로그", href: "/dashboard/platforms/naver-blog", icon: MessageSquare },
-  { name: "네이버 플레이스", href: "/dashboard/platforms/naver-place", icon: MapPin },
-  { name: "인스타그램", href: "/dashboard/platforms/instagram", icon: Instagram },
-  { name: "유튜브", href: "/dashboard/platforms/youtube", icon: Youtube },
-  { name: "틱톡", href: "/dashboard/tiktok", icon: Zap },
-  { name: "당근마켓", href: "/dashboard/karrot", icon: ShoppingBag },
-  { name: "분석", href: "/dashboard/analytics", icon: BarChart3 },
-  { name: "리포트", href: "/dashboard/reports", icon: FileText },
-  { name: "구독 관리", href: "/dashboard/subscription", icon: CreditCard },
   { name: "관리자", href: "/dashboard/admin", icon: Users, adminOnly: true },
   { name: "설정", href: "/dashboard/settings", icon: Settings },
 ];
