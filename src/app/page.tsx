@@ -11,6 +11,53 @@ import {
   Target
 } from "lucide-react";
 
+// Helper Components
+function FeatureCard({ icon, title, description, color = "blue" }: { 
+  icon: React.ReactNode; 
+  title: string; 
+  description: string;
+  color?: string;
+}) {
+  const colorClasses = {
+    blue: "hover:border-blue-300 hover:shadow-blue-100",
+    purple: "hover:border-purple-300 hover:shadow-purple-100",
+    pink: "hover:border-pink-300 hover:shadow-pink-100",
+    indigo: "hover:border-indigo-300 hover:shadow-indigo-100",
+  };
+
+  return (
+    <div className={`p-8 border-2 rounded-2xl hover:shadow-xl transition-all duration-300 bg-white ${colorClasses[color as keyof typeof colorClasses]}`}>
+      <div className="mb-4">{icon}</div>
+      <h3 className="text-xl font-bold mb-3">{title}</h3>
+      <p className="text-gray-600 leading-relaxed">{description}</p>
+    </div>
+  );
+}
+
+function BenefitItem({ text, color = "blue" }: { text: string; color?: string }) {
+  const colorClasses = {
+    blue: "text-blue-600",
+    purple: "text-purple-600",
+  };
+
+  return (
+    <li className="flex items-start gap-3">
+      <svg
+        className={`h-6 w-6 ${colorClasses[color as keyof typeof colorClasses]} mt-0.5 flex-shrink-0`}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2.5"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path d="M5 13l4 4L19 7"></path>
+      </svg>
+      <span className="text-gray-700 font-medium">{text}</span>
+    </li>
+  );
+}
+
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
@@ -320,51 +367,5 @@ export default function Home() {
         </div>
       </footer>
     </div>
-  );
-}
-
-function FeatureCard({ icon, title, description, color = "blue" }: { 
-  icon: React.ReactNode; 
-  title: string; 
-  description: string;
-  color?: string;
-}) {
-  const colorClasses = {
-    blue: "hover:border-blue-300 hover:shadow-blue-100",
-    purple: "hover:border-purple-300 hover:shadow-purple-100",
-    pink: "hover:border-pink-300 hover:shadow-pink-100",
-    indigo: "hover:border-indigo-300 hover:shadow-indigo-100",
-  };
-
-  return (
-    <div className={`p-8 border-2 rounded-2xl hover:shadow-xl transition-all duration-300 bg-white ${colorClasses[color as keyof typeof colorClasses]}`}>
-      <div className="mb-4">{icon}</div>
-      <h3 className="text-xl font-bold mb-3">{title}</h3>
-      <p className="text-gray-600 leading-relaxed">{description}</p>
-    </div>
-  );
-}
-
-function BenefitItem({ text, color = "blue" }: { text: string; color?: string }) {
-  const colorClasses = {
-    blue: "text-blue-600",
-    purple: "text-purple-600",
-  };
-
-  return (
-    <li className="flex items-start gap-3">
-      <svg
-        className={`h-6 w-6 ${colorClasses[color as keyof typeof colorClasses]} mt-0.5 flex-shrink-0`}
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2.5"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path d="M5 13l4 4L19 7"></path>
-      </svg>
-      <span className="text-gray-700 font-medium">{text}</span>
-    </li>
   );
 }
