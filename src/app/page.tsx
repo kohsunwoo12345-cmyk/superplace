@@ -10,10 +10,12 @@ import {
   BarChart3,
   Clock,
   FileText,
-  Target
+  Target,
+  ChevronDown
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 // Helper Components
 function FeatureCard({ icon, title, description, color = "blue" }: { 
@@ -65,6 +67,17 @@ function BenefitItem({ text, color = "blue" }: { text: string; color?: string })
 export default function Home() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [scrollY, setScrollY] = useState(0);
+
+  // Scroll animation
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // If user is logged in, redirect to dashboard
   if (status === "authenticated" && session) {
@@ -73,6 +86,26 @@ export default function Home() {
   }
 
   const isLoggedIn = status === "authenticated";
+
+  // Dropdown menu data
+  const featuresMenu = [
+    { name: "디지털 학습 자료", href: "#features" },
+    { name: "학습 진도 관리", href: "#features" },
+    { name: "과제 제출 시스템", href: "#features" },
+    { name: "성적 분석", href: "#features" },
+  ];
+
+  const benefitsMenu = [
+    { name: "학생을 위한", href: "#benefits" },
+    { name: "학원장을 위한", href: "#benefits" },
+    { name: "선생님을 위한", href: "#benefits" },
+  ];
+
+  const aboutMenu = [
+    { name: "학원 소개", href: "#about" },
+    { name: "문의하기", href: "#contact" },
+    { name: "도움말", href: "#help" },
+  ];
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -86,15 +119,68 @@ export default function Home() {
             </span>
           </div>
           <nav className="hidden md:flex items-center space-x-6">
-            <Link href="#features" className="text-sm font-medium hover:text-primary transition-colors">
-              기능 소개
-            </Link>
-            <Link href="#benefits" className="text-sm font-medium hover:text-primary transition-colors">
-              학습 효과
-            </Link>
-            <Link href="#about" className="text-sm font-medium hover:text-primary transition-colors">
-              학원 소개
-            </Link>
+            {/* 기능 소개 드롭다운 */}
+            <div className="relative group">
+              <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
+                기능 소개
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                {featuresMenu.map((item, index) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`block px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors ${
+                      index === 0 ? "rounded-t-lg" : ""
+                    } ${index === featuresMenu.length - 1 ? "rounded-b-lg" : ""}`}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* 학습 효과 드롭다운 */}
+            <div className="relative group">
+              <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
+                학습 효과
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                {benefitsMenu.map((item, index) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors ${
+                      index === 0 ? "rounded-t-lg" : ""
+                    } ${index === benefitsMenu.length - 1 ? "rounded-b-lg" : ""}`}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* 학원 소개 드롭다운 */}
+            <div className="relative group">
+              <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
+                학원 소개
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                {aboutMenu.map((item, index) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`block px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors ${
+                      index === 0 ? "rounded-t-lg" : ""
+                    } ${index === aboutMenu.length - 1 ? "rounded-b-lg" : ""}`}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
           </nav>
           {!isLoggedIn && (
             <div className="flex items-center space-x-2">
@@ -132,8 +218,14 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-4 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-        <div className="container mx-auto text-center">
+      <section className="py-20 px-4 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 overflow-hidden">
+        <div 
+          className="container mx-auto text-center transition-all duration-1000"
+          style={{
+            opacity: Math.min(1, 1 - scrollY / 500),
+            transform: `translateY(${scrollY * 0.3}px)`
+          }}
+        >
           <div className="inline-block mb-4 px-4 py-2 bg-blue-100 rounded-full">
             <span className="text-sm font-semibold text-blue-700">🎓 스마트 학습 관리 시스템</span>
           </div>
@@ -186,9 +278,15 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-4 bg-white">
+      <section id="features" className="py-20 px-4 bg-white overflow-hidden">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
+          <div 
+            className="text-center mb-16 transition-all duration-1000"
+            style={{
+              opacity: scrollY > 200 ? 1 : 0,
+              transform: `translateY(${scrollY > 200 ? 0 : 50}px)`
+            }}
+          >
             <h2 className="text-4xl font-bold mb-4">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
                 핵심 기능
@@ -196,7 +294,13 @@ export default function Home() {
             </h2>
             <p className="text-gray-600 text-lg">학습 효율을 극대화하는 스마트 기능들</p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div 
+            className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 transition-all duration-1000"
+            style={{
+              opacity: scrollY > 300 ? 1 : 0,
+              transform: `translateY(${scrollY > 300 ? 0 : 50}px)`
+            }}
+          >
             <FeatureCard
               icon={<BookOpen className="h-12 w-12 text-blue-600" />}
               title="디지털 학습 자료"
@@ -226,9 +330,15 @@ export default function Home() {
       </section>
 
       {/* Benefits Section for Students */}
-      <section id="benefits" className="py-20 px-4 bg-gradient-to-br from-blue-50 to-purple-50">
+      <section id="benefits" className="py-20 px-4 bg-gradient-to-br from-blue-50 to-purple-50 overflow-hidden">
         <div className="container mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div 
+            className="grid md:grid-cols-2 gap-12 items-center transition-all duration-1000"
+            style={{
+              opacity: scrollY > 600 ? 1 : 0,
+              transform: `translateY(${scrollY > 600 ? 0 : 50}px)`
+            }}
+          >
             <div>
               <div className="inline-block mb-4 px-4 py-2 bg-blue-100 rounded-full">
                 <span className="text-sm font-semibold text-blue-700">👨‍🎓 학생을 위한</span>
@@ -280,9 +390,15 @@ export default function Home() {
       </section>
 
       {/* Benefits Section for Directors */}
-      <section className="py-20 px-4 bg-white">
+      <section className="py-20 px-4 bg-white overflow-hidden">
         <div className="container mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div 
+            className="grid md:grid-cols-2 gap-12 items-center transition-all duration-1000"
+            style={{
+              opacity: scrollY > 1200 ? 1 : 0,
+              transform: `translateY(${scrollY > 1200 ? 0 : 50}px)`
+            }}
+          >
             <div className="order-2 md:order-1 bg-gradient-to-br from-purple-100 to-pink-100 rounded-3xl p-8 shadow-xl">
               <div className="bg-white rounded-2xl p-8 space-y-6">
                 <div className="flex items-center gap-4 p-4 bg-purple-50 rounded-xl">
