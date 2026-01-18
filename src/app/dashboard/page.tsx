@@ -1,250 +1,421 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  TrendingUp,
-  TrendingDown,
+  BookOpen,
   Users,
-  Eye,
-  Heart,
-  MessageCircle,
-  ArrowUpRight,
-  Plus,
-  Sparkles,
-  Lightbulb,
+  FileText,
+  Award,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  TrendingUp,
+  Calendar,
+  Target,
+  BarChart3,
+  GraduationCap,
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const [aiInsights, setAiInsights] = useState<string[]>([]);
-  const [loadingInsights, setLoadingInsights] = useState(false);
+  const { data: session } = useSession();
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    totalMaterials: 0,
+    totalAssignments: 0,
+    completionRate: 0,
+  });
 
-  useEffect(() => {
-    loadAIInsights();
-  }, []);
+  const isDirector = session?.user?.role === "DIRECTOR";
+  const isTeacher = session?.user?.role === "TEACHER";
+  const isStudent = session?.user?.role === "STUDENT";
 
-  const loadAIInsights = async () => {
-    setLoadingInsights(true);
-    try {
-      const response = await fetch("/api/analytics/insights", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          platform: "all",
-          timeframe: "7days",
-          metrics: {
-            총조회수: 124582,
-            총참여도: 8432,
-            댓글리뷰: 1234,
-            신규팔로워: 892,
-          },
-        }),
-      });
+  // Director Dashboard
+  if (isDirector || isTeacher) {
+    return (
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <GraduationCap className="h-8 w-8 text-primary" />
+              학원장 대시보드
+            </h1>
+            <p className="text-gray-600 mt-1">
+              학원 운영 현황을 한눈에 확인하세요
+            </p>
+          </div>
+          <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
+            <Users className="h-4 w-4 mr-2" />
+            학생 추가
+          </Button>
+        </div>
 
-      if (response.ok) {
-        const data = await response.json();
-        setAiInsights([...data.insights, ...data.recommendations].slice(0, 4));
-      }
-    } catch (error) {
-      console.error("Failed to load AI insights:", error);
-    } finally {
-      setLoadingInsights(false);
-    }
-  };
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                전체 학생
+              </CardTitle>
+              <Users className="h-5 w-5 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-blue-600">128명</div>
+              <div className="flex items-center text-sm mt-2">
+                <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+                <span className="text-green-500">+8명</span>
+                <span className="text-gray-500 ml-1">이번 달</span>
+              </div>
+            </CardContent>
+          </Card>
 
-  // Mock data - in production, this would come from your API
-  const stats = [
-    {
-      title: "총 조회수",
-      value: "124,582",
-      change: "+12.5%",
-      trend: "up",
-      icon: Eye,
-    },
-    {
-      title: "총 참여도",
-      value: "8,432",
-      change: "+8.2%",
-      trend: "up",
-      icon: Heart,
-    },
-    {
-      title: "댓글/리뷰",
-      value: "1,234",
-      change: "+23.1%",
-      trend: "up",
-      icon: MessageCircle,
-    },
-    {
-      title: "신규 팔로워",
-      value: "892",
-      change: "-4.3%",
-      trend: "down",
-      icon: Users,
-    },
-  ];
+          <Card className="border-2 border-purple-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                학습 자료
+              </CardTitle>
+              <BookOpen className="h-5 w-5 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-purple-600">342개</div>
+              <div className="flex items-center text-sm mt-2">
+                <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+                <span className="text-green-500">+12개</span>
+                <span className="text-gray-500 ml-1">이번 주</span>
+              </div>
+            </CardContent>
+          </Card>
 
-  const platforms = [
-    {
-      name: "네이버 블로그",
-      posts: 15,
-      views: 45200,
-      engagement: 1234,
-      connected: true,
-    },
-    {
-      name: "네이버 플레이스",
-      reviews: 89,
-      rating: 4.8,
-      views: 12340,
-      connected: true,
-    },
-    {
-      name: "인스타그램",
-      posts: 42,
-      followers: 8520,
-      engagement: 2341,
-      connected: false,
-    },
-    {
-      name: "유튜브",
-      videos: 23,
-      views: 156700,
-      subscribers: 3450,
-      connected: true,
-    },
-    {
-      name: "틱톡",
-      videos: 18,
-      views: 234500,
-      likes: 45600,
-      connected: false,
-    },
-    {
-      name: "당근마켓",
-      products: 12,
-      views: 8900,
-      chats: 234,
-      connected: true,
-    },
-  ];
+          <Card className="border-2 border-pink-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                진행 중 과제
+              </CardTitle>
+              <FileText className="h-5 w-5 text-pink-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-pink-600">45건</div>
+              <div className="flex items-center text-sm mt-2">
+                <AlertCircle className="h-4 w-4 text-orange-500 mr-1" />
+                <span className="text-orange-500">미제출 3건</span>
+              </div>
+            </CardContent>
+          </Card>
 
-  const recentActivity = [
-    {
-      platform: "네이버 블로그",
-      action: "새 게시글 발행",
-      title: "2024년 마케팅 트렌드 분석",
-      time: "5분 전",
-    },
-    {
-      platform: "인스타그램",
-      action: "댓글 작성됨",
-      title: "새로운 제품 출시 공지",
-      time: "1시간 전",
-    },
-    {
-      platform: "유튜브",
-      action: "새 영상 업로드",
-      title: "브랜드 소개 영상",
-      time: "3시간 전",
-    },
-    {
-      platform: "네이버 플레이스",
-      action: "새 리뷰 등록",
-      title: "★★★★★ 매우 만족합니다",
-      time: "5시간 전",
-    },
-  ];
+          <Card className="border-2 border-green-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                평균 출석률
+              </CardTitle>
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-600">96%</div>
+              <div className="flex items-center text-sm mt-2">
+                <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+                <span className="text-green-500">+2%</span>
+                <span className="text-gray-500 ml-1">지난 달 대비</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Students */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-blue-600" />
+                최근 등록 학생
+              </CardTitle>
+              <CardDescription>최근 7일 내 가입한 학생 목록</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[
+                  { name: "김민준", grade: "고2", date: "2일 전", class: "A반" },
+                  { name: "이서연", grade: "고1", date: "3일 전", class: "B반" },
+                  { name: "박지호", grade: "중3", date: "5일 전", class: "C반" },
+                  { name: "최유나", grade: "고3", date: "6일 전", class: "특반" },
+                ].map((student, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="font-semibold text-blue-600">
+                          {student.name[0]}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{student.name}</p>
+                        <p className="text-sm text-gray-600">
+                          {student.grade} · {student.class}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm text-gray-500">{student.date}</span>
+                  </div>
+                ))}
+              </div>
+              <Button variant="outline" className="w-full mt-4">
+                전체 학생 보기
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Pending Assignments */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-orange-600" />
+                검토 대기 과제
+              </CardTitle>
+              <CardDescription>채점이 필요한 과제 목록</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[
+                  { student: "김민준", subject: "수학", assignment: "2차 방정식 연습", date: "1시간 전" },
+                  { student: "이서연", subject: "영어", assignment: "독해 문제 풀이", date: "3시간 전" },
+                  { student: "박지호", subject: "과학", assignment: "화학 실험 보고서", date: "5시간 전" },
+                  { student: "최유나", subject: "국어", assignment: "문학 작품 분석", date: "1일 전" },
+                ].map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-orange-50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-orange-600">
+                          {item.subject}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {item.date}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium mt-1">{item.assignment}</p>
+                      <p className="text-xs text-gray-600 mt-1">제출: {item.student}</p>
+                    </div>
+                    <Button size="sm" variant="outline">
+                      검토
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button variant="outline" className="w-full mt-4">
+                전체 과제 보기
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Learning Progress Overview */}
+        <Card className="border-2 border-purple-100">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-purple-600" />
+              학습 진도 현황
+            </CardTitle>
+            <CardDescription>과목별 평균 학습 진도율</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[
+                { subject: "수학", progress: 87, color: "blue" },
+                { subject: "영어", progress: 92, color: "green" },
+                { subject: "과학", progress: 78, color: "purple" },
+                { subject: "국어", progress: 85, color: "pink" },
+              ].map((item) => (
+                <div key={item.subject}>
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium">{item.subject}</span>
+                    <span className="text-sm text-gray-600">{item.progress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div
+                      className={`bg-${item.color}-600 h-3 rounded-full transition-all duration-500`}
+                      style={{ width: `${item.progress}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>빠른 실행</CardTitle>
+            <CardDescription>자주 사용하는 기능</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-blue-50">
+                <Users className="h-6 w-6 text-blue-600" />
+                <span>학생 관리</span>
+              </Button>
+              <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-purple-50">
+                <BookOpen className="h-6 w-6 text-purple-600" />
+                <span>학습 자료</span>
+              </Button>
+              <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-pink-50">
+                <FileText className="h-6 w-6 text-pink-600" />
+                <span>과제 관리</span>
+              </Button>
+              <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-green-50">
+                <BarChart3 className="h-6 w-6 text-green-600" />
+                <span>성적 분석</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Student Dashboard
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">대시보드</h1>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <BookOpen className="h-8 w-8 text-primary" />
+            안녕하세요, {session?.user?.name || "학생"}님! 👋
+          </h1>
           <p className="text-gray-600 mt-1">
-            모든 플랫폼의 통합 성과를 확인하세요
+            오늘도 열심히 공부해봐요!
           </p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          플랫폼 연결
+        <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
+          <BookOpen className="h-4 w-4 mr-2" />
+          학습 시작
         </Button>
       </div>
 
-      {/* Stats Cards */}
+      {/* Student Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <div className="flex items-center text-sm mt-1">
-                {stat.trend === "up" ? (
-                  <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-red-500 mr-1" />
-                )}
-                <span
-                  className={
-                    stat.trend === "up" ? "text-green-500" : "text-red-500"
-                  }
-                >
-                  {stat.change}
-                </span>
-                <span className="text-gray-500 ml-1">지난 주 대비</span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Platform Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>플랫폼 현황</CardTitle>
-            <CardDescription>연결된 플랫폼의 주요 지표</CardDescription>
+        <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              오늘의 학습
+            </CardTitle>
+            <Clock className="h-5 w-5 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {platforms.map((platform) => (
+            <div className="text-3xl font-bold text-blue-600">2시간 30분</div>
+            <div className="flex items-center text-sm mt-2">
+              <Target className="h-4 w-4 text-green-500 mr-1" />
+              <span className="text-green-500">목표 달성!</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-purple-100 hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              완료한 강의
+            </CardTitle>
+            <CheckCircle className="h-5 w-5 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-purple-600">15개</div>
+            <div className="flex items-center text-sm mt-2">
+              <span className="text-gray-500">전체 42개 중</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-pink-100 hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              제출할 과제
+            </CardTitle>
+            <FileText className="h-5 w-5 text-pink-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-pink-600">3개</div>
+            <div className="flex items-center text-sm mt-2">
+              <AlertCircle className="h-4 w-4 text-orange-500 mr-1" />
+              <span className="text-orange-500">마감 임박 1개</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-green-100 hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              평균 점수
+            </CardTitle>
+            <Award className="h-5 w-5 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-green-600">87점</div>
+            <div className="flex items-center text-sm mt-2">
+              <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+              <span className="text-green-500">+5점 상승</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content for Students */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Today's Schedule */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-blue-600" />
+              오늘의 학습 일정
+            </CardTitle>
+            <CardDescription>2024년 1월 18일</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[
+                { time: "14:00", subject: "수학", topic: "이차함수의 최대최소", status: "completed" },
+                { time: "15:00", subject: "영어", topic: "문법 - 관계대명사", status: "in-progress" },
+                { time: "16:00", subject: "과학", topic: "화학반응식", status: "pending" },
+                { time: "17:00", subject: "국어", topic: "현대시 감상", status: "pending" },
+              ].map((item, index) => (
                 <div
-                  key={platform.name}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                  key={index}
+                  className={`flex items-center gap-3 p-3 border rounded-lg ${
+                    item.status === "completed" ? "bg-green-50 border-green-200" :
+                    item.status === "in-progress" ? "bg-blue-50 border-blue-200" :
+                    "hover:bg-gray-50"
+                  }`}
                 >
+                  <div className="text-center min-w-[60px]">
+                    <div className="text-sm font-semibold text-gray-600">{item.time}</div>
+                  </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{platform.name}</span>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${
-                          platform.connected
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {platform.connected ? "연결됨" : "미연결"}
+                      <span className="text-sm font-semibold text-blue-600">
+                        {item.subject}
                       </span>
+                      {item.status === "completed" && (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      )}
+                      {item.status === "in-progress" && (
+                        <Clock className="h-4 w-4 text-blue-600" />
+                      )}
                     </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      {Object.entries(platform)
-                        .filter(
-                          ([key]) =>
-                            key !== "name" && key !== "connected"
-                        )
-                        .slice(0, 2)
-                        .map(([key, value]) => `${key}: ${value}`)
-                        .join(" • ")}
-                    </div>
+                    <p className="text-sm text-gray-600 mt-1">{item.topic}</p>
                   </div>
-                  <Button variant="ghost" size="sm">
-                    <ArrowUpRight className="h-4 w-4" />
+                  <Button 
+                    size="sm" 
+                    variant={item.status === "completed" ? "outline" : "default"}
+                    disabled={item.status === "completed"}
+                  >
+                    {item.status === "completed" ? "완료" : "시작"}
                   </Button>
                 </div>
               ))}
@@ -252,36 +423,46 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
+        {/* Pending Assignments */}
         <Card>
           <CardHeader>
-            <CardTitle>최근 활동</CardTitle>
-            <CardDescription>실시간 플랫폼 활동 내역</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-pink-600" />
+              제출할 과제
+            </CardTitle>
+            <CardDescription>마감일이 다가오는 순서</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
+            <div className="space-y-3">
+              {[
+                { subject: "수학", title: "미적분 연습문제", dueDate: "오늘", status: "urgent" },
+                { subject: "영어", title: "문법 workbook", dueDate: "내일", status: "normal" },
+                { subject: "과학", title: "실험 보고서", dueDate: "3일 후", status: "normal" },
+                { subject: "국어", title: "독서 감상문", dueDate: "5일 후", status: "normal" },
+              ].map((item, index) => (
                 <div
                   key={index}
-                  className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50"
+                  className={`flex items-center justify-between p-3 border rounded-lg ${
+                    item.status === "urgent" ? "bg-red-50 border-red-200" : "hover:bg-gray-50"
+                  }`}
                 >
-                  <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-primary">
-                        {activity.platform}
+                      <span className="text-sm font-semibold text-purple-600">
+                        {item.subject}
                       </span>
-                      <span className="text-xs text-gray-500">
-                        {activity.time}
-                      </span>
+                      {item.status === "urgent" && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                          긴급
+                        </span>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-600 mt-0.5">
-                      {activity.action}
-                    </p>
-                    <p className="text-sm font-medium mt-1">
-                      {activity.title}
-                    </p>
+                    <p className="text-sm font-medium mt-1">{item.title}</p>
+                    <p className="text-xs text-gray-600 mt-1">마감: {item.dueDate}</p>
                   </div>
+                  <Button size="sm" variant="outline">
+                    제출
+                  </Button>
                 </div>
               ))}
             </div>
@@ -289,80 +470,65 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* AI Insights */}
-      <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
+      {/* Learning Progress */}
+      <Card className="border-2 border-purple-100">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-purple-600" />
-                AI 인사이트
-              </CardTitle>
-              <CardDescription>
-                AI가 분석한 마케팅 성과와 추천사항
-              </CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadAIInsights}
-              disabled={loadingInsights}
-            >
-              새로고침
-            </Button>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-purple-600" />
+            나의 학습 진도
+          </CardTitle>
+          <CardDescription>과목별 학습 완료율</CardDescription>
         </CardHeader>
         <CardContent>
-          {loadingInsights ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
-              <p className="text-sm text-muted-foreground mt-2">AI가 데이터를 분석하는 중...</p>
-            </div>
-          ) : aiInsights.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {aiInsights.map((insight, i) => (
-                <div
-                  key={i}
-                  className="bg-white border border-purple-100 rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start gap-3">
-                    <Lightbulb className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm">{insight}</p>
-                  </div>
+          <div className="space-y-4">
+            {[
+              { subject: "수학", progress: 85, total: 42, completed: 36 },
+              { subject: "영어", progress: 92, total: 38, completed: 35 },
+              { subject: "과학", progress: 78, total: 45, completed: 35 },
+              { subject: "국어", progress: 88, total: 40, completed: 35 },
+            ].map((item) => (
+              <div key={item.subject}>
+                <div className="flex justify-between mb-2">
+                  <span className="font-medium">{item.subject}</span>
+                  <span className="text-sm text-gray-600">
+                    {item.completed}/{item.total} 완료 ({item.progress}%)
+                  </span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-4">
-              AI 인사이트를 불러오는 중입니다...
-            </p>
-          )}
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500"
+                    style={{ width: `${item.progress}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>빠른 시작</CardTitle>
-          <CardDescription>자주 사용하는 기능에 빠르게 접근하세요</CardDescription>
+          <CardTitle>빠른 실행</CardTitle>
+          <CardDescription>자주 사용하는 기능</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-24 flex flex-col gap-2">
-              <Plus className="h-6 w-6" />
-              <span>플랫폼 연결</span>
+            <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-blue-50">
+              <BookOpen className="h-6 w-6 text-blue-600" />
+              <span>학습 자료</span>
             </Button>
-            <Button variant="outline" className="h-24 flex flex-col gap-2">
-              <MessageCircle className="h-6 w-6" />
-              <span>댓글 관리</span>
+            <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-purple-50">
+              <FileText className="h-6 w-6 text-purple-600" />
+              <span>과제 제출</span>
             </Button>
-            <Button variant="outline" className="h-24 flex flex-col gap-2">
-              <TrendingUp className="h-6 w-6" />
-              <span>분석 보기</span>
+            <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-pink-50">
+              <Award className="h-6 w-6 text-pink-600" />
+              <span>성적 조회</span>
             </Button>
-            <Button variant="outline" className="h-24 flex flex-col gap-2">
-              <Eye className="h-6 w-6" />
-              <span>리포트 생성</span>
+            <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-green-50">
+              <Calendar className="h-6 w-6 text-green-600" />
+              <span>출석 확인</span>
             </Button>
           </div>
         </CardContent>

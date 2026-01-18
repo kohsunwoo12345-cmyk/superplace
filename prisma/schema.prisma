@@ -1,4 +1,4 @@
-// Prisma Schema for SUPER PLACE Marketing Platform
+// Prisma Schema for Academy Learning Management System
 
 generator client {
   provider = "prisma-client-js"
@@ -9,38 +9,39 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-// User Model
+// User Model - 학원장과 학생 모두 포함
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
-  name          String?
+  name          String
   password      String
   phone         String?
-  company       String?
-  role          String    @default("USER")
+  role          String    @default("STUDENT") // DIRECTOR(학원장), TEACHER(선생님), STUDENT(학생)
+  grade         String?   // 학년 (학생용)
+  class         String?   // 반 (학생용)
+  studentId     String?   @unique // 학번 (학생용)
+  parentPhone   String?   // 학부모 연락처 (학생용)
   emailVerified DateTime?
   image         String?
-  approved      Boolean   @default(false)
+  approved      Boolean   @default(false) // 학원장 승인 필요
   approvedBy    String?
   approvedAt    DateTime?
+  lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
   accounts      Account[]
   sessions      Session[]
-  subscriptions Subscription[]
-  payments      Payment[]
   
-  // Social Media Connections
-  naverBlog     NaverBlog[]
-  naverPlace    NaverPlace[]
-  instagram     Instagram[]
-  youtube       Youtube[]
-  tiktok        TikTok[]
-  karrot        Karrot[]
+  // 학생 관련 데이터
+  learningProgress  LearningProgress[]
+  assignments       Assignment[]
+  testScores        TestScore[]
+  attendances       Attendance[]
   
-  // Analytics
-  analytics     Analytics[]
+  // 선생님이 생성한 자료
+  createdMaterials  LearningMaterial[] @relation("CreatedBy")
+  createdAssignments Assignment[] @relation("AssignedBy")
 }
 
 // NextAuth Models
@@ -79,363 +80,134 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Subscription Model
-model Subscription {
-  id          String           @id @default(cuid())
-  userId      String
-  planType    String
-  status      String
-  startDate   DateTime         @default(now())
-  endDate     DateTime
-  autoRenew   Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+// 학습 자료 관리
+model LearningMaterial {
+  id            String      @id @default(cuid())
+  title         String
+  description   String?
+  subject       String      // 과목 (수학, 영어, 과학 등)
+  grade         String      // 학년
+  category      String      // 카테고리 (강의, 교재, 연습문제 등)
+  contentType   String      // 콘텐츠 타입 (video, pdf, quiz, text)
+  contentUrl    String?     // 파일/동영상 URL
+  content       String?     // 텍스트 콘텐츠
+  duration      Int?        // 예상 학습 시간 (분)
+  difficulty    String      @default("MEDIUM") // EASY, MEDIUM, HARD
+  tags          String?     // JSON array
+  viewCount     Int         @default(0)
+  isPublished   Boolean     @default(true)
+  order         Int         @default(0) // 순서
+  createdById   String
+  createdBy     User        @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
   
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payments    Payment[]
+  progress      LearningProgress[]
+  assignments   Assignment[]
+  
+  @@index([subject, grade])
+  @@index([createdById])
 }
 
-// Payment Model
-model Payment {
+// 학습 진도 관리
+model LearningProgress {
   id              String          @id @default(cuid())
   userId          String
-  subscriptionId  String
-  amount          Int
-  currency        String          @default("KRW")
-  status          String
-  paymentMethod   String
-  transactionId   String?
-  orderId         String          @unique
+  materialId      String
+  status          String          @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  progress        Int             @default(0) // 0-100%
+  timeSpent       Int             @default(0) // 학습 시간 (분)
+  lastAccessedAt  DateTime        @default(now())
+  completedAt     DateTime?
+  notes           String?         // 학생 메모
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscription    Subscription    @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  material        LearningMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, materialId])
+  @@index([userId, status])
 }
 
-// Social Media Platform Models
-
-// Naver Blog
-model NaverBlog {
+// 과제 관리
+model Assignment {
   id            String      @id @default(cuid())
-  userId        String
-  blogId        String
-  blogName      String
-  accessToken   String?
-  refreshToken  String?
-  connected     Boolean     @default(true)
-  lastSynced    DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  posts         BlogPost[]
-  
-  @@unique([userId, blogId])
-}
-
-model BlogPost {
-  id            String      @id @default(cuid())
-  naverBlogId   String
-  postId        String
-  title         String
-  content       String?
-  url           String
-  viewCount     Int         @default(0)
-  likeCount     Int         @default(0)
-  commentCount  Int         @default(0)
-  publishedAt   DateTime
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  naverBlog     NaverBlog   @relation(fields: [naverBlogId], references: [id], onDelete: Cascade)
-  
-  @@unique([naverBlogId, postId])
-}
-
-// Naver Place
-model NaverPlace {
-  id            String      @id @default(cuid())
-  userId        String
-  placeId       String
-  placeName     String
-  address       String?
-  category      String?
-  accessToken   String?
-  refreshToken  String?
-  connected     Boolean     @default(true)
-  lastSynced    DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reviews       PlaceReview[]
-  
-  @@unique([userId, placeId])
-}
-
-model PlaceReview {
-  id            String      @id @default(cuid())
-  naverPlaceId  String
-  reviewId      String
-  author        String
-  rating        Int
-  content       String?
-  reviewDate    DateTime
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  naverPlace    NaverPlace  @relation(fields: [naverPlaceId], references: [id], onDelete: Cascade)
-  
-  @@unique([naverPlaceId, reviewId])
-}
-
-// Instagram
-model Instagram {
-  id            String      @id @default(cuid())
-  userId        String
-  instagramId   String
-  username      String
-  accessToken   String?
-  refreshToken  String?
-  connected     Boolean     @default(true)
-  lastSynced    DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  posts         InstagramPost[]
-  
-  @@unique([userId, instagramId])
-}
-
-model InstagramPost {
-  id            String      @id @default(cuid())
-  instagramId   String
-  postId        String
-  caption       String?
-  mediaType     String
-  mediaUrl      String?
-  permalink     String
-  likeCount     Int         @default(0)
-  commentCount  Int         @default(0)
-  publishedAt   DateTime
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  instagram     Instagram   @relation(fields: [instagramId], references: [id], onDelete: Cascade)
-  
-  @@unique([instagramId, postId])
-}
-
-// YouTube
-model Youtube {
-  id            String      @id @default(cuid())
-  userId        String
-  channelId     String
-  channelName   String
-  accessToken   String?
-  refreshToken  String?
-  connected     Boolean     @default(true)
-  lastSynced    DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  videos        YoutubeVideo[]
-  
-  @@unique([userId, channelId])
-}
-
-model YoutubeVideo {
-  id            String      @id @default(cuid())
-  youtubeId     String
-  videoId       String
   title         String
   description   String?
-  thumbnailUrl  String?
-  viewCount     Int         @default(0)
-  likeCount     Int         @default(0)
-  commentCount  Int         @default(0)
-  publishedAt   DateTime
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  youtube       Youtube     @relation(fields: [youtubeId], references: [id], onDelete: Cascade)
-  
-  @@unique([youtubeId, videoId])
-}
-
-// TikTok
-model TikTok {
-  id            String      @id @default(cuid())
-  userId        String
-  tiktokId      String
-  username      String
-  accessToken   String?
-  refreshToken  String?
-  connected     Boolean     @default(true)
-  lastSynced    DateTime?
+  materialId    String?     // 연결된 학습 자료
+  userId        String      // 과제를 받은 학생
+  assignedById  String      // 과제를 부여한 선생님/학원장
+  subject       String
+  dueDate       DateTime
+  status        String      @default("PENDING") // PENDING, SUBMITTED, GRADED
+  submittedAt   DateTime?
+  submission    String?     // 제출 내용
+  score         Int?        // 점수
+  feedback      String?     // 피드백
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  videos        TikTokVideo[]
-  
-  @@unique([userId, tiktokId])
-}
-
-model TikTokVideo {
-  id            String      @id @default(cuid())
-  tiktokId      String
-  videoId       String
-  description   String?
-  coverUrl      String?
-  videoUrl      String?
-  viewCount     Int         @default(0)
-  likeCount     Int         @default(0)
-  commentCount  Int         @default(0)
-  shareCount    Int         @default(0)
-  publishedAt   DateTime
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  tiktok        TikTok      @relation(fields: [tiktokId], references: [id], onDelete: Cascade)
-  
-  @@unique([tiktokId, videoId])
-}
-
-// Karrot (당근마켓)
-model Karrot {
-  id            String      @id @default(cuid())
-  userId        String
-  karrotId      String
-  nickname      String
-  regionName    String?
-  accessToken   String?
-  refreshToken  String?
-  connected     Boolean     @default(true)
-  lastSynced    DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  products      KarrotProduct[]
-  
-  @@unique([userId, karrotId])
-}
-
-model KarrotProduct {
-  id            String      @id @default(cuid())
-  karrotId      String
-  productId     String
-  title         String
-  price         Int
-  description   String?
-  imageUrl      String?
-  status        String
-  viewCount     Int         @default(0)
-  chatCount     Int         @default(0)
-  likeCount     Int         @default(0)
-  publishedAt   DateTime
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  karrot        Karrot      @relation(fields: [karrotId], references: [id], onDelete: Cascade)
-  
-  @@unique([karrotId, productId])
-}
-
-// Analytics Model
-model Analytics {
-  id            String      @id @default(cuid())
-  userId        String
-  platform      String
-  date          DateTime
-  impressions   Int         @default(0)
-  reach         Int         @default(0)
-  engagement    Int         @default(0)
-  clicks        Int         @default(0)
-  conversions   Int         @default(0)
-  revenue       Float       @default(0)
-  metadata      String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, platform, date])
-}
-
-// Scheduled Post Model (콘텐츠 스케줄링)
-model ScheduledPost {
-  id            String      @id @default(cuid())
-  userId        String
-  platform      String      // "naver_blog", "instagram", "youtube", etc.
-  title         String?
-  content       String
-  mediaUrls     String?     // JSON array of media URLs
-  scheduledFor  DateTime    // 예약 시간
-  status        String      @default("PENDING") // PENDING, PUBLISHED, FAILED, CANCELLED
-  publishedAt   DateTime?
-  error         String?
-  metadata      String?     // Platform-specific data
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  assignedBy    User        @relation("AssignedBy", fields: [assignedById], references: [id])
+  material      LearningMaterial? @relation(fields: [materialId], references: [id], onDelete: SetNull)
   
   @@index([userId, status])
-  @@index([scheduledFor])
+  @@index([dueDate])
 }
 
-// Content Template Model (템플릿 라이브러리)
-model ContentTemplate {
+// 시험 점수 관리
+model TestScore {
   id            String      @id @default(cuid())
   userId        String
-  name          String
-  category      String      // "social", "blog", "email", etc.
-  platform      String?     // Platform-specific template
-  title         String?
+  subject       String
+  testName      String
+  testDate      DateTime
+  score         Int
+  maxScore      Int         @default(100)
+  grade         String?     // 등급
+  rank          Int?        // 석차
+  totalStudents Int?        // 응시 인원
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, testDate])
+  @@index([subject])
+}
+
+// 출석 관리
+model Attendance {
+  id            String      @id @default(cuid())
+  userId        String
+  date          DateTime
+  status        String      // PRESENT(출석), ABSENT(결석), LATE(지각), EXCUSED(조퇴)
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+  @@index([date])
+  @@index([userId, status])
+}
+
+// 공지사항
+model Notice {
+  id            String      @id @default(cuid())
+  title         String
   content       String
-  thumbnail     String?
-  tags          String?     // JSON array
-  timesUsed     Int         @default(0)
-  isPublic      Boolean     @default(false)
+  author        String
+  category      String      @default("GENERAL") // GENERAL, IMPORTANT, EVENT
+  isPinned      Boolean     @default(false)
+  viewCount     Int         @default(0)
+  publishedAt   DateTime    @default(now())
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   
-  @@index([userId, category])
-}
-
-// URL Shortener Model (URL 단축 및 트래킹)
-model ShortUrl {
-  id            String      @id @default(cuid())
-  userId        String
-  shortCode     String      @unique
-  originalUrl   String
-  title         String?
-  clickCount    Int         @default(0)
-  lastClickedAt DateTime?
-  expiresAt     DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  clicks        UrlClick[]
-  
-  @@index([userId])
-  @@index([shortCode])
-}
-
-model UrlClick {
-  id            String      @id @default(cuid())
-  shortUrlId    String
-  ipAddress     String?
-  userAgent     String?
-  referer       String?
-  country       String?
-  city          String?
-  clickedAt     DateTime    @default(now())
-  
-  shortUrl      ShortUrl    @relation(fields: [shortUrlId], references: [id], onDelete: Cascade)
-  
-  @@index([shortUrlId, clickedAt])
+  @@index([publishedAt])
+  @@index([category, isPinned])
 }
