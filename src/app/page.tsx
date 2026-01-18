@@ -97,10 +97,23 @@ export default function Home() {
             </Link>
           </nav>
           {!isLoggedIn && (
-            <div className="flex items-center space-x-4">
-              <Link href="/login">
-                <Button variant="ghost">로그인</Button>
-              </Link>
+            <div className="flex items-center space-x-2">
+              <div className="relative group">
+                <Button variant="ghost" className="group-hover:bg-gray-100">
+                  로그인
+                </Button>
+                {/* Dropdown menu */}
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <Link href="/login/director" className="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-t-lg transition-colors">
+                    <Users className="inline-block w-4 h-4 mr-2" />
+                    학원장 / 선생님
+                  </Link>
+                  <Link href="/login/student" className="block px-4 py-3 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-b-lg transition-colors">
+                    <GraduationCap className="inline-block w-4 h-4 mr-2" />
+                    학생
+                  </Link>
+                </div>
+              </div>
               <Link href="/register">
                 <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                   회원가입
@@ -135,14 +148,14 @@ export default function Home() {
           </p>
           {!isLoggedIn && (
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/register">
-                <Button size="lg" className="text-lg px-10 py-7 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all">
+              <Link href="/login/student">
+                <Button size="lg" className="text-lg px-10 py-7 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all">
                   <GraduationCap className="mr-2 h-5 w-5" />
-                  학습 시작하기
+                  학생 로그인
                 </Button>
               </Link>
-              <Link href="/login">
-                <Button size="lg" variant="outline" className="text-lg px-10 py-7 border-2 hover:bg-gray-50">
+              <Link href="/login/director">
+                <Button size="lg" variant="outline" className="text-lg px-10 py-7 border-2 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-all">
                   <Users className="mr-2 h-5 w-5" />
                   학원장 로그인
                 </Button>
@@ -332,13 +345,13 @@ export default function Home() {
               학생이든 학원장이든, 더 나은 학습 환경을 경험해보세요
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/register">
-                <Button size="lg" variant="secondary" className="text-lg px-10 py-7 bg-white text-purple-600 hover:bg-gray-100 shadow-xl">
+              <Link href="/login/student">
+                <Button size="lg" variant="secondary" className="text-lg px-10 py-7 bg-white text-green-600 hover:bg-gray-100 shadow-xl">
                   <GraduationCap className="mr-2 h-5 w-5" />
-                  학생으로 시작하기
+                  학생 로그인
                 </Button>
               </Link>
-              <Link href="/login">
+              <Link href="/login/director">
                 <Button size="lg" className="text-lg px-10 py-7 bg-white/20 hover:bg-white/30 backdrop-blur-sm border-2 border-white/50 shadow-xl">
                   <Users className="mr-2 h-5 w-5" />
                   학원장 로그인
