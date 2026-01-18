@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { 
@@ -10,6 +12,8 @@ import {
   FileText,
   Target
 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 // Helper Components
 function FeatureCard({ icon, title, description, color = "blue" }: { 
@@ -59,6 +63,17 @@ function BenefitItem({ text, color = "blue" }: { text: string; color?: string })
 }
 
 export default function Home() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // If user is logged in, redirect to dashboard
+  if (status === "authenticated" && session) {
+    router.push("/dashboard");
+    return null;
+  }
+
+  const isLoggedIn = status === "authenticated";
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
@@ -81,16 +96,25 @@ export default function Home() {
               학원 소개
             </Link>
           </nav>
-          <div className="flex items-center space-x-4">
-            <Link href="/login">
-              <Button variant="ghost">로그인</Button>
-            </Link>
-            <Link href="/register">
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                회원가입
-              </Button>
-            </Link>
-          </div>
+          {!isLoggedIn && (
+            <div className="flex items-center space-x-4">
+              <Link href="/login">
+                <Button variant="ghost">로그인</Button>
+              </Link>
+              <Link href="/register">
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                  회원가입
+                </Button>
+              </Link>
+            </div>
+          )}
+          {isLoggedIn && (
+            <div className="flex items-center space-x-4">
+              <Link href="/dashboard">
+                <Button>대시보드로 이동</Button>
+              </Link>
+            </div>
+          )}
         </div>
       </header>
 
@@ -109,20 +133,22 @@ export default function Home() {
             학원장님은 학생들을 효과적으로 관리하고,<br />
             학생들은 맞춤형 학습 자료로 실력을 향상시킬 수 있습니다
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/register">
-              <Button size="lg" className="text-lg px-10 py-7 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all">
-                <GraduationCap className="mr-2 h-5 w-5" />
-                학습 시작하기
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button size="lg" variant="outline" className="text-lg px-10 py-7 border-2 hover:bg-gray-50">
-                <Users className="mr-2 h-5 w-5" />
-                학원장 로그인
-              </Button>
-            </Link>
-          </div>
+          {!isLoggedIn && (
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/register">
+                <Button size="lg" className="text-lg px-10 py-7 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all">
+                  <GraduationCap className="mr-2 h-5 w-5" />
+                  학습 시작하기
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button size="lg" variant="outline" className="text-lg px-10 py-7 border-2 hover:bg-gray-50">
+                  <Users className="mr-2 h-5 w-5" />
+                  학원장 로그인
+                </Button>
+              </Link>
+            </div>
+          )}
           
           {/* Stats */}
           <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
@@ -295,31 +321,33 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 px-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-grid-white/10"></div>
-        <div className="container mx-auto text-center relative z-10">
-          <h2 className="text-5xl font-bold mb-6">
-            지금 바로 시작하세요
-          </h2>
-          <p className="text-xl mb-10 opacity-90 max-w-2xl mx-auto">
-            학생이든 학원장이든, 더 나은 학습 환경을 경험해보세요
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/register">
-              <Button size="lg" variant="secondary" className="text-lg px-10 py-7 bg-white text-purple-600 hover:bg-gray-100 shadow-xl">
-                <GraduationCap className="mr-2 h-5 w-5" />
-                학생으로 시작하기
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button size="lg" className="text-lg px-10 py-7 bg-white/20 hover:bg-white/30 backdrop-blur-sm border-2 border-white/50 shadow-xl">
-                <Users className="mr-2 h-5 w-5" />
-                학원장 로그인
-              </Button>
-            </Link>
+      {!isLoggedIn && (
+        <section className="py-24 px-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white relative overflow-hidden">
+          <div className="absolute inset-0 bg-grid-white/10"></div>
+          <div className="container mx-auto text-center relative z-10">
+            <h2 className="text-5xl font-bold mb-6">
+              지금 바로 시작하세요
+            </h2>
+            <p className="text-xl mb-10 opacity-90 max-w-2xl mx-auto">
+              학생이든 학원장이든, 더 나은 학습 환경을 경험해보세요
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/register">
+                <Button size="lg" variant="secondary" className="text-lg px-10 py-7 bg-white text-purple-600 hover:bg-gray-100 shadow-xl">
+                  <GraduationCap className="mr-2 h-5 w-5" />
+                  학생으로 시작하기
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button size="lg" className="text-lg px-10 py-7 bg-white/20 hover:bg-white/30 backdrop-blur-sm border-2 border-white/50 shadow-xl">
+                  <Users className="mr-2 h-5 w-5" />
+                  학원장 로그인
+                </Button>
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="border-t py-12 px-4 bg-gray-50">

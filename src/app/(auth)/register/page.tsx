@@ -7,12 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, GraduationCap, Users, BookOpen } from "lucide-react";
+
+type UserRole = 'DIRECTOR' | 'TEACHER' | 'STUDENT';
 
 export default function RegisterPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [role, setRole] = useState<UserRole>('STUDENT');
+  const [academyCode, setAcademyCode] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -25,7 +29,9 @@ export default function RegisterPage() {
       password: formData.get("password") as string,
       name: formData.get("name") as string,
       phone: formData.get("phone") as string,
-      company: formData.get("company") as string,
+      role: role,
+      academyName: role === 'DIRECTOR' ? formData.get("academyName") as string : undefined,
+      academyCode: (role === 'TEACHER' || role === 'STUDENT') ? academyCode : undefined,
     };
 
     // Password confirmation check
@@ -121,15 +127,83 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="company">회사명 (선택)</Label>
-                <Input
-                  id="company"
-                  name="company"
-                  type="text"
-                  placeholder="회사명"
-                  disabled={isLoading}
-                />
+                <Label>가입 유형</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRole('DIRECTOR')}
+                    disabled={isLoading}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      role === 'DIRECTOR'
+                        ? 'border-purple-600 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <Users className="h-6 w-6 mx-auto mb-2" />
+                    <div className="text-sm font-medium">학원장</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('TEACHER')}
+                    disabled={isLoading}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      role === 'TEACHER'
+                        ? 'border-blue-600 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <BookOpen className="h-6 w-6 mx-auto mb-2" />
+                    <div className="text-sm font-medium">선생님</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('STUDENT')}
+                    disabled={isLoading}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      role === 'STUDENT'
+                        ? 'border-green-600 bg-green-50 text-green-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <GraduationCap className="h-6 w-6 mx-auto mb-2" />
+                    <div className="text-sm font-medium">학생</div>
+                  </button>
+                </div>
               </div>
+
+              {role === 'DIRECTOR' && (
+                <div className="space-y-2">
+                  <Label htmlFor="academyName">학원 이름</Label>
+                  <Input
+                    id="academyName"
+                    name="academyName"
+                    type="text"
+                    placeholder="예: 명문 학원"
+                    required
+                    disabled={isLoading}
+                  />
+                  <p className="text-xs text-gray-500">학원을 생성하고 선생님과 학생을 초대할 수 있습니다.</p>
+                </div>
+              )}
+
+              {(role === 'TEACHER' || role === 'STUDENT') && (
+                <div className="space-y-2">
+                  <Label htmlFor="academyCode">학원 코드</Label>
+                  <Input
+                    id="academyCode"
+                    name="academyCode"
+                    type="text"
+                    placeholder="학원 코드를 입력하세요"
+                    value={academyCode}
+                    onChange={(e) => setAcademyCode(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                  <p className="text-xs text-gray-500">
+                    학원장님께 받은 학원 코드를 입력해주세요.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="password">비밀번호</Label>
