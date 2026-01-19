@@ -84,11 +84,13 @@ model User {
   role          String    @default("STUDENT") // SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT
   academyId     String?   // 소속 학원 (SUPER_ADMIN은 null)
   grade         String?   // 학년 (학생용)
-  class         String?   // 반 (학생용)
+  class         String?   // 반 (학생용) - deprecated, StudentClass 사용
   studentId     String?   @unique // 학번 (학생용)
   parentPhone   String?   // 학부모 연락처 (학생용)
   points        Int       @default(0) // 포인트
-  aiEnabled     Boolean   @default(false) // AI 봇 사용 권한
+  aiChatEnabled     Boolean @default(false) // AI 채팅 도우미
+  aiHomeworkEnabled Boolean @default(false) // AI 숙제 검사
+  aiStudyEnabled    Boolean @default(false) // AI 학습 도우미
   emailVerified DateTime?
   image         String?
   approved      Boolean   @default(false) // 학원장/관리자 승인 필요
@@ -109,6 +111,7 @@ model User {
   assignments       Assignment[]
   testScores        TestScore[]
   attendances       Attendance[]
+  enrolledClasses   StudentClass[]  // 수강 중인 수업
   
   // 선생님이 생성한 자료
   createdMaterials  LearningMaterial[] @relation("CreatedBy")
@@ -324,4 +327,61 @@ model PointHistory {
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId, createdAt])
+}
+
+// 수업 클래스 (반)
+model Class {
+  id            String      @id @default(cuid())
+  academyId     String
+  name          String      // 예: "중등 1학년 A반", "고등 수학 특강반"
+  grade         String?     // 학년 (초1, 중2, 고3 등)
+  description   String?
+  teacherId     String?     // 담당 선생님
+  capacity      Int         @default(20) // 정원
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  students      StudentClass[]
+  schedules     ClassSchedule[]
+  
+  @@index([academyId])
+  @@index([teacherId])
+}
+
+// 학생-수업 연결 (다대다)
+model StudentClass {
+  id            String      @id @default(cuid())
+  studentId     String
+  classId       String
+  enrolledAt    DateTime    @default(now())
+  status        String      @default("ACTIVE") // ACTIVE, COMPLETED, DROPPED
+  
+  student       User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class         Class       @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  @@unique([studentId, classId])
+  @@index([studentId])
+  @@index([classId])
+}
+
+// 수업 스케줄 (시간표)
+model ClassSchedule {
+  id            String      @id @default(cuid())
+  classId       String
+  subject       String      // 과목 (수학, 영어, 과학 등)
+  dayOfWeek     Int         // 0: 일요일, 1: 월요일, ..., 6: 토요일
+  startTime     String      // "09:00"
+  endTime       String      // "10:30"
+  room          String?     // 강의실
+  teacherId     String?     // 담당 선생님
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  class         Class       @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  @@index([classId])
+  @@index([dayOfWeek])
+  @@index([teacherId])
 }
