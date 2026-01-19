@@ -262,6 +262,7 @@ model TestScore {
 model Attendance {
   id            String      @id @default(cuid())
   userId        String
+  classId       String?     // 수업 ID (선택)
   date          DateTime
   status        String      // PRESENT(출석), ABSENT(결석), LATE(지각), EXCUSED(조퇴)
   notes         String?
@@ -269,9 +270,11 @@ model Attendance {
   updatedAt     DateTime    @updatedAt
   
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class         Class?      @relation(fields: [classId], references: [id], onDelete: SetNull)
   
-  @@unique([userId, date])
+  @@unique([userId, classId, date])
   @@index([date])
+  @@index([classId, date])
   @@index([userId, status])
 }
 
@@ -344,6 +347,7 @@ model Class {
   
   students      StudentClass[]
   schedules     ClassSchedule[]
+  attendances   Attendance[]
   
   @@index([academyId])
   @@index([teacherId])
