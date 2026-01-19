@@ -26,7 +26,6 @@ import {
 // 역할별 네비게이션 정의
 const navigationByRole = {
   SUPER_ADMIN: [
-    { name: "홈으로", href: "/", icon: Home },
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
     { name: "사용자 관리", href: "/dashboard/admin/users", icon: Users },
     { name: "학원 관리", href: "/dashboard/academies", icon: Building2 },
@@ -36,7 +35,6 @@ const navigationByRole = {
     { name: "시스템 설정", href: "/dashboard/settings", icon: Settings },
   ],
   DIRECTOR: [
-    { name: "홈으로", href: "/", icon: Home },
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
     { name: "선생님 관리", href: "/dashboard/teachers", icon: UserCheck },
     { name: "학생 관리", href: "/dashboard/students", icon: Users },
@@ -51,7 +49,6 @@ const navigationByRole = {
     { name: "내 설정", href: "/dashboard/settings", icon: Settings },
   ],
   TEACHER: [
-    { name: "홈으로", href: "/", icon: Home },
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
     { name: "학생 목록", href: "/dashboard/students", icon: Users },
     { name: "학습 자료", href: "/dashboard/materials", icon: BookOpen },
@@ -61,7 +58,6 @@ const navigationByRole = {
     { name: "내 설정", href: "/dashboard/settings", icon: Settings },
   ],
   STUDENT: [
-    { name: "홈으로", href: "/", icon: Home },
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
     { name: "내 학습", href: "/dashboard/my-learning", icon: GraduationCap },
     { name: "학습 자료", href: "/dashboard/materials", icon: BookOpen },
@@ -135,8 +131,15 @@ export default function DashboardSidebar() {
           </nav>
 
           {/* Bottom section */}
-          <div className="flex-shrink-0 border-t p-4">
-            <div className="text-xs text-gray-500">
+          <div className="flex-shrink-0 border-t p-4 space-y-3">
+            <Link
+              href="/"
+              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md transition-colors"
+            >
+              <Home className="mr-3 flex-shrink-0 h-5 w-5 text-gray-500" />
+              홈으로 나가기
+            </Link>
+            <div className="text-xs text-gray-500 px-3">
               © 2024 SUPER PLACE
             </div>
           </div>
