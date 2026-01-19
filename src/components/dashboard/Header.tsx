@@ -2,12 +2,14 @@
 
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   Bell,
   LogOut,
   Settings,
   User,
   ChevronDown,
+  Home,
 } from "lucide-react";
 
 interface User {
@@ -26,6 +28,14 @@ export default function DashboardHeader({ user }: { user: User }) {
 
           {/* Right section */}
           <div className="flex items-center gap-4">
+            {/* Home Button */}
+            <Link href="/">
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <Home className="h-4 w-4" />
+                <span className="hidden sm:inline">홈으로</span>
+              </Button>
+            </Link>
+
             {/* Notifications */}
             <button
               type="button"

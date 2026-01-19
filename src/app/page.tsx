@@ -79,12 +79,6 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // If user is logged in, redirect to dashboard
-  if (status === "authenticated" && session) {
-    router.push("/dashboard");
-    return null;
-  }
-
   const isLoggedIn = status === "authenticated";
 
   // Dropdown menu data
