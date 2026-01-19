@@ -184,17 +184,17 @@ export default function Home() {
                 </Button>
                 {/* Dropdown menu */}
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <Link href="/login/director" className="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-t-lg transition-colors">
+                  <Link href="/auth/signin" className="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-t-lg transition-colors">
                     <Users className="inline-block w-4 h-4 mr-2" />
                     학원장 / 선생님
                   </Link>
-                  <Link href="/login/student" className="block px-4 py-3 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-b-lg transition-colors">
+                  <Link href="/auth/signin" className="block px-4 py-3 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-b-lg transition-colors">
                     <GraduationCap className="inline-block w-4 h-4 mr-2" />
                     학생
                   </Link>
                 </div>
               </div>
-              <Link href="/register">
+              <Link href="/auth/signup">
                 <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                   회원가입
                 </Button>
@@ -234,13 +234,13 @@ export default function Home() {
           </p>
           {!isLoggedIn && (
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/login/student">
+              <Link href="/auth/signin">
                 <Button size="lg" className="text-lg px-10 py-7 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all">
                   <GraduationCap className="mr-2 h-5 w-5" />
                   학생 로그인
                 </Button>
               </Link>
-              <Link href="/login/director">
+              <Link href="/auth/signin">
                 <Button size="lg" variant="outline" className="text-lg px-10 py-7 border-2 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-all">
                   <Users className="mr-2 h-5 w-5" />
                   학원장 로그인
@@ -455,13 +455,13 @@ export default function Home() {
               학생이든 학원장이든, 더 나은 학습 환경을 경험해보세요
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/login/student">
+              <Link href="/auth/signin">
                 <Button size="lg" variant="secondary" className="text-lg px-10 py-7 bg-white text-green-600 hover:bg-gray-100 shadow-xl">
                   <GraduationCap className="mr-2 h-5 w-5" />
                   학생 로그인
                 </Button>
               </Link>
-              <Link href="/login/director">
+              <Link href="/auth/signin">
                 <Button size="lg" className="text-lg px-10 py-7 bg-white/20 hover:bg-white/30 backdrop-blur-sm border-2 border-white/50 shadow-xl">
                   <Users className="mr-2 h-5 w-5" />
                   학원장 로그인
@@ -498,7 +498,7 @@ export default function Home() {
             <div>
               <h3 className="font-semibold mb-4">학원장</h3>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li><Link href="/login">로그인</Link></li>
+                <li><Link href="/auth/signin">로그인</Link></li>
                 <li><Link href="#features">기능 소개</Link></li>
                 <li><Link href="#about">관리 시스템</Link></li>
               </ul>

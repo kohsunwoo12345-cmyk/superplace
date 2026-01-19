@@ -27,10 +27,10 @@ export default function AboutPage() {
             <Link href="/about" className="text-sm font-medium hover:text-primary">
               회사 소개
             </Link>
-            <Link href="/login">
+            <Link href="/auth/signin">
               <Button variant="ghost">로그인</Button>
             </Link>
-            <Link href="/register">
+            <Link href="/auth/signup">
               <Button>무료 시작하기</Button>
             </Link>
           </nav>
