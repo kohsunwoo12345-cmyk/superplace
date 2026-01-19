@@ -410,7 +410,7 @@ export default function StudentDetailPage() {
             <Bot className="w-4 h-4 mr-2" />
             AI 사용 내역
           </TabsTrigger>
-        </Tabs>
+        </TabsList>
 
         {/* 학습 진도 탭 */}
         <TabsContent value="progress" className="space-y-4">
