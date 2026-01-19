@@ -103,7 +103,7 @@ export default function Home() {
 
   const aboutMenu = [
     { name: "학원 소개", href: "#about" },
-    { name: "문의하기", href: "#contact" },
+    { name: "문의하기", href: "/contact" },
     { name: "도움말", href: "#help" },
   ];
 

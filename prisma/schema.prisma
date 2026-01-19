@@ -287,3 +287,22 @@ model Notice {
   @@index([publishedAt])
   @@index([category, isPinned])
 }
+
+// 문의하기
+model Contact {
+  id            String      @id @default(cuid())
+  name          String
+  email         String
+  phone         String?
+  subject       String
+  message       String      @db.Text
+  status        String      @default("PENDING") // PENDING, IN_PROGRESS, RESOLVED
+  response      String?     @db.Text
+  respondedBy   String?     // 응답한 관리자 ID
+  respondedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@index([status])
+  @@index([createdAt])
+}

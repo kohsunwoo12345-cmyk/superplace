@@ -20,6 +20,7 @@ import {
   UserCheck,
   ClipboardList,
   TrendingUp,
+  MessageSquare,
 } from "lucide-react";
 
 // 역할별 네비게이션 정의
@@ -29,6 +30,7 @@ const navigationByRole = {
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
     { name: "학원 관리", href: "/dashboard/academies", icon: Building2 },
     { name: "요금제 관리", href: "/dashboard/plans", icon: CreditCard },
+    { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "전체 통계", href: "/dashboard/stats", icon: TrendingUp },
     { name: "시스템 설정", href: "/dashboard/settings", icon: Settings },
   ],
@@ -42,6 +44,7 @@ const navigationByRole = {
     { name: "출석 관리", href: "/dashboard/attendance", icon: Calendar },
     { name: "성적 관리", href: "/dashboard/grades", icon: BarChart3 },
     { name: "학원 통계", href: "/dashboard/analytics", icon: TrendingUp },
+    { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "학원 설정", href: "/dashboard/academy-settings", icon: Building2 },
     { name: "내 설정", href: "/dashboard/settings", icon: Settings },
   ],
