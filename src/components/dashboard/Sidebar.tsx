@@ -40,6 +40,7 @@ const navigationByRole = {
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
     { name: "선생님 관리", href: "/dashboard/teachers", icon: UserCheck },
     { name: "학생 관리", href: "/dashboard/students", icon: Users },
+    { name: "수업 관리", href: "/dashboard/classes", icon: GraduationCap },
     { name: "학습 자료", href: "/dashboard/materials", icon: BookOpen },
     { name: "과제 관리", href: "/dashboard/assignments", icon: ClipboardList },
     { name: "출석 관리", href: "/dashboard/attendance", icon: Calendar },
