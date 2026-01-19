@@ -87,6 +87,8 @@ model User {
   class         String?   // 반 (학생용)
   studentId     String?   @unique // 학번 (학생용)
   parentPhone   String?   // 학부모 연락처 (학생용)
+  points        Int       @default(0) // 포인트
+  aiEnabled     Boolean   @default(false) // AI 봇 사용 권한
   emailVerified DateTime?
   image         String?
   approved      Boolean   @default(false) // 학원장/관리자 승인 필요
@@ -100,6 +102,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   aiUsages      AIUsage[]
+  pointHistory  PointHistory[]
   
   // 학생 관련 데이터
   learningProgress  LearningProgress[]
@@ -305,4 +308,20 @@ model Contact {
   
   @@index([status])
   @@index([createdAt])
+}
+
+// 포인트 이력
+model PointHistory {
+  id            String      @id @default(cuid())
+  userId        String
+  amount        Int         // 양수: 지급, 음수: 회수
+  balance       Int         // 거래 후 잔액
+  type          String      // GRANT, DEDUCT, PURCHASE, REWARD
+  reason        String?     // 사유
+  adminId       String?     // 처리한 관리자 ID
+  createdAt     DateTime    @default(now())
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, createdAt])
 }
