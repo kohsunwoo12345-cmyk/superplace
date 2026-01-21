@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import DashboardSidebar from "@/components/dashboard/Sidebar";
 import DashboardHeader from "@/components/dashboard/Header";
@@ -14,12 +14,23 @@ export default function DashboardLayout({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      router.push("/auth/signin");
     }
-  }, [status, router]);
+
+    // 학생은 대시보드만 접근 가능
+    if (status === "authenticated" && session?.user?.role === "STUDENT") {
+      const allowedPaths = ["/dashboard", "/dashboard/settings"];
+      const isAllowed = allowedPaths.some(path => pathname === path);
+      
+      if (!isAllowed) {
+        router.push("/dashboard");
+      }
+    }
+  }, [status, session, pathname, router]);
 
   if (status === "loading") {
     return (

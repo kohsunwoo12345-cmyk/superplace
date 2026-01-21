@@ -36,6 +36,7 @@ const navigationByRole = {
   ],
   DIRECTOR: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+    { name: "사용자 관리", href: "/dashboard/manage-users", icon: Users },
     { name: "선생님 관리", href: "/dashboard/teachers", icon: UserCheck },
     { name: "학생 관리", href: "/dashboard/students", icon: Users },
     { name: "수업 관리", href: "/dashboard/classes", icon: GraduationCap },
@@ -59,12 +60,6 @@ const navigationByRole = {
   ],
   STUDENT: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
-    { name: "내 학습", href: "/dashboard/my-learning", icon: GraduationCap },
-    { name: "학습 자료", href: "/dashboard/materials", icon: BookOpen },
-    { name: "내 과제", href: "/dashboard/my-assignments", icon: FileText },
-    { name: "내 성적", href: "/dashboard/my-grades", icon: BarChart3 },
-    { name: "AI 도우미", href: "/dashboard/ai-assistant", icon: Bot },
-    { name: "내 설정", href: "/dashboard/settings", icon: Settings },
   ],
 };
 
