@@ -4,6 +4,19 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
 
+// 환경 변수 검증
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error(
+    "NEXTAUTH_SECRET 환경 변수가 설정되지 않았습니다. Vercel 대시보드에서 환경 변수를 설정해주세요."
+  );
+}
+
+if (!process.env.NEXTAUTH_URL && process.env.NODE_ENV === "production") {
+  console.warn(
+    "⚠️  NEXTAUTH_URL 환경 변수가 설정되지 않았습니다. 프로덕션 환경에서는 반드시 설정해야 합니다."
+  );
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   secret: process.env.NEXTAUTH_SECRET,
