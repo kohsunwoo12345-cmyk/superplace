@@ -64,6 +64,81 @@ function BenefitItem({ text, color = "blue" }: { text: string; color?: string })
   );
 }
 
+// Mega Menu Component
+function MegaMenu({ 
+  title, 
+  description, 
+  items, 
+  link 
+}: { 
+  title: string; 
+  description: string; 
+  items: Array<{ icon: string; title: string; description: string; href: string }>;
+  link?: string;
+}) {
+  const itemsPerRow = items.length;
+  const descriptionCols = Math.max(2, Math.floor(itemsPerRow / 2));
+  const totalCols = descriptionCols + itemsPerRow;
+
+  return (
+    <div className="fixed left-0 right-0 mt-2 bg-white shadow-2xl border-t opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 overflow-hidden">
+      <div 
+        className="container mx-auto px-4 py-8 transform translate-y-[-20px] group-hover:translate-y-0 transition-transform duration-500 ease-out"
+      >
+        <div className={`grid gap-6`} style={{ gridTemplateColumns: `${descriptionCols}fr ${'1fr '.repeat(itemsPerRow)}` }}>
+          {/* 메인 설명 */}
+          <div className={`pr-8 border-r`} style={{ gridColumn: `span ${descriptionCols}` }}>
+            <h3 className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              {title}
+            </h3>
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              {description}
+            </p>
+            {link && (
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <span>지금 바로 시작하기</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </a>
+            )}
+          </div>
+          
+          {/* 기능 그리드 - Stagger Animation */}
+          {items.map((item, index) => (
+            <a
+              key={index}
+              href={item.href}
+              target={item.href.startsWith('http') ? '_blank' : undefined}
+              rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+              className="p-6 rounded-xl hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 transition-all duration-200 hover:shadow-lg group/item transform opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0"
+              style={{
+                transitionDelay: `${index * 100}ms`,
+                transitionDuration: '500ms'
+              }}
+            >
+              <div className="text-4xl mb-3 group-hover/item:scale-110 transition-transform duration-200">
+                {item.icon}
+              </div>
+              <h4 className="font-semibold text-lg mb-2 group-hover/item:text-blue-600 transition-colors">
+                {item.title}
+              </h4>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {item.description}
+              </p>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -81,50 +156,116 @@ export default function Home() {
 
   const isLoggedIn = status === "authenticated";
 
-  // Dropdown menu data
-  const featuresMenu = [
-    { name: "디지털 학습 자료", href: "#features" },
-    { name: "학습 진도 관리", href: "#features" },
-    { name: "과제 제출 시스템", href: "#features" },
-    { name: "성적 분석", href: "#features" },
-  ];
+  // Mega menu data
+  const featuresMenu = {
+    title: "기능 소개",
+    description: "학습 효율을 극대화하는 스마트 기능들",
+    items: [
+      {
+        icon: "📚",
+        title: "디지털 학습 자료",
+        description: "언제 어디서나 접근 가능한 체계적인 학습 콘텐츠",
+        href: "#features"
+      },
+      {
+        icon: "📈",
+        title: "학습 진도 관리",
+        description: "실시간으로 확인하는 나의 학습 진행 상황",
+        href: "#features"
+      },
+      {
+        icon: "📝",
+        title: "과제 제출 시스템",
+        description: "온라인으로 간편하게 과제 제출 및 피드백",
+        href: "#features"
+      },
+      {
+        icon: "🏆",
+        title: "성적 분석",
+        description: "시험 점수 및 성취도를 한눈에 확인",
+        href: "#features"
+      }
+    ]
+  };
 
-  const benefitsMenu = [
-    { name: "학생을 위한", href: "#benefits" },
-    { name: "학원장을 위한", href: "#benefits" },
-    { name: "선생님을 위한", href: "#benefits" },
-  ];
-
-  const aboutMenu = [
-    { name: "학원 소개", href: "#about" },
-    { name: "문의하기", href: "/contact" },
-    { name: "도움말", href: "#help" },
-  ];
+  const benefitsMenu = {
+    title: "학습 효과",
+    description: "모두를 위한 맞춤형 학습 솔루션",
+    items: [
+      {
+        icon: "👨‍🎓",
+        title: "학생을 위한",
+        description: "자기주도 학습 환경과 맞춤형 학습 자료",
+        href: "#benefits"
+      },
+      {
+        icon: "👨‍💼",
+        title: "학원장을 위한",
+        description: "효율적인 학원 운영과 통합 관리 시스템",
+        href: "#benefits"
+      },
+      {
+        icon: "👩‍🏫",
+        title: "선생님을 위한",
+        description: "학생 관리와 수업 진행을 편리하게",
+        href: "#benefits"
+      }
+    ]
+  };
 
   const marketingMenu = {
     title: "학원 운영 및 마케팅",
     description: "학원 운영을 위한 통합 마케팅 솔루션",
     link: "https://superplace-academy.pages.dev",
-    features: [
+    items: [
       {
         icon: "📱",
         title: "소셜미디어 관리",
-        description: "인스타그램, 블로그 등 통합 관리"
+        description: "인스타그램, 블로그 등 통합 관리",
+        href: "https://superplace-academy.pages.dev"
       },
       {
         icon: "📊",
         title: "마케팅 분석",
-        description: "실시간 마케팅 성과 분석"
+        description: "실시간 마케팅 성과 분석",
+        href: "https://superplace-academy.pages.dev"
       },
       {
         icon: "🎯",
         title: "타겟 광고",
-        description: "효율적인 광고 캠페인 운영"
+        description: "효율적인 광고 캠페인 운영",
+        href: "https://superplace-academy.pages.dev"
       },
       {
         icon: "💬",
         title: "고객 소통",
-        description: "학부모 및 학생 커뮤니케이션"
+        description: "학부모 및 학생 커뮤니케이션",
+        href: "https://superplace-academy.pages.dev"
+      }
+    ]
+  };
+
+  const aboutMenu = {
+    title: "학원 소개",
+    description: "SUPER PLACE와 함께하는 스마트 학습",
+    items: [
+      {
+        icon: "🏫",
+        title: "학원 소개",
+        description: "체계적인 학습 관리 시스템을 제공합니다",
+        href: "#about"
+      },
+      {
+        icon: "📞",
+        title: "문의하기",
+        description: "궁금한 점이 있으시면 언제든 연락주세요",
+        href: "/contact"
+      },
+      {
+        icon: "❓",
+        title: "도움말",
+        description: "서비스 이용 가이드와 FAQ",
+        href: "#help"
       }
     ]
   };
@@ -141,123 +282,40 @@ export default function Home() {
             </span>
           </div>
           <nav className="hidden md:flex items-center space-x-6">
-            {/* 기능 소개 드롭다운 */}
+            {/* 기능 소개 메가메뉴 */}
             <div className="relative group">
               <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
                 기능 소개
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180 duration-300" />
               </button>
-              <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                {featuresMenu.map((item, index) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`block px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors ${
-                      index === 0 ? "rounded-t-lg" : ""
-                    } ${index === featuresMenu.length - 1 ? "rounded-b-lg" : ""}`}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
-              </div>
+              <MegaMenu {...featuresMenu} />
             </div>
 
-            {/* 학습 효과 드롭다운 */}
+            {/* 학습 효과 메가메뉴 */}
             <div className="relative group">
               <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
                 학습 효과
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180 duration-300" />
               </button>
-              <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                {benefitsMenu.map((item, index) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors ${
-                      index === 0 ? "rounded-t-lg" : ""
-                    } ${index === benefitsMenu.length - 1 ? "rounded-b-lg" : ""}`}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
-              </div>
+              <MegaMenu {...benefitsMenu} />
             </div>
 
             {/* 학원 운영 및 마케팅 메가메뉴 */}
             <div className="relative group">
               <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
                 학원 운영 및 마케팅
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180 duration-300" />
               </button>
-              {/* Full-width Mega Menu */}
-              <div className="fixed left-0 right-0 mt-2 bg-white shadow-2xl border-t opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
-                <div className="container mx-auto px-4 py-8">
-                  <div className="grid grid-cols-5 gap-6">
-                    {/* 메인 설명 */}
-                    <div className="col-span-2 pr-8 border-r">
-                      <h3 className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        {marketingMenu.title}
-                      </h3>
-                      <p className="text-gray-600 mb-6 leading-relaxed">
-                        {marketingMenu.description}
-                      </p>
-                      <a
-                        href={marketingMenu.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
-                      >
-                        <span>지금 바로 시작하기</span>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                        </svg>
-                      </a>
-                    </div>
-                    
-                    {/* 기능 그리드 */}
-                    {marketingMenu.features.map((feature, index) => (
-                      <a
-                        key={index}
-                        href={marketingMenu.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-6 rounded-xl hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 transition-all duration-200 hover:shadow-lg group/item"
-                      >
-                        <div className="text-4xl mb-3 group-hover/item:scale-110 transition-transform duration-200">
-                          {feature.icon}
-                        </div>
-                        <h4 className="font-semibold text-lg mb-2 group-hover/item:text-blue-600 transition-colors">
-                          {feature.title}
-                        </h4>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          {feature.description}
-                        </p>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <MegaMenu {...marketingMenu} />
             </div>
 
-            {/* 학원 소개 드롭다운 */}
+            {/* 학원 소개 메가메뉴 */}
             <div className="relative group">
               <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
                 학원 소개
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180 duration-300" />
               </button>
-              <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                {aboutMenu.map((item, index) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`block px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors ${
-                      index === 0 ? "rounded-t-lg" : ""
-                    } ${index === aboutMenu.length - 1 ? "rounded-b-lg" : ""}`}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
-              </div>
+              <MegaMenu {...aboutMenu} />
             </div>
           </nav>
           {!isLoggedIn && (
