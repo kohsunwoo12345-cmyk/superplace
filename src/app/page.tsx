@@ -101,6 +101,34 @@ export default function Home() {
     { name: "도움말", href: "#help" },
   ];
 
+  const marketingMenu = {
+    title: "학원 운영 및 마케팅",
+    description: "학원 운영을 위한 통합 마케팅 솔루션",
+    link: "https://superplace-academy.pages.dev",
+    features: [
+      {
+        icon: "📱",
+        title: "소셜미디어 관리",
+        description: "인스타그램, 블로그 등 통합 관리"
+      },
+      {
+        icon: "📊",
+        title: "마케팅 분석",
+        description: "실시간 마케팅 성과 분석"
+      },
+      {
+        icon: "🎯",
+        title: "타겟 광고",
+        description: "효율적인 광고 캠페인 운영"
+      },
+      {
+        icon: "💬",
+        title: "고객 소통",
+        description: "학부모 및 학생 커뮤니케이션"
+      }
+    ]
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
@@ -152,6 +180,62 @@ export default function Home() {
                     {item.name}
                   </Link>
                 ))}
+              </div>
+            </div>
+
+            {/* 학원 운영 및 마케팅 메가메뉴 */}
+            <div className="relative group">
+              <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
+                학원 운영 및 마케팅
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              {/* Full-width Mega Menu */}
+              <div className="fixed left-0 right-0 mt-2 bg-white shadow-2xl border-t opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
+                <div className="container mx-auto px-4 py-8">
+                  <div className="grid grid-cols-5 gap-6">
+                    {/* 메인 설명 */}
+                    <div className="col-span-2 pr-8 border-r">
+                      <h3 className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        {marketingMenu.title}
+                      </h3>
+                      <p className="text-gray-600 mb-6 leading-relaxed">
+                        {marketingMenu.description}
+                      </p>
+                      <a
+                        href={marketingMenu.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+                      >
+                        <span>지금 바로 시작하기</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </a>
+                    </div>
+                    
+                    {/* 기능 그리드 */}
+                    {marketingMenu.features.map((feature, index) => (
+                      <a
+                        key={index}
+                        href={marketingMenu.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-6 rounded-xl hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 transition-all duration-200 hover:shadow-lg group/item"
+                      >
+                        <div className="text-4xl mb-3 group-hover/item:scale-110 transition-transform duration-200">
+                          {feature.icon}
+                        </div>
+                        <h4 className="font-semibold text-lg mb-2 group-hover/item:text-blue-600 transition-colors">
+                          {feature.title}
+                        </h4>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          {feature.description}
+                        </p>
+                      </a>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
