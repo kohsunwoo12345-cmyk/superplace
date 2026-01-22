@@ -23,10 +23,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gemini 1.5 Flash 모델 사용
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
-    });
+    // Gemini 2.0 Flash 모델 우선 시도, 실패 시 1.5 Pro로 Fallback
+    const MODELS_TO_TRY = ['gemini-2.0-flash-exp', 'gemini-1.5-pro'];
+    
+    let model = null;
+    let usedModel = '';
+    
+    for (const modelName of MODELS_TO_TRY) {
+      try {
+        console.log(`[DEBUG] Trying model: ${modelName}`);
+        model = genAI.getGenerativeModel({ model: modelName });
+        // 간단한 테스트 호출로 모델이 작동하는지 확인
+        usedModel = modelName;
+        console.log(`[DEBUG] Successfully initialized model: ${modelName}`);
+        break;
+      } catch (error) {
+        console.log(`[DEBUG] Model ${modelName} failed, trying next...`);
+        continue;
+      }
+    }
+    
+    if (!model) {
+      throw new Error('사용 가능한 Gemini 모델을 찾을 수 없습니다.');
+    }
 
     // Gem별 시스템 프롬프트 적용
     let systemPrompt = '';
@@ -56,24 +75,53 @@ export async function POST(request: NextRequest) {
     }
 
     // 채팅 세션 시작
-    const chat = model.startChat({
-      history: chatHistory,
-      generationConfig: {
-        maxOutputTokens: 2048,
-        temperature: 0.7,
-        topP: 0.8,
-        topK: 40,
-      },
-    });
+    let chat;
+    let result;
+    let lastError = null;
+    
+    // 여러 모델을 순서대로 시도
+    for (const modelName of MODELS_TO_TRY) {
+      try {
+        console.log(`[DEBUG] Attempting chat with model: ${modelName}`);
+        const testModel = genAI.getGenerativeModel({ model: modelName });
+        
+        chat = testModel.startChat({
+          history: chatHistory,
+          generationConfig: {
+            maxOutputTokens: 2048,
+            temperature: 0.7,
+            topP: 0.8,
+            topK: 40,
+          },
+        });
 
-    // 메시지 전송 및 응답 받기
-    const result = await chat.sendMessage(message);
-    const response = await result.response;
-    const text = response.text();
-
-    return NextResponse.json({ response: text });
+        // 메시지 전송 및 응답 받기
+        result = await chat.sendMessage(message);
+        const response = await result.response;
+        const text = response.text();
+        
+        console.log(`[DEBUG] Success with model: ${modelName}`);
+        return NextResponse.json({ 
+          response: text,
+          model: modelName, // 디버깅용: 어떤 모델이 사용되었는지
+        });
+      } catch (error: any) {
+        console.error(`[DEBUG] Model ${modelName} failed:`, error.message);
+        lastError = error;
+        continue; // 다음 모델 시도
+      }
+    }
+    
+    // 모든 모델이 실패한 경우
+    throw lastError || new Error('모든 Gemini 모델이 실패했습니다.');
   } catch (error: any) {
     console.error('Gemini API Error:', error);
+    console.error('[DEBUG] Error details:', {
+      message: error.message,
+      status: error.status,
+      statusText: error.statusText,
+      errorDetails: error.errorDetails,
+    });
     
     // 에러 메시지 상세화
     let errorMessage = 'AI 응답을 생성하는 중 오류가 발생했습니다.';
@@ -87,7 +135,14 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: errorMessage, details: error.message },
+      { 
+        error: errorMessage, 
+        details: error.message,
+        debugInfo: process.env.NODE_ENV === 'development' ? {
+          apiKeyExists: !!process.env.GOOGLE_GEMINI_API_KEY,
+          apiKeyPrefix: process.env.GOOGLE_GEMINI_API_KEY?.substring(0, 10) + '...',
+        } : undefined
+      },
       { status: 500 }
     );
   }
