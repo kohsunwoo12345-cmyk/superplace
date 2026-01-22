@@ -30,6 +30,7 @@ const navigationByRole = {
     { name: "사용자 관리", href: "/dashboard/admin/users", icon: Users },
     { name: "학원 관리", href: "/dashboard/academies", icon: Building2 },
     { name: "요금제 관리", href: "/dashboard/plans", icon: CreditCard },
+    { name: "AI 챗봇", href: "/dashboard/ai-chatbot", icon: Bot },
     { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "전체 통계", href: "/dashboard/stats", icon: TrendingUp },
     { name: "시스템 설정", href: "/dashboard/settings", icon: Settings },
@@ -42,6 +43,7 @@ const navigationByRole = {
     { name: "수업 관리", href: "/dashboard/classes", icon: GraduationCap },
     { name: "학습 자료", href: "/dashboard/materials", icon: BookOpen },
     { name: "과제 관리", href: "/dashboard/assignments", icon: ClipboardList },
+    { name: "AI 챗봇", href: "/dashboard/ai-chatbot", icon: Bot },
     { name: "출석 관리", href: "/dashboard/attendance", icon: Calendar },
     { name: "성적 관리", href: "/dashboard/grades", icon: BarChart3 },
     { name: "학원 통계", href: "/dashboard/analytics", icon: TrendingUp },
@@ -54,12 +56,14 @@ const navigationByRole = {
     { name: "학생 목록", href: "/dashboard/students", icon: Users },
     { name: "학습 자료", href: "/dashboard/materials", icon: BookOpen },
     { name: "과제 관리", href: "/dashboard/assignments", icon: ClipboardList },
+    { name: "AI 챗봇", href: "/dashboard/ai-chatbot", icon: Bot },
     { name: "출석 체크", href: "/dashboard/attendance", icon: Calendar },
     { name: "성적 입력", href: "/dashboard/grades", icon: BarChart3 },
     { name: "내 설정", href: "/dashboard/settings", icon: Settings },
   ],
   STUDENT: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+    { name: "AI 챗봇", href: "/dashboard/ai-chatbot", icon: Bot },
   ],
 };
 
