@@ -881,8 +881,24 @@ export default function Home() {
               </ul>
             </div>
           </div>
-          <div className="mt-12 pt-8 border-t text-center text-sm text-gray-600">
-            © 2024 SUPER PLACE. All rights reserved.
+          
+          {/* 회사 정보 */}
+          <div className="mt-12 pt-8 border-t">
+            <div className="text-center space-y-3">
+              <h3 className="font-bold text-lg text-gray-800">주식회사 우리는 슈퍼플레이스다</h3>
+              <div className="space-y-1 text-sm text-gray-600">
+                <p>사업자등록번호: 142-88-02445</p>
+                <p>주소: 인천광역시 서구 청라커낼로 270, 2층</p>
+                <p>
+                  이메일: <a href="mailto:wangholy1@naver.com" className="hover:text-blue-600 transition-colors">wangholy1@naver.com</a>
+                  {" | "}
+                  전화: <a href="tel:010-8739-9697" className="hover:text-blue-600 transition-colors">010-8739-9697</a>
+                </p>
+              </div>
+              <p className="text-sm text-gray-500 mt-4">
+                © 2026 우리는 슈퍼플레이스다. All rights reserved.
+              </p>
+            </div>
           </div>
         </div>
       </footer>
