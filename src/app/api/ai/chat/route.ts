@@ -23,8 +23,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gemini 1.5 Flash 모델 사용 (최신 안정 버전)
-    // 주의: 모델명에 'models/' 접두사 제거
+    // Gemini 1.5 Flash 모델 사용
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-1.5-flash',
     });
