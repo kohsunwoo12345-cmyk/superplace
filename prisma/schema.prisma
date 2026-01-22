@@ -13,6 +13,7 @@ datasource db {
 model Academy {
   id              String    @id @default(cuid())
   name            String    // 학원 이름
+  code            String    @unique // 학원 코드 (가입용)
   description     String?
   address         String?
   phone           String?
@@ -32,6 +33,7 @@ model Academy {
   aiUsages        AIUsage[]
   
   @@index([subscriptionPlan])
+  @@index([code])
 }
 
 // 구독/요금제 이력
