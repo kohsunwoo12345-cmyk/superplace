@@ -13,12 +13,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
   ArrowLeft,
   User,
   Mail,
@@ -27,80 +21,54 @@ import {
   BookOpen,
   ClipboardList,
   TrendingUp,
-  Bot,
   Calendar,
   Award,
   Target,
+  Brain,
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertCircle,
+  Sparkles,
 } from "lucide-react";
 
-interface StudentDetail {
-  id: string;
-  email: string;
-  name: string;
-  phone?: string;
-  grade?: string;
-  studentId?: string;
-  parentPhone?: string;
-  points: number;
-  aiChatEnabled: boolean;
-  aiHomeworkEnabled: boolean;
-  aiStudyEnabled: boolean;
-  approved: boolean;
-  createdAt: string;
-  lastLoginAt?: string;
-  academy?: {
+interface Analytics {
+  student: {
+    id: string;
     name: string;
-    code: string;
-  };
-  enrolledClasses: {
-    class: {
-      id: string;
-      name: string;
-      grade?: string;
-    };
-  }[];
-  learningProgress: {
-    id: string;
-    subject: string;
-    progress: number;
-    totalLessons: number;
-    completedLessons: number;
-    lastAccessedAt: string;
-  }[];
-  assignments: {
-    id: string;
-    title: string;
-    subject: string;
-    dueDate: string;
-    status: string;
-    score?: number;
-    submittedAt?: string;
-    material?: {
-      title: string;
-    };
-  }[];
-  testScores: {
-    id: string;
-    subject: string;
-    testName: string;
-    testDate: string;
-    score: number;
-    maxScore: number;
+    email: string;
     grade?: string;
-    rank?: number;
-  }[];
-  aiUsages: {
-    id: string;
-    model: string;
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-    createdAt: string;
-  }[];
-  _count: {
-    assignments: number;
-    testScores: number;
-    aiUsages: number;
+    studentId?: string;
+  };
+  classes: any[];
+  assignments: {
+    total: number;
+    completed: number;
+    pending: number;
+    submitted: number;
+    averageScore: number;
+    onTimeSubmissionRate: number;
+  };
+  testScores: {
+    recent: any[];
+    average: number;
+    bySubject: Array<{ subject: string; average: number; count: number }>;
+  };
+  attendance: {
+    total: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    rate: number;
+  };
+  learningProgress: {
+    total: number;
+    completed: number;
+    inProgress: number;
+    notStarted: number;
+    averageProgress: number;
+    totalTimeSpent: number;
   };
 }
 
@@ -110,63 +78,71 @@ export default function StudentDetailPage() {
   const params = useParams();
   const studentId = params?.id as string;
 
-  const [student, setStudent] = useState<StudentDetail | null>(null);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [aiSummary, setAiSummary] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [loadingAI, setLoadingAI] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      router.push("/auth/signin");
       return;
     }
 
-    if (
-      session?.user?.role !== "DIRECTOR" &&
-      session?.user?.role !== "TEACHER" &&
-      session?.user?.role !== "SUPER_ADMIN"
-    ) {
-      router.push("/dashboard");
-      return;
+    if (session) {
+      fetchAnalytics();
     }
+  }, [session, status, studentId, router]);
 
-    fetchStudentDetail();
-  }, [session, status, router, studentId]);
-
-  const fetchStudentDetail = async () => {
+  const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/academy/students/${studentId}/detail`);
+      const response = await fetch(`/api/students/analytics?studentId=${studentId}`);
       if (response.ok) {
         const data = await response.json();
-        setStudent(data.student);
+        setAnalytics(data);
+      } else {
+        alert("학생 정보를 불러오는데 실패했습니다.");
+        router.push("/dashboard/students");
       }
     } catch (error) {
-      console.error("학생 정보 로드 실패:", error);
+      console.error("Failed to load analytics:", error);
+      alert("오류가 발생했습니다.");
+      router.push("/dashboard/students");
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PENDING":
-        return <Badge variant="outline" className="border-yellow-500 text-yellow-600">대기중</Badge>;
-      case "SUBMITTED":
-        return <Badge className="bg-blue-500">제출완료</Badge>;
-      case "GRADED":
-        return <Badge className="bg-green-500">채점완료</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  const generateAISummary = async () => {
+    if (!analytics) return;
+
+    try {
+      setLoadingAI(true);
+      const response = await fetch("/api/students/ai-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentName: analytics.student.name,
+          analytics,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAiSummary(data.summary);
+      } else {
+        alert("AI 분석 생성에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("Failed to generate AI summary:", error);
+      alert("오류가 발생했습니다.");
+    } finally {
+      setLoadingAI(false);
     }
   };
 
-  const getProgressColor = (progress: number) => {
-    if (progress >= 80) return "bg-green-500";
-    if (progress >= 50) return "bg-blue-500";
-    if (progress >= 30) return "bg-yellow-500";
-    return "bg-red-500";
-  };
-
-  if (loading || !student) {
+  if (loading || !analytics) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -177,513 +153,342 @@ export default function StudentDetailPage() {
     );
   }
 
-  // 통계 계산
-  const stats = {
-    totalAssignments: student.assignments.length,
-    submittedAssignments: student.assignments.filter((a) => a.status !== "PENDING").length,
-    completedAssignments: student.assignments.filter((a) => a.status === "GRADED").length,
-    avgScore:
-      student.assignments.filter((a) => a.score !== null && a.score !== undefined).length > 0
-        ? Math.round(
-            student.assignments
-              .filter((a) => a.score !== null && a.score !== undefined)
-              .reduce((sum, a) => sum + (a.score || 0), 0) /
-              student.assignments.filter((a) => a.score !== null && a.score !== undefined).length
-          )
-        : 0,
-    totalTests: student.testScores.length,
-    avgTestScore:
-      student.testScores.length > 0
-        ? Math.round(
-            student.testScores.reduce((sum, t) => sum + (t.score / t.maxScore) * 100, 0) /
-              student.testScores.length
-          )
-        : 0,
-    totalAIUsage: student._count.aiUsages,
-    totalTokens: student.aiUsages.reduce((sum, u) => sum + u.totalTokens, 0),
-  };
-
-  const avgProgress =
-    student.learningProgress.length > 0
-      ? Math.round(
-          student.learningProgress.reduce((sum, p) => sum + p.progress, 0) /
-            student.learningProgress.length
-        )
-      : 0;
+  const isDirectorOrTeacher =
+    session?.user?.role === "DIRECTOR" ||
+    session?.user?.role === "TEACHER" ||
+    session?.user?.role === "SUPER_ADMIN";
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-7xl">
       {/* 헤더 */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            돌아가기
-          </Button>
+      <div className="mb-8">
+        <Button
+          variant="ghost"
+          onClick={() => router.push("/dashboard/students")}
+          className="mb-4"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          학생 목록으로
+        </Button>
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">{student.name}</h1>
-            <p className="text-gray-600">학생 상세 정보</p>
+            <h1 className="text-3xl font-bold mb-2">{analytics.student.name}</h1>
+            <div className="flex gap-4 text-sm text-gray-600">
+              {analytics.student.grade && (
+                <span className="flex items-center gap-1">
+                  <GraduationCap className="w-4 h-4" />
+                  {analytics.student.grade}
+                </span>
+              )}
+              {analytics.student.studentId && (
+                <span className="flex items-center gap-1">
+                  <User className="w-4 h-4" />
+                  {analytics.student.studentId}
+                </span>
+              )}
+              <span className="flex items-center gap-1">
+                <Mail className="w-4 h-4" />
+                {analytics.student.email}
+              </span>
+            </div>
           </div>
+          {isDirectorOrTeacher && (
+            <Button
+              onClick={generateAISummary}
+              disabled={loadingAI}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            >
+              <Brain className="w-4 h-4 mr-2" />
+              {loadingAI ? "AI 분석 중..." : "AI 종합 분석"}
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* 기본 정보 카드 */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
-            기본 정보
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">이름</p>
-              <p className="font-semibold">{student.name}</p>
-            </div>
-            {student.studentId && (
-              <div>
-                <p className="text-sm text-gray-600 mb-1">학번</p>
-                <p className="font-semibold font-mono">{student.studentId}</p>
-              </div>
-            )}
-            {student.grade && (
-              <div>
-                <p className="text-sm text-gray-600 mb-1">학년</p>
-                <p className="font-semibold">{student.grade}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-sm text-gray-600 mb-1">이메일</p>
-              <p className="font-semibold">{student.email}</p>
-            </div>
-            {student.phone && (
-              <div>
-                <p className="text-sm text-gray-600 mb-1">전화번호</p>
-                <p className="font-semibold">{student.phone}</p>
-              </div>
-            )}
-            {student.parentPhone && (
-              <div>
-                <p className="text-sm text-gray-600 mb-1">학부모 연락처</p>
-                <p className="font-semibold">{student.parentPhone}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-sm text-gray-600 mb-1">포인트</p>
-              <p className="font-semibold text-yellow-600">{student.points}P</p>
-            </div>
-            {student.academy && (
-              <div>
-                <p className="text-sm text-gray-600 mb-1">소속 학원</p>
-                <p className="font-semibold">{student.academy.name}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-sm text-gray-600 mb-1">가입일</p>
-              <p className="font-semibold">{new Date(student.createdAt).toLocaleDateString()}</p>
-            </div>
-          </div>
-
-          {/* 수강 중인 수업 */}
-          {student.enrolledClasses.length > 0 && (
-            <div className="mt-6 pt-6 border-t">
-              <p className="text-sm text-gray-600 mb-2">수강 중인 수업</p>
-              <div className="flex flex-wrap gap-2">
-                {student.enrolledClasses.map((ec) => (
-                  <Badge key={ec.class.id} variant="outline">
-                    <BookOpen className="w-3 h-3 mr-1" />
-                    {ec.class.name}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* AI 봇 권한 */}
-          <div className="mt-6 pt-6 border-t">
-            <p className="text-sm text-gray-600 mb-2">AI 봇 권한</p>
-            <div className="flex flex-wrap gap-2">
-              {student.aiChatEnabled && (
-                <Badge className="bg-blue-500">
-                  <Bot className="w-3 h-3 mr-1" />
-                  AI 채팅
-                </Badge>
-              )}
-              {student.aiHomeworkEnabled && (
-                <Badge className="bg-indigo-500">
-                  <Bot className="w-3 h-3 mr-1" />
-                  AI 숙제
-                </Badge>
-              )}
-              {student.aiStudyEnabled && (
-                <Badge className="bg-purple-500">
-                  <Bot className="w-3 h-3 mr-1" />
-                  AI 학습
-                </Badge>
-              )}
-              {!student.aiChatEnabled && !student.aiHomeworkEnabled && !student.aiStudyEnabled && (
-                <span className="text-sm text-gray-500">AI 봇 권한 없음</span>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">평균 진도율</CardTitle>
+      {/* AI 분석 결과 */}
+      {aiSummary && isDirectorOrTeacher && (
+        <Card className="mb-6 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-600" />
+              AI 종합 분석 리포트
+            </CardTitle>
+            <CardDescription>
+              Gemini AI가 학생의 학습 데이터를 분석한 결과입니다
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-blue-600" />
-              <span className="text-2xl font-bold">{avgProgress}%</span>
+            <div className="prose max-w-none whitespace-pre-wrap text-gray-700">
+              {aiSummary}
             </div>
           </CardContent>
         </Card>
+      )}
 
+      {/* 통계 요약 카드 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* 출석률 */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">과제 제출률</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              출석률
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-green-600" />
-              <span className="text-2xl font-bold">
-                {stats.totalAssignments > 0
-                  ? Math.round((stats.submittedAssignments / stats.totalAssignments) * 100)
-                  : 0}
-                %
-              </span>
+            <div className="text-3xl font-bold text-green-600">
+              {analytics.attendance.rate.toFixed(1)}%
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {stats.submittedAssignments} / {stats.totalAssignments}
+              {analytics.attendance.present}/{analytics.attendance.total}일
             </p>
           </CardContent>
         </Card>
 
+        {/* 평균 성적 */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">평균 시험 점수</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+              <Award className="w-4 h-4" />
+              평균 성적
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Award className="w-4 h-4 text-purple-600" />
-              <span className="text-2xl font-bold">{stats.avgTestScore}점</span>
+            <div className="text-3xl font-bold text-blue-600">
+              {analytics.testScores.average.toFixed(1)}점
             </div>
-            <p className="text-xs text-gray-500 mt-1">{stats.totalTests}회 시험</p>
+            <p className="text-xs text-gray-500 mt-1">
+              최근 {analytics.testScores.recent.length}회 평균
+            </p>
           </CardContent>
         </Card>
 
+        {/* 과제 완료율 */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">AI 사용량</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+              <ClipboardList className="w-4 h-4" />
+              과제 완료율
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Bot className="w-4 h-4 text-indigo-600" />
-              <span className="text-2xl font-bold">{stats.totalAIUsage}</span>
+            <div className="text-3xl font-bold text-purple-600">
+              {analytics.assignments.total > 0
+                ? ((analytics.assignments.completed / analytics.assignments.total) * 100).toFixed(
+                    1
+                  )
+                : 0}
+              %
             </div>
-            <p className="text-xs text-gray-500 mt-1">{stats.totalTokens.toLocaleString()} 토큰</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {analytics.assignments.completed}/{analytics.assignments.total}개
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* 학습 진도율 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              학습 진도율
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-orange-600">
+              {analytics.learningProgress.averageProgress.toFixed(1)}%
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {Math.floor(analytics.learningProgress.totalTimeSpent / 60)}시간 학습
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* 탭 */}
-      <Tabs defaultValue="progress" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="progress">
-            <Target className="w-4 h-4 mr-2" />
-            학습 진도
-          </TabsTrigger>
-          <TabsTrigger value="assignments">
-            <ClipboardList className="w-4 h-4 mr-2" />
-            과제 ({stats.totalAssignments})
-          </TabsTrigger>
-          <TabsTrigger value="scores">
-            <TrendingUp className="w-4 h-4 mr-2" />
-            성적 ({stats.totalTests})
-          </TabsTrigger>
-          <TabsTrigger value="ai">
-            <Bot className="w-4 h-4 mr-2" />
-            AI 사용 내역
-          </TabsTrigger>
-        </TabsList>
-
-        {/* 학습 진도 탭 */}
-        <TabsContent value="progress" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>과목별 학습 진도</CardTitle>
-              <CardDescription>각 과목별 진행 상황을 확인하세요</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {student.learningProgress.length > 0 ? (
-                <div className="space-y-4">
-                  {student.learningProgress.map((progress) => (
-                    <div key={progress.id} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold">{progress.subject}</p>
-                          <p className="text-sm text-gray-600">
-                            {progress.completedLessons} / {progress.totalLessons} 강의 완료
-                          </p>
-                        </div>
-                        <span className="text-lg font-bold">{progress.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                          className={`h-3 rounded-full transition-all ${getProgressColor(
-                            progress.progress
-                          )}`}
-                          style={{ width: `${progress.progress}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        마지막 접속: {new Date(progress.lastAccessedAt).toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-gray-500 py-8">학습 진도 데이터가 없습니다.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* 과제 탭 */}
-        <TabsContent value="assignments">
-          <Card>
-            <CardHeader>
-              <CardTitle>과제 제출 내역</CardTitle>
-              <CardDescription>
-                과제 제출 현황 및 점수를 확인하세요
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {student.assignments.length > 0 ? (
-                <div className="space-y-4">
-                  {student.assignments.map((assignment) => (
-                    <div
-                      key={assignment.id}
-                      className="p-4 border rounded-lg hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">{assignment.title}</h4>
-                            {getStatusBadge(assignment.status)}
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            {assignment.subject}
-                            {assignment.material && ` - ${assignment.material.title}`}
-                          </p>
-                        </div>
-                        {assignment.score !== null && assignment.score !== undefined && (
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-blue-600">
-                              {assignment.score}점
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-600 mt-3">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>
-                            마감: {new Date(assignment.dueDate).toLocaleDateString()}
-                          </span>
-                        </div>
-                        {assignment.submittedAt && (
-                          <div className="flex items-center gap-1">
-                            <ClipboardList className="w-4 h-4" />
-                            <span>
-                              제출: {new Date(assignment.submittedAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-gray-500 py-8">
-                  과제 내역이 없습니다.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* 성적 탭 */}
-        <TabsContent value="scores">
-          <Card>
-            <CardHeader>
-              <CardTitle>시험 성적 내역</CardTitle>
-              <CardDescription>
-                과목별 시험 점수 및 석차를 확인하세요
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {student.testScores.length > 0 ? (
-                <div className="space-y-4">
-                  {student.testScores.map((test) => (
-                    <div
-                      key={test.id}
-                      className="p-4 border rounded-lg hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">{test.testName}</h4>
-                            <Badge variant="outline">{test.subject}</Badge>
-                            {test.grade && (
-                              <Badge className="bg-purple-500">{test.grade}</Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            {new Date(test.testDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-blue-600">
-                            {test.score} / {test.maxScore}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {Math.round((test.score / test.maxScore) * 100)}%
-                          </p>
-                        </div>
-                      </div>
-                      {test.rank && (
-                        <div className="mt-3 pt-3 border-t">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Award className="w-4 h-4 text-yellow-600" />
-                            <span className="font-semibold">
-                              {test.rank}등
-                            </span>
-                            <span className="text-gray-600">
-                              / 전체 응시자
-                            </span>
-                          </div>
-                        </div>
+      {/* 상세 정보 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 수강 수업 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5" />
+              수강 수업
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analytics.classes.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">수강 중인 수업이 없습니다</p>
+            ) : (
+              <div className="space-y-2">
+                {analytics.classes.map((cls) => (
+                  <div
+                    key={cls.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium">{cls.name}</p>
+                      {cls.grade && (
+                        <p className="text-sm text-gray-500">{cls.grade}</p>
                       )}
-                      {/* 성적 그래프 바 */}
-                      <div className="mt-3">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
-                            style={{
-                              width: `${(test.score / test.maxScore) * 100}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-gray-500 py-8">
-                  시험 성적 데이터가 없습니다.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* AI 사용 내역 탭 */}
-        <TabsContent value="ai">
-          <Card>
-            <CardHeader>
-              <CardTitle>AI 사용 내역</CardTitle>
-              <CardDescription>
-                AI 봇 사용 내역 및 토큰 사용량을 확인하세요
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {student.aiUsages.length > 0 ? (
-                <div className="space-y-4">
-                  {/* 토큰 사용량 요약 */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">총 사용 횟수</p>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {stats.totalAIUsage}회
-                      </p>
-                    </div>
-                    <div className="p-4 bg-purple-50 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">총 토큰 사용량</p>
-                      <p className="text-2xl font-bold text-purple-600">
-                        {stats.totalTokens.toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-indigo-50 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">평균 토큰/회</p>
-                      <p className="text-2xl font-bold text-indigo-600">
-                        {stats.totalAIUsage > 0
-                          ? Math.round(stats.totalTokens / stats.totalAIUsage).toLocaleString()
-                          : 0}
-                      </p>
-                    </div>
+                    <Badge
+                      variant={cls.status === "ACTIVE" ? "default" : "secondary"}
+                    >
+                      {cls.status === "ACTIVE" ? "수강중" : cls.status}
+                    </Badge>
                   </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-                  {/* AI 사용 내역 목록 */}
-                  <div className="space-y-3">
-                    {student.aiUsages.slice(0, 10).map((usage) => (
+        {/* 과목별 성적 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              과목별 성적
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analytics.testScores.bySubject.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">시험 성적이 없습니다</p>
+            ) : (
+              <div className="space-y-3">
+                {analytics.testScores.bySubject.map((subject) => (
+                  <div key={subject.subject}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">{subject.subject}</span>
+                      <span className="text-sm text-gray-600">
+                        {subject.average.toFixed(1)}점
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        key={usage.id}
-                        className="p-3 border rounded-lg hover:shadow-sm transition-shadow"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Bot className="w-4 h-4 text-indigo-600" />
-                            <span className="font-medium">{usage.model}</span>
-                          </div>
-                          <span className="text-sm text-gray-600">
-                            {new Date(usage.createdAt).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-sm">
-                          <div>
-                            <p className="text-gray-600">입력 토큰</p>
-                            <p className="font-semibold">
-                              {usage.promptTokens.toLocaleString()}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600">출력 토큰</p>
-                            <p className="font-semibold">
-                              {usage.completionTokens.toLocaleString()}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600">총 토큰</p>
-                            <p className="font-semibold text-indigo-600">
-                              {usage.totalTokens.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {student.aiUsages.length > 10 && (
-                    <p className="text-center text-sm text-gray-500 mt-4">
-                      최근 10개 항목만 표시됩니다 (전체: {student.aiUsages.length}개)
+                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        style={{ width: `${subject.average}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {subject.count}회 응시
                     </p>
-                  )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 출석 현황 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              출석 현황
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+                <div>
+                  <p className="text-sm text-gray-600">출석</p>
+                  <p className="text-xl font-bold text-green-600">
+                    {analytics.attendance.present}일
+                  </p>
                 </div>
-              ) : (
-                <p className="text-center text-gray-500 py-8">
-                  AI 사용 내역이 없습니다.
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
+                <XCircle className="w-8 h-8 text-red-600" />
+                <div>
+                  <p className="text-sm text-gray-600">결석</p>
+                  <p className="text-xl font-bold text-red-600">
+                    {analytics.attendance.absent}일
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
+                <Clock className="w-8 h-8 text-yellow-600" />
+                <div>
+                  <p className="text-sm text-gray-600">지각</p>
+                  <p className="text-xl font-bold text-yellow-600">
+                    {analytics.attendance.late}일
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                <AlertCircle className="w-8 h-8 text-blue-600" />
+                <div>
+                  <p className="text-sm text-gray-600">조퇴</p>
+                  <p className="text-xl font-bold text-blue-600">
+                    {analytics.attendance.excused}일
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 학습 진행도 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5" />
+              학습 진행도
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">전체 진도율</span>
+                  <span className="text-sm font-bold text-blue-600">
+                    {analytics.learningProgress.averageProgress.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-blue-600 h-3 rounded-full transition-all"
+                    style={{
+                      width: `${analytics.learningProgress.averageProgress}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <p className="text-2xl font-bold text-green-600">
+                    {analytics.learningProgress.completed}
+                  </p>
+                  <p className="text-xs text-gray-600">완료</p>
+                </div>
+                <div className="p-3 bg-yellow-50 rounded-lg">
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {analytics.learningProgress.inProgress}
+                  </p>
+                  <p className="text-xs text-gray-600">진행중</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-2xl font-bold text-gray-600">
+                    {analytics.learningProgress.notStarted}
+                  </p>
+                  <p className="text-xs text-gray-600">미시작</p>
+                </div>
+              </div>
+              <div className="pt-3 border-t">
+                <p className="text-sm text-gray-600">
+                  총 학습 시간:{" "}
+                  <span className="font-bold">
+                    {Math.floor(analytics.learningProgress.totalTimeSpent / 60)}시간{" "}
+                    {analytics.learningProgress.totalTimeSpent % 60}분
+                  </span>
                 </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
