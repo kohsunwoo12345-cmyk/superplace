@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Users,
@@ -14,48 +15,89 @@ import {
   FileText,
   Calendar,
   BarChart3,
+  Loader2,
 } from "lucide-react";
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
-// 샘플 통계 데이터
-const overallStats = {
-  totalAcademies: 196,
-  totalStudents: 8543,
-  totalTeachers: 1287,
-  totalRevenue: 39200000,
-  activeSubscriptions: 196,
-  totalMaterials: 4523,
-  totalAssignments: 12876,
-  avgAttendanceRate: 94.5,
-};
-
-const revenueData = [
-  { month: "1월", revenue: 3200000, subscriptions: 180 },
-  { month: "2월", revenue: 3350000, subscriptions: 182 },
-  { month: "3월", revenue: 3480000, subscriptions: 185 },
-  { month: "4월", revenue: 3620000, subscriptions: 188 },
-  { month: "5월", revenue: 3750000, subscriptions: 190 },
-  { month: "6월", revenue: 3900000, subscriptions: 196 },
-];
-
-const userGrowthData = [
-  { month: "1월", students: 7800, teachers: 1180, academies: 180 },
-  { month: "2월", students: 7950, teachers: 1210, academies: 182 },
-  { month: "3월", students: 8100, teachers: 1235, academies: 185 },
-  { month: "4월", students: 8280, teachers: 1255, academies: 188 },
-  { month: "5월", students: 8420, teachers: 1270, academies: 190 },
-  { month: "6월", students: 8543, teachers: 1287, academies: 196 },
-];
-
-const topAcademies = [
-  { name: "서울수학학원", students: 145, teachers: 12, revenue: 850000 },
-  { name: "강남영어타운", students: 132, teachers: 10, revenue: 720000 },
-  { name: "부산과학학원", students: 128, teachers: 11, revenue: 680000 },
-  { name: "대구종합학원", students: 115, teachers: 9, revenue: 620000 },
-  { name: "인천글로벌학원", students: 108, teachers: 8, revenue: 580000 },
-];
+interface StatsData {
+  overallStats: {
+    totalAcademies: number;
+    totalStudents: number;
+    totalTeachers: number;
+    totalRevenue: number;
+    activeSubscriptions: number;
+    totalMaterials: number;
+    totalAssignments: number;
+    avgAttendanceRate: number;
+    monthlyGrowth: {
+      academies: number;
+      students: number;
+      teachers: number;
+      revenue: number;
+    };
+  };
+  revenueData: Array<{ month: string; revenue: number; subscriptions: number }>;
+  userGrowthData: Array<{ month: string; students: number; teachers: number; academies: number }>;
+  topAcademies: Array<{ name: string; students: number; teachers: number; revenue: number }>;
+  activityStats: {
+    dailyActiveUsers: number;
+    weeklyActiveUsers: number;
+    monthlyActiveUsers: number;
+    todayMaterials: number;
+    todayAssignments: number;
+    aiUsageCount: number;
+  };
+  growthIndicators: {
+    newSignups: number;
+    renewalRate: number;
+    avgUsageHours: number;
+  };
+}
 
 export default function StatsPage() {
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/stats/overview');
+        if (!response.ok) {
+          throw new Error('Failed to fetch stats');
+        }
+        const data = await response.json();
+        setStats(data);
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-gray-600">통계 데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-gray-600">통계 데이터를 불러올 수 없습니다.</p>
+        </div>
+      </div>
+    );
+  }
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("ko-KR", {
       style: "currency",
@@ -87,9 +129,9 @@ export default function StatsPage() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(overallStats.totalAcademies)}</div>
+            <div className="text-2xl font-bold">{formatNumber(stats.overallStats.totalAcademies)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              <span className="text-green-600">+16개</span> 지난달 대비
+              <span className="text-green-600">+{stats.overallStats.monthlyGrowth.academies}개</span> 지난달 대비
             </p>
           </CardContent>
         </Card>
@@ -100,9 +142,9 @@ export default function StatsPage() {
             <GraduationCap className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(overallStats.totalStudents)}</div>
+            <div className="text-2xl font-bold">{formatNumber(stats.overallStats.totalStudents)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              <span className="text-green-600">+123명</span> 지난달 대비
+              <span className="text-green-600">+{stats.overallStats.monthlyGrowth.students}명</span> 지난달 대비
             </p>
           </CardContent>
         </Card>
@@ -113,9 +155,9 @@ export default function StatsPage() {
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(overallStats.totalTeachers)}</div>
+            <div className="text-2xl font-bold">{formatNumber(stats.overallStats.totalTeachers)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              <span className="text-green-600">+17명</span> 지난달 대비
+              <span className="text-green-600">+{stats.overallStats.monthlyGrowth.teachers}명</span> 지난달 대비
             </p>
           </CardContent>
         </Card>
@@ -126,9 +168,9 @@ export default function StatsPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(overallStats.totalRevenue)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(stats.overallStats.totalRevenue)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              <span className="text-green-600">+4.1%</span> 지난달 대비
+              <span className="text-green-600">+{((stats.overallStats.monthlyGrowth.revenue / (stats.overallStats.totalRevenue - stats.overallStats.monthlyGrowth.revenue)) * 100).toFixed(1)}%</span> 지난달 대비
             </p>
           </CardContent>
         </Card>
@@ -142,7 +184,7 @@ export default function StatsPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(overallStats.activeSubscriptions)}</div>
+            <div className="text-2xl font-bold">{formatNumber(stats.overallStats.activeSubscriptions)}</div>
             <p className="text-xs text-muted-foreground mt-1">요금제 구독 중</p>
           </CardContent>
         </Card>
@@ -153,7 +195,7 @@ export default function StatsPage() {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(overallStats.totalMaterials)}</div>
+            <div className="text-2xl font-bold">{formatNumber(stats.overallStats.totalMaterials)}</div>
             <p className="text-xs text-muted-foreground mt-1">등록된 자료</p>
           </CardContent>
         </Card>
@@ -164,7 +206,7 @@ export default function StatsPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(overallStats.totalAssignments)}</div>
+            <div className="text-2xl font-bold">{formatNumber(stats.overallStats.totalAssignments)}</div>
             <p className="text-xs text-muted-foreground mt-1">제출된 과제</p>
           </CardContent>
         </Card>
@@ -175,7 +217,7 @@ export default function StatsPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overallStats.avgAttendanceRate}%</div>
+            <div className="text-2xl font-bold">{stats.overallStats.avgAttendanceRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground mt-1">전체 평균</p>
           </CardContent>
         </Card>
@@ -191,7 +233,7 @@ export default function StatsPage() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={revenueData}>
+              <BarChart data={stats.revenueData}>
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip
@@ -213,7 +255,7 @@ export default function StatsPage() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={userGrowthData}>
+              <LineChart data={stats.userGrowthData}>
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip labelStyle={{ color: "#000" }} />
@@ -253,7 +295,7 @@ export default function StatsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {topAcademies.map((academy, index) => (
+            {stats.topAcademies.map((academy, index) => (
               <div
                 key={academy.name}
                 className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50 transition-colors"
@@ -291,15 +333,15 @@ export default function StatsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">일일 활성 사용자</span>
-                <span className="font-semibold">5,432명</span>
+                <span className="font-semibold">{formatNumber(stats.activityStats.dailyActiveUsers)}명</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">주간 활성 사용자</span>
-                <span className="font-semibold">7,234명</span>
+                <span className="font-semibold">{formatNumber(stats.activityStats.weeklyActiveUsers)}명</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">월간 활성 사용자</span>
-                <span className="font-semibold">8,543명</span>
+                <span className="font-semibold">{formatNumber(stats.activityStats.monthlyActiveUsers)}명</span>
               </div>
             </div>
           </CardContent>
@@ -313,15 +355,15 @@ export default function StatsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">오늘 업로드된 자료</span>
-                <span className="font-semibold">127개</span>
+                <span className="font-semibold">{formatNumber(stats.activityStats.todayMaterials)}개</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">오늘 제출된 과제</span>
-                <span className="font-semibold">543개</span>
+                <span className="font-semibold">{formatNumber(stats.activityStats.todayAssignments)}개</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">AI 사용 횟수</span>
-                <span className="font-semibold">1,234회</span>
+                <span className="font-semibold">{formatNumber(stats.activityStats.aiUsageCount)}회</span>
               </div>
             </div>
           </CardContent>
@@ -335,15 +377,15 @@ export default function StatsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">이번 달 신규 가입</span>
-                <span className="font-semibold text-green-600">+156명</span>
+                <span className="font-semibold text-green-600">+{formatNumber(stats.growthIndicators.newSignups)}명</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">구독 갱신율</span>
-                <span className="font-semibold text-green-600">97.3%</span>
+                <span className="font-semibold text-green-600">{stats.growthIndicators.renewalRate.toFixed(1)}%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">평균 사용 시간</span>
-                <span className="font-semibold">2.4시간/일</span>
+                <span className="font-semibold">{stats.growthIndicators.avgUsageHours.toFixed(1)}시간/일</span>
               </div>
             </div>
           </CardContent>
