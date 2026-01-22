@@ -48,14 +48,14 @@ Environment: ✅ Production, ✅ Preview, ✅ Development
 #### 변수 4: GOOGLE_GENERATIVE_AI_API_KEY
 ```env
 Name: GOOGLE_GENERATIVE_AI_API_KEY
-Value: AIzaSyAAu9N0kySmg_AAQZ6huNqIuc-aCykYSaw
+Value: YOUR_GOOGLE_GEMINI_API_KEY_HERE
 Environment: ✅ Production, ✅ Preview, ✅ Development
 ```
 
 #### 변수 5: GOOGLE_GEMINI_API_KEY
 ```env
 Name: GOOGLE_GEMINI_API_KEY
-Value: AIzaSyAAu9N0kySmg_AAQZ6huNqIuc-aCykYSaw (변수 4와 동일)
+Value: YOUR_GOOGLE_GEMINI_API_KEY_HERE (변수 4와 동일)
 Environment: ✅ Production, ✅ Preview, ✅ Development
 ```
 

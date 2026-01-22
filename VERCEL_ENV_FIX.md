@@ -74,7 +74,7 @@ postgresql://neondb_owner:npg_YvDcNzWU3KR7@ep-empty-shadow-ahjjzdfv-pooler.c-3.u
 
 **확인:**
 ```
-AIzaSyAAu9N0kySmg_AAQZ6huNqIuc-aCykYSaw
+YOUR_GOOGLE_GEMINI_API_KEY_HERE
 ```
 
 ---
@@ -83,7 +83,7 @@ AIzaSyAAu9N0kySmg_AAQZ6huNqIuc-aCykYSaw
 
 **확인:**
 ```
-AIzaSyAAu9N0kySmg_AAQZ6huNqIuc-aCykYSaw
+YOUR_GOOGLE_GEMINI_API_KEY_HERE
 ```
 
 ---
@@ -213,9 +213,9 @@ NEXTAUTH_URL=https://superplacestudy.vercel.app
 
 NEXTAUTH_SECRET=f51b85e6df8312e966068a9e8ac0e292
 
-GOOGLE_GENERATIVE_AI_API_KEY=AIzaSyAAu9N0kySmg_AAQZ6huNqIuc-aCykYSaw
+GOOGLE_GENERATIVE_AI_API_KEY=YOUR_GOOGLE_GEMINI_API_KEY_HERE
 
-GOOGLE_GEMINI_API_KEY=AIzaSyAAu9N0kySmg_AAQZ6huNqIuc-aCykYSaw
+GOOGLE_GEMINI_API_KEY=YOUR_GOOGLE_GEMINI_API_KEY_HERE
 ```
 
 ---

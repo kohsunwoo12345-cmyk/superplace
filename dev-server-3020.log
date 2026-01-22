@@ -1,0 +1,68 @@
+
+> super-place-marketing@1.0.0 dev
+> next dev
+
+   [1m[38;2;173;127;168m▲ Next.js 15.4.10[39m[22m
+   - Local:        http://localhost:3020
+   - Network:      http://169.254.0.21:3020
+   - Environments: .env
+
+ [32m[1m✓[22m[39m Starting...
+ [32m[1m✓[22m[39m Ready in 2.5s
+ [37m[1m○[22m[39m Compiling /dashboard/ai-gems ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ [32m[1m✓[22m[39m Compiled /dashboard/ai-gems in 7.1s (809 modules)
+ GET /dashboard/ai-gems [32m200[39m in 8344ms
+ [32m[1m✓[22m[39m Compiled in 1148ms (343 modules)
+ [33m[1m⚠[22m[39m Cross origin request detected from 3020-iftozwzhzim0qta6v3gft-0e616f0a.sandbox.novita.ai to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ [37m[1m○[22m[39m Compiling /api/auth/[...nextauth] ...
+ [32m[1m✓[22m[39m Compiled /api/auth/[...nextauth] in 1376ms (1028 modules)
+ GET /api/auth/session [32m200[39m in 2827ms
+ [37m[1m○[22m[39m Compiling /auth/signin ...
+ [32m[1m✓[22m[39m Compiled /auth/signin in 984ms (1045 modules)
+ GET /auth/signin [32m200[39m in 1143ms
+ GET /api/auth/providers [32m200[39m in 189ms
+ GET /api/auth/csrf [32m200[39m in 57ms
+prisma:query SELECT "public"."User"."id", "public"."User"."email", "public"."User"."name", "public"."User"."password", "public"."User"."phone", "public"."User"."role", "public"."User"."academyId", "public"."User"."grade", "public"."User"."class", "public"."User"."studentId", "public"."User"."parentPhone", "public"."User"."points", "public"."User"."aiChatEnabled", "public"."User"."aiHomeworkEnabled", "public"."User"."aiStudyEnabled", "public"."User"."emailVerified", "public"."User"."image", "public"."User"."approved", "public"."User"."approvedBy", "public"."User"."approvedAt", "public"."User"."lastLoginAt", "public"."User"."createdAt", "public"."User"."updatedAt" FROM "public"."User" WHERE ("public"."User"."email" = $1 AND 1=1) LIMIT $2 OFFSET $3
+ POST /api/auth/callback/credentials [32m200[39m in 925ms
+ GET /api/auth/session [32m200[39m in 72ms
+ [37m[1m○[22m[39m Compiling /dashboard ...
+ [32m[1m✓[22m[39m Compiled /dashboard in 896ms (1064 modules)
+ GET /dashboard [32m200[39m in 1067ms
+ GET /dashboard [32m200[39m in 70ms
+ GET /api/auth/providers [32m200[39m in 165ms
+ GET /api/auth/csrf [32m200[39m in 36ms
+prisma:query SELECT "public"."User"."id", "public"."User"."email", "public"."User"."name", "public"."User"."password", "public"."User"."phone", "public"."User"."role", "public"."User"."academyId", "public"."User"."grade", "public"."User"."class", "public"."User"."studentId", "public"."User"."parentPhone", "public"."User"."points", "public"."User"."aiChatEnabled", "public"."User"."aiHomeworkEnabled", "public"."User"."aiStudyEnabled", "public"."User"."emailVerified", "public"."User"."image", "public"."User"."approved", "public"."User"."approvedBy", "public"."User"."approvedAt", "public"."User"."lastLoginAt", "public"."User"."createdAt", "public"."User"."updatedAt" FROM "public"."User" WHERE ("public"."User"."email" = $1 AND 1=1) LIMIT $2 OFFSET $3
+ POST /api/auth/callback/credentials [32m200[39m in 243ms
+ GET /api/auth/session [32m200[39m in 37ms
+ GET /dashboard [32m200[39m in 63ms
+ GET /dashboard [32m200[39m in 65ms
+ GET /dashboard/ai-gems [32m200[39m in 78ms
+ [37m[1m○[22m[39m Compiling /dashboard/ai-gems/[gemId] ...
+ [32m[1m✓[22m[39m Compiled /dashboard/ai-gems/[gemId] in 1159ms (1083 modules)
+ GET /dashboard/ai-gems/writing-coach [32m200[39m in 145ms
+ GET /dashboard/ai-gems/study-helper [32m200[39m in 2258ms
+ GET /dashboard/ai-gems/study-helper [32m200[39m in 62ms
+ GET /dashboard/ai-gems/writing-coach [32m200[39m in 46ms
+ GET /dashboard/ai-gems/writing-coach [32m200[39m in 85ms
+ [37m[1m○[22m[39m Compiling /api/ai/chat ...
+ [32m[1m✓[22m[39m Compiled /api/ai/chat in 726ms (1099 modules)
+Gemini API Error: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent: [404 Not Found] models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at async POST (src/app/api/ai/chat/route.ts:70:19)
+  68 |
+  69 |     // 메시지 전송 및 응답 받기
+> 70 |     const result = await chat.sendMessage(message);
+     |                   ^
+  71 |     const response = await result.response;
+  72 |     const text = response.text();
+  73 | {
+  status: 404,
+  statusText: 'Not Found',
+  errorDetails: undefined
+}
+ POST /api/ai/chat [31m500[39m in 1202ms
+prisma:error Error in PostgreSQL connection: Error { kind: Closed, cause: None }
+ GET /api/auth/session [32m200[39m in 230ms
+ GET /api/auth/session [32m200[39m in 84ms
+ GET /api/auth/session [32m200[39m in 92ms

@@ -44,7 +44,7 @@ src/components/dashboard/Sidebar.tsx     (수정: 메뉴 추가)
 ## ⚠️ API 키 이슈
 
 ### 문제 상황
-Google Gemini API 키(`AIzaSyAAu9N0kySmg_AAQZ6huNqIuc-aCykYSaw`)가 현재 작동하지 않습니다.
+Google Gemini API 키(`YOUR_GOOGLE_GEMINI_API_KEY_HERE`)가 현재 작동하지 않습니다.
 
 ### 테스트 결과
 ```

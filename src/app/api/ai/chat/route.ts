@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getGemById } from '@/lib/gems/data';
 
 // Google Gemini API 초기화
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || '');
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, history } = await request.json();
+    const { message, history, gemId } = await request.json();
 
     if (!message) {
       return NextResponse.json(
@@ -27,11 +28,32 @@ export async function POST(request: NextRequest) {
       model: 'models/gemini-pro',
     });
 
+    // Gem별 시스템 프롬프트 적용
+    let systemPrompt = '';
+    if (gemId) {
+      const gem = getGemById(gemId);
+      if (gem) {
+        systemPrompt = gem.systemPrompt;
+      }
+    }
+
     // 대화 히스토리를 Gemini 형식으로 변환
     const chatHistory = history?.map((msg: any) => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }],
     })) || [];
+
+    // 시스템 프롬프트를 첫 메시지로 추가
+    if (systemPrompt && chatHistory.length === 0) {
+      chatHistory.unshift({
+        role: 'user',
+        parts: [{ text: '당신의 역할을 설명해주세요.' }],
+      });
+      chatHistory.push({
+        role: 'model',
+        parts: [{ text: systemPrompt }],
+      });
+    }
 
     // 채팅 세션 시작
     const chat = model.startChat({

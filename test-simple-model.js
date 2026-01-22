@@ -1,6 +1,12 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+require('dotenv').config();
 
-const API_KEY = 'AIzaSyAAu9N0kySmg_AAQZ6huNqIuc-aCykYSaw';
+const API_KEY = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+
+if (!API_KEY) {
+  console.error('❌ 오류: GOOGLE_GEMINI_API_KEY 또는 GEMINI_API_KEY 환경 변수를 설정해주세요.');
+  process.exit(1);
+}
 
 async function test() {
   const models = ['gemini-pro', 'gemini-1.0-pro', 'gemini-1.5-flash-latest', 'gemini-1.5-pro-latest'];
