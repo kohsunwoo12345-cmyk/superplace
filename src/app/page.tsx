@@ -11,7 +11,14 @@ import {
   Clock,
   FileText,
   Target,
-  ChevronDown
+  ChevronDown,
+  TrendingUp,
+  Briefcase,
+  MessageCircle,
+  Share2,
+  Building2,
+  Phone,
+  HelpCircle
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -163,25 +170,25 @@ export default function Home() {
     description: "학습 효율을 극대화하는 스마트 기능들",
     items: [
       {
-        icon: "📚",
+        icon: <BookOpen className="h-6 w-6" />,
         title: "디지털 학습 자료",
         description: "언제 어디서나 접근 가능한 체계적인 학습 콘텐츠",
         href: "#features"
       },
       {
-        icon: "📈",
+        icon: <BarChart3 className="h-6 w-6" />,
         title: "학습 진도 관리",
         description: "실시간으로 확인하는 나의 학습 진행 상황",
         href: "#features"
       },
       {
-        icon: "📝",
+        icon: <FileText className="h-6 w-6" />,
         title: "과제 제출 시스템",
         description: "온라인으로 간편하게 과제 제출 및 피드백",
         href: "#features"
       },
       {
-        icon: "🏆",
+        icon: <Award className="h-6 w-6" />,
         title: "성적 분석",
         description: "시험 점수 및 성취도를 한눈에 확인",
         href: "#features"
@@ -194,19 +201,19 @@ export default function Home() {
     description: "모두를 위한 맞춤형 학습 솔루션",
     items: [
       {
-        icon: "👨‍🎓",
+        icon: <GraduationCap className="h-6 w-6" />,
         title: "학생을 위한",
         description: "자기주도 학습 환경과 맞춤형 학습 자료",
         href: "#benefits"
       },
       {
-        icon: "👨‍💼",
+        icon: <Briefcase className="h-6 w-6" />,
         title: "학원장을 위한",
         description: "효율적인 학원 운영과 통합 관리 시스템",
         href: "#benefits"
       },
       {
-        icon: "👩‍🏫",
+        icon: <Users className="h-6 w-6" />,
         title: "선생님을 위한",
         description: "학생 관리와 수업 진행을 편리하게",
         href: "#benefits"
@@ -220,25 +227,25 @@ export default function Home() {
     link: "https://superplace-academy.pages.dev",
     items: [
       {
-        icon: "📱",
+        icon: <Share2 className="h-6 w-6" />,
         title: "소셜미디어 관리",
         description: "인스타그램, 블로그 등 통합 관리",
         href: "https://superplace-academy.pages.dev"
       },
       {
-        icon: "📊",
+        icon: <TrendingUp className="h-6 w-6" />,
         title: "마케팅 분석",
         description: "실시간 마케팅 성과 분석",
         href: "https://superplace-academy.pages.dev"
       },
       {
-        icon: "🎯",
+        icon: <Target className="h-6 w-6" />,
         title: "타겟 광고",
         description: "효율적인 광고 캠페인 운영",
         href: "https://superplace-academy.pages.dev"
       },
       {
-        icon: "💬",
+        icon: <MessageCircle className="h-6 w-6" />,
         title: "고객 소통",
         description: "학부모 및 학생 커뮤니케이션",
         href: "https://superplace-academy.pages.dev"
@@ -251,19 +258,19 @@ export default function Home() {
     description: "SUPER PLACE와 함께하는 스마트 학습",
     items: [
       {
-        icon: "🏫",
+        icon: <Building2 className="h-6 w-6" />,
         title: "학원 소개",
         description: "체계적인 학습 관리 시스템을 제공합니다",
         href: "#about"
       },
       {
-        icon: "📞",
+        icon: <Phone className="h-6 w-6" />,
         title: "문의하기",
         description: "궁금한 점이 있으시면 언제든 연락주세요",
         href: "/contact"
       },
       {
-        icon: "❓",
+        icon: <HelpCircle className="h-6 w-6" />,
         title: "도움말",
         description: "서비스 이용 가이드와 FAQ",
         href: "#help"
@@ -371,7 +378,7 @@ export default function Home() {
                           }}
                         >
                           <div className="flex items-start gap-3">
-                            <div className="text-2xl group-hover/item:scale-110 transition-transform duration-200">
+                            <div className="text-blue-600 group-hover/item:scale-110 transition-transform duration-200">
                               {item.icon}
                             </div>
                             <div>
@@ -412,7 +419,7 @@ export default function Home() {
                           }}
                         >
                           <div className="flex items-start gap-3">
-                            <div className="text-2xl group-hover/item:scale-110 transition-transform duration-200">
+                            <div className="text-purple-600 group-hover/item:scale-110 transition-transform duration-200">
                               {item.icon}
                             </div>
                             <div>
@@ -468,7 +475,7 @@ export default function Home() {
                           }}
                         >
                           <div className="flex items-start gap-3">
-                            <div className="text-2xl group-hover/item:scale-110 transition-transform duration-200">
+                            <div className="text-pink-600 group-hover/item:scale-110 transition-transform duration-200">
                               {item.icon}
                             </div>
                             <div>
@@ -509,7 +516,7 @@ export default function Home() {
                           }}
                         >
                           <div className="flex items-start gap-3">
-                            <div className="text-2xl group-hover/item:scale-110 transition-transform duration-200">
+                            <div className="text-indigo-600 group-hover/item:scale-110 transition-transform duration-200">
                               {item.icon}
                             </div>
                             <div>
@@ -574,7 +581,10 @@ export default function Home() {
           }}
         >
           <div className="inline-block mb-4 px-4 py-2 bg-blue-100 rounded-full">
-            <span className="text-sm font-semibold text-blue-700">🎓 스마트 학습 관리 시스템</span>
+            <span className="text-sm font-semibold text-blue-700 flex items-center gap-2">
+              <GraduationCap className="h-4 w-4" />
+              스마트 학습 관리 시스템
+            </span>
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
@@ -688,7 +698,10 @@ export default function Home() {
           >
             <div>
               <div className="inline-block mb-4 px-4 py-2 bg-blue-100 rounded-full">
-                <span className="text-sm font-semibold text-blue-700">👨‍🎓 학생을 위한</span>
+                <span className="text-sm font-semibold text-blue-700 flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4" />
+                  학생을 위한
+                </span>
               </div>
               <h2 className="text-4xl font-bold mb-6">
                 스스로 학습하는<br />
@@ -773,7 +786,10 @@ export default function Home() {
             </div>
             <div className="order-1 md:order-2">
               <div className="inline-block mb-4 px-4 py-2 bg-purple-100 rounded-full">
-                <span className="text-sm font-semibold text-purple-700">👨‍💼 학원장을 위한</span>
+                <span className="text-sm font-semibold text-purple-700 flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  학원장을 위한
+                </span>
               </div>
               <h2 className="text-4xl font-bold mb-6">
                 효율적인 학원 운영을 위한<br />
