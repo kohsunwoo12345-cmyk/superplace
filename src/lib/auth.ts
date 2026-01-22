@@ -77,6 +77,14 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        
+        // academyId 추가
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { academyId: true },
+        });
+        
+        token.academyId = dbUser?.academyId || null;
       }
       return token;
     },
@@ -84,6 +92,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.academyId = token.academyId as string;
       }
       return session;
     },

@@ -14,9 +14,14 @@ export async function PATCH(
       return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }
 
+    console.log("📝 Approve request - Session:", JSON.stringify(session.user, null, 2));
+
     const { role, academyId, id: userId } = session.user;
 
+    console.log("🔍 Role:", role, "AcademyId:", academyId, "UserId:", userId);
+
     if (role !== "DIRECTOR" && role !== "SUPER_ADMIN") {
+      console.log("❌ Role check failed:", role);
       return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
     }
 
@@ -33,6 +38,8 @@ export async function PATCH(
       },
     });
 
+    console.log("👨‍🎓 Student:", JSON.stringify(student, null, 2));
+
     if (!student || student.role !== "STUDENT") {
       return NextResponse.json(
         { error: "학생을 찾을 수 없습니다." },
@@ -42,6 +49,7 @@ export async function PATCH(
 
     // DIRECTOR는 자기 학원 학생만 승인 가능
     if (role === "DIRECTOR" && student.academyId !== academyId) {
+      console.log("❌ Academy mismatch - Student:", student.academyId, "Director:", academyId);
       return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
     }
 
@@ -54,6 +62,8 @@ export async function PATCH(
         approvedAt: approved ? new Date() : null,
       },
     });
+
+    console.log("✅ Student approved:", updatedStudent.id);
 
     return NextResponse.json({ success: true, student: updatedStudent });
   } catch (error) {
