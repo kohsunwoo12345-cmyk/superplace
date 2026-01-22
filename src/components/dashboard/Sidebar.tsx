@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
 import {
   BarChart3,
   LayoutDashboard,
@@ -50,7 +51,6 @@ const navigationByRole = {
     { name: "과제 관리", href: "/dashboard/assignments", icon: ClipboardList },
     { name: "출석 관리", href: "/dashboard/attendance", icon: Calendar },
     { name: "성적 관리", href: "/dashboard/grades", icon: BarChart3 },
-    { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
     { name: "학원 통계", href: "/dashboard/analytics", icon: TrendingUp },
     { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "학원 설정", href: "/dashboard/academy-settings", icon: Building2 },
@@ -67,17 +67,66 @@ const navigationByRole = {
   ],
   STUDENT: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
-    { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
   ],
 };
 
 export default function DashboardSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [assignedBots, setAssignedBots] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // 사용자 역할에 따른 네비게이션 선택
   const userRole = session?.user?.role || "STUDENT";
-  const navigation = navigationByRole[userRole as keyof typeof navigationByRole] || navigationByRole.STUDENT;
+  const baseNavigation = navigationByRole[userRole as keyof typeof navigationByRole] || navigationByRole.STUDENT;
+
+  // 할당된 AI 봇 가져오기
+  useEffect(() => {
+    const fetchAssignedBots = async () => {
+      if (!session?.user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      // SUPER_ADMIN은 모든 봇에 접근 가능하므로 API 호출 불필요
+      if (userRole === "SUPER_ADMIN") {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/user/assigned-bots`);
+        if (response.ok) {
+          const data = await response.json();
+          setAssignedBots(data.bots || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch assigned bots:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssignedBots();
+  }, [session, userRole]);
+
+  // 할당된 봇을 네비게이션에 추가
+  const navigation = [...baseNavigation];
+  
+  if (!loading && assignedBots.length > 0) {
+    // 봇 메뉴를 추가할 위치 찾기 (DIRECTOR: 성적 관리 다음, STUDENT: 대시보드 다음)
+    const insertIndex = userRole === "DIRECTOR" 
+      ? navigation.findIndex(item => item.name === "학원 통계")
+      : navigation.findIndex(item => item.name === "대시보드") + 1;
+    
+    assignedBots.forEach((bot, index) => {
+      navigation.splice(insertIndex + index, 0, {
+        name: bot.name,
+        href: `/dashboard/ai-gems/${bot.id}`,
+        icon: Sparkles,
+      });
+    });
+  }
 
   return (
     <>
