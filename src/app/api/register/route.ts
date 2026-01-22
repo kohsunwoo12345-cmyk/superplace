@@ -27,7 +27,10 @@ function generateAcademyCode(): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    console.log("📝 Registration request body:", JSON.stringify(body, null, 2));
+    
     const validatedData = registerSchema.parse(body);
+    console.log("✅ Validation passed:", JSON.stringify(validatedData, null, 2));
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -35,19 +38,24 @@ export async function POST(req: Request) {
     });
 
     if (existingUser) {
+      console.log("❌ User already exists:", validatedData.email);
       return NextResponse.json(
         { error: "이미 존재하는 이메일입니다" },
         { status: 400 }
       );
     }
 
+    console.log("🔐 Hashing password...");
     // Hash password
     const hashedPassword = await bcrypt.hash(validatedData.password, 10);
+    console.log("✅ Password hashed successfully");
 
     // Handle different roles
     if (validatedData.role === 'DIRECTOR') {
+      console.log("🏫 Creating DIRECTOR account...");
       // 학원장: 새로운 학원 생성
       if (!validatedData.academyName) {
+        console.log("❌ Academy name missing");
         return NextResponse.json(
           { error: "학원 이름을 입력해주세요" },
           { status: 400 }
@@ -55,12 +63,14 @@ export async function POST(req: Request) {
       }
 
       if (!validatedData.academyLocation) {
+        console.log("❌ Academy location missing");
         return NextResponse.json(
           { error: "학원 위치를 입력해주세요" },
           { status: 400 }
         );
       }
 
+      console.log("🔑 Generating academy code...");
       // Generate unique academy code
       let academyCode = generateAcademyCode();
       let existingAcademy = await prisma.academy.findUnique({
@@ -74,7 +84,9 @@ export async function POST(req: Request) {
           where: { code: academyCode }
         });
       }
+      console.log("✅ Academy code generated:", academyCode);
 
+      console.log("💾 Creating academy and user in transaction...");
       // Create academy and user in a transaction
       const result = await prisma.$transaction(async (tx) => {
         const academy = await tx.academy.create({
@@ -88,6 +100,7 @@ export async function POST(req: Request) {
             maxAIUsage: 100,
           },
         });
+        console.log("✅ Academy created:", academy.id);
 
         const user = await tx.user.create({
           data: {
@@ -108,10 +121,12 @@ export async function POST(req: Request) {
             createdAt: true,
           },
         });
+        console.log("✅ User created:", user.id);
 
         return { user, academy };
       });
 
+      console.log("🎉 DIRECTOR registration successful!");
       return NextResponse.json(
         { 
           message: "학원이 생성되었습니다! 로그인하여 선생님과 학생을 초대하세요.",
