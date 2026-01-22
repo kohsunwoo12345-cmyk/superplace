@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       where: { email: session.user.email },
     });
 
-    if (!admin || (admin.role !== "ADMIN" && admin.role !== "SUPERADMIN")) {
+    if (!admin || (admin.role !== "DIRECTOR" && admin.role !== "SUPER_ADMIN")) {
       return NextResponse.json({ error: "관리자 권한이 필요합니다" }, { status: 403 });
     }
 
