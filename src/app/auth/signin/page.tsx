@@ -44,7 +44,17 @@ function SignInForm() {
           setError(result.error);
         }
       } else {
-        router.push("/dashboard");
+        // 세션 정보를 가져와서 역할별로 리다이렉트
+        const response = await fetch("/api/auth/session");
+        const session = await response.json();
+        
+        if (session?.user?.role === "DIRECTOR") {
+          // 학원장은 홈페이지로
+          router.push("/");
+        } else {
+          // 나머지는 대시보드로
+          router.push("/dashboard");
+        }
         router.refresh();
       }
     } catch (error) {

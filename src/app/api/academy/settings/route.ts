@@ -72,7 +72,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, address, phone, email } = body;
+    const { name, description, address, phone, email, naverPlaceUrl, naverBlogUrl } = body;
 
     // 입력 검증
     if (!name || name.trim().length === 0) {
@@ -90,6 +90,8 @@ export async function PATCH(request: NextRequest) {
         address: address?.trim() || null,
         phone: phone?.trim() || null,
         email: email?.trim() || null,
+        naverPlaceUrl: naverPlaceUrl?.trim() || null,
+        naverBlogUrl: naverBlogUrl?.trim() || null,
       },
       include: {
         _count: {
