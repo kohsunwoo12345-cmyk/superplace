@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Bot, User, Loader2, ArrowLeft, Trash2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, ArrowLeft, Trash2, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getGemById } from '@/lib/gems/data';
 
@@ -13,6 +13,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  image?: string;
 }
 
 export default function GemChatPage() {
@@ -24,7 +25,10 @@ export default function GemChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!gem) {
@@ -40,14 +44,37 @@ export default function GemChatPage() {
     scrollToBottom();
   }, [messages]);
 
+  // 이미지 선택 처리
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // 이미지 제거
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !gem) return;
+    if ((!input.trim() && !selectedImage) || isLoading || !gem) return;
 
     const userMessage: Message = {
       role: 'user',
-      content: input,
+      content: input || '이미지 분석 요청',
       timestamp: new Date(),
+      image: imagePreview || undefined,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -55,31 +82,62 @@ export default function GemChatPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: input,
-          history: messages,
-          gemId: gem.id,
-        }),
-      });
+      // 꾸메땅 봇이고 이미지가 있는 경우 전용 API 사용
+      if (gem.id === 'ggumettang' && selectedImage) {
+        const formData = new FormData();
+        formData.append('message', input || '이 숙제 사진을 분석해주세요. 꾸메땅 로직에 따라 기호와 해석이 올바른지 검사해주세요.');
+        formData.append('image', selectedImage);
+        formData.append('history', JSON.stringify(messages.map(m => ({
+          role: m.role,
+          content: m.content
+        }))));
 
-      if (!response.ok) {
-        throw new Error('AI 응답을 받는데 실패했습니다.');
+        const response = await fetch('/api/ai-bot/ggumettang', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('AI 응답을 받는데 실패했습니다.');
+        }
+
+        const data = await response.json();
+
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: data.message,
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+      } else {
+        // 일반 AI 봇
+        const response = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: input,
+            history: messages,
+            gemId: gem.id,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('AI 응답을 받는데 실패했습니다.');
+        }
+
+        const data = await response.json();
+
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: data.response,
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
       }
-
-      const data = await response.json();
-
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: data.response,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error:', error);
       const errorMessage: Message = {
@@ -90,6 +148,7 @@ export default function GemChatPage() {
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      removeImage();
     }
   };
 
@@ -218,6 +277,13 @@ export default function GemChatPage() {
                               : 'bg-gray-100 text-gray-900'
                           }`}
                         >
+                          {message.image && (
+                            <img
+                              src={message.image}
+                              alt="업로드된 이미지"
+                              className="mb-3 rounded-lg max-w-full h-auto"
+                            />
+                          )}
                           <p className="whitespace-pre-wrap break-words">
                             {message.content}
                           </p>
@@ -251,36 +317,96 @@ export default function GemChatPage() {
             </div>
 
             {/* Input */}
-            <div className="border-t p-4 bg-gray-50">
-              <form onSubmit={handleSubmit} className="flex gap-2">
-                <Textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={`${gem.name}에게 메시지를 입력하세요...`}
-                  className="flex-1 min-h-[60px] max-h-[120px] resize-none"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit(e);
-                    }
-                  }}
-                  disabled={isLoading}
-                />
-                <Button
-                  type="submit"
-                  disabled={!input.trim() || isLoading}
-                  className={`self-end bg-${gem.color}-600 hover:bg-${gem.color}-700`}
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
+            <div className="border-t bg-gray-50">
+              {/* 이미지 미리보기 (꾸메땅 봇만) */}
+              {gem.id === 'ggumettang' && imagePreview && (
+                <div className="px-4 pt-3 pb-0">
+                  <div className="flex items-center gap-3 bg-blue-50 p-2 rounded-lg">
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="미리보기"
+                        className="h-16 w-16 object-cover rounded border-2 border-blue-300"
+                      />
+                      <button
+                        onClick={removeImage}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      >
+                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 text-xs text-blue-700 font-medium">
+                        <CheckCircle2 className="h-3 w-3" />
+                        이미지가 선택되었습니다
+                      </div>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        {selectedImage?.name}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="p-4">
+                <form onSubmit={handleSubmit} className="flex gap-2">
+                  {/* 이미지 업로드 버튼 (꾸메땅 봇만) */}
+                  {gem.id === 'ggumettang' && (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isLoading}
+                        className="flex-shrink-0 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                      >
+                        <ImageIcon className="h-5 w-5" />
+                      </Button>
+                    </>
                   )}
-                </Button>
-              </form>
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                Shift + Enter로 줄바꿈, Enter로 전송
-              </p>
+                  
+                  <Textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={gem.id === 'ggumettang' ? '숙제 사진을 업로드하거나 질문을 입력하세요...' : `${gem.name}에게 메시지를 입력하세요...`}
+                    className="flex-1 min-h-[60px] max-h-[120px] resize-none"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit(e);
+                      }
+                    }}
+                    disabled={isLoading}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={(gem.id === 'ggumettang' ? (!input.trim() && !selectedImage) : !input.trim()) || isLoading}
+                    className={`self-end bg-${gem.color}-600 hover:bg-${gem.color}-700`}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </form>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  {gem.id === 'ggumettang' 
+                    ? '사진을 업로드하거나 Shift + Enter로 줄바꿈, Enter로 전송'
+                    : 'Shift + Enter로 줄바꿈, Enter로 전송'
+                  }
+                </p>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -291,6 +417,12 @@ export default function GemChatPage() {
 
 function getSuggestions(gemId: string): string[] {
   const suggestions: Record<string, string[]> = {
+    'ggumettang': [
+      '주요소와 종요소의 차이를 설명해주세요',
+      '세모(△) 구문은 언제 사용하나요?',
+      '비이커 비유가 무엇인가요?',
+      '샌드위치 수식을 설명해주세요',
+    ],
     'study-helper': [
       '이차방정식의 근의 공식을 설명해주세요',
       '광합성 과정을 쉽게 설명해주세요',

@@ -21,7 +21,7 @@ export default function AIBotsPage() {
         </div>
         <Badge variant="outline" className="flex items-center gap-1">
           <Sparkles className="h-3 w-3" />
-          8개 전문 봇
+          9개 전문 봇
         </Badge>
       </div>
 
