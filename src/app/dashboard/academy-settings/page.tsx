@@ -27,6 +27,8 @@ interface Academy {
   phone: string | null;
   email: string | null;
   logoUrl: string | null;
+  naverPlaceUrl: string | null;
+  naverBlogUrl: string | null;
   subscriptionPlan: string;
   maxStudents: number;
   maxTeachers: number;
@@ -52,6 +54,8 @@ export default function AcademySettingsPage() {
     address: '',
     phone: '',
     email: '',
+    naverPlaceUrl: '',
+    naverBlogUrl: '',
   });
 
   // 권한 체크
@@ -87,6 +91,8 @@ export default function AcademySettingsPage() {
         address: data.address || '',
         phone: data.phone || '',
         email: data.email || '',
+        naverPlaceUrl: data.naverPlaceUrl || '',
+        naverBlogUrl: data.naverBlogUrl || '',
       });
     } catch (error) {
       console.error('Error loading academy:', error);
@@ -130,6 +136,8 @@ export default function AcademySettingsPage() {
       address: academy?.address || '',
       phone: academy?.phone || '',
       email: academy?.email || '',
+      naverPlaceUrl: academy?.naverPlaceUrl || '',
+      naverBlogUrl: academy?.naverBlogUrl || '',
     });
     setEditing(false);
   };
@@ -273,6 +281,52 @@ export default function AcademySettingsPage() {
               />
             ) : (
               <div className="text-gray-900">{academy.email || '이메일 없음'}</div>
+            )}
+          </div>
+
+          {/* 네이버 플레이스 URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">네이버 플레이스 URL</label>
+            {editing ? (
+              <Input
+                value={formData.naverPlaceUrl}
+                onChange={(e) => setFormData({ ...formData, naverPlaceUrl: e.target.value })}
+                placeholder="https://map.naver.com/v5/entry/place/..."
+                type="url"
+              />
+            ) : (
+              <div className="text-gray-900">
+                {academy.naverPlaceUrl ? (
+                  <a href={academy.naverPlaceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {academy.naverPlaceUrl}
+                  </a>
+                ) : (
+                  'URL 없음'
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 네이버 블로그 URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">네이버 블로그 URL</label>
+            {editing ? (
+              <Input
+                value={formData.naverBlogUrl}
+                onChange={(e) => setFormData({ ...formData, naverBlogUrl: e.target.value })}
+                placeholder="https://blog.naver.com/..."
+                type="url"
+              />
+            ) : (
+              <div className="text-gray-900">
+                {academy.naverBlogUrl ? (
+                  <a href={academy.naverBlogUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {academy.naverBlogUrl}
+                  </a>
+                ) : (
+                  'URL 없음'
+                )}
+              </div>
             )}
           </div>
         </div>
