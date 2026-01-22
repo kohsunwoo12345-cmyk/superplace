@@ -21,17 +21,55 @@ import {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    totalMaterials: 0,
-    totalAssignments: 0,
-    completionRate: 0,
-  });
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
   const isDirector = session?.user?.role === "DIRECTOR";
   const isTeacher = session?.user?.role === "TEACHER";
   const isStudent = session?.user?.role === "STUDENT";
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        let endpoint = '';
+        
+        if (isSuperAdmin) {
+          endpoint = '/api/admin/dashboard-stats';
+        } else if (isDirector || isTeacher) {
+          endpoint = '/api/dashboard/director-stats';
+        } else if (isStudent) {
+          endpoint = '/api/dashboard/student-stats';
+        }
+
+        if (endpoint) {
+          const response = await fetch(endpoint);
+          if (response.ok) {
+            const data = await response.json();
+            setStats(data);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (session) {
+      fetchStats();
+    }
+  }, [session, isSuperAdmin, isDirector, isTeacher, isStudent]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   // Super Admin Dashboard
   if (isSuperAdmin) {
@@ -60,10 +98,10 @@ export default function DashboardPage() {
               <Users className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">1,234명</div>
+              <div className="text-3xl font-bold text-blue-600">{stats?.totalUsers || 0}명</div>
               <div className="flex items-center text-sm mt-2">
                 <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                <span className="text-green-500">+48명</span>
+                <span className="text-green-500">+{stats?.newUsersThisMonth || 0}명</span>
                 <span className="text-gray-500 ml-1">이번 달</span>
               </div>
             </CardContent>
@@ -77,11 +115,9 @@ export default function DashboardPage() {
               <GraduationCap className="h-5 w-5 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-600">42개</div>
+              <div className="text-3xl font-bold text-purple-600">{stats?.activeAcademies || 0}개</div>
               <div className="flex items-center text-sm mt-2">
-                <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                <span className="text-green-500">+5개</span>
-                <span className="text-gray-500 ml-1">이번 달</span>
+                <span className="text-gray-500">전체 {stats?.totalAcademies || 0}개</span>
               </div>
             </CardContent>
           </Card>
@@ -94,9 +130,9 @@ export default function DashboardPage() {
               <CheckCircle className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">856명</div>
+              <div className="text-3xl font-bold text-green-600">{stats?.usersByRole?.STUDENT || 0}명</div>
               <div className="flex items-center text-sm mt-2">
-                <span className="text-gray-500">전체 1,234명 중</span>
+                <span className="text-gray-500">전체 학생 수</span>
               </div>
             </CardContent>
           </Card>
@@ -109,9 +145,9 @@ export default function DashboardPage() {
               <BarChart3 className="h-5 w-5 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-orange-600">15.2K</div>
+              <div className="text-3xl font-bold text-orange-600">{stats?.aiUsageThisMonth || 0}</div>
               <div className="flex items-center text-sm mt-2">
-                <span className="text-gray-500">이번 달 요청 수</span>
+                <span className="text-gray-500">이번 달 사용</span>
               </div>
             </CardContent>
           </Card>
@@ -130,12 +166,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {[
-                  { name: "김철수", role: "DIRECTOR", academy: "서울수학학원", date: "1일 전" },
-                  { name: "이영희", role: "TEACHER", academy: "강남영어학원", date: "2일 전" },
-                  { name: "박민수", role: "STUDENT", academy: "부산과학학원", date: "3일 전" },
-                  { name: "최지원", role: "DIRECTOR", academy: "인천국어학원", date: "5일 전" },
-                ].map((user, index) => (
+                {(stats?.recentUsers || []).slice(0, 4).map((user: any, index: number) => (
                   <div
                     key={index}
                     className="flex items-center justify-between p-3 border rounded-lg hover:bg-blue-50 transition-colors"
@@ -153,7 +184,9 @@ export default function DashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <span className="text-sm text-gray-500">{user.date}</span>
+                    <span className="text-sm text-gray-500">
+                      {new Date(user.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -204,10 +237,10 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-4">
               {[
-                { plan: "FREE", count: 15, color: "gray" },
-                { plan: "BASIC", count: 18, color: "blue" },
-                { plan: "PRO", count: 7, color: "purple" },
-                { plan: "ENTERPRISE", count: 2, color: "orange" },
+                { plan: "FREE", count: stats?.academiesByPlan?.FREE || 0, color: "gray" },
+                { plan: "BASIC", count: stats?.academiesByPlan?.BASIC || 0, color: "blue" },
+                { plan: "PRO", count: stats?.academiesByPlan?.PRO || 0, color: "purple" },
+                { plan: "ENTERPRISE", count: stats?.academiesByPlan?.ENTERPRISE || 0, color: "orange" },
               ].map((item) => (
                 <div key={item.plan}>
                   <div className="flex justify-between mb-2">
@@ -217,7 +250,7 @@ export default function DashboardPage() {
                   <div className="w-full bg-gray-200 rounded-full h-3">
                     <div
                       className={`bg-${item.color}-600 h-3 rounded-full transition-all duration-500`}
-                      style={{ width: `${(item.count / 42) * 100}%` }}
+                      style={{ width: `${stats?.totalAcademies > 0 ? (item.count / stats.totalAcademies) * 100 : 0}%` }}
                     />
                   </div>
                 </div>
