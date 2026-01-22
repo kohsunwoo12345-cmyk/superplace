@@ -24,6 +24,7 @@ import {
   Clock,
   Plus,
 } from "lucide-react";
+import CreateTeacherDialog from "@/components/dashboard/CreateTeacherDialog";
 
 interface Teacher {
   id: string;
@@ -46,6 +47,7 @@ export default function TeachersManagementPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -133,9 +135,15 @@ export default function TeachersManagementPage() {
   return (
     <div className="container mx-auto py-8 px-4">
       {/* 헤더 */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">선생님 관리</h1>
-        <p className="text-gray-600">학원 소속 선생님을 관리합니다</p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">선생님 관리</h1>
+          <p className="text-gray-600">학원 소속 선생님을 관리합니다</p>
+        </div>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          선생님 추가
+        </Button>
       </div>
 
       {/* 통계 카드 */}
@@ -298,6 +306,13 @@ export default function TeachersManagementPage() {
           </CardContent>
         </Card>
       )}
+      
+      {/* 선생님 추가 다이얼로그 */}
+      <CreateTeacherDialog
+        isOpen={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
+        onSuccess={fetchTeachers}
+      />
     </div>
   );
 }
