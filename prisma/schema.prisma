@@ -117,6 +117,10 @@ model User {
   createdMaterials  LearningMaterial[] @relation("CreatedBy")
   createdAssignments Assignment[] @relation("AssignedBy")
   
+  // AI 봇 할당 관계
+  assignedBots      BotAssignment[] @relation("AssignedTo")
+  grantedBots       BotAssignment[] @relation("GrantedBy")
+  
   @@index([academyId])
   @@index([role])
   @@index([approved])
@@ -388,4 +392,25 @@ model ClassSchedule {
   @@index([classId])
   @@index([dayOfWeek])
   @@index([teacherId])
+}
+
+// AI 봇 할당 관리
+model BotAssignment {
+  id            String      @id @default(cuid())
+  userId        String      // 봇을 할당받은 사용자 (학원장 또는 학생)
+  botId         String      // gems ID (study-helper, writing-coach, etc.)
+  grantedById   String      // 봇을 할당해준 사용자 (관리자 또는 학원장)
+  grantedByRole String      // SUPER_ADMIN or DIRECTOR
+  isActive      Boolean     @default(true)
+  expiresAt     DateTime?   // 만료일 (선택 사항)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation("AssignedTo", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy     User        @relation("GrantedBy", fields: [grantedById], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, botId])
+  @@index([userId, isActive])
+  @@index([grantedById])
+  @@index([botId])
 }

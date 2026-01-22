@@ -6,14 +6,14 @@ import { gems } from '@/lib/gems/data';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-export default function AIGemsPage() {
+export default function AIBotsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Sparkles className="h-8 w-8 text-purple-600" />
-            AI Gems
+            AI 봇
           </h1>
           <p className="text-muted-foreground mt-1">
             목적에 맞는 전문 AI 어시스턴트를 선택하세요
@@ -51,12 +51,12 @@ export default function AIGemsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-purple-600" />
-            AI Gems란?
+            AI 봇이란?
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-gray-700">
-            <strong>AI Gems</strong>는 Google Gemini의 특화된 봇 기능입니다. 각 Gem은 특정 역할에 최적화되어 있어
+            <strong>AI 봇</strong>은 Google Gemini의 특화된 봇 기능입니다. 각 봇은 특정 역할에 최적화되어 있어
             더 전문적이고 맞춤화된 도움을 받을 수 있습니다.
           </p>
           <div className="grid gap-2 text-sm">
@@ -70,7 +70,7 @@ export default function AIGemsPage() {
             </div>
             <div className="flex items-start gap-2">
               <span className="text-lg">💬</span>
-              <span><strong>독립적인 대화:</strong> 각 Gem마다 별도의 대화 히스토리 유지</span>
+              <span><strong>독립적인 대화:</strong> 각 봇마다 별도의 대화 히스토리 유지</span>
             </div>
           </div>
         </CardContent>

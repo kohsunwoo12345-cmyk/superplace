@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   BarChart3,
@@ -22,6 +22,8 @@ import {
   TrendingUp,
   MessageSquare,
   Sparkles,
+  LogOut,
+  UserPlus,
 } from "lucide-react";
 
 // 역할별 네비게이션 정의
@@ -31,8 +33,8 @@ const navigationByRole = {
     { name: "사용자 관리", href: "/dashboard/admin/users", icon: Users },
     { name: "학원 관리", href: "/dashboard/academies", icon: Building2 },
     { name: "요금제 관리", href: "/dashboard/plans", icon: CreditCard },
-    { name: "AI Gems", href: "/dashboard/ai-gems", icon: Sparkles },
-    { name: "AI 챗봇", href: "/dashboard/ai-chatbot", icon: Bot },
+    { name: "AI 봇 할당", href: "/dashboard/admin/bot-assignment", icon: UserPlus },
+    { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
     { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "전체 통계", href: "/dashboard/stats", icon: TrendingUp },
     { name: "시스템 설정", href: "/dashboard/settings", icon: Settings },
@@ -45,8 +47,8 @@ const navigationByRole = {
     { name: "수업 관리", href: "/dashboard/classes", icon: GraduationCap },
     { name: "학습 자료", href: "/dashboard/materials", icon: BookOpen },
     { name: "과제 관리", href: "/dashboard/assignments", icon: ClipboardList },
-    { name: "AI Gems", href: "/dashboard/ai-gems", icon: Sparkles },
-    { name: "AI 챗봇", href: "/dashboard/ai-chatbot", icon: Bot },
+    { name: "AI 봇 할당", href: "/dashboard/bot-assignment", icon: UserPlus },
+    { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
     { name: "출석 관리", href: "/dashboard/attendance", icon: Calendar },
     { name: "성적 관리", href: "/dashboard/grades", icon: BarChart3 },
     { name: "학원 통계", href: "/dashboard/analytics", icon: TrendingUp },
@@ -59,16 +61,14 @@ const navigationByRole = {
     { name: "학생 목록", href: "/dashboard/students", icon: Users },
     { name: "학습 자료", href: "/dashboard/materials", icon: BookOpen },
     { name: "과제 관리", href: "/dashboard/assignments", icon: ClipboardList },
-    { name: "AI Gems", href: "/dashboard/ai-gems", icon: Sparkles },
-    { name: "AI 챗봇", href: "/dashboard/ai-chatbot", icon: Bot },
+    { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
     { name: "출석 체크", href: "/dashboard/attendance", icon: Calendar },
     { name: "성적 입력", href: "/dashboard/grades", icon: BarChart3 },
     { name: "내 설정", href: "/dashboard/settings", icon: Settings },
   ],
   STUDENT: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
-    { name: "AI Gems", href: "/dashboard/ai-gems", icon: Sparkles },
-    { name: "AI 챗봇", href: "/dashboard/ai-chatbot", icon: Bot },
+    { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
   ],
 };
 
@@ -136,6 +136,13 @@ export default function DashboardSidebar() {
 
           {/* Bottom section */}
           <div className="flex-shrink-0 border-t p-4 space-y-3">
+            <button
+              onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+              className="w-full flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md transition-colors"
+            >
+              <LogOut className="mr-3 flex-shrink-0 h-5 w-5" />
+              로그아웃
+            </button>
             <Link
               href="/"
               className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md transition-colors"
