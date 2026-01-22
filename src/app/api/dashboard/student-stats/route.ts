@@ -1,220 +1,138 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
-// 학생 대시보드 통계 API
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== 'STUDENT') {
-      return NextResponse.json(
-        { error: '접근 권한이 없습니다.' },
-        { status: 403 }
-      );
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const { role, id: userId } = session.user;
 
-    // 오늘의 학습 시간 (분)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    if (role !== "STUDENT") {
+      return NextResponse.json({ error: "학생만 접근 가능합니다" }, { status: 403 });
+    }
 
-    const todayProgress = await prisma.learningProgress.aggregate({
-      where: {
-        userId,
-        lastAccessedAt: {
-          gte: today,
+    // 학생 데이터 조회
+    const student = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        enrolledClasses: {
+          include: {
+            class: true,
+          },
         },
-      },
-      _sum: {
-        timeSpent: true,
-      },
-    });
-
-    const todayStudyTime = todayProgress._sum.timeSpent || 0;
-
-    // 완료한 강의 수
-    const completedMaterials = await prisma.learningProgress.count({
-      where: {
-        userId,
-        status: 'COMPLETED',
-      },
-    });
-
-    // 전체 강의 수
-    const totalMaterials = await prisma.learningProgress.count({
-      where: {
-        userId,
-      },
-    });
-
-    // 제출할 과제 수
-    const pendingAssignments = await prisma.assignment.count({
-      where: {
-        userId,
-        status: 'PENDING',
-      },
-    });
-
-    // 마감 임박 과제 (3일 이내)
-    const threeDaysLater = new Date();
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-    const urgentAssignments = await prisma.assignment.count({
-      where: {
-        userId,
-        status: 'PENDING',
-        dueDate: {
-          lte: threeDaysLater,
-        },
-      },
-    });
-
-    // 평균 점수
-    const avgScore = await prisma.testScore.aggregate({
-      where: {
-        userId,
-      },
-      _avg: {
-        score: true,
-      },
-    });
-
-    const averageScore = Math.round(avgScore._avg.score || 0);
-
-    // 오늘의 학습 일정
-    const todaySchedule = await prisma.learningMaterial.findMany({
-      where: {
-        progress: {
-          some: {
-            userId,
-            status: {
-              in: ['NOT_STARTED', 'IN_PROGRESS'],
+        assignments: {
+          where: {
+            dueDate: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 최근 30일
             },
           },
         },
-      },
-      select: {
-        id: true,
-        title: true,
-        subject: true,
-        duration: true,
-        progress: {
-          where: {
-            userId,
+        testScores: {
+          orderBy: {
+            testDate: "desc",
           },
-          select: {
-            status: true,
-          },
+          take: 5,
         },
-      },
-      take: 4,
-    });
-
-    // 제출할 과제 목록
-    const assignmentsList = await prisma.assignment.findMany({
-      where: {
-        userId,
-        status: 'PENDING',
-      },
-      select: {
-        id: true,
-        title: true,
-        subject: true,
-        dueDate: true,
-      },
-      orderBy: {
-        dueDate: 'asc',
-      },
-      take: 4,
-    });
-
-    // 과목별 학습 진도
-    const progressBySubject = await prisma.learningMaterial.groupBy({
-      by: ['subject'],
-      where: {
-        progress: {
-          some: {
-            userId,
-          },
-        },
-      },
-      _count: {
-        id: true,
-      },
-    });
-
-    const subjectProgress = await Promise.all(
-      progressBySubject.map(async (subject) => {
-        const completedCount = await prisma.learningProgress.count({
+        attendances: {
           where: {
-            userId,
-            material: {
-              subject: subject.subject,
-            },
-            status: 'COMPLETED',
-          },
-        });
-
-        const totalCount = await prisma.learningProgress.count({
-          where: {
-            userId,
-            material: {
-              subject: subject.subject,
+            date: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 최근 30일
             },
           },
-        });
+        },
+        learningProgress: true,
+      },
+    });
 
-        return {
-          subject: subject.subject,
-          completed: completedCount,
-          total: totalCount,
-          progress: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
-        };
-      })
-    );
+    if (!student) {
+      return NextResponse.json({ error: "학생 정보를 찾을 수 없습니다" }, { status: 404 });
+    }
 
-    // 날짜 계산 함수
-    const getDueDateLabel = (dueDate: Date) => {
-      const now = new Date();
-      const diffTime = dueDate.getTime() - now.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // 통계 계산
+    const stats = {
+      // 기본 정보
+      name: student.name,
+      grade: student.grade,
+      points: student.points,
 
-      if (diffDays < 0) return '기한 만료';
-      if (diffDays === 0) return '오늘';
-      if (diffDays === 1) return '내일';
-      return `${diffDays}일 후`;
+      // 수업 정보
+      classes: {
+        total: student.enrolledClasses.length,
+        active: student.enrolledClasses.filter((ec) => ec.status === "ACTIVE").length,
+      },
+
+      // 과제 현황
+      assignments: {
+        total: student.assignments.length,
+        pending: student.assignments.filter((a) => a.status === "PENDING").length,
+        submitted: student.assignments.filter((a) => a.status === "SUBMITTED").length,
+        completed: student.assignments.filter((a) => a.status === "GRADED").length,
+        averageScore:
+          student.assignments.filter((a) => a.score !== null).length > 0
+            ? student.assignments
+                .filter((a) => a.score !== null)
+                .reduce((sum, a) => sum + (a.score || 0), 0) /
+              student.assignments.filter((a) => a.score !== null).length
+            : 0,
+        upcomingCount: student.assignments.filter(
+          (a) => a.status === "PENDING" && new Date(a.dueDate) > new Date()
+        ).length,
+      },
+
+      // 시험 성적
+      testScores: {
+        recent: student.testScores.map((t) => ({
+          subject: t.subject,
+          score: t.score,
+          maxScore: t.maxScore,
+          percentage: (t.score / t.maxScore) * 100,
+          date: t.testDate,
+        })),
+        average:
+          student.testScores.length > 0
+            ? student.testScores.reduce((sum, t) => sum + (t.score / t.maxScore) * 100, 0) /
+              student.testScores.length
+            : 0,
+      },
+
+      // 출석 현황
+      attendance: {
+        total: student.attendances.length,
+        present: student.attendances.filter((a) => a.status === "PRESENT").length,
+        absent: student.attendances.filter((a) => a.status === "ABSENT").length,
+        late: student.attendances.filter((a) => a.status === "LATE").length,
+        rate:
+          student.attendances.length > 0
+            ? (student.attendances.filter((a) => a.status === "PRESENT").length /
+                student.attendances.length) *
+              100
+            : 0,
+      },
+
+      // 학습 진도
+      learningProgress: {
+        total: student.learningProgress.length,
+        completed: student.learningProgress.filter((p) => p.status === "COMPLETED").length,
+        inProgress: student.learningProgress.filter((p) => p.status === "IN_PROGRESS").length,
+        averageProgress:
+          student.learningProgress.length > 0
+            ? student.learningProgress.reduce((sum, p) => sum + p.progress, 0) /
+              student.learningProgress.length
+            : 0,
+        totalTimeSpent: student.learningProgress.reduce((sum, p) => sum + p.timeSpent, 0),
+      },
     };
 
-    return NextResponse.json({
-      todayStudyTime,
-      completedMaterials,
-      totalMaterials,
-      pendingAssignments,
-      urgentAssignments,
-      averageScore,
-      todaySchedule: todaySchedule.map((item) => ({
-        id: item.id,
-        title: item.title,
-        subject: item.subject,
-        duration: item.duration,
-        status: item.progress[0]?.status || 'NOT_STARTED',
-      })),
-      assignmentsList: assignmentsList.map((item) => ({
-        id: item.id,
-        title: item.title,
-        subject: item.subject,
-        dueDate: getDueDateLabel(item.dueDate),
-        isUrgent: item.dueDate <= threeDaysLater,
-      })),
-      subjectProgress,
-    });
+    return NextResponse.json(stats, { status: 200 });
   } catch (error) {
-    console.error('Error fetching student stats:', error);
+    console.error("❌ 학생 통계 조회 중 오류:", error);
     return NextResponse.json(
-      { error: '통계를 불러오는데 실패했습니다.' },
+      { error: "통계를 불러오는 중 오류가 발생했습니다" },
       { status: 500 }
     );
   }
