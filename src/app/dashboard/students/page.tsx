@@ -33,7 +33,9 @@ import {
   GraduationCap,
   Filter,
   Eye,
+  UserPlus,
 } from "lucide-react";
+import CreateStudentDialog from "@/components/dashboard/CreateStudentDialog";
 
 interface Student {
   id: string;
@@ -79,6 +81,7 @@ export default function StudentsManagementPage() {
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [filterClass, setFilterClass] = useState<string>("ALL");
   const [filterGrade, setFilterGrade] = useState<string>("ALL");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -223,10 +226,28 @@ export default function StudentsManagementPage() {
   return (
     <div className="container mx-auto py-8 px-4 max-w-7xl">
       {/* 헤더 */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">학생 관리</h1>
-        <p className="text-gray-600">학원 소속 학생을 관리하고 AI 봇 권한을 부여합니다</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">학생 관리</h1>
+          <p className="text-gray-600">학원 소속 학생을 관리하고 AI 봇 권한을 부여합니다</p>
+        </div>
+        {session?.user?.role === "DIRECTOR" && (
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <UserPlus className="w-4 h-4" />
+            학생 추가
+          </Button>
+        )}
       </div>
+
+      {/* 학생 추가 다이얼로그 */}
+      <CreateStudentDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={fetchStudents}
+      />
 
       {/* 통계 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
