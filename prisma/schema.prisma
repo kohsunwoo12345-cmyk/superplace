@@ -19,6 +19,8 @@ model Academy {
   phone           String?
   email           String?
   logoUrl         String?
+  naverPlaceUrl   String?   // 네이버 플레이스 URL
+  naverBlogUrl    String?   // 네이버 블로그 URL
   subscriptionPlan String   @default("FREE") // FREE, BASIC, PRO, ENTERPRISE
   maxStudents     Int       @default(10)     // 요금제별 학생 수 제한
   maxTeachers     Int       @default(2)      // 요금제별 선생님 수 제한
