@@ -143,6 +143,7 @@ export default function Home() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [scrollY, setScrollY] = useState(0);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Scroll animation
   useEffect(() => {
@@ -282,40 +283,250 @@ export default function Home() {
             </span>
           </div>
           <nav className="hidden md:flex items-center space-x-6">
-            {/* 기능 소개 메가메뉴 */}
-            <div className="relative group">
-              <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
+            {/* 네비게이션 메뉴들 - 모두 동일한 group 사용 */}
+            <div className="relative group/nav">
+              {/* 기능 소개 */}
+              <button 
+                className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2"
+                onMouseEnter={() => setIsMenuOpen(true)}
+                onMouseLeave={() => setIsMenuOpen(false)}
+              >
                 기능 소개
-                <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180 duration-300" />
+                <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isMenuOpen ? 'rotate-180' : ''}`} />
               </button>
-              <MegaMenu {...featuresMenu} />
             </div>
 
-            {/* 학습 효과 메가메뉴 */}
-            <div className="relative group">
-              <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
+            <div className="relative group/nav">
+              {/* 학습 효과 */}
+              <button 
+                className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2"
+                onMouseEnter={() => setIsMenuOpen(true)}
+                onMouseLeave={() => setIsMenuOpen(false)}
+              >
                 학습 효과
-                <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180 duration-300" />
+                <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isMenuOpen ? 'rotate-180' : ''}`} />
               </button>
-              <MegaMenu {...benefitsMenu} />
             </div>
 
-            {/* 학원 운영 및 마케팅 메가메뉴 */}
-            <div className="relative group">
-              <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
+            <div className="relative group/nav">
+              {/* 학원 운영 및 마케팅 */}
+              <button 
+                className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2"
+                onMouseEnter={() => setIsMenuOpen(true)}
+                onMouseLeave={() => setIsMenuOpen(false)}
+              >
                 학원 운영 및 마케팅
-                <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180 duration-300" />
+                <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isMenuOpen ? 'rotate-180' : ''}`} />
               </button>
-              <MegaMenu {...marketingMenu} />
             </div>
 
-            {/* 학원 소개 메가메뉴 */}
-            <div className="relative group">
-              <button className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2">
+            <div className="relative group/nav">
+              {/* 학원 소개 */}
+              <button 
+                className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors py-2"
+                onMouseEnter={() => setIsMenuOpen(true)}
+                onMouseLeave={() => setIsMenuOpen(false)}
+              >
                 학원 소개
-                <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180 duration-300" />
+                <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isMenuOpen ? 'rotate-180' : ''}`} />
               </button>
-              <MegaMenu {...aboutMenu} />
+            </div>
+
+            {/* 통합 메가메뉴 - 모든 메뉴 동시 표시 */}
+            <div 
+              className={`fixed left-0 right-0 mt-2 bg-white shadow-2xl border-t transition-all duration-300 z-50 overflow-hidden ${
+                isMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+              }`}
+              onMouseEnter={() => setIsMenuOpen(true)}
+              onMouseLeave={() => setIsMenuOpen(false)}
+              style={{ top: '72px' }}
+            >
+              <div 
+                className={`container mx-auto px-4 py-8 transform transition-transform duration-500 ease-out ${
+                  isMenuOpen ? 'translate-y-0' : 'translate-y-[-20px]'
+                }`}
+              >
+                <div className="grid grid-cols-4 gap-8">
+                  {/* 기능 소개 섹션 */}
+                  <div className="space-y-4">
+                    <div className="pb-4 border-b">
+                      <h3 className="text-xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        {featuresMenu.title}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {featuresMenu.description}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {featuresMenu.items.map((item, index) => (
+                        <a
+                          key={index}
+                          href={item.href}
+                          className={`block p-3 rounded-lg hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 transition-all duration-200 hover:shadow-md group/item transform opacity-0 translate-y-4 ${
+                            isMenuOpen ? 'opacity-100 translate-y-0' : ''
+                          }`}
+                          style={{
+                            transitionDelay: `${index * 50}ms`,
+                            transitionDuration: '400ms'
+                          }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="text-2xl group-hover/item:scale-110 transition-transform duration-200">
+                              {item.icon}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-sm mb-1 group-hover/item:text-blue-600 transition-colors">
+                                {item.title}
+                              </h4>
+                              <p className="text-xs text-gray-600 leading-relaxed">
+                                {item.description}
+                              </p>
+                            </div>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 학습 효과 섹션 */}
+                  <div className="space-y-4">
+                    <div className="pb-4 border-b">
+                      <h3 className="text-xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        {benefitsMenu.title}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {benefitsMenu.description}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {benefitsMenu.items.map((item, index) => (
+                        <a
+                          key={index}
+                          href={item.href}
+                          className={`block p-3 rounded-lg hover:bg-gradient-to-br hover:from-purple-50 hover:to-pink-50 transition-all duration-200 hover:shadow-md group/item transform opacity-0 translate-y-4 ${
+                            isMenuOpen ? 'opacity-100 translate-y-0' : ''
+                          }`}
+                          style={{
+                            transitionDelay: `${(index + 4) * 50}ms`,
+                            transitionDuration: '400ms'
+                          }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="text-2xl group-hover/item:scale-110 transition-transform duration-200">
+                              {item.icon}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-sm mb-1 group-hover/item:text-purple-600 transition-colors">
+                                {item.title}
+                              </h4>
+                              <p className="text-xs text-gray-600 leading-relaxed">
+                                {item.description}
+                              </p>
+                            </div>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 학원 운영 및 마케팅 섹션 */}
+                  <div className="space-y-4">
+                    <div className="pb-4 border-b">
+                      <h3 className="text-xl font-bold mb-2 bg-gradient-to-r from-pink-600 to-orange-600 bg-clip-text text-transparent">
+                        {marketingMenu.title}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-3">
+                        {marketingMenu.description}
+                      </p>
+                      {marketingMenu.link && (
+                        <a
+                          href={marketingMenu.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 text-xs bg-gradient-to-r from-pink-600 to-orange-600 text-white rounded-lg hover:from-pink-700 hover:to-orange-700 transition-all shadow-md hover:shadow-lg transform hover:scale-105"
+                        >
+                          <span>바로가기</span>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {marketingMenu.items.map((item, index) => (
+                        <a
+                          key={index}
+                          href={item.href}
+                          target={item.href.startsWith('http') ? '_blank' : undefined}
+                          rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                          className={`block p-3 rounded-lg hover:bg-gradient-to-br hover:from-pink-50 hover:to-orange-50 transition-all duration-200 hover:shadow-md group/item transform opacity-0 translate-y-4 ${
+                            isMenuOpen ? 'opacity-100 translate-y-0' : ''
+                          }`}
+                          style={{
+                            transitionDelay: `${(index + 7) * 50}ms`,
+                            transitionDuration: '400ms'
+                          }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="text-2xl group-hover/item:scale-110 transition-transform duration-200">
+                              {item.icon}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-sm mb-1 group-hover/item:text-pink-600 transition-colors">
+                                {item.title}
+                              </h4>
+                              <p className="text-xs text-gray-600 leading-relaxed">
+                                {item.description}
+                              </p>
+                            </div>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 학원 소개 섹션 */}
+                  <div className="space-y-4">
+                    <div className="pb-4 border-b">
+                      <h3 className="text-xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
+                        {aboutMenu.title}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {aboutMenu.description}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {aboutMenu.items.map((item, index) => (
+                        <a
+                          key={index}
+                          href={item.href}
+                          className={`block p-3 rounded-lg hover:bg-gradient-to-br hover:from-indigo-50 hover:to-blue-50 transition-all duration-200 hover:shadow-md group/item transform opacity-0 translate-y-4 ${
+                            isMenuOpen ? 'opacity-100 translate-y-0' : ''
+                          }`}
+                          style={{
+                            transitionDelay: `${(index + 11) * 50}ms`,
+                            transitionDuration: '400ms'
+                          }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="text-2xl group-hover/item:scale-110 transition-transform duration-200">
+                              {item.icon}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-sm mb-1 group-hover/item:text-indigo-600 transition-colors">
+                                {item.title}
+                              </h4>
+                              <p className="text-xs text-gray-600 leading-relaxed">
+                                {item.description}
+                              </p>
+                            </div>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </nav>
           {!isLoggedIn && (
