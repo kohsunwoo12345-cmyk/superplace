@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import DashboardSidebar from "@/components/dashboard/Sidebar";
 import DashboardHeader from "@/components/dashboard/Header";
 import { Toaster } from "@/components/ui/toaster";
+import PageTransition from "@/components/PageTransition";
 
 export default function DashboardLayout({
   children,
@@ -50,7 +51,9 @@ export default function DashboardLayout({
       <div className="lg:pl-64">
         <DashboardHeader user={session.user} />
         <main className="py-6 px-4 sm:px-6 lg:px-8">
-          {children}
+          <PageTransition>
+            {children}
+          </PageTransition>
         </main>
       </div>
       <Toaster />

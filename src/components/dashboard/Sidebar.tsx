@@ -116,16 +116,16 @@ export default function DashboardSidebar() {
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-in-out",
                     isActive
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:translate-x-1"
                   )}
                 >
                   <item.icon
                     className={cn(
-                      "mr-3 flex-shrink-0 h-5 w-5",
-                      isActive ? "text-white" : "text-gray-500"
+                      "mr-3 flex-shrink-0 h-5 w-5 transition-transform duration-200",
+                      isActive ? "text-white" : "text-gray-500 group-hover:scale-110"
                     )}
                   />
                   {item.name}
@@ -138,16 +138,16 @@ export default function DashboardSidebar() {
           <div className="flex-shrink-0 border-t p-4 space-y-3">
             <button
               onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-              className="w-full flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md transition-colors"
+              className="w-full flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md transition-all duration-200 ease-in-out hover:translate-x-1 hover:shadow-sm"
             >
-              <LogOut className="mr-3 flex-shrink-0 h-5 w-5" />
+              <LogOut className="mr-3 flex-shrink-0 h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
               로그아웃
             </button>
             <Link
               href="/"
-              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md transition-colors"
+              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md transition-all duration-200 ease-in-out hover:translate-x-1"
             >
-              <Home className="mr-3 flex-shrink-0 h-5 w-5 text-gray-500" />
+              <Home className="mr-3 flex-shrink-0 h-5 w-5 text-gray-500 transition-transform duration-200 hover:scale-110" />
               홈으로 나가기
             </Link>
             <div className="text-xs text-gray-500 px-3">

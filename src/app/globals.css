@@ -56,4 +56,29 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* 스무스 스크롤 */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* 모든 요소에 기본 전환 효과 */
+  * {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* 버튼과 링크에 부드러운 호버 효과 */
+  button, a {
+    transition: all 0.2s ease-in-out;
+  }
+  
+  /* 카드 호버 효과 */
+  [class*="card"] {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  }
+  
+  [class*="card"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  }
 }
