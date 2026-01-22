@@ -94,10 +94,10 @@ export async function POST(req: Request) {
             name: validatedData.academyName!,
             address: validatedData.academyLocation!,
             code: academyCode,
-            subscriptionTier: 'FREE',
+            subscriptionPlan: 'FREE',
             maxStudents: 10,
             maxTeachers: 2,
-            maxAIUsage: 100,
+            aiUsageLimit: 100,
           },
         });
         console.log("✅ Academy created:", academy.id);
