@@ -17,6 +17,25 @@ export default function SignUpPage() {
   const [error, setError] = useState("");
   const [role, setRole] = useState<UserRole>('STUDENT');
   const [academyCode, setAcademyCode] = useState("");
+  const [phone, setPhone] = useState("");
+
+  // 전화번호 자동 포맷팅
+  const formatPhoneNumber = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    
+    if (cleaned.length <= 3) {
+      return cleaned;
+    } else if (cleaned.length <= 7) {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
+    } else {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 7)}-${cleaned.slice(7, 11)}`;
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setPhone(formatted);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -28,9 +47,10 @@ export default function SignUpPage() {
       email: formData.get("email") as string,
       password: formData.get("password") as string,
       name: formData.get("name") as string,
-      phone: formData.get("phone") as string,
+      phone: phone,
       role: role,
       academyName: role === 'DIRECTOR' ? formData.get("academyName") as string : undefined,
+      academyLocation: role === 'DIRECTOR' ? formData.get("academyLocation") as string : undefined,
       academyCode: (role === 'TEACHER' || role === 'STUDENT') ? academyCode : undefined,
     };
 
@@ -84,7 +104,7 @@ export default function SignUpPage() {
           <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
             <CardTitle className="text-2xl">계정 만들기</CardTitle>
             <CardDescription>
-              14일 무료 체험으로 시작하세요
+              슈퍼플레이스와 함께 시작하세요
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
@@ -126,7 +146,10 @@ export default function SignUpPage() {
                   name="phone"
                   type="tel"
                   placeholder="010-1234-5678"
+                  value={phone}
+                  onChange={handlePhoneChange}
                   disabled={isLoading}
+                  maxLength={13}
                 />
               </div>
 
@@ -176,16 +199,29 @@ export default function SignUpPage() {
               </div>
 
               {role === 'DIRECTOR' && (
-                <div className="space-y-2">
-                  <Label htmlFor="academyName">학원 이름</Label>
-                  <Input
-                    id="academyName"
-                    name="academyName"
-                    type="text"
-                    placeholder="예: 명문 학원"
-                    required
-                    disabled={isLoading}
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="academyName">학원 이름</Label>
+                    <Input
+                      id="academyName"
+                      name="academyName"
+                      type="text"
+                      placeholder="예: 꾸메땅학원"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="academyLocation">학원 위치</Label>
+                    <Input
+                      id="academyLocation"
+                      name="academyLocation"
+                      type="text"
+                      placeholder="예: 인천 서구 당하동"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
                   <p className="text-xs text-gray-500">학원을 생성하고 선생님과 학생을 초대할 수 있습니다.</p>
                 </div>
               )}

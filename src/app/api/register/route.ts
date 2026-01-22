@@ -10,6 +10,7 @@ const registerSchema = z.object({
   phone: z.string().optional(),
   role: z.enum(['DIRECTOR', 'TEACHER', 'STUDENT']),
   academyName: z.string().optional(),
+  academyLocation: z.string().optional(),
   academyCode: z.string().optional(),
 });
 
@@ -53,6 +54,13 @@ export async function POST(req: Request) {
         );
       }
 
+      if (!validatedData.academyLocation) {
+        return NextResponse.json(
+          { error: "학원 위치를 입력해주세요" },
+          { status: 400 }
+        );
+      }
+
       // Generate unique academy code
       let academyCode = generateAcademyCode();
       let existingAcademy = await prisma.academy.findUnique({
@@ -72,6 +80,7 @@ export async function POST(req: Request) {
         const academy = await tx.academy.create({
           data: {
             name: validatedData.academyName!,
+            address: validatedData.academyLocation!,
             code: academyCode,
             subscriptionTier: 'FREE',
             maxStudents: 10,
