@@ -50,6 +50,7 @@ const navigationByRole = {
     { name: "과제 관리", href: "/dashboard/assignments", icon: ClipboardList },
     { name: "출석 관리", href: "/dashboard/attendance", icon: Calendar },
     { name: "성적 관리", href: "/dashboard/grades", icon: BarChart3 },
+    { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
     { name: "학원 통계", href: "/dashboard/analytics", icon: TrendingUp },
     { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "학원 설정", href: "/dashboard/academy-settings", icon: Building2 },
