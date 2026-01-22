@@ -35,6 +35,7 @@ const navigationByRole = {
     { name: "요금제 관리", href: "/dashboard/plans", icon: CreditCard },
     { name: "AI 봇 할당", href: "/dashboard/admin/bot-assignment", icon: UserPlus },
     { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
+    { name: "꾸메땅 AI 봇", href: "/dashboard/ai-bot-ggumettang", icon: BookOpen },
     { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "전체 통계", href: "/dashboard/stats", icon: TrendingUp },
     { name: "시스템 설정", href: "/dashboard/settings", icon: Settings },
