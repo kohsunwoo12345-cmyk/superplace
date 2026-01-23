@@ -1,0 +1,18 @@
+{
+  "name": "superplace-db-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker DB Proxy for SuperPlace",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": ["cloudflare", "worker", "d1", "database"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240614.0",
+    "wrangler": "^3.0.0"
+  }
+}
