@@ -1,0 +1,15 @@
+name = "superplace-db-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-15"
+node_compat = true
+
+# D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "superplace-db"
+database_id = "YOUR_D1_DATABASE_ID"  # wrangler d1 create superplace-db 실행 후 여기에 입력
+
+# Environment Variables
+[vars]
+API_SECRET_TOKEN = "your-secret-token-here-change-this"
+ALLOWED_ORIGINS = "https://your-domain.vercel.app,http://localhost:3000"
