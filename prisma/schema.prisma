@@ -410,6 +410,7 @@ model AIBot {
   color         String      @default("blue") // 색상 테마
   bgGradient    String      @default("from-blue-50 to-cyan-50") // 배경 그라데이션
   systemPrompt  String      @db.Text  // AI 시스템 프롬프트 (지침사항)
+  referenceFiles String[]              // 참고 파일 URL 배열 (PDF, DOCX, etc.)
   isActive      Boolean     @default(true)  // 활성화 여부
   createdById   String      // 생성자
   createdAt     DateTime    @default(now())
