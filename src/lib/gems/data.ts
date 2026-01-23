@@ -9,6 +9,7 @@ export interface Gem {
   systemPrompt: string;
 }
 
+// 기본 내장 봇 (항상 사용 가능)
 export const gems: Gem[] = [
   {
     id: 'ggumettang',
@@ -111,6 +112,21 @@ export const gems: Gem[] = [
   },
 ];
 
+// 기본 봇에서 봇 찾기
 export function getGemById(id: string): Gem | undefined {
   return gems.find((gem) => gem.id === id);
+}
+
+// DB와 기본 봇을 합쳐서 모든 봇 가져오기 (클라이언트에서 사용)
+export async function getAllGems(): Promise<Gem[]> {
+  try {
+    const response = await fetch('/api/ai-bots');
+    if (response.ok) {
+      const data = await response.json();
+      return data.bots || gems; // API 실패 시 기본 봇만 반환
+    }
+  } catch (error) {
+    console.error('봇 목록 로드 실패:', error);
+  }
+  return gems; // 에러 시 기본 봇만 반환
 }
