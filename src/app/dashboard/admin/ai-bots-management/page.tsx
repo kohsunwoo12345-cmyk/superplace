@@ -80,7 +80,7 @@ export default function AIBotsManagementPage() {
 
   // 봇 삭제
   const handleDelete = async (botId: string) => {
-    if (!confirm("정말 이 봇을 삭제하시겠습니까?")) return;
+    if (!confirm("정말 이 봇을 삭제하시겠습니까?\n모든 할당도 함께 취소됩니다.")) return;
 
     try {
       setDeletingBotId(botId);
@@ -100,6 +100,27 @@ export default function AIBotsManagementPage() {
       alert("봇 삭제 중 오류가 발생했습니다");
     } finally {
       setDeletingBotId(null);
+    }
+  };
+
+  // 봇 활성/비활성 토글
+  const handleToggleActive = async (botId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/ai-bots/${botId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !currentStatus }),
+      });
+
+      if (response.ok) {
+        await loadBots();
+      } else {
+        const data = await response.json();
+        alert(data.error || "상태 변경에 실패했습니다");
+      }
+    } catch (error) {
+      console.error("상태 변경 오류:", error);
+      alert("상태 변경 중 오류가 발생했습니다");
     }
   };
 
@@ -228,6 +249,13 @@ export default function AIBotsManagementPage() {
                 >
                   <Edit className="h-4 w-4 mr-1" />
                   수정
+                </Button>
+                <Button
+                  variant={bot.isActive ? "secondary" : "default"}
+                  size="sm"
+                  onClick={() => handleToggleActive(bot.id, bot.isActive)}
+                >
+                  {bot.isActive ? "비활성화" : "활성화"}
                 </Button>
                 <Button
                   variant="destructive"

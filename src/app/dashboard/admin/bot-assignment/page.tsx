@@ -5,16 +5,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { UserPlus, Loader2, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { UserPlus, Loader2, CheckCircle2, AlertCircle, Sparkles, Edit, Trash2 } from 'lucide-react';
+import { EditBotDialog } from '@/components/admin/EditBotDialog';
 
 interface AIBot {
   id: string;
+  botId: string;
   name: string;
   nameEn: string;
   description: string;
   icon: string;
   color: string;
   bgGradient: string;
+  systemPrompt: string;
+  isActive: boolean;
   source?: 'database' | 'default';
 }
 
@@ -32,6 +36,8 @@ export default function AdminBotAssignmentPage() {
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [editingBot, setEditingBot] = useState<AIBot | null>(null);
+  const [deletingBotId, setDeletingBotId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDirectors();
@@ -110,6 +116,32 @@ export default function AdminBotAssignmentPage() {
     }
   };
 
+  // 봇 삭제
+  const handleDeleteBot = async (botId: string) => {
+    if (!confirm('정말 이 봇을 삭제하시겠습니까? 모든 할당도 함께 취소됩니다.')) return;
+
+    try {
+      setDeletingBotId(botId);
+      const response = await fetch(`/api/admin/ai-bots/${botId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: '봇이 삭제되었습니다' });
+        fetchBots();
+        fetchDirectors();
+      } else {
+        const data = await response.json();
+        setMessage({ type: 'error', text: data.error || '봇 삭제에 실패했습니다' });
+      }
+    } catch (error) {
+      console.error('봇 삭제 오류:', error);
+      setMessage({ type: 'error', text: '봇 삭제 중 오류가 발생했습니다' });
+    } finally {
+      setDeletingBotId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -170,6 +202,8 @@ export default function AdminBotAssignmentPage() {
                   {bots.map((bot) => {
                     const isAssigned = director.assignedBots.includes(bot.id);
                     const isProcessing = assigning === `${director.id}-${bot.id}`;
+                    const isDeleting = deletingBotId === bot.id;
+                    const isDBBot = bot.source === 'database';
 
                     return (
                       <div
@@ -183,13 +217,42 @@ export default function AdminBotAssignmentPage() {
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-1">
                             <span className="text-2xl">{bot.icon}</span>
-                            {bot.source === 'database' && (
+                            {isDBBot && (
                               <Sparkles className="h-3 w-3 text-purple-600" />
                             )}
                           </div>
-                          {isAssigned && (
-                            <CheckCircle2 className="h-5 w-5 text-green-600" />
-                          )}
+                          <div className="flex items-center gap-1">
+                            {isAssigned && (
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            )}
+                            {/* DB 봇만 수정/삭제 가능 */}
+                            {isDBBot && (
+                              <>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6"
+                                  onClick={() => setEditingBot(bot)}
+                                  disabled={isDeleting}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-red-600 hover:text-red-700"
+                                  onClick={() => handleDeleteBot(bot.id)}
+                                  disabled={isDeleting}
+                                >
+                                  {isDeleting ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
                         <h4 className="font-semibold text-sm mb-1">{bot.name}</h4>
                         <p className="text-xs text-gray-500 mb-2">{bot.nameEn}</p>
@@ -230,6 +293,22 @@ export default function AdminBotAssignmentPage() {
           ))
         )}
       </div>
+
+      {/* 봇 수정 다이얼로그 */}
+      {editingBot && (
+        <EditBotDialog
+          open={!!editingBot}
+          onOpenChange={(open) => {
+            if (!open) setEditingBot(null);
+          }}
+          bot={editingBot}
+          onSuccess={() => {
+            fetchBots();
+            setEditingBot(null);
+            setMessage({ type: 'success', text: '봇이 수정되었습니다' });
+          }}
+        />
+      )}
     </div>
   );
 }
