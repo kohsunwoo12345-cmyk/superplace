@@ -7,7 +7,7 @@ node_compat = true
 [[d1_databases]]
 binding = "DB"
 database_name = "superplace-db"
-database_id = "YOUR_D1_DATABASE_ID"  # ⚠️ 여기에 실제 Database ID를 입력하세요!
+database_id = "8c106540-21b4-4fa9-8879-c4956e459ca1"  # ✅ Database ID 설정 완료!
 
 # Environment Variables
 [vars]
