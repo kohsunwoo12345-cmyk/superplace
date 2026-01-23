@@ -166,7 +166,7 @@ export default function GemChatPage() {
   if (!gem) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -175,32 +175,34 @@ export default function GemChatPage() {
           className="flex items-center gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
-          AI 봇 목록
+          <span className="hidden sm:inline">AI 봇 목록</span>
+          <span className="sm:hidden">뒤로</span>
         </Button>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="text-5xl">{gem.icon}</div>
+          <div className="text-3xl sm:text-5xl">{gem.icon}</div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{gem.name}</h1>
-            <p className="text-muted-foreground">{gem.description}</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">{gem.name}</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">{gem.description}</p>
           </div>
         </div>
-        <Badge variant="outline" className={`bg-gradient-to-r ${gem.bgGradient}`}>
+        <Badge variant="outline" className={`bg-gradient-to-r ${gem.bgGradient} text-xs sm:text-sm`}>
           {gem.nameEn}
         </Badge>
       </div>
 
       <Card className="shadow-lg">
         <CardHeader className={`border-b bg-gradient-to-r ${gem.bgGradient}`}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5" />
-                {gem.name}와 대화하기
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Bot className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="hidden sm:inline">{gem.name}와 대화하기</span>
+                <span className="sm:hidden">대화하기</span>
               </CardTitle>
-              <CardDescription className="mt-1">
+              <CardDescription className="mt-1 text-xs sm:text-sm">
                 전문적인 조언과 도움을 받으세요
               </CardDescription>
             </div>
@@ -209,18 +211,18 @@ export default function GemChatPage() {
                 variant="outline"
                 size="sm"
                 onClick={clearChat}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                 대화 초기화
               </Button>
             )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="flex flex-col h-[600px]">
+          <div className="flex flex-col h-[500px] sm:h-[600px]">
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <div className="text-6xl mb-4">{gem.icon}</div>
@@ -230,7 +232,7 @@ export default function GemChatPage() {
                   <p className="text-sm text-gray-500 max-w-md mb-6">
                     {gem.description}
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full max-w-2xl px-4 sm:px-0">
                     {getSuggestions(gem.id).map((suggestion, idx) => (
                       <Button
                         key={idx}
@@ -248,30 +250,30 @@ export default function GemChatPage() {
                   {messages.map((message, index) => (
                     <div
                       key={index}
-                      className={`flex gap-3 ${
+                      className={`flex gap-2 sm:gap-3 ${
                         message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                       }`}
                     >
                       <div
-                        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                        className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${
                           message.role === 'user'
                             ? 'bg-blue-100'
                             : `bg-${gem.color}-100`
                         }`}
                       >
                         {message.role === 'user' ? (
-                          <User className="h-4 w-4 text-blue-600" />
+                          <User className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                         ) : (
-                          <span className="text-lg">{gem.icon}</span>
+                          <span className="text-base sm:text-lg">{gem.icon}</span>
                         )}
                       </div>
                       <div
-                        className={`flex-1 max-w-[80%] ${
+                        className={`flex-1 max-w-[85%] sm:max-w-[80%] ${
                           message.role === 'user' ? 'text-right' : 'text-left'
                         }`}
                       >
                         <div
-                          className={`inline-block p-4 rounded-lg ${
+                          className={`inline-block p-3 sm:p-4 rounded-lg text-sm sm:text-base ${
                             message.role === 'user'
                               ? 'bg-blue-600 text-white'
                               : 'bg-gray-100 text-gray-900'
@@ -350,7 +352,7 @@ export default function GemChatPage() {
                 </div>
               )}
               
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 <form onSubmit={handleSubmit} className="flex gap-2">
                   {/* 이미지 업로드 버튼 (꾸메땅 봇만) */}
                   {gem.id === 'ggumettang' && (
@@ -379,7 +381,7 @@ export default function GemChatPage() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder={gem.id === 'ggumettang' ? '숙제 사진을 업로드하거나 질문을 입력하세요...' : `${gem.name}에게 메시지를 입력하세요...`}
-                    className="flex-1 min-h-[60px] max-h-[120px] resize-none"
+                    className="flex-1 min-h-[50px] sm:min-h-[60px] max-h-[100px] sm:max-h-[120px] resize-none text-sm sm:text-base"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();

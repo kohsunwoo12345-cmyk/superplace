@@ -48,9 +48,11 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardSidebar />
-      <div className="lg:pl-64">
+      {/* 모바일에서는 pt-16으로 헤더 공간 확보, 데스크톱에서는 pl-64로 사이드바 공간 확보 */}
+      <div className="pt-16 lg:pt-0 lg:pl-64">
         <DashboardHeader user={session.user} />
-        <main className="py-6 px-4 sm:px-6 lg:px-8">
+        {/* 반응형 패딩: 모바일(px-4), 태블릿(px-6), 데스크톱(px-8) */}
+        <main className="py-4 px-4 sm:py-6 sm:px-6 lg:py-8 lg:px-8">
           <PageTransition>
             {children}
           </PageTransition>

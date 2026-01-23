@@ -25,7 +25,11 @@ import {
   Sparkles,
   LogOut,
   UserPlus,
+  Menu,
+  X,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 // 역할별 네비게이션 정의
 const navigationByRole = {
@@ -71,13 +75,13 @@ const navigationByRole = {
   ],
 };
 
-export default function DashboardSidebar() {
+// 사이드바 콘텐츠 컴포넌트
+function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [assignedBots, setAssignedBots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 사용자 역할에 따른 네비게이션 선택
   const userRole = session?.user?.role || "STUDENT";
   const baseNavigation = navigationByRole[userRole as keyof typeof navigationByRole] || navigationByRole.STUDENT;
 
@@ -89,7 +93,6 @@ export default function DashboardSidebar() {
         return;
       }
 
-      // SUPER_ADMIN은 모든 봇에 접근 가능하므로 API 호출 불필요
       if (userRole === "SUPER_ADMIN") {
         setLoading(false);
         return;
@@ -111,98 +114,144 @@ export default function DashboardSidebar() {
     fetchAssignedBots();
   }, [session, userRole]);
 
-  // 할당된 봇을 네비게이션에 추가
+  // AI 봇 메뉴 추가
+  const botMenuItems = assignedBots.map((bot) => ({
+    name: bot.name,
+    href: `/dashboard/ai-gems/${bot.id}`,
+    icon: Sparkles,
+  }));
+
+  // 봇 메뉴를 대시보드 다음에 삽입
   const navigation = [...baseNavigation];
-  
-  if (!loading && assignedBots.length > 0) {
-    // 봇 메뉴를 추가할 위치 찾기 (DIRECTOR: 성적 관리 다음, STUDENT: 대시보드 다음)
-    const insertIndex = userRole === "DIRECTOR" 
-      ? navigation.findIndex(item => item.name === "학원 통계")
-      : navigation.findIndex(item => item.name === "대시보드") + 1;
-    
-    assignedBots.forEach((bot, index) => {
-      navigation.splice(insertIndex + index, 0, {
-        name: bot.name,
-        href: `/dashboard/ai-gems/${bot.id}`,
-        icon: Sparkles,
-      });
-    });
+  if (botMenuItems.length > 0 && userRole !== "SUPER_ADMIN") {
+    navigation.splice(1, 0, ...botMenuItems);
   }
+
+  const getRoleBadge = (role: string) => {
+    const badges: Record<string, { text: string; color: string }> = {
+      SUPER_ADMIN: { text: "관리자", color: "bg-red-100 text-red-800" },
+      DIRECTOR: { text: "학원장", color: "bg-blue-100 text-blue-800" },
+      TEACHER: { text: "선생님", color: "bg-green-100 text-green-800" },
+      STUDENT: { text: "학생", color: "bg-purple-100 text-purple-800" },
+    };
+    return badges[role] || badges.STUDENT;
+  };
+
+  const badge = getRoleBadge(userRole);
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* 로고 */}
+      <div className="flex h-16 shrink-0 items-center px-4 border-b">
+        <Link href="/" className="flex items-center space-x-2">
+          <GraduationCap className="h-8 w-8 text-primary" />
+          <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            SUPER PLACE
+          </span>
+        </Link>
+      </div>
+
+      {/* 사용자 정보 */}
+      <div className="px-4 py-4 border-b">
+        <div className="flex items-center space-x-3">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold">
+              {session?.user?.name?.[0] || "U"}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {session?.user?.name}
+            </p>
+            <p className={`text-xs px-2 py-0.5 rounded-full inline-block ${badge.color}`}>
+              {badge.text}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 네비게이션 메뉴 */}
+      <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
+        {navigation.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              onClick={onLinkClick}
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-gray-700 hover:bg-gray-100"
+              )}
+            >
+              <Icon className={cn("mr-3 h-5 w-5 flex-shrink-0")} />
+              <span className="truncate">{item.name}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* 하단 버튼들 */}
+      <div className="p-4 border-t space-y-2">
+        <Link
+          href="/"
+          className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+          onClick={onLinkClick}
+        >
+          <Home className="mr-3 h-5 w-5" />
+          <span>홈으로</span>
+        </Link>
+        <button
+          onClick={() => {
+            onLinkClick?.();
+            signOut({ callbackUrl: "/auth/signin" });
+          }}
+          className="w-full flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors"
+        >
+          <LogOut className="mr-3 h-5 w-5" />
+          <span>로그아웃</span>
+        </button>
+        <p className="text-xs text-gray-500 text-center pt-2">
+          © 2024 SUPER PLACE
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// 메인 사이드바 컴포넌트
+export default function DashboardSidebar() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <>
-      {/* Mobile sidebar backdrop */}
-      <div className="lg:hidden fixed inset-0 z-40 bg-gray-600 bg-opacity-75 hidden" id="mobile-sidebar-backdrop" />
+      {/* 모바일 햄버거 버튼 (lg 미만에서만 표시) */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b h-16 flex items-center px-4">
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="lg:hidden">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <SidebarContent onLinkClick={() => setMobileMenuOpen(false)} />
+          </SheetContent>
+        </Sheet>
+        <div className="ml-4 flex items-center space-x-2">
+          <GraduationCap className="h-6 w-6 text-primary" />
+          <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            SUPER PLACE
+          </span>
+        </div>
+      </div>
 
-      {/* Sidebar */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
-        <div className="flex flex-col flex-grow bg-white border-r overflow-y-auto">
-          {/* Logo */}
-          <div className="flex items-center flex-shrink-0 px-4 py-5 border-b">
-            <GraduationCap className="h-8 w-8 text-primary" />
-            <span className="ml-2 text-xl font-bold">SUPER PLACE</span>
-          </div>
-
-          {/* User Info */}
-          {session?.user && (
-            <div className="px-4 py-3 border-b bg-gray-50">
-              <p className="text-sm font-medium text-gray-900">{session.user.name}</p>
-              <p className="text-xs text-gray-500">
-                {userRole === "SUPER_ADMIN" && "시스템 관리자"}
-                {userRole === "DIRECTOR" && "학원장"}
-                {userRole === "TEACHER" && "선생님"}
-                {userRole === "STUDENT" && "학생"}
-              </p>
-            </div>
-          )}
-
-          {/* Navigation */}
-          <nav className="flex-1 px-2 py-4 space-y-1">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-in-out",
-                    isActive
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:translate-x-1"
-                  )}
-                >
-                  <item.icon
-                    className={cn(
-                      "mr-3 flex-shrink-0 h-5 w-5 transition-transform duration-200",
-                      isActive ? "text-white" : "text-gray-500 group-hover:scale-110"
-                    )}
-                  />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Bottom section */}
-          <div className="flex-shrink-0 border-t p-4 space-y-3">
-            <button
-              onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-              className="w-full flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md transition-all duration-200 ease-in-out hover:translate-x-1 hover:shadow-sm"
-            >
-              <LogOut className="mr-3 flex-shrink-0 h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
-              로그아웃
-            </button>
-            <Link
-              href="/"
-              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md transition-all duration-200 ease-in-out hover:translate-x-1"
-            >
-              <Home className="mr-3 flex-shrink-0 h-5 w-5 text-gray-500 transition-transform duration-200 hover:scale-110" />
-              홈으로 나가기
-            </Link>
-            <div className="text-xs text-gray-500 px-3">
-              © 2024 SUPER PLACE
-            </div>
-          </div>
+      {/* 데스크톱 사이드바 (lg 이상에서만 표시) */}
+      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
+        <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white">
+          <SidebarContent />
         </div>
       </div>
     </>

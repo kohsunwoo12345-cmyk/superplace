@@ -169,7 +169,7 @@ export function CreateBotDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>새 AI 봇 추가</DialogTitle>
           <DialogDescription>
@@ -177,8 +177,8 @@ export function CreateBotDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* 봇 ID */}
             <div className="space-y-2">
               <Label htmlFor="botId">봇 ID (영문)*</Label>
@@ -211,7 +211,7 @@ export function CreateBotDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* 한글 이름 */}
             <div className="space-y-2">
               <Label htmlFor="name">한글 이름*</Label>
