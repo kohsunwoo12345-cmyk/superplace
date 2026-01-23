@@ -5,8 +5,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { gems } from '@/lib/gems/data';
-import { UserPlus, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { UserPlus, Loader2, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+
+interface AIBot {
+  id: string;
+  name: string;
+  nameEn: string;
+  description: string;
+  icon: string;
+  color: string;
+  bgGradient: string;
+  source?: 'database' | 'default';
+}
 
 interface Director {
   id: string;
@@ -18,13 +28,26 @@ interface Director {
 
 export default function AdminBotAssignmentPage() {
   const [directors, setDirectors] = useState<Director[]>([]);
+  const [bots, setBots] = useState<AIBot[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     fetchDirectors();
+    fetchBots();
   }, []);
+
+  const fetchBots = async () => {
+    try {
+      const response = await fetch('/api/ai-bots');
+      if (!response.ok) throw new Error('Failed to fetch bots');
+      const data = await response.json();
+      setBots(data.bots || []);
+    } catch (error) {
+      console.error('Error fetching bots:', error);
+    }
+  };
 
   const fetchDirectors = async () => {
     try {
@@ -139,18 +162,18 @@ export default function AdminBotAssignmentPage() {
                   <Badge variant="secondary">{director.email}</Badge>
                 </CardTitle>
                 <CardDescription>
-                  할당된 AI 봇: {director.assignedBots.length}개 / 총 {gems.length}개
+                  할당된 AI 봇: {director.assignedBots.length}개 / 총 {bots.length}개
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {gems.map((gem) => {
-                    const isAssigned = director.assignedBots.includes(gem.id);
-                    const isProcessing = assigning === `${director.id}-${gem.id}`;
+                  {bots.map((bot) => {
+                    const isAssigned = director.assignedBots.includes(bot.id);
+                    const isProcessing = assigning === `${director.id}-${bot.id}`;
 
                     return (
                       <div
-                        key={gem.id}
+                        key={bot.id}
                         className={`p-3 border-2 rounded-lg ${
                           isAssigned
                             ? 'border-green-300 bg-green-50'
@@ -158,19 +181,24 @@ export default function AdminBotAssignmentPage() {
                         }`}
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-2xl">{gem.icon}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-2xl">{bot.icon}</span>
+                            {bot.source === 'database' && (
+                              <Sparkles className="h-3 w-3 text-purple-600" />
+                            )}
+                          </div>
                           {isAssigned && (
                             <CheckCircle2 className="h-5 w-5 text-green-600" />
                           )}
                         </div>
-                        <h4 className="font-semibold text-sm mb-1">{gem.name}</h4>
-                        <p className="text-xs text-gray-500 mb-2">{gem.nameEn}</p>
+                        <h4 className="font-semibold text-sm mb-1">{bot.name}</h4>
+                        <p className="text-xs text-gray-500 mb-2">{bot.nameEn}</p>
                         {isAssigned ? (
                           <Button
                             size="sm"
                             variant="outline"
                             className="w-full"
-                            onClick={() => handleRevokeBot(director.id, gem.id)}
+                            onClick={() => handleRevokeBot(director.id, bot.id)}
                             disabled={isProcessing}
                           >
                             {isProcessing ? (
@@ -183,7 +211,7 @@ export default function AdminBotAssignmentPage() {
                           <Button
                             size="sm"
                             className="w-full"
-                            onClick={() => handleAssignBot(director.id, gem.id)}
+                            onClick={() => handleAssignBot(director.id, bot.id)}
                             disabled={isProcessing}
                           >
                             {isProcessing ? (
