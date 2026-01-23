@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
       color,
       bgGradient,
       systemPrompt,
+      referenceFiles,
       isActive,
     } = body;
 
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
         color: color || "blue",
         bgGradient: bgGradient || "from-blue-50 to-cyan-50",
         systemPrompt,
+        referenceFiles: referenceFiles || [],
         isActive: isActive !== undefined ? isActive : true,
         createdById: session.user.id,
       },

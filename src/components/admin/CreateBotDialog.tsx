@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X, FileText } from "lucide-react";
 
 interface CreateBotDialogProps {
   open: boolean;
@@ -47,6 +47,7 @@ export function CreateBotDialog({
   onSuccess,
 }: CreateBotDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   const [formData, setFormData] = useState({
     botId: "",
     name: "",
@@ -56,8 +57,56 @@ export function CreateBotDialog({
     color: "blue",
     bgGradient: "from-blue-50 to-cyan-50",
     systemPrompt: "",
+    referenceFiles: [] as string[],
     isActive: true,
   });
+
+  // 파일 업로드 처리
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    try {
+      setUploadingFiles(true);
+      const uploadedUrls: string[] = [];
+
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/upload/bot-files", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          uploadedUrls.push(data.url);
+        } else {
+          const error = await response.json();
+          alert(`파일 업로드 실패: ${error.error}`);
+        }
+      }
+
+      setFormData({
+        ...formData,
+        referenceFiles: [...formData.referenceFiles, ...uploadedUrls],
+      });
+    } catch (error) {
+      console.error("파일 업로드 오류:", error);
+      alert("파일 업로드 중 오류가 발생했습니다");
+    } finally {
+      setUploadingFiles(false);
+    }
+  };
+
+  // 파일 제거
+  const removeFile = (url: string) => {
+    setFormData({
+      ...formData,
+      referenceFiles: formData.referenceFiles.filter((f) => f !== url),
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +141,7 @@ export function CreateBotDialog({
           color: "blue",
           bgGradient: "from-blue-50 to-cyan-50",
           systemPrompt: "",
+          referenceFiles: [],
           isActive: true,
         });
       } else {
@@ -246,6 +296,62 @@ export function CreateBotDialog({
               예시: "당신은 한국사 전문 선생님입니다. 역사적 사건을 생생한
               스토리텔링으로 설명하고..."
             </p>
+          </div>
+
+          {/* 참고 파일 업로드 */}
+          <div className="space-y-2">
+            <Label>참고 파일 (선택사항)</Label>
+            <div className="border-2 border-dashed rounded-lg p-4">
+              <input
+                type="file"
+                id="file-upload"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                onChange={handleFileUpload}
+                className="hidden"
+                disabled={uploadingFiles}
+              />
+              <label
+                htmlFor="file-upload"
+                className="flex flex-col items-center cursor-pointer"
+              >
+                <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                <span className="text-sm text-gray-600">
+                  {uploadingFiles ? "업로드 중..." : "파일을 클릭하거나 드래그하세요"}
+                </span>
+                <span className="text-xs text-gray-500 mt-1">
+                  PDF, DOCX, XLSX, PPTX, TXT, CSV (최대 10MB)
+                </span>
+              </label>
+            </div>
+
+            {/* 업로드된 파일 목록 */}
+            {formData.referenceFiles.length > 0 && (
+              <div className="space-y-2 mt-3">
+                <p className="text-sm font-medium">업로드된 파일:</p>
+                {formData.referenceFiles.map((url, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm truncate max-w-[300px]">
+                        {url.split("/").pop()}
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFile(url)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 활성화 */}
