@@ -121,7 +121,8 @@ model User {
   createdMaterials  LearningMaterial[] @relation("CreatedBy")
   createdAssignments Assignment[] @relation("AssignedBy")
   
-  // AI 봇 할당 관계
+  // AI 봇 관계
+  createdAIBots     AIBot[]         // 관리자가 생성한 AI 봇
   assignedBots      BotAssignment[] @relation("AssignedTo")
   grantedBots       BotAssignment[] @relation("GrantedBy")
   
@@ -396,6 +397,28 @@ model ClassSchedule {
   @@index([classId])
   @@index([dayOfWeek])
   @@index([teacherId])
+}
+
+// AI 봇 정의 (관리자가 생성/관리)
+model AIBot {
+  id            String      @id @default(cuid())
+  botId         String      @unique  // 고유 식별자 (예: study-helper, math-tutor)
+  name          String                // 한글 이름 (예: 학습 도우미)
+  nameEn        String                // 영문 이름 (예: Study Helper)
+  description   String      @db.Text  // 봇 설명
+  icon          String      @default("🤖") // 이모지 아이콘
+  color         String      @default("blue") // 색상 테마
+  bgGradient    String      @default("from-blue-50 to-cyan-50") // 배경 그라데이션
+  systemPrompt  String      @db.Text  // AI 시스템 프롬프트 (지침사항)
+  isActive      Boolean     @default(true)  // 활성화 여부
+  createdById   String      // 생성자
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  createdBy     User        @relation(fields: [createdById], references: [id])
+  
+  @@index([botId])
+  @@index([isActive])
 }
 
 // AI 봇 할당 관리
