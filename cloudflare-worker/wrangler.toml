@@ -7,9 +7,9 @@ node_compat = true
 [[d1_databases]]
 binding = "DB"
 database_name = "superplace-db"
-database_id = "YOUR_D1_DATABASE_ID"  # wrangler d1 create superplace-db 실행 후 여기에 입력
+database_id = "YOUR_D1_DATABASE_ID"  # ⚠️ 여기에 실제 Database ID를 입력하세요!
 
 # Environment Variables
 [vars]
-API_SECRET_TOKEN = "your-secret-token-here-change-this"
-ALLOWED_ORIGINS = "https://your-domain.vercel.app,http://localhost:3000"
+API_SECRET_TOKEN = "92629e6aa16f35aaae63ace77625575860327f664844c4d60871cc8897cce1f3"
+ALLOWED_ORIGINS = "https://superplace-study.vercel.app,http://localhost:3000"
