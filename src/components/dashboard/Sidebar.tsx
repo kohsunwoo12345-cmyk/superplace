@@ -29,6 +29,7 @@ import {
   Menu,
   X,
   Activity,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -46,6 +47,7 @@ const navigationByRole = {
     { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
     { name: "꾸메땅 AI 봇", href: "/dashboard/ai-bot-ggumettang", icon: BookOpen },
     { name: "접속자 분석", href: "/dashboard/admin/access-analytics", icon: Activity },
+    { name: "매출 통계", href: "/dashboard/revenue", icon: DollarSign },
     { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "전체 통계", href: "/dashboard/stats", icon: TrendingUp },
     { name: "시스템 설정", href: "/dashboard/settings", icon: Settings },
@@ -62,6 +64,7 @@ const navigationByRole = {
     { name: "출석 관리", href: "/dashboard/attendance", icon: Calendar },
     { name: "성적 관리", href: "/dashboard/grades", icon: BarChart3 },
     { name: "학원 통계", href: "/dashboard/analytics", icon: TrendingUp },
+    { name: "매출 통계", href: "/dashboard/revenue", icon: DollarSign },
     { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "학원 설정", href: "/dashboard/academy-settings", icon: Building2 },
     { name: "내 설정", href: "/dashboard/settings", icon: Settings },

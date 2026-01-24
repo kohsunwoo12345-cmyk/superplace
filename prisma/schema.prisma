@@ -33,6 +33,7 @@ model Academy {
   users           User[]
   subscriptions   Subscription[]
   aiUsages        AIUsage[]
+  payments        Payment[]
   
   @@index([subscriptionPlan])
   @@index([code])
@@ -132,6 +133,7 @@ model User {
   targetSwitches    AccountSwitch[] @relation("TargetUser") // 전환 대상 계정으로서의 기록
   accessLogs        AccessLog[]     // 접속 로그
   activityLogs      ActivityLog[]   // 활동 로그
+  payments          Payment[]       // 결제 내역
   
   @@index([academyId])
   @@index([role])
@@ -600,4 +602,86 @@ model ActivityLog {
   @@index([action])
   @@index([sessionId])
   @@index([resource, resourceId])
+}
+
+// 제품/상품 (요금제)
+model Product {
+  id              String    @id @default(cuid())
+  name            String    // 상품명 (예: "BASIC 플랜", "PRO 플랜")
+  description     String?   @db.Text // 상품 설명
+  plan            String    // FREE, BASIC, PRO, ENTERPRISE
+  price           Decimal   // 가격
+  currency        String    @default("KRW") // 통화 (KRW, USD, etc.)
+  billingCycle    String    @default("MONTHLY") // MONTHLY, YEARLY, ONE_TIME
+  features        Json?     // 제공 기능 목록
+  maxStudents     Int       @default(10)
+  maxTeachers     Int       @default(2)
+  aiUsageLimit    Int       @default(100)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  payments        Payment[]
+  
+  @@index([plan])
+  @@index([isActive])
+}
+
+// 결제 (Payment)
+model Payment {
+  id              String    @id @default(cuid())
+  
+  // 결제 주체
+  academyId       String    // 결제한 학원
+  userId          String    // 결제한 사용자 (학원장)
+  
+  // 상품 정보
+  productId       String    // 구매한 상품
+  productName     String    // 상품명 (스냅샷)
+  plan            String    // 요금제 (스냅샷)
+  
+  // 결제 금액
+  amount          Decimal   // 결제 금액
+  currency        String    @default("KRW")
+  
+  // 결제 상태
+  status          String    @default("PENDING") // PENDING, COMPLETED, FAILED, CANCELLED, REFUNDED
+  
+  // 결제 수단
+  paymentMethod   String?   // CARD, BANK_TRANSFER, VIRTUAL_ACCOUNT, KAKAO_PAY, NAVER_PAY
+  paymentProvider String?   // 결제 대행사 (TOSS, PORTONE, STRIPE, etc.)
+  
+  // 결제 대행사 정보
+  transactionId   String?   @unique // 거래 ID
+  providerOrderId String?   // 결제 대행사 주문 ID
+  receiptUrl      String?   // 영수증 URL
+  
+  // 결제 시간
+  paidAt          DateTime? // 결제 완료 시간
+  cancelledAt     DateTime? // 취소 시간
+  refundedAt      DateTime? // 환불 시간
+  
+  // 구독 기간 (구독형 상품의 경우)
+  subscriptionStartDate DateTime? // 구독 시작일
+  subscriptionEndDate   DateTime? // 구독 종료일
+  
+  // 메타데이터
+  metadata        Json?     // 추가 정보
+  failReason      String?   // 실패 사유
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  academy         Academy   @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  
+  @@index([academyId, status])
+  @@index([userId, paidAt])
+  @@index([status, paidAt])
+  @@index([productId])
+  @@index([transactionId])
+  @@index([paidAt])
 }
