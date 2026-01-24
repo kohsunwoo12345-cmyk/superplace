@@ -107,6 +107,13 @@ function AIChatContent() {
     }
   }, [status]);
 
+  // 봇이 선택되지 않았고 할당받은 봇이 있으면 첫 번째 봇 자동 선택
+  useEffect(() => {
+    if (status === "authenticated" && !botId && assignedBots.length > 0) {
+      router.push(`/ai-chat?botId=${encodeURIComponent(assignedBots[0].botId)}`);
+    }
+  }, [status, botId, assignedBots, router]);
+
   // 현재 대화 로드
   useEffect(() => {
     if (status === "authenticated" && botId) {
@@ -310,6 +317,31 @@ function AIChatContent() {
     return (
       <div className={`flex items-center justify-center min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // 할당받은 봇이 없으면 안내 메시지 표시
+  if (assignedBots.length === 0) {
+    return (
+      <div className={`flex items-center justify-center min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+        <div className="text-center max-w-md p-8">
+          <div className={`w-24 h-24 mx-auto mb-6 rounded-full ${darkMode ? "bg-gray-800" : "bg-gray-100"} flex items-center justify-center`}>
+            <Bot className={`w-12 h-12 ${darkMode ? "text-gray-600" : "text-gray-400"}`} />
+          </div>
+          <h2 className={`text-2xl font-bold mb-3 ${darkMode ? "text-white" : "text-gray-900"}`}>
+            할당받은 AI 봇이 없습니다
+          </h2>
+          <p className={`mb-6 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+            AI 봇을 사용하려면 관리자나 학원장에게 봇 할당을 요청하세요.
+          </p>
+          <Button
+            onClick={() => router.push("/dashboard")}
+            className="flex items-center gap-2 mx-auto"
+          >
+            대시보드로 돌아가기
+          </Button>
+        </div>
       </div>
     );
   }
@@ -534,32 +566,39 @@ function AIChatContent() {
                 </Button>
               </div>
             </>
+          ) : assignedBots.length > 0 ? (
+            <div className={`flex items-center gap-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              <Bot className="w-5 h-5" />
+              <span>왼쪽에서 AI 봇을 선택해주세요</span>
+            </div>
           ) : (
             <div className={`flex items-center gap-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
               <Bot className="w-5 h-5" />
-              <span>AI 봇을 선택해주세요</span>
+              <span>할당받은 AI 봇이 없습니다</span>
             </div>
           )}
         </div>
 
         {/* 메시지 영역 */}
         <div className="flex-1 overflow-y-auto">
-          {!botId ? (
+          {!botId || !currentBot ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <Sparkles className={`w-16 h-16 mx-auto mb-4 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
                 <h2 className={`text-xl font-semibold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-                  AI 채팅 시작하기
+                  {assignedBots.length > 0 ? "왼쪽에서 AI 봇을 선택해주세요" : "할당받은 AI 봇이 없습니다"}
                 </h2>
                 <p className={`mb-6 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  왼쪽에서 AI 봇을 선택하여 대화를 시작하세요
+                  {assignedBots.length > 0 
+                    ? "봇을 클릭하여 대화를 시작하세요" 
+                    : "관리자나 학원장에게 봇 할당을 요청하세요"}
                 </p>
                 <Button
                   onClick={() => router.push("/dashboard")}
                   className="flex items-center gap-2 mx-auto"
                 >
                   <Bot className="w-4 h-4" />
-                  대시보드로 가기
+                  대시보드로 돌아가기
                 </Button>
               </div>
             </div>

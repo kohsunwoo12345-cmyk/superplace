@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -36,64 +37,100 @@ export async function POST(request: Request) {
       );
     }
 
-    // OpenAI API 키 확인
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('❌ OPENAI_API_KEY가 설정되지 않았습니다.');
+    // 권한 체크: 관리자가 아닌 경우 할당 여부 확인
+    if (session.user.role !== "SUPER_ADMIN") {
+      const assignment = await prisma.botAssignment.findFirst({
+        where: {
+          userId: session.user.id,
+          botId,
+          isActive: true,
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } },
+          ],
+        },
+      });
+
+      console.log('🔐 채팅 권한 체크:', assignment ? '할당됨' : '할당 안됨');
+
+      if (!assignment) {
+        return NextResponse.json(
+          { error: "이 봇에 대한 접근 권한이 없습니다." },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Google Gemini API 키 확인
+    if (!process.env.GOOGLE_API_KEY) {
+      console.error('❌ GOOGLE_API_KEY가 설정되지 않았습니다.');
       return NextResponse.json(
         { error: "AI 서비스가 설정되지 않았습니다." },
         { status: 500 }
       );
     }
 
-    // OpenAI API 호출을 위한 메시지 포맷 변환
-    const apiMessages = messages.map((msg: Message) => ({
-      role: msg.role,
-      content: msg.content,
-    }));
-
-    // 시스템 프롬프트가 있으면 추가
-    if (systemPrompt) {
-      apiMessages.unshift({
-        role: "system",
-        content: systemPrompt,
-      });
-      console.log('📝 시스템 프롬프트 적용:', systemPrompt.substring(0, 100) + '...');
-    }
-
-    console.log('🚀 OpenAI API 호출 시작...', {
-      model: 'gpt-4-turbo-preview',
-      messageCount: apiMessages.length
+    // Gemini API용 메시지 포맷 변환
+    const geminiMessages: any[] = [];
+    
+    // 시스템 프롬프트가 있으면 첫 메시지에 포함
+    let systemContext = systemPrompt ? `${systemPrompt}\n\n` : '';
+    
+    messages.forEach((msg: Message, index: number) => {
+      if (msg.role === 'user') {
+        // 첫 사용자 메시지에 시스템 프롬프트 포함
+        const content = index === 0 && systemContext 
+          ? `${systemContext}${msg.content}`
+          : msg.content;
+        
+        geminiMessages.push({
+          role: 'user',
+          parts: [{ text: content }]
+        });
+      } else if (msg.role === 'assistant') {
+        geminiMessages.push({
+          role: 'model',
+          parts: [{ text: msg.content }]
+        });
+      }
     });
 
-    // OpenAI API 호출
-    const openaiResponse = await fetch(
-      "https://api.openai.com/v1/chat/completions",
+    console.log('📝 Gemini 메시지 생성:', {
+      messageCount: geminiMessages.length,
+      hasSystemPrompt: !!systemPrompt
+    });
+
+    console.log('🚀 Google Gemini API 호출 시작...');
+
+    // Google Gemini API 호출
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GOOGLE_API_KEY}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "gpt-4-turbo-preview",
-          messages: apiMessages,
-          temperature: 0.7,
-          max_tokens: 2000,
+          contents: geminiMessages,
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 2000,
+          },
         }),
       }
     );
 
-    if (!openaiResponse.ok) {
-      const error = await openaiResponse.json();
-      console.error("❌ OpenAI API 오류:", error);
+    if (!geminiResponse.ok) {
+      const error = await geminiResponse.json();
+      console.error("❌ Gemini API 오류:", error);
       return NextResponse.json(
         { error: "AI 응답 생성에 실패했습니다." },
         { status: 500 }
       );
     }
 
-    const data = await openaiResponse.json();
-    const response = data.choices[0]?.message?.content || "응답을 생성할 수 없습니다.";
+    const data = await geminiResponse.json();
+    const response = data.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
 
     console.log('✅ AI 응답 생성 성공:', response.substring(0, 100) + '...');
 
