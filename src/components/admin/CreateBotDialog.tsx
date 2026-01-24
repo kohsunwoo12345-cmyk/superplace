@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,75 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Upload, X, FileText } from "lucide-react";
+
+// 이모지 카테고리별 목록
+const emojiCategories = {
+  교육: [
+    "📚", "📖", "✏️", "📝", "📕", "📗", "📘", "📙", "📓", "📔",
+    "📒", "📃", "📄", "📰", "🗞️", "📑", "🔖", "🏷️", "💼", "📊",
+    "📈", "📉", "🗂️", "📅", "📆", "🗓️", "📇", "🗃️", "🗄️", "📋"
+  ],
+  과학기술: [
+    "🔬", "🔭", "🧪", "🧬", "🧫", "💉", "💊", "🩺", "🩹", "🩼",
+    "🔧", "🔩", "⚙️", "🛠️", "⚗️", "🧰", "🗜️", "⚡", "🔋", "🔌",
+    "💡", "🔦", "🕯️", "🪔", "🧯", "🛢️", "💸", "💵", "💴", "💶"
+  ],
+  예술창작: [
+    "🎨", "🖌️", "🖍️", "🖊️", "🖋️", "✒️", "✍️", "📐", "📏", "📌",
+    "📍", "🎭", "🎪", "🎬", "🎤", "🎧", "🎼", "🎹", "🥁", "🎷",
+    "🎺", "🎸", "🪕", "🎻", "🪘", "🎲", "🎯", "🎰", "🎮", "🕹️"
+  ],
+  언어문학: [
+    "📚", "📖", "📝", "✍️", "📜", "📃", "📄", "📋", "📑", "🔤",
+    "🔡", "🔠", "🔣", "💬", "💭", "🗨️", "🗯️", "💡", "🧠", "🤔",
+    "📢", "📣", "📯", "🔔", "🔕", "📻", "📱", "💻", "⌨️", "🖥️"
+  ],
+  수학통계: [
+    "🔢", "➕", "➖", "✖️", "➗", "🟰", "💯", "📊", "📈", "📉",
+    "📐", "📏", "🧮", "🔺", "🔻", "🔶", "🔷", "🔸", "🔹", "🔳",
+    "🔲", "⬛", "⬜", "◼️", "◻️", "◾", "◽", "▪️", "▫️", "🟥"
+  ],
+  스포츠건강: [
+    "⚽", "🏀", "🏈", "⚾", "🥎", "🎾", "🏐", "🏉", "🥏", "🎱",
+    "🪀", "🏓", "🏸", "🏒", "🏑", "🥍", "🏏", "🪃", "🥅", "⛳",
+    "🪁", "🏹", "🎣", "🤿", "🥊", "🥋", "⛷️", "🏂", "🪂", "🏋️"
+  ],
+  자연환경: [
+    "🌱", "🌿", "☘️", "🍀", "🎋", "🎍", "🌾", "🌵", "🌴", "🌳",
+    "🌲", "🌰", "🌻", "🌺", "🌸", "🌼", "🌷", "🥀", "🌹", "🏵️",
+    "💐", "🌾", "🍁", "🍂", "🍃", "🪴", "🪵", "🌊", "💧", "💦"
+  ],
+  동물: [
+    "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯",
+    "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🐤", "🦆",
+    "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🪱", "🐛"
+  ],
+  음식요리: [
+    "🍎", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🫐", "🍈", "🍒",
+    "🍑", "🥭", "🍍", "🥥", "🥝", "🍅", "🍆", "🥑", "🥦", "🥬",
+    "🥒", "🌶️", "🫑", "🌽", "🥕", "🧄", "🧅", "🥔", "🍠", "🥐"
+  ],
+  여행교통: [
+    "🚗", "🚕", "🚙", "🚌", "🚎", "🏎️", "🚓", "🚑", "🚒", "🚐",
+    "🛻", "🚚", "🚛", "🚜", "🦯", "🦽", "🦼", "🛴", "🚲", "🛵",
+    "🏍️", "🛺", "🚨", "🚔", "🚍", "🚘", "🚖", "🚡", "🚠", "🚟"
+  ],
+  사물도구: [
+    "⌚", "📱", "📲", "💻", "⌨️", "🖥️", "🖨️", "🖱️", "🖲️", "🕹️",
+    "🗜️", "💾", "💿", "📀", "📼", "📷", "📸", "📹", "🎥", "📽️",
+    "🎞️", "📞", "☎️", "📟", "📠", "📺", "📻", "🎙️", "🎚️", "🎛️"
+  ],
+  표정감정: [
+    "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃",
+    "🫠", "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😗", "☺️",
+    "😚", "😙", "🥲", "😋", "😛", "😜", "🤪", "😝", "🤑", "🤗"
+  ],
+  별모양: [
+    "⭐", "🌟", "💫", "✨", "🌠", "🌌", "🔥", "💥", "⚡", "✴️",
+    "🌈", "☀️", "🌤️", "⛅", "🌥️", "☁️", "🌦️", "🌧️", "⛈️", "🌩️",
+    "❄️", "☃️", "⛄", "🌬️", "💨", "☔", "💧", "💦", "🌊", "🫧"
+  ]
+};
 
 interface CreateBotDialogProps {
   open: boolean;
@@ -48,6 +117,7 @@ export function CreateBotDialog({
 }: CreateBotDialogProps) {
   const [loading, setLoading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [formData, setFormData] = useState({
     botId: "",
     name: "",
@@ -63,6 +133,21 @@ export function CreateBotDialog({
     enableVoiceInput: false,
     isActive: true,
   });
+
+  // 이모지 선택기 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (showEmojiPicker && !target.closest('.emoji-picker-container')) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    if (showEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showEmojiPicker]);
 
   // 파일 업로드 처리
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,15 +290,51 @@ export function CreateBotDialog({
             {/* 아이콘 */}
             <div className="space-y-2">
               <Label htmlFor="icon">아이콘 (이모지)*</Label>
-              <Input
-                id="icon"
-                placeholder="🤖"
-                value={formData.icon}
-                onChange={(e) =>
-                  setFormData({ ...formData, icon: e.target.value })
-                }
-                required
-              />
+              <div className="relative emoji-picker-container">
+                <div 
+                  className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                >
+                  <span className="text-3xl">{formData.icon}</span>
+                  <span className="text-sm text-gray-500 flex-1">
+                    이모지 선택하기
+                  </span>
+                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                
+                {/* 이모지 선택 팝업 */}
+                {showEmojiPicker && (
+                  <div className="absolute z-50 mt-2 w-full max-h-96 overflow-y-auto bg-white border rounded-lg shadow-lg">
+                    {Object.entries(emojiCategories).map(([category, emojis]) => (
+                      <div key={category} className="p-3 border-b last:border-b-0">
+                        <h4 className="text-xs font-semibold text-gray-700 mb-2">
+                          {category}
+                        </h4>
+                        <div className="grid grid-cols-8 gap-1">
+                          {emojis.map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              className={`text-2xl p-2 rounded hover:bg-gray-100 transition-colors ${
+                                formData.icon === emoji ? 'bg-blue-100 ring-2 ring-blue-500' : ''
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFormData({ ...formData, icon: emoji });
+                                setShowEmojiPicker(false);
+                              }}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
