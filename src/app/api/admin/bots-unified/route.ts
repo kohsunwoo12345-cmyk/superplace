@@ -85,32 +85,38 @@ export async function GET(request: NextRequest) {
     console.log('🔎 조회 조건:', JSON.stringify(whereCondition, null, 2));
 
     // 봇 목록 조회
-    const bots = await prisma.aIBot.findMany({
-      where: whereCondition,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    let bots;
+    try {
+      bots = await prisma.aIBot.findMany({
+        where: whereCondition,
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          folder: {
+            select: {
+              id: true,
+              name: true,
+              color: true,
+            },
           },
         },
-        folder: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-          },
+        orderBy: {
+          [sortBy]: sortOrder === "desc" ? "desc" : "asc",
         },
-      },
-      orderBy: {
-        [sortBy]: sortOrder === "desc" ? "desc" : "asc",
-      },
-    });
+      });
 
-    console.log('🤖 조회된 봇 수:', bots.length);
-    if (bots.length > 0) {
-      console.log('첫 번째 봇:', bots[0].name, bots[0].botId);
+      console.log('🤖 조회된 봇 수:', bots.length);
+      if (bots.length > 0) {
+        console.log('첫 번째 봇:', bots[0].name, bots[0].botId);
+      }
+    } catch (botQueryError) {
+      console.error('❌ 봇 조회 중 오류:', botQueryError);
+      throw new Error(`봇 조회 실패: ${botQueryError instanceof Error ? botQueryError.message : String(botQueryError)}`);
     }
 
     // 각 봇의 할당 정보를 별도로 조회
@@ -187,23 +193,39 @@ export async function GET(request: NextRequest) {
     });
 
     // JSON 직렬화를 위해 Date 객체를 문자열로 변환
-    const serializedBots = botsWithAssignments.map(bot => ({
-      ...bot,
-      createdAt: bot.createdAt.toISOString(),
-      updatedAt: bot.updatedAt.toISOString(),
-      assignments: bot.assignments.map(assignment => ({
-        ...assignment,
-        createdAt: assignment.createdAt.toISOString(),
-        updatedAt: assignment.updatedAt.toISOString(),
-        expiresAt: assignment.expiresAt ? assignment.expiresAt.toISOString() : null,
-      })),
-    }));
+    console.log('🔄 데이터 직렬화 시작...');
+    
+    let serializedBots;
+    try {
+      serializedBots = botsWithAssignments.map(bot => ({
+        ...bot,
+        createdAt: bot.createdAt?.toISOString?.() || bot.createdAt,
+        updatedAt: bot.updatedAt?.toISOString?.() || bot.updatedAt,
+        assignments: (bot.assignments || []).map(assignment => ({
+          ...assignment,
+          createdAt: assignment.createdAt?.toISOString?.() || assignment.createdAt,
+          updatedAt: assignment.updatedAt?.toISOString?.() || assignment.updatedAt,
+          expiresAt: assignment.expiresAt?.toISOString?.() || assignment.expiresAt || null,
+        })),
+      }));
+      console.log('✅ 봇 직렬화 완료:', serializedBots.length);
+    } catch (botSerializeError) {
+      console.error('❌ 봇 직렬화 오류:', botSerializeError);
+      throw new Error(`봇 직렬화 실패: ${botSerializeError instanceof Error ? botSerializeError.message : String(botSerializeError)}`);
+    }
 
-    const serializedFolders = folders.map(folder => ({
-      ...folder,
-      createdAt: folder.createdAt.toISOString(),
-      updatedAt: folder.updatedAt.toISOString(),
-    }));
+    let serializedFolders;
+    try {
+      serializedFolders = folders.map(folder => ({
+        ...folder,
+        createdAt: folder.createdAt?.toISOString?.() || folder.createdAt,
+        updatedAt: folder.updatedAt?.toISOString?.() || folder.updatedAt,
+      }));
+      console.log('✅ 폴더 직렬화 완료:', serializedFolders.length);
+    } catch (folderSerializeError) {
+      console.error('❌ 폴더 직렬화 오류:', folderSerializeError);
+      throw new Error(`폴더 직렬화 실패: ${folderSerializeError instanceof Error ? folderSerializeError.message : String(folderSerializeError)}`);
+    }
 
     console.log('✅ 응답 준비 완료 - 봇:', serializedBots.length, '폴더:', serializedFolders.length);
 
