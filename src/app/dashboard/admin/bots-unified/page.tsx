@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Settings,
 } from "lucide-react";
+import BotEditorModal from "@/components/admin/BotEditorModal";
 
 interface BotFolder {
   id: string;
@@ -97,6 +98,8 @@ export default function BotsUnifiedPage() {
 
   // 모달 상태
   const [showCreateBotModal, setShowCreateBotModal] = useState(false);
+  const [showEditBotModal, setShowEditBotModal] = useState(false);
+  const [selectedBotForEdit, setSelectedBotForEdit] = useState<AIBot | null>(null);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
   const [showBotDetailModal, setShowBotDetailModal] = useState(false);
   const [selectedBot, setSelectedBot] = useState<AIBot | null>(null);
@@ -241,7 +244,7 @@ export default function BotsUnifiedPage() {
 
   const handleCreateBot = async (botData: any) => {
     try {
-      const response = await fetch("/api/admin/bots-unified", {
+      const response = await fetch("/api/admin/ai-bots", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -263,6 +266,38 @@ export default function BotsUnifiedPage() {
       console.error("봇 생성 오류:", error);
       alert("봇 생성 중 오류가 발생했습니다");
     }
+  };
+
+  const handleUpdateBot = async (botId: string, botData: any) => {
+    try {
+      const response = await fetch(`/api/admin/ai-bots/${botId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(botData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || "봇 수정에 실패했습니다");
+        return;
+      }
+
+      alert("AI 봇이 수정되었습니다");
+      setShowEditBotModal(false);
+      setSelectedBotForEdit(null);
+      fetchData();
+    } catch (error) {
+      console.error("봇 수정 오류:", error);
+      alert("봇 수정 중 오류가 발생했습니다");
+    }
+  };
+
+  const handleEditBot = (bot: AIBot) => {
+    setSelectedBotForEdit(bot);
+    setShowEditBotModal(true);
   };
 
   const handleCreateFolder = async (folderData: any) => {
@@ -687,6 +722,13 @@ export default function BotsUnifiedPage() {
                   상세보기
                 </button>
                 <button
+                  onClick={() => handleEditBot(bot)}
+                  className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  title="수정"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => handleDeleteBot(bot.botId)}
                   className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                   title="삭제"
@@ -701,10 +743,23 @@ export default function BotsUnifiedPage() {
 
       {/* 봇 생성 모달 */}
       {showCreateBotModal && (
-        <CreateBotModal
+        <BotEditorModal
+          folders={folders}
           onClose={() => setShowCreateBotModal(false)}
           onCreate={handleCreateBot}
+        />
+      )}
+
+      {/* 봇 수정 모달 */}
+      {showEditBotModal && selectedBotForEdit && (
+        <BotEditorModal
+          bot={selectedBotForEdit}
           folders={folders}
+          onClose={() => {
+            setShowEditBotModal(false);
+            setSelectedBotForEdit(null);
+          }}
+          onUpdate={handleUpdateBot}
         />
       )}
 
@@ -731,270 +786,6 @@ export default function BotsUnifiedPage() {
 }
 
 /* 봇 생성 모달 컴포넌트 */
-function CreateBotModal({
-  onClose,
-  onCreate,
-  folders,
-}: {
-  onClose: () => void;
-  onCreate: (data: any) => void;
-  folders: BotFolder[];
-}) {
-  const [formData, setFormData] = useState({
-    botId: "",
-    name: "",
-    nameEn: "",
-    description: "",
-    icon: "🤖",
-    color: "blue",
-    bgGradient: "from-blue-50 to-cyan-50",
-    systemPrompt: "",
-    referenceFiles: "",
-    starterMessages: "",
-    enableImageInput: false,
-    enableVoiceOutput: false,
-    enableVoiceInput: false,
-    isActive: true,
-    folderId: "",
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onCreate({
-      ...formData,
-      referenceFiles: formData.referenceFiles
-        ? formData.referenceFiles.split("\n").filter((f) => f.trim())
-        : [],
-      starterMessages: formData.starterMessages
-        ? formData.starterMessages.split("\n").filter((m) => m.trim())
-        : [],
-      folderId: formData.folderId || null,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold mb-4">새 AI 봇 추가</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                봇 ID (필수)
-              </label>
-              <input
-                type="text"
-                value={formData.botId}
-                onChange={(e) =>
-                  setFormData({ ...formData, botId: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 border rounded"
-                placeholder="예: math-tutor"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                이름 (필수)
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 border rounded"
-                placeholder="예: 수학 튜터"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                영문 이름 (필수)
-              </label>
-              <input
-                type="text"
-                value={formData.nameEn}
-                onChange={(e) =>
-                  setFormData({ ...formData, nameEn: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 border rounded"
-                placeholder="예: Math Tutor"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  아이콘 (이모지)
-                </label>
-                <input
-                  type="text"
-                  value={formData.icon}
-                  onChange={(e) =>
-                    setFormData({ ...formData, icon: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded"
-                  placeholder="예: 📐"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  색상
-                </label>
-                <select
-                  value={formData.color}
-                  onChange={(e) =>
-                    setFormData({ ...formData, color: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded"
-                >
-                  <option value="blue">파란색</option>
-                  <option value="green">초록색</option>
-                  <option value="purple">보라색</option>
-                  <option value="red">빨간색</option>
-                  <option value="yellow">노란색</option>
-                  <option value="pink">분홍색</option>
-                  <option value="indigo">남색</option>
-                  <option value="teal">청록색</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                배경 그라데이션
-              </label>
-              <input
-                type="text"
-                value={formData.bgGradient}
-                onChange={(e) =>
-                  setFormData({ ...formData, bgGradient: e.target.value })
-                }
-                className="w-full px-3 py-2 border rounded"
-                placeholder="예: from-blue-50 to-cyan-50"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                설명 (필수)
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                required
-                rows={3}
-                className="w-full px-3 py-2 border rounded"
-                placeholder="봇의 역할과 기능 설명"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                시스템 프롬프트 (필수)
-              </label>
-              <textarea
-                value={formData.systemPrompt}
-                onChange={(e) =>
-                  setFormData({ ...formData, systemPrompt: e.target.value })
-                }
-                required
-                rows={4}
-                className="w-full px-3 py-2 border rounded"
-                placeholder="AI 봇의 역할과 행동 방식을 정의"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">폴더</label>
-              <select
-                value={formData.folderId}
-                onChange={(e) =>
-                  setFormData({ ...formData, folderId: e.target.value })
-                }
-                className="w-full px-3 py-2 border rounded"
-              >
-                <option value="">폴더 없음</option>
-                {folders.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.enableImageInput}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      enableImageInput: e.target.checked,
-                    })
-                  }
-                />
-                <span className="text-sm">이미지 입력 허용</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.enableVoiceOutput}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      enableVoiceOutput: e.target.checked,
-                    })
-                  }
-                />
-                <span className="text-sm">음성 출력 허용</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.enableVoiceInput}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      enableVoiceInput: e.target.checked,
-                    })
-                  }
-                />
-                <span className="text-sm">음성 입력 허용</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.isActive}
-                  onChange={(e) =>
-                    setFormData({ ...formData, isActive: e.target.checked })
-                  }
-                />
-                <span className="text-sm">활성화</span>
-              </label>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                생성
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-              >
-                취소
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* 폴더 생성 모달 컴포넌트 */
 function CreateFolderModal({
   onClose,
   onCreate,
