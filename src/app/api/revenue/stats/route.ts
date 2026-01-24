@@ -132,25 +132,38 @@ export async function GET(req: NextRequest) {
     });
 
     // 월별 매출 추이 (최근 12개월)
-    const monthlyRevenue = await prisma.$queryRaw<
-      Array<{ month: string; revenue: number; count: number }>
-    >`
-      SELECT 
-        TO_CHAR("paidAt", 'YYYY-MM') as month,
-        SUM(amount::numeric) as revenue,
-        COUNT(*)::int as count
-      FROM "Payment"
-      WHERE status = 'COMPLETED'
-        AND "paidAt" >= NOW() - INTERVAL '12 months'
-        ${
-          currentUser.role === 'DIRECTOR' && currentUser.academyId
-            ? prisma.$queryRawUnsafe(`AND "academyId" = '${currentUser.academyId}'`)
-            : prisma.$queryRawUnsafe('')
-        }
-      GROUP BY TO_CHAR("paidAt", 'YYYY-MM')
-      ORDER BY month DESC
-      LIMIT 12
-    `;
+    let monthlyRevenue: Array<{ month: string; revenue: number; count: number }> = [];
+    
+    if (currentUser.role === 'DIRECTOR' && currentUser.academyId) {
+      // 학원장: 자기 학원만
+      monthlyRevenue = await prisma.$queryRaw`
+        SELECT 
+          TO_CHAR("paidAt", 'YYYY-MM') as month,
+          COALESCE(SUM(amount::numeric), 0)::float as revenue,
+          COUNT(*)::int as count
+        FROM "Payment"
+        WHERE status = 'COMPLETED'
+          AND "paidAt" >= NOW() - INTERVAL '12 months'
+          AND "academyId" = ${currentUser.academyId}
+        GROUP BY TO_CHAR("paidAt", 'YYYY-MM')
+        ORDER BY month DESC
+        LIMIT 12
+      `;
+    } else {
+      // SUPER_ADMIN: 모든 학원
+      monthlyRevenue = await prisma.$queryRaw`
+        SELECT 
+          TO_CHAR("paidAt", 'YYYY-MM') as month,
+          COALESCE(SUM(amount::numeric), 0)::float as revenue,
+          COUNT(*)::int as count
+        FROM "Payment"
+        WHERE status = 'COMPLETED'
+          AND "paidAt" >= NOW() - INTERVAL '12 months'
+        GROUP BY TO_CHAR("paidAt", 'YYYY-MM')
+        ORDER BY month DESC
+        LIMIT 12
+      `;
+    }
 
     // 최근 결제 내역 (상위 10개)
     const recentPayments = await prisma.payment.findMany({
