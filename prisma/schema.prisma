@@ -125,6 +125,8 @@ model User {
   createdAIBots     AIBot[]         // 관리자가 생성한 AI 봇
   assignedBots      BotAssignment[] @relation("AssignedTo")
   grantedBots       BotAssignment[] @relation("GrantedBy")
+  conversations     BotConversation[] // 봇과의 대화 기록
+  conversationAnalyses ConversationAnalysis[] // 대화 분석 결과
   
   @@index([academyId])
   @@index([role])
@@ -432,10 +434,10 @@ model AIBot {
 // AI 봇 할당 관리
 model BotAssignment {
   id            String      @id @default(cuid())
-  userId        String      // 봇을 할당받은 사용자 (학원장 또는 학생)
+  userId        String      // 봇을 할당받은 사용자 (학원장, 선생님, 또는 학생)
   botId         String      // gems ID (study-helper, writing-coach, etc.)
-  grantedById   String      // 봇을 할당해준 사용자 (관리자 또는 학원장)
-  grantedByRole String      // SUPER_ADMIN or DIRECTOR
+  grantedById   String      // 봇을 할당해준 사용자 (관리자, 학원장, 또는 선생님)
+  grantedByRole String      // SUPER_ADMIN, DIRECTOR, or TEACHER
   isActive      Boolean     @default(true)
   expiresAt     DateTime?   // 만료일 (선택 사항)
   createdAt     DateTime    @default(now())
@@ -447,5 +449,62 @@ model BotAssignment {
   @@unique([userId, botId])
   @@index([userId, isActive])
   @@index([grantedById])
+  @@index([botId])
+}
+
+// AI 봇 대화 기록
+model BotConversation {
+  id            String      @id @default(cuid())
+  userId        String      // 대화한 사용자
+  botId         String      // 대화한 봇 ID
+  messages      Json        // 대화 메시지 배열 [{role, content, timestamp}]
+  messageCount  Int         @default(0) // 총 메시지 수
+  userMessageCount Int      @default(0) // 사용자 메시지 수
+  botMessageCount Int       @default(0) // 봇 메시지 수
+  sessionDuration Int?      // 대화 시간 (초)
+  lastMessageAt DateTime    // 마지막 메시지 시간
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysis      ConversationAnalysis? // AI 분석 결과
+  
+  @@index([userId, botId])
+  @@index([userId, lastMessageAt])
+  @@index([botId])
+}
+
+// AI 대화 분석 결과
+model ConversationAnalysis {
+  id                String      @id @default(cuid())
+  conversationId    String      @unique
+  userId            String      // 분석 대상 학생
+  botId             String      // 사용한 봇
+  
+  // 참여도 지표
+  engagementScore   Float       @default(0) // 참여도 점수 (0-100)
+  responseQuality   Float       @default(0) // 응답 품질 (0-100)
+  questionDepth     Float       @default(0) // 질문 깊이 (0-100)
+  consistency       Float       @default(0) // 일관성 (0-100)
+  
+  // 행동 분석
+  avgResponseTime   Int?        // 평균 응답 시간 (초)
+  avgMessageLength  Int?        // 평균 메시지 길이
+  topicDiversity    Float       @default(0) // 주제 다양성
+  
+  // AI 분석 결과
+  strengths         String[]    // 강점
+  weaknesses        String[]    // 약점
+  recommendations   String[]    // 추천 사항
+  summary           String      @db.Text // 종합 분석
+  
+  // 메타 정보
+  analyzedAt        DateTime    @default(now())
+  analyzedBy        String      @default("AI") // AI or USER_ID
+  
+  conversation      BotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, analyzedAt])
   @@index([botId])
 }

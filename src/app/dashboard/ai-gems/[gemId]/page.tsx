@@ -54,6 +54,34 @@ export default function GemChatPage() {
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState<string | null>(null); // 재생 중인 메시지 ID
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sessionStartTime = useRef<Date>(new Date());
+
+  // 대화 자동 저장 (10개 메시지마다)
+  useEffect(() => {
+    if (messages.length >= 10 && messages.length % 10 === 0 && gem) {
+      saveConversation();
+    }
+  }, [messages.length]);
+
+  const saveConversation = async () => {
+    if (!gem || messages.length === 0) return;
+
+    try {
+      const sessionDuration = Math.floor((new Date().getTime() - sessionStartTime.current.getTime()) / 1000);
+      
+      await fetch('/api/bot-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botId: gem.id,
+          messages,
+          sessionDuration,
+        }),
+      });
+    } catch (error) {
+      console.error('대화 저장 오류:', error);
+    }
+  };
 
   // API에서 봇 정보 가져오기
   useEffect(() => {
@@ -362,8 +390,11 @@ export default function GemChatPage() {
     }
   };
 
-  const clearChat = () => {
+  const clearChat = async () => {
+    // 대화 저장
+    await saveConversation();
     setMessages([]);
+    sessionStartTime.current = new Date(); // 세션 시간 초기화
   };
 
   const formatTime = (date: Date) => {
