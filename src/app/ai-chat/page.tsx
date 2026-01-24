@@ -367,13 +367,13 @@ function AIChatContent() {
             {assignedBots.length > 0 && (
               <div className={`p-3 border-b ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
                 <h3 className={`text-sm font-semibold mb-2 px-3 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                  사용 가능한 봇
+                  🤖 사용 가능한 봇
                 </h3>
                 <div className="space-y-1">
                   {assignedBots.map((bot) => (
                     <button
                       key={bot.botId}
-                      onClick={() => router.push(`/ai-chat?botId=${bot.botId}`)}
+                      onClick={() => router.push(`/ai-chat?botId=${encodeURIComponent(bot.botId)}`)}
                       className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-colors ${
                         botId === bot.botId
                           ? darkMode ? "bg-blue-900 text-blue-100" : "bg-blue-50 text-blue-900"
@@ -393,19 +393,37 @@ function AIChatContent() {
               </div>
             )}
 
+            {/* 대화 목록 구분선 */}
+            {sortedConversations.length > 0 && assignedBots.length > 0 && (
+              <div className={`px-4 py-2 ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+                <div className={`flex items-center gap-2 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
+                  <div className={`flex-1 h-px ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}></div>
+                  <span className="text-xs font-medium">대화 내역</span>
+                  <div className={`flex-1 h-px ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}></div>
+                </div>
+              </div>
+            )}
+
             {/* 대화 목록 */}
             <div className="flex-1 overflow-y-auto p-2">
-              {sortedConversations.length === 0 ? (
+              {sortedConversations.length === 0 && assignedBots.length === 0 ? (
                 <div className={`text-center py-10 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                   <MessageSquare className={`w-12 h-12 mx-auto mb-2 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
-                  <p className="text-sm">대화 내역이 없습니다</p>
+                  <p className="text-sm">할당받은 봇이 없습니다</p>
+                  <p className="text-xs mt-2">관리자에게 문의하세요</p>
+                </div>
+              ) : sortedConversations.length === 0 ? (
+                <div className={`text-center py-10 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  <MessageSquare className={`w-12 h-12 mx-auto mb-2 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
+                  <p className="text-sm">아직 대화 내역이 없습니다</p>
+                  <p className="text-xs mt-2">위의 봇을 선택하여 대화를 시작하세요</p>
                 </div>
               ) : (
                 sortedConversations.map((group) => (
                   <div key={group.botId} className="mb-4">
                     {/* 봇 그룹 헤더 */}
                     <div className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                      <span className="text-lg">{group.botIcon}</span>
+                      <MessageSquare className="w-4 h-4" />
                       <span>{group.botName}</span>
                       <span className={`ml-auto text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
                         {group.conversations.length}

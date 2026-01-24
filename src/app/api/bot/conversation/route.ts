@@ -78,6 +78,12 @@ export async function POST(request: NextRequest) {
 
     const { botId, messages } = await request.json();
 
+    console.log('💾 대화 저장 요청:', { 
+      userId: session.user.id, 
+      botId, 
+      messageCount: messages?.length 
+    });
+
     if (!botId || !messages || !Array.isArray(messages)) {
       return NextResponse.json(
         { error: 'botId와 messages가 필요합니다.' },
@@ -89,13 +95,15 @@ export async function POST(request: NextRequest) {
     const userMessageCount = messages.filter((m: any) => m.role === 'user').length;
     const botMessageCount = messages.filter((m: any) => m.role === 'assistant').length;
 
-    // 기존 대화 찾기
+    // 기존 대화 찾기 (userId + botId로 사용자별 독립 저장)
     const existingConversation = await prisma.botConversation.findFirst({
       where: {
         userId: session.user.id,
         botId: botId,
       },
     });
+
+    console.log('🔍 기존 대화:', existingConversation ? `찾음 (ID: ${existingConversation.id})` : '없음 - 새로 생성');
 
     if (existingConversation) {
       // 업데이트
@@ -112,6 +120,8 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      console.log('✅ 대화 업데이트 완료');
+
       return NextResponse.json({ success: true, conversation: updated });
     } else {
       // 새로 생성
@@ -127,10 +137,12 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      console.log('✅ 새 대화 생성 완료');
+
       return NextResponse.json({ success: true, conversation: created });
     }
   } catch (error) {
-    console.error('대화 저장 오류:', error);
+    console.error('❌ 대화 저장 오류:', error);
     return NextResponse.json(
       { error: '대화 저장 중 오류가 발생했습니다.' },
       { status: 500 }

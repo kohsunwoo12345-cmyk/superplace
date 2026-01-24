@@ -22,10 +22,26 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { botId, messages, systemPrompt } = body;
 
+    console.log('💬 AI 채팅 요청:', { 
+      botId, 
+      messageCount: messages?.length,
+      hasSystemPrompt: !!systemPrompt,
+      userId: session.user.id
+    });
+
     if (!botId || !messages || !Array.isArray(messages)) {
       return NextResponse.json(
         { error: "필수 정보가 누락되었습니다." },
         { status: 400 }
+      );
+    }
+
+    // OpenAI API 키 확인
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('❌ OPENAI_API_KEY가 설정되지 않았습니다.');
+      return NextResponse.json(
+        { error: "AI 서비스가 설정되지 않았습니다." },
+        { status: 500 }
       );
     }
 
@@ -41,7 +57,13 @@ export async function POST(request: Request) {
         role: "system",
         content: systemPrompt,
       });
+      console.log('📝 시스템 프롬프트 적용:', systemPrompt.substring(0, 100) + '...');
     }
+
+    console.log('🚀 OpenAI API 호출 시작...', {
+      model: 'gpt-4-turbo-preview',
+      messageCount: apiMessages.length
+    });
 
     // OpenAI API 호출
     const openaiResponse = await fetch(
@@ -63,7 +85,7 @@ export async function POST(request: Request) {
 
     if (!openaiResponse.ok) {
       const error = await openaiResponse.json();
-      console.error("OpenAI API 오류:", error);
+      console.error("❌ OpenAI API 오류:", error);
       return NextResponse.json(
         { error: "AI 응답 생성에 실패했습니다." },
         { status: 500 }
@@ -73,12 +95,14 @@ export async function POST(request: Request) {
     const data = await openaiResponse.json();
     const response = data.choices[0]?.message?.content || "응답을 생성할 수 없습니다.";
 
+    console.log('✅ AI 응답 생성 성공:', response.substring(0, 100) + '...');
+
     return NextResponse.json({
       success: true,
       response,
     });
   } catch (error) {
-    console.error("채팅 API 오류:", error);
+    console.error("❌ 채팅 API 오류:", error);
     return NextResponse.json(
       { error: "메시지 전송에 실패했습니다." },
       { status: 500 }

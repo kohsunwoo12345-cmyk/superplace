@@ -17,7 +17,10 @@ export async function GET(
       );
     }
 
-    const { botId } = params;
+    // URL 디코딩
+    const botId = decodeURIComponent(params.botId);
+    
+    console.log('🔍 봇 조회 요청:', { botId, userId: session.user.id, role: session.user.role });
 
     // 봇 정보 조회
     const bot = await prisma.aIBot.findUnique({
@@ -42,6 +45,8 @@ export async function GET(
         isActive: true,
       },
     });
+
+    console.log('🤖 봇 조회 결과:', bot ? `찾음: ${bot.name}` : '찾지 못함');
 
     if (!bot) {
       return NextResponse.json(
@@ -71,6 +76,8 @@ export async function GET(
         },
       });
 
+      console.log('🔐 권한 체크:', assignment ? '할당됨' : '할당 안됨');
+
       if (!assignment) {
         return NextResponse.json(
           { error: "이 봇에 대한 접근 권한이 없습니다." },
@@ -78,6 +85,8 @@ export async function GET(
         );
       }
     }
+
+    console.log('✅ 봇 정보 반환 성공');
 
     return NextResponse.json({
       success: true,
