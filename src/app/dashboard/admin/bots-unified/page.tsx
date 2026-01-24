@@ -36,13 +36,17 @@ interface AIBot {
   id: string;
   botId: string;
   name: string;
+  nameEn: string;
   description: string;
+  icon: string;
+  color: string;
+  bgGradient: string;
   systemPrompt: string;
   referenceFiles: string[];
   starterMessages: string[];
-  allowImageInput: boolean;
-  allowVoiceOutput: boolean;
-  allowVoiceInput: boolean;
+  enableImageInput: boolean;
+  enableVoiceOutput: boolean;
+  enableVoiceInput: boolean;
   isActive: boolean;
   creator: {
     id: string;
@@ -502,14 +506,15 @@ export default function BotsUnifiedPage() {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <Bot
-                      className={`w-5 h-5 ${
-                        bot.isActive ? "text-blue-600" : "text-gray-400"
-                      }`}
-                    />
-                    <h3 className="text-lg font-bold text-gray-900">
-                      {highlightText(bot.name, searchQuery)}
-                    </h3>
+                    <span className="text-2xl">{bot.icon}</span>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {highlightText(bot.name, searchQuery)}
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        {bot.nameEn}
+                      </p>
+                    </div>
                   </div>
                   <p className="text-xs text-gray-500 mb-2">
                     ID: {highlightText(bot.botId, searchQuery)}
@@ -552,6 +557,25 @@ export default function BotsUnifiedPage() {
               <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                 {highlightText(bot.description, searchQuery)}
               </p>
+
+              {/* 기능 배지 */}
+              <div className="flex flex-wrap gap-1 mb-4">
+                {bot.enableImageInput && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                    📷 이미지
+                  </span>
+                )}
+                {bot.enableVoiceOutput && (
+                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
+                    🔊 음성출력
+                  </span>
+                )}
+                {bot.enableVoiceInput && (
+                  <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">
+                    🎤 음성입력
+                  </span>
+                )}
+              </div>
 
               {/* 할당 정보 */}
               <div className="flex items-center gap-2 mb-4 text-sm">
@@ -632,13 +656,17 @@ function CreateBotModal({
   const [formData, setFormData] = useState({
     botId: "",
     name: "",
+    nameEn: "",
     description: "",
+    icon: "🤖",
+    color: "blue",
+    bgGradient: "from-blue-50 to-cyan-50",
     systemPrompt: "",
     referenceFiles: "",
     starterMessages: "",
-    allowImageInput: false,
-    allowVoiceOutput: false,
-    allowVoiceInput: false,
+    enableImageInput: false,
+    enableVoiceOutput: false,
+    enableVoiceInput: false,
     isActive: true,
     folderId: "",
   });
@@ -695,6 +723,72 @@ function CreateBotModal({
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">
+                영문 이름 (필수)
+              </label>
+              <input
+                type="text"
+                value={formData.nameEn}
+                onChange={(e) =>
+                  setFormData({ ...formData, nameEn: e.target.value })
+                }
+                required
+                className="w-full px-3 py-2 border rounded"
+                placeholder="예: Math Tutor"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  아이콘 (이모지)
+                </label>
+                <input
+                  type="text"
+                  value={formData.icon}
+                  onChange={(e) =>
+                    setFormData({ ...formData, icon: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded"
+                  placeholder="예: 📐"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  색상
+                </label>
+                <select
+                  value={formData.color}
+                  onChange={(e) =>
+                    setFormData({ ...formData, color: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded"
+                >
+                  <option value="blue">파란색</option>
+                  <option value="green">초록색</option>
+                  <option value="purple">보라색</option>
+                  <option value="red">빨간색</option>
+                  <option value="yellow">노란색</option>
+                  <option value="pink">분홍색</option>
+                  <option value="indigo">남색</option>
+                  <option value="teal">청록색</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                배경 그라데이션
+              </label>
+              <input
+                type="text"
+                value={formData.bgGradient}
+                onChange={(e) =>
+                  setFormData({ ...formData, bgGradient: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded"
+                placeholder="예: from-blue-50 to-cyan-50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
                 설명 (필수)
               </label>
               <textarea
@@ -744,11 +838,11 @@ function CreateBotModal({
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={formData.allowImageInput}
+                  checked={formData.enableImageInput}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      allowImageInput: e.target.checked,
+                      enableImageInput: e.target.checked,
                     })
                   }
                 />
@@ -757,11 +851,11 @@ function CreateBotModal({
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={formData.allowVoiceOutput}
+                  checked={formData.enableVoiceOutput}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      allowVoiceOutput: e.target.checked,
+                      enableVoiceOutput: e.target.checked,
                     })
                   }
                 />
@@ -770,11 +864,11 @@ function CreateBotModal({
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={formData.allowVoiceInput}
+                  checked={formData.enableVoiceInput}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      allowVoiceInput: e.target.checked,
+                      enableVoiceInput: e.target.checked,
                     })
                   }
                 />
@@ -940,9 +1034,13 @@ function BotDetailModal({
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-start justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">{bot.name}</h2>
-              <p className="text-sm text-gray-600">ID: {bot.botId}</p>
+            <div className="flex items-center gap-3">
+              <span className="text-4xl">{bot.icon}</span>
+              <div>
+                <h2 className="text-2xl font-bold mb-1">{bot.name}</h2>
+                <p className="text-sm text-gray-500">{bot.nameEn}</p>
+                <p className="text-xs text-gray-500">ID: {bot.botId}</p>
+              </div>
             </div>
             <button
               onClick={onClose}
@@ -961,8 +1059,41 @@ function BotDetailModal({
                   <span className="font-medium">설명:</span>{" "}
                   {bot.description}
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">색상:</span>
+                  <span
+                    className="px-3 py-1 rounded text-sm"
+                    style={{
+                      backgroundColor: bot.color === "blue" ? "#3B82F6" :
+                        bot.color === "green" ? "#10B981" :
+                        bot.color === "purple" ? "#8B5CF6" :
+                        bot.color === "red" ? "#EF4444" :
+                        bot.color === "yellow" ? "#F59E0B" :
+                        bot.color === "pink" ? "#EC4899" :
+                        bot.color === "indigo" ? "#6366F1" :
+                        bot.color === "teal" ? "#14B8A6" : "#3B82F6",
+                      color: "white",
+                    }}
+                  >
+                    {bot.color}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium">배경:</span>{" "}
+                  <code className="text-xs bg-white px-2 py-1 rounded">{bot.bgGradient}</code>
+                </div>
                 <div>
                   <span className="font-medium">상태:</span>{" "}
+                  <span
+                    className={`px-2 py-1 rounded text-xs ${
+                      bot.isActive
+                        ? "bg-green-100 text-green-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {bot.isActive ? "활성" : "비활성"}
+                  </span>
+                </div>
                   <span
                     className={`px-2 py-1 rounded text-xs ${
                       bot.isActive
@@ -1012,19 +1143,19 @@ function BotDetailModal({
             <div>
               <h3 className="text-lg font-bold mb-3">기능</h3>
               <div className="flex gap-2">
-                {bot.allowImageInput && (
+                {bot.enableImageInput && (
                   <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-                    이미지 입력
+                    📷 이미지 입력
                   </span>
                 )}
-                {bot.allowVoiceOutput && (
+                {bot.enableVoiceOutput && (
                   <span className="px-3 py-1 bg-green-100 text-green-800 rounded text-sm">
-                    음성 출력
+                    🔊 음성 출력
                   </span>
                 )}
-                {bot.allowVoiceInput && (
+                {bot.enableVoiceInput && (
                   <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded text-sm">
-                    음성 입력
+                    🎤 음성 입력
                   </span>
                 )}
               </div>

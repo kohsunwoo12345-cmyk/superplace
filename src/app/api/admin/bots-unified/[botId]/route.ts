@@ -186,13 +186,17 @@ export async function PATCH(
     const updateData: any = {};
     const allowedFields = [
       "name",
+      "nameEn",
       "description",
+      "icon",
+      "color",
+      "bgGradient",
       "systemPrompt",
       "referenceFiles",
       "starterMessages",
-      "allowImageInput",
-      "allowVoiceOutput",
-      "allowVoiceInput",
+      "enableImageInput",
+      "enableVoiceOutput",
+      "enableVoiceInput",
       "isActive",
       "folderId",
     ];

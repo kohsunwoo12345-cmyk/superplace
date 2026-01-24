@@ -187,19 +187,23 @@ export async function POST(request: NextRequest) {
     const {
       botId,
       name,
+      nameEn,
       description,
+      icon,
+      color,
+      bgGradient,
       systemPrompt,
       referenceFiles,
       starterMessages,
-      allowImageInput,
-      allowVoiceOutput,
-      allowVoiceInput,
+      enableImageInput,
+      enableVoiceOutput,
+      enableVoiceInput,
       isActive,
       folderId,
     } = body;
 
     // 필수 필드 검증
-    if (!botId || !name || !description || !systemPrompt) {
+    if (!botId || !name || !nameEn || !description || !systemPrompt) {
       return NextResponse.json(
         { error: "필수 필드가 누락되었습니다" },
         { status: 400 }
@@ -245,15 +249,19 @@ export async function POST(request: NextRequest) {
       data: {
         botId,
         name,
+        nameEn,
         description,
+        icon: icon || "🤖",
+        color: color || "blue",
+        bgGradient: bgGradient || "from-blue-50 to-cyan-50",
         systemPrompt,
         referenceFiles: referenceFiles || [],
         starterMessages: starterMessages || [],
-        allowImageInput: allowImageInput || false,
-        allowVoiceOutput: allowVoiceOutput || false,
-        allowVoiceInput: allowVoiceInput || false,
+        enableImageInput: enableImageInput || false,
+        enableVoiceOutput: enableVoiceOutput || false,
+        enableVoiceInput: enableVoiceInput || false,
         isActive: isActive !== undefined ? isActive : true,
-        creatorId: session.user.id,
+        createdById: session.user.id,
         folderId: folderId || null,
       },
       include: {
