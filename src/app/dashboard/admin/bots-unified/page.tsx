@@ -153,9 +153,10 @@ export default function BotsUnifiedPage() {
       if (searchQuery) {
         allBots = allBots.filter(
           (bot: AIBot) =>
-            bot.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            bot.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             bot.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            bot.botId.toLowerCase().includes(searchQuery.toLowerCase())
+            bot.botId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            bot.nameEn?.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
 
@@ -187,33 +188,12 @@ export default function BotsUnifiedPage() {
         }
       });
 
-      // 7. 각 봇의 할당 정보 조회 (비동기로 병렬 처리)
-      const botsWithAssignments = await Promise.all(
-        allBots.map(async (bot: AIBot) => {
-          try {
-            const assignRes = await fetch(`/api/admin/ai-bots/detail?id=${bot.id}`, {
-              credentials: "include",
-            });
-            if (assignRes.ok) {
-              const assignData = await assignRes.json();
-              return {
-                ...bot,
-                assignments: assignData.assignments || [],
-                _count: {
-                  assignments: assignData.assignments?.length || 0,
-                },
-              };
-            }
-          } catch (err) {
-            console.error(`봇 ${bot.id} 할당 정보 조회 실패:`, err);
-          }
-          return {
-            ...bot,
-            assignments: [],
-            _count: { assignments: 0 },
-          };
-        })
-      );
+      // 7. 할당 정보는 나중에 필요할 때만 조회 (일단 0으로 설정)
+      const botsWithAssignments = allBots.map((bot: AIBot) => ({
+        ...bot,
+        assignments: [],
+        _count: { assignments: 0 },
+      }));
 
       setBots(botsWithAssignments);
       setFolders(allFolders);
@@ -222,16 +202,12 @@ export default function BotsUnifiedPage() {
       const totalBots = botsWithAssignments.length;
       const activeBots = botsWithAssignments.filter((b) => b.isActive).length;
       const inactiveBots = totalBots - activeBots;
-      const totalAssignments = botsWithAssignments.reduce(
-        (sum, b) => sum + (b._count?.assignments || 0),
-        0
-      );
 
       setStats({
         totalBots,
         activeBots,
         inactiveBots,
-        totalAssignments,
+        totalAssignments: 0, // 나중에 필요할 때 조회
         totalFolders: allFolders.length,
       });
     } catch (error) {
