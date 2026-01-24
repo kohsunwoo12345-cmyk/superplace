@@ -1181,7 +1181,7 @@ function BotDetailModal({
                           )}
                         </div>
                         <div className="text-xs text-gray-500">
-                          할당일: {formatDateTime(assignment.assignedAt)}
+                          할당일: {formatDateTime(assignment.createdAt)}
                         </div>
                       </div>
                       <div>

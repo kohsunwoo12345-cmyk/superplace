@@ -94,7 +94,19 @@ export async function GET(request: NextRequest) {
             color: true,
           },
         },
-        assignments: {
+      },
+      orderBy: {
+        [sortBy]: sortOrder === "desc" ? "desc" : "asc",
+      },
+    });
+
+    // 각 봇의 할당 정보를 별도로 조회
+    const botsWithAssignments = await Promise.all(
+      bots.map(async (bot) => {
+        const assignments = await prisma.botAssignment.findMany({
+          where: {
+            botId: bot.botId,
+          },
           include: {
             user: {
               select: {
@@ -120,28 +132,28 @@ export async function GET(request: NextRequest) {
             },
           },
           orderBy: {
-            assignedAt: "desc",
+            createdAt: "desc",
           },
-        },
-        _count: {
-          select: {
-            assignments: true,
+        });
+
+        return {
+          ...bot,
+          assignments,
+          _count: {
+            assignments: assignments.length,
           },
-        },
-      },
-      orderBy: {
-        [sortBy]: sortOrder === "desc" ? "desc" : "asc",
-      },
-    });
+        };
+      })
+    );
 
     // 통계 계산
-    const totalBots = bots.length;
-    const activeBots = bots.filter((b) => b.isActive).length;
+    const totalBots = botsWithAssignments.length;
+    const activeBots = botsWithAssignments.filter((b) => b.isActive).length;
     const inactiveBots = totalBots - activeBots;
-    const totalAssignments = bots.reduce((sum, b) => sum + b._count.assignments, 0);
+    const totalAssignments = botsWithAssignments.reduce((sum, b) => sum + b._count.assignments, 0);
 
     return NextResponse.json({
-      bots,
+      bots: botsWithAssignments,
       folders,
       stats: {
         totalBots,

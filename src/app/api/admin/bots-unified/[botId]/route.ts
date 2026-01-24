@@ -49,41 +49,6 @@ export async function GET(
             color: true,
           },
         },
-        assignments: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-                academy: {
-                  select: {
-                    id: true,
-                    name: true,
-                    code: true,
-                  },
-                },
-              },
-            },
-            grantedBy: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-          orderBy: {
-            assignedAt: "desc",
-          },
-        },
-        _count: {
-          select: {
-            assignments: true,
-          },
-        },
       },
     });
 
@@ -94,22 +59,63 @@ export async function GET(
       );
     }
 
+    // 할당 정보 별도 조회
+    const assignments = await prisma.botAssignment.findMany({
+      where: {
+        botId: bot.botId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            academy: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+        },
+        grantedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
     // 할당 통계
     const assignmentStats = {
-      total: bot.assignments.length,
-      active: bot.assignments.filter((a) => a.isActive).length,
-      expired: bot.assignments.filter(
+      total: assignments.length,
+      active: assignments.filter((a) => a.isActive).length,
+      expired: assignments.filter(
         (a) => a.expiresAt && new Date(a.expiresAt) < new Date()
       ).length,
       byRole: {
-        DIRECTOR: bot.assignments.filter((a) => a.user.role === "DIRECTOR").length,
-        TEACHER: bot.assignments.filter((a) => a.user.role === "TEACHER").length,
-        STUDENT: bot.assignments.filter((a) => a.user.role === "STUDENT").length,
+        DIRECTOR: assignments.filter((a) => a.user.role === "DIRECTOR").length,
+        TEACHER: assignments.filter((a) => a.user.role === "TEACHER").length,
+        STUDENT: assignments.filter((a) => a.user.role === "STUDENT").length,
       },
     };
 
     return NextResponse.json({
-      bot,
+      bot: {
+        ...bot,
+        assignments,
+        _count: {
+          assignments: assignments.length,
+        },
+      },
       assignmentStats,
     });
   } catch (error) {
