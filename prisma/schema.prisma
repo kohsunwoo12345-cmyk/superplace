@@ -127,6 +127,8 @@ model User {
   grantedBots       BotAssignment[] @relation("GrantedBy")
   conversations     BotConversation[] // 봇과의 대화 기록
   conversationAnalyses ConversationAnalysis[] // 대화 분석 결과
+  originalSwitches  AccountSwitch[] @relation("OriginalUser") // 원래 계정으로서의 전환 기록
+  targetSwitches    AccountSwitch[] @relation("TargetUser") // 전환 대상 계정으로서의 기록
   
   @@index([academyId])
   @@index([role])
@@ -507,4 +509,28 @@ model ConversationAnalysis {
   
   @@index([userId, analyzedAt])
   @@index([botId])
+}
+
+
+// 계정 전환 기록 (학원장 → 학생/선생님, 선생님 → 학생)
+model AccountSwitch {
+  id                String    @id @default(cuid())
+  originalUserId    String    // 원래 계정 (학원장 또는 선생님)
+  targetUserId      String    // 전환할 계정 (학생 또는 선생님)
+  originalRole      String    // 원래 역할 (DIRECTOR, TEACHER)
+  targetRole        String    // 전환할 역할 (STUDENT, TEACHER)
+  academyId         String    // 학원 ID (권한 체크용)
+  sessionToken      String    @unique // 전환 세션 토큰
+  expiresAt         DateTime  // 만료 시간
+  isActive          Boolean   @default(true)
+  switchedAt        DateTime  @default(now())
+  switchBackAt      DateTime? // 원래 계정으로 복귀한 시간
+  
+  originalUser      User      @relation("OriginalUser", fields: [originalUserId], references: [id], onDelete: Cascade)
+  targetUser        User      @relation("TargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  
+  @@index([originalUserId, isActive])
+  @@index([targetUserId])
+  @@index([sessionToken])
+  @@index([expiresAt])
 }

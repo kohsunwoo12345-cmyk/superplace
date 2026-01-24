@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
+import AccountSwitchButton from "@/components/account/AccountSwitchButton";
 import {
   BarChart3,
   LayoutDashboard,
@@ -40,6 +41,7 @@ const navigationByRole = {
     { name: "요금제 관리", href: "/dashboard/plans", icon: CreditCard },
     { name: "AI 봇 관리", href: "/dashboard/admin/ai-bots-management", icon: Bot },
     { name: "AI 봇 할당", href: "/dashboard/admin/bot-assignment", icon: UserPlus },
+    { name: "AI 봇 전체 목록", href: "/dashboard/ai-bots-list", icon: Bot },
     { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
     { name: "꾸메땅 AI 봇", href: "/dashboard/ai-bot-ggumettang", icon: BookOpen },
     { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
@@ -48,6 +50,7 @@ const navigationByRole = {
   ],
   DIRECTOR: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+    { name: "AI 봇 전체 목록", href: "/dashboard/ai-bots-list", icon: Bot },
     { name: "사용자 관리", href: "/dashboard/manage-users", icon: Users },
     { name: "선생님 관리", href: "/dashboard/teachers", icon: UserCheck },
     { name: "학생 관리", href: "/dashboard/students", icon: Users },
@@ -63,6 +66,7 @@ const navigationByRole = {
   ],
   TEACHER: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+    { name: "AI 봇 전체 목록", href: "/dashboard/ai-bots-list", icon: Bot },
     { name: "학생 목록", href: "/dashboard/students", icon: Users },
     { name: "학습 자료", href: "/dashboard/materials", icon: BookOpen },
     { name: "과제 관리", href: "/dashboard/assignments", icon: ClipboardList },
@@ -72,6 +76,7 @@ const navigationByRole = {
   ],
   STUDENT: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+    { name: "AI 봇 전체 목록", href: "/dashboard/ai-bots-list", icon: Bot },
   ],
 };
 
@@ -152,7 +157,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       </div>
 
       {/* 사용자 정보 */}
-      <div className="px-4 py-4 border-b">
+      <div className="px-4 py-4 border-b space-y-3">
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold">
@@ -168,6 +173,9 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
             </p>
           </div>
         </div>
+        
+        {/* 계정 전환 버튼 */}
+        <AccountSwitchButton />
       </div>
 
       {/* 네비게이션 메뉴 */}
