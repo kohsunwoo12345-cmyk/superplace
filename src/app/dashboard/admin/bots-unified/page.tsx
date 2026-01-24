@@ -82,7 +82,8 @@ export default function BotsUnifiedPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [bots, setBots] = useState<AIBot[]>([]);
+  const [allBots, setAllBots] = useState<AIBot[]>([]); // 전체 봇 데이터
+  const [filteredBots, setFilteredBots] = useState<AIBot[]>([]); // 필터링된 봇 데이터
   const [folders, setFolders] = useState<BotFolder[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalBots: 0,
@@ -118,12 +119,62 @@ export default function BotsUnifiedPage() {
     }
   }, [status, session, router]);
 
+  // 초기 데이터 로드 - 한 번만 실행
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role === "SUPER_ADMIN") {
       fetchData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session, searchQuery, selectedFolder, isActiveFilter, sortBy, sortOrder]);
+  }, [status, session]);
+
+  // 검색/필터/정렬 - 클라이언트에서만 처리
+  useEffect(() => {
+    if (allBots.length === 0) return;
+    
+    let result = [...allBots];
+
+    // 1. 검색 필터
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (bot) =>
+          bot.name?.toLowerCase().includes(query) ||
+          bot.description?.toLowerCase().includes(query) ||
+          bot.botId?.toLowerCase().includes(query) ||
+          bot.nameEn?.toLowerCase().includes(query)
+      );
+    }
+
+    // 2. 폴더 필터
+    if (selectedFolder !== "all") {
+      if (selectedFolder === "none") {
+        result = result.filter((bot) => !bot.folderId);
+      } else {
+        result = result.filter((bot) => bot.folderId === selectedFolder);
+      }
+    }
+
+    // 3. 활성 상태 필터
+    if (isActiveFilter) {
+      result = result.filter((bot) => 
+        isActiveFilter === "true" ? bot.isActive : !bot.isActive
+      );
+    }
+
+    // 4. 정렬
+    result.sort((a, b) => {
+      const aValue = a[sortBy as keyof AIBot];
+      const bValue = b[sortBy as keyof AIBot];
+      
+      if (sortOrder === "desc") {
+        return aValue > bValue ? -1 : 1;
+      } else {
+        return aValue > bValue ? 1 : -1;
+      }
+    });
+
+    setFilteredBots(result);
+  }, [allBots, searchQuery, selectedFolder, isActiveFilter, sortBy, sortOrder]);
 
   const fetchData = async () => {
     try {
@@ -170,46 +221,7 @@ export default function BotsUnifiedPage() {
         console.error("할당 통계 조회 오류:", error);
       }
 
-      // 4. 검색 필터 적용
-      if (searchQuery) {
-        allBots = allBots.filter(
-          (bot: AIBot) =>
-            bot.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            bot.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            bot.botId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            bot.nameEn?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-      }
-
-      // 5. 폴더 필터 적용
-      if (selectedFolder !== "all") {
-        if (selectedFolder === "none") {
-          allBots = allBots.filter((bot: AIBot) => !bot.folderId);
-        } else {
-          allBots = allBots.filter((bot: AIBot) => bot.folderId === selectedFolder);
-        }
-      }
-
-      // 6. 활성 상태 필터 적용
-      if (isActiveFilter) {
-        allBots = allBots.filter((bot: AIBot) => 
-          isActiveFilter === "true" ? bot.isActive : !bot.isActive
-        );
-      }
-
-      // 7. 정렬
-      allBots.sort((a: AIBot, b: AIBot) => {
-        const aValue = a[sortBy as keyof AIBot];
-        const bValue = b[sortBy as keyof AIBot];
-        
-        if (sortOrder === "desc") {
-          return aValue > bValue ? -1 : 1;
-        } else {
-          return aValue > bValue ? 1 : -1;
-        }
-      });
-
-      // 8. 할당 정보 붙이기
+      // 4. 할당 정보 붙이기
       const botsWithAssignments = allBots.map((bot: AIBot) => {
         const assignmentCount = assignmentStats.get(bot.botId) || 0;
         return {
@@ -219,10 +231,11 @@ export default function BotsUnifiedPage() {
         };
       });
 
-      setBots(botsWithAssignments);
+      // 전체 봇 데이터 저장 (필터링 전)
+      setAllBots(botsWithAssignments);
       setFolders(allFolders);
 
-      // 9. 통계 계산
+      // 5. 통계 계산 (전체 데이터 기준)
       const totalBots = botsWithAssignments.length;
       const activeBots = botsWithAssignments.filter((b) => b.isActive).length;
       const inactiveBots = totalBots - activeBots;
@@ -612,19 +625,19 @@ export default function BotsUnifiedPage() {
 
         {/* 결과 개수 */}
         <div className="mt-4 text-sm text-gray-600">
-          총 {bots.length}개의 봇이 검색되었습니다
+          총 {filteredBots.length}개의 봇이 검색되었습니다
         </div>
       </div>
 
       {/* 봇 목록 */}
-      {bots.length === 0 ? (
+      {filteredBots.length === 0 ? (
         <div className="bg-white p-12 rounded-lg shadow text-center">
           <Bot className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600">검색 결과가 없습니다</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {bots.map((bot) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {filteredBots.map((bot) => (
             <div
               key={bot.id}
               className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow"
