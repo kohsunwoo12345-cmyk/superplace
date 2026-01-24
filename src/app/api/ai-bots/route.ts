@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
     }
 
+    console.log('🔍 /api/ai-bots 호출됨 - 사용자:', session.user.email, '역할:', session.user.role);
+
     // DB에서 활성화된 봇 조회
     const dbBots = await prisma.aIBot.findMany({
       where: {
@@ -35,6 +37,11 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    console.log('📦 DB 봇 수:', dbBots.length);
+    dbBots.forEach(bot => {
+      console.log(`  - ${bot.name} (botId: ${bot.botId})`);
+    });
+
     // DB 봇을 gems 형식으로 변환
     const convertedDbBots = dbBots.map((bot) => ({
       id: bot.botId,
@@ -54,6 +61,8 @@ export async function GET(req: NextRequest) {
       source: "default" as const,
     }));
 
+    console.log('📚 기본 봇 수:', defaultBots.length);
+
     // 중복 제거: DB 봇이 우선
     const dbBotIds = new Set(convertedDbBots.map((bot) => bot.id));
     const filteredDefaultBots = defaultBots.filter(
@@ -62,6 +71,8 @@ export async function GET(req: NextRequest) {
 
     // 통합 목록
     const allBots = [...convertedDbBots, ...filteredDefaultBots];
+
+    console.log('✅ 총 반환 봇 수:', allBots.length);
 
     return NextResponse.json({ bots: allBots }, { status: 200 });
   } catch (error) {
