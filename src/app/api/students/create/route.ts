@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { ActivityType, ResourceType } from "@/lib/activity-logger";
 
 const createStudentSchema = z.object({
   email: z.string().email("유효한 이메일을 입력해주세요"),
@@ -109,6 +110,28 @@ export async function POST(req: Request) {
     });
 
     console.log("✅ Student created:", student.id);
+
+    // 학생 추가 활동 로그 기록
+    try {
+      await prisma.activityLog.create({
+        data: {
+          userId: director.id,
+          action: ActivityType.STUDENT_ADD,
+          resource: ResourceType.STUDENTS,
+          resourceId: student.id,
+          description: `${director.name || director.email}님이 학생 '${student.name}'을(를) 추가했습니다.`,
+          metadata: {
+            studentEmail: student.email,
+            studentName: student.name,
+            grade: student.grade,
+            school: validatedData.school,
+          },
+        },
+      });
+    } catch (logError) {
+      console.error('학생 추가 활동 로그 기록 실패:', logError);
+      // 로그 실패해도 학생 생성은 계속 진행
+    }
 
     return NextResponse.json(
       { 

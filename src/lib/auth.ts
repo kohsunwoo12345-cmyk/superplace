@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
+import { ActivityType, ResourceType } from "./activity-logger";
 
 // 환경 변수 검증
 if (!process.env.NEXTAUTH_SECRET) {
@@ -60,6 +61,25 @@ export const authOptions: NextAuthOptions = {
             where: { id: user.id },
             data: { lastLoginAt: new Date() },
           });
+
+          // 로그인 활동 로그 기록
+          try {
+            await prisma.activityLog.create({
+              data: {
+                userId: user.id,
+                action: ActivityType.LOGIN,
+                resource: ResourceType.AUTH,
+                description: `${user.name || user.email}님이 로그인했습니다.`,
+                metadata: {
+                  email: user.email,
+                  role: user.role,
+                },
+              },
+            });
+          } catch (logError) {
+            console.error('로그인 활동 로그 기록 실패:', logError);
+            // 로그 실패해도 로그인은 계속 진행
+          }
 
           return {
             id: user.id,
