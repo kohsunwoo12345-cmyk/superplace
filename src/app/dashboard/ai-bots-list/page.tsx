@@ -103,7 +103,7 @@ export default function AIBotsListPage() {
     const isAssigned = assignedBotIds.has(botId);
     
     if (session?.user?.role === 'SUPER_ADMIN' || isAssigned) {
-      router.push(`/dashboard/ai-gems/${botId}`);
+      router.push(`/ai-chat?botId=${botId}`);
     } else {
       alert('이 봇은 할당받지 않았습니다. 관리자에게 문의하세요.');
     }

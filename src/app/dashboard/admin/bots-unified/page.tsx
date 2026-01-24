@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Settings,
   UserPlus,
+  MessageSquare,
 } from "lucide-react";
 import BotEditorModal from "@/components/admin/BotEditorModal";
 import BotAssignModal from "@/components/admin/BotAssignModal";
@@ -739,35 +740,46 @@ export default function BotsUnifiedPage() {
               </div>
 
               {/* 액션 버튼 */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleViewDetails(bot.botId)}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  <Eye className="w-4 h-4" />
-                  상세보기
-                </button>
-                <button
-                  onClick={() => handleAssignBot(bot)}
-                  className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-                  title="할당"
-                >
-                  <UserPlus className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleEditBot(bot)}
-                  className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                  title="수정"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleDeleteBot(bot.botId)}
-                  className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                  title="삭제"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => router.push(`/ai-chat?botId=${bot.botId}`)}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded hover:from-blue-700 hover:to-purple-700"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    채팅하기
+                  </button>
+                  <button
+                    onClick={() => handleViewDetails(bot.botId)}
+                    className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    title="상세보기"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleAssignBot(bot)}
+                    className="flex-1 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center justify-center gap-2"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    할당
+                  </button>
+                  <button
+                    onClick={() => handleEditBot(bot)}
+                    className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    title="수정"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteBot(bot.botId)}
+                    className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    title="삭제"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
