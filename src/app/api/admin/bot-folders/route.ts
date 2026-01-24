@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     const folders = await prisma.botFolder.findMany({
       where: {
-        userId: session.user.id,
+        createdBy: session.user.id,
       },
       include: {
         _count: {
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         name,
         description: description || "",
         color: color || "#3B82F6",
-        userId: session.user.id,
+        createdBy: session.user.id,
       },
       include: {
         _count: {
@@ -158,7 +158,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (folder.userId !== session.user.id) {
+    if (folder.createdBy !== session.user.id) {
       return NextResponse.json(
         { error: "폴더 접근 권한이 없습니다" },
         { status: 403 }
@@ -248,7 +248,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (folder.userId !== session.user.id) {
+    if (folder.createdBy !== session.user.id) {
       return NextResponse.json(
         { error: "폴더 접근 권한이 없습니다" },
         { status: 403 }

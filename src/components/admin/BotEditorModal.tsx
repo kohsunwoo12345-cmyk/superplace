@@ -133,22 +133,33 @@ export default function BotEditorModal({
     setUploading(true);
 
     try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        // 파일 업로드 API 구현 필요
-        // 임시로 파일명만 추가
-        return `uploaded/${file.name}`;
+      const formData = new FormData();
+      Array.from(files).forEach((file) => {
+        formData.append("files", file);
       });
 
-      const uploadedUrls = await Promise.all(uploadPromises);
+      const response = await fetch("/api/upload/bot-files", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "파일 업로드 실패");
+      }
+
+      const data = await response.json();
+      
       setFormData({
         ...formData,
-        referenceFiles: [...formData.referenceFiles, ...uploadedUrls],
+        referenceFiles: [...formData.referenceFiles, ...data.files],
       });
 
-      alert(`${files.length}개 파일이 업로드되었습니다`);
+      alert(data.message || `${files.length}개 파일이 업로드되었습니다`);
     } catch (error) {
       console.error("파일 업로드 오류:", error);
-      alert("파일 업로드 중 오류가 발생했습니다");
+      alert(error instanceof Error ? error.message : "파일 업로드 중 오류가 발생했습니다");
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
