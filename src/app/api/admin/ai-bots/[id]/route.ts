@@ -77,6 +77,7 @@ export async function PATCH(
       enableVoiceOutput,
       enableVoiceInput,
       isActive,
+      folderId,
     } = body;
 
     // 봇 존재 확인
@@ -103,6 +104,7 @@ export async function PATCH(
     if (enableVoiceOutput !== undefined) updateData.enableVoiceOutput = enableVoiceOutput;
     if (enableVoiceInput !== undefined) updateData.enableVoiceInput = enableVoiceInput;
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (folderId !== undefined) updateData.folderId = folderId;
 
     // 봇 업데이트
     const updatedBot = await prisma.aIBot.update({
@@ -114,6 +116,13 @@ export async function PATCH(
             id: true,
             name: true,
             email: true,
+          },
+        },
+        folder: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
           },
         },
       },

@@ -19,8 +19,10 @@ import {
   XCircle,
   ChevronRight,
   Settings,
+  UserPlus,
 } from "lucide-react";
 import BotEditorModal from "@/components/admin/BotEditorModal";
+import BotAssignModal from "@/components/admin/BotAssignModal";
 
 interface BotFolder {
   id: string;
@@ -49,6 +51,7 @@ interface AIBot {
   enableVoiceOutput: boolean;
   enableVoiceInput: boolean;
   isActive: boolean;
+  folderId?: string | null;
   createdBy: {
     id: string;
     name: string;
@@ -102,6 +105,7 @@ export default function BotsUnifiedPage() {
   const [selectedBotForEdit, setSelectedBotForEdit] = useState<AIBot | null>(null);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
   const [showBotDetailModal, setShowBotDetailModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedBot, setSelectedBot] = useState<AIBot | null>(null);
 
   useEffect(() => {
@@ -148,7 +152,25 @@ export default function BotsUnifiedPage() {
         allFolders = foldersData.folders || [];
       }
 
-      // 3. 검색 필터 적용
+      // 3. 할당 통계 조회 (botId별 count)
+      let assignmentStats = new Map();
+      let totalAssignments = 0;
+      try {
+        const statsResponse = await fetch("/api/admin/bot-assignments", {
+          credentials: "include",
+        });
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          statsData.stats?.forEach((stat: any) => {
+            assignmentStats.set(stat.botId, stat.count);
+            totalAssignments += stat.count;
+          });
+        }
+      } catch (error) {
+        console.error("할당 통계 조회 오류:", error);
+      }
+
+      // 4. 검색 필터 적용
       if (searchQuery) {
         allBots = allBots.filter(
           (bot: AIBot) =>
@@ -159,7 +181,7 @@ export default function BotsUnifiedPage() {
         );
       }
 
-      // 4. 폴더 필터 적용
+      // 5. 폴더 필터 적용
       if (selectedFolder !== "all") {
         if (selectedFolder === "none") {
           allBots = allBots.filter((bot: AIBot) => !bot.folderId);
@@ -168,14 +190,14 @@ export default function BotsUnifiedPage() {
         }
       }
 
-      // 5. 활성 상태 필터 적용
+      // 6. 활성 상태 필터 적용
       if (isActiveFilter) {
         allBots = allBots.filter((bot: AIBot) => 
           isActiveFilter === "true" ? bot.isActive : !bot.isActive
         );
       }
 
-      // 6. 정렬
+      // 7. 정렬
       allBots.sort((a: AIBot, b: AIBot) => {
         const aValue = a[sortBy as keyof AIBot];
         const bValue = b[sortBy as keyof AIBot];
@@ -187,17 +209,20 @@ export default function BotsUnifiedPage() {
         }
       });
 
-      // 7. 할당 정보는 나중에 필요할 때만 조회 (일단 0으로 설정)
-      const botsWithAssignments = allBots.map((bot: AIBot) => ({
-        ...bot,
-        assignments: [],
-        _count: { assignments: 0 },
-      }));
+      // 8. 할당 정보 붙이기
+      const botsWithAssignments = allBots.map((bot: AIBot) => {
+        const assignmentCount = assignmentStats.get(bot.botId) || 0;
+        return {
+          ...bot,
+          assignments: [],
+          _count: { assignments: assignmentCount },
+        };
+      });
 
       setBots(botsWithAssignments);
       setFolders(allFolders);
 
-      // 8. 통계 계산
+      // 9. 통계 계산
       const totalBots = botsWithAssignments.length;
       const activeBots = botsWithAssignments.filter((b) => b.isActive).length;
       const inactiveBots = totalBots - activeBots;
@@ -206,7 +231,7 @@ export default function BotsUnifiedPage() {
         totalBots,
         activeBots,
         inactiveBots,
-        totalAssignments: 0, // 나중에 필요할 때 조회
+        totalAssignments,
         totalFolders: allFolders.length,
       });
     } catch (error) {
@@ -273,6 +298,11 @@ export default function BotsUnifiedPage() {
   const handleEditBot = (bot: AIBot) => {
     setSelectedBotForEdit(bot);
     setShowEditBotModal(true);
+  };
+
+  const handleAssignBot = (bot: AIBot) => {
+    setSelectedBot(bot);
+    setShowAssignModal(true);
   };
 
   const handleCreateFolder = async (folderData: any) => {
@@ -697,6 +727,13 @@ export default function BotsUnifiedPage() {
                   상세보기
                 </button>
                 <button
+                  onClick={() => handleAssignBot(bot)}
+                  className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                  title="할당"
+                >
+                  <UserPlus className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => handleEditBot(bot)}
                   className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                   title="수정"
@@ -735,6 +772,20 @@ export default function BotsUnifiedPage() {
             setSelectedBotForEdit(null);
           }}
           onUpdate={handleUpdateBot}
+        />
+      )}
+
+      {/* 봇 할당 모달 */}
+      {showAssignModal && selectedBot && (
+        <BotAssignModal
+          bot={selectedBot}
+          onClose={() => {
+            setShowAssignModal(false);
+            setSelectedBot(null);
+          }}
+          onSuccess={() => {
+            fetchData();
+          }}
         />
       )}
 

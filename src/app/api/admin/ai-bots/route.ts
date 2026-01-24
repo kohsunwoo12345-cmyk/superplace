@@ -26,6 +26,13 @@ export async function GET(req: NextRequest) {
             email: true,
           },
         },
+        folder: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
@@ -72,6 +79,7 @@ export async function POST(req: NextRequest) {
       enableVoiceOutput,
       enableVoiceInput,
       isActive,
+      folderId,
     } = body;
 
     // 필수 필드 검증
@@ -111,6 +119,7 @@ export async function POST(req: NextRequest) {
         enableVoiceOutput: enableVoiceOutput || false,
         enableVoiceInput: enableVoiceInput || false,
         isActive: isActive !== undefined ? isActive : true,
+        folderId: folderId || null,
         createdById: session.user.id,
       },
       include: {
@@ -119,6 +128,13 @@ export async function POST(req: NextRequest) {
             id: true,
             name: true,
             email: true,
+          },
+        },
+        folder: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
           },
         },
       },

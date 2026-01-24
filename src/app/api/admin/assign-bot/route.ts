@@ -46,10 +46,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 봇이 실제로 존재하는지 확인
+    const bot = await prisma.aIBot.findUnique({
+      where: { botId },
+      select: { id: true, botId: true, name: true },
+    });
+
+    if (!bot) {
+      return NextResponse.json(
+        { error: '해당 봇을 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+
     // 대상 사용자가 학원장인지 확인
     const targetUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true },
+      select: { role: true, name: true, email: true },
     });
 
     if (!targetUser || targetUser.role !== 'DIRECTOR') {
