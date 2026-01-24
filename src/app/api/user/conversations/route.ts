@@ -14,6 +14,12 @@ export async function GET(request: Request) {
       );
     }
 
+    console.log('📞 대화 목록 API 호출:', { 
+      userId: session.user.id, 
+      userName: session.user.name,
+      role: session.user.role 
+    });
+
     // 할당받은 봇 목록 조회
     let assignedBots = [];
     
@@ -33,6 +39,7 @@ export async function GET(request: Request) {
           name: "asc",
         },
       });
+      console.log('👑 SUPER_ADMIN - 모든 활성 봇:', assignedBots.length);
     } else {
       // 일반 사용자는 할당받은 봇만
       const assignments = await prisma.botAssignment.findMany({
@@ -44,27 +51,27 @@ export async function GET(request: Request) {
             { expiresAt: { gt: new Date() } },
           ],
         },
-        include: {
-          bot: {
-            select: {
-              botId: true,
-              name: true,
-              icon: true,
-              description: true,
-              isActive: true,
-            },
-          },
+      });
+
+      console.log('🔍 할당 조회:', { userId: session.user.id, count: assignments.length });
+
+      // 각 할당에 대해 봇 정보 조회
+      const botIds = assignments.map(a => a.botId);
+      const assignedBotRecords = await prisma.aIBot.findMany({
+        where: {
+          botId: { in: botIds },
+          isActive: true,
+        },
+        select: {
+          botId: true,
+          name: true,
+          icon: true,
+          description: true,
         },
       });
 
-      assignedBots = assignments
-        .filter((a) => a.bot.isActive)
-        .map((a) => ({
-          botId: a.bot.botId,
-          name: a.bot.name,
-          icon: a.bot.icon,
-          description: a.bot.description,
-        }));
+      assignedBots = assignedBotRecords;
+      console.log('✅ 할당된 봇:', assignedBots.map(b => b.name));
     }
 
     // 사용자의 모든 대화 조회
@@ -149,7 +156,7 @@ export async function GET(request: Request) {
       conversations: conversationGroups, // 대화 목록
     });
   } catch (error) {
-    console.error("대화 목록 조회 오류:", error);
+    console.error("❌ 대화 목록 조회 오류:", error);
     return NextResponse.json(
       { error: "대화 목록을 불러오는데 실패했습니다." },
       { status: 500 }
