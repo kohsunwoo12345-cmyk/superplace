@@ -215,7 +215,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
           <span>로그아웃</span>
         </button>
         <p className="text-xs text-gray-500 text-center pt-2">
-          © 2024 SUPER PLACE
+          © 2026 SUPER PLACE
         </p>
       </div>
     </div>

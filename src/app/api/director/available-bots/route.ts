@@ -26,6 +26,10 @@ export async function GET(req: NextRequest) {
       where: {
         userId,
         isActive: true,
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gte: new Date() } },
+        ],
       },
       select: {
         botId: true,
@@ -33,6 +37,8 @@ export async function GET(req: NextRequest) {
     });
 
     const assignedBotIds = assignments.map(a => a.botId);
+
+    console.log('📋 학원장에게 할당된 봇 ID:', assignedBotIds);
 
     // 데이터베이스에서 할당된 봇 정보 조회
     const dbBots = await prisma.aIBot.findMany({
@@ -52,11 +58,24 @@ export async function GET(req: NextRequest) {
         color: true,
         bgGradient: true,
         systemPrompt: true,
+        starterMessages: true,
+        referenceFiles: true,
+        enableImageInput: true,
+        enableVoiceOutput: true,
+        enableVoiceInput: true,
       },
     });
 
+    console.log('💾 DB에서 찾은 봇:', dbBots.map(b => b.botId));
+
+    // 기본 봇(gems)도 포함
+    const { gems } = await import('@/lib/gems/data');
+    const defaultBots = gems.filter(g => assignedBotIds.includes(g.id));
+
+    console.log('📚 기본 봇에서 찾은 봇:', defaultBots.map(b => b.id));
+
     // DB 봇을 표준 형식으로 변환
-    const bots = dbBots.map((bot) => ({
+    const convertedDbBots = dbBots.map((bot) => ({
       id: bot.botId,
       name: bot.name,
       nameEn: bot.nameEn,
@@ -65,8 +84,26 @@ export async function GET(req: NextRequest) {
       color: bot.color,
       bgGradient: bot.bgGradient,
       systemPrompt: bot.systemPrompt,
+      starterMessages: bot.starterMessages,
+      referenceFiles: bot.referenceFiles,
+      enableImageInput: bot.enableImageInput,
+      enableVoiceOutput: bot.enableVoiceOutput,
+      enableVoiceInput: bot.enableVoiceInput,
       source: "database" as const,
     }));
+
+    // 중복 제거 (DB 봇 우선)
+    const dbBotIds = new Set(convertedDbBots.map(b => b.id));
+    const filteredDefaultBots = defaultBots
+      .filter(bot => !dbBotIds.has(bot.id))
+      .map(bot => ({
+        ...bot,
+        source: "default" as const,
+      }));
+
+    const bots = [...convertedDbBots, ...filteredDefaultBots];
+
+    console.log('✅ 최종 반환할 봇:', bots.map(b => `${b.id}(${b.source})`));
 
     return NextResponse.json({ bots }, { status: 200 });
   } catch (error) {
