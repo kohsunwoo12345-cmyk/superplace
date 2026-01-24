@@ -51,9 +51,14 @@ export default function AIBotsListPage() {
     if (status === 'unauthenticated') {
       router.push('/auth/signin');
     } else if (status === 'authenticated') {
+      // 관리자 전용 페이지
+      if (session?.user?.role !== 'SUPER_ADMIN') {
+        router.push('/dashboard');
+        return;
+      }
       fetchBots();
     }
-  }, [status, router]);
+  }, [status, session, router]);
 
   useEffect(() => {
     if (searchQuery.trim()) {

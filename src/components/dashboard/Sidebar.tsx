@@ -52,7 +52,6 @@ const navigationByRole = {
   ],
   DIRECTOR: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
-    { name: "AI 봇 전체 목록", href: "/dashboard/ai-bots-list", icon: Bot },
     { name: "사용자 관리", href: "/dashboard/manage-users", icon: Users },
     { name: "선생님 관리", href: "/dashboard/teachers", icon: UserCheck },
     { name: "학생 관리", href: "/dashboard/students", icon: Users },
@@ -69,7 +68,6 @@ const navigationByRole = {
   ],
   TEACHER: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
-    { name: "AI 봇 전체 목록", href: "/dashboard/ai-bots-list", icon: Bot },
     { name: "학생 목록", href: "/dashboard/students", icon: Users },
     { name: "학습 자료", href: "/dashboard/materials", icon: BookOpen },
     { name: "과제 관리", href: "/dashboard/assignments", icon: ClipboardList },
@@ -79,7 +77,7 @@ const navigationByRole = {
   ],
   STUDENT: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
-    { name: "AI 봇 전체 목록", href: "/dashboard/ai-bots-list", icon: Bot },
+    { name: "나의 학습", href: "/dashboard/my-learning", icon: BookOpen },
   ],
 };
 
