@@ -124,7 +124,6 @@ model User {
   createdAssignments Assignment[] @relation("AssignedBy")
   
   // AI 봇 관계
-  createdAIBots     AIBot[]         // 관리자가 생성한 AI 봇
   assignedBots      BotAssignment[] @relation("AssignedTo")
   grantedBots       BotAssignment[] @relation("GrantedBy")
   conversations     BotConversation[] // 봇과의 대화 기록
@@ -134,6 +133,8 @@ model User {
   accessLogs        AccessLog[]     // 접속 로그
   activityLogs      ActivityLog[]   // 활동 로그
   payments          Payment[]       // 결제 내역
+  createdBots       AIBot[]  @relation("CreatedBots")       // 생성한 AI 봇
+  createdFolders    BotFolder[]     // 생성한 폴더
   
   @@index([academyId])
   @@index([role])
@@ -427,15 +428,18 @@ model AIBot {
   enableVoiceOutput  Boolean  @default(false) // 봇 응답을 음성으로 출력 여부
   enableVoiceInput   Boolean  @default(false) // 사용자가 음성 녹음 입력 가능 여부
   
+  folderId      String?     // 폴더 ID (선택)
   isActive      Boolean     @default(true)  // 활성화 여부
   createdById   String      // 생성자
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   
-  createdBy     User        @relation(fields: [createdById], references: [id])
+  createdBy     User        @relation("CreatedBots", fields: [createdById], references: [id])
+  folder        BotFolder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
   
   @@index([botId])
   @@index([isActive])
+  @@index([folderId])
 }
 
 // AI 봇 할당 관리
@@ -684,4 +688,24 @@ model Payment {
   @@index([productId])
   @@index([transactionId])
   @@index([paidAt])
+}
+
+// AI 봇 폴더
+model BotFolder {
+  id          String    @id @default(cuid())
+  name        String    // 폴더명
+  description String?   @db.Text
+  color       String?   @default("#3B82F6") // 폴더 색상
+  icon        String?   @default("Folder") // 폴더 아이콘
+  order       Int       @default(0) // 정렬 순서
+  createdBy   String    // 생성자 (SUPER_ADMIN)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  creator     User      @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  bots        AIBot[]
+  
+  @@index([createdBy])
+  @@index([order])
 }
