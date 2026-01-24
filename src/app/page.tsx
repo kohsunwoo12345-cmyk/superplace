@@ -906,21 +906,21 @@ export default function Home() {
                     href="#about" 
                     className="text-gray-700 hover:text-blue-600 transition-colors hover:underline"
                   >
-                    📖 회사 소개
+                    회사 소개
                   </Link>
                   <span className="text-gray-300">|</span>
                   <Link 
                     href="/terms" 
                     className="text-gray-700 hover:text-blue-600 transition-colors hover:underline"
                   >
-                    📋 이용약관
+                    이용약관
                   </Link>
                   <span className="text-gray-300">|</span>
                   <Link 
                     href="/privacy" 
                     className="text-gray-700 hover:text-blue-600 transition-colors hover:underline font-semibold"
                   >
-                    🔒 개인정보처리방침
+                    개인정보처리방침
                   </Link>
                 </div>
               </div>
