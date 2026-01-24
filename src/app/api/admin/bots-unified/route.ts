@@ -186,9 +186,30 @@ export async function GET(request: NextRequest) {
       totalFolders: folders.length
     });
 
+    // JSON 직렬화를 위해 Date 객체를 문자열로 변환
+    const serializedBots = botsWithAssignments.map(bot => ({
+      ...bot,
+      createdAt: bot.createdAt.toISOString(),
+      updatedAt: bot.updatedAt.toISOString(),
+      assignments: bot.assignments.map(assignment => ({
+        ...assignment,
+        createdAt: assignment.createdAt.toISOString(),
+        updatedAt: assignment.updatedAt.toISOString(),
+        expiresAt: assignment.expiresAt ? assignment.expiresAt.toISOString() : null,
+      })),
+    }));
+
+    const serializedFolders = folders.map(folder => ({
+      ...folder,
+      createdAt: folder.createdAt.toISOString(),
+      updatedAt: folder.updatedAt.toISOString(),
+    }));
+
+    console.log('✅ 응답 준비 완료 - 봇:', serializedBots.length, '폴더:', serializedFolders.length);
+
     return NextResponse.json({
-      bots: botsWithAssignments,
-      folders,
+      bots: serializedBots,
+      folders: serializedFolders,
       stats: {
         totalBots,
         activeBots,
