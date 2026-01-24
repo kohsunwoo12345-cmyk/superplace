@@ -40,16 +40,22 @@ export default function AIBotsPage() {
         ? '/api/director/available-bots'  // 학원장: 할당된 봇만
         : '/api/ai-bots';  // 관리자/학생: 모든 봇
 
+      console.log('🔍 AI 봇 페이지 - 사용자 역할:', session?.user?.role);
+      console.log('🔍 API 엔드포인트:', endpoint);
+
       const response = await fetch(endpoint);
       
       if (!response.ok) {
-        throw new Error('봇 목록을 불러오는데 실패했습니다');
+        const errorData = await response.json();
+        console.error('❌ API 오류:', errorData);
+        throw new Error(errorData.error || '봇 목록을 불러오는데 실패했습니다');
       }
 
       const data = await response.json();
+      console.log('✅ 봇 목록:', data.bots);
       setBots(data.bots || []);
     } catch (err: any) {
-      console.error('봇 목록 로드 오류:', err);
+      console.error('❌ 봇 목록 로드 오류:', err);
       setError(err.message);
     } finally {
       setLoading(false);
