@@ -35,8 +35,8 @@ interface StudentData {
   id: string;
   name: string | null;
   email: string | null;
+  school: string | null;
   grade: string | null;
-  studentId: string | null;
   parentPhone: string | null;
   points: number;
   createdAt: string;
@@ -270,12 +270,12 @@ export default function StudentDetailPage() {
               <p className="font-medium">{student.email || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">학년</p>
-              <p className="font-medium">{student.grade || '-'}</p>
+              <p className="text-sm text-muted-foreground">학교</p>
+              <p className="font-medium">{student.school || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">학번</p>
-              <p className="font-medium">{student.studentId || '-'}</p>
+              <p className="text-sm text-muted-foreground">학년</p>
+              <p className="font-medium">{student.grade || '-'}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">포인트</p>

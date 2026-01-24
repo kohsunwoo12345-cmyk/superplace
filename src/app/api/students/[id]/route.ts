@@ -42,7 +42,7 @@ export async function GET(
         email: true,
         role: true,
         academyId: true,
-        studentId: true,
+        school: true,
         grade: true,
         parentPhone: true,
         points: true,

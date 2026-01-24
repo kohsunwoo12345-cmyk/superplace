@@ -11,8 +11,8 @@ const createStudentSchema = z.object({
   name: z.string().min(2, "이름은 최소 2자 이상이어야 합니다"),
   phone: z.string().optional(),
   parentPhone: z.string().optional(),
+  school: z.string().optional(),
   grade: z.string().optional(),
-  studentId: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -88,8 +88,8 @@ export async function POST(req: Request) {
         password: hashedPassword,
         phone: validatedData.phone,
         parentPhone: validatedData.parentPhone,
+        school: validatedData.school,
         grade: validatedData.grade,
-        studentId: validatedData.studentId,
         role: "STUDENT",
         academyId: director.academyId,
         approved: true, // 학원장이 직접 생성하므로 자동 승인

@@ -87,7 +87,8 @@ model User {
   phone         String?
   role          String    @default("STUDENT") // SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT
   academyId     String?   // 소속 학원 (SUPER_ADMIN은 null)
-  grade         String?   // 학년 (학생용)
+  school        String?   // 학교명 (학생용)
+  grade         String?   // 학년 (학생용: 초1~고3)
   class         String?   // 반 (학생용) - deprecated, StudentClass 사용
   studentId     String?   @unique // 학번 (학생용)
   parentPhone   String?   // 학부모 연락처 (학생용)

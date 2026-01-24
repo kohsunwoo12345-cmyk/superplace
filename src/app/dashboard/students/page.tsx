@@ -395,9 +395,9 @@ export default function StudentsManagementPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold">{student.name}</h3>
-                    {student.studentId && (
+                    {student.school && (
                       <Badge variant="outline" className="font-mono">
-                        {student.studentId}
+                        {student.school}
                       </Badge>
                     )}
                     {student.approved ? (
