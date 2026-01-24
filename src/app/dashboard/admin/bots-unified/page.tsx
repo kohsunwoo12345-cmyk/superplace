@@ -122,31 +122,118 @@ export default function BotsUnifiedPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        search: searchQuery,
-        folderId: selectedFolder,
-        ...(isActiveFilter && { isActive: isActiveFilter }),
-        sortBy,
-        sortOrder,
+
+      // 1. 봇 목록 조회 (작동하는 API 사용)
+      const botsResponse = await fetch("/api/admin/ai-bots", {
+        credentials: "include",
       });
 
-      const response = await fetch(
-        `/api/admin/bots-unified?${params.toString()}`,
-        {
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("데이터를 불러오는데 실패했습니다");
+      if (!botsResponse.ok) {
+        throw new Error("봇 목록을 불러오는데 실패했습니다");
       }
 
-      const data = await response.json();
-      setBots(data.bots);
-      setFolders(data.folders);
-      setStats(data.stats);
+      const botsData = await botsResponse.json();
+      let allBots = botsData.bots || [];
+
+      // 2. 폴더 목록 조회
+      const foldersResponse = await fetch("/api/admin/bot-folders", {
+        credentials: "include",
+      });
+
+      let allFolders = [];
+      if (foldersResponse.ok) {
+        const foldersData = await foldersResponse.json();
+        allFolders = foldersData.folders || [];
+      }
+
+      // 3. 검색 필터 적용
+      if (searchQuery) {
+        allBots = allBots.filter(
+          (bot: AIBot) =>
+            bot.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            bot.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            bot.botId.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+
+      // 4. 폴더 필터 적용
+      if (selectedFolder !== "all") {
+        if (selectedFolder === "none") {
+          allBots = allBots.filter((bot: AIBot) => !bot.folderId);
+        } else {
+          allBots = allBots.filter((bot: AIBot) => bot.folderId === selectedFolder);
+        }
+      }
+
+      // 5. 활성 상태 필터 적용
+      if (isActiveFilter) {
+        allBots = allBots.filter((bot: AIBot) => 
+          isActiveFilter === "true" ? bot.isActive : !bot.isActive
+        );
+      }
+
+      // 6. 정렬
+      allBots.sort((a: AIBot, b: AIBot) => {
+        const aValue = a[sortBy as keyof AIBot];
+        const bValue = b[sortBy as keyof AIBot];
+        
+        if (sortOrder === "desc") {
+          return aValue > bValue ? -1 : 1;
+        } else {
+          return aValue > bValue ? 1 : -1;
+        }
+      });
+
+      // 7. 각 봇의 할당 정보 조회 (비동기로 병렬 처리)
+      const botsWithAssignments = await Promise.all(
+        allBots.map(async (bot: AIBot) => {
+          try {
+            const assignRes = await fetch(`/api/admin/ai-bots/detail?id=${bot.id}`, {
+              credentials: "include",
+            });
+            if (assignRes.ok) {
+              const assignData = await assignRes.json();
+              return {
+                ...bot,
+                assignments: assignData.assignments || [],
+                _count: {
+                  assignments: assignData.assignments?.length || 0,
+                },
+              };
+            }
+          } catch (err) {
+            console.error(`봇 ${bot.id} 할당 정보 조회 실패:`, err);
+          }
+          return {
+            ...bot,
+            assignments: [],
+            _count: { assignments: 0 },
+          };
+        })
+      );
+
+      setBots(botsWithAssignments);
+      setFolders(allFolders);
+
+      // 8. 통계 계산
+      const totalBots = botsWithAssignments.length;
+      const activeBots = botsWithAssignments.filter((b) => b.isActive).length;
+      const inactiveBots = totalBots - activeBots;
+      const totalAssignments = botsWithAssignments.reduce(
+        (sum, b) => sum + (b._count?.assignments || 0),
+        0
+      );
+
+      setStats({
+        totalBots,
+        activeBots,
+        inactiveBots,
+        totalAssignments,
+        totalFolders: allFolders.length,
+      });
     } catch (error) {
       console.error("데이터 로딩 오류:", error);
+      alert("데이터를 불러오는데 실패했습니다");
     } finally {
       setLoading(false);
     }
