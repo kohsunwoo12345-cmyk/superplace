@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { UserPlus, Loader2, CheckCircle2, AlertCircle, Sparkles, Edit, Trash2, Search, Building2 } from 'lucide-react';
 import { EditBotDialog } from '@/components/admin/EditBotDialog';
+import { AssignBotDialog } from '@/components/admin/AssignBotDialog';
 
 interface AIBot {
   id: string;
@@ -42,6 +43,10 @@ export default function AdminBotAssignmentPage() {
   const [editingBot, setEditingBot] = useState<AIBot | null>(null);
   const [deletingBotId, setDeletingBotId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [assignDialog, setAssignDialog] = useState<{
+    director: Director;
+    bot: AIBot;
+  } | null>(null);
 
   useEffect(() => {
     fetchDirectors();
@@ -334,14 +339,10 @@ export default function AdminBotAssignmentPage() {
                           <Button
                             size="sm"
                             className="w-full"
-                            onClick={() => handleAssignBot(director.id, bot.id)}
+                            onClick={() => setAssignDialog({ director, bot })}
                             disabled={isProcessing}
                           >
-                            {isProcessing ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              '할당'
-                            )}
+                            할당
                           </Button>
                         )}
                       </div>
@@ -366,6 +367,23 @@ export default function AdminBotAssignmentPage() {
             fetchBots();
             setEditingBot(null);
             setMessage({ type: 'success', text: '봇이 수정되었습니다' });
+          }}
+        />
+      )}
+
+      {/* 봇 할당 다이얼로그 */}
+      {assignDialog && (
+        <AssignBotDialog
+          open={!!assignDialog}
+          onOpenChange={(open) => {
+            if (!open) setAssignDialog(null);
+          }}
+          director={assignDialog.director}
+          bot={assignDialog.bot}
+          onSuccess={() => {
+            setMessage({ type: 'success', text: 'AI 봇이 성공적으로 할당되었습니다!' });
+            fetchDirectors();
+            setAssignDialog(null);
           }}
         />
       )}

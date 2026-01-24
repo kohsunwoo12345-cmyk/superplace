@@ -72,6 +72,10 @@ export async function PATCH(
       bgGradient,
       systemPrompt,
       referenceFiles,
+      starterMessages,
+      enableImageInput,
+      enableVoiceOutput,
+      enableVoiceInput,
       isActive,
     } = body;
 
@@ -94,6 +98,10 @@ export async function PATCH(
     if (bgGradient !== undefined) updateData.bgGradient = bgGradient;
     if (systemPrompt !== undefined) updateData.systemPrompt = systemPrompt;
     if (referenceFiles !== undefined) updateData.referenceFiles = referenceFiles;
+    if (starterMessages !== undefined) updateData.starterMessages = starterMessages;
+    if (enableImageInput !== undefined) updateData.enableImageInput = enableImageInput;
+    if (enableVoiceOutput !== undefined) updateData.enableVoiceOutput = enableVoiceOutput;
+    if (enableVoiceInput !== undefined) updateData.enableVoiceInput = enableVoiceInput;
     if (isActive !== undefined) updateData.isActive = isActive;
 
     // 봇 업데이트

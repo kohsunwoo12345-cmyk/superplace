@@ -27,6 +27,7 @@ interface Gem {
   systemPrompt: string;
   source?: 'database' | 'default';
   referenceFiles?: string[];
+  starterMessages?: string[];
   enableImageInput?: boolean;
   enableVoiceOutput?: boolean;
   enableVoiceInput?: boolean;
@@ -454,7 +455,10 @@ export default function GemChatPage() {
                     {gem.description}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full max-w-2xl px-4 sm:px-0">
-                    {getSuggestions(gem.id).map((suggestion, idx) => (
+                    {(gem.starterMessages && gem.starterMessages.length > 0
+                      ? gem.starterMessages
+                      : getSuggestions(gem.id)
+                    ).map((suggestion, idx) => (
                       <Button
                         key={idx}
                         variant="outline"

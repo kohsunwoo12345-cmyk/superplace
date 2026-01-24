@@ -15,13 +15,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { userId, botId } = await request.json();
+    const { userId, botId, duration, durationUnit } = await request.json();
 
     if (!userId || !botId) {
       return NextResponse.json(
         { error: 'userId와 botId가 필요합니다.' },
         { status: 400 }
       );
+    }
+
+    // 만료일 계산 (duration과 durationUnit이 있는 경우)
+    let expiresAt: Date | null = null;
+    if (duration && durationUnit) {
+      const now = new Date();
+      switch (durationUnit) {
+        case 'days':
+          expiresAt = new Date(now.getTime() + duration * 24 * 60 * 60 * 1000);
+          break;
+        case 'weeks':
+          expiresAt = new Date(now.getTime() + duration * 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'months':
+          expiresAt = new Date(now.setMonth(now.getMonth() + duration));
+          break;
+        case 'years':
+          expiresAt = new Date(now.setFullYear(now.getFullYear() + duration));
+          break;
+        default:
+          expiresAt = null;
+      }
     }
 
     // 대상 사용자가 학원장인지 확인
@@ -48,10 +70,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
-      // 이미 있으면 활성화만
+      // 이미 있으면 활성화 및 만료일 업데이트
       await prisma.botAssignment.update({
         where: { id: existing.id },
-        data: { isActive: true },
+        data: { 
+          isActive: true,
+          expiresAt: expiresAt,
+        },
       });
     } else {
       // 새로 생성
@@ -62,6 +87,7 @@ export async function POST(request: NextRequest) {
           grantedById: session.user.id,
           grantedByRole: 'SUPER_ADMIN',
           isActive: true,
+          expiresAt: expiresAt,
         },
       });
     }
