@@ -49,6 +49,13 @@ export default function CreateStudentDialog({
     setLoading(true);
     setError("");
 
+    // 학년 필드 검증
+    if (!formData.grade) {
+      setError("학년을 선택해주세요.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/students/create", {
         method: "POST",
@@ -59,6 +66,7 @@ export default function CreateStudentDialog({
       });
 
       const data = await response.json();
+      console.log("API Response:", response.status, data);
 
       if (!response.ok) {
         throw new Error(data.error || "학생 생성에 실패했습니다.");
@@ -162,7 +170,6 @@ export default function CreateStudentDialog({
                 value={formData.grade}
                 onValueChange={(value) => setFormData({ ...formData, grade: value })}
                 disabled={loading}
-                required
               >
                 <SelectTrigger id="grade">
                   <SelectValue placeholder="학년 선택" />
