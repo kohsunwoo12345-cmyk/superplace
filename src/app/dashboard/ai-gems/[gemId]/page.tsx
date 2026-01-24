@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Bot, User, Loader2, ArrowLeft, Trash2, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { getGemById } from '@/lib/gems/data';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -16,12 +15,25 @@ interface Message {
   image?: string;
 }
 
+interface Gem {
+  id: string;
+  name: string;
+  nameEn: string;
+  description: string;
+  icon: string;
+  color: string;
+  bgGradient: string;
+  systemPrompt: string;
+  source?: 'database' | 'default';
+}
+
 export default function GemChatPage() {
   const params = useParams();
   const router = useRouter();
   const gemId = params.gemId as string;
-  const gem = getGemById(gemId);
-
+  
+  const [gem, setGem] = useState<Gem | null>(null);
+  const [loadingGem, setLoadingGem] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,11 +42,40 @@ export default function GemChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // API에서 봇 정보 가져오기
   useEffect(() => {
-    if (!gem) {
-      router.push('/dashboard/ai-gems');
-    }
-  }, [gem, router]);
+    const fetchGem = async () => {
+      try {
+        setLoadingGem(true);
+        console.log('🔍 봇 정보 로딩 중:', gemId);
+        
+        const response = await fetch('/api/ai-bots');
+        if (!response.ok) {
+          throw new Error('봇 정보를 불러오는데 실패했습니다');
+        }
+        
+        const data = await response.json();
+        const foundGem = data.bots.find((bot: Gem) => bot.id === gemId);
+        
+        console.log('✅ 봇 찾기 결과:', foundGem ? foundGem.name : '없음');
+        
+        if (!foundGem) {
+          console.error('❌ 봇을 찾을 수 없음:', gemId);
+          router.push('/dashboard/ai-gems');
+          return;
+        }
+        
+        setGem(foundGem);
+      } catch (error) {
+        console.error('❌ 봇 로딩 오류:', error);
+        router.push('/dashboard/ai-gems');
+      } finally {
+        setLoadingGem(false);
+      }
+    };
+    
+    fetchGem();
+  }, [gemId, router]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -163,7 +204,19 @@ export default function GemChatPage() {
     }).format(date);
   };
 
-  if (!gem) return null;
+  // 로딩 중
+  if (loadingGem) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // 봇을 찾지 못함
+  if (!gem) {
+    return null;
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
