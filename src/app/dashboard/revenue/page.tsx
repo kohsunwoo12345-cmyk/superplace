@@ -94,6 +94,9 @@ export default function RevenuePage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<RevenueStats | null>(null);
   const [period, setPeriod] = useState('month');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [productFilter, setProductFilter] = useState('all');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -165,6 +168,51 @@ export default function RevenuePage() {
       NAVER_PAY: '네이버페이',
     };
     return methods[method || ''] || method || '미확인';
+  };
+
+  // 검색 및 필터링 함수
+  const filterPayments = (payments: Payment[]) => {
+    return payments.filter((payment) => {
+      // 검색어 필터
+      const matchesSearch =
+        !searchQuery ||
+        payment.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        payment.user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        payment.user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        payment.academy.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        payment.plan.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        getPaymentMethodName(payment.paymentMethod).toLowerCase().includes(searchQuery.toLowerCase());
+
+      // 상태 필터 (현재는 COMPLETED만 있지만 향후 확장 가능)
+      const matchesStatus = statusFilter === 'all' || statusFilter === 'completed';
+
+      // 상품 필터
+      const matchesProduct =
+        productFilter === 'all' || payment.plan === productFilter;
+
+      return matchesSearch && matchesStatus && matchesProduct;
+    });
+  };
+
+  // 상품별 필터링
+  const filterProductRevenue = (products: ProductRevenue[]) => {
+    if (productFilter === 'all') return products;
+    return products.filter((product) => product.plan === productFilter);
+  };
+
+  // 검색어 하이라이트
+  const highlightText = (text: string, query: string) => {
+    if (!query) return text;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return parts.map((part, index) =>
+      part.toLowerCase() === query.toLowerCase() ? (
+        <mark key={index} className="bg-yellow-200 text-black rounded px-1">
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
   };
 
   if (status === 'loading' || loading) {
@@ -255,6 +303,67 @@ export default function RevenuePage() {
         </Card>
       </div>
 
+      {/* 검색 및 필터 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            검색 및 필터
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* 검색 */}
+            <div className="space-y-2">
+              <Label htmlFor="search">검색</Label>
+              <Input
+                id="search"
+                placeholder="상품명, 사용자, 학원, 결제수단..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                상품명, 사용자명, 이메일, 학원명, 요금제, 결제수단으로 검색
+              </p>
+            </div>
+
+            {/* 상품 필터 */}
+            <div className="space-y-2">
+              <Label htmlFor="product-filter">상품 (요금제)</Label>
+              <Select value={productFilter} onValueChange={setProductFilter}>
+                <SelectTrigger id="product-filter">
+                  <SelectValue placeholder="전체" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  <SelectItem value="FREE">FREE</SelectItem>
+                  <SelectItem value="BASIC">BASIC</SelectItem>
+                  <SelectItem value="PRO">PRO</SelectItem>
+                  <SelectItem value="ENTERPRISE">ENTERPRISE</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 초기화 버튼 */}
+            <div className="space-y-2">
+              <Label>&nbsp;</Label>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                  setProductFilter('all');
+                }}
+              >
+                필터 초기화
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* 탭 메뉴 */}
       <Tabs defaultValue="recent" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
@@ -277,17 +386,19 @@ export default function RevenuePage() {
           <Card>
             <CardHeader>
               <CardTitle>최근 결제 내역</CardTitle>
-              <CardDescription>최근 10건의 결제 내역</CardDescription>
+              <CardDescription>
+                {filterPayments(stats.recentPayments).length}개의 결제 내역
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {stats.recentPayments.length === 0 ? (
+              {filterPayments(stats.recentPayments).length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>결제 내역이 없습니다.</p>
+                  <p>검색 결과가 없습니다.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {stats.recentPayments.map((payment) => (
+                  {filterPayments(stats.recentPayments).map((payment) => (
                     <Card key={payment.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-4">
@@ -333,17 +444,19 @@ export default function RevenuePage() {
           <Card>
             <CardHeader>
               <CardTitle>상품별 매출</CardTitle>
-              <CardDescription>상품별 매출 통계</CardDescription>
+              <CardDescription>
+                {filterProductRevenue(stats.byProduct).length}개의 상품
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {stats.byProduct.length === 0 ? (
+              {filterProductRevenue(stats.byProduct).length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>상품별 매출 데이터가 없습니다.</p>
+                  <p>검색 결과가 없습니다.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {stats.byProduct.map((item, index) => (
+                  {filterProductRevenue(stats.byProduct).map((item, index) => (
                     <Card key={item.productId} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
