@@ -1062,9 +1062,10 @@ function BotDetailModal({
                 <div className="flex items-center gap-2">
                   <span className="font-medium">색상:</span>
                   <span
-                    className="px-3 py-1 rounded text-sm"
+                    className="px-3 py-1 rounded text-sm text-white"
                     style={{
-                      backgroundColor: bot.color === "blue" ? "#3B82F6" :
+                      backgroundColor: 
+                        bot.color === "blue" ? "#3B82F6" :
                         bot.color === "green" ? "#10B981" :
                         bot.color === "purple" ? "#8B5CF6" :
                         bot.color === "red" ? "#EF4444" :
@@ -1072,7 +1073,6 @@ function BotDetailModal({
                         bot.color === "pink" ? "#EC4899" :
                         bot.color === "indigo" ? "#6366F1" :
                         bot.color === "teal" ? "#14B8A6" : "#3B82F6",
-                      color: "white",
                     }}
                   >
                     {bot.color}
@@ -1084,16 +1084,6 @@ function BotDetailModal({
                 </div>
                 <div>
                   <span className="font-medium">상태:</span>{" "}
-                  <span
-                    className={`px-2 py-1 rounded text-xs ${
-                      bot.isActive
-                        ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {bot.isActive ? "활성" : "비활성"}
-                  </span>
-                </div>
                   <span
                     className={`px-2 py-1 rounded text-xs ${
                       bot.isActive
