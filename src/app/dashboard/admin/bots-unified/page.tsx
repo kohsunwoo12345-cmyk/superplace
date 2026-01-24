@@ -110,8 +110,6 @@ export default function BotsUnifiedPage() {
     } else if (status === "authenticated") {
       if (session?.user?.role !== "SUPER_ADMIN") {
         router.push("/dashboard");
-      } else {
-        fetchData();
       }
     }
   }, [status, session, router]);
@@ -120,7 +118,8 @@ export default function BotsUnifiedPage() {
     if (status === "authenticated" && session?.user?.role === "SUPER_ADMIN") {
       fetchData();
     }
-  }, [searchQuery, selectedFolder, isActiveFilter, sortBy, sortOrder]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session, searchQuery, selectedFolder, isActiveFilter, sortBy, sortOrder]);
 
   const fetchData = async () => {
     try {
