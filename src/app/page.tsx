@@ -20,7 +20,7 @@ import {
   Phone,
   HelpCircle
 } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -563,9 +563,22 @@ export default function Home() {
           )}
           {isLoggedIn && (
             <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">
+                {session?.user?.name}님
+              </span>
               <Link href="/dashboard">
-                <Button>대시보드로 이동</Button>
+                <Button variant="outline">대시보드</Button>
               </Link>
+              <Link href="/dashboard/settings">
+                <Button variant="outline">프로필 설정</Button>
+              </Link>
+              <Button 
+                variant="ghost"
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className="text-red-600 hover:bg-red-50"
+              >
+                로그아웃
+              </Button>
             </div>
           )}
         </div>
