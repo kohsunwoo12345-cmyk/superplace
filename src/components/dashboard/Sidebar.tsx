@@ -28,6 +28,7 @@ import {
   UserPlus,
   Menu,
   X,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -44,6 +45,7 @@ const navigationByRole = {
     { name: "AI 봇 전체 목록", href: "/dashboard/ai-bots-list", icon: Bot },
     { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
     { name: "꾸메땅 AI 봇", href: "/dashboard/ai-bot-ggumettang", icon: BookOpen },
+    { name: "접속자 분석", href: "/dashboard/admin/access-analytics", icon: Activity },
     { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "전체 통계", href: "/dashboard/stats", icon: TrendingUp },
     { name: "시스템 설정", href: "/dashboard/settings", icon: Settings },

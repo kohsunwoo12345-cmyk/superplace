@@ -130,6 +130,8 @@ model User {
   conversationAnalyses ConversationAnalysis[] // 대화 분석 결과
   originalSwitches  AccountSwitch[] @relation("OriginalUser") // 원래 계정으로서의 전환 기록
   targetSwitches    AccountSwitch[] @relation("TargetUser") // 전환 대상 계정으로서의 기록
+  accessLogs        AccessLog[]     // 접속 로그
+  activityLogs      ActivityLog[]   // 활동 로그
   
   @@index([academyId])
   @@index([role])
@@ -534,4 +536,68 @@ model AccountSwitch {
   @@index([targetUserId])
   @@index([sessionToken])
   @@index([expiresAt])
+}
+
+// 접속 로그 (회원/비회원 접속 추적)
+model AccessLog {
+  id            String    @id @default(cuid())
+  userId        String?   // 회원 ID (로그인 사용자만)
+  sessionId     String    // 세션 ID
+  ipAddress     String    // IP 주소
+  userAgent     String    @db.Text // User Agent
+  browser       String?   // 브라우저
+  os            String?   // 운영체제
+  device        String?   // 디바이스 (mobile, tablet, desktop)
+  
+  // 접속 정보
+  path          String    @db.Text // 접속 경로
+  method        String    // HTTP 메서드 (GET, POST, etc.)
+  statusCode    Int?      // HTTP 상태 코드
+  
+  // 지역 정보 (선택)
+  country       String?   // 국가
+  city          String?   // 도시
+  
+  // 시간 정보
+  accessedAt    DateTime  @default(now()) // 접속 시간
+  duration      Int?      // 체류 시간 (초)
+  
+  // 활동 정보
+  activityType  String?   // 활동 유형 (login, logout, view_page, api_call, etc.)
+  activityData  Json?     // 활동 상세 데이터
+  
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId, accessedAt])
+  @@index([sessionId])
+  @@index([accessedAt])
+  @@index([activityType])
+}
+
+// 사용자 활동 로그 (상세 활동 추적)
+model ActivityLog {
+  id            String    @id @default(cuid())
+  userId        String    // 사용자 ID
+  sessionId     String    // 세션 ID
+  
+  // 활동 정보
+  action        String    // 활동 (create_student, view_report, send_message, etc.)
+  resource      String?   // 대상 리소스 (student, report, message, etc.)
+  resourceId    String?   // 리소스 ID
+  description   String?   @db.Text // 활동 설명
+  metadata      Json?     // 추가 메타데이터
+  
+  // IP 및 기기 정보
+  ipAddress     String
+  userAgent     String    @db.Text
+  
+  // 시간 정보
+  createdAt     DateTime  @default(now())
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, createdAt])
+  @@index([action])
+  @@index([sessionId])
+  @@index([resource, resourceId])
 }
