@@ -49,18 +49,31 @@ export default function GemChatPage() {
         setLoadingGem(true);
         console.log('🔍 봇 정보 로딩 중:', gemId);
         
-        const response = await fetch('/api/ai-bots');
+        const response = await fetch('/api/ai-bots', {
+          credentials: 'include', // 쿠키 포함하여 세션 전달
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        console.log('📡 API 응답 상태:', response.status);
+        
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ API 응답 오류:', response.status, errorText);
           throw new Error('봇 정보를 불러오는데 실패했습니다');
         }
         
         const data = await response.json();
+        console.log('📦 받은 봇 개수:', data.bots?.length || 0);
+        
         const foundGem = data.bots.find((bot: Gem) => bot.id === gemId);
         
         console.log('✅ 봇 찾기 결과:', foundGem ? foundGem.name : '없음');
         
         if (!foundGem) {
           console.error('❌ 봇을 찾을 수 없음:', gemId);
+          console.log('사용 가능한 봇 ID:', data.bots.map((b: Gem) => b.id));
           router.push('/dashboard/ai-gems');
           return;
         }
