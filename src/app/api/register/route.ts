@@ -139,15 +139,24 @@ export async function POST(req: Request) {
 
     } else if (validatedData.role === 'TEACHER' || validatedData.role === 'STUDENT') {
       // 선생님/학생: 학원 코드로 기존 학원에 가입
+      console.log(`👨‍🎓 ${validatedData.role === 'STUDENT' ? 'STUDENT' : 'TEACHER'} registration attempt...`);
+      
       if (!validatedData.academyCode) {
+        console.log("❌ Academy code missing");
         return NextResponse.json(
           { error: "학원 코드를 입력해주세요" },
           { status: 400 }
         );
       }
 
+      const trimmedCode = validatedData.academyCode.trim().toUpperCase();
+      console.log(`🔍 Looking for academy with code: "${validatedData.academyCode}"`);
+      console.log(`   Original code length: ${validatedData.academyCode.length} characters`);
+      console.log(`   Trimmed & uppercase code: "${trimmedCode}"`);
+      console.log(`   Code type: ${typeof validatedData.academyCode}`);
+
       const academy = await prisma.academy.findUnique({
-        where: { code: validatedData.academyCode },
+        where: { code: trimmedCode },
         include: {
           _count: {
             select: {
@@ -161,12 +170,28 @@ export async function POST(req: Request) {
         }
       });
 
+      console.log(`🏫 Academy search result:`, academy ? `Found: ${academy.name}` : 'Not found');
+
       if (!academy) {
+        console.log("❌ Invalid academy code");
+        
+        // 디버깅을 위해 모든 학원 코드 출력
+        const allAcademies = await prisma.academy.findMany({
+          select: { code: true, name: true }
+        });
+        console.log("📋 Available academy codes:", allAcademies);
+        
         return NextResponse.json(
-          { error: "유효하지 않은 학원 코드입니다" },
+          { 
+            error: "유효하지 않은 학원 코드입니다. 학원 코드를 다시 확인해주세요.",
+            hint: "학원 코드는 8자리 영문 대문자와 숫자로 구성되어 있습니다."
+          },
           { status: 400 }
         );
       }
+
+      console.log(`✅ Academy found: ${academy.name} (ID: ${academy.id})`);
+      console.log(`   Current ${validatedData.role} count: ${academy._count.users}`);
 
       // Check subscription limits
       if (validatedData.role === 'STUDENT' && academy._count.users >= academy.maxStudents) {
