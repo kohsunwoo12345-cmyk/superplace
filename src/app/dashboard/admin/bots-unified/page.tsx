@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -108,6 +108,9 @@ export default function BotsUnifiedPage() {
   const [showBotDetailModal, setShowBotDetailModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedBot, setSelectedBot] = useState<AIBot | null>(null);
+  
+  // 스크롤 참조
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -274,7 +277,12 @@ export default function BotsUnifiedPage() {
 
       alert("AI 봇이 생성되었습니다");
       setShowCreateBotModal(false);
-      fetchData();
+      await fetchData();
+      
+      // 새 봇이 추가되면 아래로 스크롤
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }, 100);
     } catch (error) {
       console.error("봇 생성 오류:", error);
       alert("봇 생성 중 오류가 발생했습니다");
@@ -820,6 +828,9 @@ export default function BotsUnifiedPage() {
           }}
         />
       )}
+      
+      {/* 스크롤 타겟 */}
+      <div ref={bottomRef} className="h-1" />
     </div>
   );
 }
