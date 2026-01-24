@@ -43,7 +43,12 @@ export default function AIBotsPage() {
       console.log('🔍 AI 봇 페이지 - 사용자 역할:', session?.user?.role);
       console.log('🔍 API 엔드포인트:', endpoint);
 
-      const response = await fetch(endpoint);
+      const response = await fetch(endpoint, {
+        credentials: 'include', // 세션 쿠키 포함
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
       if (!response.ok) {
         const errorData = await response.json();
