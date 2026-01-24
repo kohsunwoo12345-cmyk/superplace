@@ -1,12 +1,77 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { gems } from '@/lib/gems/data';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { Sparkles, ArrowRight, Loader2, Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+interface Bot {
+  id: string;
+  name: string;
+  nameEn: string;
+  description: string;
+  icon: string;
+  color: string;
+  bgGradient: string;
+  source?: 'database' | 'default';
+}
 
 export default function AIBotsPage() {
+  const { data: session, status } = useSession();
+  const [bots, setBots] = useState<Bot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchBots();
+    }
+  }, [status]);
+
+  const fetchBots = async () => {
+    try {
+      setLoading(true);
+      
+      // 역할에 따라 다른 API 호출
+      const endpoint = session?.user?.role === 'DIRECTOR' 
+        ? '/api/director/available-bots'  // 학원장: 할당된 봇만
+        : '/api/ai-bots';  // 관리자/학생: 모든 봇
+
+      const response = await fetch(endpoint);
+      
+      if (!response.ok) {
+        throw new Error('봇 목록을 불러오는데 실패했습니다');
+      }
+
+      const data = await response.json();
+      setBots(data.bots || []);
+    } catch (err: any) {
+      console.error('봇 목록 로드 오류:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -16,36 +81,62 @@ export default function AIBotsPage() {
             AI 봇
           </h1>
           <p className="text-muted-foreground mt-1">
-            목적에 맞는 전문 AI 어시스턴트를 선택하세요
+            {session?.user?.role === 'DIRECTOR' 
+              ? '할당받은 전문 AI 어시스턴트를 사용하세요'
+              : '목적에 맞는 전문 AI 어시스턴트를 선택하세요'
+            }
           </p>
         </div>
         <Badge variant="outline" className="flex items-center gap-1">
           <Sparkles className="h-3 w-3" />
-          9개 전문 봇
+          {bots.length}개 {session?.user?.role === 'DIRECTOR' ? '할당된 ' : ''}봇
         </Badge>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {gems.map((gem) => (
-          <Link key={gem.id} href={`/dashboard/ai-gems/${gem.id}`}>
-            <Card className={`hover:shadow-lg transition-shadow cursor-pointer h-full bg-gradient-to-br ${gem.bgGradient} border-2 hover:border-${gem.color}-300`}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="text-5xl mb-2">{gem.icon}</div>
-                  <ArrowRight className="h-5 w-5 text-gray-400" />
-                </div>
-                <CardTitle className="text-xl">{gem.name}</CardTitle>
-                <CardDescription className="text-xs text-gray-600">
-                  {gem.nameEn}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-700">{gem.description}</p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      {bots.length === 0 ? (
+        <Card className="border-2 border-dashed">
+          <CardContent className="py-12 text-center">
+            <Lock className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-lg font-semibold mb-2">사용 가능한 AI 봇이 없습니다</h3>
+            <p className="text-muted-foreground">
+              {session?.user?.role === 'DIRECTOR' 
+                ? '관리자가 AI 봇을 할당해주면 사용할 수 있습니다.'
+                : '관리자에게 문의하여 AI 봇을 활성화하세요.'
+              }
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {bots.map((bot) => (
+            <Link key={bot.id} href={`/dashboard/ai-gems/${bot.id}`}>
+              <Card className={`hover:shadow-lg transition-shadow cursor-pointer h-full bg-gradient-to-br ${bot.bgGradient} border-2 hover:border-${bot.color}-300 relative`}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="text-5xl mb-2">{bot.icon}</div>
+                    <div className="flex flex-col items-end gap-1">
+                      <ArrowRight className="h-5 w-5 text-gray-400" />
+                      {bot.source === 'database' && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          커스텀
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <CardTitle className="text-xl">{bot.name}</CardTitle>
+                  <CardDescription className="text-xs text-gray-600">
+                    {bot.nameEn}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-700">{bot.description}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <Card className="mt-8 border-purple-200 bg-purple-50">
         <CardHeader>

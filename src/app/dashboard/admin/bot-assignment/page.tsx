@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { UserPlus, Loader2, CheckCircle2, AlertCircle, Sparkles, Edit, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { UserPlus, Loader2, CheckCircle2, AlertCircle, Sparkles, Edit, Trash2, Search, Building2 } from 'lucide-react';
 import { EditBotDialog } from '@/components/admin/EditBotDialog';
 
 interface AIBot {
@@ -27,22 +28,41 @@ interface Director {
   name: string;
   email: string;
   academyId: string;
+  academyName?: string;
   assignedBots: string[];
 }
 
 export default function AdminBotAssignmentPage() {
   const [directors, setDirectors] = useState<Director[]>([]);
+  const [filteredDirectors, setFilteredDirectors] = useState<Director[]>([]);
   const [bots, setBots] = useState<AIBot[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editingBot, setEditingBot] = useState<AIBot | null>(null);
   const [deletingBotId, setDeletingBotId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchDirectors();
     fetchBots();
   }, []);
+
+  // 검색어가 변경될 때마다 필터링
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredDirectors(directors);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = directors.filter(
+        (director) =>
+          director.name.toLowerCase().includes(query) ||
+          director.email.toLowerCase().includes(query) ||
+          director.academyName?.toLowerCase().includes(query)
+      );
+      setFilteredDirectors(filtered);
+    }
+  }, [searchQuery, directors]);
 
   const fetchBots = async () => {
     try {
@@ -178,19 +198,59 @@ export default function AdminBotAssignmentPage() {
         </Alert>
       )}
 
+      {/* 학원 검색 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Search className="h-5 w-5" />
+            학원 검색
+          </CardTitle>
+          <CardDescription>
+            학원명, 학원장 이름 또는 이메일로 검색하세요
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="학원명, 학원장 이름, 이메일로 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          {searchQuery && (
+            <p className="text-sm text-muted-foreground mt-2">
+              {filteredDirectors.length}개의 검색 결과
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="space-y-6">
-        {directors.length === 0 ? (
+        {filteredDirectors.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">등록된 학원장이 없습니다.</p>
+              <p className="text-muted-foreground">
+                {searchQuery ? '검색 결과가 없습니다.' : '등록된 학원장이 없습니다.'}
+              </p>
             </CardContent>
           </Card>
         ) : (
-          directors.map((director) => (
+          filteredDirectors.map((director) => (
             <Card key={director.id}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>{director.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span>{director.name}</span>
+                    {director.academyName && (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <Building2 className="h-3 w-3" />
+                        {director.academyName}
+                      </Badge>
+                    )}
+                  </div>
                   <Badge variant="secondary">{director.email}</Badge>
                 </CardTitle>
                 <CardDescription>
