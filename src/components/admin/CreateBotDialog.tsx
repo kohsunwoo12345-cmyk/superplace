@@ -58,6 +58,9 @@ export function CreateBotDialog({
     bgGradient: "from-blue-50 to-cyan-50",
     systemPrompt: "",
     referenceFiles: [] as string[],
+    enableImageInput: false,
+    enableVoiceOutput: false,
+    enableVoiceInput: false,
     isActive: true,
   });
 
@@ -142,6 +145,9 @@ export function CreateBotDialog({
           bgGradient: "from-blue-50 to-cyan-50",
           systemPrompt: "",
           referenceFiles: [],
+          enableImageInput: false,
+          enableVoiceOutput: false,
+          enableVoiceInput: false,
           isActive: true,
         });
       } else {
@@ -352,6 +358,68 @@ export function CreateBotDialog({
                 ))}
               </div>
             )}
+          </div>
+
+          {/* 멀티모달 기능 설정 */}
+          <div className="space-y-4 border-t pt-4">
+            <h4 className="text-sm font-semibold text-gray-900">멀티모달 기능 설정</h4>
+            
+            {/* 이미지 입력 허용 */}
+            <div className="flex items-center justify-between space-x-2 p-3 bg-gray-50 rounded-lg">
+              <div className="flex-1">
+                <Label htmlFor="enableImageInput" className="text-sm font-medium">
+                  📷 이미지 입력 허용
+                </Label>
+                <p className="text-xs text-gray-500 mt-1">
+                  사용자가 이미지를 첨부하여 질문할 수 있습니다
+                </p>
+              </div>
+              <Switch
+                id="enableImageInput"
+                checked={formData.enableImageInput}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, enableImageInput: checked })
+                }
+              />
+            </div>
+
+            {/* 음성 출력 허용 */}
+            <div className="flex items-center justify-between space-x-2 p-3 bg-gray-50 rounded-lg">
+              <div className="flex-1">
+                <Label htmlFor="enableVoiceOutput" className="text-sm font-medium">
+                  🔊 음성 출력 허용
+                </Label>
+                <p className="text-xs text-gray-500 mt-1">
+                  봇의 응답을 음성으로 들을 수 있습니다
+                </p>
+              </div>
+              <Switch
+                id="enableVoiceOutput"
+                checked={formData.enableVoiceOutput}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, enableVoiceOutput: checked })
+                }
+              />
+            </div>
+
+            {/* 음성 입력 허용 */}
+            <div className="flex items-center justify-between space-x-2 p-3 bg-gray-50 rounded-lg">
+              <div className="flex-1">
+                <Label htmlFor="enableVoiceInput" className="text-sm font-medium">
+                  🎤 음성 입력 허용
+                </Label>
+                <p className="text-xs text-gray-500 mt-1">
+                  사용자가 음성을 녹음하여 질문할 수 있습니다
+                </p>
+              </div>
+              <Switch
+                id="enableVoiceInput"
+                checked={formData.enableVoiceInput}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, enableVoiceInput: checked })
+                }
+              />
+            </div>
           </div>
 
           {/* 활성화 */}

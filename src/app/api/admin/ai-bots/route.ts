@@ -67,6 +67,9 @@ export async function POST(req: NextRequest) {
       bgGradient,
       systemPrompt,
       referenceFiles,
+      enableImageInput,
+      enableVoiceOutput,
+      enableVoiceInput,
       isActive,
     } = body;
 
@@ -102,6 +105,9 @@ export async function POST(req: NextRequest) {
         bgGradient: bgGradient || "from-blue-50 to-cyan-50",
         systemPrompt,
         referenceFiles: referenceFiles || [],
+        enableImageInput: enableImageInput || false,
+        enableVoiceOutput: enableVoiceOutput || false,
+        enableVoiceInput: enableVoiceInput || false,
         isActive: isActive !== undefined ? isActive : true,
         createdById: session.user.id,
       },

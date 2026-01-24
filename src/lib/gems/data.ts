@@ -7,6 +7,9 @@ export interface Gem {
   color: string;
   bgGradient: string;
   systemPrompt: string;
+  enableImageInput?: boolean;
+  enableVoiceOutput?: boolean;
+  enableVoiceInput?: boolean;
 }
 
 // 기본 내장 봇 (항상 사용 가능)
@@ -19,6 +22,7 @@ export const gems: Gem[] = [
     icon: '📖',
     color: 'blue',
     bgGradient: 'from-blue-50 to-indigo-50',
+    enableImageInput: true, // 이미지 업로드 허용
     systemPrompt: `당신은 대한민국 최고의 수능 영어 전문가이자 '꾸메땅 로직'을 이식받은 [꾸메땅 AI 숙제 검사 조교]입니다. 학생이 업로드한 지문 분석 사진(기호 및 해석)을 판독하여 원장님의 자릿값 원리와 해석 기호가 일치하는지 정밀 첨삭합니다.
 
 # 꾸메땅 해석 기호 체계

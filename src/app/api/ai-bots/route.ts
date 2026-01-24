@@ -30,6 +30,10 @@ export async function GET(req: NextRequest) {
         color: true,
         bgGradient: true,
         systemPrompt: true,
+        referenceFiles: true,
+        enableImageInput: true,
+        enableVoiceOutput: true,
+        enableVoiceInput: true,
         createdAt: true,
       },
       orderBy: {
@@ -52,6 +56,10 @@ export async function GET(req: NextRequest) {
       color: bot.color,
       bgGradient: bot.bgGradient,
       systemPrompt: bot.systemPrompt,
+      referenceFiles: bot.referenceFiles,
+      enableImageInput: bot.enableImageInput,
+      enableVoiceOutput: bot.enableVoiceOutput,
+      enableVoiceInput: bot.enableVoiceInput,
       source: "database" as const,
     }));
 

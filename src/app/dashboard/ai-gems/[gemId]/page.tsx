@@ -25,6 +25,10 @@ interface Gem {
   bgGradient: string;
   systemPrompt: string;
   source?: 'database' | 'default';
+  referenceFiles?: string[];
+  enableImageInput?: boolean;
+  enableVoiceOutput?: boolean;
+  enableVoiceInput?: boolean;
 }
 
 export default function GemChatPage() {
@@ -396,8 +400,8 @@ export default function GemChatPage() {
 
             {/* Input */}
             <div className="border-t bg-gray-50">
-              {/* 이미지 미리보기 (꾸메땅 봇만) */}
-              {gem.id === 'ggumettang' && imagePreview && (
+              {/* 이미지 미리보기 */}
+              {gem.enableImageInput && imagePreview && (
                 <div className="px-4 pt-3 pb-0">
                   <div className="flex items-center gap-3 bg-blue-50 p-2 rounded-lg">
                     <div className="relative">
@@ -430,8 +434,8 @@ export default function GemChatPage() {
               
               <div className="p-3 sm:p-4">
                 <form onSubmit={handleSubmit} className="flex gap-2">
-                  {/* 이미지 업로드 버튼 (꾸메땅 봇만) */}
-                  {gem.id === 'ggumettang' && (
+                  {/* 이미지 업로드 버튼 */}
+                  {gem.enableImageInput && (
                     <>
                       <input
                         ref={fileInputRef}
@@ -456,7 +460,7 @@ export default function GemChatPage() {
                   <Textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={gem.id === 'ggumettang' ? '숙제 사진을 업로드하거나 질문을 입력하세요...' : `${gem.name}에게 메시지를 입력하세요...`}
+                    placeholder={gem.enableImageInput ? '이미지를 업로드하거나 질문을 입력하세요...' : `${gem.name}에게 메시지를 입력하세요...`}
                     className="flex-1 min-h-[50px] sm:min-h-[60px] max-h-[100px] sm:max-h-[120px] resize-none text-sm sm:text-base"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
@@ -468,7 +472,7 @@ export default function GemChatPage() {
                   />
                   <Button
                     type="submit"
-                    disabled={(gem.id === 'ggumettang' ? (!input.trim() && !selectedImage) : !input.trim()) || isLoading}
+                    disabled={(gem.enableImageInput ? (!input.trim() && !selectedImage) : !input.trim()) || isLoading}
                     className={`self-end bg-${gem.color}-600 hover:bg-${gem.color}-700`}
                   >
                     {isLoading ? (
