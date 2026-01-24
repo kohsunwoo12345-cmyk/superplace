@@ -30,7 +30,7 @@ interface Gem {
 export default function GemChatPage() {
   const params = useParams();
   const router = useRouter();
-  const gemId = params.gemId as string;
+  const gemId = decodeURIComponent(params.gemId as string); // URL 디코딩
   
   const [gem, setGem] = useState<Gem | null>(null);
   const [loadingGem, setLoadingGem] = useState(true);
@@ -47,7 +47,9 @@ export default function GemChatPage() {
     const fetchGem = async () => {
       try {
         setLoadingGem(true);
-        console.log('🔍 봇 정보 로딩 중:', gemId);
+        console.log('=== 봇 정보 로딩 시작 ===');
+        console.log('🔍 원본 gemId:', params.gemId);
+        console.log('🔍 디코딩된 gemId:', gemId);
         
         const response = await fetch('/api/ai-bots', {
           credentials: 'include', // 쿠키 포함하여 세션 전달
@@ -56,31 +58,39 @@ export default function GemChatPage() {
           },
         });
         
-        console.log('📡 API 응답 상태:', response.status);
+        console.log('📡 API 응답 상태:', response.status, response.statusText);
         
         if (!response.ok) {
           const errorText = await response.text();
           console.error('❌ API 응답 오류:', response.status, errorText);
+          alert(`API 오류: ${response.status} ${errorText}`);
           throw new Error('봇 정보를 불러오는데 실패했습니다');
         }
         
         const data = await response.json();
         console.log('📦 받은 봇 개수:', data.bots?.length || 0);
+        console.log('📦 봇 ID 목록:', data.bots?.map((b: Gem) => b.id) || []);
         
-        const foundGem = data.bots.find((bot: Gem) => bot.id === gemId);
+        const foundGem = data.bots.find((bot: Gem) => {
+          console.log(`  비교: "${bot.id}" === "${gemId}"? ${bot.id === gemId}`);
+          return bot.id === gemId;
+        });
         
-        console.log('✅ 봇 찾기 결과:', foundGem ? foundGem.name : '없음');
+        console.log('✅ 봇 찾기 결과:', foundGem ? foundGem.name : '❌ 없음');
         
         if (!foundGem) {
           console.error('❌ 봇을 찾을 수 없음:', gemId);
           console.log('사용 가능한 봇 ID:', data.bots.map((b: Gem) => b.id));
+          alert(`봇을 찾을 수 없습니다: ${gemId}\n\n사용 가능한 봇: ${data.bots.map((b: Gem) => b.id).join(', ')}`);
           router.push('/dashboard/ai-gems');
           return;
         }
         
+        console.log('✅ 봇 정보 설정 완료:', foundGem.name);
         setGem(foundGem);
       } catch (error) {
         console.error('❌ 봇 로딩 오류:', error);
+        alert(`봇 로딩 오류: ${error}`);
         router.push('/dashboard/ai-gems');
       } finally {
         setLoadingGem(false);
@@ -88,7 +98,7 @@ export default function GemChatPage() {
     };
     
     fetchGem();
-  }, [gemId, router]);
+  }, [gemId, router, params.gemId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
