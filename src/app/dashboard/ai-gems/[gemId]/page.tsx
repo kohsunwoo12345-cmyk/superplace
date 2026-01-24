@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Bot, User, Loader2, ArrowLeft, Trash2, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, ArrowLeft, Trash2, Image as ImageIcon, CheckCircle2, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface Message {
@@ -13,6 +13,7 @@ interface Message {
   content: string;
   timestamp: Date;
   image?: string;
+  audioUrl?: string; // 음성 응답 URL 추가
 }
 
 interface Gem {
@@ -45,6 +46,13 @@ export default function GemChatPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 음성 기능 관련 state
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState<string | null>(null); // 재생 중인 메시지 ID
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // API에서 봇 정보 가져오기
   useEffect(() => {
@@ -134,6 +142,125 @@ export default function GemChatPage() {
     }
   };
 
+  // 음성 녹음 시작
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        setAudioBlob(blob);
+        stream.getTracks().forEach(track => track.stop());
+        
+        // 음성을 텍스트로 변환
+        transcribeAudio(blob);
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (error) {
+      console.error('음성 녹음 오류:', error);
+      alert('마이크 접근 권한이 필요합니다.');
+    }
+  };
+
+  // 음성 녹음 중지
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
+  // 음성을 텍스트로 변환 (Whisper API)
+  const transcribeAudio = async (blob: Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append('audio', blob, 'recording.webm');
+
+      const response = await fetch('/api/speech/transcribe', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('음성 변환 실패');
+      }
+
+      const data = await response.json();
+      setInput(data.text); // 변환된 텍스트를 입력창에 설정
+    } catch (error) {
+      console.error('음성 변환 오류:', error);
+      alert('음성 변환에 실패했습니다.');
+    } finally {
+      setAudioBlob(null);
+    }
+  };
+
+  // 텍스트를 음성으로 변환하여 재생 (TTS)
+  const playTextAsAudio = async (text: string, messageId: string) => {
+    try {
+      setIsPlayingAudio(messageId);
+
+      const response = await fetch('/api/speech/synthesize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error('음성 생성 실패');
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // 오디오 재생
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsPlayingAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setIsPlayingAudio(null);
+        alert('음성 재생에 실패했습니다.');
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('음성 재생 오류:', error);
+      setIsPlayingAudio(null);
+      alert('음성 재생에 실패했습니다.');
+    }
+  };
+
+  // 음성 재생 중지
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsPlayingAudio(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!input.trim() && !selectedImage) || isLoading || !gem) return;
@@ -178,6 +305,13 @@ export default function GemChatPage() {
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+        
+        // 음성 출력이 활성화되어 있으면 자동 재생
+        if (gem.enableVoiceOutput) {
+          setTimeout(() => {
+            playTextAsAudio(data.message, `${messages.length + 1}`);
+          }, 300);
+        }
       } else {
         // 일반 AI 봇
         const response = await fetch('/api/ai/chat', {
@@ -205,6 +339,13 @@ export default function GemChatPage() {
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+        
+        // 음성 출력이 활성화되어 있으면 자동 재생
+        if (gem.enableVoiceOutput) {
+          setTimeout(() => {
+            playTextAsAudio(data.response, `${messages.length + 1}`);
+          }, 300);
+        }
       }
     } catch (error) {
       console.error('Error:', error);
@@ -369,6 +510,38 @@ export default function GemChatPage() {
                           <p className="whitespace-pre-wrap break-words">
                             {message.content}
                           </p>
+                          
+                          {/* 음성 출력 버튼 (봇 응답에만, enableVoiceOutput이 true일 때) */}
+                          {message.role === 'assistant' && gem.enableVoiceOutput && (
+                            <div className="mt-2 flex justify-end">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const messageId = `${index}`;
+                                  if (isPlayingAudio === messageId) {
+                                    stopAudio();
+                                  } else {
+                                    playTextAsAudio(message.content, messageId);
+                                  }
+                                }}
+                                className="flex items-center gap-1 text-xs"
+                              >
+                                {isPlayingAudio === `${index}` ? (
+                                  <>
+                                    <VolumeX className="h-3 w-3" />
+                                    <span>중지</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Volume2 className="h-3 w-3" />
+                                    <span>음성 듣기</span>
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
                           {formatTime(message.timestamp)}
@@ -455,6 +628,28 @@ export default function GemChatPage() {
                         <ImageIcon className="h-5 w-5" />
                       </Button>
                     </>
+                  )}
+                  
+                  {/* 음성 녹음 버튼 */}
+                  {gem.enableVoiceInput && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={isRecording ? stopRecording : startRecording}
+                      disabled={isLoading}
+                      className={`flex-shrink-0 transition-colors ${
+                        isRecording 
+                          ? 'bg-red-50 border-red-300 hover:bg-red-100' 
+                          : 'hover:bg-purple-50 hover:border-purple-300'
+                      }`}
+                    >
+                      {isRecording ? (
+                        <MicOff className="h-5 w-5 text-red-600 animate-pulse" />
+                      ) : (
+                        <Mic className="h-5 w-5" />
+                      )}
+                    </Button>
                   )}
                   
                   <Textarea
