@@ -125,7 +125,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   // AI 봇 메뉴 추가
   const botMenuItems = assignedBots.map((bot) => ({
     name: bot.name,
-    href: `/dashboard/ai-gems/${bot.id}`,
+    href: `/ai-chat?botId=${bot.id}`,
     icon: Sparkles,
   }));
 

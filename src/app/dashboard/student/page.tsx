@@ -124,7 +124,7 @@ export default function StudentDashboardPage() {
                 <Card
                   key={bot.id}
                   className={`cursor-pointer hover:shadow-lg transition-all duration-200 border-2 hover:border-${bot.color}-300 bg-gradient-to-br ${bot.bgGradient}`}
-                  onClick={() => router.push(`/dashboard/ai-gems/${bot.id}`)}
+                  onClick={() => router.push(`/ai-chat?botId=${bot.id}`)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">

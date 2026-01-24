@@ -11,11 +11,13 @@ import {
   MessageSquare, 
   Plus,
   Search,
-  MoreVertical,
   Trash2,
-  ChevronDown,
   Bot,
-  Sparkles
+  Sparkles,
+  Pin,
+  Moon,
+  Sun,
+  Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +36,7 @@ interface Conversation {
   lastMessage: string;
   lastMessageAt: string;
   messageCount: number;
+  isPinned?: boolean;
 }
 
 interface BotGroup {
@@ -41,6 +44,13 @@ interface BotGroup {
   botName: string;
   botIcon: string;
   conversations: Conversation[];
+}
+
+interface AssignedBot {
+  botId: string;
+  name: string;
+  icon: string;
+  description: string;
 }
 
 function AIChatContent() {
@@ -55,9 +65,33 @@ function AIChatContent() {
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [conversations, setConversations] = useState<BotGroup[]>([]);
+  const [assignedBots, setAssignedBots] = useState<AssignedBot[]>([]);
   const [currentBot, setCurrentBot] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pinnedConversations, setPinnedConversations] = useState<Set<string>>(new Set());
+  const [darkMode, setDarkMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 다크 모드 초기화 (로컬 스토리지)
+  useEffect(() => {
+    const savedDarkMode = localStorage.getItem("darkMode") === "true";
+    setDarkMode(savedDarkMode);
+    if (savedDarkMode) {
+      document.documentElement.classList.add("dark");
+    }
+  }, []);
+
+  // 다크 모드 토글
+  const toggleDarkMode = () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    localStorage.setItem("darkMode", newMode.toString());
+    if (newMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
 
   // 인증 체크
   useEffect(() => {
@@ -66,7 +100,7 @@ function AIChatContent() {
     }
   }, [status, router]);
 
-  // 대화 목록 로드
+  // 대화 목록 및 할당받은 봇 로드
   useEffect(() => {
     if (status === "authenticated") {
       loadConversations();
@@ -94,6 +128,7 @@ function AIChatContent() {
       if (response.ok) {
         const data = await response.json();
         setConversations(data.conversations || []);
+        setAssignedBots(data.assignedBots || []);
       }
     } catch (error) {
       console.error("대화 목록 로드 오류:", error);
@@ -229,6 +264,28 @@ function AIChatContent() {
     }
   };
 
+  const togglePin = (convId: string) => {
+    setPinnedConversations((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(convId)) {
+        newSet.delete(convId);
+      } else {
+        newSet.add(convId);
+      }
+      // 로컬 스토리지에 저장
+      localStorage.setItem("pinnedConversations", JSON.stringify(Array.from(newSet)));
+      return newSet;
+    });
+  };
+
+  // 로컬 스토리지에서 고정된 대화 불러오기
+  useEffect(() => {
+    const saved = localStorage.getItem("pinnedConversations");
+    if (saved) {
+      setPinnedConversations(new Set(JSON.parse(saved)));
+    }
+  }, []);
+
   const filteredConversations = conversations.map(group => ({
     ...group,
     conversations: group.conversations.filter(conv =>
@@ -236,39 +293,62 @@ function AIChatContent() {
     )
   })).filter(group => group.conversations.length > 0);
 
+  // 고정된 대화와 일반 대화 분리
+  const sortedConversations = filteredConversations.map(group => ({
+    ...group,
+    conversations: [
+      ...group.conversations.filter(c => pinnedConversations.has(c.id)).sort((a, b) => 
+        new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+      ),
+      ...group.conversations.filter(c => !pinnedConversations.has(c.id)).sort((a, b) => 
+        new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+      ),
+    ],
+  }));
+
   if (status === "loading") {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className={`flex items-center justify-center min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
-      {/* 왼쪽 사이드바 - 대화 목록 */}
+    <div className={`flex h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-white text-gray-900"} overflow-hidden`}>
+      {/* 왼쪽 사이드바 */}
       <div
         className={`${
           sidebarOpen ? "w-80" : "w-0"
-        } transition-all duration-300 border-r border-gray-200 flex flex-col bg-gray-50`}
+        } transition-all duration-300 ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"} border-r flex flex-col`}
       >
         {sidebarOpen && (
           <>
             {/* 사이드바 헤더 */}
-            <div className="p-4 border-b border-gray-200 bg-white">
+            <div className={`p-4 border-b ${darkMode ? "border-gray-700 bg-gray-900" : "border-gray-200 bg-white"}`}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <h2 className={`text-lg font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
                   <Sparkles className="w-5 h-5 text-blue-600" />
                   AI 채팅
                 </h2>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSidebarOpen(false)}
-                  className="md:hidden"
-                >
-                  <X className="w-5 h-5" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleDarkMode}
+                    title={darkMode ? "라이트 모드" : "다크 모드"}
+                  >
+                    {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSidebarOpen(false)}
+                    className="md:hidden"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
               
               {/* 검색 */}
@@ -278,26 +358,56 @@ function AIChatContent() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="대화 검색..."
-                  className="pl-10 bg-gray-50"
+                  className={`pl-10 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50"}`}
                 />
               </div>
             </div>
 
+            {/* 할당받은 봇 목록 */}
+            {assignedBots.length > 0 && (
+              <div className={`p-3 border-b ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+                <h3 className={`text-sm font-semibold mb-2 px-3 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                  사용 가능한 봇
+                </h3>
+                <div className="space-y-1">
+                  {assignedBots.map((bot) => (
+                    <button
+                      key={bot.botId}
+                      onClick={() => router.push(`/ai-chat?botId=${bot.botId}`)}
+                      className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-colors ${
+                        botId === bot.botId
+                          ? darkMode ? "bg-blue-900 text-blue-100" : "bg-blue-50 text-blue-900"
+                          : darkMode ? "hover:bg-gray-700" : "hover:bg-white"
+                      }`}
+                    >
+                      <span className="text-2xl">{bot.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{bot.name}</p>
+                        <p className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                          {bot.description}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* 대화 목록 */}
             <div className="flex-1 overflow-y-auto p-2">
-              {filteredConversations.length === 0 ? (
-                <div className="text-center py-10 text-gray-500">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+              {sortedConversations.length === 0 ? (
+                <div className={`text-center py-10 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  <MessageSquare className={`w-12 h-12 mx-auto mb-2 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
                   <p className="text-sm">대화 내역이 없습니다</p>
                 </div>
               ) : (
-                filteredConversations.map((group) => (
+                sortedConversations.map((group) => (
                   <div key={group.botId} className="mb-4">
                     {/* 봇 그룹 헤더 */}
-                    <div className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-gray-700">
+                    <div className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                       <span className="text-lg">{group.botIcon}</span>
                       <span>{group.botName}</span>
-                      <span className="ml-auto text-xs text-gray-400">
+                      <span className={`ml-auto text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
                         {group.conversations.length}
                       </span>
                     </div>
@@ -307,28 +417,47 @@ function AIChatContent() {
                       <button
                         key={conv.id}
                         onClick={() => router.push(`/ai-chat?botId=${conv.botId}&conversationId=${conv.id}`)}
-                        className={`w-full text-left px-3 py-2 rounded-lg mb-1 group hover:bg-white transition-colors ${
-                          conversationId === conv.id ? "bg-white shadow-sm" : ""
+                        className={`w-full text-left px-3 py-2 rounded-lg mb-1 group transition-colors ${
+                          conversationId === conv.id
+                            ? darkMode ? "bg-gray-700 shadow-sm" : "bg-white shadow-sm"
+                            : darkMode ? "hover:bg-gray-700" : "hover:bg-white"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {conv.lastMessage || "새 대화"}
-                            </p>
-                            <p className="text-xs text-gray-500">
+                            <div className="flex items-center gap-2">
+                              {pinnedConversations.has(conv.id) && (
+                                <Pin className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                              )}
+                              <p className={`text-sm font-medium truncate ${darkMode ? "text-gray-100" : "text-gray-900"}`}>
+                                {conv.lastMessage || "새 대화"}
+                              </p>
+                            </div>
+                            <p className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-500"}`}>
                               {conv.messageCount}개 메시지 · {new Date(conv.lastMessageAt).toLocaleDateString("ko-KR")}
                             </p>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteConversation(conv.id);
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </button>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePin(conv.id);
+                              }}
+                              className={`p-1 rounded ${pinnedConversations.has(conv.id) ? "text-blue-500" : darkMode ? "hover:bg-gray-600" : "hover:bg-gray-100"}`}
+                              title={pinnedConversations.has(conv.id) ? "고정 해제" : "상단 고정"}
+                            >
+                              <Pin className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteConversation(conv.id);
+                              }}
+                              className={`p-1 rounded ${darkMode ? "hover:bg-red-900" : "hover:bg-red-50"}`}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </button>
+                          </div>
                         </div>
                       </button>
                     ))}
@@ -338,7 +467,7 @@ function AIChatContent() {
             </div>
 
             {/* 사이드바 푸터 */}
-            <div className="p-3 border-t border-gray-200 bg-white">
+            <div className={`p-3 border-t ${darkMode ? "border-gray-700 bg-gray-900" : "border-gray-200 bg-white"}`}>
               <Button
                 onClick={() => router.push("/dashboard")}
                 variant="outline"
@@ -352,9 +481,9 @@ function AIChatContent() {
       </div>
 
       {/* 메인 채팅 영역 */}
-      <div className="flex-1 flex flex-col bg-white">
+      <div className={`flex-1 flex flex-col ${darkMode ? "bg-gray-900" : "bg-white"}`}>
         {/* 상단 헤더 */}
-        <div className="h-16 border-b border-gray-200 flex items-center px-4 gap-3 bg-white">
+        <div className={`h-16 border-b ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"} flex items-center px-4 gap-3`}>
           {!sidebarOpen && (
             <Button
               variant="ghost"
@@ -370,8 +499,8 @@ function AIChatContent() {
               <div className="flex items-center gap-3">
                 <span className="text-2xl">{currentBot.icon}</span>
                 <div>
-                  <h1 className="text-lg font-semibold text-gray-900">{currentBot.name}</h1>
-                  <p className="text-xs text-gray-500">{currentBot.description}</p>
+                  <h1 className={`text-lg font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>{currentBot.name}</h1>
+                  <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{currentBot.description}</p>
                 </div>
               </div>
               
@@ -388,7 +517,7 @@ function AIChatContent() {
               </div>
             </>
           ) : (
-            <div className="flex items-center gap-2 text-gray-500">
+            <div className={`flex items-center gap-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
               <Bot className="w-5 h-5" />
               <span>AI 봇을 선택해주세요</span>
             </div>
@@ -400,19 +529,19 @@ function AIChatContent() {
           {!botId ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <Sparkles className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                <Sparkles className={`w-16 h-16 mx-auto mb-4 ${darkMode ? "text-gray-600" : "text-gray-300"}`} />
+                <h2 className={`text-xl font-semibold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
                   AI 채팅 시작하기
                 </h2>
-                <p className="text-gray-500 mb-6">
-                  대시보드에서 AI 봇을 선택하여 대화를 시작하세요
+                <p className={`mb-6 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  왼쪽에서 AI 봇을 선택하여 대화를 시작하세요
                 </p>
                 <Button
                   onClick={() => router.push("/dashboard")}
                   className="flex items-center gap-2 mx-auto"
                 >
                   <Bot className="w-4 h-4" />
-                  봇 선택하러 가기
+                  대시보드로 가기
                 </Button>
               </div>
             </div>
@@ -423,10 +552,10 @@ function AIChatContent() {
                   <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <span className="text-3xl">{currentBot?.icon || "🤖"}</span>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  <h3 className={`text-xl font-semibold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
                     {currentBot?.name}와 대화를 시작하세요
                   </h3>
-                  <p className="text-gray-500 text-sm">
+                  <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                     {currentBot?.description}
                   </p>
                 </div>
@@ -447,12 +576,12 @@ function AIChatContent() {
                     className={`max-w-[80%] rounded-2xl px-5 py-3 ${
                       message.role === "user"
                         ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-900"
+                        : darkMode ? "bg-gray-800 text-gray-100" : "bg-gray-100 text-gray-900"
                     }`}
                   >
                     <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
                     <p className={`text-xs mt-2 ${
-                      message.role === "user" ? "text-blue-100" : "text-gray-500"
+                      message.role === "user" ? "text-blue-100" : darkMode ? "text-gray-500" : "text-gray-500"
                     }`}>
                       {new Date(message.timestamp).toLocaleTimeString("ko-KR", {
                         hour: "2-digit",
@@ -474,8 +603,8 @@ function AIChatContent() {
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-3">
                     <span className="text-lg">{currentBot?.icon || "🤖"}</span>
                   </div>
-                  <div className="bg-gray-100 rounded-2xl px-5 py-3">
-                    <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
+                  <div className={`rounded-2xl px-5 py-3 ${darkMode ? "bg-gray-800" : "bg-gray-100"}`}>
+                    <Loader2 className={`w-5 h-5 animate-spin ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                   </div>
                 </div>
               )}
@@ -487,7 +616,7 @@ function AIChatContent() {
 
         {/* 입력 영역 */}
         {botId && (
-          <div className="border-t border-gray-200 bg-white p-4">
+          <div className={`border-t ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"} p-4`}>
             <div className="max-w-4xl mx-auto">
               <div className="flex gap-3 items-end">
                 <div className="flex-1 relative">
@@ -497,7 +626,7 @@ function AIChatContent() {
                     onKeyPress={handleKeyPress}
                     placeholder={`${currentBot?.name || "AI"}에게 메시지 보내기...`}
                     disabled={loading}
-                    className="pr-12 h-12 rounded-xl border-gray-300 focus:border-blue-500"
+                    className={`pr-12 h-12 rounded-xl ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"} focus:border-blue-500`}
                   />
                 </div>
                 <Button
@@ -513,7 +642,7 @@ function AIChatContent() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-gray-500 mt-2 text-center">
+              <p className={`text-xs mt-2 text-center ${darkMode ? "text-gray-500" : "text-gray-500"}`}>
                 Enter로 전송 • Shift + Enter로 줄바꿈
               </p>
             </div>

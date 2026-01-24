@@ -120,7 +120,7 @@ export default function AIBotsPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {bots.map((bot) => (
-            <Link key={bot.id} href={`/dashboard/ai-gems/${bot.id}`}>
+            <Link key={bot.id} href={`/ai-chat?botId=${bot.id}`}>
               <Card className={`hover:shadow-lg transition-shadow cursor-pointer h-full bg-gradient-to-br ${bot.bgGradient} border-2 hover:border-${bot.color}-300 relative`}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
