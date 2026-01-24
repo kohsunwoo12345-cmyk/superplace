@@ -48,7 +48,7 @@ interface AIBot {
   enableVoiceOutput: boolean;
   enableVoiceInput: boolean;
   isActive: boolean;
-  creator: {
+  createdBy: {
     id: string;
     name: string;
     email: string;
@@ -1110,7 +1110,7 @@ function BotDetailModal({
                 )}
                 <div>
                   <span className="font-medium">생성자:</span>{" "}
-                  {bot.creator.name} ({bot.creator.email})
+                  {bot.createdBy.name} ({bot.createdBy.email})
                 </div>
                 <div>
                   <span className="font-medium">생성일:</span>{" "}

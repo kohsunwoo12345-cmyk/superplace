@@ -34,7 +34,7 @@ export async function GET(
     const bot = await prisma.aIBot.findUnique({
       where: { botId },
       include: {
-        creator: {
+        createdBy: {
           select: {
             id: true,
             name: true,
@@ -211,7 +211,7 @@ export async function PATCH(
       where: { botId },
       data: updateData,
       include: {
-        creator: {
+        createdBy: {
           select: {
             id: true,
             name: true,

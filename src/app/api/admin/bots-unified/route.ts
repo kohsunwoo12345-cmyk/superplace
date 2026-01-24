@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     const bots = await prisma.aIBot.findMany({
       where: whereCondition,
       include: {
-        creator: {
+        createdBy: {
           select: {
             id: true,
             name: true,
@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
         folderId: folderId || null,
       },
       include: {
-        creator: {
+        createdBy: {
           select: {
             id: true,
             name: true,
