@@ -26,12 +26,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log('🔍 통합 봇 관리 API 호출 - 사용자:', session.user.email);
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const folderId = searchParams.get("folderId") || "all";
     const isActive = searchParams.get("isActive");
     const sortBy = searchParams.get("sortBy") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") || "desc";
+
+    console.log('📊 쿼리 파라미터:', { search, folderId, isActive, sortBy, sortOrder });
 
     // 폴더 목록 조회
     const folders = await prisma.botFolder.findMany({
@@ -49,6 +53,8 @@ export async function GET(request: NextRequest) {
         createdAt: "desc",
       },
     });
+
+    console.log('📁 폴더 수:', folders.length);
 
     // 봇 목록 조회 조건
     const whereCondition: any = {};
@@ -76,6 +82,8 @@ export async function GET(request: NextRequest) {
       whereCondition.isActive = isActive === "true";
     }
 
+    console.log('🔎 조회 조건:', JSON.stringify(whereCondition, null, 2));
+
     // 봇 목록 조회
     const bots = await prisma.aIBot.findMany({
       where: whereCondition,
@@ -100,57 +108,83 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    console.log('🤖 조회된 봇 수:', bots.length);
+    if (bots.length > 0) {
+      console.log('첫 번째 봇:', bots[0].name, bots[0].botId);
+    }
+
     // 각 봇의 할당 정보를 별도로 조회
     const botsWithAssignments = await Promise.all(
       bots.map(async (bot) => {
-        const assignments = await prisma.botAssignment.findMany({
-          where: {
-            botId: bot.botId,
-          },
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-                academy: {
-                  select: {
-                    id: true,
-                    name: true,
-                    code: true,
+        try {
+          const assignments = await prisma.botAssignment.findMany({
+            where: {
+              botId: bot.botId,
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                  academy: {
+                    select: {
+                      id: true,
+                      name: true,
+                      code: true,
+                    },
                   },
                 },
               },
-            },
-            grantedBy: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
+              grantedBy: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
               },
             },
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-        });
+            orderBy: {
+              createdAt: "desc",
+            },
+          });
 
-        return {
-          ...bot,
-          assignments,
-          _count: {
-            assignments: assignments.length,
-          },
-        };
+          return {
+            ...bot,
+            assignments,
+            _count: {
+              assignments: assignments.length,
+            },
+          };
+        } catch (assignmentError) {
+          console.error('❌ 할당 조회 오류 (봇:', bot.botId, '):', assignmentError);
+          return {
+            ...bot,
+            assignments: [],
+            _count: {
+              assignments: 0,
+            },
+          };
+        }
       })
     );
+
+    console.log('✅ 할당 정보 포함 봇 수:', botsWithAssignments.length);
 
     // 통계 계산
     const totalBots = botsWithAssignments.length;
     const activeBots = botsWithAssignments.filter((b) => b.isActive).length;
     const inactiveBots = totalBots - activeBots;
     const totalAssignments = botsWithAssignments.reduce((sum, b) => sum + b._count.assignments, 0);
+
+    console.log('📈 통계:', {
+      totalBots,
+      activeBots,
+      inactiveBots,
+      totalAssignments,
+      totalFolders: folders.length
+    });
 
     return NextResponse.json({
       bots: botsWithAssignments,
@@ -164,9 +198,16 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("통합 봇 목록 조회 오류:", error);
+    console.error("❌ 통합 봇 목록 조회 오류:", error);
+    console.error("에러 상세:", error instanceof Error ? error.message : String(error));
+    if (error instanceof Error && error.stack) {
+      console.error("스택:", error.stack);
+    }
     return NextResponse.json(
-      { error: "서버 오류가 발생했습니다" },
+      { 
+        error: "서버 오류가 발생했습니다",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
