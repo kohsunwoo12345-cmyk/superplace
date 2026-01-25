@@ -60,3 +60,60 @@ export async function assignStudentCode(userId: string): Promise<string> {
 
   return code;
 }
+
+/**
+ * 학원별 순차적인 학번 생성
+ * @param academyId 학원 ID (없으면 전체 학생 중 최대값 사용)
+ * @returns 학번 (예: STU-001, STU-002, ...)
+ */
+export async function generateUniqueStudentId(academyId?: string | null): Promise<string> {
+  try {
+    // 학원별 또는 전체 학생 중 가장 큰 학번 찾기
+    const whereCondition = academyId ? { academyId, role: "STUDENT" } : { role: "STUDENT" };
+    
+    const lastStudent = await prisma.user.findFirst({
+      where: {
+        ...whereCondition,
+        studentId: {
+          not: null,
+        },
+      },
+      orderBy: {
+        studentId: 'desc',
+      },
+      select: {
+        studentId: true,
+      },
+    });
+
+    let nextNumber = 1;
+
+    if (lastStudent?.studentId) {
+      // 기존 학번에서 숫자 부분 추출 (예: "STU-001" -> 1)
+      const match = lastStudent.studentId.match(/(\d+)$/);
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1;
+      }
+    }
+
+    // 새 학번 생성 (3자리 숫자, 앞에 0 채우기)
+    const studentId = `STU-${nextNumber.toString().padStart(3, '0')}`;
+
+    // 중복 체크 (만약을 위해)
+    const existing = await prisma.user.findUnique({
+      where: { studentId },
+    });
+
+    if (existing) {
+      // 중복이 있으면 다음 번호로 재귀 호출
+      return generateUniqueStudentId(academyId);
+    }
+
+    return studentId;
+  } catch (error) {
+    console.error('학번 생성 오류:', error);
+    // 오류 발생 시 현재 시간 기반 학번 생성
+    const timestamp = Date.now().toString().slice(-6);
+    return `STU-${timestamp}`;
+  }
+}

@@ -538,6 +538,20 @@ export default function StudentsManagementPage() {
                         <Mail className="w-4 h-4" />
                         <span>{student.email}</span>
                       </div>
+                      {student.studentId && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-indigo-600 font-semibold">
+                            🆔 학번: {student.studentId}
+                          </span>
+                        </div>
+                      )}
+                      {student.studentCode && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-blue-600 font-bold">
+                            🔢 코드: {student.studentCode}
+                          </span>
+                        </div>
+                      )}
                       {student.phone && (
                         <div className="flex items-center gap-2">
                           <Phone className="w-4 h-4" />
@@ -548,13 +562,6 @@ export default function StudentsManagementPage() {
                         <div className="flex items-center gap-2">
                           <GraduationCap className="w-4 h-4" />
                           <span>{student.grade}</span>
-                        </div>
-                      )}
-                      {student.studentCode && (
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-blue-600 font-bold">
-                            🔢 코드: {student.studentCode}
-                          </span>
                         </div>
                       )}
                     </div>

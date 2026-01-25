@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { generateUniqueStudentCode, generateUniqueStudentId } from "@/lib/student-code";
 
 const registerSchema = z.object({
   email: z.string().email("유효한 이메일을 입력해주세요"),
@@ -208,6 +209,17 @@ export async function POST(req: Request) {
         );
       }
 
+      // 학생인 경우 학번과 학생 코드 자동 생성
+      let studentId = undefined;
+      let studentCode = undefined;
+      
+      if (validatedData.role === 'STUDENT') {
+        console.log('🔢 Generating student ID and code...');
+        studentId = await generateUniqueStudentId(academy.id);
+        studentCode = await generateUniqueStudentCode();
+        console.log(`✅ Generated student ID: ${studentId}, Code: ${studentCode}`);
+      }
+
       // Create user
       const user = await prisma.user.create({
         data: {
@@ -217,6 +229,8 @@ export async function POST(req: Request) {
           phone: validatedData.phone,
           role: validatedData.role,
           academyId: academy.id,
+          studentId, // 학생인 경우에만 값이 있음
+          studentCode, // 학생인 경우에만 값이 있음
           approved: false, // 학원장 승인 필요
         },
         select: {
@@ -224,17 +238,25 @@ export async function POST(req: Request) {
           email: true,
           name: true,
           role: true,
+          studentId: true,
+          studentCode: true,
           approved: true,
           createdAt: true,
         },
       });
+
+      console.log(`✅ User created: ${user.id}${validatedData.role === 'STUDENT' ? ` (학번: ${user.studentId}, 코드: ${user.studentCode})` : ''}`);
 
       return NextResponse.json(
         { 
           message: `${academy.name}에 가입 신청이 완료되었습니다. 학원장 승인 후 로그인하실 수 있습니다.`,
           user,
           academyName: academy.name,
-          pendingApproval: true
+          pendingApproval: true,
+          ...(validatedData.role === 'STUDENT' && {
+            studentId: user.studentId,
+            studentCode: user.studentCode,
+          }),
         },
         { status: 201 }
       );

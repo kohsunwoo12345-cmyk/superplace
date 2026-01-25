@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { ActivityType, ResourceType } from "@/lib/activity-logger";
-import { generateUniqueStudentCode } from "@/lib/student-code";
+import { generateUniqueStudentCode, generateUniqueStudentId } from "@/lib/student-code";
 
 const createStudentSchema = z.object({
   email: z.string().email("유효한 이메일을 입력해주세요"),
@@ -82,9 +82,13 @@ export async function POST(req: Request) {
     // 비밀번호 해싱
     const hashedPassword = await bcrypt.hash(validatedData.password, 10);
 
-    // 고유 학생 코드 생성
+    // 고유 학생 코드 생성 (5자리)
     const studentCode = await generateUniqueStudentCode();
     console.log("🔢 Generated student code:", studentCode);
+
+    // 고유 학번 생성 (STU-001, STU-002, ...)
+    const studentId = await generateUniqueStudentId(director.academyId);
+    console.log("🆔 Generated student ID:", studentId);
 
     // 학생 계정 생성 (자동 승인)
     const student = await prisma.user.create({
@@ -98,6 +102,7 @@ export async function POST(req: Request) {
         grade: validatedData.grade,
         role: "STUDENT",
         academyId: director.academyId,
+        studentId, // 학번 할당
         studentCode, // 학생 코드 할당
         approved: true, // 학원장이 직접 생성하므로 자동 승인
         approvedBy: director.id,
@@ -116,7 +121,7 @@ export async function POST(req: Request) {
       },
     });
 
-    console.log("✅ Student created:", student.id, "Code:", student.studentCode);
+    console.log("✅ Student created:", student.id, "Student ID:", student.studentId, "Code:", student.studentCode);
 
     // 학생 추가 활동 로그 기록
     try {
@@ -126,10 +131,11 @@ export async function POST(req: Request) {
           action: ActivityType.STUDENT_ADD,
           resource: ResourceType.STUDENTS,
           resourceId: student.id,
-          description: `${director.name || director.email}님이 학생 '${student.name}'을(를) 추가했습니다. (학생코드: ${student.studentCode})`,
+          description: `${director.name || director.email}님이 학생 '${student.name}'을(를) 추가했습니다. (학번: ${student.studentId}, 학생코드: ${student.studentCode})`,
           metadata: {
             studentEmail: student.email,
             studentName: student.name,
+            studentId: student.studentId,
             studentCode: student.studentCode,
             grade: student.grade,
             school: validatedData.school,
@@ -145,6 +151,7 @@ export async function POST(req: Request) {
       { 
         message: "학생 계정이 생성되었습니다.",
         student,
+        studentId: student.studentId, // 학번 반환
         studentCode: student.studentCode, // 학생 코드 반환
       },
       { status: 201 }
