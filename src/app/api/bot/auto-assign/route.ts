@@ -64,7 +64,8 @@ export async function POST(request: Request) {
         data: {
           userId: session.user.id,
           botId: bot.id,
-          assignedBy: session.user.id, // 본인이 자동 할당
+          grantedById: session.user.id, // 본인이 자동 할당
+          grantedByRole: session.user.role || 'STUDENT',
           isActive: true,
           expiresAt: null, // 무제한
         },
