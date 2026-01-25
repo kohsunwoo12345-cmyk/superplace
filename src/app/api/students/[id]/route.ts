@@ -23,8 +23,12 @@ export async function GET(
       return NextResponse.json({ error: '사용자를 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    // 권한 체크: DIRECTOR, TEACHER만 접근 가능
-    if (currentUser.role !== 'DIRECTOR' && currentUser.role !== 'TEACHER') {
+    // 권한 체크: SUPER_ADMIN, DIRECTOR, TEACHER만 접근 가능
+    if (
+      currentUser.role !== 'SUPER_ADMIN' &&
+      currentUser.role !== 'DIRECTOR' &&
+      currentUser.role !== 'TEACHER'
+    ) {
       return NextResponse.json(
         { error: '학생 정보 조회 권한이 없습니다.' },
         { status: 403 }
@@ -44,6 +48,8 @@ export async function GET(
         academyId: true,
         school: true,
         grade: true,
+        studentId: true,
+        studentCode: true,
         parentPhone: true,
         points: true,
         createdAt: true,
@@ -55,8 +61,8 @@ export async function GET(
       return NextResponse.json({ error: '학생을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    // 같은 학원인지 체크
-    if (student.academyId !== currentUser.academyId) {
+    // SUPER_ADMIN이 아닌 경우 같은 학원인지 체크
+    if (currentUser.role !== 'SUPER_ADMIN' && student.academyId !== currentUser.academyId) {
       return NextResponse.json(
         { error: '같은 학원 소속 학생만 조회할 수 있습니다.' },
         { status: 403 }
