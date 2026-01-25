@@ -17,7 +17,10 @@ import {
   Pin,
   Moon,
   Sun,
-  Settings
+  Settings,
+  Image as ImageIcon,
+  Mic,
+  Volume2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -214,6 +217,7 @@ function AIChatContent() {
           botId,
           messages: updatedMessages,
           systemPrompt: currentBot?.systemPrompt,
+          referenceFiles: currentBot?.referenceFiles, // 지식 파일 추가
         }),
       });
 
@@ -612,9 +616,55 @@ function AIChatContent() {
                   <h3 className={`text-xl font-semibold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
                     {currentBot?.name}와 대화를 시작하세요
                   </h3>
-                  <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  <p className={`text-sm mb-6 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                     {currentBot?.description}
                   </p>
+                  
+                  {/* 스타터 메시지 */}
+                  {currentBot?.starterMessages && Array.isArray(currentBot.starterMessages) && currentBot.starterMessages.length > 0 && (
+                    <div className="max-w-2xl mx-auto mt-8">
+                      <p className={`text-sm font-medium mb-3 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                        💡 제안된 질문
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {currentBot.starterMessages.map((msg: string, idx: number) => (
+                          <button
+                            key={idx}
+                            onClick={() => setInput(msg)}
+                            className={`p-4 rounded-xl text-left transition-all hover:scale-105 ${
+                              darkMode 
+                                ? "bg-gray-800 hover:bg-gray-700 text-gray-100" 
+                                : "bg-white hover:bg-gray-50 text-gray-900 shadow-sm"
+                            }`}
+                          >
+                            <p className="text-sm">{msg}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* 봇 기능 아이콘 */}
+                  <div className="flex items-center justify-center gap-4 mt-6">
+                    {currentBot?.enableImageInput && (
+                      <div className={`flex items-center gap-1 text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        <ImageIcon className="w-4 h-4" />
+                        <span>이미지</span>
+                      </div>
+                    )}
+                    {currentBot?.enableVoiceInput && (
+                      <div className={`flex items-center gap-1 text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        <Mic className="w-4 h-4" />
+                        <span>음성 입력</span>
+                      </div>
+                    )}
+                    {currentBot?.enableVoiceOutput && (
+                      <div className={`flex items-center gap-1 text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        <Volume2 className="w-4 h-4" />
+                        <span>음성 출력</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               

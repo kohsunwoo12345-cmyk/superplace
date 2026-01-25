@@ -21,12 +21,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { botId, messages, systemPrompt } = body;
+    const { botId, messages, systemPrompt, referenceFiles } = body;
 
     console.log('💬 AI 채팅 요청:', { 
       botId, 
       messageCount: messages?.length,
       hasSystemPrompt: !!systemPrompt,
+      hasReferenceFiles: !!referenceFiles,
       userId: session.user.id
     });
 
@@ -73,8 +74,24 @@ export async function POST(request: Request) {
     // Gemini API용 메시지 포맷 변환
     const geminiMessages: any[] = [];
     
-    // 시스템 프롬프트가 있으면 첫 메시지에 포함
-    let systemContext = systemPrompt ? `${systemPrompt}\n\n` : '';
+    // 시스템 프롬프트 + 지식 파일 컨텍스트 구성
+    let systemContext = '';
+    
+    if (systemPrompt) {
+      systemContext += `${systemPrompt}\n\n`;
+    }
+    
+    if (referenceFiles && Array.isArray(referenceFiles) && referenceFiles.length > 0) {
+      systemContext += `참고 자료:\n`;
+      referenceFiles.forEach((file: any) => {
+        if (typeof file === 'string') {
+          systemContext += `- ${file}\n`;
+        } else if (file.name && file.url) {
+          systemContext += `- ${file.name}: ${file.url}\n`;
+        }
+      });
+      systemContext += '\n위 참고 자료를 기반으로 답변해주세요.\n\n';
+    }
     
     messages.forEach((msg: Message, index: number) => {
       if (msg.role === 'user') {
@@ -97,10 +114,20 @@ export async function POST(request: Request) {
 
     console.log('📝 Gemini 메시지 생성:', {
       messageCount: geminiMessages.length,
-      hasSystemPrompt: !!systemPrompt
+      hasSystemPrompt: !!systemPrompt,
+      hasReferenceFiles: referenceFiles && Array.isArray(referenceFiles) && referenceFiles.length > 0,
+      systemContextLength: systemContext.length
     });
 
     console.log('🚀 Google Gemini API 호출 시작...');
+    console.log('🔑 API Key 존재:', !!process.env.GOOGLE_API_KEY);
+    console.log('📨 요청 데이터:', JSON.stringify({
+      contents: geminiMessages,
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2000,
+      },
+    }, null, 2));
 
     // Google Gemini API 호출
     const geminiResponse = await fetch(
@@ -120,11 +147,25 @@ export async function POST(request: Request) {
       }
     );
 
+    console.log('📡 Gemini API 응답 상태:', geminiResponse.status, geminiResponse.statusText);
+
     if (!geminiResponse.ok) {
-      const error = await geminiResponse.json();
-      console.error("❌ Gemini API 오류:", error);
+      const errorText = await geminiResponse.text();
+      console.error("❌ Gemini API 오류 (전체):", errorText);
+      let errorMessage = "AI 응답 생성에 실패했습니다.";
+      
+      try {
+        const errorJson = JSON.parse(errorText);
+        console.error("❌ Gemini API 오류 (JSON):", errorJson);
+        if (errorJson.error?.message) {
+          errorMessage = errorJson.error.message;
+        }
+      } catch (e) {
+        console.error("❌ JSON 파싱 실패");
+      }
+      
       return NextResponse.json(
-        { error: "AI 응답 생성에 실패했습니다." },
+        { error: errorMessage, details: errorText.substring(0, 500) },
         { status: 500 }
       );
     }
