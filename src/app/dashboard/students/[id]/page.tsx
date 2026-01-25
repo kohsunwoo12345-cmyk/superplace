@@ -29,6 +29,15 @@ import {
   CheckCircle2,
   ArrowLeft,
   Sparkles,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  FileText,
+  BarChart3,
+  Target,
+  Zap,
+  Heart,
+  BookOpen,
 } from 'lucide-react';
 
 interface StudentData {
@@ -41,6 +50,8 @@ interface StudentData {
   points: number;
   createdAt: string;
   lastLoginAt: string | null;
+  studentId: string | null;
+  studentCode: string | null;
 }
 
 interface Conversation {
@@ -89,6 +100,48 @@ interface ComprehensiveAnalysis {
   raw_response?: string;
 }
 
+interface Attendance {
+  id: string;
+  date: string;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+}
+
+interface AttendanceStats {
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+}
+
+interface HomeworkSubmission {
+  id: string;
+  imageUrl: string | null;
+  aiAnalysis: any;
+  approved: boolean;
+  submittedAt: string;
+}
+
+interface TestScore {
+  id: string;
+  subject: string | null;
+  score: number;
+  maxScore: number;
+  testDate: string;
+  notes: string | null;
+}
+
+interface LearningCharacteristics {
+  studySpeed: string;
+  attitude: string;
+  personality: string;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+}
+
 export default function StudentDetailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -103,6 +156,17 @@ export default function StudentDetailPage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [comprehensiveAnalysis, setComprehensiveAnalysis] =
     useState<ComprehensiveAnalysis | null>(null);
+  const [attendances, setAttendances] = useState<Attendance[]>([]);
+  const [attendanceStats, setAttendanceStats] = useState<AttendanceStats>({
+    total: 0,
+    present: 0,
+    absent: 0,
+    late: 0,
+    excused: 0,
+  });
+  const [homeworkSubmissions, setHomeworkSubmissions] = useState<HomeworkSubmission[]>([]);
+  const [testScores, setTestScores] = useState<TestScore[]>([]);
+  const [learningCharacteristics, setLearningCharacteristics] = useState<LearningCharacteristics | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -132,6 +196,11 @@ export default function StudentDetailPage() {
       setConversations(data.conversations || []);
       setAiUsageStats(data.aiUsageStats || []);
       setAnalyses(data.analyses || []);
+      setAttendances(data.attendances || []);
+      setAttendanceStats(data.attendanceStats || { total: 0, present: 0, absent: 0, late: 0, excused: 0 });
+      setHomeworkSubmissions(data.homeworkSubmissions || []);
+      setTestScores(data.testScores || []);
+      setLearningCharacteristics(data.learningCharacteristics || null);
     } catch (error: any) {
       console.error('학생 정보 로딩 오류:', error);
       setError(error.message);
@@ -269,6 +338,18 @@ export default function StudentDetailPage() {
               <p className="text-sm text-muted-foreground">이메일</p>
               <p className="font-medium">{student.email || '-'}</p>
             </div>
+            {student.studentId && (
+              <div>
+                <p className="text-sm text-muted-foreground">학번</p>
+                <p className="font-medium font-mono text-indigo-600">{student.studentId}</p>
+              </div>
+            )}
+            {student.studentCode && (
+              <div>
+                <p className="text-sm text-muted-foreground">학생 코드</p>
+                <p className="font-medium font-mono text-blue-600">{student.studentCode}</p>
+              </div>
+            )}
             <div>
               <p className="text-sm text-muted-foreground">학교</p>
               <p className="font-medium">{student.school || '-'}</p>
@@ -299,12 +380,130 @@ export default function StudentDetailPage() {
         </CardContent>
       </Card>
 
+      {/* 학습 특성 분석 */}
+      {learningCharacteristics && (
+        <Card className="border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-indigo-600" />
+              AI 학습 특성 분석
+            </CardTitle>
+            <CardDescription>
+              학습 데이터 기반 자동 분석 결과
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-yellow-600" />
+                    공부 속도
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm">{learningCharacteristics.studySpeed}</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Target className="h-4 w-4 text-blue-600" />
+                    학습 태도
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm">{learningCharacteristics.attitude}</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Heart className="h-4 w-4 text-pink-600" />
+                    성향
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm">{learningCharacteristics.personality}</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {learningCharacteristics.strengths.length > 0 && (
+                <Card className="bg-green-50 border-green-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm text-green-800">주요 강점</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-1">
+                      {learningCharacteristics.strengths.map((strength, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-sm text-green-700">
+                          <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          <span>{strength}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+
+              {learningCharacteristics.weaknesses.length > 0 && (
+                <Card className="bg-orange-50 border-orange-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm text-orange-800">개선점</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-1">
+                      {learningCharacteristics.weaknesses.map((weakness, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-sm text-orange-700">
+                          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          <span>{weakness}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {learningCharacteristics.recommendations.length > 0 && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm text-blue-800">학습 추천 사항</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2">
+                    {learningCharacteristics.recommendations.map((rec, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-blue-700">
+                        <BookOpen className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* 탭 메뉴 */}
       <Tabs defaultValue="conversations" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="conversations">
             <MessageSquare className="h-4 w-4 mr-2" />
             대화 기록
+          </TabsTrigger>
+          <TabsTrigger value="attendance">
+            <Calendar className="h-4 w-4 mr-2" />
+            출결
+          </TabsTrigger>
+          <TabsTrigger value="homework">
+            <FileText className="h-4 w-4 mr-2" />
+            숙제
           </TabsTrigger>
           <TabsTrigger value="statistics">
             <TrendingUp className="h-4 w-4 mr-2" />
@@ -371,6 +570,239 @@ export default function StudentDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* 출결 탭 */}
+        <TabsContent value="attendance" className="space-y-4">
+          {/* 출결 통계 */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm text-muted-foreground">총 출석일</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{attendanceStats.total}일</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-green-50 border-green-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm text-green-700 flex items-center gap-1">
+                  <CheckCircle className="h-4 w-4" />
+                  출석
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-green-700">{attendanceStats.present}일</p>
+                {attendanceStats.total > 0 && (
+                  <p className="text-xs text-green-600 mt-1">
+                    {Math.round((attendanceStats.present / attendanceStats.total) * 100)}%
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+            <Card className="bg-red-50 border-red-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm text-red-700 flex items-center gap-1">
+                  <XCircle className="h-4 w-4" />
+                  결석
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-red-700">{attendanceStats.absent}일</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-yellow-50 border-yellow-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm text-yellow-700 flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  지각
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-yellow-700">{attendanceStats.late}일</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-blue-50 border-blue-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm text-blue-700 flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  인정 결석
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-blue-700">{attendanceStats.excused}일</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 출결 기록 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>출결 기록</CardTitle>
+              <CardDescription>최근 30일 출결 내역</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {attendances.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>아직 출결 기록이 없습니다.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {attendances.map((att) => (
+                    <div
+                      key={att.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        {att.status === 'PRESENT' && (
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        )}
+                        {att.status === 'ABSENT' && (
+                          <XCircle className="h-5 w-5 text-red-600" />
+                        )}
+                        {att.status === 'LATE' && (
+                          <Clock className="h-5 w-5 text-yellow-600" />
+                        )}
+                        {att.status === 'EXCUSED' && (
+                          <AlertCircle className="h-5 w-5 text-blue-600" />
+                        )}
+                        <div>
+                          <p className="font-medium">{formatDate(att.date)}</p>
+                          {att.notes && (
+                            <p className="text-sm text-muted-foreground">{att.notes}</p>
+                          )}
+                        </div>
+                      </div>
+                      <Badge
+                        variant={
+                          att.status === 'PRESENT'
+                            ? 'default'
+                            : att.status === 'LATE'
+                            ? 'secondary'
+                            : 'outline'
+                        }
+                        className={
+                          att.status === 'ABSENT'
+                            ? 'bg-red-100 text-red-700 border-red-300'
+                            : att.status === 'EXCUSED'
+                            ? 'bg-blue-100 text-blue-700 border-blue-300'
+                            : ''
+                        }
+                      >
+                        {att.status === 'PRESENT' && '출석'}
+                        {att.status === 'ABSENT' && '결석'}
+                        {att.status === 'LATE' && '지각'}
+                        {att.status === 'EXCUSED' && '인정 결석'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 숙제 탭 */}
+        <TabsContent value="homework" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>숙제 제출 내역</CardTitle>
+              <CardDescription>
+                총 {homeworkSubmissions.length}개 제출 (승인: {homeworkSubmissions.filter(h => h.approved).length}개)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {homeworkSubmissions.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>아직 숙제 제출 내역이 없습니다.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {homeworkSubmissions.map((hw) => (
+                    <Card key={hw.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          {hw.imageUrl && (
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-100">
+                              <img
+                                src={hw.imageUrl}
+                                alt="숙제"
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">
+                              {formatDateTime(hw.submittedAt)}
+                            </span>
+                            <Badge variant={hw.approved ? 'default' : 'secondary'}>
+                              {hw.approved ? '승인됨' : '대기 중'}
+                            </Badge>
+                          </div>
+                          {hw.aiAnalysis && hw.aiAnalysis.summary && (
+                            <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                              <p className="text-xs text-purple-800 font-medium mb-1">
+                                AI 분석 요약
+                              </p>
+                              <p className="text-sm text-purple-700">
+                                {hw.aiAnalysis.summary}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 성적 정보 */}
+          {testScores.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  시험 성적
+                </CardTitle>
+                <CardDescription>최근 시험 성적 내역</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {testScores.map((score) => (
+                    <div
+                      key={score.id}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                      <div>
+                        <p className="font-medium">{score.subject || '과목 미정'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate(score.testDate)}
+                        </p>
+                        {score.notes && (
+                          <p className="text-xs text-muted-foreground mt-1">{score.notes}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-blue-600">
+                          {score.score}
+                          <span className="text-base text-muted-foreground">
+                            /{score.maxScore}
+                          </span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {Math.round((score.score / score.maxScore) * 100)}%
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* 통계 탭 */}
