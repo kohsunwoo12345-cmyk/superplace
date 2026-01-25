@@ -219,8 +219,11 @@ function AIChatContent() {
   };
 
   const handleBotClick = async (bot: AssignedBot) => {
+    console.log('🤖 봇 클릭됨:', bot.name, bot.botId);
+    
     try {
       // 1. 봇 자동 할당 (이미 할당되어 있으면 스킵)
+      console.log('📡 봇 할당 API 호출 중...');
       const assignResponse = await fetch("/api/bot/auto-assign", {
         method: "POST",
         headers: {
@@ -232,15 +235,20 @@ function AIChatContent() {
         }),
       });
 
+      console.log('📡 봇 할당 응답 상태:', assignResponse.status);
+
       if (!assignResponse.ok) {
-        console.error("봇 할당 실패");
+        const errorData = await assignResponse.json();
+        console.error("❌ 봇 할당 실패:", errorData);
+        alert(`봇 할당 실패: ${errorData.error || '알 수 없는 오류'}`);
         return;
       }
 
       const assignData = await assignResponse.json();
-      console.log(assignData.message);
+      console.log("✅ 봇 할당 성공:", assignData.message);
 
       // 2. 새 채팅 시작 (conversationId 없이 botId만)
+      console.log('🔄 페이지 이동 중...');
       router.push(`/ai-chat?botId=${encodeURIComponent(bot.botId)}`);
       
       // 3. 메시지 초기화 (새 채팅)
@@ -251,8 +259,11 @@ function AIChatContent() {
       
       // 5. 모바일에서 사이드바 닫기
       if (window.innerWidth < 768) setSidebarOpen(false);
+      
+      console.log('✅ 봇 클릭 처리 완료!');
     } catch (error) {
-      console.error("봇 클릭 처리 오류:", error);
+      console.error("❌ 봇 클릭 처리 오류:", error);
+      alert(`오류가 발생했습니다: ${error}`);
     }
   };
 
