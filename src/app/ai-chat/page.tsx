@@ -55,6 +55,7 @@ interface AssignedBot {
   name: string;
   icon: string;
   description: string;
+  isAssigned?: boolean;
 }
 
 function AIChatContent() {
@@ -147,14 +148,24 @@ function AIChatContent() {
 
   const loadConversations = async () => {
     try {
-      const response = await fetch("/api/user/conversations", {
+      // 대화 내역 로드
+      const convResponse = await fetch("/api/user/conversations", {
         credentials: "include",
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (convResponse.ok) {
+        const data = await convResponse.json();
         setConversations(data.conversations || []);
-        setAssignedBots(data.assignedBots || []);
+      }
+
+      // 모든 사용 가능한 봇 로드 (할당 여부 포함)
+      const botsResponse = await fetch("/api/bot/available", {
+        credentials: "include",
+      });
+
+      if (botsResponse.ok) {
+        const botsData = await botsResponse.json();
+        setAssignedBots(botsData.bots || []);
       }
     } catch (error) {
       console.error("대화 목록 로드 오류:", error);
@@ -204,6 +215,44 @@ function AIChatContent() {
       });
     } catch (error) {
       console.error("대화 저장 오류:", error);
+    }
+  };
+
+  const handleBotClick = async (bot: AssignedBot) => {
+    try {
+      // 1. 봇 자동 할당 (이미 할당되어 있으면 스킵)
+      const assignResponse = await fetch("/api/bot/auto-assign", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          botId: bot.botId,
+        }),
+      });
+
+      if (!assignResponse.ok) {
+        console.error("봇 할당 실패");
+        return;
+      }
+
+      const assignData = await assignResponse.json();
+      console.log(assignData.message);
+
+      // 2. 새 채팅 시작 (conversationId 없이 botId만)
+      router.push(`/ai-chat?botId=${encodeURIComponent(bot.botId)}`);
+      
+      // 3. 메시지 초기화 (새 채팅)
+      setMessages([]);
+      
+      // 4. 대화 목록 새로고침
+      await loadConversations();
+      
+      // 5. 모바일에서 사이드바 닫기
+      if (window.innerWidth < 768) setSidebarOpen(false);
+    } catch (error) {
+      console.error("봇 클릭 처리 오류:", error);
     }
   };
 
@@ -416,11 +465,8 @@ function AIChatContent() {
                   {assignedBots.map((bot) => (
                     <button
                       key={bot.botId}
-                      onClick={() => {
-                        router.push(`/ai-chat?botId=${encodeURIComponent(bot.botId)}`);
-                        if (window.innerWidth < 768) setSidebarOpen(false);
-                      }}
-                      className={`w-full text-left px-2 md:px-3 py-2 rounded-lg flex items-center gap-2 md:gap-3 transition-colors ${
+                      onClick={() => handleBotClick(bot)}
+                      className={`w-full text-left px-2 md:px-3 py-2 rounded-lg flex items-center gap-2 md:gap-3 transition-colors relative ${
                         botId === bot.botId
                           ? darkMode ? "bg-blue-900 text-blue-100" : "bg-blue-50 text-blue-900"
                           : darkMode ? "hover:bg-gray-700" : "hover:bg-white"
@@ -428,11 +474,23 @@ function AIChatContent() {
                     >
                       <span className="text-xl md:text-2xl flex-shrink-0">{bot.icon}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm md:text-base font-medium truncate">{bot.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm md:text-base font-medium truncate">{bot.name}</p>
+                          {bot.isAssigned && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                              ✓
+                            </span>
+                          )}
+                        </div>
                         <p className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                           {bot.description}
                         </p>
                       </div>
+                      {!bot.isAssigned && (
+                        <span className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
+                          클릭하여 시작
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
