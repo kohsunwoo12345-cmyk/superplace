@@ -40,6 +40,7 @@ const navigationByRole = {
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
     { name: "사용자 관리", href: "/dashboard/admin/users", icon: Users },
     { name: "학원 관리", href: "/dashboard/academies", icon: Building2 },
+    { name: "학생 관리", href: "/dashboard/students", icon: GraduationCap },
     { name: "요금제 관리", href: "/dashboard/plans", icon: CreditCard },
     { name: "통합 AI 봇 관리", href: "/dashboard/admin/bots-unified", icon: Bot },
     { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
