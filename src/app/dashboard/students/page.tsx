@@ -44,6 +44,7 @@ interface Student {
   phone?: string;
   grade?: string;
   studentId?: string;
+  studentCode?: string; // 학생 코드 추가
   parentPhone?: string;
   approved: boolean;
   aiChatEnabled: boolean;
@@ -425,6 +426,13 @@ export default function StudentsManagementPage() {
                         <div className="flex items-center gap-2">
                           <GraduationCap className="w-4 h-4" />
                           <span>{student.grade}</span>
+                        </div>
+                      )}
+                      {student.studentCode && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-blue-600 font-bold">
+                            🔢 코드: {student.studentCode}
+                          </span>
                         </div>
                       )}
                     </div>

@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         phone: true,
         grade: true,
         studentId: true,
+        studentCode: true, // 학생 코드 추가
         parentPhone: true,
         approved: true,
         points: true,
