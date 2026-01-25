@@ -34,14 +34,85 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          const user = await prisma.user.findUnique({
+          // 1단계: 현재 DB에서 사용자 찾기
+          let user = await prisma.user.findUnique({
             where: { email: credentials.email },
           });
 
+          // 2단계: 현재 DB에 사용자가 없으면 Cloudflare에서 확인
+          if (!user) {
+            console.log(`🔍 현재 DB에 사용자 없음. Cloudflare 확인 중: ${credentials.email}`);
+            
+            try {
+              // Cloudflare 로그인 API 호출
+              const cloudflareResponse = await fetch(
+                `${process.env.CLOUDFLARE_SITE_URL || 'https://superplace-academy.pages.dev'}/api/login`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    email: credentials.email,
+                    password: credentials.password,
+                  }),
+                }
+              );
+
+              if (cloudflareResponse.ok) {
+                const cloudflareData = await cloudflareResponse.json();
+                
+                if (cloudflareData.success && cloudflareData.user) {
+                  console.log(`✅ Cloudflare 인증 성공! 자동 계정 생성 중...`);
+                  
+                  // Cloudflare에서 인증 성공 → 자동으로 현재 DB에 계정 생성
+                  const hashedPassword = await bcrypt.hash(credentials.password, 10);
+                  
+                  user = await prisma.user.create({
+                    data: {
+                      email: credentials.email,
+                      password: hashedPassword,
+                      name: cloudflareData.user.name || credentials.email.split('@')[0],
+                      role: cloudflareData.user.role || 'STUDENT',
+                      phone: cloudflareData.user.phone || null,
+                      grade: cloudflareData.user.grade || null,
+                      parentPhone: cloudflareData.user.parentPhone || null,
+                      approved: true, // Cloudflare 인증된 사용자는 자동 승인
+                      emailVerified: new Date(),
+                    },
+                  });
+                  
+                  console.log(`🎉 Cloudflare 사용자 자동 생성 완료: ${user.email}`);
+                  
+                  // 활동 로그 기록
+                  try {
+                    await prisma.activityLog.create({
+                      data: {
+                        userId: user.id,
+                        sessionId: `cloudflare-auto-${Date.now()}`,
+                        action: 'CLOUDFLARE_AUTO_REGISTER',
+                        description: `Cloudflare 인증으로 자동 가입: ${user.email}`,
+                      },
+                    });
+                  } catch (logError) {
+                    console.error('로그 기록 실패:', logError);
+                  }
+                }
+              } else {
+                console.log(`❌ Cloudflare 인증 실패: ${credentials.email}`);
+              }
+            } catch (cloudflareError) {
+              console.error('Cloudflare 인증 중 오류:', cloudflareError);
+              // Cloudflare 오류는 무시하고 일반 로그인 프로세스 계속
+            }
+          }
+
+          // 3단계: 여전히 사용자가 없으면 로그인 실패
           if (!user || !user.password) {
             return null;
           }
 
+          // 4단계: 비밀번호 검증
           const isPasswordValid = await bcrypt.compare(
             credentials.password,
             user.password
