@@ -62,14 +62,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // Google Gemini API 키 확인
-    if (!process.env.GOOGLE_API_KEY) {
-      console.error('❌ GOOGLE_API_KEY가 설정되지 않았습니다.');
+    // Google Gemini API 키 확인 (GOOGLE_API_KEY 또는 GOOGLE_GEMINI_API_KEY)
+    const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      console.error('❌ GOOGLE_API_KEY 또는 GOOGLE_GEMINI_API_KEY가 설정되지 않았습니다.');
       return NextResponse.json(
         { error: "AI 서비스가 설정되지 않았습니다." },
         { status: 500 }
       );
     }
+    
+    console.log('✅ API Key 발견:', apiKey.substring(0, 10) + '...');
 
     // Gemini API용 메시지 포맷 변환
     const geminiMessages: any[] = [];
@@ -120,7 +124,7 @@ export async function POST(request: Request) {
     });
 
     console.log('🚀 Google Gemini API 호출 시작...');
-    console.log('🔑 API Key 존재:', !!process.env.GOOGLE_API_KEY);
+    console.log('🔑 API Key 존재:', !!apiKey);
     console.log('📨 요청 데이터:', JSON.stringify({
       contents: geminiMessages,
       generationConfig: {
@@ -131,7 +135,7 @@ export async function POST(request: Request) {
 
     // Google Gemini API 호출
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GOOGLE_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: {
