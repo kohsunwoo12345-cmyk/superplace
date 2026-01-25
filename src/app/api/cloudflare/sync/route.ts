@@ -113,14 +113,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 활동 로그 기록
-    await prisma.activityLog.create({
-      data: {
-        userId: null,
-        action: 'CLOUDFLARE_SYNC',
-        description: `Cloudflare 동기화 완료 - 생성: ${results.created.length}, 업데이트: ${results.updated.length}, 실패: ${results.failed.length}`,
-      },
-    });
+    // 활동 로그 기록 (sessionId는 임의 생성)
+    try {
+      await prisma.activityLog.create({
+        data: {
+          userId: null,
+          sessionId: `cloudflare-sync-${Date.now()}`,
+          action: 'CLOUDFLARE_SYNC',
+          description: `Cloudflare 동기화 완료 - 생성: ${results.created.length}, 업데이트: ${results.updated.length}, 실패: ${results.failed.length}`,
+        },
+      });
+    } catch (logError) {
+      console.error('활동 로그 기록 실패:', logError);
+      // 로그 실패는 무시하고 계속 진행
+    }
 
     return NextResponse.json({
       success: true,
