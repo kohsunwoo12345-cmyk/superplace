@@ -34,6 +34,7 @@ model Academy {
   subscriptions   Subscription[]
   aiUsages        AIUsage[]
   payments        Payment[]
+  homeworkSubmissions HomeworkSubmission[] // 학원 내 숙제 제출
   
   @@index([subscriptionPlan])
   @@index([code])
@@ -92,6 +93,7 @@ model User {
   grade         String?   // 학년 (학생용: 초1~고3)
   class         String?   // 반 (학생용) - deprecated, StudentClass 사용
   studentId     String?   @unique // 학번 (학생용)
+  studentCode   String?   @unique // 학생 5자리 코드 (로그인용)
   parentPhone   String?   // 학부모 연락처 (학생용)
   points        Int       @default(0) // 포인트
   aiChatEnabled     Boolean @default(false) // AI 채팅 도우미
@@ -115,6 +117,7 @@ model User {
   // 학생 관련 데이터
   learningProgress  LearningProgress[]
   assignments       Assignment[]
+  homeworkSubmissions HomeworkSubmission[] // 숙제 제출 내역
   testScores        TestScore[]
   attendances       Attendance[]
   enrolledClasses   StudentClass[]  // 수강 중인 수업
@@ -253,6 +256,32 @@ model Assignment {
   
   @@index([userId, status])
   @@index([dueDate])
+}
+
+// 숙제 제출 (Homework Submission)
+model HomeworkSubmission {
+  id            String      @id @default(cuid())
+  userId        String      // 제출한 학생
+  academyId     String      // 소속 학원
+  imageUrl      String      // 숙제 사진 URL
+  aiAnalysis    String?     @db.Text // AI 분석 결과
+  aiFeedback    String?     @db.Text // AI 피드백
+  completeness  Int?        // 완성도 점수 (0-100)
+  accuracy      Int?        // 정확도 점수 (0-100)
+  effort        Int?        // 노력도 점수 (0-100)
+  overallScore  Int?        // 종합 점수 (0-100)
+  attendanceMarked Boolean  @default(false) // 출석 인정 여부
+  submittedAt   DateTime    @default(now())
+  analyzedAt    DateTime?   // AI 분석 완료 시간
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  academy       Academy     @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, submittedAt])
+  @@index([academyId, submittedAt])
+  @@index([attendanceMarked])
 }
 
 // 시험 점수 관리
