@@ -24,11 +24,16 @@ export async function GET(request: Request) {
     const allBots = await prisma.aIBot.findMany({
       select: {
         id: true,
+        botId: true,
         name: true,
+        nameEn: true,
         description: true,
+        icon: true,
         systemPrompt: true,
-        imageEnabled: true,
-        voiceEnabled: true,
+        enableImageInput: true,
+        enableVoiceOutput: true,
+        enableVoiceInput: true,
+        isActive: true,
         createdAt: true,
       },
       orderBy: {
@@ -106,11 +111,16 @@ export async function GET(request: Request) {
         session: sessionInfo,
         allBots: allBots.map(bot => ({
           id: bot.id,
+          botId: bot.botId,
           name: bot.name,
+          nameEn: bot.nameEn,
+          icon: bot.icon,
           description: bot.description,
+          isActive: bot.isActive,
           features: {
-            image: bot.imageEnabled,
-            voice: bot.voiceEnabled,
+            imageInput: bot.enableImageInput,
+            voiceOutput: bot.enableVoiceOutput,
+            voiceInput: bot.enableVoiceInput,
             systemPrompt: !!bot.systemPrompt,
           },
           createdAt: bot.createdAt,
