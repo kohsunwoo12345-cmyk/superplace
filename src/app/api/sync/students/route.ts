@@ -66,6 +66,43 @@ export async function POST(request: NextRequest) {
     // 비밀번호 해시
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // 학생 코드 생성 (5자리: 영문 대문자 2자리 + 숫자 3자리)
+    const generateStudentCode = async (): Promise<string> => {
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const numbers = '0123456789';
+      
+      let code: string;
+      let attempts = 0;
+      const maxAttempts = 100;
+      
+      do {
+        code = '';
+        // 앞 2자리: 영문 대문자
+        for (let i = 0; i < 2; i++) {
+          code += letters.charAt(Math.floor(Math.random() * letters.length));
+        }
+        // 뒤 3자리: 숫자
+        for (let i = 0; i < 3; i++) {
+          code += numbers.charAt(Math.floor(Math.random() * numbers.length));
+        }
+        
+        attempts++;
+        if (attempts >= maxAttempts) {
+          throw new Error('고유한 학생 코드 생성 실패');
+        }
+        
+        const existing = await prisma.user.findUnique({
+          where: { studentCode: code }
+        });
+        
+        if (!existing) {
+          return code;
+        }
+      } while (true);
+    };
+
+    const studentCode = await generateStudentCode();
+
     // 학생 데이터 준비
     const studentData = {
       email,
@@ -73,6 +110,7 @@ export async function POST(request: NextRequest) {
       password: hashedPassword,
       grade: grade || null,
       studentId: studentId || null,
+      studentCode, // 학생 코드 추가
       phone: phone || null,
       parentPhone: parentPhone || null,
       academyId: targetAcademyId,
@@ -101,6 +139,7 @@ export async function POST(request: NextRequest) {
         name: true,
         grade: true,
         studentId: true,
+        studentCode: true, // 학생 코드 추가
         phone: true,
         parentPhone: true,
         academyId: true,
@@ -166,6 +205,7 @@ export async function GET(request: NextRequest) {
         name: true,
         grade: true,
         studentId: true,
+        studentCode: true, // 학생 코드 추가
         phone: true,
         parentPhone: true,
         approved: true,
