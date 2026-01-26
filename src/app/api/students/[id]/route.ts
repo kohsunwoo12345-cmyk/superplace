@@ -9,10 +9,15 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('🔍 [API] 학생 상세 조회 시작:', params.id);
+    
     const session = await getServerSession(authOptions);
     if (!session?.user) {
+      console.log('❌ [API] 인증 실패');
       return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
     }
+    
+    console.log('✅ [API] 인증 성공:', session.user.email, session.user.role);
 
     const currentUser = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -20,8 +25,11 @@ export async function GET(
     });
 
     if (!currentUser) {
+      console.log('❌ [API] 사용자를 찾을 수 없음:', session.user.id);
       return NextResponse.json({ error: '사용자를 찾을 수 없습니다.' }, { status: 404 });
     }
+    
+    console.log('✅ [API] 사용자 정보:', currentUser.role, currentUser.academyId);
 
     // 권한 체크: SUPER_ADMIN, DIRECTOR, TEACHER만 접근 가능
     if (
@@ -36,8 +44,10 @@ export async function GET(
     }
 
     const studentId = params.id;
+    console.log('🎯 [API] 조회할 학생 ID:', studentId);
 
     // 학생 기본 정보 조회
+    console.log('📋 [API] 1단계: 학생 기본 정보 조회 시작...');
     const student = await prisma.user.findUnique({
       where: { id: studentId },
       select: {
@@ -58,8 +68,11 @@ export async function GET(
     });
 
     if (!student) {
+      console.log('❌ [API] 학생을 찾을 수 없음:', studentId);
       return NextResponse.json({ error: '학생을 찾을 수 없습니다.' }, { status: 404 });
     }
+    
+    console.log('✅ [API] 학생 정보:', student.name, student.email, 'academyId:', student.academyId);
 
     // SUPER_ADMIN이 아닌 경우 같은 학원인지 체크
     if (currentUser.role !== 'SUPER_ADMIN' && student.academyId !== currentUser.academyId) {
@@ -70,6 +83,7 @@ export async function GET(
     }
 
     // 학생의 봇 대화 기록 조회 (최근 50개, 한국 시간으로 변환)
+    console.log('📋 [API] 2단계: 봇 대화 기록 조회 시작...');
     const conversations = await prisma.botConversation.findMany({
       where: {
         userId: studentId,
@@ -90,8 +104,10 @@ export async function GET(
       },
       take: 50,
     });
+    console.log(`✅ [API] 대화 기록: ${conversations.length}개`);
 
     // 학생의 할당된 봇 목록
+    console.log('📋 [API] 3단계: 할당된 봇 목록 조회...');
     const assignedBots = await prisma.botAssignment.findMany({
       where: {
         userId: studentId,
@@ -102,8 +118,10 @@ export async function GET(
         createdAt: true,
       },
     });
+    console.log(`✅ [API] 할당된 봇: ${assignedBots.length}개`);
 
     // 학생의 AI 사용 통계
+    console.log('📋 [API] 4단계: AI 사용 통계 조회...');
     const aiUsageStats = await prisma.botConversation.groupBy({
       by: ['botId'],
       where: {
@@ -117,8 +135,10 @@ export async function GET(
         sessionDuration: true,
       },
     });
+    console.log(`✅ [API] AI 사용 통계: ${aiUsageStats.length}개 봇`);
 
     // 대화 분석 결과 조회
+    console.log('📋 [API] 5단계: 대화 분석 결과 조회...');
     const analyses = await prisma.conversationAnalysis.findMany({
       where: {
         userId: studentId,
@@ -142,8 +162,10 @@ export async function GET(
       },
       take: 10,
     });
+    console.log(`✅ [API] 대화 분석: ${analyses.length}개`);
 
     // 출결 정보 조회
+    console.log('📋 [API] 6단계: 출결 정보 조회... (userId 사용)');
     const attendances = await prisma.attendance.findMany({
       where: {
         userId: studentId,
@@ -160,8 +182,10 @@ export async function GET(
       },
       take: 30, // 최근 30일
     });
+    console.log(`✅ [API] 출결 정보: ${attendances.length}개`);
 
     // 출결 통계 계산
+    console.log('📋 [API] 7단계: 출결 통계 계산...');
     const attendanceStats = {
       total: attendances.length,
       present: attendances.filter(a => a.status === 'PRESENT').length,
@@ -169,8 +193,10 @@ export async function GET(
       late: attendances.filter(a => a.status === 'LATE').length,
       excused: attendances.filter(a => a.status === 'EXCUSED').length,
     };
+    console.log('✅ [API] 출결 통계:', attendanceStats);
 
     // 학습 기록 조회 (숙제 제출)
+    console.log('📋 [API] 8단계: 숙제 제출 조회... (userId 사용)');
     const homeworkSubmissions = await prisma.homeworkSubmission.findMany({
       where: {
         userId: studentId,
@@ -187,8 +213,10 @@ export async function GET(
       },
       take: 20,
     });
+    console.log(`✅ [API] 숙제 제출: ${homeworkSubmissions.length}개`);
 
     // 성적 정보 조회
+    console.log('📋 [API] 9단계: 성적 정보 조회... (userId 사용)');
     const testScores = await prisma.testScore.findMany({
       where: {
         userId: studentId,
@@ -206,15 +234,19 @@ export async function GET(
       },
       take: 10,
     });
+    console.log(`✅ [API] 성적 정보: ${testScores.length}개`);
 
     // AI 기반 학습 특성 분석
+    console.log('📋 [API] 10단계: AI 학습 특성 분석...');
     const learningCharacteristics = await analyzeLearningCharacteristics(
       conversations,
       analyses,
       attendances,
       homeworkSubmissions
     );
+    console.log('✅ [API] 학습 특성 분석 완료');
 
+    console.log('🎉 [API] 모든 단계 완료! 응답 반환...');
     return NextResponse.json({
       success: true,
       student: {
