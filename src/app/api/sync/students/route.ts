@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { syncStudent, logSync } from '@/lib/sync-utils';
+import { triggerStudentSync } from '@/lib/auto-sync';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
@@ -138,6 +139,13 @@ export async function POST(request: NextRequest) {
         createdAt: true,
       },
     });
+
+    // 🔄 자동 동기화 트리거 (백그라운드)
+    if (targetAcademyId) {
+      triggerStudentSync(targetAcademyId, session.user.id).catch(err => {
+        console.error('자동 동기화 트리거 실패:', err);
+      });
+    }
 
     return NextResponse.json({
       success: true,

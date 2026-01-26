@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
 import { ActivityType, ResourceType } from "./activity-logger";
+import { syncOnLogin } from "./auto-sync";
 
 // 환경 변수 검증
 if (!process.env.NEXTAUTH_SECRET) {
