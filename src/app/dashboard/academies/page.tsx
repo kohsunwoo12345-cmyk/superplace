@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -128,7 +129,7 @@ export default function AcademiesPage() {
   };
 
   const handleViewDetails = (academyId: string) => {
-    alert(`학원 상세보기: ${academyId} - 추후 구현 예정`);
+    router.push(`/dashboard/academies/${academyId}`);
   };
 
   const handleEditAcademy = (academyId: string) => {
