@@ -47,6 +47,11 @@ export default function HomeworkCheckPage() {
         localStorage.setItem('student_token', data.token);
       }
       
+      // 출석 체크 메시지 표시
+      if (data.attendanceMarked) {
+        console.log('✅ 출석이 자동으로 체크되었습니다!');
+      }
+      
       setStep("upload");
     } catch (err) {
       setError("로그인 중 오류가 발생했습니다.");

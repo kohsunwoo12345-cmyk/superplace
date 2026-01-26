@@ -55,6 +55,38 @@ export async function POST(req: NextRequest) {
       data: { lastLoginAt: new Date() },
     });
 
+    // 오늘 출석 체크
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    let attendanceMarked = false;
+    const existingAttendance = await prisma.attendance.findFirst({
+      where: {
+        userId: user.id,
+        date: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+
+    if (!existingAttendance) {
+      await prisma.attendance.create({
+        data: {
+          userId: user.id,
+          date: new Date(),
+          status: "PRESENT",
+          notes: "학생 코드 로그인으로 자동 출석",
+        },
+      });
+      attendanceMarked = true;
+      console.log(`✅ 출석 체크 완료: ${user.name} (${studentCode})`);
+    } else {
+      console.log(`ℹ️ 이미 출석 처리됨: ${user.name} (${studentCode})`);
+    }
+
     // JWT 토큰 생성 (NextAuth와 호환)
     const secret = new TextEncoder().encode(
       process.env.NEXTAUTH_SECRET || "your-secret-key"
@@ -83,6 +115,7 @@ export async function POST(req: NextRequest) {
         academy: user.academy,
       },
       token,
+      attendanceMarked, // 출석 체크 여부 추가
     });
   } catch (error) {
     console.error("학생 코드 로그인 오류:", error);
