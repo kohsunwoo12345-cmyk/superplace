@@ -30,6 +30,7 @@ import {
   X,
   Activity,
   DollarSign,
+  Cloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -44,6 +45,7 @@ const navigationByRole = {
     { name: "반 배정", href: "/dashboard/classes", icon: GraduationCap },
     { name: "학습 기록", href: "/dashboard/learning-records", icon: BookOpen },
     { name: "출석 현황", href: "/dashboard/attendance", icon: Calendar },
+    { name: "Cloudflare 동기화", href: "/dashboard/sync", icon: Cloud },
     { name: "요금제 관리", href: "/dashboard/plans", icon: CreditCard },
     { name: "통합 AI 봇 관리", href: "/dashboard/admin/bots-unified", icon: Bot },
     { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
