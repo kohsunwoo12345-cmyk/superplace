@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,107 +21,61 @@ import {
   Trash2,
   CheckCircle,
   XCircle,
+  Loader2,
 } from "lucide-react";
 
 // 학원 타입 정의
 type Academy = {
   id: string;
   name: string;
-  description: string;
-  address: string;
-  phone: string;
-  email: string;
+  code: string;
+  description: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
   director: string;
+  directorEmail: string;
   studentCount: number;
   teacherCount: number;
-  plan: string;
-  status: "active" | "inactive" | "pending";
+  subscriptionPlan: string;
+  status: "active" | "inactive";
   createdAt: string;
+  maxStudents: number;
+  maxTeachers: number;
 };
 
-// 샘플 학원 데이터
-const sampleAcademies: Academy[] = [
-  {
-    id: "1",
-    name: "서울수학학원",
-    description: "중고등 수학 전문 학원",
-    address: "서울특별시 강남구 테헤란로 123",
-    phone: "02-1234-5678",
-    email: "contact@seoulmath.com",
-    director: "김학원",
-    studentCount: 145,
-    teacherCount: 12,
-    plan: "엔터프라이즈",
-    status: "active",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    name: "강남영어타운",
-    description: "초중고 영어 전문 학원",
-    address: "서울특별시 강남구 논현로 456",
-    phone: "02-2345-6789",
-    email: "info@gangnameng.com",
-    director: "이영어",
-    studentCount: 132,
-    teacherCount: 10,
-    plan: "프로",
-    status: "active",
-    createdAt: "2024-02-20",
-  },
-  {
-    id: "3",
-    name: "부산과학학원",
-    description: "중고등 과학 전문 학원",
-    address: "부산광역시 해운대구 센텀로 789",
-    phone: "051-3456-7890",
-    email: "contact@busanscience.com",
-    director: "박과학",
-    studentCount: 128,
-    teacherCount: 11,
-    plan: "프로",
-    status: "active",
-    createdAt: "2024-03-10",
-  },
-  {
-    id: "4",
-    name: "대구종합학원",
-    description: "전과목 종합 학원",
-    address: "대구광역시 수성구 동대구로 321",
-    phone: "053-4567-8901",
-    email: "admin@daegutotal.com",
-    director: "최종합",
-    studentCount: 115,
-    teacherCount: 9,
-    plan: "베이직",
-    status: "pending",
-    createdAt: "2024-06-01",
-  },
-  {
-    id: "5",
-    name: "인천글로벌학원",
-    description: "외국어 전문 학원",
-    address: "인천광역시 연수구 송도대로 654",
-    phone: "032-5678-9012",
-    email: "hello@incheonglobal.com",
-    director: "정글로벌",
-    studentCount: 108,
-    teacherCount: 8,
-    plan: "베이직",
-    status: "active",
-    createdAt: "2024-05-15",
-  },
-];
-
 export default function AcademiesPage() {
-  const [academies, setAcademies] = useState<Academy[]>(sampleAcademies);
+  const router = useRouter();
+  const [academies, setAcademies] = useState<Academy[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const filteredAcademies = academies.filter(
-    (academy) =>
-      academy.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      academy.director.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      academy.address.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    loadAcademies();
+  }, []);
+
+  const loadAcademies = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/academies');
+      
+      if (!res.ok) {
+        throw new Error('학원 목록을 불러올 수 없습니다.');
+      }
+
+      const data = await res.json();
+      setAcademies(data.academies);
+    } catch (error) {
+      console.error('학원 목록 로딩 오류:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredAcademies = academies.filter((academy) =>
+    Object.values(academy).some((value) =>
+      String(value).toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
 
   const handleCreateAcademy = () => {
@@ -146,7 +100,7 @@ export default function AcademiesPage() {
     switch (status) {
       case "active":
         return (
-          <Badge className="bg-green-500">
+          <Badge variant="default" className="bg-green-500">
             <CheckCircle className="mr-1 h-3 w-3" />
             활성
           </Badge>
@@ -158,27 +112,32 @@ export default function AcademiesPage() {
             비활성
           </Badge>
         );
-      case "pending":
-        return (
-          <Badge variant="outline" className="border-orange-500 text-orange-500">
-            <Calendar className="mr-1 h-3 w-3" />
-            승인 대기
-          </Badge>
-        );
     }
   };
 
   const getPlanBadge = (plan: string) => {
     const colors: Record<string, string> = {
-      베이직: "bg-blue-500",
-      프로: "bg-purple-500",
-      엔터프라이즈: "bg-indigo-500",
+      FREE: "bg-gray-500",
+      BASIC: "bg-blue-500",
+      PRO: "bg-purple-500",
+      ENTERPRISE: "bg-amber-500",
     };
     return <Badge className={colors[plan] || "bg-gray-500"}>{plan}</Badge>;
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+          <p className="mt-4 text-gray-500">학원 목록을 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
   const activeCount = academies.filter((a) => a.status === "active").length;
-  const pendingCount = academies.filter((a) => a.status === "pending").length;
+  const inactiveCount = academies.filter((a) => a.status === "inactive").length;
   const totalStudents = academies.reduce((sum, a) => sum + a.studentCount, 0);
   const totalTeachers = academies.reduce((sum, a) => sum + a.teacherCount, 0);
 
@@ -198,53 +157,59 @@ export default function AcademiesPage() {
         </Button>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">총 학원 수</CardTitle>
+            <CardTitle className="text-sm font-medium">전체 학원</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{academies.length}</div>
             <p className="text-xs text-muted-foreground">
-              활성: {activeCount} · 대기: {pendingCount}
+              활성 {activeCount} / 비활성 {inactiveCount}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">총 학생 수</CardTitle>
+            <CardTitle className="text-sm font-medium">총 학생</CardTitle>
             <GraduationCap className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalStudents}</div>
-            <p className="text-xs text-muted-foreground">모든 학원 합계</p>
+            <p className="text-xs text-muted-foreground">
+              모든 학원의 학생 수
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">총 선생님 수</CardTitle>
+            <CardTitle className="text-sm font-medium">총 선생님</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalTeachers}</div>
-            <p className="text-xs text-muted-foreground">모든 학원 합계</p>
+            <p className="text-xs text-muted-foreground">
+              모든 학원의 선생님 수
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">평균 학생/학원</CardTitle>
+            <CardTitle className="text-sm font-medium">평균 학생 수</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(totalStudents / academies.length)}
+              {academies.length > 0
+                ? Math.round(totalStudents / academies.length)
+                : 0}
             </div>
-            <p className="text-xs text-muted-foreground">학생 평균</p>
+            <p className="text-xs text-muted-foreground">학원당 평균</p>
           </CardContent>
         </Card>
       </div>
@@ -275,7 +240,11 @@ export default function AcademiesPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <Building2 className="mx-auto h-12 w-12 text-gray-400" />
-              <p className="mt-4 text-gray-500">검색 결과가 없습니다.</p>
+              <p className="mt-4 text-gray-500">
+                {academies.length === 0
+                  ? "등록된 학원이 없습니다."
+                  : "검색 결과가 없습니다."}
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -287,11 +256,14 @@ export default function AcademiesPage() {
                     <div className="flex items-center gap-3 mb-2">
                       <CardTitle className="text-xl">{academy.name}</CardTitle>
                       {getStatusBadge(academy.status)}
-                      {getPlanBadge(academy.plan)}
+                      {getPlanBadge(academy.subscriptionPlan)}
                     </div>
                     <CardDescription className="text-base">
-                      {academy.description}
+                      {academy.description || '설명 없음'}
                     </CardDescription>
+                    <p className="text-sm text-gray-500 mt-1">
+                      학원 코드: {academy.code}
+                    </p>
                   </div>
                 </div>
               </CardHeader>
@@ -302,15 +274,15 @@ export default function AcademiesPage() {
                   <div className="space-y-3">
                     <div className="flex items-start gap-2">
                       <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">{academy.address}</span>
+                      <span className="text-sm">{academy.address || '주소 없음'}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      <span className="text-sm">{academy.phone}</span>
+                      <span className="text-sm">{academy.phone || '전화번호 없음'}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      <span className="text-sm">{academy.email}</span>
+                      <span className="text-sm">{academy.email || '이메일 없음'}</span>
                     </div>
                   </div>
 
@@ -322,13 +294,13 @@ export default function AcademiesPage() {
                     <div className="flex items-center gap-2">
                       <GraduationCap className="h-4 w-4 text-gray-400 flex-shrink-0" />
                       <span className="text-sm">
-                        학생: {academy.studentCount}명
+                        학생: {academy.studentCount}명 / 최대 {academy.maxStudents}명
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
                       <span className="text-sm">
-                        선생님: {academy.teacherCount}명
+                        선생님: {academy.teacherCount}명 / 최대 {academy.maxTeachers}명
                       </span>
                     </div>
                   </div>
@@ -338,7 +310,7 @@ export default function AcademiesPage() {
                 <div className="pt-4 border-t flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <Calendar className="h-4 w-4" />
-                    <span>가입일: {academy.createdAt}</span>
+                    <span>가입일: {new Date(academy.createdAt).toLocaleDateString('ko-KR')}</span>
                   </div>
                   
                   {/* Actions */}
@@ -364,7 +336,8 @@ export default function AcademiesPage() {
                       size="sm"
                       onClick={() => handleDeleteAcademy(academy.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      삭제
                     </Button>
                   </div>
                 </div>
