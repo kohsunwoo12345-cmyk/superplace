@@ -124,7 +124,12 @@ export default function SyncManagementPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "동기화 실패" }));
-        throw new Error(errorData.error || "동기화 실패");
+        console.error("동기화 API 오류:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+        });
+        throw new Error(errorData.details || errorData.error || "동기화 실패");
       }
 
       const data = await response.json();

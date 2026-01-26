@@ -112,10 +112,20 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('학원 동기화 API 오류:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    
+    console.error('상세 오류 정보:', {
+      message: errorMessage,
+      stack: errorStack,
+      error: error,
+    });
+    
     return NextResponse.json(
       {
         error: '동기화 중 오류가 발생했습니다',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined,
       },
       { status: 500 }
     );
@@ -185,13 +195,29 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           name: true,
-          _count: {
-            select: {
-              students: true,
-              teachers: true,
-              classes: true,
-            },
-          },
+        },
+      });
+
+      // 학생 수 카운트
+      const studentsCount = await prisma.user.count({
+        where: {
+          academyId: academyId,
+          role: 'STUDENT',
+        },
+      });
+
+      // 선생님 수 카운트
+      const teachersCount = await prisma.user.count({
+        where: {
+          academyId: academyId,
+          role: 'TEACHER',
+        },
+      });
+
+      // 반 수 카운트
+      const classesCount = await prisma.class.count({
+        where: {
+          academyId: academyId,
         },
       });
 
@@ -201,9 +227,9 @@ export async function GET(request: NextRequest) {
           name: academy?.name,
         },
         counts: {
-          students: academy?._count.students || 0,
-          teachers: academy?._count.teachers || 0,
-          classes: academy?._count.classes || 0,
+          students: studentsCount,
+          teachers: teachersCount,
+          classes: classesCount,
         },
       };
     }
@@ -215,10 +241,20 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('동기화 상태 조회 오류:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    
+    console.error('상세 오류 정보:', {
+      message: errorMessage,
+      stack: errorStack,
+      error: error,
+    });
+    
     return NextResponse.json(
       {
         error: '조회 중 오류가 발생했습니다',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined,
       },
       { status: 500 }
     );
