@@ -253,10 +253,16 @@ export async function GET(
       })),
       learningCharacteristics,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('학생 정보 조회 오류:', error);
+    console.error('Error stack:', error?.stack);
+    console.error('Error message:', error?.message);
     return NextResponse.json(
-      { error: '학생 정보 조회 중 오류가 발생했습니다.' },
+      { 
+        error: '학생 정보 조회 중 오류가 발생했습니다.',
+        details: error?.message || '알 수 없는 오류',
+        stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      },
       { status: 500 }
     );
   }
@@ -269,109 +275,179 @@ async function analyzeLearningCharacteristics(
   attendances: any[],
   homeworkSubmissions: any[]
 ) {
-  const characteristics: any = {
-    studySpeed: '',
-    attitude: '',
-    personality: '',
-    strengths: [] as string[],
-    weaknesses: [] as string[],
-    recommendations: [] as string[],
-  };
+  try {
+    console.log('🔍 analyzeLearningCharacteristics 시작');
+    console.log('Conversations:', conversations?.length || 0);
+    console.log('Analyses:', analyses?.length || 0);
+    console.log('Attendances:', attendances?.length || 0);
+    console.log('HomeworkSubmissions:', homeworkSubmissions?.length || 0);
 
-  // 1. 공부 속도 분석
-  if (conversations.length > 0) {
-    const avgMessageCount = conversations.reduce((sum, c) => sum + c.messageCount, 0) / conversations.length;
-    const avgDuration = conversations.reduce((sum, c) => sum + (c.sessionDuration || 0), 0) / conversations.length;
-    
-    if (avgMessageCount > 20 && avgDuration < 600) {
-      characteristics.studySpeed = '빠름 - 집중력이 높고 질문에 신속하게 응답합니다';
-    } else if (avgMessageCount > 10 && avgDuration > 1200) {
-      characteristics.studySpeed = '신중함 - 충분히 생각하고 답변하는 스타일입니다';
-    } else if (avgMessageCount < 10) {
-      characteristics.studySpeed = '느림 - 더 많은 시간과 설명이 필요합니다';
-    } else {
-      characteristics.studySpeed = '보통 - 적절한 페이스로 학습합니다';
+    const characteristics: any = {
+      studySpeed: '데이터 부족',
+      attitude: '데이터 부족',
+      personality: '데이터 부족',
+      strengths: [] as string[],
+      weaknesses: [] as string[],
+      recommendations: [] as string[],
+    };
+
+    // 1. 공부 속도 분석
+    if (conversations && conversations.length > 0) {
+      try {
+        const avgMessageCount = conversations.reduce((sum, c) => sum + (c.messageCount || 0), 0) / conversations.length;
+        const avgDuration = conversations.reduce((sum, c) => sum + (c.sessionDuration || 0), 0) / conversations.length;
+        
+        if (avgMessageCount > 20 && avgDuration < 600) {
+          characteristics.studySpeed = '빠름 - 집중력이 높고 질문에 신속하게 응답합니다';
+        } else if (avgMessageCount > 10 && avgDuration > 1200) {
+          characteristics.studySpeed = '신중함 - 충분히 생각하고 답변하는 스타일입니다';
+        } else if (avgMessageCount < 10) {
+          characteristics.studySpeed = '느림 - 더 많은 시간과 설명이 필요합니다';
+        } else {
+          characteristics.studySpeed = '보통 - 적절한 페이스로 학습합니다';
+        }
+      } catch (error) {
+        console.error('공부 속도 분석 오류:', error);
+        characteristics.studySpeed = '분석 오류';
+      }
     }
-  }
 
-  // 2. 학습 태도 분석
-  const recentAttendanceRate = attendances.length > 0
-    ? (attendances.filter(a => a.status === 'PRESENT').length / attendances.length) * 100
-    : 0;
+    // 2. 학습 태도 분석
+    try {
+      const recentAttendanceRate = attendances && attendances.length > 0
+        ? (attendances.filter(a => a.status === 'PRESENT').length / attendances.length) * 100
+        : 0;
 
-  if (recentAttendanceRate >= 90) {
-    characteristics.attitude = '매우 성실함 - 꾸준히 출석하고 학습에 임합니다';
-  } else if (recentAttendanceRate >= 70) {
-    characteristics.attitude = '성실함 - 대체로 규칙적으로 학습합니다';
-  } else if (recentAttendanceRate >= 50) {
-    characteristics.attitude = '보통 - 출석률 개선이 필요합니다';
-  } else {
-    characteristics.attitude = '개선 필요 - 학습 규칙성을 높여야 합니다';
-  }
-
-  // 3. 성향 분석
-  if (analyses.length > 0) {
-    const avgEngagement = analyses.reduce((sum, a) => sum + a.engagementScore, 0) / analyses.length;
-    const avgQuality = analyses.reduce((sum, a) => sum + a.responseQuality, 0) / analyses.length;
-    
-    if (avgEngagement > 7 && avgQuality > 7) {
-      characteristics.personality = '적극적이고 탐구적 - 질문을 많이 하고 깊이 있게 학습합니다';
-    } else if (avgEngagement > 5 && avgQuality > 5) {
-      characteristics.personality = '안정적 - 주어진 학습을 성실히 수행합니다';
-    } else if (avgEngagement < 5) {
-      characteristics.personality = '소극적 - 학습 동기 부여가 필요합니다';
-    } else {
-      characteristics.personality = '발전 중 - 학습 방법을 찾아가는 단계입니다';
+      if (recentAttendanceRate >= 90) {
+        characteristics.attitude = '매우 성실함 - 꾸준히 출석하고 학습에 임합니다';
+      } else if (recentAttendanceRate >= 70) {
+        characteristics.attitude = '성실함 - 대체로 규칙적으로 학습합니다';
+      } else if (recentAttendanceRate >= 50) {
+        characteristics.attitude = '보통 - 출석률 개선이 필요합니다';
+      } else if (attendances && attendances.length > 0) {
+        characteristics.attitude = '개선 필요 - 학습 규칙성을 높여야 합니다';
+      }
+    } catch (error) {
+      console.error('학습 태도 분석 오류:', error);
+      characteristics.attitude = '분석 오류';
     }
-  }
 
-  // 4. 강점/약점 분석
-  if (analyses.length > 0) {
-    const allStrengths = analyses.flatMap(a => a.strengths);
-    const allWeaknesses = analyses.flatMap(a => a.weaknesses);
-    
-    // 중복 제거 및 빈도수 계산
-    const strengthCounts: Record<string, number> = {};
-    allStrengths.forEach(s => {
-      strengthCounts[s] = (strengthCounts[s] || 0) + 1;
-    });
-    
-    const weaknessCounts: Record<string, number> = {};
-    allWeaknesses.forEach(w => {
-      weaknessCounts[w] = (weaknessCounts[w] || 0) + 1;
-    });
-    
-    // 상위 3개만 추출
-    characteristics.strengths = Object.entries(strengthCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
-      .map(([strength]) => strength);
-    
-    characteristics.weaknesses = Object.entries(weaknessCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
-      .map(([weakness]) => weakness);
-  }
-
-  // 5. 추천 사항
-  if (recentAttendanceRate < 80) {
-    characteristics.recommendations.push('규칙적인 출석을 위한 학습 일정 관리가 필요합니다');
-  }
-  
-  if (homeworkSubmissions.length < 5) {
-    characteristics.recommendations.push('숙제 제출 횟수를 늘려 학습 습관을 기르세요');
-  }
-  
-  if (conversations.length < 10) {
-    characteristics.recommendations.push('AI 봇과의 대화를 통해 더 많은 학습 기회를 가지세요');
-  }
-  
-  if (analyses.length > 0) {
-    const avgEngagement = analyses.reduce((sum, a) => sum + a.engagementScore, 0) / analyses.length;
-    if (avgEngagement < 5) {
-      characteristics.recommendations.push('학습 동기 부여를 위한 흥미로운 주제나 활동을 제공하세요');
+    // 3. 성향 분석
+    if (analyses && analyses.length > 0) {
+      try {
+        const avgEngagement = analyses.reduce((sum, a) => sum + (a.engagementScore || 0), 0) / analyses.length;
+        const avgQuality = analyses.reduce((sum, a) => sum + (a.responseQuality || 0), 0) / analyses.length;
+        
+        if (avgEngagement > 7 && avgQuality > 7) {
+          characteristics.personality = '적극적이고 탐구적 - 질문을 많이 하고 깊이 있게 학습합니다';
+        } else if (avgEngagement > 5 && avgQuality > 5) {
+          characteristics.personality = '안정적 - 주어진 학습을 성실히 수행합니다';
+        } else if (avgEngagement < 5) {
+          characteristics.personality = '소극적 - 학습 동기 부여가 필요합니다';
+        } else {
+          characteristics.personality = '발전 중 - 학습 방법을 찾아가는 단계입니다';
+        }
+      } catch (error) {
+        console.error('성향 분석 오류:', error);
+        characteristics.personality = '분석 오류';
+      }
     }
-  }
 
-  return characteristics;
+    // 4. 강점/약점 분석
+    if (analyses && analyses.length > 0) {
+      try {
+        console.log('분석 데이터 샘플:', analyses[0]);
+        
+        // 안전하게 배열 처리
+        const allStrengths: string[] = [];
+        const allWeaknesses: string[] = [];
+        
+        analyses.forEach(a => {
+          if (a.strengths && Array.isArray(a.strengths)) {
+            allStrengths.push(...a.strengths.filter(s => typeof s === 'string' && s.trim().length > 0));
+          }
+          if (a.weaknesses && Array.isArray(a.weaknesses)) {
+            allWeaknesses.push(...a.weaknesses.filter(w => typeof w === 'string' && w.trim().length > 0));
+          }
+        });
+        
+        console.log('All strengths:', allStrengths);
+        console.log('All weaknesses:', allWeaknesses);
+        
+        // 중복 제거 및 빈도수 계산
+        const strengthCounts: Record<string, number> = {};
+        allStrengths.forEach(s => {
+          strengthCounts[s] = (strengthCounts[s] || 0) + 1;
+        });
+        
+        const weaknessCounts: Record<string, number> = {};
+        allWeaknesses.forEach(w => {
+          weaknessCounts[w] = (weaknessCounts[w] || 0) + 1;
+        });
+        
+        // 상위 3개만 추출
+        characteristics.strengths = Object.entries(strengthCounts)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 3)
+          .map(([strength]) => strength);
+        
+        characteristics.weaknesses = Object.entries(weaknessCounts)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 3)
+          .map(([weakness]) => weakness);
+
+        console.log('최종 strengths:', characteristics.strengths);
+        console.log('최종 weaknesses:', characteristics.weaknesses);
+      } catch (error) {
+        console.error('강점/약점 분석 오류:', error);
+      }
+    }
+
+    // 5. 추천 사항
+    try {
+      const recentAttendanceRate = attendances && attendances.length > 0
+        ? (attendances.filter(a => a.status === 'PRESENT').length / attendances.length) * 100
+        : 0;
+
+      if (recentAttendanceRate < 80 && attendances && attendances.length > 0) {
+        characteristics.recommendations.push('규칙적인 출석을 위한 학습 일정 관리가 필요합니다');
+      }
+      
+      if (homeworkSubmissions && homeworkSubmissions.length < 5) {
+        characteristics.recommendations.push('숙제 제출 횟수를 늘려 학습 습관을 기르세요');
+      }
+      
+      if (conversations && conversations.length < 10) {
+        characteristics.recommendations.push('AI 봇과의 대화를 통해 더 많은 학습 기회를 가지세요');
+      }
+      
+      if (analyses && analyses.length > 0) {
+        const avgEngagement = analyses.reduce((sum, a) => sum + (a.engagementScore || 0), 0) / analyses.length;
+        if (avgEngagement < 5) {
+          characteristics.recommendations.push('학습 동기 부여를 위한 흥미로운 주제나 활동을 제공하세요');
+        }
+      }
+
+      // 추천 사항이 없으면 기본 메시지
+      if (characteristics.recommendations.length === 0) {
+        characteristics.recommendations.push('학습 데이터가 쌓이면 맞춤형 추천을 제공하겠습니다');
+      }
+    } catch (error) {
+      console.error('추천 사항 생성 오류:', error);
+    }
+
+    console.log('✅ analyzeLearningCharacteristics 완료');
+    return characteristics;
+  } catch (error) {
+    console.error('❌ analyzeLearningCharacteristics 전체 오류:', error);
+    // 오류가 발생해도 기본 구조는 반환
+    return {
+      studySpeed: '분석 오류',
+      attitude: '분석 오류',
+      personality: '분석 오류',
+      strengths: [],
+      weaknesses: [],
+      recommendations: ['학습 데이터 분석 중 오류가 발생했습니다'],
+    };
+  }
 }
