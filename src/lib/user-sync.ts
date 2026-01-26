@@ -61,9 +61,14 @@ export async function syncStudentsForAcademy(
   try {
     console.log(`🔄 학원 학생 동기화 시작 (학원: ${academyId})`);
 
-    // 1. Cloudflare에서 학생 데이터 가져오기
-    const cloudflareStudents = await fetchCloudflareStudentsByAcademy(academyId);
-    console.log(`📥 Cloudflare 학생 ${cloudflareStudents.length}명 조회`);
+    // 1. Cloudflare에서 학생 데이터 가져오기 (optional)
+    let cloudflareStudents: CloudflareStudent[] = [];
+    try {
+      cloudflareStudents = await fetchCloudflareStudentsByAcademy(academyId);
+      console.log(`📥 Cloudflare 학생 ${cloudflareStudents.length}명 조회`);
+    } catch (error) {
+      console.warn(`⚠️  Cloudflare 학생 데이터 조회 실패 (스킵):`, error);
+    }
 
     // 2. 로컬 DB의 학생 데이터 가져오기
     const localStudents = await prisma.user.findMany({
@@ -188,22 +193,26 @@ export async function syncStudentsForAcademy(
             createdAt: localStudent.createdAt.toISOString(),
           };
 
-          const pushResult = await pushStudentToCloudflare(cfStudentData, 'CREATE');
+          try {
+            const pushResult = await pushStudentToCloudflare(cfStudentData, 'CREATE');
 
-          results.push({
-            success: pushResult.success,
-            operation: 'CREATE_TO_CLOUDFLARE',
-            entity: 'STUDENT',
-            localId: localStudent.id,
-            externalId: pushResult.externalId,
-            error: pushResult.error,
-            timestamp: new Date(),
-          });
+            results.push({
+              success: pushResult.success,
+              operation: 'CREATE_TO_CLOUDFLARE',
+              entity: 'STUDENT',
+              localId: localStudent.id,
+              externalId: pushResult.externalId,
+              error: pushResult.error,
+              timestamp: new Date(),
+            });
 
-          if (pushResult.success) {
-            console.log(`✅ 학생 생성 (로컬 → Cloudflare): ${localStudent.email}`);
-          } else {
-            console.error(`❌ 학생 생성 실패 (로컬 → Cloudflare): ${localStudent.email}`);
+            if (pushResult.success) {
+              console.log(`✅ 학생 생성 (로컬 → Cloudflare): ${localStudent.email}`);
+            } else {
+              console.error(`❌ 학생 생성 실패 (로컬 → Cloudflare): ${localStudent.email}`);
+            }
+          } catch (pushError) {
+            console.warn(`⚠️  Cloudflare 푸시 실패 (스킵): ${localStudent.email}`, pushError);
           }
         }
       } catch (error) {
@@ -239,9 +248,14 @@ export async function syncClassesForAcademy(
   try {
     console.log(`🔄 학원 반 동기화 시작 (학원: ${academyId})`);
 
-    // 1. Cloudflare에서 반 데이터 가져오기
-    const cloudflareClasses = await fetchCloudflareClassesByAcademy(academyId);
-    console.log(`📥 Cloudflare 반 ${cloudflareClasses.length}개 조회`);
+    // 1. Cloudflare에서 반 데이터 가져오기 (optional)
+    let cloudflareClasses: CloudflareClass[] = [];
+    try {
+      cloudflareClasses = await fetchCloudflareClassesByAcademy(academyId);
+      console.log(`📥 Cloudflare 반 ${cloudflareClasses.length}개 조회`);
+    } catch (error) {
+      console.warn(`⚠️  Cloudflare 반 데이터 조회 실패 (스킵):`, error);
+    }
 
     // 2. 로컬 DB의 반 데이터 가져오기
     const localClasses = await prisma.class.findMany({
