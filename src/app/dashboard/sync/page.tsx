@@ -15,7 +15,6 @@ import {
   Users,
   BookOpen,
   AlertTriangle,
-  Download,
   Upload,
 } from "lucide-react";
 
@@ -63,8 +62,10 @@ export default function SyncManagementPage() {
   const [academyStats, setAcademyStats] = useState<any>(null);
 
   useEffect(() => {
-    loadSyncHistory();
-  }, []);
+    if (session) {
+      loadSyncHistory();
+    }
+  }, [session]);
 
   const loadSyncHistory = async () => {
     try {
@@ -77,7 +78,8 @@ export default function SyncManagementPage() {
       const response = await fetch(`/api/sync/academy?${params.toString()}`);
       
       if (!response.ok) {
-        throw new Error("Failed to fetch sync history");
+        console.error("Failed to fetch sync history:", response.status);
+        return;
       }
 
       const data = await response.json();
@@ -85,7 +87,6 @@ export default function SyncManagementPage() {
       setAcademyStats(data.academyStats);
     } catch (error) {
       console.error("❌ 동기화 히스토리 조회 오류:", error);
-      alert("동기화 히스토리를 불러오는데 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -122,7 +123,7 @@ export default function SyncManagementPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ error: "동기화 실패" }));
         throw new Error(errorData.error || "동기화 실패");
       }
 
@@ -132,10 +133,11 @@ export default function SyncManagementPage() {
         alert(`전체 동기화 완료!\n학원: ${data.reports.length}개`);
       } else if (data.report) {
         setCurrentReport(data.report);
-        alert(`동기화 완료!\n학생: ${data.report.students.created + data.report.students.updated}명\n반: ${data.report.classes.created + data.report.classes.updated}개`);
+        const totalStudents = data.report.students.created + data.report.students.updated;
+        const totalClasses = data.report.classes.created + data.report.classes.updated;
+        alert(`동기화 완료!\n학생: ${totalStudents}명\n반: ${totalClasses}개`);
       }
 
-      // 히스토리 새로고침
       await loadSyncHistory();
     } catch (error) {
       console.error("❌ 동기화 오류:", error);
@@ -160,8 +162,19 @@ export default function SyncManagementPage() {
     return `${duration}초`;
   };
 
+  if (!session) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Cloudflare 동기화 관리</h1>
         <p className="text-gray-600">학생과 반 데이터를 Cloudflare와 동기화합니다</p>
@@ -269,12 +282,6 @@ export default function SyncManagementPage() {
                       {currentReport.students.updated}
                     </Badge>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">삭제</span>
-                    <Badge variant="outline" className="bg-gray-100 text-gray-800">
-                      {currentReport.students.deleted}
-                    </Badge>
-                  </div>
                   {currentReport.students.failed > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">실패</span>
@@ -305,12 +312,6 @@ export default function SyncManagementPage() {
                     <Badge variant="outline" className="bg-blue-100 text-blue-800">
                       <RefreshCw className="h-3 w-3 mr-1" />
                       {currentReport.classes.updated}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">삭제</span>
-                    <Badge variant="outline" className="bg-gray-100 text-gray-800">
-                      {currentReport.classes.deleted}
                     </Badge>
                   </div>
                   {currentReport.classes.failed > 0 && (
@@ -436,16 +437,6 @@ export default function SyncManagementPage() {
                   <div className="text-sm text-gray-600">
                     실행자: {history.user.name} ({history.user.email})
                   </div>
-                  {history.metadata && (
-                    <div className="mt-2 text-xs text-gray-500">
-                      <details className="cursor-pointer">
-                        <summary className="hover:text-gray-700">상세 정보 보기</summary>
-                        <pre className="mt-2 p-2 bg-gray-100 rounded overflow-x-auto">
-                          {JSON.stringify(history.metadata, null, 2)}
-                        </pre>
-                      </details>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
