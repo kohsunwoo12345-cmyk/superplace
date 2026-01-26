@@ -146,7 +146,7 @@ export async function GET(
     // 출결 정보 조회
     const attendances = await prisma.attendance.findMany({
       where: {
-        studentId: studentId,
+        userId: studentId,
       },
       select: {
         id: true,
@@ -173,7 +173,7 @@ export async function GET(
     // 학습 기록 조회 (숙제 제출)
     const homeworkSubmissions = await prisma.homeworkSubmission.findMany({
       where: {
-        studentId: studentId,
+        userId: studentId,
       },
       select: {
         id: true,
@@ -191,7 +191,7 @@ export async function GET(
     // 성적 정보 조회
     const testScores = await prisma.testScore.findMany({
       where: {
-        studentId: studentId,
+        userId: studentId,
       },
       select: {
         id: true,
