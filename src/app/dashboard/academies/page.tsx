@@ -83,6 +83,8 @@ export default function AcademiesPage() {
   };
 
   const handleViewDetails = (academyId: string) => {
+    console.log('🔍 상세보기 클릭:', academyId);
+    console.log('🔍 이동 경로:', `/dashboard/academies/${academyId}`);
     router.push(`/dashboard/academies/${academyId}`);
   };
 
@@ -318,7 +320,12 @@ export default function AcademiesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleViewDetails(academy.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('✅ 상세보기 버튼 클릭됨!', academy.id);
+                        handleViewDetails(academy.id);
+                      }}
                     >
                       <Eye className="mr-2 h-4 w-4" />
                       상세보기
@@ -326,7 +333,11 @@ export default function AcademiesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleEditAcademy(academy.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEditAcademy(academy.id);
+                      }}
                     >
                       <Edit className="mr-2 h-4 w-4" />
                       수정
@@ -334,7 +345,11 @@ export default function AcademiesPage() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteAcademy(academy.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteAcademy(academy.id);
+                      }}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
                       삭제
