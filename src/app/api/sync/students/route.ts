@@ -66,25 +66,16 @@ export async function POST(request: NextRequest) {
     // 비밀번호 해시
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 학생 코드 생성 (5자리: 영문 대문자 2자리 + 숫자 3자리)
+    // 학생 코드 생성 (5자리 숫자: 10000~99999)
     const generateStudentCode = async (): Promise<string> => {
-      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      const numbers = '0123456789';
-      
       let code: string;
       let attempts = 0;
       const maxAttempts = 100;
       
       do {
-        code = '';
-        // 앞 2자리: 영문 대문자
-        for (let i = 0; i < 2; i++) {
-          code += letters.charAt(Math.floor(Math.random() * letters.length));
-        }
-        // 뒤 3자리: 숫자
-        for (let i = 0; i < 3; i++) {
-          code += numbers.charAt(Math.floor(Math.random() * numbers.length));
-        }
+        // 10000 ~ 99999 범위의 랜덤 숫자 생성
+        const randomNum = Math.floor(Math.random() * 90000) + 10000;
+        code = randomNum.toString();
         
         attempts++;
         if (attempts >= maxAttempts) {
