@@ -1,405 +1,424 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  BookOpen,
-  Plus,
   Users,
+  Plus,
+  UserPlus,
+  UserMinus,
   Calendar,
-  User,
+  BookOpen,
+  Loader2,
   Search,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 
-interface ClassData {
+type ClassData = {
   id: string;
   name: string;
-  grade?: string;
-  description?: string;
-  teacherId?: string;
+  grade: string | null;
+  description: string | null;
   capacity: number;
   isActive: boolean;
-  createdAt: string;
-  students: any[];
+  students: Array<{
+    id: string;
+    student: {
+      id: string;
+      name: string;
+      email: string;
+      studentCode: string;
+      grade: string | null;
+    };
+  }>;
+  schedules: Array<{
+    id: string;
+    subject: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+  }>;
   _count: {
     students: number;
-    schedules: number;
   };
-}
+};
 
-interface Teacher {
-  id: string;
-  name: string;
-  email: string;
-}
-
-export default function ClassesManagementPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+export default function ClassManagementPage() {
   const [classes, setClasses] = useState<ClassData[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    grade: "",
-    description: "",
-    teacherId: "",
-    capacity: "20",
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [newClassName, setNewClassName] = useState("");
+  const [newClassGrade, setNewClassGrade] = useState("");
+  const [newClassCapacity, setNewClassCapacity] = useState("20");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<string>("");
+  const [availableStudents, setAvailableStudents] = useState<any[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<string>("");
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-      return;
-    }
+    loadClasses();
+    loadAvailableStudents();
+  }, []);
 
-    if (
-      session?.user?.role !== "DIRECTOR" &&
-      session?.user?.role !== "SUPER_ADMIN"
-    ) {
-      router.push("/dashboard");
-      return;
-    }
-
-    fetchClasses();
-    fetchTeachers();
-  }, [session, status, router]);
-
-  const fetchClasses = async () => {
+  const loadClasses = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/classes");
+      const response = await fetch("/api/classes/manage");
       if (response.ok) {
         const data = await response.json();
         setClasses(data.classes);
       }
     } catch (error) {
-      console.error("수업 목록 로드 실패:", error);
+      console.error("반 목록 로딩 오류:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchTeachers = async () => {
+  const loadAvailableStudents = async () => {
     try {
-      const response = await fetch("/api/academy/teachers");
+      const response = await fetch("/api/academy/students");
       if (response.ok) {
         const data = await response.json();
-        setTeachers(data.teachers.filter((t: any) => t.approved));
+        setAvailableStudents(data.students);
       }
     } catch (error) {
-      console.error("선생님 목록 로드 실패:", error);
+      console.error("학생 목록 로딩 오류:", error);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const handleCreateClass = async () => {
+    if (!newClassName) return;
 
     try {
-      const response = await fetch("/api/classes", {
+      const response = await fetch("/api/classes/manage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
-          capacity: parseInt(formData.capacity),
-          teacherId: formData.teacherId || null,
+          name: newClassName,
+          grade: newClassGrade || null,
+          capacity: parseInt(newClassCapacity),
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "수업 생성에 실패했습니다");
+      if (response.ok) {
+        setNewClassName("");
+        setNewClassGrade("");
+        setNewClassCapacity("20");
+        setCreateDialogOpen(false);
+        loadClasses();
       }
-
-      alert("수업이 생성되었습니다");
-      setFormData({
-        name: "",
-        grade: "",
-        description: "",
-        teacherId: "",
-        capacity: "20",
-      });
-      setIsCreateDialogOpen(false);
-      fetchClasses();
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setIsSubmitting(false);
+    } catch (error) {
+      console.error("반 생성 오류:", error);
     }
   };
 
+  const handleAssignStudent = async () => {
+    if (!selectedClass || !selectedStudent) return;
+
+    try {
+      const response = await fetch(`/api/classes/${selectedClass}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId: selectedStudent }),
+      });
+
+      if (response.ok) {
+        setSelectedStudent("");
+        setAssignDialogOpen(false);
+        loadClasses();
+      }
+    } catch (error) {
+      console.error("학생 배정 오류:", error);
+    }
+  };
+
+  const handleRemoveStudent = async (classId: string, studentId: string) => {
+    if (!confirm("이 학생을 반에서 제외하시겠습니까?")) return;
+
+    try {
+      const response = await fetch(
+        `/api/classes/${classId}/assign?studentId=${studentId}`,
+        { method: "DELETE" }
+      );
+
+      if (response.ok) {
+        loadClasses();
+      }
+    } catch (error) {
+      console.error("학생 제외 오류:", error);
+    }
+  };
+
+  const getDayName = (day: number) => {
+    const days = ["일", "월", "화", "수", "목", "금", "토"];
+    return days[day];
+  };
+
   const filteredClasses = classes.filter((cls) =>
-    cls.name.toLowerCase().includes(searchTerm.toLowerCase())
+    cls.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">로딩 중...</p>
-        </div>
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      {/* 헤더 */}
-      <div className="mb-8 flex justify-between items-center">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2">수업 관리</h1>
-          <p className="text-gray-600">학원의 수업을 생성하고 관리합니다</p>
+          <h1 className="text-3xl font-bold text-gray-900">반 관리</h1>
+          <p className="mt-2 text-gray-600">반을 생성하고 학생을 배정하세요</p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          수업 생성
-        </Button>
+        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              새 반 만들기
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>새 반 만들기</DialogTitle>
+              <DialogDescription>
+                새로운 반을 생성하고 학생들을 배정하세요
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">반 이름</label>
+                <Input
+                  placeholder="예: 중등 1학년 A반"
+                  value={newClassName}
+                  onChange={(e) => setNewClassName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">학년 (선택)</label>
+                <Input
+                  placeholder="예: 중1, 고2"
+                  value={newClassGrade}
+                  onChange={(e) => setNewClassGrade(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">정원</label>
+                <Input
+                  type="number"
+                  value={newClassCapacity}
+                  onChange={(e) => setNewClassCapacity(e.target.value)}
+                />
+              </div>
+              <Button onClick={handleCreateClass} className="w-full">
+                반 만들기
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              전체 수업
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">전체 반</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-blue-600" />
-              <span className="text-2xl font-bold">{classes.length}</span>
+            <div className="text-2xl font-bold">{classes.length}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">전체 학생</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {classes.reduce((sum, cls) => sum + cls._count.students, 0)}
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              등록 학생
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">평균 학생 수</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-green-600" />
-              <span className="text-2xl font-bold">
-                {classes.reduce((acc, cls) => acc + cls._count.students, 0)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              담당 선생님
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <User className="w-4 h-4 text-purple-600" />
-              <span className="text-2xl font-bold">{teachers.length}</span>
+            <div className="text-2xl font-bold">
+              {classes.length > 0
+                ? Math.round(
+                    classes.reduce((sum, cls) => sum + cls._count.students, 0) /
+                      classes.length
+                  )
+                : 0}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 검색 */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
+      {/* Search */}
+      <Card>
+        <CardHeader>
+          <CardTitle>반 검색</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              type="text"
-              placeholder="수업 이름으로 검색..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="반 이름으로 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* 수업 목록 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Classes List */}
+      <div className="grid grid-cols-1 gap-6">
         {filteredClasses.map((cls) => (
-          <Card key={cls.id} className="hover:shadow-lg transition-shadow">
+          <Card key={cls.id}>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>{cls.name}</span>
-                {cls.grade && (
-                  <Badge variant="outline">{cls.grade}</Badge>
-                )}
-              </CardTitle>
-              {cls.description && (
-                <CardDescription>{cls.description}</CardDescription>
-              )}
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <CardTitle className="text-xl">{cls.name}</CardTitle>
+                    {cls.grade && (
+                      <Badge variant="secondary">{cls.grade}</Badge>
+                    )}
+                    <Badge variant={cls.isActive ? "default" : "secondary"}>
+                      {cls.isActive ? "활성" : "비활성"}
+                    </Badge>
+                  </div>
+                  {cls.description && (
+                    <CardDescription>{cls.description}</CardDescription>
+                  )}
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold">
+                    {cls._count.students}/{cls.capacity}
+                  </div>
+                  <p className="text-xs text-gray-500">학생 수</p>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">학생</span>
-                  <span className="font-semibold">
-                    {cls._count.students} / {cls.capacity}명
-                  </span>
+
+            <CardContent className="space-y-4">
+              {/* 시간표 */}
+              {cls.schedules.length > 0 && (
+                <div className="pt-4 border-t">
+                  <h4 className="text-sm font-medium mb-3">📅 시간표</h4>
+                  <div className="flex gap-2 flex-wrap">
+                    {cls.schedules.map((schedule) => (
+                      <Badge key={schedule.id} variant="outline">
+                        {getDayName(schedule.dayOfWeek)} {schedule.startTime}-
+                        {schedule.endTime} {schedule.subject}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">스케줄</span>
-                  <span className="font-semibold">
-                    {cls._count.schedules}개
-                  </span>
+              )}
+
+              {/* 학생 목록 */}
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium">👥 학생 목록</h4>
+                  <Dialog
+                    open={assignDialogOpen && selectedClass === cls.id}
+                    onOpenChange={(open) => {
+                      setAssignDialogOpen(open);
+                      if (open) setSelectedClass(cls.id);
+                    }}
+                  >
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="outline">
+                        <UserPlus className="mr-2 h-3 w-3" />
+                        학생 배정
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>학생 배정</DialogTitle>
+                        <DialogDescription>
+                          {cls.name}에 학생을 배정하세요
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <Select
+                          value={selectedStudent}
+                          onValueChange={setSelectedStudent}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="학생 선택..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableStudents.map((student) => (
+                              <SelectItem key={student.id} value={student.id}>
+                                {student.name} ({student.studentId || student.email})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          onClick={handleAssignStudent}
+                          className="w-full"
+                          disabled={!selectedStudent}
+                        >
+                          배정하기
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
-                <div className="pt-2 border-t">
-                  <span className="text-xs text-gray-500">
-                    생성일: {new Date(cls.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
+
+                {cls.students.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    배정된 학생이 없습니다
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {cls.students.map((sc) => (
+                      <div
+                        key={sc.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium">{sc.student.name}</p>
+                          <p className="text-sm text-gray-500">
+                            {sc.student.studentCode} • {sc.student.email}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() =>
+                            handleRemoveStudent(cls.id, sc.student.id)
+                          }
+                        >
+                          <UserMinus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
-
-      {filteredClasses.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">
-              {searchTerm ? "검색 결과가 없습니다." : "등록된 수업이 없습니다."}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 수업 생성 다이얼로그 */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              수업 생성
-            </DialogTitle>
-            <DialogDescription>
-              새로운 수업을 생성합니다. 생성 후 학생을 배정할 수 있습니다.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">
-                  수업 이름 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  placeholder="예: 중3 수학 A반"
-                  required
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="grade">학년</Label>
-                <Input
-                  id="grade"
-                  value={formData.grade}
-                  onChange={(e) =>
-                    setFormData({ ...formData, grade: e.target.value })
-                  }
-                  placeholder="예: 중3, 고1"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="description">설명</Label>
-                <Input
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  placeholder="수업에 대한 간단한 설명"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="teacherId">담당 선생님</Label>
-                <select
-                  id="teacherId"
-                  value={formData.teacherId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, teacherId: e.target.value })
-                  }
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">선택 안 함</option>
-                  {teachers.map((teacher) => (
-                    <option key={teacher.id} value={teacher.id}>
-                      {teacher.name} ({teacher.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="capacity">정원</Label>
-                <Input
-                  id="capacity"
-                  type="number"
-                  value={formData.capacity}
-                  onChange={(e) =>
-                    setFormData({ ...formData, capacity: e.target.value })
-                  }
-                  min="1"
-                  max="100"
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreateDialogOpen(false)}
-                disabled={isSubmitting}
-              >
-                취소
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "생성 중..." : "수업 생성"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
