@@ -40,19 +40,15 @@ export default function HomeworkCheckPage() {
         return;
       }
 
-      // NextAuth 세션 생성
-      const signInResult = await signIn("credentials", {
-        redirect: false,
-        email: data.user.email,
-        password: studentCode, // 임시로 사용
-      });
-
-      if (signInResult?.ok) {
-        setUser(data.user);
-        setStep("upload");
-      } else {
-        setError("세션 생성에 실패했습니다.");
+      // 학생 정보 저장 (세션 대신 상태로 관리)
+      setUser(data.user);
+      
+      // 토큰을 localStorage에 저장 (API 요청 시 사용)
+      if (data.token) {
+        localStorage.setItem('student_token', data.token);
       }
+      
+      setStep("upload");
     } catch (err) {
       setError("로그인 중 오류가 발생했습니다.");
     } finally {
@@ -88,10 +84,23 @@ export default function HomeworkCheckPage() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const imageUrl = reader.result as string;
+        
+        // localStorage에서 토큰 가져오기
+        const token = localStorage.getItem('student_token');
+        
+        if (!token) {
+          setError("세션이 만료되었습니다. 다시 로그인해주세요.");
+          setLoading(false);
+          handleLogout();
+          return;
+        }
 
-        const response = await fetch("/api/homework/submit", {
+        const response = await fetch("/api/homework/submit-with-code", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
           body: JSON.stringify({ imageUrl }),
         });
 
@@ -108,14 +117,8 @@ export default function HomeworkCheckPage() {
         setLoading(false);
 
         // 3초 후 로그아웃
-        setTimeout(async () => {
-          await fetch("/api/auth/signout");
-          setStep("login");
-          setStudentCode("");
-          setImageFile(null);
-          setImagePreview("");
-          setResult(null);
-          setUser(null);
+        setTimeout(() => {
+          handleLogout();
         }, 3000);
       };
 
@@ -127,8 +130,10 @@ export default function HomeworkCheckPage() {
   };
 
   // 로그아웃
-  const handleLogout = async () => {
-    await fetch("/api/auth/signout");
+  const handleLogout = () => {
+    // localStorage에서 토큰 제거
+    localStorage.removeItem('student_token');
+    
     setStep("login");
     setStudentCode("");
     setImageFile(null);
