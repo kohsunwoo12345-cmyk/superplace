@@ -1,4 +1,5 @@
 import { syncAcademyData } from './user-sync';
+import { syncAllUsers } from './admin-sync';
 
 /**
  * 로그인 후 백그라운드에서 학원 데이터 동기화
@@ -23,8 +24,10 @@ export async function syncOnLogin(userId: string, role: string, academyId?: stri
     setImmediate(async () => {
       try {
         if (role === 'SUPER_ADMIN') {
-          // 관리자는 모든 학원 동기화하지 않고 스킵
-          console.log(`ℹ️  관리자는 수동 동기화를 사용하세요`);
+          // 관리자는 전체 사용자 동기화
+          console.log(`🔄 관리자 로그인 - 전체 사용자 동기화 중...`);
+          await syncAllUsers();
+          console.log(`✅ 관리자 로그인 후 전체 사용자 동기화 완료`);
           return;
         }
 
@@ -78,6 +81,23 @@ export async function triggerClassSync(academyId: string, userId: string) {
       console.log(`✅ 반 변경 후 자동 동기화 완료 (학원: ${academyId})`);
     } catch (error) {
       console.error('❌ 반 변경 후 자동 동기화 실패:', error);
+    }
+  });
+}
+
+/**
+ * 사용자 데이터 변경 시 자동 동기화 트리거 (관리자 전용)
+ */
+export async function triggerUserSync() {
+  console.log(`🔄 사용자 데이터 변경 감지 - 전체 사용자 동기화 트리거`);
+
+  // 백그라운드에서 비동기 실행
+  setImmediate(async () => {
+    try {
+      await syncAllUsers();
+      console.log(`✅ 사용자 변경 후 전체 동기화 완료`);
+    } catch (error) {
+      console.error('❌ 사용자 변경 후 동기화 실패:', error);
     }
   });
 }
