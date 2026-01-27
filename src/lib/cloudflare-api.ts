@@ -1,10 +1,25 @@
 /**
  * Cloudflare API 클라이언트
- * 사용자별 학생, 반 데이터 동기화
+ * 사용자, 학생, 반 데이터 동기화
  */
 
 const CLOUDFLARE_BASE_URL = process.env.CLOUDFLARE_SITE_URL || 'https://superplace-academy.pages.dev';
 const CLOUDFLARE_API_KEY = process.env.CLOUDFLARE_D1_API_KEY;
+
+export interface CloudflareUser {
+  id: string;
+  email: string;
+  password?: string;
+  name: string;
+  phone?: string;
+  role: string; // SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT
+  academyId?: string;
+  grade?: string;
+  school?: string;
+  approved: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
 
 export interface CloudflareStudent {
   id: string;
@@ -17,7 +32,12 @@ export interface CloudflareStudent {
   studentCode?: string;
   parentPhone?: string;
   academyId: string;
+  school?: string;
   approved: boolean;
+  points?: number;
+  aiChatEnabled?: boolean;
+  aiHomeworkEnabled?: boolean;
+  aiStudyEnabled?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -119,6 +139,48 @@ export async function fetchCloudflareStudentClasses(
   } catch (error) {
     console.error(`Cloudflare 학생-반 배정 데이터 가져오기 실패 (반: ${classId}):`, error);
     return [];
+  }
+}
+
+/**
+ * Cloudflare로 사용자 데이터 전송 (생성/업데이트)
+ */
+export async function pushUserToCloudflare(
+  user: CloudflareUser,
+  operation: 'CREATE' | 'UPDATE'
+): Promise<{ success: boolean; externalId?: string; error?: string }> {
+  try {
+    const endpoint = operation === 'CREATE' 
+      ? `${CLOUDFLARE_BASE_URL}/api/sync/users`
+      : `${CLOUDFLARE_BASE_URL}/api/sync/users/${user.id}`;
+
+    const method = operation === 'CREATE' ? 'POST' : 'PUT';
+
+    const response = await fetch(endpoint, {
+      method,
+      headers: {
+        'Authorization': `Bearer ${CLOUDFLARE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(user),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Cloudflare API 오류: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      externalId: data.user?.id || user.id,
+    };
+  } catch (error) {
+    console.error(`Cloudflare 사용자 데이터 전송 실패 (${operation}):`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 }
 

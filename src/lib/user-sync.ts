@@ -1,13 +1,16 @@
 import { prisma } from './prisma';
 import {
+  fetchCloudflareUsersByAcademy,
   fetchCloudflareStudentsByAcademy,
   fetchCloudflareClassesByAcademy,
   fetchCloudflareStudentClasses,
+  pushUserToCloudflare,
   pushStudentToCloudflare,
   pushClassToCloudflare,
   pushStudentClassToCloudflare,
   deleteStudentFromCloudflare,
   deleteClassFromCloudflare,
+  CloudflareUser,
   CloudflareStudent,
   CloudflareClass,
 } from './cloudflare-api';
@@ -548,3 +551,4 @@ export async function syncAllAcademies(): Promise<UserSyncReport[]> {
 
   return reports;
 }
+

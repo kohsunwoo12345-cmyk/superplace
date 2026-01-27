@@ -23,6 +23,12 @@ import {
   Eye,
   Key,
   LogIn,
+  RefreshCw,
+  BookOpen,
+  ClipboardCheck,
+  Award,
+  Calendar,
+  FileText,
 } from "lucide-react";
 
 interface User {
@@ -35,13 +41,28 @@ interface User {
   aiHomeworkEnabled: boolean;
   aiStudyEnabled: boolean;
   approved: boolean;
+  cloudflareUserId?: string;
   academy?: {
     id: string;
     name: string;
     code: string;
   };
+  // 학생 부가정보
+  studentId?: string;
+  studentCode?: string;
+  grade?: string;
+  parentPhone?: string;
+  phone?: string;
+  _count?: {
+    learningProgress: number;
+    assignments: number;
+    testScores: number;
+    attendances: number;
+    homeworkSubmissions: number;
+  };
   createdAt: string;
   lastLoginAt?: string;
+  updatedAt: string;
 }
 
 export default function AdminUsersPage() {
@@ -49,6 +70,7 @@ export default function AdminUsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
 
@@ -66,19 +88,39 @@ export default function AdminUsersPage() {
     fetchUsers();
   }, [session, status, router]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (withSync = false) => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/users");
+      if (withSync) {
+        setSyncing(true);
+      }
+      
+      const url = withSync ? "/api/admin/users?sync=true" : "/api/admin/users";
+      const response = await fetch(url);
+      
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users);
+        
+        if (withSync && data.syncedFromCloudflare) {
+          alert('Cloudflare 동기화가 완료되었습니다!');
+        }
       }
     } catch (error) {
       console.error("사용자 목록 로드 실패:", error);
+      alert("사용자 목록을 불러오는데 실패했습니다.");
     } finally {
       setLoading(false);
+      setSyncing(false);
     }
+  };
+
+  const handleSyncCloudflare = async () => {
+    if (!confirm('Cloudflare에서 모든 사용자를 동기화하시겠습니까?\n이 작업은 수 분이 소요될 수 있습니다.')) {
+      return;
+    }
+
+    await fetchUsers(true);
   };
 
   const filteredUsers = users.filter((user) => {
@@ -173,11 +215,22 @@ export default function AdminUsersPage() {
   return (
     <div className="container mx-auto py-8 px-4">
       {/* 헤더 */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">사용자 관리</h1>
-        <p className="text-gray-600">
-          전체 사용자 계정을 관리하고 권한을 제어합니다
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">사용자 관리</h1>
+          <p className="text-gray-600">
+            전체 사용자 계정을 관리하고 권한을 제어합니다
+          </p>
+        </div>
+        <Button
+          onClick={handleSyncCloudflare}
+          disabled={syncing}
+          size="lg"
+          className="gap-2"
+        >
+          <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
+          {syncing ? 'Cloudflare 동기화 중...' : 'Cloudflare 동기화'}
+        </Button>
       </div>
 
       {/* 통계 카드 */}
@@ -329,6 +382,76 @@ export default function AdminUsersPage() {
                       소속: {user.academy.name} ({user.academy.code})
                     </p>
                   )}
+                  {user.cloudflareUserId && (
+                    <p className="text-xs text-blue-500 mt-1">
+                      ☁️ Cloudflare ID: {user.cloudflareUserId}
+                    </p>
+                  )}
+                  
+                  {/* 학생 부가정보 */}
+                  {user.role === 'STUDENT' && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                        {user.studentCode && (
+                          <div>
+                            <span className="text-gray-500">학생코드:</span>
+                            <span className="ml-1 font-medium">{user.studentCode}</span>
+                          </div>
+                        )}
+                        {user.grade && (
+                          <div>
+                            <span className="text-gray-500">학년:</span>
+                            <span className="ml-1 font-medium">{user.grade}</span>
+                          </div>
+                        )}
+                        {user.phone && (
+                          <div>
+                            <span className="text-gray-500">연락처:</span>
+                            <span className="ml-1 font-medium">{user.phone}</span>
+                          </div>
+                        )}
+                        {user.parentPhone && (
+                          <div>
+                            <span className="text-gray-500">학부모:</span>
+                            <span className="ml-1 font-medium">{user.parentPhone}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {user._count && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                            <div className="flex items-center gap-1 text-xs">
+                              <BookOpen className="w-3 h-3 text-blue-600" />
+                              <span className="text-gray-500">학습:</span>
+                              <span className="font-medium">{user._count.learningProgress}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs">
+                              <ClipboardCheck className="w-3 h-3 text-green-600" />
+                              <span className="text-gray-500">과제:</span>
+                              <span className="font-medium">{user._count.assignments}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs">
+                              <Award className="w-3 h-3 text-purple-600" />
+                              <span className="text-gray-500">시험:</span>
+                              <span className="font-medium">{user._count.testScores}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs">
+                              <Calendar className="w-3 h-3 text-orange-600" />
+                              <span className="text-gray-500">출석:</span>
+                              <span className="font-medium">{user._count.attendances}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs">
+                              <FileText className="w-3 h-3 text-indigo-600" />
+                              <span className="text-gray-500">숙제:</span>
+                              <span className="font-medium">{user._count.homeworkSubmissions}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   <div className="flex flex-wrap gap-2 mt-3">
                     <div className="flex items-center gap-1 text-sm">
                       <Coins className="w-4 h-4 text-yellow-600" />
