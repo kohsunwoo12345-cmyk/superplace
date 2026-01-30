@@ -1,12 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, validateDatabaseConnection } from "@/lib/prisma";
 import { getD1Users, isD1Configured } from "@/lib/cloudflare-d1-client";
 
 export async function GET(request: NextRequest) {
   try {
+    // 0. 환경 변수 검증
+    console.log('🔍 환경 변수 확인 중...');
+    try {
+      validateDatabaseConnection();
+      console.log('✅ DATABASE_URL 설정됨');
+    } catch (envError: any) {
+      console.error('❌ 환경 변수 오류:', envError.message);
+      return NextResponse.json(
+        { 
+          error: "환경 변수 설정 오류",
+          details: envError.message,
+          hint: "Vercel 대시보드에서 DATABASE_URL을 설정하세요."
+        },
+        { status: 500 }
+      );
+    }
+
+    // 1. 세션 확인
+    console.log('🔐 세션 확인 중...');
     const session = await getServerSession(authOptions);
+    console.log('✅ 세션:', session ? `${session.user.email} (${session.user.role})` : '없음');
 
     if (!session || session.user.role !== "SUPER_ADMIN") {
       return NextResponse.json(
@@ -17,6 +37,23 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const sync = searchParams.get('sync');
+    
+    // 2. Prisma 연결 테스트
+    console.log('🗄️ 데이터베이스 연결 테스트 중...');
+    try {
+      await prisma.$connect();
+      console.log('✅ 데이터베이스 연결 성공');
+    } catch (dbError: any) {
+      console.error('❌ 데이터베이스 연결 실패:', dbError);
+      return NextResponse.json(
+        { 
+          error: "데이터베이스 연결 실패",
+          details: dbError.message,
+          hint: "DATABASE_URL 환경 변수를 확인하세요."
+        },
+        { status: 500 }
+      );
+    }
 
     // sync=true 파라미터가 있으면 Cloudflare D1과 동기화 먼저 수행
     let syncReport: any = null;
@@ -127,48 +164,65 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        points: true,
-        aiChatEnabled: true,
-        aiHomeworkEnabled: true,
-        aiStudyEnabled: true,
-        approved: true,
-        cloudflareUserId: true,
-        academy: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
+    // 3. 사용자 조회
+    console.log('👥 사용자 목록 조회 중...');
+    let users;
+    try {
+      users = await prisma.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          points: true,
+          aiChatEnabled: true,
+          aiHomeworkEnabled: true,
+          aiStudyEnabled: true,
+          approved: true,
+          cloudflareUserId: true,
+          academy: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          createdAt: true,
+          lastLoginAt: true,
+          updatedAt: true,
+          // 학생 부가정보
+          studentId: true,
+          studentCode: true,
+          grade: true,
+          parentPhone: true,
+          phone: true,
+          _count: {
+            select: {
+              learningProgress: true,
+              assignments: true,
+              testScores: true,
+              attendances: true,
+              homeworkSubmissions: true,
+            },
           },
         },
-        createdAt: true,
-        lastLoginAt: true,
-        updatedAt: true,
-        // 학생 부가정보
-        studentId: true,
-        studentCode: true,
-        grade: true,
-        parentPhone: true,
-        phone: true,
-        _count: {
-          select: {
-            learningProgress: true,
-            assignments: true,
-            testScores: true,
-            attendances: true,
-            homeworkSubmissions: true,
-          },
+        orderBy: {
+          createdAt: "desc",
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+      });
+      console.log(`✅ 사용자 ${users.length}명 조회 완료`);
+    } catch (queryError: any) {
+      console.error('❌ 사용자 조회 실패:', queryError);
+      return NextResponse.json(
+        { 
+          error: "사용자 조회 실패",
+          details: queryError.message,
+          code: queryError.code,
+          meta: queryError.meta
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ 
       users,

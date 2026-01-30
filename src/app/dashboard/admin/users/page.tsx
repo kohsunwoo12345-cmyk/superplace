@@ -97,25 +97,47 @@ export default function AdminUsersPage() {
       }
       
       const url = withSync ? "/api/admin/users?sync=true" : "/api/admin/users";
-      const response = await fetch(url);
+      console.log(`📡 API 호출: ${url}`);
       
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users);
+      const response = await fetch(url);
+      console.log(`📊 응답 상태: ${response.status} ${response.statusText}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
         
-        if (withSync && data.syncedFromCloudflare) {
-          if (data.syncReport && !data.syncReport.failed) {
-            const report = data.syncReport;
-            console.log(`✅ Cloudflare D1 자동 동기화 완료: 총 ${report.total}명, 생성 ${report.created}명, 업데이트 ${report.updated}명`);
-            // 수동 동기화 시에만 알림 표시
-          } else if (data.syncReport?.failed) {
-            console.warn('⚠️ Cloudflare D1 동기화 실패:', data.syncReport.error);
-          }
+        console.error('❌ API 에러:', errorData);
+        
+        // 상세한 에러 메시지 표시
+        const errorMsg = errorData.details 
+          ? `${errorData.error}\n\n상세: ${errorData.details}\n\n힌트: ${errorData.hint || '없음'}`
+          : errorData.error || '알 수 없는 오류';
+        
+        alert(`❌ 사용자 목록 조회 실패\n\n${errorMsg}`);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log(`✅ 사용자 ${data.users?.length || 0}명 로드 완료`);
+      setUsers(data.users || []);
+      
+      if (withSync && data.syncedFromCloudflare) {
+        if (data.syncReport && !data.syncReport.failed) {
+          const report = data.syncReport;
+          console.log(`✅ Cloudflare D1 자동 동기화 완료: 총 ${report.total}명, 생성 ${report.created}명, 업데이트 ${report.updated}명`);
+          // 수동 동기화 시에만 알림 표시
+        } else if (data.syncReport?.failed) {
+          console.warn('⚠️ Cloudflare D1 동기화 실패:', data.syncReport.error);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("사용자 목록 로드 실패:", error);
-      alert("사용자 목록을 불러오는데 실패했습니다.");
+      alert(`❌ 사용자 목록을 불러오는데 실패했습니다.\n\n에러: ${error.message}`);
     } finally {
       setLoading(false);
       setSyncing(false);
