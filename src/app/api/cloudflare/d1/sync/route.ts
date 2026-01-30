@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { createWorkerDBClient } from '@/lib/worker-db-client';
+import { executeD1Query, isD1Configured } from '@/lib/cloudflare-d1-client';
 import { getServerSession } from 'next-auth';
 import bcrypt from 'bcryptjs';
 
@@ -65,13 +65,18 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔄 동기화 시작: ${direction}, 역할: ${roleFilter}, Dry Run: ${dryRun}`);
 
+    // D1 연결 확인
+    if (!isD1Configured()) {
+      return NextResponse.json(
+        { error: 'Cloudflare D1이 설정되지 않았습니다.' },
+        { status: 500 }
+      );
+    }
+
     const result: SyncResult = {
       fromD1ToLocal: { created: 0, updated: 0, failed: 0, errors: [] },
       fromLocalToD1: { created: 0, updated: 0, failed: 0, errors: [] },
     };
-
-    // Cloudflare Worker DB Client 생성
-    const workerDB = createWorkerDBClient();
 
     // ============================================
     // 1. D1 → Local PostgreSQL 동기화
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest) {
         d1Params.push(academyId);
       }
 
-      const d1Users = await workerDB.query(d1Sql, d1Params);
+      const d1Users = await executeD1Query(d1Sql, d1Params);
       console.log(`  📊 D1에서 ${d1Users.length}명의 사용자를 가져왔습니다.`);
 
       // 각 D1 사용자를 로컬 DB에 동기화
@@ -347,18 +352,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Cloudflare Worker 연결 테스트
-    let workerStatus = 'disconnected';
+    // Cloudflare D1 연결 테스트
+    let workerStatus: 'connected' | 'disconnected' = 'disconnected';
     let workerError = '';
     
     try {
-      const workerDB = createWorkerDBClient();
-      const health = await workerDB.health();
+      // D1 설정 확인
+      if (!isD1Configured()) {
+        throw new Error('Cloudflare D1 환경 변수가 설정되지 않았습니다.');
+      }
+      
+      // D1 연결 테스트
+      await executeD1Query('SELECT 1 as test');
       workerStatus = 'connected';
-      console.log('Cloudflare Worker 연결 성공:', health);
+      console.log('✅ Cloudflare D1 연결 성공');
     } catch (error: any) {
       workerError = error.message;
-      console.error('Cloudflare Worker 연결 실패:', error);
+      console.error('❌ Cloudflare D1 연결 실패:', error);
     }
 
     // 최근 동기화 로그
@@ -390,20 +400,20 @@ export async function GET(request: NextRequest) {
       teachers: await prisma.user.count({ where: { role: 'TEACHER' } }),
     };
 
-    // D1 통계 (Worker가 연결된 경우만)
+    // D1 통계 (연결된 경우만)
     let d1Stats = null;
     if (workerStatus === 'connected') {
       try {
-        const workerDB = createWorkerDBClient();
-        const d1Users = await workerDB.query(`SELECT role, COUNT(*) as count FROM User GROUP BY role`);
+        const d1Users = await executeD1Query(`SELECT role, COUNT(*) as count FROM User GROUP BY role`);
         d1Stats = {
-          totalUsers: d1Users.reduce((sum: number, row: any) => sum + row.count, 0),
+          totalUsers: d1Users.reduce((sum: number, row: any) => sum + (row.count || 0), 0),
           students: d1Users.find((r: any) => r.role === 'STUDENT')?.count || 0,
           directors: d1Users.find((r: any) => r.role === 'DIRECTOR')?.count || 0,
           teachers: d1Users.find((r: any) => r.role === 'TEACHER')?.count || 0,
         };
+        console.log('✅ D1 통계:', d1Stats);
       } catch (error) {
-        console.error('D1 통계 조회 실패:', error);
+        console.error('❌ D1 통계 조회 실패:', error);
       }
     }
 
