@@ -87,6 +87,7 @@ const navigationByRole = {
   STUDENT: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
     { name: "나의 학습", href: "/dashboard/my-learning", icon: BookOpen },
+    { name: "학습 자료", href: "/dashboard/my-materials", icon: FileText },
   ],
 };
 
