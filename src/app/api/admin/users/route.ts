@@ -164,10 +164,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 3. 사용자 조회
+    // 3. 사용자 조회 (간소화된 버전)
     console.log('👥 사용자 목록 조회 중...');
     let users;
     try {
+      // 먼저 간단한 쿼리로 테스트
       users = await prisma.user.findMany({
         select: {
           id: true,
@@ -180,37 +181,69 @@ export async function GET(request: NextRequest) {
           aiStudyEnabled: true,
           approved: true,
           cloudflareUserId: true,
-          academy: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
-          },
           createdAt: true,
           lastLoginAt: true,
           updatedAt: true,
-          // 학생 부가정보
           studentId: true,
           studentCode: true,
           grade: true,
           parentPhone: true,
           phone: true,
-          _count: {
-            select: {
-              learningProgress: true,
-              assignments: true,
-              testScores: true,
-              attendances: true,
-              homeworkSubmissions: true,
-            },
-          },
         },
         orderBy: {
           createdAt: "desc",
         },
       });
-      console.log(`✅ 사용자 ${users.length}명 조회 완료`);
+      console.log(`✅ 사용자 ${users.length}명 조회 완료 (간소화 모드)`);
+      
+      // academy와 _count는 선택적으로 추가 (에러 발생 시 무시)
+      try {
+        const usersWithRelations = await prisma.user.findMany({
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            points: true,
+            aiChatEnabled: true,
+            aiHomeworkEnabled: true,
+            aiStudyEnabled: true,
+            approved: true,
+            cloudflareUserId: true,
+            academy: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+            createdAt: true,
+            lastLoginAt: true,
+            updatedAt: true,
+            studentId: true,
+            studentCode: true,
+            grade: true,
+            parentPhone: true,
+            phone: true,
+            _count: {
+              select: {
+                learningProgress: true,
+                assignments: true,
+                testScores: true,
+                attendances: true,
+                homeworkSubmissions: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        });
+        users = usersWithRelations;
+        console.log(`✅ 관계 데이터 포함 조회 완료`);
+      } catch (relationError) {
+        console.warn('⚠️ 관계 데이터 조회 실패, 기본 데이터만 반환:', relationError);
+      }
     } catch (queryError: any) {
       console.error('❌ 사용자 조회 실패:', queryError);
       return NextResponse.json(
