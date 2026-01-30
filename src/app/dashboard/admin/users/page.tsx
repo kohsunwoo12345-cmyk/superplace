@@ -85,8 +85,8 @@ export default function AdminUsersPage() {
       return;
     }
 
-    // 자동으로 D1과 동기화하면서 사용자 목록 로드
-    fetchUsers(true);
+    // 먼저 로컬 사용자만 로드 (D1 동기화는 수동으로)
+    fetchUsers(false);
   }, [session, status, router]);
 
   const fetchUsers = async (withSync = false) => {

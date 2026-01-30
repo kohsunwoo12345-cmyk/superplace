@@ -175,10 +175,19 @@ export async function GET(request: NextRequest) {
       syncedFromCloudflare: sync === 'true',
       syncReport: syncReport || undefined,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("사용자 목록 조회 실패:", error);
+    console.error("에러 상세:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    });
     return NextResponse.json(
-      { error: "사용자 목록 조회 중 오류가 발생했습니다." },
+      { 
+        error: "사용자 목록 조회 중 오류가 발생했습니다.",
+        details: error.message,
+        errorType: error.name,
+      },
       { status: 500 }
     );
   }
