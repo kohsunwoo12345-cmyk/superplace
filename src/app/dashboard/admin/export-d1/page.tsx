@@ -64,7 +64,6 @@ export default function ExportUsersPage() {
       const data = await response.json();
       setResult(data.result);
       
-      // 성공 시 미리보기 다시 로드
       await loadPreview();
       
       alert('✅ 사용자 내보내기 완료!');
@@ -84,7 +83,7 @@ export default function ExportUsersPage() {
       </div>
 
       {error && (
-        <Alert variant="destructive" className="mb-4">
+        <Alert className="mb-4 border-red-500">
           <XCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
