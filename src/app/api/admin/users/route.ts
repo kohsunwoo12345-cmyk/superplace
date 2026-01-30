@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { syncAllUsers } from "@/lib/admin-sync";
 import { getD1Users, isD1Configured } from "@/lib/cloudflare-d1-client";
 
 export async function GET(request: NextRequest) {
@@ -22,20 +21,20 @@ export async function GET(request: NextRequest) {
     // sync=true 파라미터가 있으면 Cloudflare D1과 동기화 먼저 수행
     let syncReport: any = null;
     if (sync === 'true') {
-      try {
-        console.log('🔄 Cloudflare D1 사용자 동기화 시작...');
-        
-        // Cloudflare D1에서 모든 사용자 가져오기
-        const workerDB = createWorkerDBClient();
-        const d1Users = await workerDB.query(`
-          SELECT 
-            id, email, password, name, phone, role, grade, 
-            academyId, studentCode, studentId, parentPhone,
-            approved, aiChatEnabled, aiHomeworkEnabled, aiStudyEnabled,
-            points, createdAt, updatedAt
-          FROM User
-          ORDER BY createdAt DESC
-        `);
+      // D1 설정 확인
+      if (!isD1Configured()) {
+        console.warn('⚠️ Cloudflare D1이 설정되지 않았습니다. 동기화를 건너뜁니다.');
+        syncReport = { 
+          error: 'Cloudflare D1 환경 변수가 설정되지 않았습니다.',
+          failed: true,
+          message: 'CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_D1_DATABASE_ID, CLOUDFLARE_API_KEY/CLOUDFLARE_EMAIL을 설정하세요.'
+        };
+      } else {
+        try {
+          console.log('🔄 Cloudflare D1 사용자 동기화 시작...');
+          
+          // Cloudflare D1에서 모든 사용자 가져오기
+          const d1Users = await getD1Users();
 
           console.log(`📊 D1에서 ${d1Users.length}명의 사용자를 가져왔습니다.`);
 
