@@ -5,11 +5,10 @@
  * Supports both API Token and Global API Key
  */
 
-const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || '';
-const CLOUDFLARE_D1_DATABASE_ID = process.env.CLOUDFLARE_D1_DATABASE_ID || '';
-const CLOUDFLARE_D1_API_TOKEN = process.env.CLOUDFLARE_D1_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN || '';
-const CLOUDFLARE_API_KEY = process.env.CLOUDFLARE_API_KEY || '';
-const CLOUDFLARE_EMAIL = process.env.CLOUDFLARE_EMAIL || '';
+// Get environment variables at runtime (not build time)
+function getEnvVar(key: string): string {
+  return process.env[key] || '';
+}
 
 interface D1Response<T = any> {
   success: boolean;
@@ -22,6 +21,13 @@ interface D1Response<T = any> {
  * Execute SQL query on Cloudflare D1 via REST API
  */
 export async function executeD1Query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+  // Get environment variables at runtime
+  const CLOUDFLARE_ACCOUNT_ID = getEnvVar('CLOUDFLARE_ACCOUNT_ID');
+  const CLOUDFLARE_D1_DATABASE_ID = getEnvVar('CLOUDFLARE_D1_DATABASE_ID');
+  const CLOUDFLARE_D1_API_TOKEN = getEnvVar('CLOUDFLARE_D1_API_TOKEN') || getEnvVar('CLOUDFLARE_API_TOKEN');
+  const CLOUDFLARE_API_KEY = getEnvVar('CLOUDFLARE_API_KEY');
+  const CLOUDFLARE_EMAIL = getEnvVar('CLOUDFLARE_EMAIL');
+
   // Check if required environment variables are set
   if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_D1_DATABASE_ID) {
     console.error('❌ Cloudflare D1 환경 변수가 설정되지 않았습니다:', {
@@ -150,6 +156,12 @@ export async function getD1Users(role?: string, academyId?: string): Promise<any
  * Check if D1 is configured
  */
 export function isD1Configured(): boolean {
+  const CLOUDFLARE_ACCOUNT_ID = getEnvVar('CLOUDFLARE_ACCOUNT_ID');
+  const CLOUDFLARE_D1_DATABASE_ID = getEnvVar('CLOUDFLARE_D1_DATABASE_ID');
+  const CLOUDFLARE_D1_API_TOKEN = getEnvVar('CLOUDFLARE_D1_API_TOKEN') || getEnvVar('CLOUDFLARE_API_TOKEN');
+  const CLOUDFLARE_API_KEY = getEnvVar('CLOUDFLARE_API_KEY');
+  const CLOUDFLARE_EMAIL = getEnvVar('CLOUDFLARE_EMAIL');
+  
   const hasAccountId = !!CLOUDFLARE_ACCOUNT_ID;
   const hasDatabaseId = !!CLOUDFLARE_D1_DATABASE_ID;
   const hasApiToken = !!CLOUDFLARE_D1_API_TOKEN;
@@ -159,7 +171,7 @@ export function isD1Configured(): boolean {
 }
 
 export {
-  CLOUDFLARE_ACCOUNT_ID,
-  CLOUDFLARE_D1_DATABASE_ID,
-  CLOUDFLARE_D1_API_TOKEN,
+  getEnvVar as CLOUDFLARE_ACCOUNT_ID,
+  getEnvVar as CLOUDFLARE_D1_DATABASE_ID,
+  getEnvVar as CLOUDFLARE_D1_API_TOKEN,
 };
