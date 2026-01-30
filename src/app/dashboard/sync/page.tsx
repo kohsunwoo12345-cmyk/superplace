@@ -13,438 +13,534 @@ import {
   Database,
   Cloud,
   Users,
-  BookOpen,
-  AlertTriangle,
+  Play,
+  Square,
+  Settings,
+  Webhook,
+  Download,
   Upload,
+  ArrowRightLeft,
 } from "lucide-react";
 
-interface SyncReport {
-  academyId: string;
-  academyName?: string;
-  userId: string;
-  userName: string;
-  startTime: string;
-  endTime?: string;
-  students: {
-    created: number;
-    updated: number;
-    deleted: number;
-    failed: number;
-  };
-  classes: {
-    created: number;
-    updated: number;
-    deleted: number;
-    failed: number;
-  };
-  errors: string[];
+interface SyncStats {
+  totalUsers: number;
+  students: number;
+  directors: number;
+  teachers: number;
 }
 
 interface SyncHistory {
   id: string;
   action: string;
   description: string;
-  metadata: any;
   createdAt: string;
   user: {
-    id: string;
     name: string;
     email: string;
-  };
+    role: string;
+  } | null;
 }
 
-export default function SyncManagementPage() {
+interface SyncStatus {
+  workerStatus: 'connected' | 'disconnected';
+  workerError: string;
+  localStats: SyncStats;
+  d1Stats: SyncStats | null;
+  recentSyncs: SyncHistory[];
+}
+
+interface AutoSyncStatus {
+  enabled: boolean;
+  interval: number;
+  lastSync: string | null;
+  nextSync: string | null;
+  totalSyncs: number;
+  errors: number;
+}
+
+export default function CloudflareSyncPage() {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [syncHistory, setSyncHistory] = useState<SyncHistory[]>([]);
-  const [currentReport, setCurrentReport] = useState<SyncReport | null>(null);
-  const [academyStats, setAcademyStats] = useState<any>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [autoSyncStatus, setAutoSyncStatus] = useState<AutoSyncStatus | null>(null);
+  const [syncDirection, setSyncDirection] = useState<'from-d1' | 'to-d1' | 'bidirectional'>('bidirectional');
 
   useEffect(() => {
     if (session) {
-      loadSyncHistory();
+      loadSyncStatus();
+      loadAutoSyncStatus();
     }
   }, [session]);
 
-  const loadSyncHistory = async () => {
+  const loadSyncStatus = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (session?.user?.role === 'DIRECTOR' && session?.user?.academyId) {
-        params.set('academyId', session.user.academyId);
-      }
-
-      const response = await fetch(`/api/sync/academy?${params.toString()}`);
+      const response = await fetch('/api/cloudflare/d1/sync');
       
       if (!response.ok) {
-        console.error("Failed to fetch sync history:", response.status);
+        console.error("동기화 상태 조회 실패:", response.status);
         return;
       }
 
       const data = await response.json();
-      setSyncHistory(data.syncHistory || []);
-      setAcademyStats(data.academyStats);
+      setSyncStatus(data);
     } catch (error) {
-      console.error("❌ 동기화 히스토리 조회 오류:", error);
+      console.error("❌ 동기화 상태 조회 오류:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSync = async (syncAll: boolean = false) => {
-    if (!confirm(syncAll 
-      ? "모든 학원의 데이터를 Cloudflare와 동기화하시겠습니까?" 
-      : "학원 데이터를 Cloudflare와 동기화하시겠습니까?")) {
+  const loadAutoSyncStatus = async () => {
+    try {
+      const response = await fetch('/api/cloudflare/d1/auto-sync');
+      
+      if (!response.ok) {
+        console.error("자동 동기화 상태 조회 실패:", response.status);
+        return;
+      }
+
+      const data = await response.json();
+      setAutoSyncStatus(data.status);
+    } catch (error) {
+      console.error("❌ 자동 동기화 상태 조회 오류:", error);
+    }
+  };
+
+  const handleSync = async () => {
+    const confirmMessage = 
+      syncDirection === 'from-d1' ? "Cloudflare D1 → Local 동기화를 실행하시겠습니까?" :
+      syncDirection === 'to-d1' ? "Local → Cloudflare D1 동기화를 실행하시겠습니까?" :
+      "양방향 동기화를 실행하시겠습니까?";
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
     try {
       setSyncing(true);
-      setCurrentReport(null);
-
-      const body: any = {};
-      
-      if (syncAll) {
-        body.syncAll = true;
-      } else if (session?.user?.academyId) {
-        body.academyId = session.user.academyId;
-      } else {
-        alert("학원 정보가 없습니다.");
-        return;
-      }
-
-      const response = await fetch("/api/sync/academy", {
-        method: "POST",
+      const response = await fetch(`/api/cloudflare/d1/sync?direction=${syncDirection}`, {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          dryRun: false,
+        }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "동기화 실패" }));
-        console.error("동기화 API 오류:", {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData,
-        });
-        throw new Error(errorData.details || errorData.error || "동기화 실패");
+        const errorData = await response.json();
+        throw new Error(errorData.error || '동기화 실패');
       }
 
-      const data = await response.json();
+      const result = await response.json();
+      alert(`✅ 동기화 완료!\n\n${result.message}`);
       
-      if (syncAll && data.reports) {
-        alert(`전체 동기화 완료!\n학원: ${data.reports.length}개`);
-      } else if (data.report) {
-        setCurrentReport(data.report);
-        const totalStudents = data.report.students.created + data.report.students.updated;
-        const totalClasses = data.report.classes.created + data.report.classes.updated;
-        alert(`동기화 완료!\n학생: ${totalStudents}명\n반: ${totalClasses}개`);
-      }
-
-      await loadSyncHistory();
-    } catch (error) {
+      // 상태 새로고침
+      await loadSyncStatus();
+      await loadAutoSyncStatus();
+    } catch (error: any) {
       console.error("❌ 동기화 오류:", error);
-      alert("동기화 중 오류가 발생했습니다: " + (error instanceof Error ? error.message : "Unknown error"));
+      alert(`❌ 동기화 실패: ${error.message}`);
     } finally {
       setSyncing(false);
     }
   };
 
-  const getSyncActionBadge = (action: string) => {
-    if (action === 'SYNC_ALL_ACADEMIES') {
-      return <Badge className="bg-purple-500">전체 동기화</Badge>;
+  const handleAutoSync = async (action: 'start' | 'stop') => {
+    try {
+      const response = await fetch('/api/cloudflare/d1/auto-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          interval: 300000, // 5분
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '자동 동기화 제어 실패');
+      }
+
+      const result = await response.json();
+      alert(result.message);
+      
+      await loadAutoSyncStatus();
+    } catch (error: any) {
+      console.error("❌ 자동 동기화 제어 오류:", error);
+      alert(`❌ ${error.message}`);
     }
-    return <Badge className="bg-blue-500">학원 동기화</Badge>;
   };
 
-  const formatDuration = (report: SyncReport) => {
-    if (!report.endTime) return "진행 중...";
-    const start = new Date(report.startTime).getTime();
-    const end = new Date(report.endTime).getTime();
-    const duration = ((end - start) / 1000).toFixed(2);
-    return `${duration}초`;
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('ko-KR');
   };
 
-  if (!session) {
+  if (session?.user?.role !== 'SUPER_ADMIN') {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">로딩 중...</p>
-        </div>
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>⚠️ 권한 없음</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>SUPER_ADMIN만 Cloudflare D1 동기화 페이지에 접근할 수 있습니다.</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Cloudflare 동기화 관리</h1>
-        <p className="text-gray-600">학생과 반 데이터를 Cloudflare와 동기화합니다</p>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">🔄 Cloudflare D1 동기화</h1>
+          <p className="text-gray-600 mt-2">
+            https://superplace-academy.pages.dev 와 데이터베이스 동기화
+          </p>
+        </div>
+        <Button onClick={loadSyncStatus} variant="outline" disabled={loading}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          새로고침
+        </Button>
       </div>
 
-      {/* 동기화 액션 카드 */}
-      <Card className="mb-8">
+      {/* 연결 상태 */}
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Cloud className="h-5 w-5" />
-            동기화 실행
+          <CardTitle className="flex items-center">
+            <Database className="mr-2 h-5 w-5" />
+            연결 상태
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center space-x-2">
+              <Database className="h-8 w-8 text-blue-500" />
+              <div>
+                <p className="text-sm text-gray-600">Local PostgreSQL</p>
+                <Badge variant="default" className="bg-green-500">
+                  <CheckCircle className="mr-1 h-3 w-3" />
+                  연결됨
+                </Badge>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Cloud className="h-8 w-8 text-orange-500" />
+              <div>
+                <p className="text-sm text-gray-600">Cloudflare D1</p>
+                {syncStatus?.workerStatus === 'connected' ? (
+                  <Badge variant="default" className="bg-green-500">
+                    <CheckCircle className="mr-1 h-3 w-3" />
+                    연결됨
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive">
+                    <XCircle className="mr-1 h-3 w-3" />
+                    연결 안 됨
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {syncStatus?.workerStatus === 'disconnected' && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm font-semibold text-yellow-800">⚠️ Cloudflare Worker 연결 필요</p>
+              <p className="text-xs text-yellow-700 mt-1">
+                Vercel 환경 변수에 다음을 설정하세요:
+              </p>
+              <pre className="mt-2 p-2 bg-yellow-100 rounded text-xs">
+{`CLOUDFLARE_WORKER_URL=https://your-worker.workers.dev
+CLOUDFLARE_WORKER_TOKEN=your-secret-token`}
+              </pre>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 데이터베이스 통계 */}
+      <div className="grid grid-cols-2 gap-6">
+        {/* Local Stats */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Database className="mr-2 h-5 w-5 text-blue-500" />
+              Local PostgreSQL
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {syncStatus?.localStats && (
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">총 사용자</span>
+                  <span className="font-bold">{syncStatus.localStats.totalUsers}명</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">학생</span>
+                  <span className="font-bold text-blue-600">{syncStatus.localStats.students}명</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">학원장</span>
+                  <span className="font-bold text-green-600">{syncStatus.localStats.directors}명</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">선생님</span>
+                  <span className="font-bold text-purple-600">{syncStatus.localStats.teachers}명</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* D1 Stats */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Cloud className="mr-2 h-5 w-5 text-orange-500" />
+              Cloudflare D1
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {syncStatus?.d1Stats ? (
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">총 사용자</span>
+                  <span className="font-bold">{syncStatus.d1Stats.totalUsers}명</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">학생</span>
+                  <span className="font-bold text-blue-600">{syncStatus.d1Stats.students}명</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">학원장</span>
+                  <span className="font-bold text-green-600">{syncStatus.d1Stats.directors}명</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">선생님</span>
+                  <span className="font-bold text-purple-600">{syncStatus.d1Stats.teachers}명</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">연결 안 됨</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 수동 동기화 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <ArrowRightLeft className="mr-2 h-5 w-5" />
+            수동 동기화
           </CardTitle>
           <CardDescription>
-            로컬 데이터베이스와 Cloudflare 간 데이터를 양방향으로 동기화합니다
+            원하는 방향으로 데이터를 동기화할 수 있습니다.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            {session?.user?.role === 'DIRECTOR' && (
+          <div className="space-y-4">
+            <div className="flex gap-2">
               <Button
-                onClick={() => handleSync(false)}
-                disabled={syncing || !session?.user?.academyId}
-                className="flex items-center gap-2"
-                size="lg"
+                variant={syncDirection === 'from-d1' ? 'default' : 'outline'}
+                onClick={() => setSyncDirection('from-d1')}
+                className="flex-1"
               >
-                {syncing ? (
-                  <>
-                    <RefreshCw className="h-5 w-5 animate-spin" />
-                    동기화 중...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-5 w-5" />
-                    내 학원 동기화
-                  </>
-                )}
+                <Download className="mr-2 h-4 w-4" />
+                D1 → Local
               </Button>
-            )}
-
-            {session?.user?.role === 'SUPER_ADMIN' && (
-              <>
-                <Button
-                  onClick={() => handleSync(false)}
-                  disabled={syncing}
-                  variant="outline"
-                  size="lg"
-                  className="flex items-center gap-2"
-                >
-                  <Database className="h-5 w-5" />
-                  특정 학원 동기화
-                </Button>
-                
-                <Button
-                  onClick={() => handleSync(true)}
-                  disabled={syncing}
-                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
-                  size="lg"
-                >
-                  {syncing ? (
-                    <>
-                      <RefreshCw className="h-5 w-5 animate-spin" />
-                      전체 동기화 중...
-                    </>
-                  ) : (
-                    <>
-                      <Cloud className="h-5 w-5" />
-                      전체 학원 동기화
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
+              <Button
+                variant={syncDirection === 'bidirectional' ? 'default' : 'outline'}
+                onClick={() => setSyncDirection('bidirectional')}
+                className="flex-1"
+              >
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                양방향
+              </Button>
+              <Button
+                variant={syncDirection === 'to-d1' ? 'default' : 'outline'}
+                onClick={() => setSyncDirection('to-d1')}
+                className="flex-1"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Local → D1
+              </Button>
+            </div>
+            
+            <Button
+              onClick={handleSync}
+              disabled={syncing || syncStatus?.workerStatus !== 'connected'}
+              className="w-full"
+              size="lg"
+            >
+              {syncing ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  동기화 중...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  지금 동기화
+                </>
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* 현재 동기화 보고서 */}
-      {currentReport && (
-        <Card className="mb-8 border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              최근 동기화 결과
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  학생 동기화
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">생성</span>
-                    <Badge variant="outline" className="bg-green-100 text-green-800">
-                      <Upload className="h-3 w-3 mr-1" />
-                      {currentReport.students.created}
+      {/* 자동 동기화 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Clock className="mr-2 h-5 w-5" />
+            자동 동기화
+          </CardTitle>
+          <CardDescription>
+            주기적으로 자동 동기화를 실행합니다. (기본: 5분마다)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {autoSyncStatus && (
+              <div className="p-4 bg-gray-50 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold">상태</span>
+                  {autoSyncStatus.enabled ? (
+                    <Badge variant="default" className="bg-green-500">
+                      <Play className="mr-1 h-3 w-3" />
+                      실행 중
                     </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">업데이트</span>
-                    <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                      {currentReport.students.updated}
+                  ) : (
+                    <Badge variant="secondary">
+                      <Square className="mr-1 h-3 w-3" />
+                      중지됨
                     </Badge>
-                  </div>
-                  {currentReport.students.failed > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">실패</span>
-                      <Badge variant="outline" className="bg-red-100 text-red-800">
-                        <XCircle className="h-3 w-3 mr-1" />
-                        {currentReport.students.failed}
-                      </Badge>
-                    </div>
                   )}
                 </div>
-              </div>
-
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  반 동기화
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">생성</span>
-                    <Badge variant="outline" className="bg-green-100 text-green-800">
-                      <Upload className="h-3 w-3 mr-1" />
-                      {currentReport.classes.created}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">업데이트</span>
-                    <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                      {currentReport.classes.updated}
-                    </Badge>
-                  </div>
-                  {currentReport.classes.failed > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">실패</span>
-                      <Badge variant="outline" className="bg-red-100 text-red-800">
-                        <XCircle className="h-3 w-3 mr-1" />
-                        {currentReport.classes.failed}
-                      </Badge>
+                
+                {autoSyncStatus.enabled && (
+                  <>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">다음 동기화</span>
+                      <span className="font-medium">
+                        {autoSyncStatus.nextSync ? formatDate(autoSyncStatus.nextSync) : '-'}
+                      </span>
                     </div>
-                  )}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">마지막 동기화</span>
+                      <span className="font-medium">
+                        {autoSyncStatus.lastSync ? formatDate(autoSyncStatus.lastSync) : '-'}
+                      </span>
+                    </div>
+                  </>
+                )}
+                
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">총 동기화 횟수</span>
+                  <span className="font-medium">{autoSyncStatus.totalSyncs}회</span>
                 </div>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-4 border-t">
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  소요 시간: {formatDuration(currentReport)}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">오류 횟수</span>
+                  <span className="font-medium text-red-600">{autoSyncStatus.errors}회</span>
                 </div>
-                <div>
-                  실행자: {currentReport.userName}
-                </div>
-              </div>
-            </div>
-
-            {currentReport.errors && currentReport.errors.length > 0 && (
-              <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
-                <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  오류 발생 ({currentReport.errors.length}건)
-                </h4>
-                <ul className="text-sm text-red-700 space-y-1">
-                  {currentReport.errors.map((error, idx) => (
-                    <li key={idx}>• {error}</li>
-                  ))}
-                </ul>
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 학원 통계 */}
-      {academyStats && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>학원 통계</CardTitle>
-            <CardDescription>
-              {academyStats.academy.name}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-600">
-                  {academyStats.counts.students}
-                </div>
-                <div className="text-sm text-gray-600">학생</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">
-                  {academyStats.counts.teachers}
-                </div>
-                <div className="text-sm text-gray-600">선생님</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-purple-600">
-                  {academyStats.counts.classes}
-                </div>
-                <div className="text-sm text-gray-600">반</div>
-              </div>
+            
+            <div className="flex gap-2">
+              <Button
+                onClick={() => handleAutoSync('start')}
+                disabled={autoSyncStatus?.enabled}
+                variant="default"
+                className="flex-1"
+              >
+                <Play className="mr-2 h-4 w-4" />
+                자동 동기화 시작
+              </Button>
+              <Button
+                onClick={() => handleAutoSync('stop')}
+                disabled={!autoSyncStatus?.enabled}
+                variant="destructive"
+                className="flex-1"
+              >
+                <Square className="mr-2 h-4 w-4" />
+                자동 동기화 중지
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Webhook 정보 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Webhook className="mr-2 h-5 w-5" />
+            Webhook 연동
+          </CardTitle>
+          <CardDescription>
+            Cloudflare D1에서 데이터 변경 시 자동 동기화
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-600 mb-2">Webhook URL:</p>
+              <code className="text-sm break-all">
+                {typeof window !== 'undefined' ? window.location.origin : ''}/api/cloudflare/d1/webhook
+              </code>
+            </div>
+            <p className="text-xs text-gray-600">
+              💡 Cloudflare Worker에서 데이터 변경 시 이 URL로 POST 요청을 보내면 자동으로 동기화됩니다.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 동기화 히스토리 */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>동기화 히스토리</CardTitle>
-              <CardDescription>최근 20개의 동기화 기록</CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadSyncHistory}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
+          <CardTitle className="flex items-center">
+            <Clock className="mr-2 h-5 w-5" />
+            동기화 히스토리
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="text-center py-8 text-gray-500">
-              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2" />
-              로딩 중...
-            </div>
-          ) : syncHistory.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              동기화 히스토리가 없습니다
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {syncHistory.map((history) => (
-                <div
-                  key={history.id}
-                  className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {getSyncActionBadge(history.action)}
-                      <span className="font-medium">{history.description}</span>
+          {syncStatus?.recentSyncs && syncStatus.recentSyncs.length > 0 ? (
+            <div className="space-y-3">
+              {syncStatus.recentSyncs.map((sync) => (
+                <div key={sync.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{sync.description}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-gray-500">
+                        {formatDate(sync.createdAt)}
+                      </span>
+                      {sync.user && (
+                        <>
+                          <span className="text-xs text-gray-400">•</span>
+                          <span className="text-xs text-gray-600">
+                            {sync.user.name} ({sync.user.role})
+                          </span>
+                        </>
+                      )}
                     </div>
-                    <span className="text-sm text-gray-500">
-                      {new Date(history.createdAt).toLocaleString('ko-KR')}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    실행자: {history.user.name} ({history.user.email})
                   </div>
                 </div>
               ))}
             </div>
+          ) : (
+            <p className="text-sm text-gray-500 text-center py-4">
+              동기화 히스토리가 없습니다.
+            </p>
           )}
         </CardContent>
       </Card>
