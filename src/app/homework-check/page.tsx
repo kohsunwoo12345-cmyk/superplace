@@ -1,22 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Loader2, CheckCircle, XCircle, LogOut } from "lucide-react";
+import { Camera, Loader2, CheckCircle, LogOut, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 
 export default function HomeworkCheckPage() {
   const router = useRouter();
-  const [step, setStep] = useState<"login" | "upload" | "result">("login");
+  const [step, setStep] = useState<"login" | "camera" | "preview" | "result">("login");
   const [studentCode, setStudentCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [user, setUser] = useState<any>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [result, setResult] = useState<any>(null);
+  const [attendanceMarked, setAttendanceMarked] = useState(false);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // 학생 코드 로그인
   const handleLogin = async (e: React.FormEvent) => {
@@ -49,10 +53,12 @@ export default function HomeworkCheckPage() {
       
       // 출석 체크 메시지 표시
       if (data.attendanceMarked) {
-        console.log('✅ 출석이 자동으로 체크되었습니다!');
+        setAttendanceMarked(true);
       }
       
-      setStep("upload");
+      setStep("camera");
+      // 카메라 시작
+      setTimeout(() => startCamera(), 100);
     } catch (err) {
       setError("로그인 중 오류가 발생했습니다.");
     } finally {
@@ -60,23 +66,60 @@ export default function HomeworkCheckPage() {
     }
   };
 
-  // 이미지 선택
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  // 카메라 시작
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" }, // 후면 카메라 우선
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("카메라 접근 오류:", err);
+      setError("카메라에 접근할 수 없습니다. 브라우저 설정을 확인해주세요.");
     }
+  };
+
+  // 카메라 중지
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  // 사진 촬영
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        const imageUrl = canvas.toDataURL("image/jpeg", 0.8);
+        setImagePreview(imageUrl);
+        stopCamera();
+        setStep("preview");
+      }
+    }
+  };
+
+  // 다시 촬영
+  const retakePhoto = () => {
+    setImagePreview("");
+    setStep("camera");
+    setTimeout(() => startCamera(), 100);
   };
 
   // 숙제 제출
   const handleSubmit = async () => {
-    if (!imageFile) {
-      setError("숙제 사진을 선택해주세요.");
+    if (!imagePreview) {
+      setError("숙제 사진을 촬영해주세요.");
       return;
     }
 
@@ -84,49 +127,41 @@ export default function HomeworkCheckPage() {
     setError("");
 
     try {
-      // 이미지를 base64로 변환
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const imageUrl = reader.result as string;
-        
-        // localStorage에서 토큰 가져오기
-        const token = localStorage.getItem('student_token');
-        
-        if (!token) {
-          setError("세션이 만료되었습니다. 다시 로그인해주세요.");
-          setLoading(false);
-          handleLogout();
-          return;
-        }
-
-        const response = await fetch("/api/homework/submit-with-code", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ imageUrl }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          setError(data.error || "제출에 실패했습니다.");
-          setLoading(false);
-          return;
-        }
-
-        setResult(data.submission);
-        setStep("result");
+      // localStorage에서 토큰 가져오기
+      const token = localStorage.getItem('student_token');
+      
+      if (!token) {
+        setError("세션이 만료되었습니다. 다시 로그인해주세요.");
         setLoading(false);
+        handleLogout();
+        return;
+      }
 
-        // 3초 후 로그아웃
-        setTimeout(() => {
-          handleLogout();
-        }, 3000);
-      };
+      const response = await fetch("/api/homework/submit-with-code", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ imageUrl: imagePreview }),
+      });
 
-      reader.readAsDataURL(imageFile);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "제출에 실패했습니다.");
+        setLoading(false);
+        return;
+      }
+
+      setResult(data.submission);
+      setStep("result");
+      setLoading(false);
+
+      // 5초 후 로그아웃
+      setTimeout(() => {
+        handleLogout();
+      }, 5000);
     } catch (err) {
       setError("제출 중 오류가 발생했습니다.");
       setLoading(false);
@@ -135,15 +170,18 @@ export default function HomeworkCheckPage() {
 
   // 로그아웃
   const handleLogout = () => {
+    // 카메라 중지
+    stopCamera();
+    
     // localStorage에서 토큰 제거
     localStorage.removeItem('student_token');
     
     setStep("login");
     setStudentCode("");
-    setImageFile(null);
     setImagePreview("");
     setResult(null);
     setUser(null);
+    setAttendanceMarked(false);
   };
 
   return (
@@ -155,10 +193,17 @@ export default function HomeworkCheckPage() {
           </h1>
           <p className="text-sm text-gray-600">
             {step === "login" && "학생 코드를 입력하세요"}
-            {step === "upload" && "숙제 사진을 업로드하세요"}
+            {step === "camera" && "숙제 사진을 촬영하세요"}
+            {step === "preview" && "사진을 확인하고 제출하세요"}
             {step === "result" && "제출 완료!"}
           </p>
         </div>
+
+        {attendanceMarked && step === "camera" && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm text-center">
+            ✅ 출석이 자동으로 체크되었습니다!
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -201,7 +246,7 @@ export default function HomeworkCheckPage() {
           </form>
         )}
 
-        {step === "upload" && (
+        {step === "camera" && (
           <div className="space-y-4">
             <div className="text-center mb-4">
               <p className="text-sm text-gray-600">
@@ -209,59 +254,24 @@ export default function HomeworkCheckPage() {
               </p>
             </div>
 
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              {imagePreview ? (
-                <div className="space-y-3">
-                  <img
-                    src={imagePreview}
-                    alt="숙제 미리보기"
-                    className="max-h-64 mx-auto rounded-lg"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setImageFile(null);
-                      setImagePreview("");
-                    }}
-                  >
-                    다시 선택
-                  </Button>
-                </div>
-              ) : (
-                <label className="cursor-pointer">
-                  <Upload className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                  <p className="text-sm text-gray-600 mb-2">
-                    숙제 사진을 선택하세요
-                  </p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                  <Button variant="outline" size="sm" type="button">
-                    파일 선택
-                  </Button>
-                </label>
-              )}
+            <div className="relative rounded-lg overflow-hidden bg-black">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full h-auto"
+              />
             </div>
 
             <div className="flex gap-2">
               <Button
-                onClick={handleSubmit}
-                className="flex-1"
+                onClick={capturePhoto}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
                 size="lg"
-                disabled={!imageFile || loading}
+                disabled={loading}
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    분석 중...
-                  </>
-                ) : (
-                  "제출하기"
-                )}
+                <Camera className="w-5 h-5 mr-2" />
+                사진 촬영
               </Button>
               <Button
                 onClick={handleLogout}
@@ -271,6 +281,56 @@ export default function HomeworkCheckPage() {
                 disabled={loading}
               >
                 <LogOut className="w-5 h-5" />
+              </Button>
+            </div>
+            
+            <canvas ref={canvasRef} className="hidden" />
+          </div>
+        )}
+
+        {step === "preview" && (
+          <div className="space-y-4">
+            <div className="text-center mb-4">
+              <p className="text-sm text-gray-600">
+                사진을 확인하고 제출하세요
+              </p>
+            </div>
+
+            <div className="rounded-lg overflow-hidden">
+              <img
+                src={imagePreview}
+                alt="숙제 미리보기"
+                className="w-full h-auto"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSubmit}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                size="lg"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    분석 중...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    제출하기
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={retakePhoto}
+                variant="outline"
+                size="lg"
+                disabled={loading}
+              >
+                <RotateCcw className="w-5 h-5 mr-2" />
+                다시 촬영
               </Button>
             </div>
           </div>
@@ -339,7 +399,7 @@ export default function HomeworkCheckPage() {
             )}
 
             <p className="text-xs text-center text-gray-500">
-              3초 후 자동으로 로그아웃됩니다...
+              5초 후 자동으로 로그아웃됩니다...
             </p>
           </div>
         )}
