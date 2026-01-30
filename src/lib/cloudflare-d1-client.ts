@@ -2,11 +2,14 @@
  * Cloudflare D1 REST API Client
  * 
  * Direct connection to Cloudflare D1 Database using REST API
+ * Supports both API Token and Global API Key
  */
 
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || '';
 const CLOUDFLARE_D1_DATABASE_ID = process.env.CLOUDFLARE_D1_DATABASE_ID || '';
 const CLOUDFLARE_D1_API_TOKEN = process.env.CLOUDFLARE_D1_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN || '';
+const CLOUDFLARE_API_KEY = process.env.CLOUDFLARE_API_KEY || '';
+const CLOUDFLARE_EMAIL = process.env.CLOUDFLARE_EMAIL || '';
 
 interface D1Response<T = any> {
   success: boolean;
@@ -124,7 +127,12 @@ export async function getD1Users(role?: string, academyId?: string): Promise<any
  * Check if D1 is configured
  */
 export function isD1Configured(): boolean {
-  return !!(CLOUDFLARE_ACCOUNT_ID && CLOUDFLARE_D1_DATABASE_ID && CLOUDFLARE_D1_API_TOKEN);
+  const hasAccountId = !!CLOUDFLARE_ACCOUNT_ID;
+  const hasDatabaseId = !!CLOUDFLARE_D1_DATABASE_ID;
+  const hasApiToken = !!CLOUDFLARE_D1_API_TOKEN;
+  const hasGlobalKey = !!(CLOUDFLARE_API_KEY && CLOUDFLARE_EMAIL);
+  
+  return hasAccountId && hasDatabaseId && (hasApiToken || hasGlobalKey);
 }
 
 export {
