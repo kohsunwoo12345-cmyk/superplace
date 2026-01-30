@@ -103,7 +103,13 @@ export default function AdminUsersPage() {
         setUsers(data.users);
         
         if (withSync && data.syncedFromCloudflare) {
-          alert('Cloudflare 동기화가 완료되었습니다!');
+          if (data.syncReport && !data.syncReport.failed) {
+            const report = data.syncReport;
+            console.log(`✅ Cloudflare D1 자동 동기화 완료: 총 ${report.total}명, 생성 ${report.created}명, 업데이트 ${report.updated}명`);
+            // 수동 동기화 시에만 알림 표시
+          } else if (data.syncReport?.failed) {
+            console.warn('⚠️ Cloudflare D1 동기화 실패:', data.syncReport.error);
+          }
         }
       }
     } catch (error) {
@@ -116,11 +122,33 @@ export default function AdminUsersPage() {
   };
 
   const handleSyncCloudflare = async () => {
-    if (!confirm('Cloudflare에서 모든 사용자를 동기화하시겠습니까?\n이 작업은 수 분이 소요될 수 있습니다.')) {
+    if (!confirm('Cloudflare D1에서 모든 사용자를 다시 동기화하시겠습니까?\n\n회원가입한 모든 사용자가 자동으로 추가/업데이트됩니다.\n이 작업은 수 분이 소요될 수 있습니다.')) {
       return;
     }
 
-    await fetchUsers(true);
+    setSyncing(true);
+    try {
+      const response = await fetch("/api/admin/users?sync=true");
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users);
+        
+        if (data.syncReport && !data.syncReport.failed) {
+          const report = data.syncReport;
+          alert(`✅ Cloudflare D1 동기화 완료!\n\n총 ${report.total}명\n생성: ${report.created}명\n업데이트: ${report.updated}명\n실패: ${report.failed}명`);
+        } else if (data.syncReport?.failed) {
+          alert(`❌ Cloudflare D1 동기화 실패\n\n${data.syncReport.error}`);
+        } else {
+          alert('✅ Cloudflare 동기화가 완료되었습니다!');
+        }
+      }
+    } catch (error) {
+      console.error("동기화 실패:", error);
+      alert("동기화 중 오류가 발생했습니다.");
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const filteredUsers = users.filter((user) => {
