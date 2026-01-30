@@ -22,24 +22,47 @@ interface D1Response<T = any> {
  * Execute SQL query on Cloudflare D1 via REST API
  */
 export async function executeD1Query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
-  if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_D1_DATABASE_ID || !CLOUDFLARE_D1_API_TOKEN) {
+  // Check if required environment variables are set
+  if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_D1_DATABASE_ID) {
     console.error('❌ Cloudflare D1 환경 변수가 설정되지 않았습니다:', {
       hasAccountId: !!CLOUDFLARE_ACCOUNT_ID,
       hasDatabaseId: !!CLOUDFLARE_D1_DATABASE_ID,
       hasApiToken: !!CLOUDFLARE_D1_API_TOKEN,
+      hasGlobalApiKey: !!CLOUDFLARE_API_KEY,
+      hasEmail: !!CLOUDFLARE_EMAIL,
     });
     throw new Error('Cloudflare D1 환경 변수가 설정되지 않았습니다.');
   }
 
+  // Check authentication method
+  const hasApiToken = !!CLOUDFLARE_D1_API_TOKEN;
+  const hasGlobalApiKey = !!(CLOUDFLARE_API_KEY && CLOUDFLARE_EMAIL);
+
+  if (!hasApiToken && !hasGlobalApiKey) {
+    throw new Error('Cloudflare 인증 정보가 없습니다. API Token 또는 Global API Key + Email이 필요합니다.');
+  }
+
   const url = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${CLOUDFLARE_D1_DATABASE_ID}/query`;
+
+  // Prepare headers
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Use API Token if available, otherwise use Global API Key
+  if (hasApiToken) {
+    console.log('🔑 Using API Token authentication');
+    headers['Authorization'] = `Bearer ${CLOUDFLARE_D1_API_TOKEN}`;
+  } else {
+    console.log('🔑 Using Global API Key authentication');
+    headers['X-Auth-Email'] = CLOUDFLARE_EMAIL;
+    headers['X-Auth-Key'] = CLOUDFLARE_API_KEY;
+  }
 
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${CLOUDFLARE_D1_API_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         sql,
         params,
