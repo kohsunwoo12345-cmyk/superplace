@@ -17,7 +17,12 @@ import {
   FileText,
   CheckCircle,
   AlertCircle,
-  Clock
+  Clock,
+  Brain,
+  Sparkles,
+  MessageCircle,
+  ThumbsUp,
+  ThumbsDown
 } from "lucide-react";
 
 interface LearningRecord {
@@ -44,6 +49,17 @@ interface LearningRecord {
     score: number;
     count: number;
   }[];
+  aiAnalysis?: {
+    engagementScore: number;
+    responseQuality: number;
+    questionDepth: number;
+    consistency: number;
+    summary: string;
+    strengths: string[];
+    weaknesses: string[];
+    recommendations: string[];
+    lastAnalyzedAt: string;
+  };
 }
 
 export default function LearningRecordsPage() {
@@ -65,7 +81,7 @@ export default function LearningRecordsPage() {
   const fetchLearningRecords = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/learning/records");
+      const response = await fetch("/api/learning/records/all");
       
       if (!response.ok) {
         throw new Error("Failed to fetch learning records");
@@ -363,6 +379,133 @@ export default function LearningRecordsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* AI 분석 결과 (있는 경우에만 표시) */}
+                {record.aiAnalysis && (
+                  <div className="mt-6 pt-6 border-t">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Brain className="h-5 w-5 text-purple-600" />
+                      <h4 className="text-lg font-semibold text-purple-900">AI 학습 분석</h4>
+                      <Sparkles className="h-4 w-4 text-yellow-500" />
+                    </div>
+
+                    {/* AI 분석 점수 */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div className="bg-blue-50 rounded-lg p-3">
+                        <div className="text-xs text-gray-600 mb-1">참여도</div>
+                        <div className="flex items-center gap-2">
+                          <div className={`text-2xl font-bold ${getPerformanceColor(record.aiAnalysis.engagementScore)}`}>
+                            {record.aiAnalysis.engagementScore.toFixed(0)}
+                          </div>
+                          <div className="text-xs text-gray-500">/100</div>
+                        </div>
+                      </div>
+
+                      <div className="bg-green-50 rounded-lg p-3">
+                        <div className="text-xs text-gray-600 mb-1">응답 품질</div>
+                        <div className="flex items-center gap-2">
+                          <div className={`text-2xl font-bold ${getPerformanceColor(record.aiAnalysis.responseQuality)}`}>
+                            {record.aiAnalysis.responseQuality.toFixed(0)}
+                          </div>
+                          <div className="text-xs text-gray-500">/100</div>
+                        </div>
+                      </div>
+
+                      <div className="bg-purple-50 rounded-lg p-3">
+                        <div className="text-xs text-gray-600 mb-1">질문 깊이</div>
+                        <div className="flex items-center gap-2">
+                          <div className={`text-2xl font-bold ${getPerformanceColor(record.aiAnalysis.questionDepth)}`}>
+                            {record.aiAnalysis.questionDepth.toFixed(0)}
+                          </div>
+                          <div className="text-xs text-gray-500">/100</div>
+                        </div>
+                      </div>
+
+                      <div className="bg-orange-50 rounded-lg p-3">
+                        <div className="text-xs text-gray-600 mb-1">일관성</div>
+                        <div className="flex items-center gap-2">
+                          <div className={`text-2xl font-bold ${getPerformanceColor(record.aiAnalysis.consistency)}`}>
+                            {record.aiAnalysis.consistency.toFixed(0)}
+                          </div>
+                          <div className="text-xs text-gray-500">/100</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 종합 분석 */}
+                    <div className="bg-purple-50 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MessageCircle className="h-4 w-4 text-purple-600" />
+                        <span className="text-sm font-semibold text-purple-900">AI 종합 분석</span>
+                      </div>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {record.aiAnalysis.summary}
+                      </p>
+                    </div>
+
+                    {/* 강점과 약점 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* 강점 */}
+                      {record.aiAnalysis.strengths.length > 0 && (
+                        <div className="bg-green-50 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <ThumbsUp className="h-4 w-4 text-green-600" />
+                            <span className="text-sm font-semibold text-green-900">강점</span>
+                          </div>
+                          <ul className="space-y-1">
+                            {record.aiAnalysis.strengths.map((strength, idx) => (
+                              <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                                <span className="text-green-600 mt-1">•</span>
+                                <span>{strength}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* 약점/개선점 */}
+                      {record.aiAnalysis.weaknesses.length > 0 && (
+                        <div className="bg-red-50 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <ThumbsDown className="h-4 w-4 text-red-600" />
+                            <span className="text-sm font-semibold text-red-900">개선 필요</span>
+                          </div>
+                          <ul className="space-y-1">
+                            {record.aiAnalysis.weaknesses.map((weakness, idx) => (
+                              <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                                <span className="text-red-600 mt-1">•</span>
+                                <span>{weakness}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 추천 사항 */}
+                    {record.aiAnalysis.recommendations.length > 0 && (
+                      <div className="mt-4 bg-blue-50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Target className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-semibold text-blue-900">추천 사항</span>
+                        </div>
+                        <ul className="space-y-1">
+                          {record.aiAnalysis.recommendations.map((rec, idx) => (
+                            <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                              <span className="text-blue-600 mt-1">→</span>
+                              <span>{rec}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* 분석 시간 */}
+                    <div className="mt-3 text-xs text-gray-500 text-right">
+                      마지막 분석: {new Date(record.aiAnalysis.lastAnalyzedAt).toLocaleString('ko-KR')}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))
