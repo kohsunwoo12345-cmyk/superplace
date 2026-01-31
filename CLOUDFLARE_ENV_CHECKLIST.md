@@ -1,5 +1,16 @@
 # CloudFlare Pages 환경 변수 체크리스트
 
+## 🔗 Vercel 데이터베이스 동기화
+
+**기존 Vercel 배포와 데이터베이스를 공유하려면**:
+1. Vercel Dashboard에서 `DATABASE_URL` 값 복사
+2. CloudFlare Pages에 동일한 `DATABASE_URL` 설정
+3. 자동으로 모든 사용자 데이터가 동기화됩니다
+
+📖 **상세 가이드**: DATABASE_SYNC_GUIDE.md 참고
+
+---
+
 ## 필수 환경 변수 (반드시 설정)
 
 ### 1. DATABASE_URL
@@ -7,8 +18,12 @@
 postgresql://username:password@host.region.neon.tech:5432/database?sslmode=require
 ```
 - **용도**: PostgreSQL 데이터베이스 연결
-- **발급처**: Neon (https://neon.tech) 또는 Supabase (https://supabase.com)
+- **발급처**: 
+  - ✅ **Vercel에서 복사** (기존 데이터 공유)
+  - 또는 Neon (https://neon.tech)
+  - 또는 Supabase (https://supabase.com)
 - ⚠️ **중요**: `?sslmode=require` 파라미터 필수
+- 💡 **Tip**: Vercel Postgres 사용 시 Pooled Connection URL 사용 권장
 
 ### 2. NEXTAUTH_URL
 ```

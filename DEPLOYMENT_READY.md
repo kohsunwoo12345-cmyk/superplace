@@ -73,7 +73,28 @@ NAVER_CLIENT_SECRET=your-client-secret
 
 ### 📍 5단계: 데이터베이스 준비
 
-#### 옵션 1: Neon (권장)
+#### 🔥 옵션 1: Vercel 데이터베이스 공유 (권장)
+**기존 Vercel 배포와 데이터베이스를 공유하여 사용자 데이터 동기화**:
+
+1. **Vercel Dashboard 접속**
+   - https://vercel.com/dashboard
+   - `superplace` 프로젝트 선택
+
+2. **DATABASE_URL 복사**
+   - Settings > Environment Variables
+   - `DATABASE_URL` 값 복사
+
+3. **CloudFlare Pages에 설정**
+   - Settings > Environment variables
+   - `DATABASE_URL`에 Vercel과 동일한 값 붙여넣기
+
+4. **✅ 완료!**
+   - 자동으로 모든 사용자 데이터 동기화
+   - https://superplace-study.vercel.app/dashboard/admin/users 의 데이터와 동일
+
+📖 **상세 가이드**: DATABASE_SYNC_GUIDE.md
+
+#### 옵션 2: Neon (새 DB 생성)
 1. https://neon.tech 접속 후 회원가입
 2. **Create Project** 클릭
 3. 프로젝트 이름: `superplace-study`
@@ -81,7 +102,7 @@ NAVER_CLIENT_SECRET=your-client-secret
 5. **Connection String** 복사
 6. CloudFlare 환경 변수 `DATABASE_URL`에 추가
 
-#### 옵션 2: Supabase
+#### 옵션 3: Supabase (새 DB 생성)
 1. https://supabase.com 접속 후 회원가입
 2. **New project** 클릭
 3. 프로젝트 설정 입력
