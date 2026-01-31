@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // SUPER_ADMIN은 모든 사용자 조회, DIRECTOR는 자기 학원 사용자만 조회
     const whereClause = isSuperAdmin 
       ? {} 
-      : { academyId: session.user.academyId };
+      : { academyId: session.user.academyId || null };
 
     const users = await prisma.user.findMany({
       where: whereClause,
