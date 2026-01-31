@@ -45,7 +45,8 @@
 - OpenAI API (선택)
 
 ### 배포
-- **Vercel** (프론트엔드 & API)
+- **Vercel** (프론트엔드 & API) - https://superplace-study.vercel.app
+- **CloudFlare Pages** (프론트엔드 & API) - 데이터베이스 동기화
 - **Neon/Supabase/Vercel Postgres** (데이터베이스)
 
 ## 📦 설치 및 실행
@@ -98,6 +99,45 @@ npm run dev
 ```
 
 애플리케이션이 [http://localhost:3000](http://localhost:3000)에서 실행됩니다.
+
+## 🚀 CloudFlare Pages 배포 (Vercel 데이터베이스 동기화)
+
+### 빠른 시작 (5분)
+
+기존 Vercel 배포와 데이터베이스를 공유하는 CloudFlare Pages 배포:
+
+1. **Vercel DATABASE_URL 복사**
+   ```bash
+   Vercel Dashboard > Settings > Environment Variables > DATABASE_URL
+   ```
+
+2. **CloudFlare Pages 프로젝트 생성**
+   - https://dash.cloudflare.com/
+   - Workers & Pages > Create application > Connect to Git
+   - 저장소: `kohsunwoo12345-cmyk/superplace`
+   - 빌드 명령: `npm run build`
+   - 출력 디렉토리: `.next`
+
+3. **환경 변수 설정**
+   ```env
+   DATABASE_URL=[Vercel에서 복사한 값]
+   NEXTAUTH_URL=https://superplace-study.pages.dev
+   NEXTAUTH_SECRET=[Vercel에서 복사 또는 새로 생성]
+   GOOGLE_GEMINI_API_KEY=[Vercel에서 복사]
+   GEMINI_API_KEY=[위와 동일]
+   ```
+
+4. **재배포 및 확인**
+   - Deployments > Retry deployment
+   - https://superplace-study.pages.dev 접속
+
+### 상세 가이드
+- 📖 **5분 빠른 시작**: [QUICK_SYNC_GUIDE.md](./QUICK_SYNC_GUIDE.md)
+- 📖 **데이터베이스 동기화**: [DATABASE_SYNC_GUIDE.md](./DATABASE_SYNC_GUIDE.md)
+- 📖 **전체 배포 가이드**: [CLOUDFLARE_PAGES_DEPLOYMENT.md](./CLOUDFLARE_PAGES_DEPLOYMENT.md)
+- 📖 **환경 변수 체크리스트**: [CLOUDFLARE_ENV_CHECKLIST.md](./CLOUDFLARE_ENV_CHECKLIST.md)
+
+---
 
 ## 🚀 Vercel 배포
 
