@@ -4,36 +4,47 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
+  console.log("========== /api/admin/users START ==========");
+  
   try {
+    // 1. 데이터베이스 연결 테스트
+    console.log("Step 1: Testing database connection...");
+    await prisma.$connect();
+    console.log("✅ Database connected");
+
+    // 2. 세션 확인
+    console.log("Step 2: Getting session...");
     const session = await getServerSession(authOptions);
-
-    console.log("Session:", JSON.stringify(session, null, 2));
-
-    // 로그인 필수
+    console.log("Session exists:", !!session);
+    
     if (!session) {
+      console.log("❌ No session - returning 401");
       return NextResponse.json(
         { error: "로그인이 필요합니다." },
         { status: 401 }
       );
     }
 
-    const userRole = session.user.role;
-    const isSuperAdmin = userRole === "SUPER_ADMIN";
-    const isDirector = userRole === "DIRECTOR";
+    console.log("Session user:", session.user.email, session.user.role);
 
-    console.log("User role:", userRole, "isSuperAdmin:", isSuperAdmin, "isDirector:", isDirector);
+    // 3. 단순한 count 쿼리 먼저
+    console.log("Step 3: Counting users...");
+    const userCount = await prisma.user.count();
+    console.log("✅ User count:", userCount);
 
-    // 권한 체크를 일단 제거하고 모든 로그인 사용자가 접근 가능하게
-    // if (!isSuperAdmin && !isDirector) {
-    //   return NextResponse.json(
-    //     { error: "권한이 없습니다." },
-    //     { status: 403 }
-    //   );
-    // }
+    // 4. 가장 단순한 쿼리 (id와 email만)
+    console.log("Step 4: Fetching users (simple)...");
+    const usersSimple = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+      },
+      take: 10,
+    });
+    console.log("✅ Simple query success:", usersSimple.length, "users");
 
-    // 일단 모든 사용자 조회 (필터링 제거)
-    console.log("Fetching all users...");
-    
+    // 5. 전체 필드 쿼리
+    console.log("Step 5: Fetching users (full fields)...");
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -53,31 +64,31 @@ export async function GET(request: NextRequest) {
         createdAt: "desc",
       },
     });
+    console.log("✅ Full query success:", users.length, "users");
 
-    console.log("Users found:", users.length);
-
+    console.log("========== /api/admin/users SUCCESS ==========");
     return NextResponse.json({ 
       users,
-      debug: {
-        sessionRole: userRole,
-        isSuperAdmin,
-        isDirector,
-        userCount: users.length
+      meta: {
+        total: users.length,
+        sessionUser: session.user.email,
+        sessionRole: session.user.role,
       }
     });
+
   } catch (error: any) {
-    console.error("사용자 목록 조회 실패:", error);
-    console.error("Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
+    console.error("========== /api/admin/users ERROR ==========");
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error code:", error.code);
+    console.error("Full error:", error);
+    
     return NextResponse.json(
       { 
-        error: "사용자 목록 조회 중 오류가 발생했습니다.",
-        details: error.message,
-        type: error.name,
-        stack: error.stack
+        error: "서버 오류가 발생했습니다.",
+        message: error.message,
+        code: error.code,
+        name: error.name,
       },
       { status: 500 }
     );
