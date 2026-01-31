@@ -59,10 +59,19 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ users });
-  } catch (error) {
+  } catch (error: any) {
     console.error("사용자 목록 조회 실패:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return NextResponse.json(
-      { error: "사용자 목록 조회 중 오류가 발생했습니다." },
+      { 
+        error: "사용자 목록 조회 중 오류가 발생했습니다.",
+        details: error.message,
+        type: error.name
+      },
       { status: 500 }
     );
   }

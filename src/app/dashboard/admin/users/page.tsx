@@ -74,9 +74,14 @@ export default function AdminUsersPage() {
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users);
+      } else {
+        const errorData = await response.json();
+        console.error("사용자 목록 로드 실패:", errorData);
+        alert(`사용자 목록을 조회하는데 실패하였습니다.\n에러: ${errorData.error || response.statusText}`);
       }
     } catch (error) {
       console.error("사용자 목록 로드 실패:", error);
+      alert("사용자 목록을 조회하는데 실패하였습니다.");
     } finally {
       setLoading(false);
     }
