@@ -7,14 +7,32 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== "SUPER_ADMIN") {
+    // 로그인 필수 및 권한 체크 (SUPER_ADMIN 또는 DIRECTOR)
+    if (!session) {
+      return NextResponse.json(
+        { error: "로그인이 필요합니다." },
+        { status: 401 }
+      );
+    }
+
+    const userRole = session.user.role;
+    const isSuperAdmin = userRole === "SUPER_ADMIN";
+    const isDirector = userRole === "DIRECTOR";
+
+    if (!isSuperAdmin && !isDirector) {
       return NextResponse.json(
         { error: "권한이 없습니다." },
         { status: 403 }
       );
     }
 
+    // SUPER_ADMIN은 모든 사용자 조회, DIRECTOR는 자기 학원 사용자만 조회
+    const whereClause = isSuperAdmin 
+      ? {} 
+      : { academyId: session.user.academyId };
+
     const users = await prisma.user.findMany({
+      where: whereClause,
       select: {
         id: true,
         email: true,

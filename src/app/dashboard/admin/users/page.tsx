@@ -58,7 +58,8 @@ export default function AdminUsersPage() {
       return;
     }
 
-    if (session?.user?.role !== "SUPER_ADMIN") {
+    // SUPER_ADMIN 또는 DIRECTOR 권한 필요
+    if (session?.user?.role !== "SUPER_ADMIN" && session?.user?.role !== "DIRECTOR") {
       router.push("/dashboard");
       return;
     }
