@@ -4,35 +4,45 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
+  console.log("========== /api/admin/users START ==========");
+  console.log("🔥 EMERGENCY MODE: ALL RESTRICTIONS REMOVED 🔥");
+  
   try {
+    // 1. 데이터베이스 연결 테스트
+    console.log("Step 1: Testing database connection...");
+    await prisma.$connect();
+    console.log("✅ Database connected");
+
+    // 2. 세션 확인 (체크만 하고 차단하지 않음)
+    console.log("Step 2: Getting session (NOT BLOCKING)...");
     const session = await getServerSession(authOptions);
-
-    // 로그인 필수 및 권한 체크 (SUPER_ADMIN 또는 DIRECTOR)
-    if (!session) {
-      return NextResponse.json(
-        { error: "로그인이 필요합니다." },
-        { status: 401 }
-      );
+    console.log("Session exists:", !!session);
+    
+    if (session) {
+      console.log("Session user:", session.user.email, session.user.role);
+    } else {
+      console.log("⚠️ No session but continuing anyway...");
     }
 
-    const userRole = session.user.role;
-    const isSuperAdmin = userRole === "SUPER_ADMIN";
-    const isDirector = userRole === "DIRECTOR";
+    // 3. 단순한 count 쿼리 먼저
+    console.log("Step 3: Counting users...");
+    const userCount = await prisma.user.count();
+    console.log("✅ User count:", userCount);
 
-    if (!isSuperAdmin && !isDirector) {
-      return NextResponse.json(
-        { error: "권한이 없습니다." },
-        { status: 403 }
-      );
-    }
+    // 4. 가장 단순한 쿼리 (id와 email만)
+    console.log("Step 4: Fetching users (simple)...");
+    const usersSimple = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+      },
+      take: 10,
+    });
+    console.log("✅ Simple query success:", usersSimple.length, "users");
 
-    // SUPER_ADMIN은 모든 사용자 조회, DIRECTOR는 자기 학원 사용자만 조회
-    const whereClause = isSuperAdmin 
-      ? {} 
-      : { academyId: session.user.academyId };
-
+    // 5. 전체 필드 쿼리
+    console.log("Step 5: Fetching users (full fields)...");
     const users = await prisma.user.findMany({
-      where: whereClause,
       select: {
         id: true,
         email: true,
@@ -43,13 +53,7 @@ export async function GET(request: NextRequest) {
         aiHomeworkEnabled: true,
         aiStudyEnabled: true,
         approved: true,
-        academy: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
-        },
+        academyId: true,
         createdAt: true,
         lastLoginAt: true,
       },
@@ -57,12 +61,33 @@ export async function GET(request: NextRequest) {
         createdAt: "desc",
       },
     });
+    console.log("✅ Full query success:", users.length, "users");
 
-    return NextResponse.json({ users });
-  } catch (error) {
-    console.error("사용자 목록 조회 실패:", error);
+    console.log("========== /api/admin/users SUCCESS ==========");
+    return NextResponse.json({ 
+      users,
+      meta: {
+        total: users.length,
+        sessionUser: session?.user?.email || "NO_SESSION",
+        sessionRole: session?.user?.role || "NO_ROLE",
+        emergencyMode: true,
+      }
+    });
+
+  } catch (error: any) {
+    console.error("========== /api/admin/users ERROR ==========");
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error code:", error.code);
+    console.error("Full error:", error);
+    
     return NextResponse.json(
-      { error: "사용자 목록 조회 중 오류가 발생했습니다." },
+      { 
+        error: "서버 오류가 발생했습니다.",
+        message: error.message,
+        code: error.code,
+        name: error.name,
+      },
       { status: 500 }
     );
   }

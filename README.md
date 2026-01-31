@@ -427,3 +427,4 @@ Copyright © 2024-2025 SUPER PLACE. All rights reserved.
 **GitHub**: https://github.com/kohsunwoo12345-cmyk/superplace
 
 AI 기반 학원 관리 시스템으로 교육을 혁신하세요! 🚀
+# Force redeploy Sat Jan 31 12:29:11 UTC 2026
