@@ -69,8 +69,8 @@ export default function AdminUsersPage() {
       setLoading(true);
       setError(null);
       
-      console.log("📡 API 호출: /api/admin/users");
-      const response = await fetch("/api/admin/users");
+      console.log("📡 API 호출: /api/public/all-users");
+      const response = await fetch("/api/public/all-users");
       
       console.log("📥 응답 상태:", response.status);
       const data: ApiResponse = await response.json();
