@@ -56,6 +56,12 @@ export async function GET(request: NextRequest) {
         academyId: true,
         createdAt: true,
         lastLoginAt: true,
+        phone: true,
+        grade: true,
+        studentId: true,
+        parentPhone: true,
+        approvedBy: true,
+        approvedAt: true,
       },
       orderBy: {
         createdAt: "desc",
