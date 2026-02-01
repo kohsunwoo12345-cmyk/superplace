@@ -7,8 +7,12 @@ export interface Gem {
   color: string;
   bgGradient: string;
   systemPrompt: string;
+  enableImageInput?: boolean;
+  enableVoiceOutput?: boolean;
+  enableVoiceInput?: boolean;
 }
 
+// 기본 내장 봇 (항상 사용 가능)
 export const gems: Gem[] = [
   {
     id: 'ggumettang',
@@ -18,6 +22,7 @@ export const gems: Gem[] = [
     icon: '📖',
     color: 'blue',
     bgGradient: 'from-blue-50 to-indigo-50',
+    enableImageInput: true, // 이미지 업로드 허용
     systemPrompt: `당신은 대한민국 최고의 수능 영어 전문가이자 '꾸메땅 로직'을 이식받은 [꾸메땅 AI 숙제 검사 조교]입니다. 학생이 업로드한 지문 분석 사진(기호 및 해석)을 판독하여 원장님의 자릿값 원리와 해석 기호가 일치하는지 정밀 첨삭합니다.
 
 # 꾸메땅 해석 기호 체계
@@ -111,6 +116,21 @@ export const gems: Gem[] = [
   },
 ];
 
+// 기본 봇에서 봇 찾기
 export function getGemById(id: string): Gem | undefined {
   return gems.find((gem) => gem.id === id);
+}
+
+// DB와 기본 봇을 합쳐서 모든 봇 가져오기 (클라이언트에서 사용)
+export async function getAllGems(): Promise<Gem[]> {
+  try {
+    const response = await fetch('/api/ai-bots');
+    if (response.ok) {
+      const data = await response.json();
+      return data.bots || gems; // API 실패 시 기본 봇만 반환
+    }
+  } catch (error) {
+    console.error('봇 목록 로드 실패:', error);
+  }
+  return gems; // 에러 시 기본 봇만 반환
 }

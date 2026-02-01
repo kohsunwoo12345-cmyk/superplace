@@ -1,95 +1,110 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { sign } from "jsonwebtoken";
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { sign } from 'jsonwebtoken';
 
+// POST: 원장님이 학생 계정으로 로그인
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== "SUPER_ADMIN") {
+    if (!session || !session.user) {
       return NextResponse.json(
-        { error: "권한이 없습니다." },
+        { error: '인증이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
+    // 원장님 또는 관리자만 가능
+    if (!['DIRECTOR', 'SUPER_ADMIN'].includes(session.user.role)) {
+      return NextResponse.json(
+        { error: '권한이 없습니다. 원장님만 학생 계정으로 로그인할 수 있습니다.' },
         { status: 403 }
       );
     }
 
-    const body = await request.json();
-    const { userId } = body;
+    const { studentId } = await request.json();
 
-    if (!userId) {
+    if (!studentId) {
       return NextResponse.json(
-        { error: "사용자 ID가 필요합니다." },
+        { error: '학생 ID가 필요합니다.' },
         { status: 400 }
       );
     }
 
-    // 대상 사용자 조회
-    const targetUser = await prisma.user.findUnique({
-      where: { id: userId },
+    // 학생 정보 조회
+    const student = await prisma.user.findUnique({
+      where: {
+        id: studentId,
+      },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
         academyId: true,
-        points: true,
-        aiChatEnabled: true,
-        aiHomeworkEnabled: true,
-        aiStudyEnabled: true,
       },
     });
 
-    if (!targetUser) {
+    if (!student) {
       return NextResponse.json(
-        { error: "사용자를 찾을 수 없습니다." },
+        { error: '학생을 찾을 수 없습니다.' },
         { status: 404 }
       );
     }
 
-    // impersonate 정보를 포함한 세션 토큰 생성
-    // 실제로는 NextAuth의 세션 메커니즘을 사용해야 하지만
-    // 여기서는 간단하게 쿠키를 통해 전달
-    const impersonateToken = sign(
-      {
-        userId: targetUser.id,
-        impersonatedBy: session.user.id,
-        timestamp: Date.now(),
+    // 학생인지 확인
+    if (student.role !== 'STUDENT') {
+      return NextResponse.json(
+        { error: '학생 계정만 로그인할 수 있습니다.' },
+        { status: 400 }
+      );
+    }
+
+    // 원장님인 경우 같은 학원 소속 확인
+    if (session.user.role === 'DIRECTOR') {
+      const director = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { academyId: true },
+      });
+
+      if (director?.academyId !== student.academyId) {
+        return NextResponse.json(
+          { error: '같은 학원 소속 학생만 로그인할 수 있습니다.' },
+          { status: 403 }
+        );
+      }
+    }
+
+    // 임시 토큰 생성 (실제로는 next-auth 세션을 업데이트해야 함)
+    const impersonationToken = {
+      originalUserId: session.user.id,
+      originalUserRole: session.user.role,
+      impersonatedUserId: student.id,
+      impersonatedUserEmail: student.email,
+      impersonatedUserName: student.name,
+      impersonatedUserRole: student.role,
+      timestamp: Date.now(),
+    };
+
+    return NextResponse.json({
+      success: true,
+      message: `${student.name}님의 계정으로 로그인합니다.`,
+      student: {
+        id: student.id,
+        email: student.email,
+        name: student.name,
+        role: student.role,
       },
-      process.env.NEXTAUTH_SECRET || "secret",
-      { expiresIn: "1h" }
-    );
-
-    // 응답에 쿠키 설정
-    const response = NextResponse.json({ 
-      success: true, 
-      user: targetUser,
-      message: "해당 사용자로 로그인되었습니다. 1시간 후 자동으로 원래 계정으로 돌아갑니다."
+      impersonationToken,
+      redirectUrl: '/dashboard',
     });
-
-    response.cookies.set("impersonate-token", impersonateToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 3600, // 1시간
-      path: "/",
-    });
-
-    return response;
   } catch (error) {
-    console.error("Impersonate 실패:", error);
+    console.error('학생 계정 로그인 오류:', error);
     return NextResponse.json(
-      { error: "계정 전환 중 오류가 발생했습니다." },
+      { error: '학생 계정 로그인 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }
-}
-
-// impersonate 종료
-export async function DELETE(request: NextRequest) {
-  const response = NextResponse.json({ success: true, message: "원래 계정으로 돌아왔습니다." });
-  
-  response.cookies.delete("impersonate-token");
-  
-  return response;
 }

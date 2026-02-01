@@ -1,229 +1,252 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
-// 학원장/선생님 대시보드 통계 API
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session || (session.user.role !== 'DIRECTOR' && session.user.role !== 'TEACHER')) {
-      return NextResponse.json(
-        { error: '접근 권한이 없습니다.' },
-        { status: 403 }
-      );
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
     }
 
-    // 현재 사용자 정보
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { academyId: true },
+    const { role, academyId } = session.user;
+
+    // 학원장 또는 선생님만 접근 가능
+    if (role !== "DIRECTOR" && role !== "TEACHER") {
+      return NextResponse.json({ error: "권한이 없습니다" }, { status: 403 });
+    }
+
+    if (!academyId) {
+      return NextResponse.json({ error: "학원 정보를 찾을 수 없습니다" }, { status: 400 });
+    }
+
+    // 학원 기본 정보
+    const academy = await prisma.academy.findUnique({
+      where: { id: academyId },
+      select: {
+        name: true,
+        subscriptionPlan: true,
+        maxStudents: true,
+        maxTeachers: true,
+        aiUsageLimit: true,
+      },
     });
 
-    if (!currentUser?.academyId) {
-      return NextResponse.json(
-        { error: '소속 학원 정보가 없습니다.' },
-        { status: 400 }
-      );
+    if (!academy) {
+      return NextResponse.json({ error: "학원을 찾을 수 없습니다" }, { status: 404 });
     }
 
-    const academyId = currentUser.academyId;
-
-    // 전체 학생 수
+    // 학생 수
     const totalStudents = await prisma.user.count({
       where: {
         academyId,
-        role: 'STUDENT',
+        role: "STUDENT",
       },
     });
 
-    // 이번 달 신규 학생
-    const thisMonthStart = new Date();
-    thisMonthStart.setDate(1);
-    thisMonthStart.setHours(0, 0, 0, 0);
-
-    const newStudentsThisMonth = await prisma.user.count({
+    const approvedStudents = await prisma.user.count({
       where: {
         academyId,
-        role: 'STUDENT',
-        createdAt: {
-          gte: thisMonthStart,
-        },
+        role: "STUDENT",
+        approved: true,
       },
     });
 
-    // 학습 자료 수
-    const totalMaterials = await prisma.learningMaterial.count({
+    // 선생님 수
+    const totalTeachers = await prisma.user.count({
       where: {
         academyId,
+        role: "TEACHER",
       },
     });
 
-    // 이번 주 추가된 자료
-    const thisWeekStart = new Date();
-    thisWeekStart.setDate(thisWeekStart.getDate() - 7);
-
-    const newMaterialsThisWeek = await prisma.learningMaterial.count({
+    // 수업 수
+    const totalClasses = await prisma.class.count({
       where: {
         academyId,
-        createdAt: {
-          gte: thisWeekStart,
-        },
+        isActive: true,
       },
     });
 
-    // 진행 중인 과제 (제출 안됨)
-    const pendingAssignments = await prisma.assignment.count({
-      where: {
-        user: {
-          academyId,
-        },
-        status: 'PENDING',
-      },
-    });
-
-    // 전체 출석률 (최근 30일)
+    // 최근 30일 출석 통계
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const totalAttendances = await prisma.attendance.count({
+    const attendances = await prisma.attendance.findMany({
       where: {
         user: {
           academyId,
+          role: "STUDENT",
         },
         date: {
           gte: thirtyDaysAgo,
         },
       },
-    });
-
-    const presentAttendances = await prisma.attendance.count({
-      where: {
-        user: {
-          academyId,
-        },
-        date: {
-          gte: thirtyDaysAgo,
-        },
-        status: 'PRESENT',
+      select: {
+        status: true,
       },
     });
 
-    const attendanceRate = totalAttendances > 0 
-      ? Math.round((presentAttendances / totalAttendances) * 100) 
-      : 0;
+    const attendanceStats = {
+      total: attendances.length,
+      present: attendances.filter((a) => a.status === "PRESENT").length,
+      absent: attendances.filter((a) => a.status === "ABSENT").length,
+      late: attendances.filter((a) => a.status === "LATE").length,
+      rate:
+        attendances.length > 0
+          ? (attendances.filter((a) => a.status === "PRESENT").length / attendances.length) * 100
+          : 0,
+    };
 
-    // 최근 등록 학생 (7일)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // 최근 30일 과제 통계
+    const assignments = await prisma.assignment.findMany({
+      where: {
+        user: {
+          academyId,
+          role: "STUDENT",
+        },
+        dueDate: {
+          gte: thirtyDaysAgo,
+        },
+      },
+      select: {
+        status: true,
+        score: true,
+      },
+    });
 
-    const recentStudents = await prisma.user.findMany({
+    const assignmentStats = {
+      total: assignments.length,
+      pending: assignments.filter((a) => a.status === "PENDING").length,
+      submitted: assignments.filter((a) => a.status === "SUBMITTED").length,
+      graded: assignments.filter((a) => a.status === "GRADED").length,
+      averageScore:
+        assignments.filter((a) => a.score !== null).length > 0
+          ? assignments
+              .filter((a) => a.score !== null)
+              .reduce((sum, a) => sum + (a.score || 0), 0) /
+            assignments.filter((a) => a.score !== null).length
+          : 0,
+    };
+
+    // 학생별 요약 데이터 (상위 5명 - 출석률 기준)
+    const students = await prisma.user.findMany({
       where: {
         academyId,
-        role: 'STUDENT',
-        createdAt: {
-          gte: sevenDaysAgo,
-        },
+        role: "STUDENT",
+        approved: true,
       },
       select: {
         id: true,
         name: true,
-        email: true,
         grade: true,
-        createdAt: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: 5,
-    });
-
-    // 검토 대기 과제 (제출됨, 미채점)
-    const pendingGrading = await prisma.assignment.findMany({
-      where: {
-        user: {
-          academyId,
-        },
-        status: 'SUBMITTED',
-      },
-      select: {
-        id: true,
-        title: true,
-        subject: true,
-        submittedAt: true,
-        user: {
-          select: {
-            name: true,
-          },
-        },
-      },
-      orderBy: {
-        submittedAt: 'asc',
-      },
-      take: 5,
-    });
-
-    // 과목별 학습 진도 (평균)
-    const learningProgressBySubject = await prisma.learningMaterial.groupBy({
-      by: ['subject'],
-      where: {
-        academyId,
-      },
-      _count: {
-        id: true,
-      },
-    });
-
-    // 각 과목의 평균 진도율 계산
-    const subjectProgress = await Promise.all(
-      learningProgressBySubject.map(async (subject) => {
-        const avgProgress = await prisma.learningProgress.aggregate({
+        email: true,
+        attendances: {
           where: {
-            material: {
-              academyId,
-              subject: subject.subject,
+            date: {
+              gte: thirtyDaysAgo,
             },
           },
-          _avg: {
-            progress: true,
+          select: {
+            status: true,
           },
-        });
+        },
+        assignments: {
+          where: {
+            dueDate: {
+              gte: thirtyDaysAgo,
+            },
+          },
+          select: {
+            status: true,
+            score: true,
+          },
+        },
+        learningProgress: {
+          select: {
+            progress: true,
+            status: true,
+          },
+        },
+      },
+      take: 10,
+    });
 
-        return {
-          subject: subject.subject,
-          progress: Math.round(avgProgress._avg.progress || 0),
-        };
-      })
-    );
+    const studentsWithStats = students.map((student) => {
+      const attendanceRate =
+        student.attendances.length > 0
+          ? (student.attendances.filter((a) => a.status === "PRESENT").length /
+              student.attendances.length) *
+            100
+          : 0;
 
-    return NextResponse.json({
-      totalStudents,
-      newStudentsThisMonth,
-      totalMaterials,
-      newMaterialsThisWeek,
-      pendingAssignments,
-      attendanceRate,
-      recentStudents: recentStudents.map((student) => ({
+      const assignmentCompletionRate =
+        student.assignments.length > 0
+          ? (student.assignments.filter((a) => a.status === "GRADED").length /
+              student.assignments.length) *
+            100
+          : 0;
+
+      const averageProgress =
+        student.learningProgress.length > 0
+          ? student.learningProgress.reduce((sum, p) => sum + p.progress, 0) /
+            student.learningProgress.length
+          : 0;
+
+      const averageScore =
+        student.assignments.filter((a) => a.score !== null).length > 0
+          ? student.assignments
+              .filter((a) => a.score !== null)
+              .reduce((sum, a) => sum + (a.score || 0), 0) /
+            student.assignments.filter((a) => a.score !== null).length
+          : 0;
+
+      return {
         id: student.id,
         name: student.name,
+        grade: student.grade,
         email: student.email,
-        grade: student.grade || '미설정',
-        createdAt: student.createdAt,
-      })),
-      pendingGrading: pendingGrading.map((assignment) => ({
-        id: assignment.id,
-        title: assignment.title,
-        subject: assignment.subject,
-        student: assignment.user.name,
-        submittedAt: assignment.submittedAt,
-      })),
-      subjectProgress,
+        attendanceRate: Math.round(attendanceRate * 10) / 10,
+        assignmentCompletionRate: Math.round(assignmentCompletionRate * 10) / 10,
+        averageProgress: Math.round(averageProgress * 10) / 10,
+        averageScore: Math.round(averageScore * 10) / 10,
+      };
     });
+
+    // 출석률 기준으로 정렬
+    studentsWithStats.sort((a, b) => b.attendanceRate - a.attendanceRate);
+
+    const stats = {
+      academy: {
+        name: academy.name,
+        plan: academy.subscriptionPlan,
+        limits: {
+          maxStudents: academy.maxStudents,
+          maxTeachers: academy.maxTeachers,
+          aiUsageLimit: academy.aiUsageLimit,
+        },
+      },
+      counts: {
+        students: {
+          total: totalStudents,
+          approved: approvedStudents,
+          pending: totalStudents - approvedStudents,
+        },
+        teachers: totalTeachers,
+        classes: totalClasses,
+      },
+      attendance: attendanceStats,
+      assignments: assignmentStats,
+      topStudents: studentsWithStats.slice(0, 5),
+      allStudents: studentsWithStats,
+    };
+
+    return NextResponse.json(stats, { status: 200 });
   } catch (error) {
-    console.error('Error fetching director/teacher stats:', error);
+    console.error("❌ 학원장 통계 조회 중 오류:", error);
     return NextResponse.json(
-      { error: '통계를 불러오는데 실패했습니다.' },
+      { error: "통계를 불러오는 중 오류가 발생했습니다" },
       { status: 500 }
     );
   }

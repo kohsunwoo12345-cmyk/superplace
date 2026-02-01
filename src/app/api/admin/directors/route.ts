@@ -25,6 +25,11 @@ export async function GET(request: NextRequest) {
         name: true,
         email: true,
         academyId: true,
+        academy: {
+          select: {
+            name: true,
+          },
+        },
         assignedBots: {
           where: {
             isActive: true,
@@ -42,6 +47,7 @@ export async function GET(request: NextRequest) {
       name: director.name,
       email: director.email,
       academyId: director.academyId,
+      academyName: director.academy?.name,
       assignedBots: director.assignedBots.map((ab) => ab.botId),
     }));
 

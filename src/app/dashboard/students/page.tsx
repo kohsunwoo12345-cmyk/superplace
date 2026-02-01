@@ -34,6 +34,9 @@ import {
   Filter,
   Eye,
   UserPlus,
+  ExternalLink,
+  Copy,
+  QrCode,
 } from "lucide-react";
 import CreateStudentDialog from "@/components/dashboard/CreateStudentDialog";
 
@@ -44,6 +47,7 @@ interface Student {
   phone?: string;
   grade?: string;
   studentId?: string;
+  studentCode?: string; // 학생 코드 추가
   parentPhone?: string;
   approved: boolean;
   aiChatEnabled: boolean;
@@ -82,6 +86,11 @@ export default function StudentsManagementPage() {
   const [filterClass, setFilterClass] = useState<string>("ALL");
   const [filterGrade, setFilterGrade] = useState<string>("ALL");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+
+  const studentLoginUrl = typeof window !== 'undefined' 
+    ? `${window.location.origin}/homework-check`
+    : '/homework-check';
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -205,6 +214,16 @@ export default function StudentsManagementPage() {
     ).length,
   };
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2000);
+    } catch (err) {
+      console.error('클립보드 복사 실패:', err);
+    }
+  };
+
   const grades = Array.from(
     new Set([
       ...students.map((s) => s.grade).filter(Boolean),
@@ -299,6 +318,110 @@ export default function StudentsManagementPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 학생 코드 로그인 페이지 섹션 */}
+      <Card className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-900">
+            <QrCode className="w-5 h-5" />
+            학생 코드 로그인 페이지
+          </CardTitle>
+          <CardDescription className="text-blue-700">
+            학생들이 5자리 코드로 로그인하고 숙제를 제출할 수 있는 전용 페이지입니다
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* URL 복사 카드 */}
+          <div className="bg-white rounded-lg p-4 border border-blue-200">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 mb-1">로그인 페이지 URL</p>
+                <div className="flex items-center gap-2">
+                  <code className="text-sm bg-blue-100 text-blue-800 px-3 py-2 rounded-md flex-1 font-mono break-all">
+                    {studentLoginUrl}
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(studentLoginUrl)}
+                    className="shrink-0"
+                  >
+                    {copiedUrl ? (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                        복사됨!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 mr-2" />
+                        복사
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => window.open(studentLoginUrl, '_blank')}
+                className="flex items-center gap-2"
+              >
+                <ExternalLink className="w-4 h-4" />
+                새 탭에서 열기
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => copyToClipboard(studentLoginUrl)}
+                className="flex items-center gap-2"
+              >
+                <Copy className="w-4 h-4" />
+                링크 공유
+              </Button>
+            </div>
+          </div>
+
+          {/* 안내 사항 */}
+          <div className="bg-white rounded-lg p-4 border border-blue-200">
+            <h4 className="font-semibold text-sm mb-2 text-blue-900">📌 사용 방법</h4>
+            <ul className="space-y-1 text-sm text-gray-700">
+              <li className="flex items-start gap-2">
+                <span className="text-blue-600 font-bold">1.</span>
+                <span>위의 URL을 학생들에게 공유하세요 (카카오톡, 문자 등)</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-blue-600 font-bold">2.</span>
+                <span>학생은 각자의 5자리 코드로 로그인합니다</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-blue-600 font-bold">3.</span>
+                <span>숙제 사진을 업로드하면 AI가 자동으로 분석하고 출석을 인정합니다</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-blue-600 font-bold">4.</span>
+                <span>제출 완료 후 자동으로 로그아웃됩니다 (보안 강화)</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* 학생 코드 보기 안내 */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+            <h4 className="font-semibold text-sm mb-2 text-green-900 flex items-center gap-2">
+              <span className="text-lg">🔢</span>
+              학생 코드 확인 방법
+            </h4>
+            <p className="text-sm text-gray-700">
+              각 학생의 5자리 코드는 아래 <strong>학생 목록</strong>에서 
+              <span className="inline-block mx-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded font-mono text-xs">
+                🔢 코드: XXXXX
+              </span>
+              형태로 표시됩니다.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 검색 및 필터 */}
       <Card className="mb-6">
@@ -395,9 +518,9 @@ export default function StudentsManagementPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold">{student.name}</h3>
-                    {student.studentId && (
+                    {student.school && (
                       <Badge variant="outline" className="font-mono">
-                        {student.studentId}
+                        {student.school}
                       </Badge>
                     )}
                     {student.approved ? (
@@ -415,6 +538,20 @@ export default function StudentsManagementPage() {
                         <Mail className="w-4 h-4" />
                         <span>{student.email}</span>
                       </div>
+                      {student.studentId && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-indigo-600 font-semibold">
+                            🆔 학번: {student.studentId}
+                          </span>
+                        </div>
+                      )}
+                      {student.studentCode && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-blue-600 font-bold">
+                            🔢 코드: {student.studentCode}
+                          </span>
+                        </div>
+                      )}
                       {student.phone && (
                         <div className="flex items-center gap-2">
                           <Phone className="w-4 h-4" />

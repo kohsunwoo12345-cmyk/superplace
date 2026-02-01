@@ -20,7 +20,7 @@ import {
   Phone,
   HelpCircle
 } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -563,9 +563,22 @@ export default function Home() {
           )}
           {isLoggedIn && (
             <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">
+                {session?.user?.name}님
+              </span>
               <Link href="/dashboard">
-                <Button>대시보드로 이동</Button>
+                <Button variant="outline">대시보드</Button>
               </Link>
+              <Link href="/dashboard/settings">
+                <Button variant="outline">프로필 설정</Button>
+              </Link>
+              <Button 
+                variant="ghost"
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className="text-red-600 hover:bg-red-50"
+              >
+                로그아웃
+              </Button>
             </div>
           )}
         </div>
@@ -882,20 +895,51 @@ export default function Home() {
             </div>
           </div>
           
-          {/* 회사 정보 */}
+          {/* 회사 정보 및 정책 링크 */}
           <div className="mt-12 pt-8 border-t">
-            <div className="text-center space-y-3">
-              <h3 className="font-bold text-lg text-gray-800">주식회사 우리는 슈퍼플레이스다</h3>
-              <div className="space-y-1 text-sm text-gray-600">
-                <p>사업자등록번호: 142-88-02445</p>
-                <p>주소: 인천광역시 서구 청라커낼로 270, 2층</p>
-                <p>
-                  이메일: <a href="mailto:wangholy1@naver.com" className="hover:text-blue-600 transition-colors">wangholy1@naver.com</a>
-                  {" | "}
-                  전화: <a href="tel:010-8739-9697" className="hover:text-blue-600 transition-colors">010-8739-9697</a>
-                </p>
+            <div className="text-center space-y-4">
+              {/* 회사 소개 */}
+              <div className="mb-6">
+                <h3 className="font-bold text-xl text-gray-800 mb-3">주식회사 우리는 슈퍼플레이스다</h3>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <p>사업자등록번호: 142-88-02445</p>
+                  <p>주소: 인천광역시 서구 청라커낼로 270, 2층</p>
+                  <p>
+                    이메일: <a href="mailto:wangholy1@naver.com" className="hover:text-blue-600 transition-colors underline">wangholy1@naver.com</a>
+                    {" | "}
+                    전화: <a href="tel:010-8739-9697" className="hover:text-blue-600 transition-colors underline">010-8739-9697</a>
+                  </p>
+                </div>
               </div>
-              <p className="text-sm text-gray-500 mt-4">
+
+              {/* 정책 링크 - 더 눈에 띄게 */}
+              <div className="py-4 border-y border-gray-200">
+                <div className="flex flex-wrap items-center justify-center gap-6 text-base font-medium">
+                  <Link 
+                    href="#about" 
+                    className="text-gray-700 hover:text-blue-600 transition-colors hover:underline"
+                  >
+                    회사 소개
+                  </Link>
+                  <span className="text-gray-300">|</span>
+                  <Link 
+                    href="/terms" 
+                    className="text-gray-700 hover:text-blue-600 transition-colors hover:underline"
+                  >
+                    이용약관
+                  </Link>
+                  <span className="text-gray-300">|</span>
+                  <Link 
+                    href="/privacy" 
+                    className="text-gray-700 hover:text-blue-600 transition-colors hover:underline font-semibold"
+                  >
+                    개인정보처리방침
+                  </Link>
+                </div>
+              </div>
+
+              {/* 저작권 */}
+              <p className="text-sm text-gray-500 pt-2">
                 © 2026 우리는 슈퍼플레이스다. All rights reserved.
               </p>
             </div>

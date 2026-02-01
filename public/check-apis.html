@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>🔍 API 진단 도구</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-box { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        button { background: #0070f3; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #0051cc; }
+        .result { background: #f0f0f0; padding: 15px; margin-top: 10px; border-radius: 5px; white-space: pre-wrap; word-break: break-all; font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; }
+        .error { color: red; }
+        .success { color: green; }
+        h2 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 API 진단 도구</h1>
+        
+        <div class="test-box">
+            <h2>1️⃣ 관리자 사용자 API 테스트</h2>
+            <button onclick="testAdminUsers()">관리자 사용자 API 호출</button>
+            <div id="admin-result" class="result"></div>
+        </div>
+
+        <div class="test-box">
+            <h2>2️⃣ D1 연결 테스트</h2>
+            <button onclick="testD1()">D1 연결 테스트</button>
+            <div id="d1-result" class="result"></div>
+        </div>
+
+        <div class="test-box">
+            <h2>3️⃣ 환경 변수 확인</h2>
+            <button onclick="testEnv()">환경 변수 확인</button>
+            <div id="env-result" class="result"></div>
+        </div>
+
+        <div class="test-box">
+            <h2>4️⃣ 데이터베이스 연결 테스트</h2>
+            <button onclick="testDB()">DB 연결 테스트</button>
+            <div id="db-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testAdminUsers() {
+            const resultDiv = document.getElementById('admin-result');
+            resultDiv.innerHTML = '⏳ 테스트 중...';
+            
+            try {
+                const response = await fetch('/api/admin/users', {
+                    credentials: 'include'
+                });
+                
+                const text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    data = text;
+                }
+                
+                resultDiv.innerHTML = `<div class="${response.ok ? 'success' : 'error'}">
+                    <strong>Status:</strong> ${response.status} ${response.statusText}
+                    <hr>
+                    <strong>Response:</strong>
+                    ${JSON.stringify(data, null, 2)}
+                </div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">
+                    <strong>Error:</strong> ${error.message}
+                    <hr>
+                    ${error.stack}
+                </div>`;
+            }
+        }
+
+        async function testD1() {
+            const resultDiv = document.getElementById('d1-result');
+            resultDiv.innerHTML = '⏳ 테스트 중...';
+            
+            try {
+                const response = await fetch('/api/test-d1-connection');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `<div class="${response.ok ? 'success' : 'error'}">
+                    <strong>Status:</strong> ${response.status}
+                    <hr>
+                    ${JSON.stringify(data, null, 2)}
+                </div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testEnv() {
+            const resultDiv = document.getElementById('env-result');
+            resultDiv.innerHTML = '⏳ 테스트 중...';
+            
+            try {
+                const response = await fetch('/api/debug-env');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `<div class="${response.ok ? 'success' : 'error'}">
+                    <strong>Status:</strong> ${response.status}
+                    <hr>
+                    ${JSON.stringify(data, null, 2)}
+                </div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testDB() {
+            const resultDiv = document.getElementById('db-result');
+            resultDiv.innerHTML = '⏳ 테스트 중...';
+            
+            try {
+                const response = await fetch('/api/test-db');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `<div class="${response.ok ? 'success' : 'error'}">
+                    <strong>Status:</strong> ${response.status}
+                    <hr>
+                    ${JSON.stringify(data, null, 2)}
+                </div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // 페이지 로드 시 자동으로 모든 테스트 실행
+        window.addEventListener('load', () => {
+            console.log('🔍 API 진단 도구 로드됨');
+        });
+    </script>
+</body>
+</html>

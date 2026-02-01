@@ -5,23 +5,41 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Bot, User, Loader2, ArrowLeft, Trash2, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, ArrowLeft, Trash2, Image as ImageIcon, CheckCircle2, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { getGemById } from '@/lib/gems/data';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
   image?: string;
+  audioUrl?: string; // 음성 응답 URL 추가
+}
+
+interface Gem {
+  id: string;
+  name: string;
+  nameEn: string;
+  description: string;
+  icon: string;
+  color: string;
+  bgGradient: string;
+  systemPrompt: string;
+  source?: 'database' | 'default';
+  referenceFiles?: string[];
+  starterMessages?: string[];
+  enableImageInput?: boolean;
+  enableVoiceOutput?: boolean;
+  enableVoiceInput?: boolean;
 }
 
 export default function GemChatPage() {
   const params = useParams();
   const router = useRouter();
-  const gemId = params.gemId as string;
-  const gem = getGemById(gemId);
-
+  const gemId = decodeURIComponent(params.gemId as string); // URL 디코딩
+  
+  const [gem, setGem] = useState<Gem | null>(null);
+  const [loadingGem, setLoadingGem] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,11 +48,98 @@ export default function GemChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 음성 기능 관련 state
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState<string | null>(null); // 재생 중인 메시지 ID
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sessionStartTime = useRef<Date>(new Date());
+
+  // 대화 자동 저장 (10개 메시지마다)
   useEffect(() => {
-    if (!gem) {
-      router.push('/dashboard/ai-gems');
+    if (messages.length >= 10 && messages.length % 10 === 0 && gem) {
+      saveConversation();
     }
-  }, [gem, router]);
+  }, [messages.length]);
+
+  const saveConversation = async () => {
+    if (!gem || messages.length === 0) return;
+
+    try {
+      const sessionDuration = Math.floor((new Date().getTime() - sessionStartTime.current.getTime()) / 1000);
+      
+      await fetch('/api/bot-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botId: gem.id,
+          messages,
+          sessionDuration,
+        }),
+      });
+    } catch (error) {
+      console.error('대화 저장 오류:', error);
+    }
+  };
+
+  // API에서 봇 정보 가져오기
+  useEffect(() => {
+    const fetchGem = async () => {
+      try {
+        setLoadingGem(true);
+        console.log('=== 봇 정보 로딩 시작 ===');
+        console.log('🔍 원본 gemId:', params.gemId);
+        console.log('🔍 디코딩된 gemId:', gemId);
+        
+        const response = await fetch('/api/ai-bots', {
+          credentials: 'include', // 쿠키 포함하여 세션 전달
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        console.log('📡 API 응답 상태:', response.status, response.statusText);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ API 응답 오류:', response.status, errorText);
+          alert(`API 오류: ${response.status} ${errorText}`);
+          throw new Error('봇 정보를 불러오는데 실패했습니다');
+        }
+        
+        const data = await response.json();
+        console.log('📦 받은 봇 개수:', data.bots?.length || 0);
+        console.log('📦 봇 ID 목록:', data.bots?.map((b: Gem) => b.id) || []);
+        
+        const foundGem = data.bots.find((bot: Gem) => {
+          console.log(`  비교: "${bot.id}" === "${gemId}"? ${bot.id === gemId}`);
+          return bot.id === gemId;
+        });
+        
+        console.log('✅ 봇 찾기 결과:', foundGem ? foundGem.name : '❌ 없음');
+        
+        if (!foundGem) {
+          console.error('❌ 봇을 찾을 수 없음:', gemId);
+          console.log('사용 가능한 봇 ID:', data.bots.map((b: Gem) => b.id));
+          alert(`봇을 찾을 수 없습니다: ${gemId}\n\n사용 가능한 봇: ${data.bots.map((b: Gem) => b.id).join(', ')}`);
+          router.push('/dashboard/ai-gems');
+          return;
+        }
+        
+        console.log('✅ 봇 정보 설정 완료:', foundGem.name);
+        setGem(foundGem);
+      } catch (error) {
+        console.error('❌ 봇 로딩 오류:', error);
+        alert(`봇 로딩 오류: ${error}`);
+        router.push('/dashboard/ai-gems');
+      } finally {
+        setLoadingGem(false);
+      }
+    };
+    
+    fetchGem();
+  }, [gemId, router, params.gemId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -63,6 +168,125 @@ export default function GemChatPage() {
     setImagePreview(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  // 음성 녹음 시작
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        setAudioBlob(blob);
+        stream.getTracks().forEach(track => track.stop());
+        
+        // 음성을 텍스트로 변환
+        transcribeAudio(blob);
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (error) {
+      console.error('음성 녹음 오류:', error);
+      alert('마이크 접근 권한이 필요합니다.');
+    }
+  };
+
+  // 음성 녹음 중지
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
+  // 음성을 텍스트로 변환 (Whisper API)
+  const transcribeAudio = async (blob: Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append('audio', blob, 'recording.webm');
+
+      const response = await fetch('/api/speech/transcribe', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('음성 변환 실패');
+      }
+
+      const data = await response.json();
+      setInput(data.text); // 변환된 텍스트를 입력창에 설정
+    } catch (error) {
+      console.error('음성 변환 오류:', error);
+      alert('음성 변환에 실패했습니다.');
+    } finally {
+      setAudioBlob(null);
+    }
+  };
+
+  // 텍스트를 음성으로 변환하여 재생 (TTS)
+  const playTextAsAudio = async (text: string, messageId: string) => {
+    try {
+      setIsPlayingAudio(messageId);
+
+      const response = await fetch('/api/speech/synthesize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error('음성 생성 실패');
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // 오디오 재생
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsPlayingAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setIsPlayingAudio(null);
+        alert('음성 재생에 실패했습니다.');
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('음성 재생 오류:', error);
+      setIsPlayingAudio(null);
+      alert('음성 재생에 실패했습니다.');
+    }
+  };
+
+  // 음성 재생 중지
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsPlayingAudio(null);
     }
   };
 
@@ -110,6 +334,13 @@ export default function GemChatPage() {
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+        
+        // 음성 출력이 활성화되어 있으면 자동 재생
+        if (gem.enableVoiceOutput) {
+          setTimeout(() => {
+            playTextAsAudio(data.message, `${messages.length + 1}`);
+          }, 300);
+        }
       } else {
         // 일반 AI 봇
         const response = await fetch('/api/ai/chat', {
@@ -137,6 +368,13 @@ export default function GemChatPage() {
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+        
+        // 음성 출력이 활성화되어 있으면 자동 재생
+        if (gem.enableVoiceOutput) {
+          setTimeout(() => {
+            playTextAsAudio(data.response, `${messages.length + 1}`);
+          }, 300);
+        }
       }
     } catch (error) {
       console.error('Error:', error);
@@ -152,8 +390,11 @@ export default function GemChatPage() {
     }
   };
 
-  const clearChat = () => {
+  const clearChat = async () => {
+    // 대화 저장
+    await saveConversation();
     setMessages([]);
+    sessionStartTime.current = new Date(); // 세션 시간 초기화
   };
 
   const formatTime = (date: Date) => {
@@ -163,10 +404,22 @@ export default function GemChatPage() {
     }).format(date);
   };
 
-  if (!gem) return null;
+  // 로딩 중
+  if (loadingGem) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // 봇을 찾지 못함
+  if (!gem) {
+    return null;
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -175,32 +428,34 @@ export default function GemChatPage() {
           className="flex items-center gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
-          AI 봇 목록
+          <span className="hidden sm:inline">AI 봇 목록</span>
+          <span className="sm:hidden">뒤로</span>
         </Button>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="text-5xl">{gem.icon}</div>
+          <div className="text-3xl sm:text-5xl">{gem.icon}</div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{gem.name}</h1>
-            <p className="text-muted-foreground">{gem.description}</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">{gem.name}</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">{gem.description}</p>
           </div>
         </div>
-        <Badge variant="outline" className={`bg-gradient-to-r ${gem.bgGradient}`}>
+        <Badge variant="outline" className={`bg-gradient-to-r ${gem.bgGradient} text-xs sm:text-sm`}>
           {gem.nameEn}
         </Badge>
       </div>
 
       <Card className="shadow-lg">
         <CardHeader className={`border-b bg-gradient-to-r ${gem.bgGradient}`}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5" />
-                {gem.name}와 대화하기
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Bot className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="hidden sm:inline">{gem.name}와 대화하기</span>
+                <span className="sm:hidden">대화하기</span>
               </CardTitle>
-              <CardDescription className="mt-1">
+              <CardDescription className="mt-1 text-xs sm:text-sm">
                 전문적인 조언과 도움을 받으세요
               </CardDescription>
             </div>
@@ -209,18 +464,18 @@ export default function GemChatPage() {
                 variant="outline"
                 size="sm"
                 onClick={clearChat}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                 대화 초기화
               </Button>
             )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="flex flex-col h-[600px]">
+          <div className="flex flex-col h-[500px] sm:h-[600px]">
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <div className="text-6xl mb-4">{gem.icon}</div>
@@ -230,8 +485,11 @@ export default function GemChatPage() {
                   <p className="text-sm text-gray-500 max-w-md mb-6">
                     {gem.description}
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
-                    {getSuggestions(gem.id).map((suggestion, idx) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full max-w-2xl px-4 sm:px-0">
+                    {(gem.starterMessages && gem.starterMessages.length > 0
+                      ? gem.starterMessages
+                      : getSuggestions(gem.id)
+                    ).map((suggestion, idx) => (
                       <Button
                         key={idx}
                         variant="outline"
@@ -248,30 +506,30 @@ export default function GemChatPage() {
                   {messages.map((message, index) => (
                     <div
                       key={index}
-                      className={`flex gap-3 ${
+                      className={`flex gap-2 sm:gap-3 ${
                         message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                       }`}
                     >
                       <div
-                        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                        className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${
                           message.role === 'user'
                             ? 'bg-blue-100'
                             : `bg-${gem.color}-100`
                         }`}
                       >
                         {message.role === 'user' ? (
-                          <User className="h-4 w-4 text-blue-600" />
+                          <User className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                         ) : (
-                          <span className="text-lg">{gem.icon}</span>
+                          <span className="text-base sm:text-lg">{gem.icon}</span>
                         )}
                       </div>
                       <div
-                        className={`flex-1 max-w-[80%] ${
+                        className={`flex-1 max-w-[85%] sm:max-w-[80%] ${
                           message.role === 'user' ? 'text-right' : 'text-left'
                         }`}
                       >
                         <div
-                          className={`inline-block p-4 rounded-lg ${
+                          className={`inline-block p-3 sm:p-4 rounded-lg text-sm sm:text-base ${
                             message.role === 'user'
                               ? 'bg-blue-600 text-white'
                               : 'bg-gray-100 text-gray-900'
@@ -287,6 +545,38 @@ export default function GemChatPage() {
                           <p className="whitespace-pre-wrap break-words">
                             {message.content}
                           </p>
+                          
+                          {/* 음성 출력 버튼 (봇 응답에만, enableVoiceOutput이 true일 때) */}
+                          {message.role === 'assistant' && gem.enableVoiceOutput && (
+                            <div className="mt-2 flex justify-end">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const messageId = `${index}`;
+                                  if (isPlayingAudio === messageId) {
+                                    stopAudio();
+                                  } else {
+                                    playTextAsAudio(message.content, messageId);
+                                  }
+                                }}
+                                className="flex items-center gap-1 text-xs"
+                              >
+                                {isPlayingAudio === `${index}` ? (
+                                  <>
+                                    <VolumeX className="h-3 w-3" />
+                                    <span>중지</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Volume2 className="h-3 w-3" />
+                                    <span>음성 듣기</span>
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
                           {formatTime(message.timestamp)}
@@ -318,8 +608,8 @@ export default function GemChatPage() {
 
             {/* Input */}
             <div className="border-t bg-gray-50">
-              {/* 이미지 미리보기 (꾸메땅 봇만) */}
-              {gem.id === 'ggumettang' && imagePreview && (
+              {/* 이미지 미리보기 */}
+              {gem.enableImageInput && imagePreview && (
                 <div className="px-4 pt-3 pb-0">
                   <div className="flex items-center gap-3 bg-blue-50 p-2 rounded-lg">
                     <div className="relative">
@@ -350,10 +640,10 @@ export default function GemChatPage() {
                 </div>
               )}
               
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 <form onSubmit={handleSubmit} className="flex gap-2">
-                  {/* 이미지 업로드 버튼 (꾸메땅 봇만) */}
-                  {gem.id === 'ggumettang' && (
+                  {/* 이미지 업로드 버튼 */}
+                  {gem.enableImageInput && (
                     <>
                       <input
                         ref={fileInputRef}
@@ -375,11 +665,33 @@ export default function GemChatPage() {
                     </>
                   )}
                   
+                  {/* 음성 녹음 버튼 */}
+                  {gem.enableVoiceInput && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={isRecording ? stopRecording : startRecording}
+                      disabled={isLoading}
+                      className={`flex-shrink-0 transition-colors ${
+                        isRecording 
+                          ? 'bg-red-50 border-red-300 hover:bg-red-100' 
+                          : 'hover:bg-purple-50 hover:border-purple-300'
+                      }`}
+                    >
+                      {isRecording ? (
+                        <MicOff className="h-5 w-5 text-red-600 animate-pulse" />
+                      ) : (
+                        <Mic className="h-5 w-5" />
+                      )}
+                    </Button>
+                  )}
+                  
                   <Textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={gem.id === 'ggumettang' ? '숙제 사진을 업로드하거나 질문을 입력하세요...' : `${gem.name}에게 메시지를 입력하세요...`}
-                    className="flex-1 min-h-[60px] max-h-[120px] resize-none"
+                    placeholder={gem.enableImageInput ? '이미지를 업로드하거나 질문을 입력하세요...' : `${gem.name}에게 메시지를 입력하세요...`}
+                    className="flex-1 min-h-[50px] sm:min-h-[60px] max-h-[100px] sm:max-h-[120px] resize-none text-sm sm:text-base"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -390,7 +702,7 @@ export default function GemChatPage() {
                   />
                   <Button
                     type="submit"
-                    disabled={(gem.id === 'ggumettang' ? (!input.trim() && !selectedImage) : !input.trim()) || isLoading}
+                    disabled={(gem.enableImageInput ? (!input.trim() && !selectedImage) : !input.trim()) || isLoading}
                     className={`self-end bg-${gem.color}-600 hover:bg-${gem.color}-700`}
                   >
                     {isLoading ? (

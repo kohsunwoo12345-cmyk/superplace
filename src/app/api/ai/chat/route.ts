@@ -1,9 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getGemById } from '@/lib/gems/data';
+import { gems } from '@/lib/gems/data';
+import { prisma } from '@/lib/prisma';
 
 // Google Gemini API 초기화
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || '');
+
+// 봇 정보 조회 (DB + 기본 봇)
+async function getGemById(gemId: string) {
+  // 1. 기본 봇에서 찾기
+  const defaultGem = gems.find(g => g.id === gemId);
+  if (defaultGem) {
+    return defaultGem;
+  }
+  
+  // 2. DB에서 찾기
+  const dbBot = await prisma.aIBot.findFirst({
+    where: {
+      botId: gemId,
+      isActive: true,
+    },
+    select: {
+      botId: true,
+      name: true,
+      systemPrompt: true,
+    },
+  });
+  
+  if (dbBot) {
+    return {
+      id: dbBot.botId,
+      name: dbBot.name,
+      systemPrompt: dbBot.systemPrompt,
+    };
+  }
+  
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,9 +83,12 @@ export async function POST(request: NextRequest) {
     // Gem별 시스템 프롬프트 적용
     let systemPrompt = '';
     if (gemId) {
-      const gem = getGemById(gemId);
+      console.log('🔍 봇 ID:', gemId);
+      const gem = await getGemById(gemId);
+      console.log('✅ 봇 찾기 결과:', gem ? gem.name : '없음');
       if (gem) {
         systemPrompt = gem.systemPrompt;
+        console.log('📝 시스템 프롬프트 길이:', systemPrompt.length);
       }
     }
 

@@ -312,8 +312,21 @@ export default function AboutPage() {
               </ul>
             </div>
           </div>
-          <div className="mt-12 pt-8 border-t text-center text-sm text-gray-600">
-            © 2024 SUPER PLACE. All rights reserved.
+          <div className="mt-12 pt-8 border-t">
+            <div className="flex flex-col items-center space-y-3">
+              <div className="flex items-center space-x-4 text-sm">
+                <Link href="/terms" className="text-gray-600 hover:text-blue-600 transition-colors">
+                  이용약관
+                </Link>
+                <span className="text-gray-400">|</span>
+                <Link href="/privacy" className="text-gray-600 hover:text-blue-600 transition-colors font-semibold">
+                  개인정보처리방침
+                </Link>
+              </div>
+              <p className="text-sm text-gray-600">
+                © 2026 우리는 슈퍼플레이스다. All rights reserved.
+              </p>
+            </div>
           </div>
         </div>
       </footer>
