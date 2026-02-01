@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { getUsersAction } from "./actions";
 
 interface User {
   id: string;
@@ -69,27 +70,23 @@ export default function AdminUsersPage() {
       setLoading(true);
       setError(null);
       
-      console.log("📡 API 호출: /api/public/all-users");
-      const response = await fetch("/api/public/all-users");
+      console.log("📡 Server Action 호출");
+      const result = await getUsersAction();
       
-      console.log("📥 응답 상태:", response.status);
-      const data: ApiResponse = await response.json();
-      
-      console.log("📦 응답 데이터:", data);
+      console.log("📦 응답 데이터:", result);
 
-      if (data.success && data.users) {
-        setUsers(data.users);
-        setMeta(data.meta || null);
-        console.log(`✅ 사용자 ${data.users.length}명 로드 완료`);
+      if (result.success && result.users) {
+        setUsers(result.users as any);
+        console.log(`✅ 사용자 ${result.users.length}명 로드 완료`);
       } else {
-        const errorMsg = data.error || "알 수 없는 오류가 발생했습니다.";
+        const errorMsg = result.error || "알 수 없는 오류가 발생했습니다.";
         setError(errorMsg);
-        console.error("❌ API 오류:", data);
+        console.error("❌ 오류:", result);
       }
     } catch (err: any) {
-      const errorMsg = `네트워크 오류: ${err.message}`;
+      const errorMsg = `오류: ${err.message}`;
       setError(errorMsg);
-      console.error("❌ 네트워크 오류:", err);
+      console.error("❌ 오류:", err);
     } finally {
       setLoading(false);
     }
@@ -302,7 +299,11 @@ export default function AdminUsersPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
+                    <tr 
+                      key={user.id} 
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => router.push(`/dashboard/admin/users/${user.id}`)}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div>
