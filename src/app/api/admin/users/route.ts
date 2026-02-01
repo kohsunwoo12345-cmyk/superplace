@@ -1,49 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+// Edge Runtime 사용 안 함 (Node.js Runtime 명시)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/admin/users
  * 
+ * 🔥 PUBLIC API - NO AUTH REQUIRED (임시 디버그 모드)
  * 모든 사용자 조회 (Neon PostgreSQL + Cloudflare D1)
- * - 디버그 모드: 세션 없이도 작동
+ * - 인증 체크 완전 제거
  * - Neon과 D1의 모든 사용자를 병합하여 반환
  */
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   console.log("\n" + "=".repeat(80));
-  console.log("🚀 GET /api/admin/users - 시작 [DEBUG MODE]");
+  console.log("🔥 PUBLIC API MODE - NO AUTH");
   console.log("=".repeat(80));
 
-  // 🔥 디버그 모드: 즉시 간단한 응답 반환
-  console.log("⚠️ DEBUG MODE: 권한 체크 완전 우회");
-
   try {
-    // Step 1: 세션 확인 (참고용, 차단하지 않음)
-    console.log("\n[Step 1] 세션 확인 중 (참고용)...");
-    let session = null;
-    try {
-      session = await getServerSession(authOptions);
-      if (session) {
-        console.log("✅ 세션 존재:", {
-          email: session.user?.email,
-          role: session.user?.role,
-          academyId: session.user?.academyId,
-        });
-      } else {
-        console.log("⚠️ 세션 없음 (디버그 모드로 계속 진행)");
-      }
-    } catch (sessionError: any) {
-      console.log("⚠️ 세션 체크 오류 (무시):", sessionError.message);
-    }
 
-    // Step 2: Neon PostgreSQL에서 사용자 조회
-    console.log("\n[Step 2] Neon PostgreSQL 연결 중...");
+    // Step 1: Neon PostgreSQL에서 사용자 조회
+    console.log("\n[Step 1] Neon PostgreSQL 연결 중...");
     await prisma.$connect();
     console.log("✅ Neon 연결 성공");
 
-    console.log("\n[Step 3] Neon에서 사용자 조회 중...");
+    console.log("\n[Step 2] Neon에서 사용자 조회 중...");
     const neonUsers = await prisma.user.findMany({
       select: {
         id: true,
@@ -88,8 +71,8 @@ export async function GET(request: NextRequest) {
     };
     console.log("📊 Neon 역할별 통계:", neonStats);
 
-    // Step 3: Cloudflare D1에서 사용자 조회 시도
-    console.log("\n[Step 4] Cloudflare D1 연결 시도...");
+    // Step 2: Cloudflare D1에서 사용자 조회 시도
+    console.log("\n[Step 3] Cloudflare D1 연결 시도...");
     let d1Users: any[] = [];
     let d1Error = null;
 
@@ -134,8 +117,8 @@ export async function GET(request: NextRequest) {
       d1Error = error.message;
     }
 
-    // Step 4: Neon과 D1 사용자 병합 (중복 제거)
-    console.log("\n[Step 5] 사용자 병합 중...");
+    // Step 3: Neon과 D1 사용자 병합 (중복 제거)
+    console.log("\n[Step 4] 사용자 병합 중...");
     
     // 이메일 기준으로 중복 제거 (Neon 우선)
     const neonEmailSet = new Set(neonUsers.map(u => u.email));
@@ -175,12 +158,12 @@ export async function GET(request: NextRequest) {
     console.log(`   - Neon: ${neonUsers.length}명`);
     console.log(`   - D1 (고유): ${normalizedD1Users.length}명`);
 
-    // Step 5: 응답 생성
+    // Step 4: 응답 생성
     const endTime = Date.now();
     const duration = endTime - startTime;
 
     console.log("\n" + "=".repeat(80));
-    console.log(`✅ 성공! (처리 시간: ${duration}ms)`);
+    console.log(`✅ PUBLIC API 성공! (처리 시간: ${duration}ms)`);
     console.log("=".repeat(80) + "\n");
 
     return NextResponse.json({
@@ -201,6 +184,7 @@ export async function GET(request: NextRequest) {
         d1Error: d1Error,
         processingTime: duration,
         timestamp: new Date().toISOString(),
+        authMode: "PUBLIC - NO AUTH REQUIRED",
       },
     });
 
