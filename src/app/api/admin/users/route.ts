@@ -7,28 +7,35 @@ import { prisma } from "@/lib/prisma";
  * GET /api/admin/users
  * 
  * 모든 사용자 조회 (Neon PostgreSQL + Cloudflare D1)
- * - 권한 체크 없음 (디버그 모드)
+ * - 디버그 모드: 세션 없이도 작동
  * - Neon과 D1의 모든 사용자를 병합하여 반환
  */
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   console.log("\n" + "=".repeat(80));
-  console.log("🚀 GET /api/admin/users - 시작");
+  console.log("🚀 GET /api/admin/users - 시작 [DEBUG MODE]");
   console.log("=".repeat(80));
 
+  // 🔥 디버그 모드: 즉시 간단한 응답 반환
+  console.log("⚠️ DEBUG MODE: 권한 체크 완전 우회");
+
   try {
-    // Step 1: 세션 확인 (차단하지 않음)
-    console.log("\n[Step 1] 세션 확인 중...");
-    const session = await getServerSession(authOptions);
-    
-    if (session) {
-      console.log("✅ 세션 존재:", {
-        email: session.user?.email,
-        role: session.user?.role,
-        academyId: session.user?.academyId,
-      });
-    } else {
-      console.log("⚠️ 세션 없음 (계속 진행)");
+    // Step 1: 세션 확인 (참고용, 차단하지 않음)
+    console.log("\n[Step 1] 세션 확인 중 (참고용)...");
+    let session = null;
+    try {
+      session = await getServerSession(authOptions);
+      if (session) {
+        console.log("✅ 세션 존재:", {
+          email: session.user?.email,
+          role: session.user?.role,
+          academyId: session.user?.academyId,
+        });
+      } else {
+        console.log("⚠️ 세션 없음 (디버그 모드로 계속 진행)");
+      }
+    } catch (sessionError: any) {
+      console.log("⚠️ 세션 체크 오류 (무시):", sessionError.message);
     }
 
     // Step 2: Neon PostgreSQL에서 사용자 조회
