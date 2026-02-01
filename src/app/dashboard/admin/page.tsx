@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Users, CreditCard, TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Users, CreditCard, TrendingUp, AlertCircle, CheckCircle, Clock, UserCircle } from "lucide-react";
 
 interface PendingUser {
   id: string;
@@ -17,6 +18,18 @@ interface PendingUser {
   createdAt: string;
 }
 
+interface RecentUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  academy?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -24,6 +37,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
+  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,6 +63,7 @@ export default function AdminPage() {
       if (response.ok) {
         const data = await response.json();
         setStats(data);
+        setRecentUsers(data.recentUsers || []);
       }
     } catch (error) {
       console.error("Failed to fetch stats:", error);
@@ -103,6 +118,22 @@ export default function AdminPage() {
     } finally {
       setApprovingId(null);
     }
+  };
+
+  // Helper function to get role text in Korean
+  const getRoleText = (role: string) => {
+    const roleMap: Record<string, string> = {
+      SUPER_ADMIN: "관리자",
+      DIRECTOR: "학원장",
+      TEACHER: "선생님",
+      STUDENT: "학생",
+    };
+    return roleMap[role] || role;
+  };
+
+  // Helper function to get user initials
+  const getUserInitials = (name: string) => {
+    return name?.[0] || "U";
   };
 
   if (status === "loading" || loading) {
@@ -254,42 +285,76 @@ export default function AdminPage() {
         </Card>
       )}
 
-      {/* User Management */}
-      <Card>
-        <CardHeader>
-          <CardTitle>사용자 관리</CardTitle>
-          <CardDescription>등록된 사용자 목록 및 관리</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {stats?.recentUsers?.map((user: any) => (
-              <div
-                key={user.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div>
-                  <div className="font-medium">{user.name}</div>
-                  <div className="text-sm text-gray-600">{user.email}</div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-600">
-                    {new Date(user.createdAt).toLocaleDateString("ko-KR")}
-                  </span>
-                  <span
-                    className={`px-2 py-1 text-xs rounded-full ${
-                      user.role === "ADMIN" || user.role === "SUPERADMIN"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-green-100 text-green-700"
-                    }`}
-                  >
-                    {user.role}
-                  </span>
-                </div>
+      {/* Recent Users (Last 7 Days) */}
+      {recentUsers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>최근 가입 사용자</CardTitle>
+                <CardDescription>최근 7일 내 가입한 사용자 목록</CardDescription>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <Link href="/dashboard/admin/users">
+                <Button variant="outline" size="sm">
+                  <UserCircle className="h-4 w-4 mr-2" />
+                  전체 보기
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentUsers.map((user) => (
+                <Link
+                  key={user.id}
+                  href={`/dashboard/admin/users/${user.id}`}
+                  className="block"
+                >
+                  <div className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md hover:border-blue-300 transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                        {getUserInitials(user.name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900">{user.name}</div>
+                        <div className="text-sm text-gray-600">{user.email}</div>
+                        {user.academy ? (
+                          <div className="text-xs text-blue-600 mt-1">
+                            {user.academy.name}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-400 mt-1">미소속</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`px-3 py-1 text-xs rounded-full font-medium ${
+                          user.role === "SUPER_ADMIN" || user.role === "ADMIN" || user.role === "SUPERADMIN"
+                            ? "bg-red-100 text-red-700"
+                            : user.role === "DIRECTOR"
+                            ? "bg-purple-100 text-purple-700"
+                            : user.role === "TEACHER"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-green-100 text-green-700"
+                        }`}
+                      >
+                        {getRoleText(user.role)}
+                      </span>
+                      <span className="text-sm text-gray-600 whitespace-nowrap">
+                        {new Date(user.createdAt).toLocaleDateString("ko-KR", {
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Subscription Overview */}
       <Card>

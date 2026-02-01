@@ -98,9 +98,16 @@ export async function GET(req: Request) {
                              await prisma.tikTok.count() +
                              await prisma.karrot.count();
 
-    // Get recent users
+    // Get recent users (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
     const recentUsers = await prisma.user.findMany({
-      take: 10,
+      where: {
+        createdAt: {
+          gte: sevenDaysAgo,
+        },
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -110,6 +117,12 @@ export async function GET(req: Request) {
         email: true,
         role: true,
         createdAt: true,
+        academy: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
