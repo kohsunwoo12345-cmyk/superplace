@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { getUsersAction } from "./actions";
 
 interface User {
   id: string;
@@ -61,25 +62,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     console.log("🚀 컴포넌트 마운트 - 사용자 목록 로드 시작");
-    // 임시: 배포 문제로 하드코딩된 데이터 사용
-    setUsers([
-      {
-        id: "temp-1",
-        email: "admin@superplace.com",
-        name: "관리자",
-        role: "SUPER_ADMIN",
-        points: 1000,
-        approved: true,
-        academy: null,
-        aiChatEnabled: true,
-        aiHomeworkEnabled: true,
-        aiStudyEnabled: true,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-      }
-    ]);
-    setLoading(false);
-    // fetchUsers();
+    fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
@@ -87,27 +70,23 @@ export default function AdminUsersPage() {
       setLoading(true);
       setError(null);
       
-      console.log("📡 API 호출: /api/public/all-users");
-      const response = await fetch("/api/public/all-users");
+      console.log("📡 Server Action 호출");
+      const result = await getUsersAction();
       
-      console.log("📥 응답 상태:", response.status);
-      const data: ApiResponse = await response.json();
-      
-      console.log("📦 응답 데이터:", data);
+      console.log("📦 응답 데이터:", result);
 
-      if (data.success && data.users) {
-        setUsers(data.users);
-        setMeta(data.meta || null);
-        console.log(`✅ 사용자 ${data.users.length}명 로드 완료`);
+      if (result.success && result.users) {
+        setUsers(result.users as any);
+        console.log(`✅ 사용자 ${result.users.length}명 로드 완료`);
       } else {
-        const errorMsg = data.error || "알 수 없는 오류가 발생했습니다.";
+        const errorMsg = result.error || "알 수 없는 오류가 발생했습니다.";
         setError(errorMsg);
-        console.error("❌ API 오류:", data);
+        console.error("❌ 오류:", result);
       }
     } catch (err: any) {
-      const errorMsg = `네트워크 오류: ${err.message}`;
+      const errorMsg = `오류: ${err.message}`;
       setError(errorMsg);
-      console.error("❌ 네트워크 오류:", err);
+      console.error("❌ 오류:", err);
     } finally {
       setLoading(false);
     }
