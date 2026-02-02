@@ -1,7 +1,0 @@
-# Cloudflare Pages Redirects for Static Export
-# SPA-style routing
-
-/login              /login.html           200
-/register           /register.html        200
-/dashboard          /dashboard.html       200
-/dashboard/*        /dashboard/:splat.html 200
