@@ -1,9 +1,0 @@
-name: Deploy to Vercel
-on:
-  push:
-    branches: [main, genspark_ai_developer]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - run: curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
