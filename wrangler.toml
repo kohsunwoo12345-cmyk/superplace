@@ -5,6 +5,10 @@ compatibility_flags = ["nodejs_compat"]
 
 pages_build_output_dir = ".open-next/worker"
 
+# 빌드 최적화
+[build]
+command = "NODE_OPTIONS='--max-old-space-size=1536' npm run build"
+
 [observability]
 enabled = true
 
