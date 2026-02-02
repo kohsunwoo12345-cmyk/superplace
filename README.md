@@ -429,3 +429,4 @@ Copyright © 2024-2025 SUPER PLACE. All rights reserved.
 AI 기반 학원 관리 시스템으로 교육을 혁신하세요! 🚀
 # Force redeploy Sat Jan 31 12:29:11 UTC 2026
 
+# 자동 배포 테스트 - Mon Feb  2 11:08:24 UTC 2026
