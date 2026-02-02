@@ -79,9 +79,12 @@ export default function Home() {
 
         {/* Status */}
         <div className="mt-16 text-center">
-          <div className="inline-block bg-green-100 text-green-800 px-6 py-3 rounded-lg">
-            ✅ Cloudflare Pages 배포 성공!
+          <div className="inline-block bg-green-100 text-green-800 px-6 py-3 rounded-lg font-semibold">
+            ✅ SuperPlace - 학원 관리 시스템이 정상적으로 배포되었습니다!
           </div>
+          <p className="mt-4 text-gray-600">
+            지금 바로 시작하세요 🚀
+          </p>
         </div>
       </div>
     </main>
