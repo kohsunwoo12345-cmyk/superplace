@@ -106,7 +106,9 @@ export default function AdminUsersPage() {
         user.name.toLowerCase().includes(search) ||
         user.email.toLowerCase().includes(search) ||
         user.academy?.name?.toLowerCase().includes(search) ||
-        user.studentCode?.toLowerCase().includes(search)
+        user.studentCode?.toLowerCase().includes(search) ||
+        user.phone?.toLowerCase().includes(search) ||
+        user.grade?.toLowerCase().includes(search)
       );
     }
 
@@ -184,40 +186,75 @@ export default function AdminUsersPage() {
             👥 사용자 관리
           </h1>
           <p className="text-gray-600">
-            전체 사용자 목록을 확인하고 관리할 수 있습니다.
+            전체 사용자 목록을 확인하고 관리할 수 있습니다. 
+            <span className="ml-2 text-blue-600 font-medium">
+              💡 통계 카드를 클릭하면 해당 역할로 필터링됩니다!
+            </span>
           </p>
         </div>
 
-        {/* 통계 카드 */}
+        {/* 통계 카드 - 클릭하여 필터링 */}
         {meta && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
+            <div 
+              onClick={() => setRoleFilter("ALL")}
+              className={`rounded-lg shadow p-6 cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
+                roleFilter === "ALL" ? "bg-blue-100 ring-2 ring-blue-500" : "bg-white"
+              }`}
+            >
               <div className="text-sm text-gray-600 mb-1">전체 사용자</div>
               <div className="text-3xl font-bold text-gray-900">{meta.total}</div>
               <div className="text-xs text-gray-500 mt-2">
                 Neon: {meta.sources.neon} / D1: {meta.sources.d1}
               </div>
+              {roleFilter === "ALL" && (
+                <div className="text-xs text-blue-600 mt-2 font-semibold">✓ 선택됨</div>
+              )}
             </div>
             
-            <div className="bg-purple-50 rounded-lg shadow p-6">
+            <div 
+              onClick={() => setRoleFilter("DIRECTOR")}
+              className={`rounded-lg shadow p-6 cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
+                roleFilter === "DIRECTOR" ? "bg-purple-100 ring-2 ring-purple-500" : "bg-purple-50"
+              }`}
+            >
               <div className="text-sm text-purple-600 mb-1">학원장</div>
               <div className="text-3xl font-bold text-purple-900">
                 {meta.stats.DIRECTOR}
               </div>
+              {roleFilter === "DIRECTOR" && (
+                <div className="text-xs text-purple-600 mt-2 font-semibold">✓ 선택됨</div>
+              )}
             </div>
             
-            <div className="bg-blue-50 rounded-lg shadow p-6">
+            <div 
+              onClick={() => setRoleFilter("TEACHER")}
+              className={`rounded-lg shadow p-6 cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
+                roleFilter === "TEACHER" ? "bg-blue-100 ring-2 ring-blue-500" : "bg-blue-50"
+              }`}
+            >
               <div className="text-sm text-blue-600 mb-1">선생님</div>
               <div className="text-3xl font-bold text-blue-900">
                 {meta.stats.TEACHER}
               </div>
+              {roleFilter === "TEACHER" && (
+                <div className="text-xs text-blue-600 mt-2 font-semibold">✓ 선택됨</div>
+              )}
             </div>
             
-            <div className="bg-green-50 rounded-lg shadow p-6">
+            <div 
+              onClick={() => setRoleFilter("STUDENT")}
+              className={`rounded-lg shadow p-6 cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
+                roleFilter === "STUDENT" ? "bg-green-100 ring-2 ring-green-500" : "bg-green-50"
+              }`}
+            >
               <div className="text-sm text-green-600 mb-1">학생</div>
               <div className="text-3xl font-bold text-green-900">
                 {meta.stats.STUDENT}
               </div>
+              {roleFilter === "STUDENT" && (
+                <div className="text-xs text-green-600 mt-2 font-semibold">✓ 선택됨</div>
+              )}
             </div>
           </div>
         )}
@@ -232,7 +269,7 @@ export default function AdminUsersPage() {
               </label>
               <input
                 type="text"
-                placeholder="이름, 이메일, 학원명, 학생코드 검색..."
+                placeholder="이름, 이메일, 학원명, 학생코드, 전화번호, 학년 검색..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -258,8 +295,30 @@ export default function AdminUsersPage() {
             </div>
           </div>
 
-          <div className="mt-4 text-sm text-gray-600">
-            {filteredUsers.length}명의 사용자가 검색되었습니다.
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              {roleFilter === "ALL" ? (
+                <span>
+                  <strong className="text-blue-600">{filteredUsers.length}명</strong>의 사용자가 검색되었습니다.
+                </span>
+              ) : (
+                <span>
+                  <strong className="text-blue-600">{getRoleText(roleFilter)}</strong> 
+                  <strong className="text-blue-600 ml-2">{filteredUsers.length}명</strong>이 검색되었습니다.
+                </span>
+              )}
+            </div>
+            {(roleFilter !== "ALL" || searchTerm) && (
+              <button
+                onClick={() => {
+                  setRoleFilter("ALL");
+                  setSearchTerm("");
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                🔄 필터 초기화
+              </button>
+            )}
           </div>
         </div>
 
