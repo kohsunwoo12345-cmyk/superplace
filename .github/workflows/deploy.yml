@@ -1,0 +1,29 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+      - genspark_ai_developer
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Vercel
+    steps:
+      - name: Trigger Vercel Deployment
+        run: |
+          echo "🚀 Triggering Vercel deployment..."
+          curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+          echo "✅ Deployment triggered successfully!"
+          
+      - name: Wait for deployment
+        run: |
+          echo "⏳ Waiting 30 seconds for deployment to start..."
+          sleep 30
+          
+      - name: Deployment Status
+        run: |
+          echo "✅ Deployment initiated!"
+          echo "📊 Check status at: https://vercel.com/dashboard"
+          echo "🌐 Site URL: https://superplace-study.vercel.app"
