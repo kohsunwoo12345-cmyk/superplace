@@ -5,7 +5,4 @@ compatibility_date = "2024-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "superplace-db"
-database_id = "YOUR_DATABASE_ID_HERE"  # Step 1-3에서 받은 database_id 입력
-
-# Pages 설정
-pages_build_output_dir = "out"
+database_id = "8c106540-21b4-4fa9-8879-c4956e459ca1"
