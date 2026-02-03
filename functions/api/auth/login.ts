@@ -111,11 +111,22 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     );
   } catch (error) {
     console.error('Login error:', error);
+    
+    // 더 상세한 에러 정보
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+      hasDB: !!context.env?.DB,
+      timestamp: new Date().toISOString(),
+    };
+    
     return new Response(
       JSON.stringify({
         success: false,
         message: '로그인 처리 중 오류가 발생했습니다',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorDetails.message,
+        debug: errorDetails,
       }),
       {
         status: 500,
