@@ -45,9 +45,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    // 이메일 중복 체크
+    // 이메일 중복 체크 (D1 테이블 이름: User)
     const existingUser = await context.env.DB.prepare(
-      'SELECT id FROM users WHERE email = ?'
+      'SELECT id FROM User WHERE email = ?'
     )
       .bind(data.email)
       .first();
@@ -71,9 +71,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // 역할 설정 (기본값: STUDENT)
     const userRole = data.role || 'STUDENT';
 
-    // 사용자 생성
+    // 사용자 생성 (D1 테이블 이름: User)
     await context.env.DB.prepare(
-      `INSERT INTO users (id, email, password, name, role, phone, academyId, createdAt, updatedAt)
+      `INSERT INTO User (id, email, password, name, role, phone, academyId, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
     )
       .bind(
@@ -88,7 +88,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       .run();
 
     // JWT 토큰 생성
-    const token = await generateToken({
+    const token = generateToken({
       id: userId,
       email: data.email,
       name: data.name,
@@ -132,10 +132,29 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 }
 
 // JWT 토큰 생성
-async function generateToken(payload: any): Promise<string> {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const body = btoa(JSON.stringify({ ...payload, exp: Date.now() + 24 * 60 * 60 * 1000 }));
-  const signature = btoa('simple-signature');
+function generateToken(payload: any): string {
+  try {
+    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+    
+    const body = btoa(JSON.stringify({ 
+      ...payload, 
+      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) 
+    }))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+    
+    const signature = btoa('simple-signature')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
 
-  return `${header}.${body}.${signature}`;
+    return `${header}.${body}.${signature}`;
+  } catch (error) {
+    console.error('Token generation error:', error);
+    throw error;
+  }
 }

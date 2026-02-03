@@ -46,9 +46,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    // 사용자 조회
+    // 사용자 조회 (D1 테이블 이름: User)
     const user = await context.env.DB.prepare(
-      'SELECT id, email, password, name, role, academyId FROM users WHERE email = ?'
+      'SELECT id, email, password, name, role, academyId FROM User WHERE email = ?'
     )
       .bind(email)
       .first();

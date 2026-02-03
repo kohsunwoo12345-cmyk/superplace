@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login API Debug</title>
+</head>
+<body>
+    <h1>Login API Debug</h1>
+    <button onclick="testLogin()">Test Login</button>
+    <pre id="result"></pre>
+
+    <script>
+    async function testLogin() {
+        const resultEl = document.getElementById('result');
+        resultEl.textContent = 'Testing...';
+        
+        try {
+            const response = await fetch('https://genspark-ai-developer.superplacestudy.pages.dev/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: 'admin@superplace.com',
+                    password: 'admin123!@#'
+                })
+            });
+            
+            const data = await response.json();
+            
+            resultEl.textContent = JSON.stringify({
+                status: response.status,
+                statusText: response.statusText,
+                data: data
+            }, null, 2);
+        } catch (error) {
+            resultEl.textContent = 'Error: ' + error.message;
+        }
+    }
+    </script>
+</body>
+</html>
