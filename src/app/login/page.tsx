@@ -15,28 +15,11 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [debugInfo, setDebugInfo] = useState("");
-
-  // 자동 로그인 함수
-  const fillAdmin = () => {
-    setEmail("admin@superplace.co.kr");
-    setPassword("admin1234!");
-    setError("");
-    setDebugInfo("관리자 계정 정보가 입력되었습니다. 로그인 버튼을 클릭하세요.");
-  };
-
-  const fillTest = () => {
-    setEmail("test3@test.com");
-    setPassword("test123");
-    setError("");
-    setDebugInfo("테스트 계정 정보가 입력되었습니다. 로그인 버튼을 클릭하세요.");
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    setDebugInfo("");
 
     console.log('🔐 로그인 시도:', { email, passwordLength: password.length });
 
@@ -120,30 +103,6 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {debugInfo && (
-                <div className="bg-blue-50 text-blue-700 px-4 py-3 rounded-md text-sm">
-                  {debugInfo}
-                </div>
-              )}
-
-              {/* 빠른 로그인 버튼 */}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={fillAdmin}
-                  className="flex-1 px-3 py-2 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-md transition-colors"
-                >
-                  👨‍💼 관리자로 채우기
-                </button>
-                <button
-                  type="button"
-                  onClick={fillTest}
-                  className="flex-1 px-3 py-2 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded-md transition-colors"
-                >
-                  👤 테스트로 채우기
-                </button>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="email">이메일</Label>
                 <Input
@@ -207,15 +166,6 @@ export default function LoginPage() {
                 </div>
               </div>
             </form>
-
-            {/* Test Accounts Info */}
-            <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
-              <p className="text-xs text-center text-gray-700">
-                <strong>테스트 계정</strong><br />
-                관리자: admin@superplace.co.kr / admin1234!<br />
-                일반: test3@test.com / test123
-              </p>
-            </div>
           </CardContent>
         </Card>
 

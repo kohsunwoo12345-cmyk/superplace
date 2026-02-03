@@ -608,16 +608,16 @@ export default function Home() {
           </p>
           {!isLoggedIn && (
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="/login">
+              <a href="/student-login">
                 <Button size="lg" className="text-lg px-10 py-7 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all">
                   <GraduationCap className="mr-2 h-5 w-5" />
                   학생 로그인
                 </Button>
               </a>
-              <a href="/login">
+              <a href="/teacher-login">
                 <Button size="lg" variant="outline" className="text-lg px-10 py-7 border-2 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-all">
                   <Users className="mr-2 h-5 w-5" />
-                  학원장 로그인
+                  학원장 / 선생님 로그인
                 </Button>
               </a>
             </div>
@@ -835,16 +835,16 @@ export default function Home() {
               학생이든 학원장이든, 더 나은 학습 환경을 경험해보세요
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="/login">
+              <a href="/student-login">
                 <Button size="lg" variant="secondary" className="text-lg px-10 py-7 bg-white text-green-600 hover:bg-gray-100 shadow-xl">
                   <GraduationCap className="mr-2 h-5 w-5" />
                   학생 로그인
                 </Button>
               </a>
-              <a href="/login">
+              <a href="/teacher-login">
                 <Button size="lg" className="text-lg px-10 py-7 bg-white/20 hover:bg-white/30 backdrop-blur-sm border-2 border-white/50 shadow-xl">
                   <Users className="mr-2 h-5 w-5" />
-                  학원장 로그인
+                  학원장 / 선생님 로그인
                 </Button>
               </a>
             </div>

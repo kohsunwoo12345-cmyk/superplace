@@ -54,9 +54,11 @@ export default function RegisterPage() {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        setError(result.message || result.info || "회원가입은 현재 지원하지 않습니다");
+        setError(result.message || result.info || "회원가입 처리 중 오류가 발생했습니다");
       } else {
-        setError("회원가입은 현재 지원하지 않습니다. 기존 계정으로 로그인해주세요.");
+        // 회원가입 성공 - 역할에 따라 적절한 로그인 페이지로 안내
+        const loginPage = role === 'STUDENT' ? '/student-login' : '/teacher-login';
+        router.push(`${loginPage}?registered=true&role=${role}`);
       }
     } catch (error) {
       setError("회원가입 중 오류가 발생했습니다");
