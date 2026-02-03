@@ -192,11 +192,19 @@ export default function LoginPage() {
                 {isLoading ? "로그인 중..." : "로그인"}
               </Button>
 
-              <div className="text-center text-sm pt-4 border-t">
-                <span className="text-gray-600">아직 계정이 없으신가요? </span>
-                <Link href="/register" className="text-blue-600 hover:underline font-medium">
-                  회원가입
-                </Link>
+              <div className="text-center text-sm pt-4 border-t space-y-3">
+                <div>
+                  <span className="text-gray-600">학생이신가요? </span>
+                  <Link href="/student-login" className="text-indigo-600 hover:underline font-medium">
+                    학생 로그인
+                  </Link>
+                </div>
+                <div>
+                  <span className="text-gray-600">아직 계정이 없으신가요? </span>
+                  <Link href="/register" className="text-blue-600 hover:underline font-medium">
+                    회원가입
+                  </Link>
+                </div>
               </div>
             </form>
 
