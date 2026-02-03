@@ -1,126 +1,597 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  BookOpen,
+  Users,
+  FileText,
+  Award,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  TrendingUp,
+  Calendar,
+  Target,
+  BarChart3,
+  GraduationCap,
+} from "lucide-react";
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  academyId?: string;
+}
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null);
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // 사용자 정보 로드
   useEffect(() => {
-    // 인증 체크
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-
-    if (!token || !userData) {
-      // 로그인되지 않은 경우 로그인 페이지로 리다이렉트
-      window.location.href = '/login';
+    const userStr = localStorage.getItem("user");
+    if (!userStr) {
+      router.push("/login");
       return;
     }
-
     try {
-      setUser(JSON.parse(userData));
+      const userData = JSON.parse(userStr);
+      setUser(userData);
     } catch (error) {
-      console.error('Failed to parse user data:', error);
-      window.location.href = '/login';
-      return;
+      console.error("Failed to parse user data:", error);
+      router.push("/login");
     }
+  }, [router]);
 
-    setLoading(false);
-  }, []);
+  const isSuperAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
+  const isDirector = user?.role === "DIRECTOR";
+  const isTeacher = user?.role === "TEACHER";
+  const isStudent = user?.role === "STUDENT";
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/';
-  };
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        let endpoint = '';
+        
+        if (isSuperAdmin) {
+          endpoint = '/api/admin/dashboard-stats';
+        } else if (isDirector || isTeacher) {
+          endpoint = '/api/dashboard/director-stats';
+        } else if (isStudent) {
+          endpoint = '/api/dashboard/student-stats';
+        }
 
-  if (loading) {
+        if (endpoint) {
+          const token = localStorage.getItem("token");
+          const response = await fetch(endpoint, {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setStats(data);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchStats();
+    }
+  }, [user, isSuperAdmin, isDirector, isTeacher, isStudent]);
+
+  // Loading state
+  if (loading || !user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">로딩 중...</p>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Super Admin Dashboard
+  if (isSuperAdmin) {
+    return (
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Users className="h-8 w-8 text-blue-600" />
+              시스템 관리자 대시보드
+            </h1>
+            <p className="text-gray-600 mt-1">
+              전체 시스템 현황을 모니터링하고 관리합니다
+            </p>
+          </div>
+        </div>
+
+        {/* Admin Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                전체 사용자
+              </CardTitle>
+              <Users className="h-5 w-5 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-blue-600">{stats?.totalUsers || 0}명</div>
+              <div className="flex items-center text-sm mt-2">
+                <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+                <span className="text-green-500">+{stats?.newUsersThisMonth || 0}명</span>
+                <span className="text-gray-500 ml-1">이번 달</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-purple-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                등록된 학원
+              </CardTitle>
+              <GraduationCap className="h-5 w-5 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-purple-600">{stats?.activeAcademies || 0}개</div>
+              <div className="flex items-center text-sm mt-2">
+                <span className="text-gray-500">전체 {stats?.totalAcademies || 0}개</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-green-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                활성 학생
+              </CardTitle>
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-600">{stats?.usersByRole?.STUDENT || 0}명</div>
+              <div className="flex items-center text-sm mt-2">
+                <span className="text-gray-500">전체 학생 수</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-orange-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                AI 사용량
+              </CardTitle>
+              <BarChart3 className="h-5 w-5 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-orange-600">{stats?.aiUsageThisMonth || 0}</div>
+              <div className="flex items-center text-sm mt-2">
+                <span className="text-gray-500">이번 달 사용</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Users */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-blue-600" />
+                최근 가입 사용자
+              </CardTitle>
+              <CardDescription>최근 7일 내 가입한 사용자 목록</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {(stats?.recentUsers || []).slice(0, 4).map((recentUser: any, index: number) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="font-semibold text-blue-600">
+                          {recentUser.name[0]}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{recentUser.name}</p>
+                        <p className="text-sm text-gray-600">
+                          {recentUser.role === "DIRECTOR" ? "학원장" : recentUser.role === "TEACHER" ? "선생님" : "학생"} · {recentUser.academy}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm text-gray-500">
+                      {new Date(recentUser.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <Button variant="outline" className="w-full mt-4">
+                전체 사용자 보기
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* System Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-green-600" />
+                시스템 상태
+              </CardTitle>
+              <CardDescription>실시간 시스템 현황</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">서버 상태</span>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                    <span className="text-sm font-medium text-green-600">정상</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">데이터베이스</span>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                    <span className="text-sm font-medium text-green-600">연결됨</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">AI 서비스</span>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                    <span className="text-sm font-medium text-green-600">활성</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
   }
 
+  // Director/Teacher Dashboard
+  if (isDirector || isTeacher) {
+    return (
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-8 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">
+                안녕하세요, {user.name}님! 👋
+              </h1>
+              <p className="text-blue-100">
+                오늘도 학생들의 학습을 관리해주세요
+              </p>
+            </div>
+            <GraduationCap className="h-16 w-16 opacity-80" />
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                전체 학생
+              </CardTitle>
+              <Users className="h-5 w-5 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-blue-600">
+                {stats?.totalStudents || 0}명
+              </div>
+              <p className="text-sm text-gray-500 mt-2">활동 중인 학생</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-green-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                출석률
+              </CardTitle>
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-600">
+                {stats?.attendanceRate || 0}%
+              </div>
+              <p className="text-sm text-gray-500 mt-2">이번 달 평균</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-purple-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                진행 중 과제
+              </CardTitle>
+              <FileText className="h-5 w-5 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-purple-600">
+                {stats?.activeHomework || 0}개
+              </div>
+              <p className="text-sm text-gray-500 mt-2">제출 대기 중</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-orange-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                클래스
+              </CardTitle>
+              <BookOpen className="h-5 w-5 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-orange-600">
+                {stats?.totalClasses || 0}개
+              </div>
+              <p className="text-sm text-gray-500 mt-2">운영 중인 클래스</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions & Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-blue-600" />
+                빠른 작업
+              </CardTitle>
+              <CardDescription>자주 사용하는 기능</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col items-center justify-center gap-2"
+                onClick={() => router.push("/dashboard/students")}
+              >
+                <Users className="h-6 w-6 text-blue-600" />
+                <span className="text-sm">학생 관리</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col items-center justify-center gap-2"
+                onClick={() => router.push("/dashboard/classes")}
+              >
+                <BookOpen className="h-6 w-6 text-purple-600" />
+                <span className="text-sm">클래스 관리</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col items-center justify-center gap-2"
+              >
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                <span className="text-sm">출석 체크</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col items-center justify-center gap-2"
+              >
+                <FileText className="h-6 w-6 text-orange-600" />
+                <span className="text-sm">과제 관리</span>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-purple-600" />
+                최근 활동
+              </CardTitle>
+              <CardDescription>최근 학생 활동 내역</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {(stats?.recentActivities || []).slice(0, 5).map((activity: any, index: number) => (
+                  <div key={index} className="flex items-start gap-3 text-sm">
+                    <div className="h-2 w-2 rounded-full bg-blue-500 mt-2"></div>
+                    <div className="flex-1">
+                      <p className="text-gray-900">{activity.description}</p>
+                      <p className="text-gray-500 text-xs mt-1">{activity.time}</p>
+                    </div>
+                  </div>
+                ))}
+                {(!stats?.recentActivities || stats.recentActivities.length === 0) && (
+                  <p className="text-center text-gray-500 py-4">최근 활동이 없습니다</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Student Dashboard  
+  if (isStudent) {
+    return (
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        <div className="bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl p-8 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">
+                안녕하세요, {user.name}님! 🎓
+              </h1>
+              <p className="text-green-100">
+                오늘도 열심히 공부해봐요!
+              </p>
+            </div>
+            <Award className="h-16 w-16 opacity-80" />
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                출석일
+              </CardTitle>
+              <Calendar className="h-5 w-5 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-blue-600">
+                {stats?.attendanceDays || 0}일
+              </div>
+              <p className="text-sm text-gray-500 mt-2">이번 달</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-green-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                완료 과제
+              </CardTitle>
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-600">
+                {stats?.completedHomework || 0}개
+              </div>
+              <p className="text-sm text-gray-500 mt-2">이번 달</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-purple-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                평균 점수
+              </CardTitle>
+              <Award className="h-5 w-5 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-purple-600">
+                {stats?.averageScore || 0}점
+              </div>
+              <p className="text-sm text-gray-500 mt-2">전체 평균</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-orange-100 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                학습 시간
+              </CardTitle>
+              <Clock className="h-5 w-5 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-orange-600">
+                {stats?.studyHours || 0}시간
+              </div>
+              <p className="text-sm text-gray-500 mt-2">이번 주</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Student Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Pending Homework */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-orange-600" />
+                제출할 과제
+              </CardTitle>
+              <CardDescription>마감일이 임박한 과제</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {(stats?.pendingHomework || []).map((hw: any, index: number) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-orange-50 transition-colors"
+                  >
+                    <div>
+                      <p className="font-medium">{hw.title}</p>
+                      <p className="text-sm text-gray-600">{hw.subject}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-orange-600">
+                        {hw.daysLeft}일 남음
+                      </p>
+                      <Button size="sm" className="mt-2">제출하기</Button>
+                    </div>
+                  </div>
+                ))}
+                {(!stats?.pendingHomework || stats.pendingHomework.length === 0) && (
+                  <p className="text-center text-gray-500 py-8">제출할 과제가 없습니다 🎉</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Today's Schedule */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-blue-600" />
+                오늘의 일정
+              </CardTitle>
+              <CardDescription>오늘 진행될 수업</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {(stats?.todaySchedule || []).map((schedule: any, index: number) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-4 p-4 border rounded-lg"
+                  >
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-blue-600">{schedule.time}</p>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">{schedule.subject}</p>
+                      <p className="text-sm text-gray-600">{schedule.teacher}</p>
+                    </div>
+                  </div>
+                ))}
+                {(!stats?.todaySchedule || stats.todaySchedule.length === 0) && (
+                  <p className="text-center text-gray-500 py-8">오늘 일정이 없습니다</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Default fallback
   return (
-    <div className="p-6">
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">대시보드</h1>
-          <p className="text-gray-600 mt-2">
-            환영합니다, {user?.name}님! ({user?.role})
-          </p>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-        >
-          로그아웃
-        </button>
-      </div>
-
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">전체 학생</p>
-              <p className="text-3xl font-bold text-gray-900">0</p>
-            </div>
-            <div className="text-4xl">👨‍🎓</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">선생님</p>
-              <p className="text-3xl font-bold text-gray-900">0</p>
-            </div>
-            <div className="text-4xl">👨‍🏫</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">진행 중인 수업</p>
-              <p className="text-3xl font-bold text-gray-900">0</p>
-            </div>
-            <div className="text-4xl">📚</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">이번 달 수익</p>
-              <p className="text-3xl font-bold text-gray-900">₩0</p>
-            </div>
-            <div className="text-4xl">💰</div>
-          </div>
-        </div>
-      </div>
-
-      {/* 최근 활동 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">최근 등록 학생</h2>
-          <div className="text-center py-8 text-gray-500">
-            등록된 학생이 없습니다
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">오늘의 출석</h2>
-          <div className="text-center py-8 text-gray-500">
-            출석 기록이 없습니다
-          </div>
-        </div>
-      </div>
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Card className="p-8 text-center">
+        <AlertCircle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold mb-2">권한이 없습니다</h2>
+        <p className="text-gray-600 mb-4">
+          대시보드에 접근할 수 있는 권한이 없습니다.
+        </p>
+        <Button onClick={() => router.push("/")}>
+          홈으로 돌아가기
+        </Button>
+      </Card>
     </div>
   );
 }
