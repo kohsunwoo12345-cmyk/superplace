@@ -42,22 +42,16 @@ export default function LoginPage() {
         localStorage.setItem('token', data.data.token);
         localStorage.setItem('user', JSON.stringify(data.data.user));
         
-        setDebugInfo(`✅ 로그인 성공! ${data.data.user.name}님 환영합니다.`);
-        
         // Redirect to dashboard
-        setTimeout(() => {
-          router.push('/dashboard');
-          router.refresh();
-        }, 1000);
+        router.push('/dashboard');
+        router.refresh();
       } else {
         console.error('❌ 로그인 실패:', data.message);
         setError(data.message || '이메일 또는 비밀번호가 올바르지 않습니다');
-        setDebugInfo(`❌ 실패: ${data.message}${data.error ? ` (${data.error})` : ''}`);
       }
     } catch (err) {
       console.error('💥 Login error:', err);
       setError('로그인 중 오류가 발생했습니다');
-      setDebugInfo(`💥 오류: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }
