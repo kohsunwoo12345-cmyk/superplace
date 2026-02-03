@@ -131,26 +131,34 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
   }
 }
 
-// JWT 토큰 생성
+// JWT 토큰 생성 (Unicode 안전)
 function generateToken(payload: any): string {
   try {
-    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
+    // Unicode 문자를 안전하게 base64로 인코딩하는 헬퍼 함수
+    const base64UrlEncode = (str: string): string => {
+      // UTF-8로 인코딩한 후 base64로 변환
+      const encoder = new TextEncoder();
+      const data = encoder.encode(str);
+      
+      // Uint8Array를 바이너리 문자열로 변환
+      let binary = '';
+      for (let i = 0; i < data.length; i++) {
+        binary += String.fromCharCode(data[i]);
+      }
+      
+      // Base64로 인코딩하고 URL-safe로 변환
+      return btoa(binary)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+    };
     
-    const body = btoa(JSON.stringify({ 
+    const header = base64UrlEncode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+    const body = base64UrlEncode(JSON.stringify({ 
       ...payload, 
       exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) 
-    }))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-    
-    const signature = btoa('simple-signature')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
+    }));
+    const signature = base64UrlEncode('simple-signature');
 
     return `${header}.${body}.${signature}`;
   } catch (error) {
