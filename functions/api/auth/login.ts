@@ -26,6 +26,26 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
+    // D1 바인딩 확인
+    if (!context.env || !context.env.DB) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'D1 데이터베이스 바인딩이 설정되지 않았습니다',
+          error: 'DB binding not found. Please configure D1 binding in Cloudflare Pages settings.',
+          instructions: {
+            step1: 'Go to Cloudflare Dashboard',
+            step2: 'Workers & Pages → superplacestudy → Settings → Functions',
+            step3: 'Add D1 binding: Variable name = DB, Database = superplace-db',
+          },
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     // 사용자 조회
     const user = await context.env.DB.prepare(
       'SELECT id, email, password, name, role, academyId FROM users WHERE email = ?'
