@@ -1,6 +1,8 @@
-// Cloudflare Pages Functions - 로그인 API
+// Cloudflare Pages Functions - 로그인 API (PostgreSQL)
+import postgres from 'postgres';
+
 interface Env {
-  DB: D1Database;
+  DATABASE_URL: string;
 }
 
 interface LoginRequest {
@@ -9,6 +11,8 @@ interface LoginRequest {
 }
 
 export async function onRequestPost(context: { request: Request; env: Env }) {
+  let sql: any = null;
+  
   try {
     const { email, password }: LoginRequest = await context.request.json();
 
@@ -26,17 +30,17 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    // D1 바인딩 확인
-    if (!context.env || !context.env.DB) {
+    // DATABASE_URL 확인
+    if (!context.env || !context.env.DATABASE_URL) {
       return new Response(
         JSON.stringify({
           success: false,
-          message: 'D1 데이터베이스 바인딩이 설정되지 않았습니다',
-          error: 'DB binding not found. Please configure D1 binding in Cloudflare Pages settings.',
+          message: 'DATABASE_URL 환경 변수가 설정되지 않았습니다',
+          error: 'DATABASE_URL not found. Please configure it in Cloudflare Pages settings.',
           instructions: {
             step1: 'Go to Cloudflare Dashboard',
-            step2: 'Workers & Pages → superplacestudy → Settings → Functions',
-            step3: 'Add D1 binding: Variable name = DB, Database = superplace-db',
+            step2: 'Workers & Pages → superplacestudy → Settings → Environment variables',
+            step3: 'Add variable: Name = DATABASE_URL, Value = your Neon PostgreSQL connection string',
           },
         }),
         {
@@ -46,14 +50,22 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
+    // PostgreSQL 연결
+    sql = postgres(context.env.DATABASE_URL, {
+      ssl: 'require',
+      max: 1,
+    });
+
     // 사용자 조회
-    const user = await context.env.DB.prepare(
-      'SELECT id, email, password, name, role, academyId FROM users WHERE email = ?'
-    )
-      .bind(email)
-      .first();
+    const users = await sql`
+      SELECT id, email, password, name, role, "academyId"
+      FROM users
+      WHERE email = ${email}
+      LIMIT 1
+    `;
 
-    if (!user) {
+    if (users.length === 0) {
+      await sql.end();
       return new Response(
         JSON.stringify({
           success: false,
@@ -66,11 +78,11 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    // 비밀번호 검증 (bcrypt 대신 단순 비교 - Cloudflare Workers에서는 bcrypt가 제한적)
-    // 실제 프로덕션에서는 bcryptjs 또는 Web Crypto API 사용
-    const isPasswordValid = await verifyPassword(password, user.password as string);
+    const user = users[0];
 
-    if (!isPasswordValid) {
+    // 비밀번호 검증 (평문 비교)
+    if (user.password !== password) {
+      await sql.end();
       return new Response(
         JSON.stringify({
           success: false,
@@ -83,7 +95,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    // JWT 토큰 생성 (단순화된 버전)
+    // JWT 토큰 생성
     const token = await generateToken({
       id: user.id,
       email: user.email,
@@ -91,6 +103,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       role: user.role,
       academyId: user.academyId,
     });
+
+    await sql.end();
 
     return new Response(
       JSON.stringify({
@@ -114,6 +128,16 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     );
   } catch (error) {
     console.error('Login error:', error);
+    
+    // SQL 연결 정리
+    if (sql) {
+      try {
+        await sql.end();
+      } catch (e) {
+        console.error('SQL cleanup error:', e);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: false,
@@ -128,22 +152,11 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
   }
 }
 
-// 비밀번호 검증 함수 (평문 비교 - 개발 단계)
-async function verifyPassword(
-  plainPassword: string,
-  storedPassword: string
-): Promise<boolean> {
-  // 개발 단계: 평문 비교
-  // 프로덕션에서는 bcrypt 또는 Web Crypto API 사용 필요
-  return plainPassword === storedPassword;
-}
-
-// JWT 토큰 생성 (단순화된 버전)
+// JWT 토큰 생성
 async function generateToken(payload: any): Promise<string> {
-  // 실제 프로덕션에서는 jose 라이브러리 또는 Web Crypto API 사용
   const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const body = btoa(JSON.stringify({ ...payload, exp: Date.now() + 24 * 60 * 60 * 1000 }));
-  const signature = btoa('simple-signature'); // 실제로는 HMAC 서명 필요
+  const signature = btoa('simple-signature');
 
   return `${header}.${body}.${signature}`;
 }

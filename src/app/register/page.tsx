@@ -54,13 +54,9 @@ export default function RegisterPage() {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        setError(result.message || "회원가입 중 오류가 발생했습니다");
+        setError(result.message || result.info || "회원가입은 현재 지원하지 않습니다");
       } else {
-        // Store token and redirect to dashboard
-        localStorage.setItem('token', result.data.token);
-        localStorage.setItem('user', JSON.stringify(result.data.user));
-        router.push("/dashboard");
-        router.refresh();
+        setError("회원가입은 현재 지원하지 않습니다. 기존 계정으로 로그인해주세요.");
       }
     } catch (error) {
       setError("회원가입 중 오류가 발생했습니다");
