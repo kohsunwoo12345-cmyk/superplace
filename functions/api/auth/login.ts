@@ -144,3 +144,4 @@ async function generateToken(payload: any): Promise<string> {
 
   return `${header}.${body}.${signature}`;
 }
+// Force redeploy Tue Feb  3 10:02:51 UTC 2026
