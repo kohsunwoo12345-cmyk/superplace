@@ -46,9 +46,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    // 사용자 조회
+    // 사용자 조회 (모든 컬럼 조회)
     const user = await context.env.DB.prepare(
-      'SELECT id, email, password, name, role, academyId FROM users WHERE email = ?'
+      'SELECT * FROM users WHERE email = ?'
     )
       .bind(email)
       .first();
@@ -86,7 +86,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       email: user.email,
       name: user.name,
       role: user.role,
-      academyId: user.academyId,
+      academyId: user.academyId || null,
     });
 
     return new Response(
@@ -99,7 +99,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
             email: user.email,
             name: user.name,
             role: user.role,
-            academyId: user.academyId,
+            academyId: user.academyId || null,
           },
           token,
         },
