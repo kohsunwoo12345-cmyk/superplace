@@ -108,32 +108,14 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
   }
 }
 
-// 비밀번호 검증 함수 (bcrypt 해시 비교)
+// 비밀번호 검증 함수 (평문 비교 - 개발 단계)
 async function verifyPassword(
   plainPassword: string,
-  hashedPassword: string
+  storedPassword: string
 ): Promise<boolean> {
-  // bcrypt 해시 형식: $2a$10$... 또는 $2b$10$...
-  if (hashedPassword.startsWith('$2a$') || hashedPassword.startsWith('$2b$')) {
-    // bcryptjs를 사용한 검증 (실제로는 bcryptjs 패키지 필요)
-    // 임시로 특정 비밀번호는 통과시킴
-    if (
-      plainPassword === 'admin123456' &&
-      hashedPassword === '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'
-    ) {
-      return true;
-    }
-    
-    // 실제 bcrypt 검증을 위해 bcryptjs import 필요
-    // const bcrypt = require('bcryptjs');
-    // return await bcrypt.compare(plainPassword, hashedPassword);
-    
-    // 임시: 평문 비교
-    return plainPassword === hashedPassword;
-  }
-
-  // 평문 비밀번호 비교 (개발용)
-  return plainPassword === hashedPassword;
+  // 개발 단계: 평문 비교
+  // 프로덕션에서는 bcrypt 또는 Web Crypto API 사용 필요
+  return plainPassword === storedPassword;
 }
 
 // JWT 토큰 생성 (단순화된 버전)

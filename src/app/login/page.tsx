@@ -1,17 +1,25 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { GraduationCap, BookOpen, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    setIsLoading(true);
+    setError("");
 
     try {
       const response = await fetch('/api/auth/login', {
@@ -24,102 +32,135 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || '로그인에 실패했습니다');
+      if (data.success) {
+        // Store token and user info
+        localStorage.setItem('token', data.data.token);
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+        
+        // Redirect to dashboard
+        router.push('/dashboard');
+        router.refresh();
+      } else {
+        setError(data.message || '이메일 또는 비밀번호가 올바르지 않습니다');
       }
-
-      // 토큰 저장
-      localStorage.setItem('token', data.data.token);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
-
-      // 대시보드로 리다이렉트
-      window.location.href = '/dashboard';
     } catch (err) {
-      setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다');
+      console.error('Login error:', err);
+      setError('로그인 중 오류가 발생했습니다');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4 relative overflow-hidden">
+      {/* Decorative elements */}
+      <div className="absolute top-20 left-10 w-20 h-20 bg-blue-200 rounded-full opacity-20 blur-xl"></div>
+      <div className="absolute bottom-20 right-10 w-32 h-32 bg-purple-200 rounded-full opacity-20 blur-xl"></div>
+      <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-pink-200 rounded-full opacity-20 blur-xl"></div>
+
+      <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">로그인</h1>
-          <p className="text-gray-600">SuperPlace 학원 관리 시스템</p>
+          <Link href="/" className="inline-flex items-center space-x-2 mb-6">
+            <GraduationCap className="h-10 w-10 text-primary" />
+            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              SUPER PLACE
+            </span>
+          </Link>
+          <h1 className="text-2xl font-bold mb-2">로그인</h1>
+          <p className="text-gray-600">학습 관리 시스템에 접속하세요</p>
         </div>
 
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm">{error}</p>
-          </div>
-        )}
+        <Card className="border-2 border-blue-100 shadow-2xl">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 space-y-3">
+            <div className="flex justify-center">
+              <div className="p-3 bg-white rounded-full shadow-md">
+                <BookOpen className="h-8 w-8 text-blue-600" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl text-center">환영합니다</CardTitle>
+            <CardDescription className="text-center">
+              SUPER PLACE 학습 관리 시스템
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                  <div>{error}</div>
+                </div>
+              )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              이메일
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="your@email.com"
-              required
-              disabled={loading}
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">이메일</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="border-blue-200 focus:border-blue-400"
+                  autoComplete="email"
+                />
+              </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              비밀번호
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="••••••••"
-              required
-              disabled={loading}
-            />
-          </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">비밀번호</Label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    비밀번호 찾기
+                  </Link>
+                </div>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="border-blue-200 focus:border-blue-400"
+                  autoComplete="current-password"
+                />
+              </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full py-3 rounded-lg transition font-medium ${
-              loading
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
-            } text-white`}
-          >
-            {loading ? '로그인 중...' : '로그인'}
-          </button>
-        </form>
+              <Button
+                type="submit"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+                disabled={isLoading}
+              >
+                {isLoading ? "로그인 중..." : "로그인"}
+              </Button>
 
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800 font-medium mb-2">테스트 계정:</p>
-          <p className="text-xs text-blue-600">이메일: admin@superplace.com</p>
-          <p className="text-xs text-blue-600">비밀번호: admin123456</p>
-        </div>
+              <div className="text-center text-sm pt-4 border-t">
+                <span className="text-gray-600">아직 계정이 없으신가요? </span>
+                <Link href="/register" className="text-blue-600 hover:underline font-medium">
+                  회원가입
+                </Link>
+              </div>
+            </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            계정이 없으신가요?{' '}
-            <a href="/register" className="text-blue-600 hover:underline font-medium">
-              회원가입
-            </a>
-          </p>
-        </div>
+            {/* Test Accounts Info */}
+            <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+              <p className="text-xs text-center text-gray-700">
+                <strong>테스트 계정</strong><br />
+                관리자: admin@superplace.com / admin123456
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="mt-4 text-center">
-          <a href="/" className="text-sm text-gray-500 hover:text-gray-700">
+        <div className="text-center mt-6">
+          <Link href="/" className="text-sm text-gray-600 hover:text-gray-900 hover:underline">
             ← 홈으로 돌아가기
-          </a>
+          </Link>
         </div>
       </div>
     </div>
