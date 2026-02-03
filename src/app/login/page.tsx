@@ -151,7 +151,8 @@ export default function LoginPage() {
             <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
               <p className="text-xs text-center text-gray-700">
                 <strong>테스트 계정</strong><br />
-                관리자: admin@superplace.com / admin123456
+                관리자: admin@superplace.co.kr<br />
+                일반: test3@test.com
               </p>
             </div>
           </CardContent>
