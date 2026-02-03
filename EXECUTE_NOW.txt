@@ -1,0 +1,146 @@
+================================================
+🚨 긴급: 지금 바로 이 SQL을 실행하세요!
+================================================
+
+【1단계】브라우저에서 이 URL을 여세요:
+https://dash.cloudflare.com/
+
+【2단계】메뉴 탐색:
+Workers & Pages → D1 → superplace-db → Console
+
+【3단계】아래 SQL을 복사해서 붙여넣고 Execute 버튼 클릭:
+
+================================================
+▼▼▼ 여기서부터 복사 시작 ▼▼▼
+================================================
+
+DROP TABLE IF EXISTS students;
+DROP TABLE IF EXISTS classes;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS academy;
+
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  phone TEXT,
+  academyId TEXT,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_academyId ON users(academyId);
+
+CREATE TABLE academy (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  code TEXT UNIQUE NOT NULL,
+  description TEXT,
+  address TEXT,
+  phone TEXT,
+  email TEXT,
+  logoUrl TEXT,
+  subscriptionPlan TEXT DEFAULT 'FREE',
+  maxStudents INTEGER DEFAULT 10,
+  maxTeachers INTEGER DEFAULT 2,
+  isActive INTEGER DEFAULT 1,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_academy_code ON academy(code);
+
+CREATE TABLE classes (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  academyId TEXT NOT NULL,
+  teacherId TEXT,
+  startDate TEXT,
+  endDate TEXT,
+  isActive INTEGER DEFAULT 1,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (academyId) REFERENCES academy(id),
+  FOREIGN KEY (teacherId) REFERENCES users(id)
+);
+
+CREATE INDEX idx_classes_academyId ON classes(academyId);
+
+CREATE TABLE students (
+  id TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,
+  academyId TEXT NOT NULL,
+  grade TEXT,
+  parentPhone TEXT,
+  status TEXT DEFAULT 'ACTIVE',
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (userId) REFERENCES users(id),
+  FOREIGN KEY (academyId) REFERENCES academy(id)
+);
+
+CREATE INDEX idx_students_academyId ON students(academyId);
+
+INSERT INTO users (
+  id, email, password, name, role, phone, academyId, createdAt, updatedAt
+) VALUES (
+  'admin-001',
+  'admin@superplace.com',
+  'admin123456',
+  '슈퍼플레이스 관리자',
+  'ADMIN',
+  '010-8739-9697',
+  NULL,
+  datetime('now'),
+  datetime('now')
+);
+
+INSERT INTO academy (
+  id, name, code, description, address, phone, email, 
+  subscriptionPlan, maxStudents, maxTeachers, isActive, 
+  createdAt, updatedAt
+) VALUES (
+  'academy-001',
+  '슈퍼플레이스 학원',
+  'SUPERPLACE01',
+  '체계적인 학습 관리를 위한 스마트 학원',
+  '인천광역시 서구 청라커낼로 270, 2층',
+  '010-8739-9697',
+  'academy@superplace.com',
+  'PREMIUM',
+  100,
+  10,
+  1,
+  datetime('now'),
+  datetime('now')
+);
+
+SELECT * FROM users WHERE email = 'admin@superplace.com';
+
+================================================
+▲▲▲ 여기까지 복사 ▲▲▲
+================================================
+
+【4단계】결과 확인:
+마지막 SELECT 쿼리 결과에서 다음과 같이 보여야 합니다:
+┌───────────┬────────────────────────┬─────────────┬──────────────────────────┬───────┬───────────────┬───────────┬─────────────────────┬─────────────────────┐
+│ id        │ email                  │ password    │ name                     │ role  │ phone         │ academyId │ createdAt           │ updatedAt           │
+├───────────┼────────────────────────┼─────────────┼──────────────────────────┼───────┼───────────────┼───────────┼─────────────────────┼─────────────────────┤
+│ admin-001 │ admin@superplace.com   │ admin123456 │ 슈퍼플레이스 관리자      │ ADMIN │ 010-8739-9697 │ (null)    │ 2026-02-03 06:XX:XX │ 2026-02-03 06:XX:XX │
+└───────────┴────────────────────────┴─────────────┴──────────────────────────┴───────┴───────────────┴───────────┴─────────────────────┴─────────────────────┘
+
+**중요**: academyId 컬럼이 (null)로 표시되어야 합니다!
+
+【5단계】로그인 테스트:
+https://genspark-ai-developer.superplacestudy.pages.dev/login
+
+이메일: admin@superplace.com
+비밀번호: admin123456
+
+성공! 🎉
+
+================================================
