@@ -65,25 +65,24 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    // 사용자 ID 생성
-    const userId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // 역할 설정 (기본값: STUDENT)
-    const userRole = data.role || 'STUDENT';
+    // 역할 설정 (기본값: user)
+    const userRole = data.role || 'user';
 
-    // 사용자 생성 (테이블 스키마에 맞게 조정)
-    await context.env.DB.prepare(
-      `INSERT INTO users (id, email, password, name, role)
-       VALUES (?, ?, ?, ?, ?)`
+    // 사용자 생성 (id는 자동 증가, 실제 스키마에 맞게)
+    const result = await context.env.DB.prepare(
+      `INSERT INTO users (email, password, name, role)
+       VALUES (?, ?, ?, ?)`
     )
       .bind(
-        userId,
         data.email,
         data.password, // 실제로는 해시해야 하지만 기존 DB가 평문이므로
         data.name,
         userRole
       )
       .run();
+    
+    // 생성된 사용자 ID 가져오기
+    const userId = String(result.meta.last_row_id);
 
     // JWT 토큰 생성
     const token = generateToken({
@@ -91,7 +90,6 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       email: data.email,
       name: data.name,
       role: userRole,
-      academyId: null,
     });
 
     return new Response(
