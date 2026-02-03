@@ -21,7 +21,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
 
     // 기존 관리자 계정 확인
     const existingAdmin = await context.env.DB.prepare(
-      'SELECT id FROM User WHERE email = ?'
+      'SELECT id FROM users WHERE email = ?'
     )
       .bind('admin@superplace.com')
       .first();
@@ -46,7 +46,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     // 관리자 계정 생성
     const adminId = 'user-admin-001';
     await context.env.DB.prepare(
-      `INSERT INTO User (id, email, password, name, role, phone, approved, createdAt, updatedAt)
+      `INSERT INTO users (id, email, password, name, role, phone, approved, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
     )
       .bind(

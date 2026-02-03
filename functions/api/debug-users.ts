@@ -24,11 +24,11 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
       "SELECT name FROM sqlite_master WHERE type='table'"
     ).all();
 
-    // User 테이블의 모든 사용자 조회
+    // users 테이블의 모든 사용자 조회
     let users = null;
     try {
       users = await context.env.DB.prepare(
-        'SELECT id, email, name, role FROM User LIMIT 10'
+        'SELECT id, email, name, role FROM users LIMIT 10'
       ).all();
     } catch (e) {
       users = { error: e instanceof Error ? e.message : 'Unknown error' };

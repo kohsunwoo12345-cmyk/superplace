@@ -45,9 +45,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    // 이메일 중복 체크 (D1 테이블 이름: User)
+    // 이메일 중복 체크
     const existingUser = await context.env.DB.prepare(
-      'SELECT id FROM User WHERE email = ?'
+      'SELECT id FROM users WHERE email = ?'
     )
       .bind(data.email)
       .first();
@@ -71,9 +71,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // 역할 설정 (기본값: STUDENT)
     const userRole = data.role || 'STUDENT';
 
-    // 사용자 생성 (D1 테이블 이름: User)
+    // 사용자 생성
     await context.env.DB.prepare(
-      `INSERT INTO User (id, email, password, name, role, phone, academyId, createdAt, updatedAt)
+      `INSERT INTO users (id, email, password, name, role, phone, academyId, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
     )
       .bind(
