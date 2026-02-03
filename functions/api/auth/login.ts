@@ -81,7 +81,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
 
     // JWT 토큰 생성
-    const token = await generateToken({
+    const token = generateToken({
       id: user.id,
       email: user.email,
       name: user.name,
@@ -137,11 +137,30 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 }
 
 // JWT 토큰 생성
-async function generateToken(payload: any): Promise<string> {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const body = btoa(JSON.stringify({ ...payload, exp: Date.now() + 24 * 60 * 60 * 1000 }));
-  const signature = btoa('simple-signature');
+function generateToken(payload: any): string {
+  try {
+    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+    
+    const body = btoa(JSON.stringify({ 
+      ...payload, 
+      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) 
+    }))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+    
+    const signature = btoa('simple-signature')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
 
-  return `${header}.${body}.${signature}`;
+    return `${header}.${body}.${signature}`;
+  } catch (error) {
+    console.error('Token generation error:', error);
+    throw error;
+  }
 }
-// Force redeploy Tue Feb  3 10:02:51 UTC 2026
+// Force redeploy Tue Feb  3 10:15:00 UTC 2026
