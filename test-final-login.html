@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>로그인 최종 테스트</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .test-box { border: 2px solid #ccc; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .success { border-color: #28a745; background: #d4edda; }
+        .error { border-color: #dc3545; background: #f8d7da; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔐 로그인 최종 테스트</h1>
+    
+    <div class="test-box">
+        <h2>테스트 1: 관리자 로그인</h2>
+        <button onclick="testAdmin()">관리자 로그인 테스트</button>
+        <div id="admin-result"></div>
+    </div>
+    
+    <div class="test-box">
+        <h2>테스트 2: 일반 사용자 로그인</h2>
+        <button onclick="testUser()">일반 사용자 로그인 테스트</button>
+        <div id="user-result"></div>
+    </div>
+    
+    <div class="test-box">
+        <h2>테스트 3: 잘못된 비밀번호</h2>
+        <button onclick="testWrongPassword()">잘못된 비밀번호 테스트</button>
+        <div id="wrong-result"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://genspark-ai-developer.superplacestudy.pages.dev/api/auth/login';
+        
+        async function testLogin(email, password, resultId) {
+            const resultEl = document.getElementById(resultId);
+            resultEl.innerHTML = '<p>⏳ 테스트 중...</p>';
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                const parentBox = resultEl.closest('.test-box');
+                if (data.success) {
+                    parentBox.classList.add('success');
+                    parentBox.classList.remove('error');
+                    resultEl.innerHTML = `
+                        <h3>✅ 성공!</h3>
+                        <p><strong>메시지:</strong> ${data.message}</p>
+                        <p><strong>사용자:</strong> ${data.data.user.name} (${data.data.user.email})</p>
+                        <p><strong>역할:</strong> ${data.data.user.role}</p>
+                        <p><strong>토큰 생성:</strong> ✅</p>
+                        <details>
+                            <summary>전체 응답 보기</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                } else {
+                    parentBox.classList.add('error');
+                    parentBox.classList.remove('success');
+                    resultEl.innerHTML = `
+                        <h3>❌ 실패</h3>
+                        <p><strong>메시지:</strong> ${data.message}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                const parentBox = resultEl.closest('.test-box');
+                parentBox.classList.add('error');
+                parentBox.classList.remove('success');
+                resultEl.innerHTML = `
+                    <h3>❌ 오류</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+        
+        function testAdmin() {
+            testLogin('admin@superplace.co.kr', 'admin1234!', 'admin-result');
+        }
+        
+        function testUser() {
+            testLogin('test3@test.com', 'test123', 'user-result');
+        }
+        
+        function testWrongPassword() {
+            testLogin('admin@superplace.co.kr', 'wrongpassword', 'wrong-result');
+        }
+        
+        // 자동으로 모든 테스트 실행
+        window.addEventListener('load', () => {
+            setTimeout(testAdmin, 500);
+            setTimeout(testUser, 1500);
+            setTimeout(testWrongPassword, 2500);
+        });
+    </script>
+</body>
+</html>
