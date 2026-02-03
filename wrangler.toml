@@ -4,9 +4,8 @@ compatibility_date = "2024-01-01"
 # Cloudflare Pages configuration
 pages_build_output_dir = "out"
 
-# D1 Database (동일한 DB를 superplace-academy.pages.dev와 공유)
-# 아래 database_id를 superplace-academy와 동일하게 설정하세요!
+# D1 Database (superplace-academy.pages.dev와 동일한 DB 공유)
 [[d1_databases]]
 binding = "DB"
-database_name = "superplace-academy-db"  # superplace-academy와 동일한 DB 이름
-database_id = "REPLACE_WITH_SUPERPLACE_ACADEMY_DB_ID"  # superplace-academy의 Database ID로 교체!
+database_name = "superplace-db"
+database_id = "8c106540-21b4-4fa9-8879-c4956e459ca1"
