@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   description: "체계적인 학습 관리로 성적 향상을 실현하는 스마트 학습 관리 시스템",
   keywords: ["학원", "학습 관리", "온라인 교육", "성적 관리", "과제 제출", "학습 자료", "슈퍼플레이스"],
   authors: [{ name: "SUPER PLACE" }],
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
   verification: {
     other: {
       "naver-site-verification": "f0716e4a61fc6144eec195ebe09f93fe452ada21",

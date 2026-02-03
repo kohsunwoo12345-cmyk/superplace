@@ -1,2 +1,2 @@
 This is a placeholder for favicon.ico
-Please replace with actual favicon image
+The actual favicon is at /favicon.svg
