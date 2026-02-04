@@ -13,7 +13,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 모든 사용자 조회 (academy 정보 포함)
+    // 모든 사용자 조회 (실제 DB 컬럼명 사용)
     const usersResult = await DB.prepare(
       `SELECT 
         u.id, 
@@ -21,34 +21,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.name, 
         u.phone, 
         u.role, 
-        u.academyId,
-        u.createdAt,
-        u.lastLoginAt
+        u.academy_id as academyId,
+        u.academy_name as academyName,
+        u.created_at as createdAt
        FROM users u
-       ORDER BY datetime(u.createdAt) DESC`
+       ORDER BY datetime(u.created_at) DESC`
     ).all();
 
     const users = usersResult?.results || [];
 
-    // 각 사용자의 academy 이름 조회 (academyId가 있는 경우)
-    const usersWithAcademy = await Promise.all(
-      users.map(async (user: any) => {
-        if (user.academyId) {
-          // academyId로 학원장 정보 찾기
-          const academyOwner = await DB.prepare(
-            `SELECT name FROM users WHERE id = ? AND role = 'DIRECTOR' LIMIT 1`
-          ).bind(user.academyId).first();
-          
-          return {
-            ...user,
-            academyName: academyOwner?.name ? `${academyOwner.name}의 학원` : null,
-          };
-        }
-        return { ...user, academyName: null };
-      })
-    );
-
-    return new Response(JSON.stringify({ users: usersWithAcademy }), {
+    return new Response(JSON.stringify({ users }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

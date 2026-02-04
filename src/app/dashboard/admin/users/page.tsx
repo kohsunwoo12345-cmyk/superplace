@@ -73,21 +73,27 @@ export default function AdminUsersPage() {
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.academyName && user.academyName.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const matchesRole = selectedRole === "ALL" || user.role === selectedRole;
+    const userRole = user.role?.toUpperCase();
+    const matchesRole = selectedRole === "ALL" || userRole === selectedRole || 
+      (selectedRole === "ADMIN" && (userRole === "ADMIN" || userRole === "SUPER_ADMIN"));
 
     return matchesSearch && matchesRole;
   });
 
   const stats = {
     total: users.length,
-    students: users.filter((u) => u.role === "STUDENT").length,
-    teachers: users.filter((u) => u.role === "TEACHER").length,
-    directors: users.filter((u) => u.role === "DIRECTOR").length,
-    admins: users.filter((u) => u.role === "ADMIN" || u.role === "SUPER_ADMIN").length,
+    students: users.filter((u) => u.role?.toUpperCase() === "STUDENT").length,
+    teachers: users.filter((u) => u.role?.toUpperCase() === "TEACHER").length,
+    directors: users.filter((u) => u.role?.toUpperCase() === "DIRECTOR").length,
+    admins: users.filter((u) => {
+      const role = u.role?.toUpperCase();
+      return role === "ADMIN" || role === "SUPER_ADMIN";
+    }).length,
   };
 
   const getRoleBadge = (role: string) => {
-    switch (role) {
+    const upperRole = role?.toUpperCase();
+    switch (upperRole) {
       case "STUDENT":
         return <Badge className="bg-blue-500">학생</Badge>;
       case "TEACHER":
