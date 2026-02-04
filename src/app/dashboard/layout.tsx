@@ -22,7 +22,9 @@ export default function DashboardLayout({
         console.log('🔍 Dashboard Layout - User Data:', userData);
         console.log('🔍 Dashboard Layout - User Role:', userData.role);
         setUser(userData);
-        const isAdminRole = userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN';
+        // 대소문자 구분 없이 체크
+        const role = userData.role?.toUpperCase();
+        const isAdminRole = role === 'ADMIN' || role === 'SUPER_ADMIN';
         console.log('🔍 Dashboard Layout - isAdmin:', isAdminRole);
         setIsAdmin(isAdminRole);
       } catch (error) {

@@ -49,10 +49,11 @@ export default function DashboardPage() {
         setUser(userData);
 
         // role 체크
-        const isSuperAdmin = userData.role === "SUPER_ADMIN" || userData.role === "ADMIN";
-        const isDirector = userData.role === "DIRECTOR";
-        const isTeacher = userData.role === "TEACHER";
-        const isStudent = userData.role === "STUDENT";
+        const role = userData.role?.toUpperCase();
+        const isSuperAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
+        const isDirector = role === "DIRECTOR";
+        const isTeacher = role === "TEACHER";
+        const isStudent = role === "STUDENT";
 
         console.log('🔍 Dashboard - isSuperAdmin:', isSuperAdmin);
         console.log('🔍 Dashboard - isDirector:', isDirector);
@@ -98,10 +99,11 @@ export default function DashboardPage() {
     loadUserAndStats();
   }, [router]);
 
-  const isSuperAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
-  const isDirector = user?.role === "DIRECTOR";
-  const isTeacher = user?.role === "TEACHER";
-  const isStudent = user?.role === "STUDENT";
+  const role = user?.role?.toUpperCase();
+  const isSuperAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
+  const isDirector = role === "DIRECTOR";
+  const isTeacher = role === "TEACHER";
+  const isStudent = role === "STUDENT";
 
   // Loading state
   if (loading || !user) {
