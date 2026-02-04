@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,15 +86,8 @@ interface Payment {
 
 export default function UserDetailPage() {
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // 클라이언트에서 쿼리 파라미터 읽기
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      setUserId(params.get("id"));
-    }
-  }, []);
+  const searchParams = useSearchParams();
+  const userId = searchParams.get("id");
 
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loginLogs, setLoginLogs] = useState<LoginLog[]>([]);
