@@ -1,16 +1,16 @@
 // Gemini API 테스트 스크립트
-// 환경 변수 GEMINI_API_KEY가 설정되어 있어야 합니다
+// 환경 변수 GOOGLE_GEMINI_API_KEY가 설정되어 있어야 합니다
 
-const API_KEY = process.env.GEMINI_API_KEY || "YOUR_API_KEY_HERE";
+const API_KEY = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "YOUR_API_KEY_HERE";
 const MODEL = "gemini-1.5-pro";
 
 async function testGeminiAPI() {
   console.log("🧪 Gemini API 테스트 시작...\n");
   
   if (!API_KEY || API_KEY === "YOUR_API_KEY_HERE") {
-    console.error("❌ GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.");
+    console.error("❌ GOOGLE_GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.");
     console.log("\n설정 방법:");
-    console.log("  export GEMINI_API_KEY='your-api-key-here'");
+    console.log("  export GOOGLE_GEMINI_API_KEY='your-api-key-here'");
     console.log("  node test-gemini-api.js");
     return;
   }

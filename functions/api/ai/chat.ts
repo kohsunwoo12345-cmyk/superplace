@@ -1,12 +1,12 @@
 interface Env {
-  GEMINI_API_KEY: string;
+  GOOGLE_GEMINI_API_KEY: string;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { GEMINI_API_KEY } = context.env;
+    const { GOOGLE_GEMINI_API_KEY } = context.env;
     
-    if (!GEMINI_API_KEY) {
+    if (!GOOGLE_GEMINI_API_KEY) {
       return new Response(
         JSON.stringify({ error: "Gemini API key not configured" }),
         {
@@ -38,7 +38,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // Gemini API 호출
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
 
     const requestBody = {
       contents: [
