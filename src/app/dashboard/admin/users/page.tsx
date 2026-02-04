@@ -29,6 +29,7 @@ interface User {
   academyName?: string;
   createdAt: string;
   lastLoginAt?: string;
+  attendanceCode?: string; // 출석 코드 추가
 }
 
 export default function AdminUsersPage() {
@@ -316,6 +317,13 @@ export default function AdminUsersPage() {
                         가입일: {new Date(user.createdAt).toLocaleDateString()}
                       </span>
                     </div>
+                    {user.role === 'STUDENT' && user.attendanceCode && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline" className="text-base font-mono bg-blue-50">
+                          출석코드: {user.attendanceCode}
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2">

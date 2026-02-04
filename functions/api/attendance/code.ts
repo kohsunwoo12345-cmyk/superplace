@@ -2,12 +2,11 @@ interface Env {
   DB: D1Database;
 }
 
-// 6자리 고유 코드 생성
+// 6자리 숫자 코드 생성
 function generateAttendanceCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let code = '';
   for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += Math.floor(Math.random() * 10).toString();
   }
   return code;
 }

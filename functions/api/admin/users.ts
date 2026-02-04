@@ -28,7 +28,35 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
        ORDER BY datetime(u.created_at) DESC`
     ).all();
 
-    const users = usersResult?.results || [];
+    let users = usersResult?.results || [];
+
+    // 학생의 경우 출석 코드 조회
+    try {
+      const usersWithCodes = await Promise.all(
+        users.map(async (user: any) => {
+          if (user.role?.toUpperCase() === 'STUDENT') {
+            try {
+              const codeResult = await DB.prepare(
+                `SELECT code FROM student_attendance_codes 
+                 WHERE userId = ? AND isActive = 1 
+                 ORDER BY createdAt DESC LIMIT 1`
+              ).bind(user.id).first();
+              
+              return {
+                ...user,
+                attendanceCode: codeResult?.code || null
+              };
+            } catch (e) {
+              return user;
+            }
+          }
+          return user;
+        })
+      );
+      users = usersWithCodes;
+    } catch (e) {
+      console.error('Failed to fetch attendance codes:', e);
+    }
 
     return new Response(JSON.stringify({ users }), {
       status: 200,

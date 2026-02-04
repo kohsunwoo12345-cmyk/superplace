@@ -82,7 +82,56 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       .run();
     
     // 생성된 사용자 ID 가져오기
-    const userId = String(result.meta.last_row_id);
+    const userId = result.meta.last_row_id;
+
+    // 학생인 경우 자동으로 출석 코드 생성
+    let attendanceCode = null;
+    if (userRole.toUpperCase() === 'STUDENT') {
+      try {
+        // 출석 코드 테이블 생성
+        await context.env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS student_attendance_codes (
+            id TEXT PRIMARY KEY,
+            userId INTEGER NOT NULL,
+            code TEXT UNIQUE NOT NULL,
+            academyId INTEGER,
+            classId TEXT,
+            isActive INTEGER DEFAULT 1,
+            createdAt TEXT DEFAULT (datetime('now')),
+            expiresAt TEXT
+          )
+        `).run();
+
+        // 6자리 숫자 코드 생성 (중복 체크)
+        let code = '';
+        let attempts = 0;
+        while (attempts < 20) {
+          code = '';
+          for (let i = 0; i < 6; i++) {
+            code += Math.floor(Math.random() * 10).toString();
+          }
+
+          const existing = await context.env.DB.prepare(
+            "SELECT id FROM student_attendance_codes WHERE code = ?"
+          ).bind(code).first();
+          
+          if (!existing) break;
+          attempts++;
+        }
+
+        // 출석 코드 저장
+        const codeId = `code-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        await context.env.DB.prepare(`
+          INSERT INTO student_attendance_codes (id, userId, code, isActive)
+          VALUES (?, ?, ?, 1)
+        `).bind(codeId, userId, code).run();
+
+        attendanceCode = code;
+      } catch (codeError) {
+        console.error('Failed to generate attendance code:', codeError);
+        // 코드 생성 실패해도 회원가입은 성공
+      }
+    }
 
     // JWT 토큰 생성
     const token = generateToken({
@@ -96,8 +145,22 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       JSON.stringify({
         success: true,
         message: '회원가입 성공',
+        attendanceCode: attendanceCode, // 학생인 경우 출석 코드 반환
         data: {
           user: {
+            id: userId,
+            email: data.email,
+            name: data.name,
+            role: userRole,
+          },
+          token,
+        },
+      }),
+      {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
             id: userId,
             email: data.email,
             name: data.name,
