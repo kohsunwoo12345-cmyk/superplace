@@ -27,14 +27,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const newUsersThisMonth = newUsersResult?.count || 0;
 
     // 역할별 사용자 수
-    const usersBy Role = await DB.prepare(
+    const usersByRole = await DB.prepare(
       `SELECT role, COUNT(*) as count FROM users GROUP BY role`
     ).all();
     
     const usersByRoleMap: Record<string, number> = {};
-    usersBy
-
-Role?.results?.forEach((row: any) => {
+    usersByRole?.results?.forEach((row: any) => {
       usersByRoleMap[row.role] = row.count;
     });
 
