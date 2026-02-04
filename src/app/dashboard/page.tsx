@@ -33,31 +33,33 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 사용자 정보 로드
+  // 사용자 정보 로드 및 stats 가져오기
   useEffect(() => {
-    const userStr = localStorage.getItem("user");
-    if (!userStr) {
-      router.push("/login");
-      return;
-    }
-    try {
-      const userData = JSON.parse(userStr);
-      setUser(userData);
-    } catch (error) {
-      console.error("Failed to parse user data:", error);
-      router.push("/login");
-    }
-  }, [router]);
-
-  const isSuperAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
-  const isDirector = user?.role === "DIRECTOR";
-  const isTeacher = user?.role === "TEACHER";
-  const isStudent = user?.role === "STUDENT";
-
-  useEffect(() => {
-    const fetchStats = async () => {
+    const loadUserAndStats = async () => {
+      const userStr = localStorage.getItem("user");
+      if (!userStr) {
+        router.push("/login");
+        return;
+      }
+      
       try {
-        setLoading(true);
+        const userData = JSON.parse(userStr);
+        console.log('🔍 Dashboard - User loaded:', userData);
+        console.log('🔍 Dashboard - User role:', userData.role);
+        setUser(userData);
+
+        // role 체크
+        const isSuperAdmin = userData.role === "SUPER_ADMIN" || userData.role === "ADMIN";
+        const isDirector = userData.role === "DIRECTOR";
+        const isTeacher = userData.role === "TEACHER";
+        const isStudent = userData.role === "STUDENT";
+
+        console.log('🔍 Dashboard - isSuperAdmin:', isSuperAdmin);
+        console.log('🔍 Dashboard - isDirector:', isDirector);
+        console.log('🔍 Dashboard - isTeacher:', isTeacher);
+        console.log('🔍 Dashboard - isStudent:', isStudent);
+
+        // stats 가져오기
         let endpoint = '';
         
         if (isSuperAdmin) {
@@ -68,6 +70,8 @@ export default function DashboardPage() {
           endpoint = '/api/dashboard/student-stats';
         }
 
+        console.log('🔍 Dashboard - Stats endpoint:', endpoint);
+
         if (endpoint) {
           const token = localStorage.getItem("token");
           const response = await fetch(endpoint, {
@@ -77,20 +81,27 @@ export default function DashboardPage() {
           });
           if (response.ok) {
             const data = await response.json();
+            console.log('🔍 Dashboard - Stats data:', data);
             setStats(data);
+          } else {
+            console.error('❌ Dashboard - Stats fetch failed:', response.status);
           }
         }
       } catch (error) {
-        console.error('Failed to fetch stats:', error);
+        console.error("Failed to parse user data:", error);
+        router.push("/login");
       } finally {
         setLoading(false);
       }
     };
 
-    if (user) {
-      fetchStats();
-    }
-  }, [user, isSuperAdmin, isDirector, isTeacher, isStudent]);
+    loadUserAndStats();
+  }, [router]);
+
+  const isSuperAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
+  const isDirector = user?.role === "DIRECTOR";
+  const isTeacher = user?.role === "TEACHER";
+  const isStudent = user?.role === "STUDENT";
 
   // Loading state
   if (loading || !user) {
@@ -101,10 +112,27 @@ export default function DashboardPage() {
     );
   }
 
+  // 디버그 정보 표시 (개발 중)
+  console.log('🎯 Dashboard Render - user:', user);
+  console.log('🎯 Dashboard Render - isSuperAdmin:', isSuperAdmin);
+  console.log('🎯 Dashboard Render - isDirector:', isDirector);
+  console.log('🎯 Dashboard Render - isTeacher:', isTeacher);
+  console.log('🎯 Dashboard Render - isStudent:', isStudent);
+
   // Super Admin Dashboard
   if (isSuperAdmin) {
     return (
       <div className="space-y-6">
+        {/* 디버그 배너 */}
+        <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4">
+          <div className="font-bold text-green-800 text-lg">✅ 관리자 대시보드 활성화됨</div>
+          <div className="text-sm text-green-700 mt-2">
+            <div>사용자: {user.email}</div>
+            <div>역할: {user.role}</div>
+            <div>isSuperAdmin: {String(isSuperAdmin)}</div>
+          </div>
+        </div>
+
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -664,6 +692,19 @@ export default function DashboardPage() {
   // Default fallback - 모든 사용자에게 기본 대시보드 표시
   return (
     <div className="space-y-6">
+      {/* 디버그 배너 - Fallback Dashboard */}
+      <div className="bg-yellow-100 border-2 border-yellow-500 rounded-lg p-4">
+        <div className="font-bold text-yellow-800 text-lg">⚠️ Fallback 대시보드</div>
+        <div className="text-sm text-yellow-700 mt-2">
+          <div>사용자: {user?.email}</div>
+          <div>역할: {user?.role}</div>
+          <div>isSuperAdmin: {String(isSuperAdmin)}</div>
+          <div>isDirector: {String(isDirector)}</div>
+          <div>isTeacher: {String(isTeacher)}</div>
+          <div>isStudent: {String(isStudent)}</div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
