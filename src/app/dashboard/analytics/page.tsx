@@ -1,82 +1,218 @@
-'use client';
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  BarChart3, 
+  TrendingUp, 
+  Users, 
+  BookOpen, 
+  Calendar,
+  Award
+} from "lucide-react";
 
 export default function AnalyticsPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    totalClasses: 0,
+    totalAssignments: 0,
+    averageAttendance: 0,
+    completionRate: 0,
+    monthlyGrowth: 0
+  });
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      router.push("/login");
+      return;
+    }
+
+    const userData = JSON.parse(storedUser);
+    setUser(userData);
+    fetchAnalytics();
+  }, [router]);
+
+  const fetchAnalytics = async () => {
+    try {
+      setLoading(true);
+      // API 호출 (실제 구현 필요)
+      // const response = await fetch("/api/analytics/overview");
+      // if (response.ok) {
+      //   const data = await response.json();
+      //   setStats(data);
+      // }
+      
+      // 임시 데이터
+      setStats({
+        totalStudents: 125,
+        totalClasses: 8,
+        totalAssignments: 45,
+        averageAttendance: 92.5,
+        completionRate: 87.3,
+        monthlyGrowth: 12.5
+      });
+    } catch (error) {
+      console.error("분석 데이터 로드 오류:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6">
+    <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">통계 분석</h1>
-        <p className="text-gray-600 mt-2">학원 운영 데이터를 분석하세요</p>
+        <h1 className="text-3xl font-bold mb-2">분석</h1>
+        <p className="text-gray-600">학습 데이터와 성과를 분석합니다</p>
       </div>
 
-      {/* 기간 선택 */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="flex gap-4">
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg">이번 주</button>
-          <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-            이번 달
-          </button>
-          <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-            이번 년도
-          </button>
-        </div>
+      {/* 메인 통계 카드 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">전체 학생</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalStudents}</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600">+{stats.monthlyGrowth}%</span> 지난 달 대비
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">진행 중인 클래스</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalClasses}</div>
+            <p className="text-xs text-muted-foreground">활성 클래스</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">전체 과제</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalAssignments}</div>
+            <p className="text-xs text-muted-foreground">이번 학기</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">평균 출석률</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.averageAttendance}%</div>
+            <p className="text-xs text-muted-foreground">지난 30일</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">과제 완료율</CardTitle>
+            <Award className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.completionRate}%</div>
+            <p className="text-xs text-muted-foreground">전체 평균</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">월간 성장률</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">+{stats.monthlyGrowth}%</div>
+            <p className="text-xs text-muted-foreground">지난 달 대비</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-sm text-gray-600 mb-2">총 수익</p>
-          <p className="text-3xl font-bold text-blue-600">₩0</p>
-          <p className="text-xs text-gray-500 mt-2">전주 대비 +0%</p>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-sm text-gray-600 mb-2">신규 학생</p>
-          <p className="text-3xl font-bold text-green-600">0명</p>
-          <p className="text-xs text-gray-500 mt-2">전주 대비 +0%</p>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-sm text-gray-600 mb-2">평균 출석률</p>
-          <p className="text-3xl font-bold text-purple-600">0%</p>
-          <p className="text-xs text-gray-500 mt-2">전주 대비 +0%</p>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-sm text-gray-600 mb-2">만족도</p>
-          <p className="text-3xl font-bold text-orange-600">0점</p>
-          <p className="text-xs text-gray-500 mt-2">전주 대비 +0점</p>
-        </div>
-      </div>
-
-      {/* 차트 영역 */}
+      {/* 차트 섹션 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">월별 수익 추이</h2>
-          <div className="h-64 flex items-center justify-center border border-dashed border-gray-300 rounded">
-            <p className="text-gray-400">차트 영역 (API 연동 후 활성화)</p>
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>월별 출석 현황</CardTitle>
+            <CardDescription>최근 6개월 출석률 추이</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] flex items-center justify-center text-gray-400">
+              <div className="text-center">
+                <BarChart3 className="w-12 h-12 mx-auto mb-2" />
+                <p>차트 기능은 곧 추가됩니다</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">학생 수 변화</h2>
-          <div className="h-64 flex items-center justify-center border border-dashed border-gray-300 rounded">
-            <p className="text-gray-400">차트 영역 (API 연동 후 활성화)</p>
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>과제 제출 현황</CardTitle>
+            <CardDescription>주간 과제 제출률</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] flex items-center justify-center text-gray-400">
+              <div className="text-center">
+                <TrendingUp className="w-12 h-12 mx-auto mb-2" />
+                <p>차트 기능은 곧 추가됩니다</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">과목별 인기도</h2>
-          <div className="h-64 flex items-center justify-center border border-dashed border-gray-300 rounded">
-            <p className="text-gray-400">차트 영역 (API 연동 후 활성화)</p>
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>학습 시간 분석</CardTitle>
+            <CardDescription>일별 학습 시간 추이</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] flex items-center justify-center text-gray-400">
+              <div className="text-center">
+                <Calendar className="w-12 h-12 mx-auto mb-2" />
+                <p>차트 기능은 곧 추가됩니다</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">출석 현황</h2>
-          <div className="h-64 flex items-center justify-center border border-dashed border-gray-300 rounded">
-            <p className="text-gray-400">차트 영역 (API 연동 후 활성화)</p>
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>성적 분포</CardTitle>
+            <CardDescription>최근 시험 성적 분석</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] flex items-center justify-center text-gray-400">
+              <div className="text-center">
+                <Award className="w-12 h-12 mx-auto mb-2" />
+                <p>차트 기능은 곧 추가됩니다</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
