@@ -35,6 +35,8 @@ interface UserDetail {
   phone?: string;
   role: string;
   password: string; // 실제 비밀번호
+  points?: number; // 포인트
+  balance?: number; // 잔액
   academyId?: string;
   academyName?: string;
   createdAt: string;
@@ -99,6 +101,8 @@ export default function UserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
+  const [pointsAmount, setPointsAmount] = useState("");
+  const [pointsReason, setPointsReason] = useState("");
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
@@ -245,6 +249,52 @@ export default function UserDetailPage() {
     }
   };
 
+  const handlePointsUpdate = async (type: 'add' | 'subtract') => {
+    const amount = parseInt(pointsAmount);
+    
+    if (!amount || amount <= 0) {
+      alert("올바른 포인트 금액을 입력하세요.");
+      return;
+    }
+
+    if (!pointsReason.trim()) {
+      alert("포인트 지급/차감 사유를 입력하세요.");
+      return;
+    }
+
+    const action = type === 'add' ? '지급' : '차감';
+    if (!confirm(`${user?.name}님에게 ${amount.toLocaleString()}P를 ${action}하시겠습니까?\n\n사유: ${pointsReason}`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/points`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          amount, 
+          reason: pointsReason,
+          type 
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`${action} 완료!\n\n${data.points.before.toLocaleString()}P → ${data.points.after.toLocaleString()}P`);
+        setPointsAmount("");
+        setPointsReason("");
+        fetchUserDetail();
+        fetchActivityLogs();
+      } else {
+        const data = await response.json();
+        alert(`포인트 ${action} 실패: ${data.error}`);
+      }
+    } catch (error) {
+      console.error(`포인트 ${action} 실패:`, error);
+      alert("오류가 발생했습니다.");
+    }
+  };
+
   const getRoleBadge = (role: string) => {
     switch (role) {
       case "STUDENT":
@@ -373,10 +423,14 @@ export default function UserDetailPage() {
 
       {/* 탭 메뉴 */}
       <Tabs defaultValue="security" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="security">
             <Shield className="w-4 h-4 mr-2" />
             보안
+          </TabsTrigger>
+          <TabsTrigger value="points">
+            <Coins className="w-4 h-4 mr-2" />
+            포인트
           </TabsTrigger>
           <TabsTrigger value="bots">
             <Bot className="w-4 h-4 mr-2" />
@@ -496,6 +550,111 @@ export default function UserDetailPage() {
                     <span className="text-sm">{user.academyName}</span>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* 포인트 관리 탭 */}
+        <TabsContent value="points">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 현재 포인트 현황 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-yellow-600" />
+                  포인트 현황
+                </CardTitle>
+                <CardDescription>
+                  사용자의 현재 포인트 보유 상태
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="p-6 bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl">
+                    <div className="text-sm text-gray-600 mb-2">보유 포인트</div>
+                    <div className="text-4xl font-bold text-yellow-700">
+                      {(user.points || 0).toLocaleString()}P
+                    </div>
+                  </div>
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="text-sm text-gray-600 mb-1">잔액</div>
+                    <div className="text-2xl font-semibold text-blue-700">
+                      {(user.balance || 0).toLocaleString()}원
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 포인트 지급/차감 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5 text-blue-600" />
+                  포인트 지급/차감
+                </CardTitle>
+                <CardDescription>
+                  사용자에게 포인트를 지급하거나 차감합니다
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="pointsAmount">포인트 금액</Label>
+                  <Input
+                    id="pointsAmount"
+                    type="number"
+                    value={pointsAmount}
+                    onChange={(e) => setPointsAmount(e.target.value)}
+                    placeholder="예: 1000"
+                    className="mt-2"
+                    min="1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="pointsReason">사유</Label>
+                  <Input
+                    id="pointsReason"
+                    type="text"
+                    value={pointsReason}
+                    onChange={(e) => setPointsReason(e.target.value)}
+                    placeholder="예: 이벤트 참여 보상"
+                    className="mt-2"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    onClick={() => handlePointsUpdate('add')}
+                    className="bg-green-600 hover:bg-green-700"
+                    disabled={!pointsAmount || !pointsReason}
+                  >
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                    지급
+                  </Button>
+                  <Button
+                    onClick={() => handlePointsUpdate('subtract')}
+                    className="bg-red-600 hover:bg-red-700"
+                    disabled={!pointsAmount || !pointsReason}
+                  >
+                    <MinusCircle className="w-4 h-4 mr-2" />
+                    차감
+                  </Button>
+                </div>
+
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-blue-800">
+                      <p className="font-semibold mb-1">안내</p>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>포인트 변동 내역은 활동 기록에 자동으로 저장됩니다.</li>
+                        <li>차감 시 보유 포인트가 부족하면 0으로 설정됩니다.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
