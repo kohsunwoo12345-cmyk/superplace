@@ -322,7 +322,7 @@ export default function AdminUsersPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => alert(`${user.name} 상세보기 기능은 곧 추가됩니다.`)}
+                    onClick={() => router.push(`/dashboard/admin/users/detail?id=${user.id}`)}
                   >
                     상세보기
                   </Button>

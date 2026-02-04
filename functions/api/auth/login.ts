@@ -67,7 +67,51 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
 
     // 비밀번호 검증 (평문 비교)
-    if (user.password !== password) {
+    const loginSuccess = user.password === password;
+    
+    // IP 주소 가져오기
+    const ip = context.request.headers.get("CF-Connecting-IP") || 
+               context.request.headers.get("X-Forwarded-For") || 
+               "unknown";
+    
+    // User Agent 가져오기
+    const userAgent = context.request.headers.get("User-Agent") || "unknown";
+
+    // 로그인 기록 저장
+    const logId = `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    try {
+      // 로그인 로그 테이블이 없으면 생성
+      await context.env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS user_login_logs (
+          id TEXT PRIMARY KEY,
+          userId TEXT NOT NULL,
+          ip TEXT NOT NULL,
+          userAgent TEXT,
+          success INTEGER DEFAULT 1,
+          loginAt TEXT DEFAULT (datetime('now'))
+        )
+      `).run();
+
+      // 로그인 시도 기록
+      await context.env.DB.prepare(`
+        INSERT INTO user_login_logs (id, userId, ip, userAgent, success, loginAt)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
+      `).bind(logId, user.id, ip, userAgent, loginSuccess ? 1 : 0).run();
+
+      // 로그인 성공 시 lastLoginAt, lastLoginIp 업데이트
+      if (loginSuccess) {
+        await context.env.DB.prepare(`
+          UPDATE users 
+          SET lastLoginAt = datetime('now'), lastLoginIp = ?
+          WHERE id = ?
+        `).bind(ip, user.id).run();
+      }
+    } catch (logError) {
+      console.error("Failed to log login attempt:", logError);
+      // 로그 실패는 무시하고 계속 진행
+    }
+
+    if (!loginSuccess) {
       return new Response(
         JSON.stringify({
           success: false,
