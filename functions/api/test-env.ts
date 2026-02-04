@@ -17,3 +17,4 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
   );
 };
+# Force redeploy for env vars - Wed Feb  4 18:34:18 UTC 2026
