@@ -19,7 +19,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const user = await DB.prepare(
       `SELECT 
         id, email, name, phone, role, password, 
-        academyId, createdAt, lastLoginAt, lastLoginIp
+        academy_id as academyId, 
+        academy_name as academyName,
+        created_at as createdAt
        FROM users 
        WHERE id = ?`
     ).bind(userId).first();
@@ -31,25 +33,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // academyName 조회
-    let academyName = null;
-    if (user.academyId) {
-      const academyOwner = await DB.prepare(
-        `SELECT name FROM users WHERE id = ? AND role = 'DIRECTOR' LIMIT 1`
-      ).bind(user.academyId).first();
-      
-      if (academyOwner) {
-        academyName = `${academyOwner.name}의 학원`;
-      }
-    }
-
     return new Response(
-      JSON.stringify({
-        user: {
-          ...user,
-          academyName,
-        },
-      }),
+      JSON.stringify({ user }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
