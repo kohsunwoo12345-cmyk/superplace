@@ -38,12 +38,6 @@ export default function CreateAIBotPage() {
 
     const userData = JSON.parse(storedUser);
     setCurrentUser(userData);
-
-    if (userData.role !== "ADMIN" && userData.role !== "SUPER_ADMIN") {
-      alert("관리자 권한이 필요합니다.");
-      router.push("/dashboard");
-      return;
-    }
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
