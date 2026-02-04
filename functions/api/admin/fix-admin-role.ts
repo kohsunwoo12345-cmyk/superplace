@@ -55,13 +55,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // role을 ADMIN으로 업데이트
     await DB.prepare(`
-      UPDATE users SET role = 'ADMIN', updatedAt = datetime('now') 
+      UPDATE users SET role = 'ADMIN'
       WHERE email = 'admin@superplace.co.kr'
     `).run();
 
     // 업데이트된 정보 조회
     const updatedAdmin = await DB.prepare(`
-      SELECT id, email, name, role, createdAt, updatedAt FROM users WHERE email = 'admin@superplace.co.kr'
+      SELECT id, email, name, role FROM users WHERE email = 'admin@superplace.co.kr'
     `).first();
 
     return new Response(
