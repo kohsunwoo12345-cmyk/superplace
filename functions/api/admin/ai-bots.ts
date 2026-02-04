@@ -22,6 +22,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         description TEXT,
         systemPrompt TEXT NOT NULL,
         welcomeMessage TEXT,
+        starterMessage1 TEXT,
+        starterMessage2 TEXT,
+        starterMessage3 TEXT,
+        profileIcon TEXT DEFAULT '🤖',
         model TEXT DEFAULT 'gemini-1.5-pro',
         temperature REAL DEFAULT 0.7,
         maxTokens INTEGER DEFAULT 2000,
@@ -73,6 +77,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       description,
       systemPrompt,
       welcomeMessage,
+      starterMessage1,
+      starterMessage2,
+      starterMessage3,
+      profileIcon = "🤖",
       model = "gemini-1.5-pro",
       temperature = 0.7,
       maxTokens = 2000,
@@ -93,15 +101,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     await DB.prepare(`
       INSERT INTO ai_bots (
         id, name, description, systemPrompt, welcomeMessage, 
+        starterMessage1, starterMessage2, starterMessage3, profileIcon,
         model, temperature, maxTokens, topK, topP, language,
         isActive, conversationCount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
     `).bind(
       botId,
       name,
       description || null,
       systemPrompt,
       welcomeMessage || null,
+      starterMessage1 || null,
+      starterMessage2 || null,
+      starterMessage3 || null,
+      profileIcon,
       model,
       temperature,
       maxTokens,

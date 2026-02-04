@@ -60,45 +60,49 @@ export default function DashboardLayout({
               📊 대시보드
             </a>
             
-            {/* Admin Menu Section - Always visible */}
-            <div className="pt-4 pb-2">
-              <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                관리자 메뉴
-              </div>
-            </div>
-            <a
-              href="/dashboard/admin/users"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              👥 사용자 관리
-            </a>
-            <a
-              href="/dashboard/admin/academies"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              🎓 학원 관리
-            </a>
-            <a
-              href="/dashboard/admin/ai-bots"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              🤖 AI 봇 관리
-            </a>
-            <a
-              href="/dashboard/admin/inquiries"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              📝 문의 관리
-            </a>
-            <a
-              href="/dashboard/admin/system"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              ⚙️ 시스템 설정
-            </a>
-            <div className="pt-2 pb-2">
-              <div className="border-t border-gray-200"></div>
-            </div>
+            {/* Admin Menu Section - Only visible for ADMIN and SUPER_ADMIN */}
+            {isAdmin && (
+              <>
+                <div className="pt-4 pb-2">
+                  <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    관리자 메뉴
+                  </div>
+                </div>
+                <a
+                  href="/dashboard/admin/users"
+                  className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
+                >
+                  👥 사용자 관리
+                </a>
+                <a
+                  href="/dashboard/admin/academies"
+                  className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
+                >
+                  🎓 학원 관리
+                </a>
+                <a
+                  href="/dashboard/admin/ai-bots"
+                  className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
+                >
+                  🤖 AI 봇 관리
+                </a>
+                <a
+                  href="/dashboard/admin/inquiries"
+                  className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
+                >
+                  📝 문의 관리
+                </a>
+                <a
+                  href="/dashboard/admin/system"
+                  className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
+                >
+                  ⚙️ 시스템 설정
+                </a>
+                <div className="pt-2 pb-2">
+                  <div className="border-t border-gray-200"></div>
+                </div>
+              </>
+            )}
 
             {/* General Menu */}
             <a

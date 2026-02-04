@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ import {
   Brain,
   Lightbulb,
   TestTube,
+  Send,
+  Smile,
 } from "lucide-react";
 
 const GEMINI_MODELS = [
@@ -51,7 +53,8 @@ const PRESET_PROMPTS = [
 - 답을 바로 알려주기보다는 힌트를 통해 스스로 생각하도록 유도
 - 격려하고 긍정적인 피드백 제공
 - 전문 용어는 쉬운 말로 풀어서 설명`,
-    welcomeMessage: "안녕하세요! 📚 무엇을 공부하고 계신가요? 궁금한 점을 편하게 물어보세요!"
+    welcomeMessage: "안녕하세요! 📚 무엇을 공부하고 계신가요? 궁금한 점을 편하게 물어보세요!",
+    starterMessages: ["수학 문제 풀이 도와줘", "영어 문법 설명해줘", "과학 개념 알려줘"]
   },
   {
     name: "코딩 멘토",
@@ -74,7 +77,8 @@ const PRESET_PROMPTS = [
 - 완성된 코드보다는 학습을 위한 가이드 제공
 - 보안이나 성능 문제가 있는 코드는 경고
 - 여러 해결 방법이 있다면 장단점 비교`,
-    welcomeMessage: "안녕하세요! 💻 어떤 프로그래밍 주제에 대해 도움이 필요하신가요?"
+    welcomeMessage: "안녕하세요! 💻 어떤 프로그래밍 주제에 대해 도움이 필요하신가요?",
+    starterMessages: ["Python 기초 알려줘", "웹 개발 시작하기", "알고리즘 문제 풀이"]
   },
   {
     name: "창의적 작가",
@@ -97,7 +101,8 @@ const PRESET_PROMPTS = [
 - 표절이나 저작권 침해 금지
 - 사용자의 고유한 목소리 존중
 - 건설적이고 구체적인 피드백 제공`,
-    welcomeMessage: "안녕하세요! ✍️ 어떤 글을 쓰고 계신가요? 함께 멋진 작품을 만들어봐요!"
+    welcomeMessage: "안녕하세요! ✍️ 어떤 글을 쓰고 계신가요? 함께 멋진 작품을 만들어봐요!",
+    starterMessages: ["소설 아이디어 추천", "에세이 피드백", "시 창작 도움"]
   },
   {
     name: "비즈니스 어드바이저",
@@ -120,7 +125,8 @@ const PRESET_PROMPTS = [
 - 검증되지 않은 정보는 명확히 표시
 - 법률이나 재무 자문은 전문가 상담 권장
 - 객관적이고 균형잡힌 시각 유지`,
-    welcomeMessage: "안녕하세요! 💼 비즈니스 관련 어떤 주제로 도움이 필요하신가요?"
+    welcomeMessage: "안녕하세요! 💼 비즈니스 관련 어떤 주제로 도움이 필요하신가요?",
+    starterMessages: ["마케팅 전략 수립", "사업 계획서 작성", "경쟁 분석"]
   },
   {
     name: "언어 튜터",
@@ -143,9 +149,23 @@ const PRESET_PROMPTS = [
 - 목표 언어와 한국어를 적절히 혼합 사용
 - 문화적 차이나 뉘앙스 설명
 - 정확한 문법과 자연스러운 표현 강조`,
-    welcomeMessage: "안녕하세요! 🌍 어떤 언어를 공부하고 계신가요? 함께 실력을 키워봐요!"
+    welcomeMessage: "안녕하세요! 🌍 어떤 언어를 공부하고 계신가요? 함께 실력을 키워봐요!",
+    starterMessages: ["영어 회화 연습", "일본어 기초", "중국어 문법"]
   },
 ];
+
+// 프로필 아이콘 옵션
+const PROFILE_EMOJIS = [
+  "🤖", "🎓", "💡", "🚀", "⭐", "🌟", "✨", "🎯", "🎨", "📚",
+  "💻", "🔬", "🎵", "🏆", "🌈", "🦄", "🐱", "🐶", "🦊", "🐼",
+  "🦁", "🐯", "🐸", "🐝", "🦋", "🌸", "🌺", "🌻", "🌼", "🍀"
+];
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+}
 
 export default function CreateAIBotPage() {
   const router = useRouter();
@@ -154,13 +174,19 @@ export default function CreateAIBotPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showPresets, setShowPresets] = useState(true);
   const [testMessage, setTestMessage] = useState("");
-  const [testResponse, setTestResponse] = useState("");
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     systemPrompt: "",
     welcomeMessage: "",
+    starterMessage1: "",
+    starterMessage2: "",
+    starterMessage3: "",
+    profileIcon: "🤖",
     model: "gemini-1.5-pro",
     temperature: "0.7",
     maxTokens: "2000",
@@ -180,6 +206,12 @@ export default function CreateAIBotPage() {
     setCurrentUser(userData);
   }, [router]);
 
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages]);
+
   const applyPreset = (preset: typeof PRESET_PROMPTS[0]) => {
     setFormData({
       ...formData,
@@ -187,44 +219,81 @@ export default function CreateAIBotPage() {
       description: preset.description,
       systemPrompt: preset.systemPrompt,
       welcomeMessage: preset.welcomeMessage,
+      starterMessage1: preset.starterMessages?.[0] || "",
+      starterMessage2: preset.starterMessages?.[1] || "",
+      starterMessage3: preset.starterMessages?.[2] || "",
+      profileIcon: preset.icon,
     });
     setShowPresets(false);
   };
 
-  const handleTest = async () => {
-    if (!testMessage.trim()) {
-      alert("테스트 메시지를 입력하세요.");
+  const handleTest = async (message?: string) => {
+    const messageToSend = message || testMessage;
+    if (!messageToSend.trim()) {
+      alert("메시지를 입력하세요.");
       return;
     }
 
+    // 사용자 메시지 추가
+    const userMessage: Message = {
+      role: "user",
+      content: messageToSend,
+      timestamp: new Date()
+    };
+    setChatMessages(prev => [...prev, userMessage]);
+    setTestMessage("");
     setTestLoading(true);
-    setTestResponse("");
 
     try {
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: testMessage,
+          message: messageToSend,
           systemPrompt: formData.systemPrompt,
           model: formData.model,
           temperature: parseFloat(formData.temperature),
           maxTokens: parseInt(formData.maxTokens),
+          topK: parseInt(formData.topK),
+          topP: parseFloat(formData.topP),
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setTestResponse(data.response || "응답을 받지 못했습니다.");
+        const assistantMessage: Message = {
+          role: "assistant",
+          content: data.response || "응답을 받지 못했습니다.",
+          timestamp: new Date()
+        };
+        setChatMessages(prev => [...prev, assistantMessage]);
       } else {
-        setTestResponse("테스트 중 오류가 발생했습니다.");
+        const assistantMessage: Message = {
+          role: "assistant",
+          content: "테스트 중 오류가 발생했습니다.",
+          timestamp: new Date()
+        };
+        setChatMessages(prev => [...prev, assistantMessage]);
       }
     } catch (error) {
       console.error("테스트 실패:", error);
-      setTestResponse("연결 오류가 발생했습니다.");
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: "연결 오류가 발생했습니다.",
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, assistantMessage]);
     } finally {
       setTestLoading(false);
     }
+  };
+
+  const handleStarterMessage = (message: string) => {
+    handleTest(message);
+  };
+
+  const clearChat = () => {
+    setChatMessages([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -334,82 +403,146 @@ export default function CreateAIBotPage() {
 
       {/* 메인 폼 */}
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* 기본 정보 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-blue-600" />
-              기본 정보
-            </CardTitle>
-            <CardDescription>
-              Gem의 이름과 설명을 작성하세요
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="name" className="text-base">
-                Gem 이름 *
-              </Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="예: 나의 학습 도우미"
-                className="mt-1"
-                required
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                사용자에게 표시될 이름입니다
-              </p>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* 왼쪽: 설정 폼 (2/3) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* 기본 정보 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-blue-600" />
+                  기본 정보
+                </CardTitle>
+                <CardDescription>
+                  Gem의 이름, 프로필, 설명을 작성하세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* 프로필 아이콘 선택 */}
+                <div>
+                  <Label className="text-base mb-2 block">프로필 아이콘</Label>
+                  <div className="flex items-center gap-3">
+                    <div className="text-5xl">{formData.profileIcon}</div>
+                    <div className="flex-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className="w-full"
+                      >
+                        <Smile className="w-4 h-4 mr-2" />
+                        아이콘 변경
+                      </Button>
+                      {showEmojiPicker && (
+                        <div className="mt-2 p-3 border rounded-lg bg-white shadow-lg grid grid-cols-10 gap-2 max-h-48 overflow-y-auto">
+                          {PROFILE_EMOJIS.map((emoji, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              className="text-2xl hover:bg-gray-100 p-2 rounded transition"
+                              onClick={() => {
+                                setFormData({ ...formData, profileIcon: emoji });
+                                setShowEmojiPicker(false);
+                              }}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-            <div>
-              <Label htmlFor="description" className="text-base">
-                간단한 설명
-              </Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="이 Gem이 어떤 일을 하는지 간단히 설명해주세요"
-                rows={2}
-                className="mt-1"
-              />
-            </div>
+                <div>
+                  <Label htmlFor="name" className="text-base">
+                    Gem 이름 *
+                  </Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="예: 나의 학습 도우미"
+                    className="mt-1"
+                    required
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    사용자에게 표시될 이름입니다
+                  </p>
+                </div>
 
-            <div>
-              <Label htmlFor="welcomeMessage" className="text-base">
-                환영 인사
-              </Label>
-              <Textarea
-                id="welcomeMessage"
-                value={formData.welcomeMessage}
-                onChange={(e) => setFormData({ ...formData, welcomeMessage: e.target.value })}
-                placeholder="대화를 시작할 때 표시할 첫 인사말"
-                rows={2}
-                className="mt-1"
-              />
-            </div>
-          </CardContent>
-        </Card>
+                <div>
+                  <Label htmlFor="description" className="text-base">
+                    간단한 설명
+                  </Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="이 Gem이 어떤 일을 하는지 간단히 설명해주세요"
+                    rows={2}
+                    className="mt-1"
+                  />
+                </div>
 
-        {/* 지침 (Instructions) */}
-        <Card className="border-2 border-purple-200">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50">
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-purple-600" />
-              Gem 지침 (Instructions) *
-            </CardTitle>
-            <CardDescription>
-              Gem이 어떻게 행동하고 응답해야 하는지 상세히 설명하세요. 이것이 Gem의 핵심입니다.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <Textarea
-              id="systemPrompt"
-              value={formData.systemPrompt}
-              onChange={(e) => setFormData({ ...formData, systemPrompt: e.target.value })}
-              placeholder="예시:
+                <div>
+                  <Label htmlFor="welcomeMessage" className="text-base">
+                    환영 인사
+                  </Label>
+                  <Textarea
+                    id="welcomeMessage"
+                    value={formData.welcomeMessage}
+                    onChange={(e) => setFormData({ ...formData, welcomeMessage: e.target.value })}
+                    placeholder="대화를 시작할 때 표시할 첫 인사말"
+                    rows={2}
+                    className="mt-1"
+                  />
+                </div>
+
+                {/* 스타터 메시지 */}
+                <div>
+                  <Label className="text-base mb-2 block">스타터 메시지 (추천 질문)</Label>
+                  <p className="text-sm text-gray-500 mb-3">
+                    사용자가 빠르게 시작할 수 있는 예시 질문을 3개까지 추가하세요
+                  </p>
+                  <div className="space-y-2">
+                    <Input
+                      value={formData.starterMessage1}
+                      onChange={(e) => setFormData({ ...formData, starterMessage1: e.target.value })}
+                      placeholder="예: 수학 문제 풀이 도와줘"
+                    />
+                    <Input
+                      value={formData.starterMessage2}
+                      onChange={(e) => setFormData({ ...formData, starterMessage2: e.target.value })}
+                      placeholder="예: 영어 문법 설명해줘"
+                    />
+                    <Input
+                      value={formData.starterMessage3}
+                      onChange={(e) => setFormData({ ...formData, starterMessage3: e.target.value })}
+                      placeholder="예: 과학 개념 알려줘"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 지침 (Instructions) */}
+            <Card className="border-2 border-purple-200">
+              <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50">
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-purple-600" />
+                  Gem 지침 (Instructions) *
+                </CardTitle>
+                <CardDescription>
+                  Gem이 어떻게 행동하고 응답해야 하는지 상세히 설명하세요. 이것이 Gem의 핵심입니다.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <Textarea
+                  id="systemPrompt"
+                  value={formData.systemPrompt}
+                  onChange={(e) => setFormData({ ...formData, systemPrompt: e.target.value })}
+                  placeholder="예시:
 
 당신은 학생들의 학습을 돕는 친절한 AI 선생님입니다.
 
@@ -428,210 +561,331 @@ export default function CreateAIBotPage() {
 - 답을 바로 알려주지 말고 힌트 제공
 - 긍정적이고 격려하는 톤 유지
 - 전문 용어는 쉽게 풀어서 설명"
-              rows={15}
-              className="font-mono text-sm"
-              required
-            />
-            <div className="mt-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm font-semibold text-blue-900 mb-2">
-                💡 효과적인 지침 작성 팁:
-              </p>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• <strong>역할 정의:</strong> "당신은 ~입니다" 형식으로 명확히</li>
-                <li>• <strong>구체적 행동:</strong> 해야 할 것과 하지 말아야 할 것</li>
-                <li>• <strong>톤과 스타일:</strong> 친근한, 전문적인, 교육적인 등</li>
-                <li>• <strong>응답 형식:</strong> 구조화된 답변 방식 제시</li>
-                <li>• <strong>제약 사항:</strong> 길이, 형식, 내용 제한 명시</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
+                  rows={15}
+                  className="font-mono text-sm"
+                  required
+                />
+                <div className="mt-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm font-semibold text-blue-900 mb-2">
+                    💡 효과적인 지침 작성 팁:
+                  </p>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• <strong>역할 정의:</strong> "당신은 ~입니다" 형식으로 명확히</li>
+                    <li>• <strong>구체적 행동:</strong> 해야 할 것과 하지 말아야 할 것</li>
+                    <li>• <strong>톤과 스타일:</strong> 친근한, 전문적인, 교육적인 등</li>
+                    <li>• <strong>응답 형식:</strong> 구조화된 답변 방식 제시</li>
+                    <li>• <strong>제약 사항:</strong> 길이, 형식, 내용 제한 명시</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Gemini 설정 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-green-600" />
-              고급 설정
-            </CardTitle>
-            <CardDescription>
-              Gemini AI 모델의 동작을 세밀하게 조정하세요
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* 모델 선택 */}
-            <div>
-              <Label htmlFor="model" className="text-base">Gemini 모델</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                {GEMINI_MODELS.map((model) => (
-                  <div
-                    key={model.value}
-                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      formData.model === model.value
-                        ? "border-purple-500 bg-purple-50"
-                        : "border-gray-200 hover:border-purple-300"
-                    }`}
-                    onClick={() => setFormData({ ...formData, model: model.value })}
-                  >
-                    <div className="font-semibold text-sm">{model.label}</div>
-                    <div className="text-xs text-gray-600 mt-1">{model.description}</div>
+            {/* Gemini 설정 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5 text-green-600" />
+                  고급 설정
+                </CardTitle>
+                <CardDescription>
+                  Gemini AI 모델의 동작을 세밀하게 조정하세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* 모델 선택 */}
+                <div>
+                  <Label htmlFor="model" className="text-base mb-3 block">Gemini 모델 선택</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {GEMINI_MODELS.map((model) => (
+                      <div
+                        key={model.value}
+                        className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                          formData.model === model.value
+                            ? "border-purple-500 bg-purple-50 shadow-md"
+                            : "border-gray-200 hover:border-purple-300"
+                        }`}
+                        onClick={() => setFormData({ ...formData, model: model.value })}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm">{model.label}</div>
+                            <div className="text-xs text-gray-600 mt-1">{model.description}</div>
+                          </div>
+                          {formData.model === model.value && (
+                            <Sparkles className="w-5 h-5 text-purple-600" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 파라미터 설정 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="temperature" className="text-base">
-                  Temperature (창의성)
-                </Label>
-                <div className="flex items-center gap-3 mt-2">
-                  <input
-                    id="temperature"
-                    type="range"
-                    min="0"
-                    max="2"
-                    step="0.1"
-                    value={formData.temperature}
-                    onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
-                    className="flex-1"
-                  />
-                  <span className="text-sm font-mono w-12 text-right">
-                    {formData.temperature}
-                  </span>
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 선택한 모델이 테스트와 실제 Gem에 적용됩니다
+                  </p>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  낮을수록 일관적, 높을수록 창의적 (기본: 0.7)
-                </p>
-              </div>
 
-              <div>
-                <Label htmlFor="topP" className="text-base">
-                  Top-P (다양성)
-                </Label>
-                <div className="flex items-center gap-3 mt-2">
-                  <input
-                    id="topP"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={formData.topP}
-                    onChange={(e) => setFormData({ ...formData, topP: e.target.value })}
-                    className="flex-1"
-                  />
-                  <span className="text-sm font-mono w-12 text-right">
-                    {formData.topP}
-                  </span>
+                {/* 파라미터 설정 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="temperature" className="text-base">
+                      Temperature (창의성)
+                    </Label>
+                    <div className="flex items-center gap-3 mt-2">
+                      <input
+                        id="temperature"
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={formData.temperature}
+                        onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
+                        className="flex-1"
+                      />
+                      <span className="text-sm font-mono w-12 text-right">
+                        {formData.temperature}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      낮을수록 일관적, 높을수록 창의적 (기본: 0.7)
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="topP" className="text-base">
+                      Top-P (다양성)
+                    </Label>
+                    <div className="flex items-center gap-3 mt-2">
+                      <input
+                        id="topP"
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={formData.topP}
+                        onChange={(e) => setFormData({ ...formData, topP: e.target.value })}
+                        className="flex-1"
+                      />
+                      <span className="text-sm font-mono w-12 text-right">
+                        {formData.topP}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      응답의 다양성 조절 (기본: 0.95)
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="topK" className="text-base">
+                      Top-K
+                    </Label>
+                    <Input
+                      id="topK"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={formData.topK}
+                      onChange={(e) => setFormData({ ...formData, topK: e.target.value })}
+                      className="mt-2"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      상위 K개 토큰만 고려 (기본: 40)
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="maxTokens" className="text-base">
+                      최대 토큰
+                    </Label>
+                    <Input
+                      id="maxTokens"
+                      type="number"
+                      step="100"
+                      min="100"
+                      max="8000"
+                      value={formData.maxTokens}
+                      onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
+                      className="mt-2"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      응답 최대 길이 (기본: 2000)
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  응답의 다양성 조절 (기본: 0.95)
-                </p>
-              </div>
 
-              <div>
-                <Label htmlFor="topK" className="text-base">
-                  Top-K
-                </Label>
-                <Input
-                  id="topK"
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={formData.topK}
-                  onChange={(e) => setFormData({ ...formData, topK: e.target.value })}
-                  className="mt-2"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  상위 K개 토큰만 고려 (기본: 40)
-                </p>
-              </div>
+                <div>
+                  <Label htmlFor="language" className="text-base">
+                    주 언어
+                  </Label>
+                  <select
+                    id="language"
+                    value={formData.language}
+                    onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md mt-2"
+                  >
+                    <option value="ko">한국어</option>
+                    <option value="en">English</option>
+                    <option value="ja">日本語</option>
+                    <option value="zh">中文</option>
+                  </select>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-              <div>
-                <Label htmlFor="maxTokens" className="text-base">
-                  최대 토큰
-                </Label>
-                <Input
-                  id="maxTokens"
-                  type="number"
-                  step="100"
-                  min="100"
-                  max="8000"
-                  value={formData.maxTokens}
-                  onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
-                  className="mt-2"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  응답 최대 길이 (기본: 2000)
-                </p>
-              </div>
-            </div>
+          {/* 오른쪽: 실시간 테스트 채팅 (1/3) */}
+          <div className="lg:col-span-1">
+            <Card className="sticky top-6 border-2 border-green-200">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50">
+                <CardTitle className="flex items-center gap-2">
+                  <TestTube className="h-5 w-5 text-green-600" />
+                  Gem 테스트
+                </CardTitle>
+                <CardDescription>
+                  실시간으로 Gem과 대화해보세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {/* 채팅 영역 */}
+                <div className="space-y-4">
+                  {/* 환영 메시지 */}
+                  {chatMessages.length === 0 && formData.welcomeMessage && (
+                    <div className="flex gap-3">
+                      <div className="text-3xl">{formData.profileIcon}</div>
+                      <div className="flex-1">
+                        <div className="bg-gray-100 rounded-lg p-3">
+                          <p className="text-sm text-gray-800">{formData.welcomeMessage}</p>
+                        </div>
+                        {/* 스타터 메시지 버튼 */}
+                        {(formData.starterMessage1 || formData.starterMessage2 || formData.starterMessage3) && (
+                          <div className="mt-2 space-y-2">
+                            {formData.starterMessage1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleStarterMessage(formData.starterMessage1)}
+                                className="block w-full text-left text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition"
+                                disabled={testLoading}
+                              >
+                                💬 {formData.starterMessage1}
+                              </button>
+                            )}
+                            {formData.starterMessage2 && (
+                              <button
+                                type="button"
+                                onClick={() => handleStarterMessage(formData.starterMessage2)}
+                                className="block w-full text-left text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition"
+                                disabled={testLoading}
+                              >
+                                💬 {formData.starterMessage2}
+                              </button>
+                            )}
+                            {formData.starterMessage3 && (
+                              <button
+                                type="button"
+                                onClick={() => handleStarterMessage(formData.starterMessage3)}
+                                className="block w-full text-left text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition"
+                                disabled={testLoading}
+                              >
+                                💬 {formData.starterMessage3}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-            <div>
-              <Label htmlFor="language" className="text-base">
-                주 언어
-              </Label>
-              <select
-                id="language"
-                value={formData.language}
-                onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md mt-2"
-              >
-                <option value="ko">한국어</option>
-                <option value="en">English</option>
-                <option value="ja">日本語</option>
-                <option value="zh">中文</option>
-              </select>
-            </div>
-          </CardContent>
-        </Card>
+                  {/* 채팅 메시지 */}
+                  <div className="max-h-96 overflow-y-auto space-y-3">
+                    {chatMessages.map((msg, idx) => (
+                      <div key={idx} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
+                        {msg.role === "assistant" && (
+                          <div className="text-2xl">{formData.profileIcon}</div>
+                        )}
+                        <div className={`flex-1 max-w-[85%] ${msg.role === "user" ? "text-right" : ""}`}>
+                          <div
+                            className={`rounded-lg p-3 ${
+                              msg.role === "user"
+                                ? "bg-blue-600 text-white ml-auto"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {msg.timestamp.toLocaleTimeString()}
+                          </p>
+                        </div>
+                        {msg.role === "user" && (
+                          <div className="text-2xl">👤</div>
+                        )}
+                      </div>
+                    ))}
+                    {testLoading && (
+                      <div className="flex gap-3">
+                        <div className="text-2xl">{formData.profileIcon}</div>
+                        <div className="bg-gray-100 rounded-lg p-3">
+                          <div className="flex gap-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
 
-        {/* 테스트 섹션 */}
-        <Card className="border-2 border-green-200">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50">
-            <CardTitle className="flex items-center gap-2">
-              <TestTube className="h-5 w-5 text-green-600" />
-              Gem 테스트
-            </CardTitle>
-            <CardDescription>
-              저장하기 전에 Gem이 어떻게 응답하는지 테스트해보세요
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-4">
-            <div>
-              <Label htmlFor="testMessage">테스트 메시지</Label>
-              <div className="flex gap-2 mt-2">
-                <Input
-                  id="testMessage"
-                  value={testMessage}
-                  onChange={(e) => setTestMessage(e.target.value)}
-                  placeholder="Gem에게 보낼 메시지를 입력하세요"
-                  onKeyPress={(e) => e.key === "Enter" && handleTest()}
-                />
-                <Button
-                  type="button"
-                  onClick={handleTest}
-                  disabled={testLoading || !formData.systemPrompt}
-                >
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  {testLoading ? "테스트 중..." : "테스트"}
-                </Button>
-              </div>
-            </div>
+                  {/* 입력 영역 */}
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        value={testMessage}
+                        onChange={(e) => setTestMessage(e.target.value)}
+                        placeholder="메시지를 입력하세요..."
+                        onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleTest()}
+                        disabled={testLoading || !formData.systemPrompt}
+                      />
+                      <Button
+                        type="button"
+                        onClick={() => handleTest()}
+                        disabled={testLoading || !formData.systemPrompt}
+                        size="icon"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {chatMessages.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearChat}
+                        className="w-full"
+                      >
+                        대화 초기화
+                      </Button>
+                    )}
+                  </div>
 
-            {testResponse && (
-              <div className="p-4 bg-gray-50 rounded-lg border">
-                <p className="text-sm font-semibold text-gray-700 mb-2">
-                  Gem의 응답:
-                </p>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                  {testResponse}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  {!formData.systemPrompt && (
+                    <p className="text-xs text-amber-600 text-center">
+                      ⚠️ 테스트하려면 먼저 시스템 프롬프트를 입력하세요
+                    </p>
+                  )}
+
+                  <div className="pt-3 border-t">
+                    <p className="text-xs text-gray-500">
+                      🔍 <strong>현재 모델:</strong> {GEMINI_MODELS.find(m => m.value === formData.model)?.label}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      🌡️ <strong>Temperature:</strong> {formData.temperature} | 
+                      <strong> Top-P:</strong> {formData.topP}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         {/* 제출 버튼 */}
         <div className="flex justify-end gap-3 pt-4">
