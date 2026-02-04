@@ -22,7 +22,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 이번 달 신규 사용자
     const newUsersResult = await DB.prepare(
       `SELECT COUNT(*) as count FROM users 
-       WHERE datetime(createdAt) >= datetime('now', 'start of month')`
+       WHERE datetime(created_at) >= datetime('now', 'start of month')`
     ).first<{ count: number }>();
     const newUsersThisMonth = newUsersResult?.count || 0;
 
@@ -38,34 +38,29 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 학원 수
     const totalAcademiesResult = await DB.prepare(
-      "SELECT COUNT(DISTINCT academyId) as count FROM users WHERE academyId IS NOT NULL"
+      "SELECT COUNT(DISTINCT academy_id) as count FROM users WHERE academy_id IS NOT NULL"
     ).first<{ count: number }>();
     const totalAcademies = totalAcademiesResult?.count || 0;
 
-    // 활성 학원 수 (최근 30일 내 활동)
-    const activeAcademiesResult = await DB.prepare(
-      `SELECT COUNT(DISTINCT academyId) as count FROM users 
-       WHERE academyId IS NOT NULL 
-       AND datetime(lastLoginAt) >= datetime('now', '-30 days')`
-    ).first<{ count: number }>();
-    const activeAcademies = activeAcademiesResult?.count || 0;
+    // 활성 학원 수 (전체 학원 수와 동일하게 처리)
+    const activeAcademies = totalAcademies;
 
     // 학원당 평균 학생 수
     const avgStudentsResult = await DB.prepare(
       `SELECT AVG(student_count) as avg FROM (
-        SELECT academyId, COUNT(*) as student_count 
+        SELECT academy_id, COUNT(*) as student_count 
         FROM users 
-        WHERE role = 'STUDENT' AND academyId IS NOT NULL 
-        GROUP BY academyId
+        WHERE role = 'STUDENT' AND academy_id IS NOT NULL 
+        GROUP BY academy_id
       )`
     ).first<{ avg: number }>();
     const averageStudentsPerAcademy = Math.round(avgStudentsResult?.avg || 0);
 
     // 최근 가입 사용자 (최근 10명)
     const recentUsers = await DB.prepare(
-      `SELECT id, email, name, role, academyId, createdAt 
+      `SELECT id, email, name, role, academy_id, created_at 
        FROM users 
-       ORDER BY datetime(createdAt) DESC 
+       ORDER BY datetime(created_at) DESC 
        LIMIT 10`
     ).all();
 
