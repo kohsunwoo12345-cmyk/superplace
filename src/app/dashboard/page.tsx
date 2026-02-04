@@ -183,6 +183,77 @@ export default function DashboardPage() {
           </Card>
         </div>
 
+        {/* Admin Management Menu */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card 
+            className="hover:shadow-lg transition-all cursor-pointer border-2 hover:border-blue-500"
+            onClick={() => router.push("/dashboard/admin/users")}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <Users className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">사용자 관리</h3>
+                  <p className="text-sm text-gray-600">전체 사용자 조회</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="hover:shadow-lg transition-all cursor-pointer border-2 hover:border-purple-500"
+            onClick={() => router.push("/dashboard/admin/academies")}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <GraduationCap className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">학원 관리</h3>
+                  <p className="text-sm text-gray-600">학원 정보 관리</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="hover:shadow-lg transition-all cursor-pointer border-2 hover:border-green-500"
+            onClick={() => router.push("/dashboard/admin/ai-bots")}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
+                  <Target className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">AI 봇 관리</h3>
+                  <p className="text-sm text-gray-600">AI 봇 생성/관리</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="hover:shadow-lg transition-all cursor-pointer border-2 hover:border-orange-500"
+            onClick={() => router.push("/dashboard/admin/inquiries")}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">문의 관리</h3>
+                  <p className="text-sm text-gray-600">고객 문의 응답</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Users */}
@@ -220,7 +291,11 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-              <Button variant="outline" className="w-full mt-4">
+              <Button 
+                variant="outline" 
+                className="w-full mt-4"
+                onClick={() => router.push("/dashboard/admin/users")}
+              >
                 전체 사용자 보기
               </Button>
             </CardContent>
@@ -258,6 +333,13 @@ export default function DashboardPage() {
                     <span className="text-sm font-medium text-green-600">활성</span>
                   </div>
                 </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full mt-4"
+                  onClick={() => router.push("/dashboard/admin/system")}
+                >
+                  시스템 설정
+                </Button>
               </div>
             </CardContent>
           </Card>
