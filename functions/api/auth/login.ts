@@ -96,7 +96,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       await context.env.DB.prepare(`
         INSERT INTO user_login_logs (id, userId, ip, userAgent, success, loginAt)
         VALUES (?, ?, ?, ?, ?, datetime('now'))
-      `).bind(logId, user.id, ip, userAgent, loginSuccess ? 1 : 0).run();
+      `).bind(logId, String(user.id), ip, userAgent, loginSuccess ? 1 : 0).run();
 
       // 로그인 성공 시 lastLoginAt, lastLoginIp 업데이트
       if (loginSuccess) {
