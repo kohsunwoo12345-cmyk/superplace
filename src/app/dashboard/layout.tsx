@@ -17,11 +17,17 @@ export default function DashboardLayout({
     if (userStr) {
       try {
         const userData = JSON.parse(userStr);
+        console.log('🔍 Dashboard Layout - User Data:', userData);
+        console.log('🔍 Dashboard Layout - User Role:', userData.role);
         setUser(userData);
-        setIsAdmin(userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN');
+        const isAdminRole = userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN';
+        console.log('🔍 Dashboard Layout - isAdmin:', isAdminRole);
+        setIsAdmin(isAdminRole);
       } catch (error) {
         console.error('Failed to parse user data:', error);
       }
+    } else {
+      console.log('⚠️ Dashboard Layout - No user in localStorage');
     }
   }, []);
 
@@ -52,6 +58,14 @@ export default function DashboardLayout({
       <div className="flex">
         {/* Sidebar */}
         <aside className="w-64 bg-white shadow-lg min-h-screen">
+          {/* Debug Info - 개발 중에만 표시 */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="p-4 bg-yellow-100 border-b border-yellow-300 text-xs">
+              <div>User: {user?.email}</div>
+              <div>Role: {user?.role}</div>
+              <div>isAdmin: {isAdmin ? 'YES' : 'NO'}</div>
+            </div>
+          )}
           <nav className="p-4 space-y-2">
             <a
               href="/dashboard"
@@ -59,6 +73,11 @@ export default function DashboardLayout({
             >
               📊 대시보드
             </a>
+
+            {/* 디버그: isAdmin 상태 표시 */}
+            <div className="px-4 py-2 text-xs bg-gray-100 rounded">
+              isAdmin: {String(isAdmin)} | role: {user?.role || 'none'}
+            </div>
             
             {/* Admin Menu Section - Only visible for ADMIN and SUPER_ADMIN */}
             {isAdmin && (
