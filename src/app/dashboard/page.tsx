@@ -123,16 +123,6 @@ export default function DashboardPage() {
   if (isSuperAdmin) {
     return (
       <div className="space-y-6">
-        {/* 디버그 배너 */}
-        <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4">
-          <div className="font-bold text-green-800 text-lg">✅ 관리자 대시보드 활성화됨</div>
-          <div className="text-sm text-green-700 mt-2">
-            <div>사용자: {user.email}</div>
-            <div>역할: {user.role}</div>
-            <div>isSuperAdmin: {String(isSuperAdmin)}</div>
-          </div>
-        </div>
-
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -692,19 +682,6 @@ export default function DashboardPage() {
   // Default fallback - 모든 사용자에게 기본 대시보드 표시
   return (
     <div className="space-y-6">
-      {/* 디버그 배너 - Fallback Dashboard */}
-      <div className="bg-yellow-100 border-2 border-yellow-500 rounded-lg p-4">
-        <div className="font-bold text-yellow-800 text-lg">⚠️ Fallback 대시보드</div>
-        <div className="text-sm text-yellow-700 mt-2">
-          <div>사용자: {user?.email}</div>
-          <div>역할: {user?.role}</div>
-          <div>isSuperAdmin: {String(isSuperAdmin)}</div>
-          <div>isDirector: {String(isDirector)}</div>
-          <div>isTeacher: {String(isTeacher)}</div>
-          <div>isStudent: {String(isStudent)}</div>
-        </div>
-      </div>
-
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
