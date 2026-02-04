@@ -579,19 +579,112 @@ export default function DashboardPage() {
     );
   }
 
-  // Default fallback
+  // Default fallback - 모든 사용자에게 기본 대시보드 표시
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <Card className="p-8 text-center">
-        <AlertCircle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold mb-2">권한이 없습니다</h2>
-        <p className="text-gray-600 mb-4">
-          대시보드에 접근할 수 있는 권한이 없습니다.
-        </p>
-        <Button onClick={() => router.push("/")}>
-          홈으로 돌아가기
-        </Button>
-      </Card>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Users className="h-8 w-8 text-blue-600" />
+            대시보드
+          </h1>
+          <p className="text-gray-600 mt-1">
+            {user?.name || '사용자'}님, 환영합니다! (역할: {user?.role || '알 수 없음'})
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              학생 관리
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">학생 정보를 관리합니다</p>
+            <Button onClick={() => router.push("/dashboard/students")} className="w-full">
+              바로가기
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-purple-600" />
+              선생님 관리
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">선생님 정보를 관리합니다</p>
+            <Button onClick={() => router.push("/dashboard/teachers")} className="w-full">
+              바로가기
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-green-600" />
+              클래스 관리
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">클래스를 관리합니다</p>
+            <Button onClick={() => router.push("/dashboard/classes")} className="w-full">
+              바로가기
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-orange-600" />
+              분석
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">학습 데이터를 분석합니다</p>
+            <Button onClick={() => router.push("/dashboard/analytics")} className="w-full">
+              바로가기
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-indigo-600" />
+              AI 챗봇
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">AI 학습 도우미와 대화합니다</p>
+            <Button onClick={() => router.push("/dashboard/ai-chat")} className="w-full">
+              바로가기
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-gray-600" />
+              설정
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">계정 설정을 관리합니다</p>
+            <Button onClick={() => router.push("/dashboard/settings")} className="w-full" variant="outline">
+              바로가기
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
