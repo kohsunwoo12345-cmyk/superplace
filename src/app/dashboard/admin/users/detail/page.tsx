@@ -26,6 +26,9 @@ import {
   EyeOff,
   LogIn,
   AlertCircle,
+  Coins,
+  PlusCircle,
+  MinusCircle,
 } from "lucide-react";
 
 interface UserDetail {
