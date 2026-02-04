@@ -9,3 +9,10 @@ pages_build_output_dir = "out"
 binding = "DB"
 database_name = "superplace-db"
 database_id = "8c106540-21b4-4fa9-8879-c4956e459ca1"
+
+# Environment Variables
+# Note: GEMINI_API_KEY should be set in Cloudflare Pages dashboard
+# Settings > Environment variables
+# Get your API key from: https://makersuite.google.com/app/apikey
+[vars]
+# Add other non-sensitive variables here if needed

@@ -22,9 +22,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         description TEXT,
         systemPrompt TEXT NOT NULL,
         welcomeMessage TEXT,
-        model TEXT DEFAULT 'gpt-4',
+        model TEXT DEFAULT 'gemini-1.5-pro',
         temperature REAL DEFAULT 0.7,
         maxTokens INTEGER DEFAULT 2000,
+        topK INTEGER DEFAULT 40,
+        topP REAL DEFAULT 0.95,
+        language TEXT DEFAULT 'ko',
         isActive INTEGER DEFAULT 1,
         conversationCount INTEGER DEFAULT 0,
         lastUsedAt TEXT,
@@ -70,9 +73,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       description,
       systemPrompt,
       welcomeMessage,
-      model = "gpt-4",
+      model = "gemini-1.5-pro",
       temperature = 0.7,
       maxTokens = 2000,
+      topK = 40,
+      topP = 0.95,
+      language = "ko",
     } = body;
 
     if (!name || !systemPrompt) {
@@ -87,8 +93,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     await DB.prepare(`
       INSERT INTO ai_bots (
         id, name, description, systemPrompt, welcomeMessage, 
-        model, temperature, maxTokens, isActive, conversationCount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+        model, temperature, maxTokens, topK, topP, language,
+        isActive, conversationCount
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
     `).bind(
       botId,
       name,
@@ -97,7 +104,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       welcomeMessage || null,
       model,
       temperature,
-      maxTokens
+      maxTokens,
+      topK,
+      topP,
+      language
     ).run();
 
     return new Response(
