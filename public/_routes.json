@@ -3,5 +3,10 @@
   "include": [
     "/api/*"
   ],
-  "exclude": []
+  "exclude": [
+    "/_next/*",
+    "/static/*",
+    "/favicon.ico",
+    "/favicon.svg"
+  ]
 }
