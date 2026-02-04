@@ -84,49 +84,41 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // 생성된 사용자 ID 가져오기
     const userId = result.meta.last_row_id;
 
-    // 학생인 경우 자동으로 출석 코드 생성
+    // 학생인 경우 자동으로 출석 코드 생성 (attendance_code 컬럼 사용)
     let attendanceCode = null;
     if (userRole.toUpperCase() === 'STUDENT') {
       try {
-        // 출석 코드 테이블 생성
-        await context.env.DB.prepare(`
-          CREATE TABLE IF NOT EXISTS student_attendance_codes (
-            id TEXT PRIMARY KEY,
-            userId INTEGER NOT NULL,
-            code TEXT UNIQUE NOT NULL,
-            academyId INTEGER,
-            classId TEXT,
-            isActive INTEGER DEFAULT 1,
-            createdAt TEXT DEFAULT (datetime('now')),
-            expiresAt TEXT
-          )
-        `).run();
-
         // 6자리 숫자 코드 생성 (중복 체크)
         let code = '';
         let attempts = 0;
         while (attempts < 20) {
-          code = '';
-          for (let i = 0; i < 6; i++) {
-            code += Math.floor(Math.random() * 10).toString();
-          }
+          code = Math.floor(100000 + Math.random() * 900000).toString();
 
-          const existing = await context.env.DB.prepare(
-            "SELECT id FROM student_attendance_codes WHERE code = ?"
-          ).bind(code).first();
-          
-          if (!existing) break;
+          // attendance_code 컬럼에서 중복 체크 (컬럼이 있는 경우만)
+          try {
+            const existing = await context.env.DB.prepare(
+              "SELECT id FROM users WHERE attendance_code = ?"
+            ).bind(code).first();
+            
+            if (!existing) break;
+          } catch (e) {
+            // attendance_code 컬럼이 없으면 그냥 사용
+            break;
+          }
           attempts++;
         }
 
-        // 출석 코드 저장
-        const codeId = `code-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        await context.env.DB.prepare(`
-          INSERT INTO student_attendance_codes (id, userId, code, isActive)
-          VALUES (?, ?, ?, 1)
-        `).bind(codeId, userId, code).run();
+        // attendance_code 컬럼이 있으면 업데이트
+        try {
+          await context.env.DB.prepare(`
+            UPDATE users SET attendance_code = ? WHERE id = ?
+          `).bind(code, userId).run();
 
-        attendanceCode = code;
+          attendanceCode = code;
+          console.log(`✅ Generated attendance code ${code} for student ${userId}`);
+        } catch (e) {
+          console.log('⚠️  attendance_code column not found, skipping code generation');
+        }
       } catch (codeError) {
         console.error('Failed to generate attendance code:', codeError);
         // 코드 생성 실패해도 회원가입은 성공
@@ -148,19 +140,6 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         attendanceCode: attendanceCode, // 학생인 경우 출석 코드 반환
         data: {
           user: {
-            id: userId,
-            email: data.email,
-            name: data.name,
-            role: userRole,
-          },
-          token,
-        },
-      }),
-      {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
             id: userId,
             email: data.email,
             name: data.name,
