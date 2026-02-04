@@ -11,8 +11,10 @@ export default function DashboardLayout({
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const userStr = localStorage.getItem('user');
     if (userStr) {
       try {
@@ -30,6 +32,11 @@ export default function DashboardLayout({
       console.log('⚠️ Dashboard Layout - No user in localStorage');
     }
   }, []);
+
+  // 클라이언트 사이드에서만 렌더링
+  if (!mounted) {
+    return null;
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -65,6 +72,13 @@ export default function DashboardLayout({
             >
               📊 대시보드
             </a>
+
+            {/* 디버그: 실시간 상태 확인 */}
+            <div className="px-4 py-2 text-xs bg-yellow-50 border border-yellow-200 rounded">
+              <div>Role: {user?.role || 'null'}</div>
+              <div>isAdmin: {isAdmin ? 'true' : 'false'}</div>
+              <div>Mounted: {mounted ? 'true' : 'false'}</div>
+            </div>
             
             {/* Admin Menu Section - Only visible for ADMIN and SUPER_ADMIN */}
             {isAdmin && (
