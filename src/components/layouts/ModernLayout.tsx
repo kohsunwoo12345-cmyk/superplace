@@ -53,7 +53,22 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
 
   // 역할별 메뉴 정의
   const getMenuItems = (): MenuItem[] => {
-    switch (role.toUpperCase()) {
+    const roleUpper = role.toUpperCase();
+    
+    // 관리자 메뉴 (ADMIN, SUPER_ADMIN)
+    if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
+      return [
+        { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
+        { id: 'admin-users', href: '/dashboard/admin/users', icon: Users, text: '사용자 관리' },
+        { id: 'admin-academies', href: '/dashboard/admin/academies', icon: GraduationCap, text: '학원 관리' },
+        { id: 'admin-ai-bots', href: '/dashboard/admin/ai-bots', icon: MessageCircle, text: 'AI 봇 관리' },
+        { id: 'admin-inquiries', href: '/dashboard/admin/inquiries', icon: FileText, text: '문의 관리' },
+        { id: 'admin-system', href: '/dashboard/admin/system', icon: Settings, text: '시스템 설정' },
+        { id: 'analytics', href: '/dashboard/analytics', icon: BarChart2, text: '통계 분석' },
+      ];
+    }
+    
+    switch (roleUpper) {
       case 'DIRECTOR':
         return [
           { id: 'home', href: '/dashboard', icon: Home, text: '홈' },
@@ -97,7 +112,11 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
 
   // 역할별 배경 그라데이션
   const getRoleGradient = () => {
-    switch (role.toUpperCase()) {
+    const roleUpper = role.toUpperCase();
+    if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
+      return 'from-red-600 to-orange-600';
+    }
+    switch (roleUpper) {
       case 'DIRECTOR':
         return 'from-indigo-600 to-purple-600';
       case 'TEACHER':
@@ -111,7 +130,11 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
 
   // 역할별 텍스트
   const getRoleText = () => {
-    switch (role.toUpperCase()) {
+    const roleUpper = role.toUpperCase();
+    if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
+      return '시스템 관리자';
+    }
+    switch (roleUpper) {
       case 'DIRECTOR':
         return '학원장';
       case 'TEACHER':
@@ -155,7 +178,10 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
             {/* Right: Actions */}
             <div className="flex items-center gap-2 sm:gap-4">
               {/* Homepage Button - 학원장, 선생님, 관리자만 */}
-              {role.toUpperCase() !== 'STUDENT' && (
+              {(role.toUpperCase() === 'ADMIN' || 
+                role.toUpperCase() === 'SUPER_ADMIN' || 
+                role.toUpperCase() === 'DIRECTOR' || 
+                role.toUpperCase() === 'TEACHER') && (
                 <a
                   href="/"
                   target="_blank"

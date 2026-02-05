@@ -87,12 +87,12 @@ export default function DashboardLayout({
     return null;
   }
 
-  // 일반 사용자(학원장, 선생님, 학생)는 Modern Layout 사용
-  if (user && !isAdmin) {
+  // 모든 사용자는 Modern Layout 사용 (관리자 포함)
+  if (user) {
     return <ModernLayout role={user.role}>{children}</ModernLayout>;
   }
 
-  // 관리자는 기존 레이아웃 사용 (아래 코드)
+  // 로그인하지 않은 경우 기본 레이아웃
   const handleDragStart = (e: React.DragEvent, item: MenuItem) => {
     setDraggedItem(item);
     e.dataTransfer.effectAllowed = 'move';
