@@ -55,16 +55,24 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
   const getMenuItems = (): MenuItem[] => {
     const roleUpper = role.toUpperCase();
     
-    // 관리자 메뉴 (ADMIN, SUPER_ADMIN)
+    // 관리자 메뉴 (ADMIN, SUPER_ADMIN) - 관리자 전용 + 일반 메뉴
     if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
       return [
         { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
+        // 관리자 전용 메뉴
         { id: 'admin-users', href: '/dashboard/admin/users', icon: Users, text: '사용자 관리' },
         { id: 'admin-academies', href: '/dashboard/admin/academies', icon: GraduationCap, text: '학원 관리' },
         { id: 'admin-ai-bots', href: '/dashboard/admin/ai-bots', icon: MessageCircle, text: 'AI 봇 관리' },
         { id: 'admin-inquiries', href: '/dashboard/admin/inquiries', icon: FileText, text: '문의 관리' },
         { id: 'admin-system', href: '/dashboard/admin/system', icon: Settings, text: '시스템 설정' },
+        // 일반 메뉴
+        { id: 'students', href: '/dashboard/students', icon: Users, text: '학생 관리' },
+        { id: 'teachers', href: '/dashboard/teachers', icon: GraduationCap, text: '선생님 관리' },
+        { id: 'classes', href: '/dashboard/classes', icon: BookOpen, text: '수업 관리' },
+        { id: 'attendance', href: '/dashboard/teacher-attendance', icon: Clock, text: '출석 관리' },
+        { id: 'ai-chat', href: '/dashboard/ai-chat', icon: MessageCircle, text: 'AI 챗봇' },
         { id: 'analytics', href: '/dashboard/analytics', icon: BarChart2, text: '통계 분석' },
+        { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
       ];
     }
     
