@@ -98,19 +98,48 @@ export default function TeacherAttendancePage() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 헤더 */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold flex items-center gap-2">
-              <ClipboardCheck className="h-8 w-8 text-blue-600" />
-              출석 및 숙제 관리
-            </h1>
-            <p className="text-gray-600 mt-1">
-              학생 출석 코드 생성 및 숙제 리포트 확인
-            </p>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold flex items-center gap-2">
+                <ClipboardCheck className="h-8 w-8 text-blue-600" />
+                출석 및 숙제 관리
+              </h1>
+              <p className="text-gray-600 mt-1">
+                학생 출석 코드 생성 및 숙제 리포트 확인
+              </p>
+            </div>
+            <Button onClick={() => router.push("/dashboard")}>
+              대시보드로
+            </Button>
           </div>
-          <Button onClick={() => router.push("/dashboard")}>
-            대시보드로
-          </Button>
+
+          {/* 빠른 링크 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card className="border-2 border-green-200 hover:border-green-400 transition-colors cursor-pointer" onClick={() => router.push('/attendance-verify')}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <QrCode className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-green-700">출석 인증</h3>
+                  <p className="text-sm text-gray-600">학생 출석 코드 확인</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-purple-200 hover:border-purple-400 transition-colors cursor-pointer" onClick={() => router.push('/homework-check')}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-purple-700">숙제 검사</h3>
+                  <p className="text-sm text-gray-600">카메라로 숙제 확인</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <Tabs defaultValue="generate" className="space-y-4 sm:space-y-6">
