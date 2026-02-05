@@ -68,16 +68,17 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // 역할 설정 (기본값: user)
     const userRole = data.role || 'user';
 
-    // 사용자 생성 (id는 자동 증가, 실제 스키마에 맞게)
+    // 사용자 생성 (id는 자동 증가, 전화번호 포함)
     const result = await context.env.DB.prepare(
-      `INSERT INTO users (email, password, name, role)
-       VALUES (?, ?, ?, ?)`
+      `INSERT INTO users (email, password, name, role, phone)
+       VALUES (?, ?, ?, ?, ?)`
     )
       .bind(
         data.email,
         data.password, // 실제로는 해시해야 하지만 기존 DB가 평문이므로
         data.name,
-        userRole
+        userRole,
+        data.phone || null
       )
       .run();
     

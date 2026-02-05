@@ -15,7 +15,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 사용자 정보 조회 - attendance_code 컬럼 제거됨
+    // 사용자 정보 조회 - lastLoginAt, lastLoginIp 포함
     const user = await DB.prepare(
       `SELECT 
         id, 
@@ -28,7 +28,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         balance,
         academy_id as academyId, 
         academy_name as academyName,
-        created_at as createdAt
+        created_at as createdAt,
+        lastLoginAt,
+        lastLoginIp
        FROM users 
        WHERE id = ?`
     ).bind(userId).first();
@@ -59,8 +61,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       JSON.stringify({ 
         user: {
           ...user,
-          lastLoginAt: lastLogin?.loginAt || null,
-          lastLoginIp: lastLogin?.ip || null
+          // user 테이블의 lastLoginAt, lastLoginIp 사용
+          // 로그 테이블에서 가져온 값은 참고용으로만 사용
+          lastLoginAt: user.lastLoginAt || lastLogin?.loginAt || null,
+          lastLoginIp: user.lastLoginIp || lastLogin?.ip || null
         }
       }),
       {
