@@ -115,7 +115,7 @@ export default function TeacherAttendancePage() {
           </div>
 
           {/* 빠른 링크 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-2 border-green-200 hover:border-green-400 transition-colors cursor-pointer" onClick={() => router.push('/attendance-verify')}>
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -136,6 +136,30 @@ export default function TeacherAttendancePage() {
                 <div>
                   <h3 className="font-semibold text-purple-700">숙제 검사</h3>
                   <p className="text-sm text-gray-600">카메라로 숙제 확인</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-blue-200 hover:border-blue-400 transition-colors cursor-pointer" onClick={() => router.push('/dashboard/attendance-statistics')}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-blue-700">출석 통계</h3>
+                  <p className="text-sm text-gray-600">출석률 분석</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-orange-200 hover:border-orange-400 transition-colors cursor-pointer" onClick={() => router.push('/dashboard/ai-chat-analysis')}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <Award className="w-6 h-6 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-orange-700">AI 분석</h3>
+                  <p className="text-sm text-gray-600">학습 패턴 분석</p>
                 </div>
               </CardContent>
             </Card>

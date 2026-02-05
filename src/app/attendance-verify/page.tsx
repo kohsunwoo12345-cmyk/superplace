@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, ArrowRight, QrCode, Shield } from "lucide-react";
+import { CheckCircle, ArrowRight, QrCode as QrCodeIcon, Shield } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 export default function AttendanceVerifyPage() {
   const router = useRouter();
@@ -123,17 +124,30 @@ export default function AttendanceVerifyPage() {
           {/* 학생 출석 코드 표시 */}
           {user.role === 'STUDENT' && attendanceCode && (
             <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200">
-              <CardContent className="p-4">
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <QrCode className="w-5 h-5 text-purple-600" />
+              <CardContent className="p-6">
+                <div className="text-center space-y-4">
+                  <div className="flex items-center justify-center gap-2">
+                    <QrCodeIcon className="w-5 h-5 text-purple-600" />
                     <span className="text-sm font-medium text-purple-600">내 출석 코드</span>
                   </div>
+                  
+                  {/* QR 코드 */}
+                  <div className="bg-white p-4 rounded-lg inline-block shadow-sm">
+                    <QRCodeSVG 
+                      value={`ATTENDANCE:${user.id}:${attendanceCode}`}
+                      size={200}
+                      level="H"
+                      includeMargin={true}
+                      fgColor="#7c3aed"
+                    />
+                  </div>
+                  
+                  {/* 숫자 코드 */}
                   <div className="text-4xl font-bold text-purple-700 tracking-widest">
                     {attendanceCode}
                   </div>
-                  <p className="text-xs text-gray-600 mt-2">
-                    이 코드를 선생님께 보여주세요
+                  <p className="text-xs text-gray-600">
+                    QR 코드를 스캔하거나 숫자를 입력하세요
                   </p>
                 </div>
               </CardContent>
