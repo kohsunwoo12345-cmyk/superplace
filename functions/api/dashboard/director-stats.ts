@@ -30,6 +30,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const { DB } = context.env;
     const url = new URL(context.request.url);
     const authHeader = context.request.headers.get("Authorization");
+    const userId = url.searchParams.get("userId");
+    const role = url.searchParams.get("role");
+    const academyId = url.searchParams.get("academyId");
     
     if (!DB) {
       return new Response(
@@ -38,26 +41,41 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // 사용자 인증 (선택사항: 토큰에서 academyId 추출 가능)
-    // 현재는 모든 학원의 데이터를 반환 (추후 academyId 필터링 추가)
-
     const today = getKoreanDate();
     const thisMonth = getKoreanMonth();
 
+    // 학원 필터 조건 생성
+    let academyFilter = "";
+    const academyParams: any[] = [];
+    
+    if (role !== "ADMIN" && academyId) {
+      academyFilter = " AND u.academy_id = ?";
+      academyParams.push(academyId);
+    }
+
     // 1. 전체 학생 수
-    const totalStudentsResult = await DB.prepare(`
-      SELECT COUNT(*) as count FROM users WHERE role = 'STUDENT'
-    `).first();
+    let studentQuery = `
+      SELECT COUNT(*) as count 
+      FROM users u
+      WHERE u.role = 'STUDENT'${academyFilter}
+    `;
+    let stmt = DB.prepare(studentQuery);
+    academyParams.forEach(param => stmt = stmt.bind(param));
+    const totalStudentsResult = await stmt.first();
     const totalStudents = totalStudentsResult?.count || 0;
 
     // 2. 오늘 출석 현황
-    const todayAttendanceResult = await DB.prepare(`
+    let todayQuery = `
       SELECT 
         COUNT(*) as total,
-        COUNT(CASE WHEN status = 'VERIFIED' THEN 1 END) as attended
-      FROM attendance_records
-      WHERE substr(verifiedAt, 1, 10) = ?
-    `).bind(today).first();
+        COUNT(CASE WHEN ar.status = 'VERIFIED' THEN 1 END) as attended
+      FROM attendance_records ar
+      JOIN users u ON ar.userId = u.id
+      WHERE substr(ar.verifiedAt, 1, 10) = ?${academyFilter}
+    `;
+    stmt = DB.prepare(todayQuery).bind(today);
+    academyParams.forEach(param => stmt = stmt.bind(param));
+    const todayAttendanceResult = await stmt.first();
     
     const attendedToday = todayAttendanceResult?.attended || 0;
     const attendanceRate = totalStudents > 0 
@@ -65,29 +83,37 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       : 0;
 
     // 3. 오늘 숙제 제출 현황
-    const todayHomeworkResult = await DB.prepare(`
+    let homeworkQuery = `
       SELECT 
         COUNT(*) as total,
-        COUNT(CASE WHEN score IS NOT NULL THEN 1 END) as graded
-      FROM homework_submissions
-      WHERE substr(submittedAt, 1, 10) = ?
-    `).bind(today).first();
+        COUNT(CASE WHEN hs.score IS NOT NULL THEN 1 END) as graded
+      FROM homework_submissions hs
+      JOIN users u ON hs.userId = u.id
+      WHERE substr(hs.submittedAt, 1, 10) = ?${academyFilter}
+    `;
+    stmt = DB.prepare(homeworkQuery).bind(today);
+    academyParams.forEach(param => stmt = stmt.bind(param));
+    const todayHomeworkResult = await stmt.first();
     
     const homeworkSubmittedToday = todayHomeworkResult?.total || 0;
     const homeworkGradedToday = todayHomeworkResult?.graded || 0;
 
     // 4. 숙제 미제출 학생 (오늘 출석했지만 숙제 미제출)
-    const missingHomeworkResult = await DB.prepare(`
+    let missingQuery = `
       SELECT COUNT(*) as count
       FROM attendance_records ar
+      JOIN users u ON ar.userId = u.id
       LEFT JOIN homework_submissions hs ON ar.id = hs.attendanceRecordId
       WHERE substr(ar.verifiedAt, 1, 10) = ?
-      AND ar.homeworkSubmitted = 0
-    `).bind(today).first();
+      AND ar.homeworkSubmitted = 0${academyFilter}
+    `;
+    stmt = DB.prepare(missingQuery).bind(today);
+    academyParams.forEach(param => stmt = stmt.bind(param));
+    const missingHomeworkResult = await stmt.first();
     const missingHomework = missingHomeworkResult?.count || 0;
 
     // 5. 최근 출석 알림 (오늘 출석한 학생 목록)
-    const recentAttendanceList = await DB.prepare(`
+    let attendanceListQuery = `
       SELECT 
         u.id,
         u.name,
@@ -96,13 +122,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ar.homeworkSubmitted
       FROM attendance_records ar
       JOIN users u ON ar.userId = u.id
-      WHERE substr(ar.verifiedAt, 1, 10) = ?
+      WHERE substr(ar.verifiedAt, 1, 10) = ?${academyFilter}
       ORDER BY ar.verifiedAt DESC
       LIMIT 10
-    `).bind(today).all();
+    `;
+    stmt = DB.prepare(attendanceListQuery).bind(today);
+    academyParams.forEach(param => stmt = stmt.bind(param));
+    const recentAttendanceList = await stmt.all();
 
     // 6. 최근 숙제 채점 결과
-    const recentHomeworkList = await DB.prepare(`
+    let homeworkListQuery = `
       SELECT 
         u.id,
         u.name,
@@ -114,13 +143,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         hs.submittedAt
       FROM homework_submissions hs
       JOIN users u ON hs.userId = u.id
-      WHERE substr(hs.submittedAt, 1, 10) = ?
+      WHERE substr(hs.submittedAt, 1, 10) = ?${academyFilter}
       ORDER BY hs.submittedAt DESC
       LIMIT 10
-    `).bind(today).all();
+    `;
+    stmt = DB.prepare(homeworkListQuery).bind(today);
+    academyParams.forEach(param => stmt = stmt.bind(param));
+    const recentHomeworkList = await stmt.all();
 
     // 7. 숙제 미제출 학생 목록
-    const missingHomeworkList = await DB.prepare(`
+    let missingListQuery = `
       SELECT 
         u.id,
         u.name,
@@ -130,15 +162,23 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       JOIN users u ON ar.userId = u.id
       LEFT JOIN homework_submissions hs ON ar.id = hs.attendanceRecordId
       WHERE substr(ar.verifiedAt, 1, 10) = ?
-      AND hs.id IS NULL
+      AND hs.id IS NULL${academyFilter}
       ORDER BY ar.verifiedAt DESC
       LIMIT 10
-    `).bind(today).all();
+    `;
+    stmt = DB.prepare(missingListQuery).bind(today);
+    academyParams.forEach(param => stmt = stmt.bind(param));
+    const missingHomeworkList = await stmt.all();
 
     // 8. 선생님 목록 (학원장용)
-    const teachersResult = await DB.prepare(`
-      SELECT COUNT(*) as count FROM users WHERE role = 'TEACHER'
-    `).first();
+    let teacherQuery = `
+      SELECT COUNT(*) as count 
+      FROM users 
+      WHERE role = 'TEACHER'${academyFilter}
+    `;
+    stmt = DB.prepare(teacherQuery);
+    academyParams.forEach(param => stmt = stmt.bind(param));
+    const teachersResult = await stmt.first();
     const totalTeachers = teachersResult?.count || 0;
 
     // 9. 최근 활동 로그

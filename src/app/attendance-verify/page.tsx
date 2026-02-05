@@ -62,9 +62,10 @@ export default function AttendanceVerifyPage() {
       });
 
       if (response.ok) {
+        const data = await response.json();
         setVerified(true);
         setTimeout(() => {
-          router.push("/homework-check");
+          router.push(`/homework-check?userId=${user.id}&attendanceId=${data.recordId}`);
         }, 2000);
       } else {
         const error = await response.json();

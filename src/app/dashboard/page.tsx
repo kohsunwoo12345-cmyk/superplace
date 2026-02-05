@@ -75,7 +75,12 @@ export default function DashboardPage() {
 
         if (endpoint) {
           const token = localStorage.getItem("token");
-          const response = await fetch(endpoint, {
+          const params = new URLSearchParams({
+            userId: userData.id,
+            role: userData.role,
+            academyId: userData.academyId || "",
+          });
+          const response = await fetch(`${endpoint}?${params}`, {
             headers: {
               "Authorization": `Bearer ${token}`,
             },
