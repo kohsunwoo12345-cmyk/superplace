@@ -13,21 +13,44 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 모든 사용자 조회 (실제 DB 컬럼명 사용, 출석 코드 포함)
-    const usersResult = await DB.prepare(
-      `SELECT 
-        u.id, 
-        u.email, 
-        u.name, 
-        u.phone, 
-        u.role, 
-        u.academy_id as academyId,
-        u.academy_name as academyName,
-        u.attendance_code as attendanceCode,
-        u.created_at as createdAt
-       FROM users u
-       ORDER BY datetime(u.created_at) DESC`
-    ).all();
+    // 모든 사용자 조회 (컬럼 존재 여부 확인 후 조회)
+    let usersResult;
+    try {
+      // attendance_code 컬럼이 있는 경우
+      usersResult = await DB.prepare(
+        `SELECT 
+          u.id, 
+          u.email, 
+          u.name, 
+          u.phone, 
+          u.role, 
+          u.academy_id as academyId,
+          u.academy_name as academyName,
+          u.attendance_code as attendanceCode,
+          u.created_at as createdAt
+         FROM users u
+         ORDER BY datetime(u.created_at) DESC`
+      ).all();
+    } catch (err: any) {
+      // attendance_code 컬럼이 없는 경우
+      if (err.message && err.message.includes('attendance_code')) {
+        usersResult = await DB.prepare(
+          `SELECT 
+            u.id, 
+            u.email, 
+            u.name, 
+            u.phone, 
+            u.role, 
+            u.academy_id as academyId,
+            u.academy_name as academyName,
+            u.created_at as createdAt
+           FROM users u
+           ORDER BY datetime(u.created_at) DESC`
+        ).all();
+      } else {
+        throw err;
+      }
+    }
 
     const users = usersResult?.results || [];
 
