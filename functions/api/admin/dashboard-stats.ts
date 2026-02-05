@@ -7,91 +7,103 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const { DB } = context.env;
 
     if (!DB) {
-      return new Response(JSON.stringify({ error: "Database not configured" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Database not configured" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     // 전체 사용자 수
-    const totalUsersResult = await DB.prepare(
-      "SELECT COUNT(*) as count FROM users"
-    ).first<{ count: number }>();
+    const totalUsersResult = await DB.prepare(`
+      SELECT COUNT(*) as count FROM users
+    `).first();
     const totalUsers = totalUsersResult?.count || 0;
 
-    // 이번 달 신규 사용자
-    const newUsersResult = await DB.prepare(
-      `SELECT COUNT(*) as count FROM users 
-       WHERE datetime(created_at) >= datetime('now', 'start of month')`
-    ).first<{ count: number }>();
+    // 이번 달 신규 가입자
+    const newUsersResult = await DB.prepare(`
+      SELECT COUNT(*) as count FROM users
+      WHERE substr(created_at, 1, 7) = substr(datetime('now', '+9 hours'), 1, 7)
+    `).first();
     const newUsersThisMonth = newUsersResult?.count || 0;
 
     // 역할별 사용자 수
-    const usersByRole = await DB.prepare(
-      `SELECT role, COUNT(*) as count FROM users GROUP BY role`
-    ).all();
+    const usersByRole = await DB.prepare(`
+      SELECT role, COUNT(*) as count FROM users GROUP BY role
+    `).all();
     
-    const usersByRoleMap: Record<string, number> = {};
-    usersByRole?.results?.forEach((row: any) => {
-      usersByRoleMap[row.role] = row.count;
+    const roleStats: any = {};
+    usersByRole.results.forEach((row: any) => {
+      roleStats[row.role] = row.count;
     });
 
-    // 학원 수
-    const totalAcademiesResult = await DB.prepare(
-      "SELECT COUNT(DISTINCT academy_id) as count FROM users WHERE academy_id IS NOT NULL"
-    ).first<{ count: number }>();
-    const totalAcademies = totalAcademiesResult?.count || 0;
+    // 전체 학생 수
+    const totalStudents = roleStats.STUDENT || 0;
 
-    // 활성 학원 수 (전체 학원 수와 동일하게 처리)
-    const activeAcademies = totalAcademies;
+    // 최근 가입 사용자 (7일)
+    const recentUsers = await DB.prepare(`
+      SELECT 
+        id,
+        name,
+        email,
+        role,
+        academy_name as academy,
+        created_at as createdAt
+      FROM users
+      WHERE datetime(created_at) >= datetime('now', '-7 days', '+9 hours')
+      ORDER BY created_at DESC
+      LIMIT 10
+    `).all();
 
-    // 학원당 평균 학생 수
-    const avgStudentsResult = await DB.prepare(
-      `SELECT AVG(student_count) as avg FROM (
-        SELECT academy_id, COUNT(*) as student_count 
-        FROM users 
-        WHERE role = 'STUDENT' AND academy_id IS NOT NULL 
-        GROUP BY academy_id
-      )`
-    ).first<{ avg: number }>();
-    const averageStudentsPerAcademy = Math.round(avgStudentsResult?.avg || 0);
+    // 최근 출석 기록
+    const recentAttendance = await DB.prepare(`
+      SELECT COUNT(*) as count
+      FROM attendance_records
+      WHERE substr(verifiedAt, 1, 10) = substr(datetime('now', '+9 hours'), 1, 10)
+    `).first();
+    const todayAttendance = recentAttendance?.count || 0;
 
-    // 최근 가입 사용자 (최근 10명)
-    const recentUsers = await DB.prepare(
-      `SELECT id, email, name, role, academy_id, created_at 
-       FROM users 
-       ORDER BY datetime(created_at) DESC 
-       LIMIT 10`
-    ).all();
+    // 최근 숙제 제출
+    const recentHomework = await DB.prepare(`
+      SELECT COUNT(*) as count
+      FROM homework_submissions
+      WHERE substr(submittedAt, 1, 10) = substr(datetime('now', '+9 hours'), 1, 10)
+    `).first();
+    const todayHomework = recentHomework?.count || 0;
 
-    // 임시 데이터 (D1에 AI 봇 테이블이 없을 수 있으므로)
-    const stats = {
-      totalUsers,
-      newUsersThisMonth,
-      usersByRole: usersByRoleMap,
-      totalAcademies,
-      activeAcademies,
-      averageStudentsPerAcademy,
-      totalBots: 0, // TODO: AI 봇 테이블 생성 후 구현
-      activeBots: 0,
-      conversationsThisMonth: 0,
-      totalInquiries: 0, // TODO: 문의 테이블 생성 후 구현
-      pendingInquiries: 0,
-      resolvedInquiries: 0,
-      recentUsers: recentUsers?.results || [],
-      recentInquiries: [], // TODO: 문의 테이블 생성 후 구현
-    };
+    // 전체 구매 통계 (준비 중)
+    const totalPurchases = 0;
+    const totalRevenue = 0;
 
-    return new Response(JSON.stringify(stats), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error: any) {
-    console.error("Dashboard stats error:", error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
+        success: true,
+        totalUsers,
+        newUsersThisMonth,
+        usersByRole: roleStats,
+        totalStudents,
+        recentUsers: recentUsers.results,
+        todayAttendance,
+        todayHomework,
+        totalPurchases,
+        totalRevenue,
+        activeAcademies: 0,
+        totalAcademies: 0,
+        aiUsageThisMonth: 0,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  } catch (error: any) {
+    console.error("Admin dashboard stats error:", error);
+    return new Response(
+      JSON.stringify({
         error: "Failed to fetch dashboard stats",
-        message: error.message 
+        message: error.message,
       }),
       {
         status: 500,
