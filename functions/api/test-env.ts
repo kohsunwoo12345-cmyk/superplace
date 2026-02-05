@@ -17,4 +17,5 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
   );
 };
-# Force redeploy for env vars - Wed Feb  4 18:34:18 UTC 2026
+# Force redeploy for env vars - Wed Feb  4 19:58:00 UTC 2026
+# Note: Preview 환경에 GOOGLE_GEMINI_API_KEY 설정 필요
