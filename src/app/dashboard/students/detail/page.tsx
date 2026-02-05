@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, Clock, Award,
-  BookOpen, MessageSquare, TrendingUp, FileText, Edit
+  BookOpen, MessageSquare, TrendingUp, FileText, Edit, QrCode, Copy
 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
+import { QRCodeSVG } from "qrcode.react";
 
 interface StudentDetail {
   id: string;
@@ -30,6 +31,12 @@ interface StudentDetail {
   status?: string;
 }
 
+interface AttendanceCode {
+  code: string;
+  userId: string;
+  isActive: number;
+}
+
 function StudentDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,8 +44,10 @@ function StudentDetailContent() {
 
   const [user, setUser] = useState<any>(null);
   const [student, setStudent] = useState<StudentDetail | null>(null);
+  const [attendanceCode, setAttendanceCode] = useState<AttendanceCode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -58,6 +67,7 @@ function StudentDetailContent() {
   useEffect(() => {
     if (studentId && user) {
       fetchStudentDetail();
+      fetchAttendanceCode();
     }
   }, [studentId, user]);
 
@@ -88,6 +98,30 @@ function StudentDetailContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAttendanceCode = async () => {
+    try {
+      const response = await fetch(`/api/students/attendance-code?userId=${studentId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setAttendanceCode({
+            code: data.code,
+            userId: data.userId,
+            isActive: data.isActive,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch attendance code:", error);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   if (loading) {
@@ -199,6 +233,75 @@ function StudentDetailContent() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 출석 코드 섹션 */}
+        {attendanceCode && (
+          <Card className="border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <QrCode className="w-6 h-6 text-indigo-600" />
+                학생 출석 코드
+              </CardTitle>
+              <CardDescription>
+                학생이 출석 인증 시 사용하는 고유 코드입니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* 코드 정보 */}
+                <div className="space-y-4">
+                  <div className="bg-white rounded-lg p-6 border-2 border-indigo-300">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-600">출석 코드</span>
+                      <Badge variant={attendanceCode.isActive ? "default" : "secondary"}>
+                        {attendanceCode.isActive ? "활성" : "비활성"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="text-4xl font-bold text-indigo-600 tracking-widest font-mono">
+                        {attendanceCode.code}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(attendanceCode.code)}
+                        className="ml-auto"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {copied && (
+                      <p className="text-xs text-green-600 mt-2">✓ 복사되었습니다</p>
+                    )}
+                  </div>
+                  
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-sm text-yellow-800">
+                      💡 <strong>사용 방법:</strong><br/>
+                      학생이 출석 인증 페이지에서 이 코드를 입력하면 자동으로 출석이 체크됩니다.
+                    </p>
+                  </div>
+                </div>
+
+                {/* QR 코드 */}
+                <div className="flex flex-col items-center justify-center bg-white rounded-lg p-6 border-2 border-indigo-300">
+                  <p className="text-sm text-gray-600 mb-4">QR 코드로 스캔</p>
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <QRCodeSVG
+                      value={attendanceCode.code}
+                      size={200}
+                      level="H"
+                      includeMargin={true}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-4 text-center">
+                    카메라로 스캔하여 빠르게 인증
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 상세 정보 탭 */}
         <Tabs defaultValue="info" className="space-y-4">
