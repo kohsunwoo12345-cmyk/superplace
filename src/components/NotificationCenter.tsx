@@ -43,47 +43,29 @@ export default function NotificationCenter() {
     setUnreadCount(count);
   }, [notifications]);
 
-  const loadNotifications = () => {
-    // 목업 데이터
-    const mockNotifications: Notification[] = [
-      {
-        id: "notif-1",
-        type: "attendance",
-        title: "출석 인증 완료",
-        message: "김민준 학생이 출석을 인증했습니다.",
-        timestamp: new Date(Date.now() - 5 * 60000),
-        read: false,
-        priority: "medium",
-      },
-      {
-        id: "notif-2",
-        type: "homework",
-        title: "숙제 제출",
-        message: "이서연 학생이 수학 숙제를 제출했습니다.",
-        timestamp: new Date(Date.now() - 15 * 60000),
-        read: false,
-        priority: "medium",
-      },
-      {
-        id: "notif-3",
-        type: "chat",
-        title: "AI 채팅 활동",
-        message: "오늘 38명의 학생이 AI 튜터를 사용했습니다.",
-        timestamp: new Date(Date.now() - 60 * 60000),
-        read: true,
-        priority: "low",
-      },
-      {
-        id: "notif-4",
-        type: "achievement",
-        title: "학습 목표 달성",
-        message: "박지호 학생이 이번 주 학습 목표를 달성했습니다! 🎉",
-        timestamp: new Date(Date.now() - 120 * 60000),
-        read: false,
-        priority: "high",
-      },
-    ];
-    setNotifications(mockNotifications);
+  const loadNotifications = async () => {
+    try {
+      // 사용자 정보에서 academyId 가져오기
+      const userStr = localStorage.getItem("user");
+      if (!userStr) return;
+      
+      const user = JSON.parse(userStr);
+      const academyId = user.academyId;
+      
+      // API에서 학원별 필터링된 알림 가져오기
+      const response = await fetch(`/api/notifications?academyId=${academyId || ''}`);
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+      } else {
+        // API 실패 시 빈 배열 설정 (다른 학원 알림 표시 안 함)
+        setNotifications([]);
+      }
+    } catch (error) {
+      console.error("Failed to load notifications:", error);
+      // 에러 시에도 알림 표시 안 함 (보안상 중요)
+      setNotifications([]);
+    }
   };
 
   const checkNewNotifications = async () => {
