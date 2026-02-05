@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,9 +25,12 @@ interface StudentDetail {
   lastLoginAt?: string;
   points: number;
   balance: number;
+  grade?: string;
+  studentCode?: string;
+  status?: string;
 }
 
-export default function StudentDetailPage() {
+function StudentDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const studentId = searchParams?.get('id');
@@ -35,6 +38,7 @@ export default function StudentDetailPage() {
   const [user, setUser] = useState<any>(null);
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -42,40 +46,74 @@ export default function StudentDetailPage() {
       router.push("/login");
       return;
     }
-    const userData = JSON.parse(userStr);
-    setUser(userData);
+    try {
+      const userData = JSON.parse(userStr);
+      setUser(userData);
+    } catch (error) {
+      console.error("Failed to parse user data:", error);
+      router.push("/login");
+    }
   }, [router]);
 
   useEffect(() => {
-    if (studentId) {
+    if (studentId && user) {
       fetchStudentDetail();
     }
-  }, [studentId]);
+  }, [studentId, user]);
 
   const fetchStudentDetail = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/users/${studentId}`);
+      setError(null);
+      
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${studentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
       if (response.ok) {
         const data = await response.json();
         setStudent(data);
       } else {
-        alert("학생 정보를 불러올 수 없습니다.");
-        router.back();
+        const errorData = await response.json().catch(() => ({ message: "학생 정보를 불러올 수 없습니다." }));
+        setError(errorData.message || "학생 정보를 불러올 수 없습니다.");
       }
     } catch (error) {
       console.error("Failed to fetch student detail:", error);
-      alert("오류가 발생했습니다.");
-      router.back();
+      setError("오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading || !student) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error || !student) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+        <div className="max-w-7xl mx-auto">
+          <Card className="border-red-200">
+            <CardHeader>
+              <CardTitle className="text-red-600">오류 발생</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-600">{error || "학생 정보를 불러올 수 없습니다."}</p>
+              <Button onClick={() => router.back()} variant="outline">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                뒤로가기
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -142,7 +180,7 @@ export default function StudentDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-lg font-bold text-purple-600">{student.points}P</p>
+              <p className="text-lg font-bold text-purple-600">{student.points || 0}P</p>
             </CardContent>
           </Card>
 
@@ -196,11 +234,11 @@ export default function StudentDetailPage() {
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600">포인트</p>
-                    <p className="font-medium text-purple-600">{student.points}P</p>
+                    <p className="font-medium text-purple-600">{student.points || 0}P</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600">잔액</p>
-                    <p className="font-medium text-blue-600">{student.balance.toLocaleString()}원</p>
+                    <p className="font-medium text-blue-600">{(student.balance || 0).toLocaleString()}원</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600">가입일</p>
@@ -268,5 +306,17 @@ export default function StudentDetailPage() {
         </Tabs>
       </div>
     </div>
+  );
+}
+
+export default function StudentDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <StudentDetailContent />
+    </Suspense>
   );
 }
