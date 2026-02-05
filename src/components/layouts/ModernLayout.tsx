@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { 
   Menu, X, LogOut, User, Bell, Search, Home, BookOpen, 
   Users, Calendar, MessageCircle, BarChart2, Settings,
-  GraduationCap, Award, FileText, Clock, ExternalLink
+  GraduationCap, Award, FileText, Clock, ExternalLink,
+  DollarSign, CreditCard, Presentation, ClipboardList, Sparkles
 } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
 
@@ -62,6 +63,10 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         // 관리자 전용 메뉴
         { id: 'admin-users', href: '/dashboard/admin/users', icon: Users, text: '사용자 관리' },
         { id: 'admin-academies', href: '/dashboard/admin/academies', icon: GraduationCap, text: '학원 관리' },
+        { id: 'admin-revenue', href: '/dashboard/admin/revenue', icon: DollarSign, text: '매출 관리' },
+        { id: 'admin-pricing', href: '/dashboard/admin/pricing', icon: CreditCard, text: '요금제 관리' },
+        { id: 'admin-seminars', href: '/dashboard/admin/seminars', icon: Presentation, text: '교육 세미나' },
+        { id: 'admin-logs', href: '/dashboard/admin/logs', icon: ClipboardList, text: '상세 기록' },
         { id: 'admin-ai-bots', href: '/dashboard/admin/ai-bots', icon: MessageCircle, text: 'AI 봇 관리' },
         { id: 'admin-inquiries', href: '/dashboard/admin/inquiries', icon: FileText, text: '문의 관리' },
         { id: 'admin-system', href: '/dashboard/admin/system', icon: Settings, text: '시스템 설정' },
@@ -71,6 +76,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         { id: 'classes', href: '/dashboard/classes', icon: BookOpen, text: '수업 관리' },
         { id: 'attendance', href: '/dashboard/teacher-attendance', icon: Clock, text: '출석 관리' },
         { id: 'ai-chat', href: '/dashboard/ai-chat', icon: MessageCircle, text: 'AI 챗봇' },
+        { id: 'gemini-chat', href: '/dashboard/gemini-chat', icon: Sparkles, text: 'Gemini 채팅' },
         { id: 'analytics', href: '/dashboard/analytics', icon: BarChart2, text: '통계 분석' },
         { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
       ];
