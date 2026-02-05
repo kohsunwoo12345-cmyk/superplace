@@ -58,47 +58,54 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4 relative overflow-hidden">
-      {/* Decorative elements */}
-      <div className="absolute top-20 left-10 w-20 h-20 bg-blue-200 rounded-full opacity-20 blur-xl"></div>
-      <div className="absolute bottom-20 right-10 w-32 h-32 bg-purple-200 rounded-full opacity-20 blur-xl"></div>
-      <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-pink-200 rounded-full opacity-20 blur-xl"></div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 px-4 py-8 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Decorative elements - 반응형 크기 */}
+      <div className="absolute top-10 sm:top-20 left-5 sm:left-10 w-16 h-16 sm:w-20 sm:h-20 bg-blue-200 rounded-full opacity-20 blur-xl"></div>
+      <div className="absolute bottom-10 sm:bottom-20 right-5 sm:right-10 w-24 h-24 sm:w-32 sm:h-32 bg-purple-200 rounded-full opacity-20 blur-xl"></div>
+      <div className="absolute top-1/2 left-1/4 sm:left-1/3 w-20 h-20 sm:w-24 sm:h-24 bg-pink-200 rounded-full opacity-20 blur-xl"></div>
 
       <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2 mb-6">
-            <GraduationCap className="h-10 w-10 text-primary" />
-            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        {/* 헤더 - 반응형 텍스트 크기 */}
+        <div className="text-center mb-6 sm:mb-8">
+          <Link href="/" className="inline-flex items-center space-x-2 mb-4 sm:mb-6">
+            <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
+            <span className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent break-words">
               SUPER PLACE
             </span>
           </Link>
-          <h1 className="text-2xl font-bold mb-2">로그인</h1>
-          <p className="text-gray-600">학습 관리 시스템에 접속하세요</p>
+          <h1 className="text-xl sm:text-2xl font-bold mb-2">로그인</h1>
+          <p className="text-sm sm:text-base text-gray-600">
+            학습 관리 시스템에 접속하세요
+          </p>
         </div>
 
         <Card className="border-2 border-blue-100 shadow-2xl">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 space-y-3">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 space-y-3 p-4 sm:p-6">
             <div className="flex justify-center">
-              <div className="p-3 bg-white rounded-full shadow-md">
-                <BookOpen className="h-8 w-8 text-blue-600" />
+              <div className="p-2 sm:p-3 bg-white rounded-full shadow-md">
+                <BookOpen className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
               </div>
             </div>
-            <CardTitle className="text-2xl text-center">환영합니다</CardTitle>
-            <CardDescription className="text-center">
+            <CardTitle className="text-xl sm:text-2xl text-center">
+              환영합니다
+            </CardTitle>
+            <CardDescription className="text-center text-sm sm:text-base">
               SUPER PLACE 학습 관리 시스템
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 sm:pt-6 p-4 sm:p-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm flex items-start gap-2">
-                  <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                  <div>{error}</div>
+                <div className="bg-destructive/10 text-destructive px-3 sm:px-4 py-2 sm:py-3 rounded-md text-xs sm:text-sm flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 mt-0.5 flex-shrink-0" />
+                  <div className="break-words-all">{error}</div>
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">이메일</Label>
+                <Label htmlFor="email" className="text-sm sm:text-base">
+                  이메일
+                </Label>
                 <Input
                   id="email"
                   name="email"
@@ -108,17 +115,19 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="border-blue-200 focus:border-blue-400"
+                  className="border-blue-200 focus:border-blue-400 h-11 sm:h-12 text-sm sm:text-base"
                   autoComplete="email"
                 />
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password">비밀번호</Label>
+                  <Label htmlFor="password" className="text-sm sm:text-base">
+                    비밀번호
+                  </Label>
                   <Link
                     href="/forgot-password"
-                    className="text-sm text-blue-600 hover:underline"
+                    className="text-xs sm:text-sm text-blue-600 hover:underline touch-target"
                   >
                     비밀번호 찾기
                   </Link>
@@ -132,29 +141,35 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="border-blue-200 focus:border-blue-400"
+                  className="border-blue-200 focus:border-blue-400 h-11 sm:h-12 text-sm sm:text-base"
                   autoComplete="current-password"
                 />
               </div>
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg h-11 sm:h-12 text-sm sm:text-base touch-target"
                 disabled={isLoading}
               >
                 {isLoading ? "로그인 중..." : "로그인"}
               </Button>
 
-              <div className="text-center text-sm pt-4 border-t space-y-3">
-                <div>
+              <div className="text-center text-xs sm:text-sm pt-4 border-t space-y-2 sm:space-y-3">
+                <div className="break-words">
                   <span className="text-gray-600">학생이신가요? </span>
-                  <Link href="/student-login" className="text-indigo-600 hover:underline font-medium">
+                  <Link 
+                    href="/student-login" 
+                    className="text-indigo-600 hover:underline font-medium touch-target inline-block"
+                  >
                     학생 로그인
                   </Link>
                 </div>
-                <div>
+                <div className="break-words">
                   <span className="text-gray-600">아직 계정이 없으신가요? </span>
-                  <Link href="/register" className="text-blue-600 hover:underline font-medium">
+                  <Link 
+                    href="/register" 
+                    className="text-blue-600 hover:underline font-medium touch-target inline-block"
+                  >
                     회원가입
                   </Link>
                 </div>
@@ -163,8 +178,11 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <div className="text-center mt-6">
-          <Link href="/" className="text-sm text-gray-600 hover:text-gray-900 hover:underline">
+        <div className="text-center mt-4 sm:mt-6">
+          <Link 
+            href="/" 
+            className="text-xs sm:text-sm text-gray-600 hover:text-gray-900 hover:underline touch-target inline-block"
+          >
             ← 홈으로 돌아가기
           </Link>
         </div>
