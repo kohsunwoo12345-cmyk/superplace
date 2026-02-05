@@ -61,7 +61,7 @@ export default function AttendanceStatisticsPage() {
     }
   };
 
-  if (loading || !user || !statistics) {
+  if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -71,14 +71,20 @@ export default function AttendanceStatisticsPage() {
 
   // 학생용 달력 뷰
   if (user.role === "STUDENT") {
+    // 현재 날짜 기본값 설정
+    const now = new Date();
+    const defaultYear = now.getFullYear();
+    const defaultMonth = now.getMonth() + 1;
+    
     // 달력 데이터 준비
     const calendarData: any = {};
-    statistics.calendar?.forEach((item: any) => {
+    statistics?.calendar?.forEach((item: any) => {
       calendarData[item.date] = item.status;
     });
 
     // 현재 월의 모든 날짜 생성
-    const [year, month] = statistics.thisMonth.split('-');
+    const thisMonth = statistics?.thisMonth || `${defaultYear}-${String(defaultMonth).padStart(2, '0')}`;
+    const [year, month] = thisMonth.split('-');
     const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
     const firstDay = new Date(parseInt(year), parseInt(month) - 1, 1).getDay();
 
@@ -91,7 +97,7 @@ export default function AttendanceStatisticsPage() {
               나의 출석 현황
             </h1>
             <p className="text-gray-600 mt-1">
-              이번 달 출석일: {statistics.attendanceDays}일
+              이번 달 출석일: {statistics?.attendanceDays || 0}일
             </p>
           </div>
           <Button variant="outline" onClick={() => router.back()}>
@@ -125,7 +131,8 @@ export default function AttendanceStatisticsPage() {
                 const day = i + 1;
                 const dateStr = `${year}-${month}-${String(day).padStart(2, '0')}`;
                 const status = calendarData[dateStr];
-                const isToday = dateStr === statistics.today;
+                const today = new Date().toISOString().split('T')[0];
+                const isToday = dateStr === today;
 
                 let bgColor = 'bg-gray-50';
                 let emoji = '';
@@ -164,7 +171,7 @@ export default function AttendanceStatisticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-600">
-                {statistics.attendanceDays}일
+                {statistics?.attendanceDays || 0}일
               </div>
             </CardContent>
           </Card>
@@ -177,7 +184,7 @@ export default function AttendanceStatisticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-blue-600">
-                {Math.round((statistics.attendanceDays / daysInMonth) * 100)}%
+                {Math.round(((statistics?.attendanceDays || 0) / daysInMonth) * 100)}%
               </div>
             </CardContent>
           </Card>
@@ -200,6 +207,16 @@ export default function AttendanceStatisticsPage() {
   }
 
   // 선생님/학원장/관리자용 통계 뷰
+  // 데이터가 없을 때 기본값 설정
+  const stats = statistics?.statistics || {
+    totalStudents: 0,
+    todayAttendance: 0,
+    monthAttendance: 0,
+    attendanceRate: 0
+  };
+  const weeklyData = statistics?.weeklyData || [];
+  const monthlyData = statistics?.monthlyData || [];
+  
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -209,7 +226,7 @@ export default function AttendanceStatisticsPage() {
             출석 통계
           </h1>
           <p className="text-gray-600 mt-1">
-            {user.role === "ADMIN" ? "전체" : user.academyName || "학원"} 학생 출석 현황
+            {user.role === "ADMIN" || user.role === "SUPER_ADMIN" ? "전체" : user.academyName || "학원"} 학생 출석 현황
           </p>
         </div>
         <Button variant="outline" onClick={() => router.back()}>
@@ -229,7 +246,7 @@ export default function AttendanceStatisticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">
-              {statistics.statistics.totalStudents}명
+              {stats.totalStudents}명
             </div>
           </CardContent>
         </Card>
@@ -243,7 +260,7 @@ export default function AttendanceStatisticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">
-              {statistics.statistics.todayAttendance}명
+              {stats.todayAttendance}명
             </div>
           </CardContent>
         </Card>
@@ -257,7 +274,7 @@ export default function AttendanceStatisticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-purple-600">
-              {statistics.statistics.monthAttendance}명
+              {stats.monthAttendance}명
             </div>
           </CardContent>
         </Card>
@@ -271,71 +288,86 @@ export default function AttendanceStatisticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-orange-600">
-              {statistics.statistics.attendanceRate}%
+              {stats.attendanceRate}%
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* 주간 그래프 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>주간 출석 추이</CardTitle>
-          <CardDescription>최근 7일간 출석 현황</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={statistics.weeklyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
+      {weeklyData.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>주간 출석 추이</CardTitle>
+            <CardDescription>최근 7일간 출석 현황</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={weeklyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
               <Legend />
               <Line type="monotone" dataKey="count" stroke="#3b82f6" name="출석 인원" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
+      ) : (
+        <Card>
+          <CardContent className="py-12 text-center text-gray-500">
+            <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+            <p>아직 출석 데이터가 없습니다</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 최근 출석 기록 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>최근 출석 기록</CardTitle>
-          <CardDescription>최근 출석한 학생 목록</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {statistics.records.slice(0, 10).map((record: any) => (
-              <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="font-semibold text-blue-600">
-                      {record.userName[0]}
-                    </span>
+      {statistics?.records && statistics.records.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>최근 출석 기록</CardTitle>
+            <CardDescription>최근 출석한 학생 목록</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {statistics.records.slice(0, 10).map((record: any) => (
+                <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="font-semibold text-blue-600">
+                        {record.userName?.[0] || '?'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-medium">{record.userName || '알 수 없음'}</p>
+                      <p className="text-sm text-gray-600">
+                        {record.academyName || "미배정"} · {record.email || ''}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{record.userName}</p>
-                    <p className="text-sm text-gray-600">
-                      {record.academyName || "미배정"} · {record.email}
+                  <div className="text-right">
+                    <Badge variant={record.status === "VERIFIED" ? "default" : "secondary"}>
+                      {record.status === "VERIFIED" ? "출석" : record.status}
+                    </Badge>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {format(new Date(record.verifiedAt), "MM/dd HH:mm", { locale: ko })}
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <Badge variant={record.status === "VERIFIED" ? "default" : "secondary"}>
-                    {record.status === "VERIFIED" ? "출석" : record.status}
-                  </Badge>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {format(new Date(record.verifiedAt), "MM/dd HH:mm", { locale: ko })}
-                  </p>
-                </div>
-              </div>
-            ))}
-            {(!statistics.records || statistics.records.length === 0) && (
-              <p className="text-center text-gray-500 py-8">출석 기록이 없습니다</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="py-12 text-center text-gray-500">
+            <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+            <p>아직 출석 기록이 없습니다</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
