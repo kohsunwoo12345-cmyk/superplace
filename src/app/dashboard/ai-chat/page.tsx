@@ -19,6 +19,7 @@ interface AIBot {
   name: string;
   description?: string;
   profileIcon: string;
+  profileImage?: string;
   systemPrompt: string;
   welcomeMessage?: string;
   starterMessage1?: string;
@@ -280,7 +281,15 @@ export default function AIChatPage() {
             >
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="text-xl sm:text-2xl sm:text-3xl">{bot.profileIcon}</div>
+                  {bot.profileImage ? (
+                    <img 
+                      src={bot.profileImage} 
+                      alt={bot.name}
+                      className="w-10 h-10 object-cover rounded-lg border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="text-xl sm:text-2xl sm:text-3xl">{bot.profileIcon}</div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold truncate">{bot.name}</h4>
                     {bot.description && (
@@ -303,7 +312,15 @@ export default function AIChatPage() {
           <Card className="h-full flex flex-col">
             <CardHeader className="border-b">
               <div className="flex items-center gap-3">
-                <div className="text-4xl">{selectedBot?.profileIcon}</div>
+                {selectedBot?.profileImage ? (
+                  <img 
+                    src={selectedBot.profileImage} 
+                    alt={selectedBot.name}
+                    className="w-12 h-12 object-cover rounded-lg border-2 border-gray-200"
+                  />
+                ) : (
+                  <div className="text-4xl">{selectedBot?.profileIcon}</div>
+                )}
                 <div className="flex-1">
                   <CardTitle className="flex items-center gap-2">
                     {selectedBot?.name}
@@ -327,9 +344,17 @@ export default function AIChatPage() {
                     }`}
                   >
                     {message.role === "assistant" && (
-                      <div className="text-xl sm:text-2xl sm:text-3xl flex-shrink-0">
-                        {selectedBot?.profileIcon}
-                      </div>
+                      selectedBot?.profileImage ? (
+                        <img 
+                          src={selectedBot.profileImage} 
+                          alt={selectedBot.name}
+                          className="w-8 h-8 object-cover rounded-lg border-2 border-gray-200 flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="text-xl sm:text-2xl sm:text-3xl flex-shrink-0">
+                          {selectedBot?.profileIcon}
+                        </div>
+                      )
                     )}
 
                     <div
@@ -398,9 +423,17 @@ export default function AIChatPage() {
 
               {loading && (
                 <div className="flex gap-3 justify-start">
-                  <div className="text-xl sm:text-2xl sm:text-3xl flex-shrink-0">
-                    {selectedBot?.profileIcon}
-                  </div>
+                  {selectedBot?.profileImage ? (
+                    <img 
+                      src={selectedBot.profileImage} 
+                      alt={selectedBot.name}
+                      className="w-8 h-8 object-cover rounded-lg border-2 border-gray-200 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="text-xl sm:text-2xl sm:text-3xl flex-shrink-0">
+                      {selectedBot?.profileIcon}
+                    </div>
+                  )}
                   <div className="bg-gray-100 rounded-lg px-4 py-2">
                     <div className="flex gap-1">
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>

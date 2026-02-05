@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Menu, X, LogOut, User, Bell, Search, Home, BookOpen, 
   Users, Calendar, MessageCircle, BarChart2, Settings,
-  GraduationCap, Award, FileText, Clock
+  GraduationCap, Award, FileText, Clock, ExternalLink
 } from 'lucide-react';
 
 interface MenuItem {
@@ -153,6 +153,19 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2 sm:gap-4">
+              {/* Homepage Button - 학원장, 선생님, 관리자만 */}
+              {role.toUpperCase() !== 'STUDENT' && (
+                <a
+                  href="/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span className="text-sm font-medium">홈페이지</span>
+                </a>
+              )}
+
               {/* Search */}
               <button className="hidden md:flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
                 <Search className="w-4 h-4 text-gray-600" />
