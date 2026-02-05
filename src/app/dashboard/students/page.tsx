@@ -68,12 +68,17 @@ export default function StudentsPage() {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/students", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
+      
+      // 학원별 필터링을 위한 파라미터 구성
+      const params = new URLSearchParams();
+      if (user.role) {
+        params.append('role', user.role);
+      }
+      if (user.academy_id) {
+        params.append('academyId', user.academy_id);
+      }
+      
+      const response = await fetch(`/api/students?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         setStudents(data.students || []);
@@ -109,7 +114,7 @@ export default function StudentsPage() {
           </h1>
           <p className="text-gray-600 mt-1">전체 학생 목록을 확인하고 관리합니다</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => router.push('/dashboard/students/add')}>
           <UserPlus className="h-5 w-5" />
           학생 추가
         </Button>
@@ -248,7 +253,7 @@ export default function StudentsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => router.push(`/dashboard/students/${student.id}`)}
+                      onClick={() => router.push(`/dashboard/students/detail?id=${student.id}`)}
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       상세보기
