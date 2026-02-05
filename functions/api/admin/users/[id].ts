@@ -15,17 +15,30 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 사용자 정보 조회 (포인트, 마지막 로그인 포함)
+    // 사용자 정보 조회 - attendance_code 컬럼 제거됨
     const user = await DB.prepare(
       `SELECT 
-        id, email, name, phone, role, password, 
-        points, balance,
+        id, 
+        email, 
+        name, 
+        phone, 
+        role, 
+        password, 
+        points, 
+        balance,
         academy_id as academyId, 
         academy_name as academyName,
         created_at as createdAt
        FROM users 
        WHERE id = ?`
     ).bind(userId).first();
+
+    if (!user) {
+      return new Response(JSON.stringify({ error: "User not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     // 마지막 로그인 정보 조회
     let lastLogin = null;
@@ -40,13 +53,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     } catch (e) {
       // 테이블이 없으면 무시
       console.log("Login logs table not found:", e);
-    }
-
-    if (!user) {
-      return new Response(JSON.stringify({ error: "User not found" }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      });
     }
 
     return new Response(
