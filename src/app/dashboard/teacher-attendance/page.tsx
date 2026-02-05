@@ -25,6 +25,23 @@ interface Student {
   email: string;
 }
 
+interface AttendanceRecord {
+  id: string;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  code: string;
+  verifiedAt: string;
+  status: string;
+  homeworkSubmitted: boolean;
+  homeworkSubmittedAt: string | null;
+  homework: {
+    score: number;
+    subject: string;
+    feedback: string;
+  } | null;
+}
+
 export default function TeacherAttendancePage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -32,6 +49,9 @@ export default function TeacherAttendancePage() {
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [generatedCode, setGeneratedCode] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [attendanceStats, setAttendanceStats] = useState<any>(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -45,7 +65,33 @@ export default function TeacherAttendancePage() {
 
     // 학생 목록 로드
     fetchStudents();
+    
+    // 오늘의 출석 현황 로드
+    fetchTodayAttendance(userData);
   }, [router]);
+
+  const fetchTodayAttendance = async (userData: any) => {
+    try {
+      setAttendanceLoading(true);
+      const today = new Date().toISOString().split('T')[0];
+      const params = new URLSearchParams({
+        date: today,
+        academyId: userData.academyId || "",
+        role: userData.role || "",
+      });
+      
+      const response = await fetch(`/api/attendance/today?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        setAttendanceRecords(data.records || []);
+        setAttendanceStats(data.statistics || {});
+      }
+    } catch (error) {
+      console.error("Failed to fetch today's attendance:", error);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
 
   const fetchStudents = async () => {
     try {
@@ -283,13 +329,142 @@ export default function TeacherAttendancePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">출석 현황 기능 준비 중...</p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    곧 출석률, 지각 현황 등을 확인할 수 있습니다
-                  </p>
-                </div>
+                {attendanceLoading ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-gray-600 mt-4">출석 현황 로딩 중...</p>
+                  </div>
+                ) : attendanceRecords.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">오늘 출석한 학생이 없습니다</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      학생이 출석 코드를 입력하면 여기에 표시됩니다
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* 통계 카드 */}
+                    {attendanceStats && (
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <Card className="bg-gradient-to-br from-blue-50 to-blue-100">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-gray-600">총 출석</p>
+                                <p className="text-2xl font-bold text-blue-600">{attendanceStats.totalAttendance}명</p>
+                              </div>
+                              <Users className="w-8 h-8 text-blue-600" />
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card className="bg-gradient-to-br from-green-50 to-green-100">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-gray-600">숙제 제출</p>
+                                <p className="text-2xl font-bold text-green-600">{attendanceStats.homeworkSubmitted}명</p>
+                              </div>
+                              <CheckCircle className="w-8 h-8 text-green-600" />
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card className="bg-gradient-to-br from-orange-50 to-orange-100">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-gray-600">숙제 미제출</p>
+                                <p className="text-2xl font-bold text-orange-600">{attendanceStats.homeworkPending}명</p>
+                              </div>
+                              <AlertCircle className="w-8 h-8 text-orange-600" />
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card className="bg-gradient-to-br from-purple-50 to-purple-100">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-gray-600">평균 점수</p>
+                                <p className="text-2xl font-bold text-purple-600">{attendanceStats.averageScore}점</p>
+                              </div>
+                              <TrendingUp className="w-8 h-8 text-purple-600" />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+
+                    {/* 출석 학생 목록 */}
+                    <div className="space-y-3">
+                      <h3 className="font-semibold text-lg">출석한 학생 ({attendanceRecords.length}명)</h3>
+                      <div className="space-y-2">
+                        {attendanceRecords.map((record) => (
+                          <Card key={record.id} className="border-l-4 border-l-green-500">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="font-semibold text-lg">{record.userName}</h4>
+                                    <Badge variant="outline" className="text-xs">
+                                      {record.userEmail}
+                                    </Badge>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 text-sm">
+                                    <div>
+                                      <span className="text-gray-600">출석 시간: </span>
+                                      <span className="font-medium">
+                                        {new Date(record.verifiedAt).toLocaleTimeString('ko-KR')}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600">출석 코드: </span>
+                                      <span className="font-mono font-medium">{record.code}</span>
+                                    </div>
+                                  </div>
+                                  {record.homework && (
+                                    <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-semibold text-purple-700">숙제 제출 완료</span>
+                                        <Badge className="bg-purple-600">{record.homework.score}점</Badge>
+                                      </div>
+                                      <div className="text-xs space-y-1">
+                                        <div>
+                                          <span className="text-gray-600">과목: </span>
+                                          <span className="font-medium">{record.homework.subject}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-600">제출 시간: </span>
+                                          <span className="font-medium">
+                                            {record.homeworkSubmittedAt 
+                                              ? new Date(record.homeworkSubmittedAt).toLocaleTimeString('ko-KR')
+                                              : '-'}
+                                          </span>
+                                        </div>
+                                        {record.homework.feedback && (
+                                          <div className="mt-2 p-2 bg-white rounded border">
+                                            <p className="text-xs text-gray-700">{record.homework.feedback}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {!record.homeworkSubmitted && (
+                                    <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                                      <div className="flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4 text-orange-600" />
+                                        <span className="text-sm text-orange-700 font-medium">숙제 미제출</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
