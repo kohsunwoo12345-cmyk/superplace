@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Menu, X, LogOut, User, LayoutDashboard, Users, GraduationCap,
   BookOpen, ClipboardCheck, Bot, BarChart3, Settings, 
-  School, MessageSquare, Wrench, UserCog, GripVertical
+  School, MessageSquare, Wrench, UserCog, GripVertical, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 interface MenuItem {
@@ -49,6 +49,7 @@ export default function DashboardLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItem[]>(DEFAULT_MENU_ITEMS);
   const [draggedItem, setDraggedItem] = useState<MenuItem | null>(null);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -65,7 +66,7 @@ export default function DashboardLayout({
       }
     }
 
-    // Load saved menu order
+    // Load saved menu order and sidebar state
     const savedOrder = localStorage.getItem('menuOrder');
     if (savedOrder) {
       try {
@@ -73,6 +74,11 @@ export default function DashboardLayout({
       } catch (error) {
         console.error('Failed to parse menu order:', error);
       }
+    }
+    
+    const savedSidebarState = localStorage.getItem('sidebarHidden');
+    if (savedSidebarState) {
+      setSidebarHidden(savedSidebarState === 'true');
     }
   }, []);
 
@@ -104,6 +110,12 @@ export default function DashboardLayout({
 
   const handleDragEnd = () => {
     setDraggedItem(null);
+  };
+
+  const toggleSidebar = () => {
+    const newState = !sidebarHidden;
+    setSidebarHidden(newState);
+    localStorage.setItem('sidebarHidden', String(newState));
   };
 
   if (!mounted) {
@@ -205,8 +217,10 @@ export default function DashboardLayout({
       </header>
 
       <div className="flex relative">
-        {/* Sidebar - 데스크톱 (축소됨) */}
-        <aside className="hidden lg:block w-52 bg-white shadow-lg min-h-[calc(100vh-4rem)] sticky top-14">
+        {/* Sidebar - 데스크톱 (축소됨, 숨기기 가능) */}
+        <aside className={`hidden lg:block bg-white shadow-lg min-h-[calc(100vh-4rem)] sticky top-14 transition-all duration-300 ${
+          sidebarHidden ? 'w-0 overflow-hidden' : 'w-52'
+        }`}>
           <nav className="p-3 space-y-0.5">
             {/* Admin Menu Section */}
             {isAdmin && adminItems.length > 0 && (
@@ -239,6 +253,22 @@ export default function DashboardLayout({
             </div>
           </div>
         </aside>
+
+        {/* 사이드바 토글 버튼 - 데스크톱만 */}
+        <button
+          onClick={toggleSidebar}
+          className={`hidden lg:flex fixed top-20 z-50 items-center justify-center w-6 h-12 bg-white shadow-md rounded-r-lg hover:bg-gray-50 transition-all duration-300 ${
+            sidebarHidden ? 'left-0' : 'left-52'
+          }`}
+          aria-label={sidebarHidden ? '사이드바 표시' : '사이드바 숨기기'}
+          title={sidebarHidden ? '사이드바 표시' : '사이드바 숨기기'}
+        >
+          {sidebarHidden ? (
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          ) : (
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          )}
+        </button>
 
         {/* Mobile Sidebar - 슬라이드 메뉴 */}
         <div

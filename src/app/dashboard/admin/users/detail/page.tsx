@@ -112,26 +112,38 @@ function UserDetailPage() {
     setCurrentUser(userData);
 
     if (userId) {
-      fetchUserDetail();
-      fetchLoginLogs();
-      fetchActivityLogs();
-      fetchBotAssignments();
-      fetchPayments();
+      loadAllData();
     }
-  }, [router, userId]);
+  }, [userId]);
+
+  const loadAllData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchUserDetail(),
+        fetchLoginLogs(),
+        fetchActivityLogs(),
+        fetchBotAssignments(),
+        fetchPayments()
+      ]);
+    } catch (error) {
+      console.error("데이터 로드 실패:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchUserDetail = async () => {
     try {
-      setLoading(true);
       const response = await fetch(`/api/admin/users/${userId}`);
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+      } else {
+        console.error("사용자 정보 로드 실패:", response.status);
       }
     } catch (error) {
       console.error("사용자 정보 로드 실패:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -144,6 +156,8 @@ function UserDetailPage() {
       }
     } catch (error) {
       console.error("로그인 기록 로드 실패:", error);
+      // API가 없으면 빈 배열로 설정
+      setLoginLogs([]);
     }
   };
 
@@ -156,6 +170,8 @@ function UserDetailPage() {
       }
     } catch (error) {
       console.error("활동 기록 로드 실패:", error);
+      // API가 없으면 빈 배열로 설정
+      setActivityLogs([]);
     }
   };
 
@@ -168,6 +184,8 @@ function UserDetailPage() {
       }
     } catch (error) {
       console.error("봇 할당 정보 로드 실패:", error);
+      // API가 없으면 빈 배열로 설정
+      setBotAssignments([]);
     }
   };
 
@@ -180,6 +198,8 @@ function UserDetailPage() {
       }
     } catch (error) {
       console.error("결제 정보 로드 실패:", error);
+      // API가 없으면 빈 배열로 설정
+      setPayments([]);
     }
   };
 
@@ -203,7 +223,7 @@ function UserDetailPage() {
       if (response.ok) {
         alert("비밀번호가 재설정되었습니다.");
         setNewPassword("");
-        fetchUserDetail();
+        await fetchUserDetail();
       } else {
         alert("비밀번호 재설정에 실패했습니다.");
       }
@@ -279,8 +299,7 @@ function UserDetailPage() {
         alert(`${action} 완료!\n\n${data.points.before.toLocaleString()}P → ${data.points.after.toLocaleString()}P`);
         setPointsAmount("");
         setPointsReason("");
-        fetchUserDetail();
-        fetchActivityLogs();
+        await Promise.all([fetchUserDetail(), fetchActivityLogs()]);
       } else {
         const data = await response.json();
         alert(`포인트 ${action} 실패: ${data.error}`);
