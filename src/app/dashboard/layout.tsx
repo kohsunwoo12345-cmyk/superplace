@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import ModernLayout from '@/components/layouts/ModernLayout';
 import { 
   Menu, X, LogOut, User, LayoutDashboard, Users, GraduationCap,
   BookOpen, ClipboardCheck, Bot, BarChart3, Settings, 
@@ -66,7 +67,7 @@ export default function DashboardLayout({
       }
     }
 
-    // Load saved menu order and sidebar state
+    // Load saved menu order and sidebar state (Admin only)
     const savedOrder = localStorage.getItem('menuOrder');
     if (savedOrder) {
       try {
@@ -82,6 +83,16 @@ export default function DashboardLayout({
     }
   }, []);
 
+  if (!mounted) {
+    return null;
+  }
+
+  // 일반 사용자(학원장, 선생님, 학생)는 Modern Layout 사용
+  if (user && !isAdmin) {
+    return <ModernLayout role={user.role}>{children}</ModernLayout>;
+  }
+
+  // 관리자는 기존 레이아웃 사용 (아래 코드)
   const handleDragStart = (e: React.DragEvent, item: MenuItem) => {
     setDraggedItem(item);
     e.dataTransfer.effectAllowed = 'move';
@@ -117,10 +128,6 @@ export default function DashboardLayout({
     setSidebarHidden(newState);
     localStorage.setItem('sidebarHidden', String(newState));
   };
-
-  if (!mounted) {
-    return null;
-  }
 
   const handleLogout = () => {
     localStorage.removeItem('user');
