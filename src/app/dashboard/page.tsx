@@ -128,58 +128,58 @@ export default function DashboardPage() {
   console.log('🎯 Dashboard Render - isStudent:', isStudent);
   console.log('🎯 Dashboard Render - stats:', stats);
 
-  // Super Admin Dashboard
+  // Super Admin Dashboard - 학원장 UI를 그대로 사용하되 데이터만 관리자용으로 변경
   if (isSuperAdmin) {
     console.log('✅ Rendering Super Admin Dashboard');
     return (
       <div className="space-y-4 sm:space-y-6">
-        {/* Welcome Section - 학원장 UI 스타일 적용 (색상만 차별화) */}
-        <div className="bg-gradient-to-r from-indigo-600 to-blue-700 rounded-2xl p-8 text-white">
+        {/* Welcome Section - 학원장과 동일한 디자인 */}
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-8 text-white">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2">
-                안녕하세요, {user.name}님! 🔧
+                안녕하세요, {user.name}님! 👋
               </h1>
-              <p className="text-indigo-100">
-                전체 시스템을 모니터링하고 관리하세요
+              <p className="text-blue-100">
+                전체 시스템을 관리해주세요
               </p>
             </div>
-            <Users className="h-16 w-16 opacity-80" />
+            <GraduationCap className="h-16 w-16 opacity-80" />
           </div>
         </div>
 
-        {/* Stats Cards - 학원장과 동일한 레이아웃 */}
+        {/* Stats Cards - 학원장과 동일한 디자인 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <Card className="border-2 border-indigo-100 hover:shadow-lg transition-shadow">
+          <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
                 전체 사용자
               </CardTitle>
-              <Users className="h-5 w-5 text-indigo-600" />
+              <Users className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-indigo-600">
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-blue-600">
                 {stats?.totalUsers || 0}명
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                이번 달 +{stats?.newUsersThisMonth || 0}명
+                학원 {stats?.totalAcademies || 0}개
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
+          <Card className="border-2 border-green-100 hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                등록된 학원
+                오늘 출석
               </CardTitle>
-              <GraduationCap className="h-5 w-5 text-blue-600" />
+              <CheckCircle className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-blue-600">
-                {stats?.activeAcademies || 0}개
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-green-600">
+                {stats?.todayAttendance || 0}명
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                전체 {stats?.totalAcademies || 0}개
+                전체 출석률 {Math.round((stats?.todayAttendance || 0) / (stats?.totalUsers || 1) * 100)}%
               </p>
             </CardContent>
           </Card>
@@ -187,16 +187,16 @@ export default function DashboardPage() {
           <Card className="border-2 border-purple-100 hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                활성 학생
+                숙제 제출
               </CardTitle>
-              <CheckCircle className="h-5 w-5 text-purple-600" />
+              <FileText className="h-5 w-5 text-purple-600" />
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-purple-600">
-                {stats?.usersByRole?.STUDENT || 0}명
+                {stats?.todayHomework || 0}개
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                전체 학생 수
+                오늘 제출됨
               </p>
             </CardContent>
           </Card>
@@ -206,14 +206,14 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium text-gray-600">
                 AI 사용량
               </CardTitle>
-              <BarChart3 className="h-5 w-5 text-orange-600" />
+              <AlertCircle className="h-5 w-5 text-orange-600" />
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-orange-600">
                 {stats?.aiUsageThisMonth || 0}
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                이번 달 사용
+                이번 달
               </p>
             </CardContent>
           </Card>
@@ -221,34 +221,34 @@ export default function DashboardPage() {
 
         {/* Quick Actions & Recent Activity - 학원장과 동일한 3칸 레이아웃 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          {/* 사용자 관리 */}
+          {/* 최근 가입 사용자 - 학원장의 "오늘 출석 알림" 스타일 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-indigo-600" />
-                사용자 관리
+                <Users className="h-5 w-5 text-green-600" />
+                최근 가입 사용자
               </CardTitle>
-              <CardDescription>최근 가입 사용자</CardDescription>
+              <CardDescription>실시간 사용자 현황</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {(stats?.recentUsers || []).slice(0, 5).map((recentUser: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-indigo-50 transition-colors">
+                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-green-50 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                        <span className="font-semibold text-indigo-600 text-sm">
-                          {recentUser.name[0]}
+                      <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                        <span className="font-semibold text-green-600 text-sm">
+                          {recentUser.name?.[0] || '?'}
                         </span>
                       </div>
                       <div>
                         <p className="font-medium text-sm">{recentUser.name}</p>
                         <p className="text-xs text-gray-600">
-                          {recentUser.role === "DIRECTOR" ? "학원장" : recentUser.role === "TEACHER" ? "선생님" : recentUser.role === "STUDENT" ? "학생" : recentUser.role}
+                          {new Date(recentUser.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                         </p>
                       </div>
                     </div>
-                    <span className="text-xs text-gray-500">
-                      {new Date(recentUser.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      {recentUser.role === "DIRECTOR" ? "학원장" : recentUser.role === "TEACHER" ? "선생님" : recentUser.role === "STUDENT" ? "학생" : recentUser.role}
                     </span>
                   </div>
                 ))}
@@ -256,116 +256,125 @@ export default function DashboardPage() {
                   <p className="text-center text-gray-500 py-4 text-sm">최근 가입 사용자가 없습니다</p>
                 )}
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="w-full mt-4"
-                onClick={() => router.push("/dashboard/admin/users")}
-              >
-                전체 사용자 보기
-              </Button>
             </CardContent>
           </Card>
 
-          {/* 학원 관리 */}
+          {/* 학원 현황 - 학원장의 "숙제 검사 결과" 스타일 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <GraduationCap className="h-5 w-5 text-blue-600" />
-                학원 관리
+                학원 현황
               </CardTitle>
-              <CardDescription>학원 현황</CardDescription>
+              <CardDescription>등록된 학원 정보</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div 
-                  className="p-4 border rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
-                  onClick={() => router.push("/dashboard/admin/academies")}
-                >
+              <div className="space-y-3">
+                <div className="p-3 border rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/academies")}>
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-medium text-sm">등록된 학원</p>
-                    <span className="text-xl font-bold text-blue-600">{stats?.activeAcademies || 0}개</span>
+                    <span className="text-lg font-bold text-blue-600">{stats?.activeAcademies || 0}개</span>
                   </div>
-                  <p className="text-xs text-gray-600">활성 학원 관리</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <span className="bg-gray-100 px-2 py-1 rounded">전체: {stats?.totalAcademies || 0}개</span>
+                  </div>
                 </div>
 
-                <div 
-                  className="p-4 border rounded-lg hover:bg-purple-50 transition-colors cursor-pointer"
-                  onClick={() => router.push("/dashboard/admin/ai-bots")}
-                >
+                <div className="p-3 border rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/ai-bots")}>
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-medium text-sm">AI 봇 관리</p>
                     <Target className="h-5 w-5 text-purple-600" />
                   </div>
-                  <p className="text-xs text-gray-600">AI 봇 생성 및 관리</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <span className="bg-gray-100 px-2 py-1 rounded">AI 봇 생성 및 관리</span>
+                  </div>
                 </div>
 
-                <div 
-                  className="p-4 border rounded-lg hover:bg-green-50 transition-colors cursor-pointer"
-                  onClick={() => router.push("/dashboard/admin/inquiries")}
-                >
+                <div className="p-3 border rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/users")}>
                   <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-sm">문의 관리</p>
-                    <FileText className="h-5 w-5 text-green-600" />
+                    <p className="font-medium text-sm">사용자 관리</p>
+                    <Users className="h-5 w-5 text-green-600" />
                   </div>
-                  <p className="text-xs text-gray-600">고객 문의 응답</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <span className="bg-gray-100 px-2 py-1 rounded">전체 사용자 조회</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* 시스템 현황 */}
+          {/* 관리 메뉴 - 학원장의 "숙제 미제출" 스타일 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-orange-600" />
-                시스템 현황
+                <FileText className="h-5 w-5 text-orange-600" />
+                관리 메뉴
               </CardTitle>
-              <CardDescription>실시간 활동</CardDescription>
+              <CardDescription>시스템 관리</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="p-3 border rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600">오늘 출석</p>
-                        <p className="text-lg font-bold text-green-600">{stats?.todayAttendance || 0}명</p>
-                      </div>
+                <div className="flex items-center justify-between p-3 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/users")}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Users className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">사용자 관리</p>
+                      <p className="text-xs text-gray-600">
+                        전체 사용자 조회
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3 border rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <FileText className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600">숙제 제출</p>
-                        <p className="text-lg font-bold text-blue-600">{stats?.todayHomework || 0}개</p>
-                      </div>
+                <div className="flex items-center justify-between p-3 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/academies")}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                      <GraduationCap className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">학원 관리</p>
+                      <p className="text-xs text-gray-600">
+                        학원 정보 관리
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3 border rounded-lg bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                        <Award className="h-4 w-4 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600">총 구매</p>
-                        <p className="text-lg font-bold text-purple-600">{stats?.totalPurchases || 0}건</p>
-                      </div>
+                <div className="flex items-center justify-between p-3 border border-green-200 rounded-lg hover:bg-green-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/ai-bots")}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <Target className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">AI 봇 관리</p>
+                      <p className="text-xs text-gray-600">
+                        AI 봇 생성/관리
+                      </p>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">준비 중</p>
+                </div>
+
+                <div className="flex items-center justify-between p-3 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/inquiries")}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                      <FileText className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">문의 관리</p>
+                      <p className="text-xs text-gray-600">
+                        고객 문의 응답
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
