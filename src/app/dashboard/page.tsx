@@ -124,11 +124,11 @@ export default function DashboardPage() {
   // Super Admin Dashboard
   if (isSuperAdmin) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold flex items-center gap-2">
               <Users className="h-8 w-8 text-blue-600" />
               시스템 관리자 대시보드
             </h1>
@@ -139,7 +139,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Admin Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
@@ -148,7 +148,7 @@ export default function DashboardPage() {
               <Users className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">{stats?.totalUsers || 0}명</div>
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-blue-600">{stats?.totalUsers || 0}명</div>
               <div className="flex items-center text-sm mt-2">
                 <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
                 <span className="text-green-500">+{stats?.newUsersThisMonth || 0}명</span>
@@ -165,7 +165,7 @@ export default function DashboardPage() {
               <GraduationCap className="h-5 w-5 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-600">{stats?.activeAcademies || 0}개</div>
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-purple-600">{stats?.activeAcademies || 0}개</div>
               <div className="flex items-center text-sm mt-2">
                 <span className="text-gray-500">전체 {stats?.totalAcademies || 0}개</span>
               </div>
@@ -180,7 +180,7 @@ export default function DashboardPage() {
               <CheckCircle className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">{stats?.usersByRole?.STUDENT || 0}명</div>
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-green-600">{stats?.usersByRole?.STUDENT || 0}명</div>
               <div className="flex items-center text-sm mt-2">
                 <span className="text-gray-500">전체 학생 수</span>
               </div>
@@ -195,7 +195,7 @@ export default function DashboardPage() {
               <BarChart3 className="h-5 w-5 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-orange-600">{stats?.aiUsageThisMonth || 0}</div>
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-orange-600">{stats?.aiUsageThisMonth || 0}</div>
               <div className="flex items-center text-sm mt-2">
                 <span className="text-gray-500">이번 달 사용</span>
               </div>
@@ -209,7 +209,7 @@ export default function DashboardPage() {
             className="hover:shadow-lg transition-all cursor-pointer border-2 hover:border-blue-500"
             onClick={() => router.push("/dashboard/admin/users")}
           >
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
                   <Users className="h-6 w-6 text-blue-600" />
@@ -226,7 +226,7 @@ export default function DashboardPage() {
             className="hover:shadow-lg transition-all cursor-pointer border-2 hover:border-purple-500"
             onClick={() => router.push("/dashboard/admin/academies")}
           >
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
                   <GraduationCap className="h-6 w-6 text-purple-600" />
@@ -243,7 +243,7 @@ export default function DashboardPage() {
             className="hover:shadow-lg transition-all cursor-pointer border-2 hover:border-green-500"
             onClick={() => router.push("/dashboard/admin/ai-bots")}
           >
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
                   <Target className="h-6 w-6 text-green-600" />
@@ -260,7 +260,7 @@ export default function DashboardPage() {
             className="hover:shadow-lg transition-all cursor-pointer border-2 hover:border-orange-500"
             onClick={() => router.push("/dashboard/admin/inquiries")}
           >
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center">
                   <FileText className="h-6 w-6 text-orange-600" />
@@ -275,7 +275,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Recent Users */}
           <Card>
             <CardHeader>
@@ -371,12 +371,12 @@ export default function DashboardPage() {
   // Director/Teacher Dashboard
   if (isDirector || isTeacher) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Welcome Section */}
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-8 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">
+              <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2">
                 안녕하세요, {user.name}님! 👋
               </h1>
               <p className="text-blue-100">
@@ -388,7 +388,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
@@ -397,7 +397,7 @@ export default function DashboardPage() {
               <Users className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-blue-600">
                 {stats?.totalStudents || 0}명
               </div>
               <p className="text-sm text-gray-500 mt-2">활동 중인 학생</p>
@@ -412,7 +412,7 @@ export default function DashboardPage() {
               <CheckCircle className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-green-600">
                 {stats?.attendanceRate || 0}%
               </div>
               <p className="text-sm text-gray-500 mt-2">이번 달 평균</p>
@@ -427,7 +427,7 @@ export default function DashboardPage() {
               <FileText className="h-5 w-5 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-600">
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-purple-600">
                 {stats?.activeHomework || 0}개
               </div>
               <p className="text-sm text-gray-500 mt-2">제출 대기 중</p>
@@ -442,7 +442,7 @@ export default function DashboardPage() {
               <BookOpen className="h-5 w-5 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-orange-600">
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-orange-600">
                 {stats?.totalClasses || 0}개
               </div>
               <p className="text-sm text-gray-500 mt-2">운영 중인 클래스</p>
@@ -451,7 +451,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Actions & Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Quick Actions */}
           <Card>
             <CardHeader>
@@ -461,7 +461,7 @@ export default function DashboardPage() {
               </CardTitle>
               <CardDescription>자주 사용하는 기능</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Button 
                 variant="outline" 
                 className="h-20 flex flex-col items-center justify-center gap-2"
@@ -529,12 +529,12 @@ export default function DashboardPage() {
   // Student Dashboard  
   if (isStudent) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Welcome Section */}
         <div className="bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl p-8 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">
+              <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2">
                 안녕하세요, {user.name}님! 🎓
               </h1>
               <p className="text-green-100">
@@ -546,7 +546,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
@@ -555,7 +555,7 @@ export default function DashboardPage() {
               <Calendar className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-blue-600">
                 {stats?.attendanceDays || 0}일
               </div>
               <p className="text-sm text-gray-500 mt-2">이번 달</p>
@@ -570,7 +570,7 @@ export default function DashboardPage() {
               <CheckCircle className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-green-600">
                 {stats?.completedHomework || 0}개
               </div>
               <p className="text-sm text-gray-500 mt-2">이번 달</p>
@@ -585,7 +585,7 @@ export default function DashboardPage() {
               <Award className="h-5 w-5 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-600">
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-purple-600">
                 {stats?.averageScore || 0}점
               </div>
               <p className="text-sm text-gray-500 mt-2">전체 평균</p>
@@ -600,7 +600,7 @@ export default function DashboardPage() {
               <Clock className="h-5 w-5 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-orange-600">
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-orange-600">
                 {stats?.studyHours || 0}시간
               </div>
               <p className="text-sm text-gray-500 mt-2">이번 주</p>
@@ -609,7 +609,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Student Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Pending Homework */}
           <Card>
             <CardHeader>
@@ -662,7 +662,7 @@ export default function DashboardPage() {
                     className="flex items-center gap-4 p-4 border rounded-lg"
                   >
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-600">{schedule.time}</p>
+                      <p className="text-xl sm:text-2xl font-bold text-blue-600">{schedule.time}</p>
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">{schedule.subject}</p>
@@ -683,10 +683,10 @@ export default function DashboardPage() {
 
   // Default fallback - 모든 사용자에게 기본 대시보드 표시
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold flex items-center gap-2">
             <Users className="h-8 w-8 text-blue-600" />
             대시보드
           </h1>
@@ -696,7 +696,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

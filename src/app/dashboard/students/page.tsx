@@ -103,7 +103,7 @@ export default function StudentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
             <Users className="h-8 w-8 text-blue-600" />
             학생 관리
           </h1>
@@ -118,54 +118,54 @@ export default function StudentsPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="border-2 border-blue-100">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
               전체 학생
             </CardTitle>
             <Users className="h-5 w-5 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">{students.length}명</div>
+            <div className="text-2xl sm:text-3xl font-bold text-blue-600">{students.length}명</div>
           </CardContent>
         </Card>
 
         <Card className="border-2 border-green-100">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
               활동 중
             </CardTitle>
             <CheckCircle className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">
+            <div className="text-2xl sm:text-3xl font-bold text-green-600">
               {students.filter(s => s.status === 'ACTIVE').length}명
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-2 border-yellow-100">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
               대기 중
             </CardTitle>
             <Clock className="h-5 w-5 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-yellow-600">
+            <div className="text-2xl sm:text-3xl font-bold text-yellow-600">
               {students.filter(s => s.status === 'PENDING').length}명
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-2 border-purple-100">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
               이번 달 신규
             </CardTitle>
             <GraduationCap className="h-5 w-5 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-purple-600">
+            <div className="text-2xl sm:text-3xl font-bold text-purple-600">
               {students.filter(s => {
                 const created = new Date(s.createdAt || 0);
                 const now = new Date();

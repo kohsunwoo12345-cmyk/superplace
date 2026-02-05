@@ -100,7 +100,7 @@ export default function TeacherAttendancePage() {
         {/* 헤더 */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold flex items-center gap-2">
               <ClipboardCheck className="h-8 w-8 text-blue-600" />
               출석 및 숙제 관리
             </h1>
@@ -113,7 +113,7 @@ export default function TeacherAttendancePage() {
           </Button>
         </div>
 
-        <Tabs defaultValue="generate" className="space-y-6">
+        <Tabs defaultValue="generate" className="space-y-4 sm:space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="generate">
               <QrCode className="w-4 h-4 mr-2" />
@@ -131,7 +131,7 @@ export default function TeacherAttendancePage() {
 
           {/* 코드 생성 탭 */}
           <TabsContent value="generate">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle>학생 선택</CardTitle>

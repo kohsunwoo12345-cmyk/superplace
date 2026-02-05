@@ -15,7 +15,7 @@ export default function HomeworkCompletePage() {
           <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
             <CheckCircle className="w-12 h-12 text-green-600" />
           </div>
-          <CardTitle className="text-3xl text-green-700">
+          <CardTitle className="text-xl sm:text-2xl sm:text-3xl text-green-700">
             오늘도 수고했어요! 🎉
           </CardTitle>
         </CardHeader>
@@ -30,7 +30,7 @@ export default function HomeworkCompletePage() {
           </div>
 
           <div className="p-6 bg-white rounded-lg border-2 border-green-200">
-            <p className="text-2xl mb-2">✨</p>
+            <p className="text-xl sm:text-2xl mb-2">✨</p>
             <p className="font-medium text-gray-700">
               내일도 열심히 공부해요!
             </p>

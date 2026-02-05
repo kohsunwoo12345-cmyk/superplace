@@ -123,8 +123,8 @@ function HomeworkCheckContent() {
   if (!userId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
+        <Card className="w-full max-w-md sm:max-w-lg">
+          <CardContent className="pt-4 sm:pt-6 p-4 sm:p-6">
             <div className="text-center">
               <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
               <p className="text-lg text-red-600">사용자 정보가 없습니다</p>
@@ -138,7 +138,7 @@ function HomeworkCheckContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
+        <CardHeader className="p-4 sm:p-6 text-center">
           <CardTitle className="text-2xl flex items-center justify-center gap-2">
             <Camera className="w-6 h-6" />
             숙제 검사
@@ -146,7 +146,7 @@ function HomeworkCheckContent() {
         </CardHeader>
         <CardContent>
           {!result ? (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {!capturedImage ? (
                 <>
                   <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
@@ -236,7 +236,7 @@ function HomeworkCheckContent() {
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex items-center justify-between">
                         <span className="font-medium text-gray-700">점수</span>
-                        <span className="text-2xl font-bold text-blue-600">
+                        <span className="text-xl sm:text-2xl font-bold text-blue-600">
                           {result.grading.score}점
                         </span>
                       </div>

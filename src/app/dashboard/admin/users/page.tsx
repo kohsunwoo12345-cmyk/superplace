@@ -125,7 +125,7 @@ export default function AdminUsersPage() {
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
             <Users className="h-8 w-8 text-blue-600" />
             사용자 관리
           </h1>
@@ -141,7 +141,7 @@ export default function AdminUsersPage() {
       {/* 통계 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card className={selectedRole === "ALL" ? "border-2 border-blue-500" : ""}>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               전체 사용자
             </CardTitle>
@@ -149,7 +149,7 @@ export default function AdminUsersPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-blue-600" />
-              <span className="text-2xl font-bold">{stats.total}명</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.total}명</span>
             </div>
             <Button
               variant={selectedRole === "ALL" ? "default" : "outline"}
@@ -163,7 +163,7 @@ export default function AdminUsersPage() {
         </Card>
 
         <Card className={selectedRole === "STUDENT" ? "border-2 border-blue-500" : ""}>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               학생
             </CardTitle>
@@ -171,7 +171,7 @@ export default function AdminUsersPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <GraduationCap className="w-4 h-4 text-blue-600" />
-              <span className="text-2xl font-bold">{stats.students}명</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.students}명</span>
             </div>
             <Button
               variant={selectedRole === "STUDENT" ? "default" : "outline"}
@@ -185,7 +185,7 @@ export default function AdminUsersPage() {
         </Card>
 
         <Card className={selectedRole === "TEACHER" ? "border-2 border-green-500" : ""}>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               선생님
             </CardTitle>
@@ -193,7 +193,7 @@ export default function AdminUsersPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <UserCheck className="w-4 h-4 text-green-600" />
-              <span className="text-2xl font-bold">{stats.teachers}명</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.teachers}명</span>
             </div>
             <Button
               variant={selectedRole === "TEACHER" ? "default" : "outline"}
@@ -207,7 +207,7 @@ export default function AdminUsersPage() {
         </Card>
 
         <Card className={selectedRole === "DIRECTOR" ? "border-2 border-purple-500" : ""}>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               학원장
             </CardTitle>
@@ -215,7 +215,7 @@ export default function AdminUsersPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-purple-600" />
-              <span className="text-2xl font-bold">{stats.directors}명</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.directors}명</span>
             </div>
             <Button
               variant={selectedRole === "DIRECTOR" ? "default" : "outline"}
@@ -229,7 +229,7 @@ export default function AdminUsersPage() {
         </Card>
 
         <Card className={selectedRole === "ADMIN" ? "border-2 border-red-500" : ""}>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               관리자
             </CardTitle>
@@ -237,7 +237,7 @@ export default function AdminUsersPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-red-600" />
-              <span className="text-2xl font-bold">{stats.admins}명</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.admins}명</span>
             </div>
             <Button
               variant={selectedRole === "ADMIN" ? "default" : "outline"}
@@ -253,7 +253,7 @@ export default function AdminUsersPage() {
 
       {/* 검색 */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 sm:pt-6 p-4 sm:p-6">
           <div className="flex gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />

@@ -55,8 +55,8 @@ export default function AttendanceCheckinPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
+      <Card className="w-full max-w-md sm:max-w-lg">
+        <CardHeader className="p-4 sm:p-6 text-center">
           <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
             <Clock className="w-8 h-8 text-blue-600" />
           </div>
@@ -67,7 +67,7 @@ export default function AttendanceCheckinPage() {
         </CardHeader>
         <CardContent>
           {!result ? (
-            <form onSubmit={handleCheckin} className="space-y-4">
+            <form onSubmit={handleCheckin} className="space-y-3 sm:space-y-4">
               <div>
                 <Input
                   type="text"

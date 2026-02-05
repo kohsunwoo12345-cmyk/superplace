@@ -68,28 +68,28 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2 mb-6">
-            <GraduationCap className="h-10 w-10 text-primary" />
-            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md sm:max-w-lg">
+        <div className="text-center mb-6 sm:mb-8">
+          <Link href="/" className="inline-flex items-center space-x-2 mb-4 sm:mb-6">
+            <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
+            <span className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               SUPER PLACE
             </span>
           </Link>
-          <h1 className="text-2xl font-bold mb-2">회원가입</h1>
+          <h1 className="text-xl sm:text-2xl font-bold mb-2">회원가입</h1>
           <p className="text-gray-600">새로운 학습 여정을 시작하세요</p>
         </div>
 
         <Card className="border-2 border-blue-100 shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
+          <CardHeader className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-purple-50">
             <CardTitle className="text-2xl">계정 만들기</CardTitle>
             <CardDescription>
               14일 무료 체험으로 시작하세요
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <CardContent className="pt-4 sm:pt-6 p-4 sm:p-6">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               {error && (
                 <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm">
                   {error}

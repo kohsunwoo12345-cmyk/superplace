@@ -229,7 +229,7 @@ export default function AIChatPage() {
       <div className="container mx-auto py-8 px-4">
         <Card className="text-center p-12">
           <Bot className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">사용 가능한 AI 봇이 없습니다</h2>
+          <h2 className="text-xl sm:text-2xl font-bold mb-2">사용 가능한 AI 봇이 없습니다</h2>
           <p className="text-gray-600 mb-6">
             관리자에게 문의하여 AI 봇을 활성화하세요.
           </p>
@@ -248,7 +248,7 @@ export default function AIChatPage() {
     <div className="container mx-auto py-8 px-4 h-[calc(100vh-8rem)]">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2 flex items-center gap-2">
             <Sparkles className="h-8 w-8 text-purple-600" />
             AI 챗봇
           </h1>
@@ -264,7 +264,7 @@ export default function AIChatPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100%-7rem)]">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 h-[calc(100%-7rem)]">
         {/* 왼쪽: 봇 선택 사이드바 */}
         <div className="lg:col-span-1 space-y-3 overflow-y-auto max-h-full">
           <h3 className="font-semibold text-gray-700 mb-3">AI 봇 선택</h3>
@@ -280,7 +280,7 @@ export default function AIChatPage() {
             >
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="text-3xl">{bot.profileIcon}</div>
+                  <div className="text-xl sm:text-2xl sm:text-3xl">{bot.profileIcon}</div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold truncate">{bot.name}</h4>
                     {bot.description && (
@@ -327,7 +327,7 @@ export default function AIChatPage() {
                     }`}
                   >
                     {message.role === "assistant" && (
-                      <div className="text-3xl flex-shrink-0">
+                      <div className="text-xl sm:text-2xl sm:text-3xl flex-shrink-0">
                         {selectedBot?.profileIcon}
                       </div>
                     )}
@@ -398,7 +398,7 @@ export default function AIChatPage() {
 
               {loading && (
                 <div className="flex gap-3 justify-start">
-                  <div className="text-3xl flex-shrink-0">
+                  <div className="text-xl sm:text-2xl sm:text-3xl flex-shrink-0">
                     {selectedBot?.profileIcon}
                   </div>
                   <div className="bg-gray-100 rounded-lg px-4 py-2">
