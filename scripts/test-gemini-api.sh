@@ -37,7 +37,7 @@ echo "════════════════════════�
 echo "2️⃣  Gemini API 호출 테스트..."
 API_RESULT=$(curl -s -X POST "${BASE_URL}/api/ai/chat" \
   -H 'Content-Type: application/json' \
-  -d '{"message": "안녕하세요, 간단히 인사해주세요", "model": "gemini-1.5-pro-latest"}')
+  -d '{"message": "안녕하세요, 간단히 인사해주세요", "model": "gemini-2.5-flash"}')
 
 echo "$API_RESULT" | jq '.'
 

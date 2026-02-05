@@ -51,7 +51,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         suggestions TEXT,
         gradedAt TEXT DEFAULT (datetime('now')),
         gradedBy TEXT DEFAULT 'GEMINI_AI',
-        model TEXT DEFAULT 'gemini-1.5-pro-latest'
+        model TEXT DEFAULT 'gemini-2.5-flash'
       )
     `).run();
 
@@ -78,7 +78,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (GOOGLE_GEMINI_API_KEY && imageData) {
       try {
         const geminiResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${GOOGLE_GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_GEMINI_API_KEY}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
