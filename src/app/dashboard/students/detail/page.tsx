@@ -76,7 +76,8 @@ function StudentDetailContent() {
       
       if (response.ok) {
         const data = await response.json();
-        setStudent(data);
+        // API는 { user: {...} } 형식으로 반환
+        setStudent(data.user || data);
       } else {
         const errorData = await response.json().catch(() => ({ message: "학생 정보를 불러올 수 없습니다." }));
         setError(errorData.message || "학생 정보를 불러올 수 없습니다.");
