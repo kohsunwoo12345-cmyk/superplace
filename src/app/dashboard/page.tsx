@@ -121,15 +121,27 @@ export default function DashboardPage() {
 
   // 디버그 정보 표시 (개발 중)
   console.log('🎯 Dashboard Render - user:', user);
+  console.log('🎯 Dashboard Render - role:', role);
   console.log('🎯 Dashboard Render - isSuperAdmin:', isSuperAdmin);
   console.log('🎯 Dashboard Render - isDirector:', isDirector);
   console.log('🎯 Dashboard Render - isTeacher:', isTeacher);
   console.log('🎯 Dashboard Render - isStudent:', isStudent);
+  console.log('🎯 Dashboard Render - stats:', stats);
 
   // Super Admin Dashboard
   if (isSuperAdmin) {
+    console.log('✅ Rendering Super Admin Dashboard');
     return (
       <div className="space-y-4 sm:space-y-6">
+        {/* Debug Info */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
+          <p><strong>디버그 정보:</strong></p>
+          <p>사용자: {user.name} ({user.email})</p>
+          <p>역할: {user.role} → {role}</p>
+          <p>관리자 확인: {isSuperAdmin ? '✅ 예' : '❌ 아니오'}</p>
+          <p>Stats 로딩: {stats ? '✅ 완료' : '❌ 실패'}</p>
+        </div>
+
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -745,8 +757,31 @@ export default function DashboardPage() {
   }
 
   // Default fallback - 모든 사용자에게 기본 대시보드 표시
+  console.warn('⚠️ Default fallback dashboard - No role matched!');
+  console.warn('⚠️ user.role:', user?.role);
+  console.warn('⚠️ role (uppercase):', role);
+  console.warn('⚠️ isSuperAdmin:', isSuperAdmin);
+  console.warn('⚠️ isDirector:', isDirector);
+  console.warn('⚠️ isTeacher:', isTeacher);
+  console.warn('⚠️ isStudent:', isStudent);
+  
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Debug Warning */}
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm">
+        <p className="font-bold text-red-800">⚠️ 경고: 기본 대시보드가 표시되고 있습니다</p>
+        <p className="mt-2">디버그 정보:</p>
+        <ul className="list-disc list-inside mt-1 space-y-1">
+          <li>사용자: {user?.name} ({user?.email})</li>
+          <li>역할 (원본): "{user?.role}"</li>
+          <li>역할 (대문자): "{role}"</li>
+          <li>관리자 체크: {isSuperAdmin ? '✅' : '❌'} (role === "SUPER_ADMIN" || role === "ADMIN")</li>
+          <li>학원장 체크: {isDirector ? '✅' : '❌'} (role === "DIRECTOR")</li>
+          <li>선생님 체크: {isTeacher ? '✅' : '❌'} (role === "TEACHER")</li>
+          <li>학생 체크: {isStudent ? '✅' : '❌'} (role === "STUDENT")</li>
+        </ul>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold flex items-center gap-2">
