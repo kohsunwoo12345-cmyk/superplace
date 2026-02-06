@@ -124,13 +124,27 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
+    // 역할 변환 로직
+    // DB에서 member/user 같은 역할을 원장/선생님/학생으로 변환
+    let userRole = user.role || 'STUDENT';
+    
+    // 역할 매핑
+    if (userRole === 'member') {
+      userRole = 'DIRECTOR'; // 원장
+    } else if (userRole === 'user') {
+      userRole = 'TEACHER'; // 선생님 (기본값)
+    } else if (!['DIRECTOR', 'TEACHER', 'STUDENT', 'ADMIN'].includes(userRole)) {
+      // 알 수 없는 역할은 TEACHER로 처리
+      userRole = 'TEACHER';
+    }
+
     // JWT 토큰 생성
     const token = generateToken({
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
-      academyId: user.academyId || null,
+      role: userRole,
+      academyId: user.academyId || user.academy_id || null,
     });
 
     return new Response(
@@ -142,8 +156,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role,
-            academyId: user.academyId || null,
+            role: userRole,
+            academyId: user.academyId || user.academy_id || null,
           },
           token,
         },

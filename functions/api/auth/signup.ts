@@ -65,8 +65,18 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    // 역할 설정 (기본값: user)
-    const userRole = data.role || 'user';
+    // 역할 설정 및 변환
+    let userRole = data.role || 'STUDENT';
+    
+    // 역할 매핑
+    if (userRole === 'member') {
+      userRole = 'DIRECTOR'; // 원장
+    } else if (userRole === 'user') {
+      userRole = 'TEACHER'; // 선생님 (기본값)
+    } else if (!['DIRECTOR', 'TEACHER', 'STUDENT', 'ADMIN'].includes(userRole.toUpperCase())) {
+      // 알 수 없는 역할은 TEACHER로 처리
+      userRole = 'TEACHER';
+    }
 
     // 사용자 생성 (id는 자동 증가, 전화번호 포함)
     const result = await context.env.DB.prepare(
