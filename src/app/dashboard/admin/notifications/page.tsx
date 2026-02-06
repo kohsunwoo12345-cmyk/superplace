@@ -27,25 +27,72 @@ export default function NotificationsPage() {
   const [notificationMessage, setNotificationMessage] = useState("");
   const [notificationType, setNotificationType] = useState<"info" | "success" | "warning" | "error">("info");
   const [isSending, setIsSending] = useState(false);
-
-  // 더미 데이터
-  const academies: Academy[] = [
-    { id: 1, name: "A학원", studentCount: 45 },
-    { id: 2, name: "B학원", studentCount: 32 },
-    { id: 3, name: "C학원", studentCount: 28 },
-    { id: 4, name: "D학원", studentCount: 51 },
-    { id: 5, name: "E학원", studentCount: 19 },
-  ];
-
-  const students: Student[] = [
-    { id: 1, name: "김철수", email: "student1@test.com", academyId: 1, academyName: "A학원" },
-    { id: 2, name: "이영희", email: "student2@test.com", academyId: 1, academyName: "A학원" },
-    { id: 3, name: "박민수", email: "student3@test.com", academyId: 2, academyName: "B학원" },
-    { id: 4, name: "최지현", email: "student4@test.com", academyId: 2, academyName: "B학원" },
-    { id: 5, name: "정수진", email: "student5@test.com", academyId: 3, academyName: "C학원" },
-  ];
-
+  const [academies, setAcademies] = useState<Academy[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [sentNotifications, setSentNotifications] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch academies, students, and notification history on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const user = localStorage.getItem("user");
+        const token = localStorage.getItem("token");
+
+        if (!user || !token) {
+          alert("로그인이 필요합니다.");
+          window.location.href = "/login";
+          return;
+        }
+
+        // Fetch academies
+        const academiesRes = await fetch("/api/academies", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const academiesData = await academiesRes.json();
+        if (academiesData.success) {
+          const academyList = academiesData.academies.map((academy: any) => ({
+            id: academy.id,
+            name: academy.name,
+            studentCount: academy.studentCount || 0,
+          }));
+          setAcademies(academyList);
+        }
+
+        // Fetch students
+        const studentsRes = await fetch("/api/students", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const studentsData = await studentsRes.json();
+        if (studentsData.success) {
+          const studentList = studentsData.students.map((student: any) => ({
+            id: student.id,
+            name: student.name,
+            email: student.email,
+            academyId: student.academyId,
+            academyName: student.academyName || "미지정",
+          }));
+          setStudents(studentList);
+        }
+
+        // Fetch notification history
+        const historyRes = await fetch("/api/notifications/history", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const historyData = await historyRes.json();
+        if (historyData.success) {
+          setSentNotifications(historyData.notifications || []);
+        }
+      } catch (error) {
+        console.error("데이터 로드 실패:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const filteredStudents = students.filter((student) => {
     if (filterType === "academy" && selectedAcademies.length > 0) {
@@ -105,31 +152,63 @@ export default function NotificationsPage() {
 
     setIsSending(true);
 
-    // TODO: API 연동
-    setTimeout(() => {
-      const newNotification = {
-        id: Date.now(),
-        title: notificationTitle,
-        message: notificationMessage,
-        type: notificationType,
-        recipients: getRecipientCount(),
-        filterType,
-        sentAt: new Date().toISOString(),
-        status: "전송 완료",
-      };
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("로그인이 필요합니다.");
+        window.location.href = "/login";
+        return;
+      }
 
-      setSentNotifications((prev) => [newNotification, ...prev]);
-      
-      // 폼 초기화
-      setNotificationTitle("");
-      setNotificationMessage("");
-      setNotificationType("info");
-      setSelectedAcademies([]);
-      setSelectedStudents([]);
-      
+      const response = await fetch("/api/notifications/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: notificationTitle,
+          message: notificationMessage,
+          type: notificationType,
+          filterType,
+          selectedAcademies: filterType === "academy" ? selectedAcademies : [],
+          selectedStudents: filterType === "student" ? selectedStudents : [],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const newNotification = {
+          id: data.notificationId,
+          title: notificationTitle,
+          message: notificationMessage,
+          type: notificationType,
+          recipients: data.recipientCount,
+          filterType,
+          sentAt: data.sentAt,
+          status: "전송 완료",
+        };
+
+        setSentNotifications((prev) => [newNotification, ...prev]);
+
+        // 폼 초기화
+        setNotificationTitle("");
+        setNotificationMessage("");
+        setNotificationType("info");
+        setSelectedAcademies([]);
+        setSelectedStudents([]);
+
+        alert(`알림이 ${data.recipientCount}명에게 성공적으로 전송되었습니다!`);
+      } else {
+        alert(`알림 전송 실패: ${data.error || "알 수 없는 오류"}`);
+      }
+    } catch (error: any) {
+      console.error("알림 전송 오류:", error);
+      alert("알림 전송 중 오류가 발생했습니다. 다시 시도해주세요.");
+    } finally {
       setIsSending(false);
-      alert(`알림이 ${getRecipientCount()}명에게 전송되었습니다!`);
-    }, 1500);
+    }
   };
 
   const getTypeColor = (type: string) => {
@@ -157,6 +236,17 @@ export default function NotificationsPage() {
         return <Bell className="w-4 h-4" />;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">데이터 로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
