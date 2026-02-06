@@ -82,14 +82,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 코드 소유자와 요청한 사용자가 일치하는지 확인
-    const codeUserId = String(codeRecord.userId);
-    const requestUserId = String(userId);
+    // 숫자로 비교 (더 안전함)
+    const codeUserId = Number(codeRecord.userId);
+    const requestUserId = Number(userId);
+    
+    console.log(`[DEBUG] Code verification - Code userId: ${codeUserId}, Request userId: ${requestUserId}`);
     
     if (codeUserId !== requestUserId) {
       return new Response(
         JSON.stringify({ 
           success: false,
-          message: "본인의 출석 코드가 아닙니다." 
+          message: `본인의 출석 코드가 아닙니다. (코드 소유자: ${codeUserId}, 요청자: ${requestUserId})`,
+          debug: {
+            codeUserId,
+            requestUserId,
+            codeRecordUserId: codeRecord.userId,
+            bodyUserId: userId
+          }
         }),
         { status: 403, headers: { "Content-Type": "application/json" } }
       );
