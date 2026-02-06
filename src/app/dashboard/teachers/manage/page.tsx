@@ -51,24 +51,34 @@ export default function TeacherManagementPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [savingPermissions, setSavingPermissions] = useState(false);
+  const [hasAccess, setHasAccess] = useState<boolean>(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      setCurrentUser(user);
-      
-      // 원장만 접근 가능
-      if (user.role !== "DIRECTOR" && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
-        alert("권한이 없습니다");
-        router.push("/dashboard");
-        return;
-      }
-
-      fetchTeachers(user.academyId);
-    } else {
+    if (!userStr) {
+      console.error("❌ No user found in localStorage");
       router.push("/login");
+      return;
     }
+
+    const user = JSON.parse(userStr);
+    console.log("👤 Current user:", user);
+    console.log("🔑 User role:", user.role);
+    
+    setCurrentUser(user);
+    
+    // 원장, 관리자만 접근 가능
+    const allowedRoles = ["DIRECTOR", "ADMIN", "SUPER_ADMIN"];
+    if (!allowedRoles.includes(user.role)) {
+      console.error("❌ Access denied. Role:", user.role);
+      setHasAccess(false);
+      setLoading(false);
+      return;
+    }
+
+    console.log("✅ Access granted. Fetching teachers...");
+    setHasAccess(true);
+    fetchTeachers(user.academy_id || user.academyId);
   }, []);
 
   const fetchTeachers = async (academyId?: number) => {
@@ -207,6 +217,29 @@ export default function TeacherManagementPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-600">
+              <Shield className="w-6 h-6" />
+              접근 권한 없음
+            </CardTitle>
+            <CardDescription>
+              학원장 또는 관리자만 접근할 수 있습니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => router.push("/dashboard")} className="w-full">
+              대시보드로 돌아가기
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

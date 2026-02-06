@@ -90,16 +90,50 @@ export default function StudentHomeworkPage() {
         params.append("academyId", academyId.toString());
       }
 
+      console.log("📚 Fetching homework data for student:", studentId, "academy:", academyId);
+      
       const response = await fetch(
         `/api/homework/assignments/student?${params.toString()}`
       );
       const data = await response.json();
 
+      console.log("📚 Homework data response:", data);
+
       if (data.success) {
         setHomeworkData(data);
+      } else {
+        console.error("❌ Failed to fetch homework:", data.error);
+        // 빈 데이터라도 설정
+        setHomeworkData({
+          success: true,
+          today: new Date().toISOString().split('T')[0],
+          todayHomework: [],
+          upcomingHomework: [],
+          allAssignments: [],
+          submittedHomework: [],
+          summary: {
+            todayCount: 0,
+            upcomingCount: 0,
+            submittedCount: 0,
+          }
+        });
       }
     } catch (error) {
-      console.error("Failed to fetch homework:", error);
+      console.error("❌ Failed to fetch homework:", error);
+      // 오류 발생 시에도 빈 데이터 설정
+      setHomeworkData({
+        success: true,
+        today: new Date().toISOString().split('T')[0],
+        todayHomework: [],
+        upcomingHomework: [],
+        allAssignments: [],
+        submittedHomework: [],
+        summary: {
+          todayCount: 0,
+          upcomingCount: 0,
+          submittedCount: 0,
+        }
+      });
     } finally {
       setLoading(false);
     }

@@ -42,19 +42,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 학생 정보 조회
     const student = await DB.prepare(`
-      SELECT id, name, academyId FROM users WHERE id = ?
+      SELECT id, name, academy_id as academyId FROM users WHERE id = ?
     `).bind(parseInt(studentId)).first();
 
     if (!student) {
+      console.error("❌ Student not found:", studentId);
       return new Response(
         JSON.stringify({ success: false, error: "Student not found" }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
 
+    console.log("✅ Student found:", student);
+
     // 학생에게 부여된 숙제 조회
     // 1. 전체 학생 대상 (같은 학원)
     // 2. 특정 학생 대상 (본인)
+    console.log("📚 Querying homework assignments...");
+    
     const allAssignments = await DB.prepare(`
       SELECT DISTINCT
         ha.id,
@@ -85,6 +90,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       parseInt(studentId),
       today
     ).all();
+
+    console.log("✅ Found assignments:", allAssignments.results?.length || 0);
 
     // 제출된 숙제 정보 조회
     const submittedHomework = await DB.prepare(`
