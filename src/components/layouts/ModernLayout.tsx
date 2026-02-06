@@ -55,9 +55,13 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
   // 역할별 메뉴 정의
   const getMenuItems = (): MenuItem[] => {
     const roleUpper = role.toUpperCase();
+    console.log('🎯 ModernLayout - role:', role);
+    console.log('🎯 ModernLayout - roleUpper:', roleUpper);
+    console.log('🎯 ModernLayout - Is Admin?', roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN');
     
     // 관리자 메뉴 (ADMIN, SUPER_ADMIN) - 관리자 전용 + 일반 메뉴
     if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
+      console.log('✅ ModernLayout - Loading ADMIN menu (19 items)');
       return [
         { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
         // 관리자 전용 메뉴
@@ -83,8 +87,10 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
       ];
     }
     
+    console.log('🔄 ModernLayout - Checking role-based menu...');
     switch (roleUpper) {
       case 'DIRECTOR':
+        console.log('✅ ModernLayout - Loading DIRECTOR menu');
         return [
           { id: 'home', href: '/dashboard', icon: Home, text: '홈' },
           { id: 'students', href: '/dashboard/students', icon: Users, text: '학생 관리' },
@@ -96,6 +102,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
         ];
       case 'TEACHER':
+        console.log('✅ ModernLayout - Loading TEACHER menu');
         return [
           { id: 'home', href: '/dashboard', icon: Home, text: '홈' },
           { id: 'students', href: '/dashboard/students', icon: Users, text: '내 학생들' },
@@ -106,6 +113,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
         ];
       case 'STUDENT':
+        console.log('✅ ModernLayout - Loading STUDENT menu');
         return [
           { id: 'home', href: '/dashboard', icon: Home, text: '홈' },
           { id: 'classes', href: '/dashboard/classes', icon: BookOpen, text: '내 수업' },
@@ -116,6 +124,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
         ];
       default:
+        console.log('⚠️ ModernLayout - Unknown role, loading default menu');
         return [
           { id: 'home', href: '/dashboard', icon: Home, text: '홈' },
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
@@ -124,6 +133,8 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
   };
 
   const menuItems = getMenuItems();
+  console.log('📋 ModernLayout - Total menu items:', menuItems.length);
+  console.log('📋 ModernLayout - Menu items:', menuItems.map(m => m.text).join(', '));
 
   // 역할별 배경 그라데이션
   const getRoleGradient = () => {

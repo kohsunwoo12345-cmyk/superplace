@@ -20,6 +20,8 @@ export default function DashboardLayout({
       try {
         const userData = JSON.parse(userStr);
         setUser(userData);
+        console.log('🔍 DashboardLayout - User Data:', userData);
+        console.log('🔍 DashboardLayout - User Role:', userData.role);
       } catch (error) {
         console.error('Failed to parse user data:', error);
       }
