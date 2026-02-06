@@ -83,6 +83,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
+    console.log("📊 Statistics API called with:", { userId, role, academyId });
+
     // 선생님/학원장/관리자: 학생 출석 통계
     let query = `
       SELECT 
@@ -90,8 +92,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ar.userId,
         u.name as userName,
         u.email,
-        u.academy_id as academyId,
-        u.academy_name as academyName,
+        u.academyId,
         ar.code,
         ar.verifiedAt,
         ar.status,
@@ -103,16 +104,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     
     const params: any[] = [];
 
-    if (role === "TEACHER" && academyId) {
-      // 선생님: 같은 학원 학생만
-      query += ` AND u.academy_id = ?`;
+    // DIRECTOR나 TEACHER는 자신의 학원 데이터만 조회
+    const isGlobalAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
+    if (!isGlobalAdmin && academyId) {
+      query += ` AND u.academyId = ?`;
       params.push(academyId);
-    } else if (role === "DIRECTOR" && academyId) {
-      // 학원장: 하위 학생들만
-      query += ` AND u.academy_id = ?`;
-      params.push(academyId);
+      console.log("🔍 Filtering statistics by academyId:", academyId, "for role:", role);
+    } else if (isGlobalAdmin) {
+      console.log("✅ Global admin - showing all statistics");
     }
-    // ADMIN: 모든 학생
 
     query += ` ORDER BY ar.verifiedAt DESC LIMIT 100`;
 
@@ -132,8 +132,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     `;
     const todayParams: any[] = [today];
 
-    if (role !== "ADMIN" && academyId) {
-      todayQuery += ` AND u.academy_id = ?`;
+    const isGlobalAdmin2 = role === 'SUPER_ADMIN' || role === 'ADMIN';
+    if (!isGlobalAdmin2 && academyId) {
+      todayQuery += ` AND u.academyId = ?`;
       todayParams.push(academyId);
     }
 
@@ -153,8 +154,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     `;
     const monthParams: any[] = [thisMonth];
 
-    if (role !== "ADMIN" && academyId) {
-      monthQuery += ` AND u.academy_id = ?`;
+    const isGlobalAdmin3 = role === 'SUPER_ADMIN' || role === 'ADMIN';
+    if (!isGlobalAdmin3 && academyId) {
+      monthQuery += ` AND u.academyId = ?`;
       monthParams.push(academyId);
     }
 
@@ -173,8 +175,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     `;
     const studentParams: any[] = [];
 
-    if (role !== "ADMIN" && academyId) {
-      studentQuery += ` AND academy_id = ?`;
+    const isGlobalAdmin4 = role === 'SUPER_ADMIN' || role === 'ADMIN';
+    if (!isGlobalAdmin4 && academyId) {
+      studentQuery += ` AND academyId = ?`;
       studentParams.push(academyId);
     }
 
@@ -204,8 +207,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `;
       const dayParams: any[] = [dateStr];
 
-      if (role !== "ADMIN" && academyId) {
-        dayQuery += ` AND u.academy_id = ?`;
+      const isGlobalAdmin5 = role === 'SUPER_ADMIN' || role === 'ADMIN';
+      if (!isGlobalAdmin5 && academyId) {
+        dayQuery += ` AND u.academyId = ?`;
         dayParams.push(academyId);
       }
 

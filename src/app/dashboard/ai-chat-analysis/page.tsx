@@ -36,6 +36,8 @@ export default function AIChatAnalysisPage() {
     mostActiveTime: "",
     topTopics: [],
   });
+  const [hourlyData, setHourlyData] = useState<any[]>([]);
+  const [topicData, setTopicData] = useState<any[]>([]);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -44,51 +46,54 @@ export default function AIChatAnalysisPage() {
       return;
     }
     const userData = JSON.parse(userStr);
+    console.log("🧠 AI Chat Analysis - User data:", userData);
     setUser(userData);
     
-    fetchAnalysis();
+    fetchAnalysis(userData);
   }, [router]);
 
-  const fetchAnalysis = async () => {
+  const fetchAnalysis = async (userData: any) => {
     try {
       setLoading(true);
+      const academyId = userData.academyId || userData.academy_id || userData.AcademyId;
       
-      // 목업 데이터
-      setAnalysis({
-        totalChats: 1248,
-        totalStudents: 42,
-        averagePerStudent: 29.7,
-        mostActiveTime: "15:00 ~ 18:00",
-        topTopics: ["수학", "영어", "과학", "역사", "코딩"],
+      console.log("🧠 Fetching AI chat analysis with:", { 
+        userId: userData.id, 
+        role: userData.role, 
+        academyId 
       });
+
+      const params = new URLSearchParams({
+        userId: userData.id.toString(),
+        role: userData.role || "",
+        academyId: academyId ? academyId.toString() : "",
+      });
+
+      const response = await fetch(`/api/ai-chat/analysis?${params}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("✅ AI chat analysis data received:", data);
+        setAnalysis(data.analysis || {
+          totalChats: 0,
+          totalStudents: 0,
+          averagePerStudent: 0,
+          mostActiveTime: "",
+          topTopics: [],
+        });
+        setHourlyData(data.hourlyData || []);
+        setTopicData(data.topicData || []);
+      } else {
+        console.error("❌ Failed to fetch AI chat analysis:", response.status);
+      }
     } catch (error) {
-      console.error("Failed to fetch analysis:", error);
+      console.error("❌ Failed to fetch analysis:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // 시간대별 채팅 데이터
-  const hourlyData = [
-    { hour: "06:00", count: 12 },
-    { hour: "09:00", count: 45 },
-    { hour: "12:00", count: 89 },
-    { hour: "15:00", count: 156 },
-    { hour: "18:00", count: 134 },
-    { hour: "21:00", count: 78 },
-    { hour: "24:00", count: 23 },
-  ];
-
-  // 주제별 데이터
-  const topicData = [
-    { name: "수학", value: 320, color: "#3b82f6" },
-    { name: "영어", value: 280, color: "#10b981" },
-    { name: "과학", value: 210, color: "#f59e0b" },
-    { name: "역사", value: 180, color: "#ef4444" },
-    { name: "기타", value: 258, color: "#8b5cf6" },
-  ];
-
-  // 학습 패턴 데이터
+  // 학습 패턴 데이터 (fallback)
   const learningPatternData = [
     { date: "월", questions: 45, completed: 38 },
     { date: "화", questions: 52, completed: 47 },

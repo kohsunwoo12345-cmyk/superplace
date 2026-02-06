@@ -36,11 +36,18 @@ export default function AttendanceStatisticsPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
+      const academyId = userData.academyId || userData.academy_id || userData.AcademyId;
+      
+      console.log("📊 Fetching statistics with user data:", userData);
+      console.log("📊 Extracted academyId:", academyId);
+      
       const params = new URLSearchParams({
-        userId: userData.id,
-        role: userData.role,
-        academyId: userData.academyId || "",
+        userId: userData.id.toString(),
+        role: userData.role || "",
+        academyId: academyId ? academyId.toString() : "",
       });
+
+      console.log("📊 Fetching statistics URL:", `/api/attendance/statistics?${params}`);
 
       const response = await fetch(`/api/attendance/statistics?${params}`, {
         headers: {
@@ -50,12 +57,13 @@ export default function AttendanceStatisticsPage() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log("✅ Statistics data received:", data);
         setStatistics(data);
       } else {
-        console.error("Failed to fetch statistics");
+        console.error("❌ Failed to fetch statistics:", response.status, await response.text());
       }
     } catch (error) {
-      console.error("Error fetching statistics:", error);
+      console.error("❌ Error fetching statistics:", error);
     } finally {
       setLoading(false);
     }

@@ -64,11 +64,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     `;
     const params: any[] = [date];
 
-    // 학원별 필터링 (관리자가 아닌 경우)
-    if (academyId && role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
-      query += ` AND u.academyId = ?`;
-      params.push(academyId);
-      console.log("🔍 Filtering by academyId:", academyId);
+    // 학원별 필터링 (SUPER_ADMIN, ADMIN이 아닌 모든 경우)
+    // DIRECTOR, TEACHER 등은 자신의 학원 데이터만 조회
+    if (academyId) {
+      const isGlobalAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
+      if (!isGlobalAdmin) {
+        query += ` AND u.academyId = ?`;
+        params.push(academyId);
+        console.log("🔍 Filtering by academyId:", academyId, "for role:", role);
+      } else {
+        console.log("✅ Global admin - showing all data");
+      }
     }
 
     query += ` ORDER BY ar.verifiedAt DESC`;
