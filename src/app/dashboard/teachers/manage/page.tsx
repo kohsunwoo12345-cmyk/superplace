@@ -62,15 +62,21 @@ export default function TeacherManagementPage() {
     }
 
     const user = JSON.parse(userStr);
-    console.log("👤 Current user:", user);
+    console.log("👤 Current user:", JSON.stringify(user, null, 2));
     console.log("🔑 User role:", user.role);
+    console.log("🔑 User role type:", typeof user.role);
     
     setCurrentUser(user);
     
-    // 원장, 관리자만 접근 가능
+    // 원장, 관리자만 접근 가능 (대소문자 무관)
+    const userRole = String(user.role || "").toUpperCase().trim();
+    console.log("🔍 Normalized role:", userRole);
+    
     const allowedRoles = ["DIRECTOR", "ADMIN", "SUPER_ADMIN"];
-    if (!allowedRoles.includes(user.role)) {
-      console.error("❌ Access denied. Role:", user.role);
+    
+    if (!allowedRoles.includes(userRole)) {
+      console.error("❌ Access denied. Role:", userRole);
+      console.error("❌ Allowed roles:", allowedRoles);
       setHasAccess(false);
       setLoading(false);
       return;
