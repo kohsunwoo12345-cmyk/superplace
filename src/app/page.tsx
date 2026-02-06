@@ -160,7 +160,23 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const isLoggedIn = false // status === "authenticated";
+  // 로그인 상태 확인
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState("");
+
+  useEffect(() => {
+    // localStorage에서 로그인 정보 확인
+    const user = localStorage.getItem("user");
+    if (user) {
+      try {
+        const userData = JSON.parse(user);
+        setIsLoggedIn(true);
+        setUserName(userData.name || "사용자");
+      } catch (e) {
+        setIsLoggedIn(false);
+      }
+    }
+  }, []);
 
   // Mega menu data
   const featuresMenu = {
@@ -562,21 +578,13 @@ export default function Home() {
           {isLoggedIn && (
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                //{session?.user?.name}님
+                {userName}님
               </span>
               <Link href="/dashboard">
-                <Button variant="outline">대시보드</Button>
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                  대시보드로 가기
+                </Button>
               </Link>
-              <Link href="/dashboard/settings">
-                <Button variant="outline">프로필 설정</Button>
-              </Link>
-              <Button 
-                variant="ghost"
-                onClick={() => console.log("로그아웃")}
-                className="text-red-600 hover:bg-red-50"
-              >
-                로그아웃
-              </Button>
             </div>
           )}
         </div>

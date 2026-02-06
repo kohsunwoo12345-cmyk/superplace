@@ -44,27 +44,38 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const myAttendance = await DB.prepare(`
         SELECT 
           substr(verifiedAt, 1, 10) as date,
-          COUNT(*) as count,
+          substr(verifiedAt, 12, 5) as time,
           status
         FROM attendance_records
-        WHERE userId = ?
+        WHERE CAST(userId AS TEXT) = ?
         AND substr(verifiedAt, 1, 7) = ?
-        GROUP BY substr(verifiedAt, 1, 10), status
-        ORDER BY date DESC
-      `).bind(userId, thisMonth).all();
+        ORDER BY verifiedAt DESC
+      `).bind(String(userId), thisMonth).all();
+
+      // 날짜별로 상태 집계 (하루에 여러 출석 가능하므로 가장 최근 상태 사용)
+      const calendarData: any = {};
+      if (myAttendance.results) {
+        (myAttendance.results as any[]).forEach((record: any) => {
+          const dateKey = record.date;
+          if (!calendarData[dateKey]) {
+            calendarData[dateKey] = record.status;
+          }
+        });
+      }
 
       const totalDays = await DB.prepare(`
         SELECT COUNT(DISTINCT substr(verifiedAt, 1, 10)) as days
         FROM attendance_records
-        WHERE userId = ?
+        WHERE CAST(userId AS TEXT) = ?
         AND substr(verifiedAt, 1, 7) = ?
-      `).bind(userId, thisMonth).first();
+        AND status = 'VERIFIED'
+      `).bind(String(userId), thisMonth).first();
 
       return new Response(
         JSON.stringify({
           success: true,
           role: "STUDENT",
-          calendar: myAttendance.results,
+          calendar: calendarData,
           attendanceDays: totalDays?.days || 0,
           thisMonth: thisMonth,
         }),
