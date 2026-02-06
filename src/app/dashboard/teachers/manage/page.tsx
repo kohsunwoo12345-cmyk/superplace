@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Users,
   Shield,
@@ -23,6 +24,9 @@ import {
   FileText,
   Calendar,
   BarChart,
+  UserPlus,
+  BookOpen,
+  Trash2,
 } from "lucide-react";
 
 interface Teacher {
@@ -31,6 +35,7 @@ interface Teacher {
   email: string;
   phone?: string;
   permissions?: TeacherPermissions;
+  assignedClasses?: Class[];
 }
 
 interface TeacherPermissions {
@@ -44,14 +49,40 @@ interface TeacherPermissions {
   canViewStatistics: boolean;
 }
 
+interface Class {
+  id: number;
+  name: string;
+  grade?: string;
+  subject?: string;
+  description?: string;
+  academyId: number;
+  status: string;
+}
+
 export default function TeacherManagementPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [savingPermissions, setSavingPermissions] = useState(false);
   const [hasAccess, setHasAccess] = useState<boolean>(false);
+  
+  // 교사 추가 모달
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newTeacher, setNewTeacher] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
+  const [addingTeacher, setAddingTeacher] = useState(false);
+
+  // 반 배정 모달
+  const [showClassModal, setShowClassModal] = useState(false);
+  const [selectedClassIds, setSelectedClassIds] = useState<number[]>([]);
+  const [savingClasses, setSavingClasses] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -64,7 +95,6 @@ export default function TeacherManagementPage() {
     const user = JSON.parse(userStr);
     console.log("👤 Current user:", JSON.stringify(user, null, 2));
     console.log("🔑 User role:", user.role);
-    console.log("🔑 User role type:", typeof user.role);
     
     setCurrentUser(user);
     
@@ -76,15 +106,15 @@ export default function TeacherManagementPage() {
     
     if (!allowedRoles.includes(userRole)) {
       console.error("❌ Access denied. Role:", userRole);
-      console.error("❌ Allowed roles:", allowedRoles);
       setHasAccess(false);
       setLoading(false);
       return;
     }
 
-    console.log("✅ Access granted. Fetching teachers...");
+    console.log("✅ Access granted. Fetching data...");
     setHasAccess(true);
     fetchTeachers(user.academy_id || user.academyId);
+    fetchClasses(user.academy_id || user.academyId);
   }, []);
 
   const fetchTeachers = async (academyId?: number) => {
@@ -92,35 +122,36 @@ export default function TeacherManagementPage() {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      // 선생님 목록 조회
       const params = new URLSearchParams();
       if (academyId) {
         params.append("academyId", academyId.toString());
       }
 
       const response = await fetch(`/api/teachers?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
 
       if (data.success) {
         const teacherList = data.teachers || [];
         
-        // 각 선생님의 권한 정보 조회
-        const teachersWithPermissions = await Promise.all(
+        // 각 선생님의 권한과 배정된 반 정보 조회
+        const teachersWithDetails = await Promise.all(
           teacherList.map(async (teacher: Teacher) => {
             try {
+              // 권한 정보
               const permResponse = await fetch(
                 `/api/teachers/permissions?teacherId=${teacher.id}&academyId=${academyId}`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
+                { headers: { Authorization: `Bearer ${token}` } }
               );
               const permData = await permResponse.json();
+
+              // 배정된 반 정보
+              const classResponse = await fetch(
+                `/api/teachers/classes?teacherId=${teacher.id}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              const classData = await classResponse.json();
 
               return {
                 ...teacher,
@@ -142,15 +173,16 @@ export default function TeacherManagementPage() {
                       canManageAttendance: true,
                       canViewStatistics: false,
                     },
+                assignedClasses: classData.classes || [],
               };
             } catch (error) {
-              console.error(`Failed to fetch permissions for teacher ${teacher.id}:`, error);
+              console.error(`Failed to fetch details for teacher ${teacher.id}:`, error);
               return teacher;
             }
           })
         );
 
-        setTeachers(teachersWithPermissions);
+        setTeachers(teachersWithDetails);
       }
     } catch (error) {
       console.error("Failed to fetch teachers:", error);
@@ -159,48 +191,80 @@ export default function TeacherManagementPage() {
     }
   };
 
+  const fetchClasses = async (academyId?: number) => {
+    try {
+      const params = new URLSearchParams();
+      if (academyId) {
+        params.append("academyId", academyId.toString());
+      }
+
+      const response = await fetch(`/api/classes?${params.toString()}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setClasses(data.classes || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch classes:", error);
+    }
+  };
+
+  const handleAddTeacher = async () => {
+    if (!newTeacher.name || !newTeacher.email || !newTeacher.password) {
+      alert("이름, 이메일, 비밀번호를 모두 입력해주세요");
+      return;
+    }
+
+    try {
+      setAddingTeacher(true);
+      const response = await fetch("/api/teachers/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...newTeacher,
+          academyId: currentUser.academy_id || currentUser.academyId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert("교사가 추가되었습니다");
+        setShowAddModal(false);
+        setNewTeacher({ name: "", email: "", phone: "", password: "" });
+        fetchTeachers(currentUser.academy_id || currentUser.academyId);
+      } else {
+        alert(`교사 추가 실패: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Failed to add teacher:", error);
+      alert("교사 추가 중 오류가 발생했습니다");
+    } finally {
+      setAddingTeacher(false);
+    }
+  };
+
   const handlePermissionChange = (
     teacher: Teacher,
     permission: keyof TeacherPermissions,
     value: boolean
   ) => {
-    setTeachers((prev) =>
-      prev.map((t) =>
-        t.id === teacher.id
-          ? {
-              ...t,
-              permissions: {
-                ...t.permissions!,
-                [permission]: value,
-              },
-            }
-          : t
-      )
-    );
+    setSelectedTeacher({
+      ...teacher,
+      permissions: {
+        ...teacher.permissions!,
+        [permission]: value,
+      },
+    });
   };
 
   const savePermissions = async (teacher: Teacher) => {
-    if (!teacher.permissions) return;
-
     try {
       setSavingPermissions(true);
-      const token = localStorage.getItem("token");
-
       const response = await fetch("/api/teachers/permissions", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          teacherId: teacher.id,
-          academyId: currentUser.academyId,
-          canViewAllClasses: teacher.permissions.canViewAllClasses,
-          canViewAllStudents: teacher.permissions.canViewAllStudents,
-          canManageHomework: teacher.permissions.canManageHomework,
-          canManageAttendance: teacher.permissions.canManageAttendance,
-          canViewStatistics: teacher.permissions.canViewStatistics,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(teacher.permissions),
       });
 
       const data = await response.json();
@@ -208,6 +272,7 @@ export default function TeacherManagementPage() {
       if (data.success) {
         alert("권한이 저장되었습니다");
         setSelectedTeacher(null);
+        fetchTeachers(currentUser.academy_id || currentUser.academyId);
       } else {
         alert(`권한 저장 실패: ${data.error}`);
       }
@@ -216,6 +281,51 @@ export default function TeacherManagementPage() {
       alert("권한 저장 중 오류가 발생했습니다");
     } finally {
       setSavingPermissions(false);
+    }
+  };
+
+  const openClassModal = (teacher: Teacher) => {
+    setSelectedTeacher(teacher);
+    setSelectedClassIds(teacher.assignedClasses?.map(c => c.id) || []);
+    setShowClassModal(true);
+  };
+
+  const toggleClass = (classId: number) => {
+    setSelectedClassIds(prev =>
+      prev.includes(classId)
+        ? prev.filter(id => id !== classId)
+        : [...prev, classId]
+    );
+  };
+
+  const saveClassAssignments = async () => {
+    if (!selectedTeacher) return;
+
+    try {
+      setSavingClasses(true);
+      const response = await fetch("/api/teachers/classes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teacherId: selectedTeacher.id,
+          classIds: selectedClassIds,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(data.message);
+        setShowClassModal(false);
+        fetchTeachers(currentUser.academy_id || currentUser.academyId);
+      } else {
+        alert(`반 배정 실패: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Failed to assign classes:", error);
+      alert("반 배정 중 오류가 발생했습니다");
+    } finally {
+      setSavingClasses(false);
     }
   };
 
@@ -253,63 +363,99 @@ export default function TeacherManagementPage() {
   return (
     <div className="container mx-auto p-4 max-w-7xl">
       {/* 헤더 */}
-      <div className="mb-6">
-        <Button variant="ghost" onClick={() => router.back()} className="mb-4">
-          ← 돌아가기
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <Button variant="ghost" onClick={() => router.back()} className="mb-4">
+            ← 돌아가기
+          </Button>
+          <h1 className="text-3xl font-bold mb-2">👨‍🏫 교사 관리</h1>
+          <p className="text-gray-600">
+            교사를 추가하고 권한 및 담당 반을 설정하세요
+          </p>
+        </div>
+        <Button
+          onClick={() => setShowAddModal(true)}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          size="lg"
+        >
+          <UserPlus className="w-5 h-5 mr-2" />
+          교사 추가
         </Button>
-        <h1 className="text-3xl font-bold mb-2">👨‍🏫 선생님 관리</h1>
-        <p className="text-gray-600">
-          선생님별 권한을 설정하고 관리하세요
-        </p>
       </div>
 
-      {/* 선생님 목록 */}
+      {/* 교사 목록 */}
       <div className="grid grid-cols-1 gap-4">
         {teachers.length === 0 ? (
           <Card className="text-center py-12">
             <CardContent>
               <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">
-                등록된 선생님이 없습니다
+                등록된 교사가 없습니다
               </h3>
-              <p className="text-gray-600">
-                선생님을 먼저 등록해주세요.
+              <p className="text-gray-600 mb-4">
+                "교사 추가" 버튼을 눌러 교사를 등록하세요
               </p>
+              <Button onClick={() => setShowAddModal(true)}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                교사 추가
+              </Button>
             </CardContent>
           </Card>
         ) : (
           teachers.map((teacher) => (
-            <Card
-              key={teacher.id}
-              className="hover:shadow-lg transition-shadow"
-            >
+            <Card key={teacher.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-xl mb-2">
+                  <div>
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      <Users className="w-5 h-5 text-blue-600" />
                       {teacher.name}
                     </CardTitle>
-                    <CardDescription>
-                      {teacher.email}
-                      {teacher.phone && ` • ${teacher.phone}`}
+                    <CardDescription className="mt-1">
+                      {teacher.email} {teacher.phone && `• ${teacher.phone}`}
                     </CardDescription>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedTeacher(teacher)}
-                  >
-                    <Settings className="w-4 h-4 mr-2" />
-                    권한 설정
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openClassModal(teacher)}
+                    >
+                      <BookOpen className="w-4 h-4 mr-1" />
+                      반 배정 ({teacher.assignedClasses?.length || 0})
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedTeacher(teacher)}
+                    >
+                      <Settings className="w-4 h-4 mr-1" />
+                      권한 설정
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {/* 배정된 반 */}
+                {teacher.assignedClasses && teacher.assignedClasses.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">📚 담당 반</p>
+                    <div className="flex flex-wrap gap-2">
+                      {teacher.assignedClasses.map((cls) => (
+                        <Badge key={cls.id} variant="outline" className="bg-blue-50">
+                          {cls.name} {cls.grade && `(${cls.grade})`}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 권한 배지 */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {teacher.permissions?.canViewAllClasses ? (
                     <Badge className="bg-green-600 justify-center py-2">
                       <Eye className="w-3 h-3 mr-1" />
-                      전체 반 조회
+                      전체 반
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="justify-center py-2">
@@ -319,9 +465,9 @@ export default function TeacherManagementPage() {
                   )}
 
                   {teacher.permissions?.canViewAllStudents ? (
-                    <Badge className="bg-green-600 justify-center py-2">
+                    <Badge className="bg-cyan-600 justify-center py-2">
                       <Users className="w-3 h-3 mr-1" />
-                      전체 학생 조회
+                      전체 학생
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="justify-center py-2">
@@ -372,8 +518,158 @@ export default function TeacherManagementPage() {
         )}
       </div>
 
+      {/* 교사 추가 모달 */}
+      {showAddModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={() => setShowAddModal(false)}
+        >
+          <Card
+            className="w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserPlus className="w-6 h-6 text-blue-600" />
+                새 교사 추가
+              </CardTitle>
+              <CardDescription>
+                교사 정보를 입력하세요
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>이름 *</Label>
+                <Input
+                  value={newTeacher.name}
+                  onChange={(e) => setNewTeacher({ ...newTeacher, name: e.target.value })}
+                  placeholder="홍길동"
+                />
+              </div>
+              <div>
+                <Label>이메일 *</Label>
+                <Input
+                  type="email"
+                  value={newTeacher.email}
+                  onChange={(e) => setNewTeacher({ ...newTeacher, email: e.target.value })}
+                  placeholder="teacher@example.com"
+                />
+              </div>
+              <div>
+                <Label>전화번호</Label>
+                <Input
+                  value={newTeacher.phone}
+                  onChange={(e) => setNewTeacher({ ...newTeacher, phone: e.target.value })}
+                  placeholder="010-1234-5678"
+                />
+              </div>
+              <div>
+                <Label>초기 비밀번호 *</Label>
+                <Input
+                  type="password"
+                  value={newTeacher.password}
+                  onChange={(e) => setNewTeacher({ ...newTeacher, password: e.target.value })}
+                  placeholder="최소 6자 이상"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1"
+                >
+                  취소
+                </Button>
+                <Button
+                  onClick={handleAddTeacher}
+                  disabled={addingTeacher}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
+                >
+                  {addingTeacher ? "추가 중..." : "추가"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* 반 배정 모달 */}
+      {showClassModal && selectedTeacher && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={() => setShowClassModal(false)}
+        >
+          <Card
+            className="w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="w-6 h-6 text-blue-600" />
+                {selectedTeacher.name} 선생님 반 배정
+              </CardTitle>
+              <CardDescription>
+                담당할 반을 선택하세요 (다중 선택 가능)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {classes.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">
+                  등록된 반이 없습니다
+                </p>
+              ) : (
+                classes.map((cls) => (
+                  <div
+                    key={cls.id}
+                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      selectedClassIds.includes(cls.id)
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300"
+                    }`}
+                    onClick={() => toggleClass(cls.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold">{cls.name}</h4>
+                        <p className="text-sm text-gray-600">
+                          {cls.grade && `${cls.grade} •`} {cls.subject || "일반"}
+                        </p>
+                        {cls.description && (
+                          <p className="text-xs text-gray-500 mt-1">{cls.description}</p>
+                        )}
+                      </div>
+                      {selectedClassIds.includes(cls.id) && (
+                        <CheckCircle className="w-6 h-6 text-blue-600" />
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowClassModal(false)}
+                  className="flex-1"
+                >
+                  취소
+                </Button>
+                <Button
+                  onClick={saveClassAssignments}
+                  disabled={savingClasses}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
+                >
+                  {savingClasses ? "저장 중..." : `${selectedClassIds.length}개 반 배정`}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* 권한 설정 모달 */}
-      {selectedTeacher && (
+      {selectedTeacher && !showClassModal && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           onClick={() => setSelectedTeacher(null)}
