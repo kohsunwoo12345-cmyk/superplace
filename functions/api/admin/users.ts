@@ -34,11 +34,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     
     const params: any[] = [];
     
-    // academyId로 필터링
+    // academyId로 필터링 (문자열과 정수 모두 비교)
     if (academyId) {
-      query += ` WHERE academyId = ?`;
-      params.push(academyId);
-      console.log("🔍 Filtering users by academyId:", academyId);
+      query += ` WHERE (CAST(academyId AS TEXT) = ? OR academyId = ?)`;
+      params.push(String(academyId), parseInt(academyId));
+      console.log("🔍 Filtering users by academyId:", academyId, "(both string and int)");
+    } else {
+      console.warn("⚠️ No academyId provided to users API!");
     }
     
     query += ` ORDER BY datetime(createdAt) DESC`;

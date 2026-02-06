@@ -20,9 +20,20 @@ import { ko } from "date-fns/locale";
 interface ChatAnalysis {
   totalChats: number;
   totalStudents: number;
+  participatingStudents: number;
   averagePerStudent: number;
   mostActiveTime: string;
   topTopics: string[];
+}
+
+interface Student {
+  id: number;
+  name: string;
+  email: string;
+  activityCount?: number;
+  attendanceCount?: number;
+  homeworkCount?: number;
+  totalActivity?: number;
 }
 
 export default function AIChatAnalysisPage() {
@@ -32,12 +43,16 @@ export default function AIChatAnalysisPage() {
   const [analysis, setAnalysis] = useState<ChatAnalysis>({
     totalChats: 0,
     totalStudents: 0,
+    participatingStudents: 0,
     averagePerStudent: 0,
     mostActiveTime: "",
     topTopics: [],
   });
   const [hourlyData, setHourlyData] = useState<any[]>([]);
   const [topicData, setTopicData] = useState<any[]>([]);
+  const [participatingStudents, setParticipatingStudents] = useState<Student[]>([]);
+  const [topActiveStudents, setTopActiveStudents] = useState<Student[]>([]);
+  const [frequentQuestions, setFrequentQuestions] = useState<string[]>([]);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -77,12 +92,16 @@ export default function AIChatAnalysisPage() {
         setAnalysis(data.analysis || {
           totalChats: 0,
           totalStudents: 0,
+          participatingStudents: 0,
           averagePerStudent: 0,
           mostActiveTime: "",
           topTopics: [],
         });
         setHourlyData(data.hourlyData || []);
         setTopicData(data.topicData || []);
+        setParticipatingStudents(data.participatingStudents || []);
+        setTopActiveStudents(data.topActiveStudents || []);
+        setFrequentQuestions(data.frequentQuestions || []);
       } else {
         console.error("❌ Failed to fetch AI chat analysis:", response.status);
       }
@@ -102,24 +121,6 @@ export default function AIChatAnalysisPage() {
     { date: "금", questions: 58, completed: 51 },
     { date: "토", questions: 35, completed: 32 },
     { date: "일", questions: 28, completed: 25 },
-  ];
-
-  // 상위 학생 데이터
-  const topStudents = [
-    { name: "김민준", chats: 87, topics: ["수학", "과학"], progress: 92 },
-    { name: "이서연", chats: 76, topics: ["영어", "역사"], progress: 88 },
-    { name: "박지호", chats: 69, topics: ["코딩", "수학"], progress: 85 },
-    { name: "최유진", chats: 64, topics: ["영어", "과학"], progress: 82 },
-    { name: "정현우", chats: 58, topics: ["수학", "코딩"], progress: 79 },
-  ];
-
-  // 자주 묻는 질문
-  const frequentQuestions = [
-    { question: "이차방정식 푸는 방법", count: 45, category: "수학" },
-    { question: "영어 문법 시제 설명", count: 38, category: "영어" },
-    { question: "파이썬 반복문 사용법", count: 32, category: "코딩" },
-    { question: "광합성 과정 설명", count: 28, category: "과학" },
-    { question: "한국사 주요 사건", count: 24, category: "역사" },
   ];
 
   if (!user) {

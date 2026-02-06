@@ -69,12 +69,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (academyId) {
       const isGlobalAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
       if (!isGlobalAdmin) {
-        query += ` AND u.academyId = ?`;
-        params.push(academyId);
-        console.log("🔍 Filtering by academyId:", academyId, "for role:", role);
+        // 문자열과 정수 모두 비교
+        query += ` AND (CAST(u.academyId AS TEXT) = ? OR u.academyId = ?)`;
+        params.push(String(academyId), parseInt(academyId));
+        console.log("🔍 Filtering by academyId:", academyId, "(both string and int)", "for role:", role);
       } else {
         console.log("✅ Global admin - showing all data");
       }
+    } else {
+      console.warn("⚠️ No academyId provided!");
     }
 
     query += ` ORDER BY ar.verifiedAt DESC`;
