@@ -76,6 +76,14 @@ export default function TeacherManagementPage() {
     email: "",
     phone: "",
     password: "",
+    permissions: {
+      canViewAllClasses: false,
+      canViewAllStudents: false,
+      canManageHomework: true,
+      canManageAttendance: true,
+      canViewStatistics: false,
+    },
+    classIds: [] as number[],
   });
   const [addingTeacher, setAddingTeacher] = useState(false);
 
@@ -217,22 +225,66 @@ export default function TeacherManagementPage() {
 
     try {
       setAddingTeacher(true);
+      const academyId = currentUser.academy_id || currentUser.academyId;
+      
+      // 1. 교사 추가
       const response = await fetch("/api/teachers/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...newTeacher,
-          academyId: currentUser.academy_id || currentUser.academyId,
+          name: newTeacher.name,
+          email: newTeacher.email,
+          phone: newTeacher.phone,
+          password: newTeacher.password,
+          academyId,
         }),
       });
 
       const data = await response.json();
 
-      if (data.success) {
+      if (data.success && data.teacher) {
+        const teacherId = data.teacher.id;
+        
+        // 2. 권한 설정
+        await fetch("/api/teachers/permissions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            teacherId,
+            academyId,
+            ...newTeacher.permissions,
+          }),
+        });
+
+        // 3. 반 배정
+        if (newTeacher.classIds.length > 0) {
+          await fetch("/api/teachers/classes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              teacherId,
+              classIds: newTeacher.classIds,
+            }),
+          });
+        }
+
         alert("교사가 추가되었습니다");
         setShowAddModal(false);
-        setNewTeacher({ name: "", email: "", phone: "", password: "" });
-        fetchTeachers(currentUser.academy_id || currentUser.academyId);
+        setNewTeacher({
+          name: "",
+          email: "",
+          phone: "",
+          password: "",
+          permissions: {
+            canViewAllClasses: false,
+            canViewAllStudents: false,
+            canManageHomework: true,
+            canManageAttendance: true,
+            canViewStatistics: false,
+          },
+          classIds: [],
+        });
+        fetchTeachers(academyId);
       } else {
         alert(`교사 추가 실패: ${data.error}`);
       }
@@ -419,6 +471,14 @@ export default function TeacherManagementPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => router.push(`/dashboard/teachers/detail?id=${teacher.id}`)}
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      상세 보기
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => openClassModal(teacher)}
                     >
                       <BookOpen className="w-4 h-4 mr-1" />
@@ -571,6 +631,113 @@ export default function TeacherManagementPage() {
                   onChange={(e) => setNewTeacher({ ...newTeacher, password: e.target.value })}
                   placeholder="최소 6자 이상"
                 />
+              </div>
+
+              {/* 권한 설정 */}
+              <div className="space-y-3 border-t pt-4">
+                <h3 className="font-semibold text-sm">🔐 권한 설정</h3>
+                
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">전체 반 조회</Label>
+                  <Switch
+                    checked={newTeacher.permissions.canViewAllClasses}
+                    onCheckedChange={(checked) =>
+                      setNewTeacher({
+                        ...newTeacher,
+                        permissions: { ...newTeacher.permissions, canViewAllClasses: checked },
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">전체 학생 조회</Label>
+                  <Switch
+                    checked={newTeacher.permissions.canViewAllStudents}
+                    onCheckedChange={(checked) =>
+                      setNewTeacher({
+                        ...newTeacher,
+                        permissions: { ...newTeacher.permissions, canViewAllStudents: checked },
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">숙제 관리</Label>
+                  <Switch
+                    checked={newTeacher.permissions.canManageHomework}
+                    onCheckedChange={(checked) =>
+                      setNewTeacher({
+                        ...newTeacher,
+                        permissions: { ...newTeacher.permissions, canManageHomework: checked },
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">출석 관리</Label>
+                  <Switch
+                    checked={newTeacher.permissions.canManageAttendance}
+                    onCheckedChange={(checked) =>
+                      setNewTeacher({
+                        ...newTeacher,
+                        permissions: { ...newTeacher.permissions, canManageAttendance: checked },
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">전체 통계 조회</Label>
+                  <Switch
+                    checked={newTeacher.permissions.canViewStatistics}
+                    onCheckedChange={(checked) =>
+                      setNewTeacher({
+                        ...newTeacher,
+                        permissions: { ...newTeacher.permissions, canViewStatistics: checked },
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* 반 배정 */}
+              <div className="space-y-3 border-t pt-4">
+                <h3 className="font-semibold text-sm">📚 담당 반 배정</h3>
+                {classes.length === 0 ? (
+                  <p className="text-sm text-gray-500">등록된 반이 없습니다</p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {classes.map((cls) => (
+                      <div key={cls.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`class-${cls.id}`}
+                          checked={newTeacher.classIds.includes(cls.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewTeacher({
+                                ...newTeacher,
+                                classIds: [...newTeacher.classIds, cls.id],
+                              });
+                            } else {
+                              setNewTeacher({
+                                ...newTeacher,
+                                classIds: newTeacher.classIds.filter(id => id !== cls.id),
+                              });
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <Label htmlFor={`class-${cls.id}`} className="text-sm cursor-pointer">
+                          {cls.name} {cls.grade && `(${cls.grade})`}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">
