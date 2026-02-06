@@ -93,12 +93,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.name as userName,
         u.email,
         u.academyId,
+        a.name as academyName,
         ar.code,
         ar.verifiedAt,
         ar.status,
         ar.homeworkSubmitted
       FROM attendance_records ar
       JOIN users u ON ar.userId = u.id
+      LEFT JOIN academy a ON CAST(u.academyId AS TEXT) = CAST(a.id AS TEXT)
       WHERE 1=1
     `;
     
@@ -170,7 +172,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const monthResult = await monthStmt.first();
     const monthAttendance = monthResult?.count || 0;
 
-    // 전체 학생 수
+    // 전체 학생 수 (실제 DB에서 조회)
     let studentQuery = `
       SELECT COUNT(*) as count
       FROM users
@@ -182,6 +184,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (!isGlobalAdmin4 && academyId) {
       studentQuery += ` AND (CAST(academyId AS TEXT) = ? OR academyId = ?)`;
       studentParams.push(String(academyId), parseInt(academyId));
+      console.log("🔍 Counting students for academyId:", academyId);
     }
 
     let studentStmt = DB.prepare(studentQuery);
@@ -190,6 +193,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     });
     const studentResult = await studentStmt.first();
     const totalStudents = studentResult?.count || 0;
+    console.log("✅ Total students found:", totalStudents, "for academyId:", academyId);
 
     const attendanceRate = totalStudents > 0
       ? Math.round((todayAttendance / totalStudents) * 100)
@@ -227,6 +231,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         count: dayResult?.count || 0,
       });
     }
+
+    console.log("📊 Final statistics:", {
+      totalStudents,
+      todayAttendance,
+      monthAttendance,
+      attendanceRate,
+      recordCount: records.results?.length || 0,
+      weeklyDataLength: weeklyData.length
+    });
 
     return new Response(
       JSON.stringify({
