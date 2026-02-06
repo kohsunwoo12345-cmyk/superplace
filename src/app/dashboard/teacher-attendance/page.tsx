@@ -123,14 +123,17 @@ export default function TeacherAttendancePage() {
       
       console.log("🔍 fetchStudents - User data:", userData);
       console.log("🔍 fetchStudents - Extracted academyId:", academyId);
-      
-      if (!academyId) {
-        console.warn("⚠️ No academyId found in user data!");
-        return;
-      }
+      console.log("🔍 fetchStudents - User role:", userData.role);
       
       const params = new URLSearchParams();
-      params.append("academyId", academyId.toString());
+      // role 추가 (관리자 여부 확인용)
+      if (userData.role) {
+        params.append("role", userData.role);
+      }
+      // academyId 추가 (학원장/교사용, 관리자는 생략 가능)
+      if (academyId) {
+        params.append("academyId", academyId.toString());
+      }
       
       console.log("🔍 Fetching students with URL:", `/api/admin/users?${params.toString()}`);
       

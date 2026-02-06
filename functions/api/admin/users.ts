@@ -13,37 +13,42 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // academyId 파라미터 가져오기
+    // 파라미터 가져오기
     const url = new URL(context.request.url);
     const academyId = url.searchParams.get("academyId");
+    const role = url.searchParams.get("role");
 
-    console.log("👥 Users API called with academyId:", academyId);
+    console.log("👥 Users API called with:", { academyId, role });
+
+    const isGlobalAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
 
     // 쿼리 작성
     let query = `
       SELECT 
-        id, 
-        email, 
-        name, 
-        phone, 
-        role, 
-        academyId,
-        createdAt
-      FROM users
+        u.id, 
+        u.email, 
+        u.name, 
+        u.phone, 
+        u.role, 
+        u.academyId,
+        a.name as academyName,
+        u.createdAt
+      FROM users u
+      LEFT JOIN academy a ON CAST(u.academyId AS TEXT) = CAST(a.id AS TEXT)
     `;
     
     const params: any[] = [];
     
-    // academyId로 필터링 (문자열과 정수 모두 비교)
-    if (academyId) {
-      query += ` WHERE (CAST(academyId AS TEXT) = ? OR academyId = ?)`;
+    // 관리자가 아닌 경우에만 academyId로 필터링
+    if (!isGlobalAdmin && academyId) {
+      query += ` WHERE (CAST(u.academyId AS TEXT) = ? OR u.academyId = ?)`;
       params.push(String(academyId), parseInt(academyId));
-      console.log("🔍 Filtering users by academyId:", academyId, "(both string and int)");
-    } else {
-      console.warn("⚠️ No academyId provided to users API!");
+      console.log("🔍 Filtering users by academyId:", academyId, "for DIRECTOR");
+    } else if (isGlobalAdmin) {
+      console.log("✅ Global admin - showing all users");
     }
     
-    query += ` ORDER BY datetime(createdAt) DESC`;
+    query += ` ORDER BY datetime(u.createdAt) DESC`;
 
     // 쿼리 실행
     let usersResult;

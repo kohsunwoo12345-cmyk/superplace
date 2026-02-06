@@ -18,12 +18,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
+    console.log('🔍 Students API called with:', { role, academyId, userId });
+
     let query = '';
     const params: any[] = [];
 
     // 역할별 쿼리 분기
-    if (role === 'DIRECTOR' || role === 'ADMIN' || role === 'SUPER_ADMIN') {
-      // 원장 및 관리자: 해당 학원의 모든 학생
+    const isGlobalAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+    
+    if (role === 'DIRECTOR' || isGlobalAdmin) {
+      // 원장: 해당 학원의 모든 학생
+      // 관리자: 모든 학원의 모든 학생
       query = `
         SELECT 
           u.id,
@@ -32,18 +37,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.phone,
           u.role,
           u.academyId,
+          a.name as academyName,
           u.primaryClassId,
           c.name as className,
           u.createdAt,
           u.lastLoginAt
         FROM users u
         LEFT JOIN classes c ON u.primaryClassId = c.id
+        LEFT JOIN academy a ON CAST(u.academyId AS TEXT) = CAST(a.id AS TEXT)
         WHERE u.role = 'STUDENT'
       `;
 
-      if (academyId) {
-        query += ` AND u.academyId = ?`;
-        params.push(parseInt(academyId));
+      // 관리자가 아닌 경우에만 academyId 필터링
+      if (!isGlobalAdmin && academyId) {
+        query += ` AND (CAST(u.academyId AS TEXT) = ? OR u.academyId = ?)`;
+        params.push(String(academyId), parseInt(academyId));
+        console.log('🔍 Filtering by academyId:', academyId, 'for DIRECTOR');
+      } else if (isGlobalAdmin) {
+        console.log('✅ Global admin - showing all students');
       }
 
       query += ` ORDER BY u.createdAt DESC`;

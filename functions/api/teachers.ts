@@ -8,6 +8,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const { DB } = context.env;
     const url = new URL(context.request.url);
     const academyId = url.searchParams.get('academyId');
+    const role = url.searchParams.get('role');
+
+    console.log('👨‍🏫 Teachers API called with:', { role, academyId });
 
     if (!DB) {
       return new Response(JSON.stringify({ error: "Database not configured" }), {
@@ -16,28 +19,36 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
+    const isGlobalAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+
     let query = `
       SELECT 
-        id,
-        email,
-        name,
-        phone,
-        role,
-        academyId,
-        createdAt,
-        lastLoginAt
-      FROM users
-      WHERE role = 'TEACHER'
+        u.id,
+        u.email,
+        u.name,
+        u.phone,
+        u.role,
+        u.academyId,
+        a.name as academyName,
+        u.createdAt,
+        u.lastLoginAt
+      FROM users u
+      LEFT JOIN academy a ON CAST(u.academyId AS TEXT) = CAST(a.id AS TEXT)
+      WHERE u.role = 'TEACHER'
     `;
 
     const params: any[] = [];
 
-    if (academyId) {
-      query += ` AND academyId = ?`;
-      params.push(parseInt(academyId));
+    // 관리자가 아닌 경우에만 academyId 필터링
+    if (!isGlobalAdmin && academyId) {
+      query += ` AND (CAST(u.academyId AS TEXT) = ? OR u.academyId = ?)`;
+      params.push(String(academyId), parseInt(academyId));
+      console.log('🔍 Filtering by academyId:', academyId, 'for DIRECTOR');
+    } else if (isGlobalAdmin) {
+      console.log('✅ Global admin - showing all teachers');
     }
 
-    query += ` ORDER BY createdAt DESC`;
+    query += ` ORDER BY u.createdAt DESC`;
 
     const result = await DB.prepare(query).bind(...params).all();
 

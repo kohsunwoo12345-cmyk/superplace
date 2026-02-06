@@ -131,9 +131,16 @@ export default function TeacherManagementPage() {
       const token = localStorage.getItem("token");
       
       const params = new URLSearchParams();
+      // role 추가 (관리자 여부 확인용)
+      if (currentUser?.role) {
+        params.append("role", currentUser.role);
+      }
+      // academyId 추가 (학원장용)
       if (academyId) {
         params.append("academyId", academyId.toString());
       }
+
+      console.log('👨‍🏫 Fetching teachers with params:', { role: currentUser?.role, academyId });
 
       const response = await fetch(`/api/teachers?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
