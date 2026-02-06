@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Camera, CheckCircle, AlertCircle, RotateCcw, Send } from "lucide-react";
+import { Camera, CheckCircle, AlertCircle, RotateCcw, Send, X, Plus, Image as ImageIcon } from "lucide-react";
 
 function HomeworkCheckContent() {
   const router = useRouter();
@@ -15,7 +15,8 @@ function HomeworkCheckContent() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedImages, setCapturedImages] = useState<string[]>([]);
+  const [showCamera, setShowCamera] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
@@ -25,8 +26,6 @@ function HomeworkCheckContent() {
       setError("사용자 정보가 없습니다");
       return;
     }
-
-    startCamera();
 
     return () => {
       if (stream) {
@@ -45,10 +44,19 @@ function HomeworkCheckContent() {
         videoRef.current.srcObject = mediaStream;
       }
       setStream(mediaStream);
+      setShowCamera(true);
     } catch (err) {
       console.error("Camera error:", err);
       setError("카메라를 시작할 수 없습니다");
     }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setShowCamera(false);
   };
 
   const capturePhoto = () => {
@@ -63,26 +71,25 @@ function HomeworkCheckContent() {
         context.drawImage(video, 0, 0);
         
         const imageData = canvas.toDataURL('image/jpeg', 0.9);
-        setCapturedImage(imageData);
+        setCapturedImages(prev => [...prev, imageData]);
         
         // 카메라 중지
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
+        stopCamera();
       }
     }
   };
 
-  const retake = () => {
-    setCapturedImage(null);
-    setResult(null);
-    setError("");
+  const removeImage = (index: number) => {
+    setCapturedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addMorePhotos = () => {
     startCamera();
   };
 
   const submitHomework = async () => {
-    if (!capturedImage || !userId) {
-      setError("이미지 또는 사용자 정보가 없습니다");
+    if (capturedImages.length === 0 || !userId) {
+      setError("최소 1장 이상의 사진을 찍어주세요");
       return;
     }
 
@@ -96,7 +103,7 @@ function HomeworkCheckContent() {
         body: JSON.stringify({
           userId: parseInt(userId),
           attendanceRecordId: attendanceId,
-          imageData: capturedImage,
+          images: capturedImages, // 다중 이미지 전송
         }),
       });
 
@@ -105,10 +112,10 @@ function HomeworkCheckContent() {
       if (response.ok && data.success) {
         setResult(data);
         
-        // 5초 후 완료 페이지로 이동
+        // 5초 후 피드백 페이지로 이동
         setTimeout(() => {
-          router.push("/homework-check/complete");
-        }, 5000);
+          router.push(`/homework-check/feedback?submissionId=${data.submissionId}&userId=${userId}`);
+        }, 3000);
       } else {
         setError(data.error || "제출 실패");
       }
@@ -122,9 +129,9 @@ function HomeworkCheckContent() {
 
   if (!userId) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md sm:max-w-lg">
-          <CardContent className="pt-4 sm:pt-6 p-4 sm:p-6">
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
             <div className="text-center">
               <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
               <p className="text-lg text-red-600">사용자 정보가 없습니다</p>
@@ -143,12 +150,16 @@ function HomeworkCheckContent() {
             <Camera className="w-6 h-6" />
             숙제 검사
           </CardTitle>
+          <p className="text-sm text-gray-600 mt-2">
+            숙제를 여러 장 찍어서 제출할 수 있습니다
+          </p>
         </CardHeader>
         <CardContent>
           {!result ? (
-            <div className="space-y-3 sm:space-y-4">
-              {!capturedImage ? (
-                <>
+            <div className="space-y-4">
+              {/* 카메라 화면 */}
+              {showCamera && (
+                <div className="space-y-3">
                   <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
                     <video
                       ref={videoRef}
@@ -165,23 +176,60 @@ function HomeworkCheckContent() {
                     </p>
                   </div>
 
-                  <Button
-                    onClick={capturePhoto}
-                    className="w-full"
-                    size="lg"
-                  >
-                    <Camera className="w-5 h-5 mr-2" />
-                    사진 찍기
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <div className="relative bg-black rounded-lg overflow-hidden">
-                    <img
-                      src={capturedImage}
-                      alt="Captured homework"
-                      className="w-full h-auto"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      onClick={stopCamera}
+                      variant="outline"
+                      size="lg"
+                    >
+                      <X className="w-5 h-5 mr-2" />
+                      취소
+                    </Button>
+                    <Button
+                      onClick={capturePhoto}
+                      size="lg"
+                    >
+                      <Camera className="w-5 h-5 mr-2" />
+                      사진 찍기
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* 찍은 사진들 표시 */}
+              {!showCamera && capturedImages.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">찍은 사진 ({capturedImages.length}장)</h3>
+                    <Button
+                      onClick={addMorePhotos}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      사진 추가
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {capturedImages.map((image, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={image}
+                          alt={`Homework ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
+                        />
+                        <button
+                          onClick={() => removeImage(index)}
+                          className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs">
+                          {index + 1}번
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
                   {error && (
@@ -191,32 +239,45 @@ function HomeworkCheckContent() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      onClick={retake}
-                      variant="outline"
-                      size="lg"
-                      disabled={loading}
-                    >
-                      <RotateCcw className="w-5 h-5 mr-2" />
-                      다시 찍기
-                    </Button>
-                    <Button
-                      onClick={submitHomework}
-                      size="lg"
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        "AI 채점 중..."
-                      ) : (
-                        <>
-                          <Send className="w-5 h-5 mr-2" />
-                          제출하기
-                        </>
-                      )}
-                    </Button>
+                  <Button
+                    onClick={submitHomework}
+                    className="w-full"
+                    size="lg"
+                    disabled={loading || capturedImages.length === 0}
+                  >
+                    {loading ? (
+                      "AI 채점 중..."
+                    ) : (
+                      <>
+                        <Send className="w-5 h-5 mr-2" />
+                        {capturedImages.length}장 제출하기
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* 처음 시작 화면 */}
+              {!showCamera && capturedImages.length === 0 && (
+                <div className="text-center py-12 space-y-4">
+                  <div className="w-20 h-20 mx-auto bg-purple-100 rounded-full flex items-center justify-center">
+                    <ImageIcon className="w-10 h-10 text-purple-600" />
                   </div>
-                </>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">숙제 사진을 찍어주세요</h3>
+                    <p className="text-sm text-gray-600">
+                      숙제가 여러 페이지라면 각각 찍어서 제출하세요
+                    </p>
+                  </div>
+                  <Button
+                    onClick={startCamera}
+                    size="lg"
+                    className="px-8"
+                  >
+                    <Camera className="w-5 h-5 mr-2" />
+                    카메라 시작
+                  </Button>
+                </div>
               )}
             </div>
           ) : (
@@ -227,53 +288,17 @@ function HomeworkCheckContent() {
               
               <div>
                 <h3 className="text-xl font-bold text-green-700 mb-2">제출 완료!</h3>
-                <p className="text-gray-600">AI가 숙제를 채점했습니다</p>
+                <p className="text-gray-600">AI가 {capturedImages.length}장의 숙제를 채점 중입니다</p>
               </div>
 
-              {result.grading && (
-                <div className="space-y-3 text-left">
-                  {result.grading.score !== null && (
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-700">점수</span>
-                        <span className="text-xl sm:text-2xl font-bold text-blue-600">
-                          {result.grading.score}점
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm font-medium text-gray-700 mb-2">AI 피드백</p>
-                    <p className="text-sm text-gray-600">{result.grading.feedback}</p>
-                  </div>
-
-                  {result.grading.strengths?.length > 0 && (
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-sm font-medium text-green-700 mb-2">👍 잘한 점</p>
-                      <ul className="text-sm text-green-600 space-y-1">
-                        {result.grading.strengths.map((s: string, i: number) => (
-                          <li key={i}>• {s}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {result.grading.suggestions?.length > 0 && (
-                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <p className="text-sm font-medium text-yellow-700 mb-2">💡 개선 제안</p>
-                      <ul className="text-sm text-yellow-600 space-y-1">
-                        {result.grading.suggestions.map((s: string, i: number) => (
-                          <li key={i}>• {s}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  ✅ 선생님과 학원장님께 알림이 전송되었습니다
+                </p>
+              </div>
 
               <p className="text-sm text-purple-600 animate-pulse">
-                선생님께 결과가 전송되었습니다...
+                잠시 후 결과 페이지로 이동합니다...
               </p>
             </div>
           )}

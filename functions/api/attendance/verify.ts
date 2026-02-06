@@ -65,9 +65,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       )
     `).run();
 
-    // 코드 유효성 확인
+    // 코드 유효성 확인 및 사용자 일치 확인
     const codeRecord = await DB.prepare(`
-      SELECT * FROM student_attendance_codes WHERE code = ? AND isActive = 1
+      SELECT * FROM student_attendance_codes 
+      WHERE code = ? AND isActive = 1
     `).bind(code).first();
 
     if (!codeRecord) {
@@ -80,13 +81,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
+    // 코드 소유자와 요청한 사용자가 일치하는지 확인
+    const codeUserId = String(codeRecord.userId);
+    const requestUserId = String(userId);
+    
+    if (codeUserId !== requestUserId) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          message: "본인의 출석 코드가 아닙니다." 
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     // 오늘 이미 출석했는지 확인 (한국 시간 기준)
     const today = getKoreanDate();
     const existingRecord = await DB.prepare(`
       SELECT * FROM attendance_records 
-      WHERE userId = ? 
+      WHERE CAST(userId AS TEXT) = ? 
       AND substr(verifiedAt, 1, 10) = ?
-    `).bind(userId, today).first();
+    `).bind(String(userId), today).first();
 
     if (existingRecord) {
       return new Response(
@@ -105,7 +120,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     await DB.prepare(`
       INSERT INTO attendance_records (id, userId, code, verifiedAt, status)
       VALUES (?, ?, ?, ?, 'VERIFIED')
-    `).bind(recordId, userId, code, koreanTime).run();
+    `).bind(recordId, String(userId), code, koreanTime).run();
 
     return new Response(
       JSON.stringify({

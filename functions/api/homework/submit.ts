@@ -14,62 +14,51 @@ interface GeminiResponse {
 // 한국 시간 (KST) 생성 함수
 function getKoreanTime(): string {
   const now = new Date();
-  // UTC 시간에 9시간 추가 (KST = UTC+9)
   const kstOffset = 9 * 60; // 분 단위
   const kstTime = new Date(now.getTime() + kstOffset * 60 * 1000);
   
-  // ISO 형식으로 변환 후 'Z'를 제거하고 '+09:00' 추가
-  return kstTime.toISOString().replace('Z', '+09:00');
-}
-
-// 한국 시간으로 포맷팅
-function formatKoreanTime(isoString: string): string {
-  const date = new Date(isoString);
-  const kstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
-  
-  const year = kstDate.getFullYear();
-  const month = String(kstDate.getMonth() + 1).padStart(2, '0');
-  const day = String(kstDate.getDate()).padStart(2, '0');
-  const hours = String(kstDate.getHours()).padStart(2, '0');
-  const minutes = String(kstDate.getMinutes()).padStart(2, '0');
-  const seconds = String(kstDate.getSeconds()).padStart(2, '0');
+  const year = kstTime.getFullYear();
+  const month = String(kstTime.getMonth() + 1).padStart(2, '0');
+  const day = String(kstTime.getDate()).padStart(2, '0');
+  const hours = String(kstTime.getHours()).padStart(2, '0');
+  const minutes = String(kstTime.getMinutes()).padStart(2, '0');
+  const seconds = String(kstTime.getSeconds()).padStart(2, '0');
   
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
-// Gemini API를 사용한 숙제 채점
-async function gradeHomeworkWithGemini(
-  imageBase64: string,
+// Gemini API를 사용한 다중 이미지 숙제 채점
+async function gradeMultipleImagesWithGemini(
+  images: string[],
   apiKey: string
 ): Promise<any> {
   try {
-    // base64에서 data URL prefix 제거
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    // 이미지 parts 생성
+    const imageParts = images.map(imageBase64 => {
+      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      return {
+        inline_data: {
+          mime_type: "image/jpeg",
+          data: base64Data,
+        },
+      };
+    });
 
     const prompt = `당신은 학생의 숙제를 채점하는 선생님입니다.
-아래 이미지를 분석하여 다음 형식으로 JSON 응답을 제공해주세요:
+총 ${images.length}장의 숙제 이미지를 분석하여 다음 형식으로 JSON 응답을 제공해주세요:
 
 {
-  "score": 점수 (0-100, 숫자만),
-  "feedback": "전체적인 피드백 (한글, 2-3문장)",
-  "strengths": ["잘한 점 1", "잘한 점 2"],
+  "score": 점수 (0-100, 숫자만, 모든 페이지 종합 평가),
+  "feedback": "전체적인 피드백 (한글, 3-4문장, 모든 페이지를 고려한 종합 평가)",
+  "strengths": ["잘한 점 1", "잘한 점 2", "잘한 점 3"],
   "suggestions": ["개선할 점 1", "개선할 점 2"],
-  "subject": "과목명 (예: 수학, 영어 등)",
+  "subject": "과목명 (예: 수학, 영어, 국어 등)",
   "completion": "완성도 (상/중/하)",
-  "effort": "노력도 (상/중/하)"
+  "effort": "노력도 (상/중/하)",
+  "pageCount": ${images.length}
 }
 
-숙제가 명확하지 않거나 이미지가 불분명한 경우:
-{
-  "score": null,
-  "feedback": "이미지가 불명확하거나 숙제를 확인할 수 없습니다. 다시 촬영해주세요.",
-  "strengths": [],
-  "suggestions": ["숙제가 잘 보이도록 다시 촬영해주세요"],
-  "subject": "확인 불가",
-  "completion": "확인 불가",
-  "effort": "확인 불가"
-}
-
+여러 페이지를 제출한 경우 모든 페이지를 종합적으로 평가해주세요.
 반드시 JSON 형식으로만 응답하세요. 다른 텍스트는 포함하지 마세요.`;
 
     const requestBody = {
@@ -79,12 +68,7 @@ async function gradeHomeworkWithGemini(
             {
               text: prompt,
             },
-            {
-              inline_data: {
-                mime_type: "image/jpeg",
-                data: base64Data,
-              },
-            },
+            ...imageParts,
           ],
         },
       ],
@@ -123,7 +107,6 @@ async function gradeHomeworkWithGemini(
     // JSON 파싱
     let grading;
     try {
-      // JSON 코드 블록 제거 (```json ... ``` 형식)
       const cleanedText = generatedText
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
@@ -131,7 +114,6 @@ async function gradeHomeworkWithGemini(
       grading = JSON.parse(cleanedText);
     } catch (parseError) {
       console.error("JSON Parse Error:", parseError);
-      // 파싱 실패 시 기본 응답
       grading = {
         score: null,
         feedback: "AI 분석 중 오류가 발생했습니다. 다시 시도해주세요.",
@@ -140,6 +122,7 @@ async function gradeHomeworkWithGemini(
         subject: "확인 불가",
         completion: "확인 불가",
         effort: "확인 불가",
+        pageCount: images.length,
       };
     }
 
@@ -150,6 +133,72 @@ async function gradeHomeworkWithGemini(
   }
 }
 
+// 알림 전송 함수
+async function sendNotificationToTeachersAndDirector(
+  DB: D1Database,
+  userId: number,
+  userName: string,
+  academyId: number,
+  score: number
+): Promise<void> {
+  try {
+    // 해당 학원의 선생님과 학원장 조회
+    const teachers = await DB.prepare(`
+      SELECT id, name, email FROM users
+      WHERE academyId = ? AND (UPPER(role) = 'TEACHER' OR UPPER(role) = 'DIRECTOR')
+    `).bind(academyId).all();
+
+    if (!teachers.results || teachers.results.length === 0) {
+      console.log("No teachers/directors found for notification");
+      return;
+    }
+
+    const koreanTime = getKoreanTime();
+    const notificationId = `notification-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    // 알림 생성
+    const title = "숙제 제출 완료";
+    const message = `${userName} 학생이 숙제를 제출했습니다. (점수: ${score}점)`;
+    
+    await DB.prepare(`
+      INSERT INTO notifications (id, title, message, type, filterType, recipientCount, createdAt, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      notificationId,
+      title,
+      message,
+      "info",
+      "custom",
+      teachers.results.length,
+      koreanTime,
+      "sent"
+    ).run();
+
+    // 각 선생님/학원장에게 알림 전송
+    for (const teacher of teachers.results as any[]) {
+      const recipientId = `notif-recipient-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      await DB.prepare(`
+        INSERT INTO notification_recipients (id, notificationId, userId, userName, userEmail, academyId, sentAt, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        recipientId,
+        notificationId,
+        teacher.id,
+        teacher.name,
+        teacher.email,
+        academyId,
+        koreanTime,
+        "sent"
+      ).run();
+    }
+
+    console.log(`Notifications sent to ${teachers.results.length} teachers/directors`);
+  } catch (error) {
+    console.error("Failed to send notifications:", error);
+    // 알림 전송 실패해도 숙제 제출은 성공으로 처리
+  }
+}
+
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const { DB, GEMINI_API_KEY } = context.env;
@@ -157,41 +206,50 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (!DB) {
       return new Response(
         JSON.stringify({ success: false, error: "Database not configured" }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
     if (!GEMINI_API_KEY) {
       return new Response(
         JSON.stringify({ success: false, error: "Gemini API key not configured" }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
     const body: any = await context.request.json();
-    const { userId, attendanceRecordId, imageData } = body;
+    const { userId, attendanceRecordId, images } = body;
 
-    if (!userId || !imageData) {
+    // images 배열 검증 (하위 호환성을 위해 imageData도 지원)
+    let imageArray = images;
+    if (!imageArray && body.imageData) {
+      // 단일 이미지를 배열로 변환
+      imageArray = [body.imageData];
+    }
+
+    if (!userId || !imageArray || !Array.isArray(imageArray) || imageArray.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: "Missing required fields" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
+        JSON.stringify({ success: false, error: "Missing required fields or empty images" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Gemini API로 숙제 채점
-    console.log("Grading homework with Gemini AI...");
-    const grading = await gradeHomeworkWithGemini(imageData, GEMINI_API_KEY);
+    // 사용자 정보 조회 (학원 ID와 이름 가져오기)
+    const user = await DB.prepare(`
+      SELECT id, name, email, academyId FROM users WHERE id = ?
+    `).bind(userId).first();
 
-    // 한국 시간으로 현재 시간 생성
+    if (!user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "User not found" }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Gemini API로 다중 이미지 숙제 채점
+    console.log(`Grading ${imageArray.length} homework images with Gemini AI...`);
+    const grading = await gradeMultipleImagesWithGemini(imageArray, GEMINI_API_KEY);
+
     const koreanTime = getKoreanTime();
     const submissionId = `homework-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -205,7 +263,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         submissionId,
         userId,
         attendanceRecordId || null,
-        "data:image/jpeg;base64,...", // 실제로는 이미지를 저장소에 업로드하고 URL을 저장해야 함
+        `${imageArray.length} images submitted`,
         grading.score,
         grading.feedback,
         grading.subject || "기타",
@@ -227,21 +285,30 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         .run();
     }
 
+    // 선생님과 학원장에게 알림 전송
+    if (user.academyId && grading.score !== null) {
+      await sendNotificationToTeachersAndDirector(
+        DB,
+        userId,
+        user.name as string,
+        user.academyId as number,
+        grading.score
+      );
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         submissionId,
         grading: {
           ...grading,
-          submittedAt: formatKoreanTime(koreanTime),
-          gradedAt: formatKoreanTime(koreanTime),
+          submittedAt: koreanTime,
+          gradedAt: koreanTime,
+          totalImages: imageArray.length,
         },
-        message: "숙제가 성공적으로 제출되고 채점되었습니다",
+        message: `숙제 ${imageArray.length}장이 성공적으로 제출되고 채점되었습니다`,
       }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("Homework submission error:", error);
@@ -251,10 +318,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         error: "Failed to submit homework",
         message: error.message,
       }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 };
