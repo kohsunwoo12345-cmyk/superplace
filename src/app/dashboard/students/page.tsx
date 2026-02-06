@@ -74,14 +74,25 @@ export default function StudentsPage() {
       if (user.role) {
         params.append('role', user.role);
       }
-      if (user.academy_id) {
-        params.append('academyId', user.academy_id);
+      // academyId 추출 (3가지 형태 확인)
+      const academyId = user.academyId || user.academy_id || user.AcademyId;
+      if (academyId) {
+        params.append('academyId', String(academyId));
       }
+      // userId 추가 (교사 권한 확인용)
+      if (user.id) {
+        params.append('userId', String(user.id));
+      }
+      
+      console.log('👥 Fetching students with params:', { role: user.role, academyId, userId: user.id });
       
       const response = await fetch(`/api/students?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Students data received:', data);
         setStudents(data.students || []);
+      } else {
+        console.error('❌ Failed to fetch students:', response.status);
       }
     } catch (error) {
       console.error("Failed to fetch students:", error);

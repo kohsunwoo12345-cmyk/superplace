@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { 
   Menu, X, LogOut, User, Bell, Search, Home, BookOpen, 
   Users, Calendar, MessageCircle, BarChart2, Settings,
@@ -25,9 +25,18 @@ interface ModernLayoutProps {
 
 export default function ModernLayout({ children, role }: ModernLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // 현재 활성 메뉴 판별
+  const isActive = (href: string) => {
+    if (href === '/dashboard') {
+      return pathname === '/dashboard';
+    }
+    return pathname?.startsWith(href);
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -266,11 +275,23 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
                 <a
                   key={item.id}
                   href={item.href}
-                  className="flex items-center justify-between gap-3 px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all group"
+                  className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all group ${
+                    isActive(item.href)
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                      : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50'
+                  }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors" />
-                    <span className="font-medium group-hover:text-blue-900">{item.text}</span>
+                    <Icon className={`w-5 h-5 transition-colors ${
+                      isActive(item.href)
+                        ? 'text-white'
+                        : 'text-gray-600 group-hover:text-blue-600'
+                    }`} />
+                    <span className={`font-medium ${
+                      isActive(item.href)
+                        ? 'text-white'
+                        : 'group-hover:text-blue-900'
+                    }`}>{item.text}</span>
                   </div>
                   {item.badge && (
                     <span className="px-2 py-0.5 text-xs font-semibold bg-red-500 text-white rounded-full">
@@ -345,11 +366,23 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
                     key={item.id}
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between gap-3 px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all group"
+                    className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all group ${
+                      isActive(item.href)
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50'
+                    }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon className="w-5 h-5 text-gray-600 group-hover:text-blue-600" />
-                      <span className="font-medium group-hover:text-blue-900">{item.text}</span>
+                      <Icon className={`w-5 h-5 ${
+                        isActive(item.href)
+                          ? 'text-white'
+                          : 'text-gray-600 group-hover:text-blue-600'
+                      }`} />
+                      <span className={`font-medium ${
+                        isActive(item.href)
+                          ? 'text-white'
+                          : 'group-hover:text-blue-900'
+                      }`}>{item.text}</span>
                     </div>
                     {item.badge && (
                       <span className="px-2 py-0.5 text-xs font-semibold bg-red-500 text-white rounded-full">
