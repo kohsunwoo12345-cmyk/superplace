@@ -97,7 +97,15 @@ export default function TeacherAttendancePage() {
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch("/api/admin/users");
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      const academyId = userData.academy_id || userData.academyId;
+      
+      const params = new URLSearchParams();
+      if (academyId) {
+        params.append("academyId", academyId.toString());
+      }
+      
+      const response = await fetch(`/api/admin/users?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         const studentList = data.users?.filter((u: any) => 
