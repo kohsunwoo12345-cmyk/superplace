@@ -9,8 +9,7 @@ import { Camera, CheckCircle, AlertCircle, RotateCcw, Send, X, Plus, Image as Im
 function HomeworkCheckContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const userId = searchParams.get("userId");
-  const attendanceId = searchParams.get("attendanceId");
+  const attendanceIdFromUrl = searchParams.get("attendanceId");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,11 +19,17 @@ function HomeworkCheckContent() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
-    if (!userId) {
-      setError("사용자 정보가 없습니다");
-      return;
+    // 로컬 스토리지에서 사용자 정보 가져오기
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      setCurrentUser(user);
+    } else {
+      setError("사용자 정보가 없습니다. 로그인해주세요.");
+      setTimeout(() => router.push("/login"), 2000);
     }
 
     return () => {
@@ -32,7 +37,7 @@ function HomeworkCheckContent() {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [userId]);
+  }, []);
 
   const startCamera = async () => {
     try {
@@ -88,7 +93,7 @@ function HomeworkCheckContent() {
   };
 
   const submitHomework = async () => {
-    if (capturedImages.length === 0 || !userId) {
+    if (capturedImages.length === 0 || !currentUser) {
       setError("최소 1장 이상의 사진을 찍어주세요");
       return;
     }
@@ -101,8 +106,8 @@ function HomeworkCheckContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: parseInt(userId),
-          attendanceRecordId: attendanceId,
+          userId: currentUser.id,
+          attendanceRecordId: attendanceIdFromUrl ? parseInt(attendanceIdFromUrl) : null,
           images: capturedImages, // 다중 이미지 전송
         }),
       });
@@ -112,9 +117,9 @@ function HomeworkCheckContent() {
       if (response.ok && data.success) {
         setResult(data);
         
-        // 5초 후 피드백 페이지로 이동
+        // 3초 후 피드백 페이지로 이동
         setTimeout(() => {
-          router.push(`/homework-check/feedback?submissionId=${data.submissionId}&userId=${userId}`);
+          router.push(`/homework-check/feedback?submissionId=${data.submissionId}&userId=${currentUser.id}`);
         }, 3000);
       } else {
         setError(data.error || "제출 실패");
@@ -127,7 +132,7 @@ function HomeworkCheckContent() {
     }
   };
 
-  if (!userId) {
+  if (!currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
