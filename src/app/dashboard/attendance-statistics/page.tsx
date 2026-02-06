@@ -76,11 +76,8 @@ export default function AttendanceStatisticsPage() {
     const defaultYear = now.getFullYear();
     const defaultMonth = now.getMonth() + 1;
     
-    // 달력 데이터 준비
-    const calendarData: any = {};
-    statistics?.calendar?.forEach((item: any) => {
-      calendarData[item.date] = item.status;
-    });
+    // 달력 데이터 준비 (API는 이미 객체 형태로 반환)
+    const calendarData: any = statistics?.calendar || {};
 
     // 현재 월의 모든 날짜 생성
     const thisMonth = statistics?.thisMonth || `${defaultYear}-${String(defaultMonth).padStart(2, '0')}`;
