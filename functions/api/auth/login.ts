@@ -128,15 +128,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // DB에서 member/user 같은 역할을 원장/선생님/학생으로 변환
     let userRole = user.role || 'STUDENT';
     
-    // 역할 매핑
+    // 역할 매핑 (ADMIN, SUPER_ADMIN은 그대로 유지)
     if (userRole === 'member') {
       userRole = 'DIRECTOR'; // 원장
     } else if (userRole === 'user') {
-      userRole = 'TEACHER'; // 선생님 (기본값)
-    } else if (!['DIRECTOR', 'TEACHER', 'STUDENT', 'ADMIN'].includes(userRole)) {
-      // 알 수 없는 역할은 TEACHER로 처리
-      userRole = 'TEACHER';
+      userRole = 'TEACHER'; // 선생님
     }
+    // ADMIN, SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT는 그대로 유지
 
     // JWT 토큰 생성
     const token = generateToken({
