@@ -53,7 +53,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ar.homeworkSubmittedAt,
         u.name as userName,
         u.email as userEmail,
-        u.academy_id as academyId,
+        u.academyId,
         hs.score,
         hs.subject,
         hs.feedback
@@ -66,8 +66,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 학원별 필터링 (관리자가 아닌 경우)
     if (academyId && role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
-      query += ` AND u.academy_id = ?`;
-      params.push(parseInt(academyId));
+      query += ` AND u.academyId = ?`;
+      params.push(academyId);
       console.log("🔍 Filtering by academyId:", academyId);
     }
 

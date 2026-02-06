@@ -63,10 +63,18 @@ export default function TeacherAttendancePage() {
     }
 
     const userData = JSON.parse(storedUser);
+    console.log("👤 Full user data from localStorage:", userData);
+    console.log("🔑 Available keys:", Object.keys(userData));
+    console.log("🏫 academyId values:", {
+      academyId: userData.academyId,
+      academy_id: userData.academy_id,
+      AcademyId: userData.AcademyId,
+    });
+    
     setCurrentUser(userData);
 
     // 학생 목록 로드
-    fetchStudents();
+    fetchStudents(userData);
     
     // 오늘의 출석 현황 로드
     fetchTodayAttendance(userData);
@@ -76,9 +84,14 @@ export default function TeacherAttendancePage() {
     try {
       setAttendanceLoading(true);
       const today = new Date().toISOString().split('T')[0];
-      const academyId = userData.academy_id || userData.academyId;
+      const academyId = userData.academyId || userData.academy_id || userData.AcademyId;
       
-      console.log("🔍 Fetching attendance with academyId:", academyId);
+      console.log("🔍 fetchTodayAttendance - User data:", userData);
+      console.log("🔍 fetchTodayAttendance - Extracted academyId:", academyId);
+      
+      if (!academyId) {
+        console.warn("⚠️ No academyId found for attendance!");
+      }
       
       const params = new URLSearchParams({
         date: today,
@@ -86,36 +99,45 @@ export default function TeacherAttendancePage() {
         role: userData.role || "",
       });
       
+      console.log("🔍 Fetching attendance with URL:", `/api/attendance/today?${params}`);
+      
       const response = await fetch(`/api/attendance/today?${params}`);
       if (response.ok) {
         const data = await response.json();
         console.log("✅ Attendance data received:", data);
         setAttendanceRecords(data.records || []);
         setAttendanceStats(data.statistics || {});
+      } else {
+        console.error("❌ Failed to fetch attendance:", response.status, await response.text());
       }
     } catch (error) {
-      console.error("Failed to fetch today's attendance:", error);
+      console.error("❌ Failed to fetch today's attendance:", error);
     } finally {
       setAttendanceLoading(false);
     }
   };
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (userData: any) => {
     try {
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      const academyId = userData.academy_id || userData.academyId;
+      const academyId = userData.academyId || userData.academy_id || userData.AcademyId;
       
-      console.log("🔍 Current user data:", userData);
-      console.log("🔍 Fetching students with academyId:", academyId);
+      console.log("🔍 fetchStudents - User data:", userData);
+      console.log("🔍 fetchStudents - Extracted academyId:", academyId);
+      
+      if (!academyId) {
+        console.warn("⚠️ No academyId found in user data!");
+        return;
+      }
       
       const params = new URLSearchParams();
-      if (academyId) {
-        params.append("academyId", academyId.toString());
-      }
+      params.append("academyId", academyId.toString());
+      
+      console.log("🔍 Fetching students with URL:", `/api/admin/users?${params.toString()}`);
       
       const response = await fetch(`/api/admin/users?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
+        console.log("✅ API Response:", data);
         console.log("✅ All users received:", data.users?.length);
         const studentList = data.users?.filter((u: any) => 
           u.role?.toUpperCase() === 'STUDENT'
@@ -123,10 +145,10 @@ export default function TeacherAttendancePage() {
         console.log("✅ Filtered students:", studentList.length, studentList);
         setStudents(studentList);
       } else {
-        console.error("❌ Failed to fetch users:", response.status);
+        console.error("❌ Failed to fetch users:", response.status, await response.text());
       }
     } catch (error) {
-      console.error("Failed to fetch students:", error);
+      console.error("❌ Failed to fetch students:", error);
     }
   };
 
@@ -138,8 +160,9 @@ export default function TeacherAttendancePage() {
 
     setLoading(true);
     try {
-      const academyId = currentUser?.academy_id || currentUser?.academyId;
-      console.log("🔍 Generating code for academyId:", academyId);
+      const academyId = currentUser?.academyId || currentUser?.academy_id || currentUser?.AcademyId;
+      console.log("🔍 Generating code - Current user:", currentUser);
+      console.log("🔍 Generating code - Extracted academyId:", academyId);
       
       const response = await fetch("/api/attendance/code", {
         method: "POST",
