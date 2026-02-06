@@ -39,6 +39,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const academyId = url.searchParams.get("academyId");
     const role = url.searchParams.get("role");
 
+    console.log("📊 Attendance API called with:", { date, academyId, role });
+
     // 해당 날짜의 출석 기록 조회
     let query = `
       SELECT 
@@ -51,7 +53,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ar.homeworkSubmittedAt,
         u.name as userName,
         u.email as userEmail,
-        u.academyId,
+        u.academy_id as academyId,
         hs.score,
         hs.subject,
         hs.feedback
@@ -64,8 +66,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 학원별 필터링 (관리자가 아닌 경우)
     if (academyId && role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
-      query += ` AND u.academyId = ?`;
+      query += ` AND u.academy_id = ?`;
       params.push(parseInt(academyId));
+      console.log("🔍 Filtering by academyId:", academyId);
     }
 
     query += ` ORDER BY ar.verifiedAt DESC`;
