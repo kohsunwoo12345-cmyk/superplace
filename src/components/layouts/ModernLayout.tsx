@@ -116,11 +116,10 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         console.log('✅ ModernLayout - Loading STUDENT menu');
         return [
           { id: 'home', href: '/dashboard', icon: Home, text: '홈' },
+          { id: 'attendance-verify', href: '/attendance-verify', icon: Clock, text: '출석하기' },
+          { id: 'attendance-record', href: '/dashboard/attendance-statistics', icon: Calendar, text: '출석 기록' },
           { id: 'classes', href: '/dashboard/classes', icon: BookOpen, text: '내 수업' },
-          { id: 'homework', href: '/homework-check', icon: FileText, text: '숙제 제출' },
-          { id: 'attendance', href: '/dashboard/attendance-statistics', icon: Clock, text: '출석 기록' },
           { id: 'ai-chat', href: '/dashboard/ai-chat', icon: MessageCircle, text: 'AI 튜터', badge: 1 },
-          { id: 'achievements', href: '/dashboard/achievements', icon: Award, text: '성취도' },
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
         ];
       default:
