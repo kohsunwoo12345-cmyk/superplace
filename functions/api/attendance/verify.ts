@@ -95,44 +95,50 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const userName = user ? user.name : "알 수 없음";
     const userEmail = user ? user.email : "";
 
-    // 오늘 이미 출석했는지 확인 (한국 시간 기준)
-    const today = getKoreanDate();
-    const existingRecord = await DB.prepare(`
-      SELECT * FROM attendance_records 
-      WHERE CAST(userId AS TEXT) = ? 
-      AND substr(verifiedAt, 1, 10) = ?
-    `).bind(String(userId), today).first();
-
-    if (existingRecord) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          message: `${userName}님은 오늘 이미 출석하셨습니다.`,
-          alreadyAttended: true,
-          attendanceTime: existingRecord.verifiedAt
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // 한국 시간으로 출석 기록 저장
+    // 중복 출석 허용 - 하루에 여러 번 출석 가능
+    
+    // 출석 시간 기준으로 상태 자동 판별
     const koreanTime = getKoreanTime();
+    const currentTime = new Date();
+    const hours = currentTime.getUTCHours() + 9; // KST
+    const minutes = currentTime.getUTCMinutes();
+    
+    // 출석 기준 시간: 09:00 (정시), 09:30 (지각)
+    let attendanceStatus = 'VERIFIED'; // 기본: 출석
+    
+    if (hours > 9 || (hours === 9 && minutes > 30)) {
+      attendanceStatus = 'LATE'; // 지각 (9시 30분 이후)
+    }
+    
+    // 결석 판정은 별도 프로세스에서 처리 (예: 자정에 출석하지 않은 학생 자동 결석 처리)
+
     const recordId = `attendance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     await DB.prepare(`
       INSERT INTO attendance_records (id, userId, userName, userEmail, code, verifiedAt, status)
-      VALUES (?, ?, ?, ?, ?, ?, 'VERIFIED')
-    `).bind(recordId, String(userId), userName, userEmail, code, koreanTime).run();
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(recordId, String(userId), userName, userEmail, code, koreanTime, attendanceStatus).run();
+
+    // 상태에 따른 메시지
+    let statusMessage = "출석이 완료되었습니다!";
+    let statusEmoji = "✅";
+    
+    if (attendanceStatus === 'LATE') {
+      statusMessage = "지각 처리되었습니다.";
+      statusEmoji = "⚠️";
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `${userName}님, 출석이 완료되었습니다!`,
+        message: `${statusEmoji} ${userName}님, ${statusMessage}`,
         recordId,
         userId,
         userName,
         userEmail,
         verifiedAt: koreanTime,
+        status: attendanceStatus,
+        statusText: attendanceStatus === 'LATE' ? '지각' : '출석',
       }),
       {
         status: 200,
