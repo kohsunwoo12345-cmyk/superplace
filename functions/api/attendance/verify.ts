@@ -5,11 +5,9 @@ interface Env {
 // 한국 시간 (KST) 생성 함수
 function getKoreanTime(): string {
   const now = new Date();
-  // UTC 시간에 9시간 추가 (KST = UTC+9)
   const kstOffset = 9 * 60; // 분 단위
   const kstTime = new Date(now.getTime() + kstOffset * 60 * 1000);
   
-  // YYYY-MM-DD HH:MM:SS 형식으로 변환
   const year = kstTime.getFullYear();
   const month = String(kstTime.getMonth() + 1).padStart(2, '0');
   const day = String(kstTime.getDate()).padStart(2, '0');
@@ -36,7 +34,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
     const body = await context.request.json() as any;
-    const { userId, code } = body;
+    const { code } = body;
 
     if (!DB) {
       return new Response(JSON.stringify({ error: "Database not configured" }), {
@@ -45,9 +43,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    if (!userId || !code) {
+    if (!code) {
       return new Response(
-        JSON.stringify({ error: "userId and code are required" }),
+        JSON.stringify({ 
+          success: false,
+          error: "출석 코드를 입력해주세요." 
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -57,6 +58,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       CREATE TABLE IF NOT EXISTS attendance_records (
         id TEXT PRIMARY KEY,
         userId TEXT NOT NULL,
+        userName TEXT,
+        userEmail TEXT,
         code TEXT NOT NULL,
         verifiedAt TEXT NOT NULL,
         status TEXT DEFAULT 'VERIFIED',
@@ -65,7 +68,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       )
     `).run();
 
-    // 코드 유효성 확인 및 사용자 일치 확인
+    // 코드 유효성 확인 (코드로 해당 학생 정보 조회)
     const codeRecord = await DB.prepare(`
       SELECT * FROM student_attendance_codes 
       WHERE code = ? AND isActive = 1
@@ -81,28 +84,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // 코드 소유자와 요청한 사용자가 일치하는지 확인
-    // 숫자로 비교 (더 안전함)
-    const codeUserId = Number(codeRecord.userId);
-    const requestUserId = Number(userId);
-    
-    console.log(`[DEBUG] Code verification - Code userId: ${codeUserId}, Request userId: ${requestUserId}`);
-    
-    if (codeUserId !== requestUserId) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          message: `본인의 출석 코드가 아닙니다. (코드 소유자: ${codeUserId}, 요청자: ${requestUserId})`,
-          debug: {
-            codeUserId,
-            requestUserId,
-            codeRecordUserId: codeRecord.userId,
-            bodyUserId: userId
-          }
-        }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    // 코드에서 학생 정보 가져오기
+    const userId = codeRecord.userId;
+
+    // 학생 정보 조회
+    const user = await DB.prepare(`
+      SELECT id, name, email FROM users WHERE id = ?
+    `).bind(userId).first();
+
+    const userName = user ? user.name : "알 수 없음";
+    const userEmail = user ? user.email : "";
 
     // 오늘 이미 출석했는지 확인 (한국 시간 기준)
     const today = getKoreanDate();
@@ -116,7 +107,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return new Response(
         JSON.stringify({ 
           success: false,
-          message: "오늘 이미 출석하셨습니다." 
+          message: `${userName}님은 오늘 이미 출석하셨습니다.`,
+          alreadyAttended: true,
+          attendanceTime: existingRecord.verifiedAt
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
@@ -127,15 +120,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const recordId = `attendance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     await DB.prepare(`
-      INSERT INTO attendance_records (id, userId, code, verifiedAt, status)
-      VALUES (?, ?, ?, ?, 'VERIFIED')
-    `).bind(recordId, String(userId), code, koreanTime).run();
+      INSERT INTO attendance_records (id, userId, userName, userEmail, code, verifiedAt, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'VERIFIED')
+    `).bind(recordId, String(userId), userName, userEmail, code, koreanTime).run();
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: "출석이 인증되었습니다.",
+        message: `${userName}님, 출석이 완료되었습니다!`,
         recordId,
+        userId,
+        userName,
+        userEmail,
         verifiedAt: koreanTime,
       }),
       {
@@ -147,7 +143,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     console.error("Attendance verify error:", error);
     return new Response(
       JSON.stringify({
-        error: "Failed to verify attendance",
+        success: false,
+        error: "출석 처리 중 오류가 발생했습니다",
         message: error.message,
       }),
       {
