@@ -16,7 +16,9 @@ import {
   Calendar,
   Clock,
   Award,
-  TrendingUp
+  TrendingUp,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 
 interface Student {
