@@ -21,8 +21,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         id, 
         name, 
         email, 
-        phone, 
-        COALESCE(createdAt, created_at, datetime('now')) as createdAt
+        phone
       FROM users 
       WHERE LOWER(role) = 'director'
       ORDER BY id
