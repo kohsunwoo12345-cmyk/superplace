@@ -77,7 +77,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // ADMIN, SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT는 그대로 유지
 
     // academyId 설정 - academyName이 있으면 조회/생성
-    let academyId: number | null = null;
+    let academyId: string | number | null = null;
     
     if (data.academyName) {
       console.log(`📋 Looking up academy: ${data.academyName}`);
@@ -88,16 +88,36 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         ).bind(data.academyName).first();
         
         if (academy) {
-          academyId = Number(academy.id);
+          // ID를 문자열로 유지 (academy.id가 문자열 또는 숫자일 수 있음)
+          academyId = academy.id;
           console.log(`✅ Found academy - ID: ${academyId}, Name: ${data.academyName}`);
         } else {
-          // 학원 생성
+          // 학원 생성 - 새로운 academy는 자동 증가 정수 ID 사용
           console.log(`📝 Creating new academy: ${data.academyName}`);
-          const createResult = await context.env.DB.prepare(
-            `INSERT INTO academy (name) VALUES (?)`
-          ).bind(data.academyName).run();
           
-          academyId = Number(createResult.meta.last_row_id);
+          // 새 academy ID 생성 (기존 최대 숫자 ID + 1)
+          const maxIdResult = await context.env.DB.prepare(
+            `SELECT MAX(CAST(id AS INTEGER)) as maxId FROM academy WHERE id GLOB '[0-9]*'`
+          ).first();
+          
+          const nextId = maxIdResult && maxIdResult.maxId ? Number(maxIdResult.maxId) + 1 : 1001;
+          console.log(`📊 Next academy ID: ${nextId}`);
+          
+          await context.env.DB.prepare(
+            `INSERT INTO academy (id, name, code, description, subscriptionPlan, maxStudents, maxTeachers, isActive, createdAt, updatedAt) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+          ).bind(
+            String(nextId),
+            data.academyName,
+            `AC${String(nextId).padStart(6, '0')}`,
+            `${data.academyName} - 스마트 학원 관리 시스템`,
+            'FREE',
+            100,
+            10,
+            1
+          ).run();
+          
+          academyId = String(nextId);
           console.log(`✅ Created new academy - ID: ${academyId}, Name: ${data.academyName}`);
         }
       } catch (academyError) {
