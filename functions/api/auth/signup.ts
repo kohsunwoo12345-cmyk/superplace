@@ -10,6 +10,7 @@ interface SignupRequest {
   role?: string;
   academyName?: string;
   academyCode?: string;
+  academyId?: string | number; // 학원장이 학생 추가 시 직접 전달
   phone?: string;
 }
 
@@ -76,10 +77,16 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
     // ADMIN, SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT는 그대로 유지
 
-    // academyId 설정 - academyName이 있으면 조회/생성
+    // academyId 설정
     let academyId: string | number | null = null;
     
-    if (data.academyName) {
+    // 1순위: 요청에서 직접 전달된 academyId (학원장이 학생 추가 시)
+    if (data.academyId) {
+      academyId = data.academyId;
+      console.log(`✅ Using provided academyId: ${academyId} for ${data.name}`);
+    }
+    // 2순위: academyName으로 조회/생성
+    else if (data.academyName) {
       console.log(`📋 Looking up academy: ${data.academyName}`);
       try {
         // 학원 조회

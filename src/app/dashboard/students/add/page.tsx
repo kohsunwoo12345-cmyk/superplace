@@ -77,26 +77,51 @@ export default function AddStudentPage() {
     }
 
     setLoading(true);
+    
+    console.log('📝 [학생 추가] 시작');
+    console.log('👤 [학생 추가] 현재 user:', user);
+    
+    // 학원장/선생님의 academyId 추출
+    const userAcademyId = user?.academyId || user?.academy_id || user?.AcademyId;
+    console.log('🏫 [학생 추가] userAcademyId:', userAcademyId);
+    
     try {
+      const requestBody = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        role: "STUDENT",
+        academyName: formData.academyName || user?.academy_name,
+        academyId: userAcademyId, // 학원장의 academyId 직접 전달
+      };
+      
+      console.log('📤 [학생 추가] 요청 데이터:', requestBody);
+      
       const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          phone: formData.phone,
-          role: "STUDENT",
-          academyName: formData.academyName || user?.academy_name,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
+      console.log('📥 [학생 추가] 응답:', data);
 
       if (response.ok && data.success) {
+        const studentAcademyId = data.user?.academyId;
+        console.log('✅ [학생 추가] 성공 - 학생 academyId:', studentAcademyId);
+        
+        if (studentAcademyId && String(studentAcademyId) !== String(userAcademyId)) {
+          console.warn('⚠️  [학생 추가] academyId 불일치!', {
+            user: userAcademyId,
+            student: studentAcademyId
+          });
+        }
+        
         alert("✅ 학생이 추가되었습니다!");
         router.push("/dashboard/students");
       } else {
+        console.error('❌ [학생 추가] 실패:', data);
         alert(data.message || "학생 추가에 실패했습니다.");
       }
     } catch (error) {
