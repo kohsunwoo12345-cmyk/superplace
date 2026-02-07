@@ -14,7 +14,9 @@ import {
   User,
   Trash2,
   Edit,
-  MoreVertical
+  MoreVertical,
+  Home,
+  ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -363,8 +365,8 @@ export default function ModernAIChatPage() {
         }`}
       >
         {/* 사이드바 헤더 */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-3">
+        <div className="p-4 border-b border-gray-200 space-y-3">
+          <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-gray-900">AI 챗봇</h2>
             {isMobile && (
               <button
@@ -375,6 +377,18 @@ export default function ModernAIChatPage() {
               </button>
             )}
           </div>
+          
+          {/* 대시보드로 나가기 버튼 */}
+          <Button
+            onClick={() => router.push('/dashboard')}
+            variant="outline"
+            className="w-full border-2 border-gray-300 hover:bg-gray-100 text-gray-700 font-medium"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            대시보드로 나가기
+          </Button>
+          
+          {/* 새 대화 버튼 */}
           <Button
             onClick={createNewChat}
             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0"
