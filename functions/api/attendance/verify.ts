@@ -129,88 +129,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       statusEmoji = "⚠️";
     }
 
-    // 🚀 자동 숙제 제출 및 채점
-    let homeworkResult: any = null;
-    let homeworkError: string | null = null;
-    
-    try {
-      // homework_submissions 테이블 생성 (v2)
-      const hwTableName = 'homework_submissions_v2';
-      await DB.prepare(`
-        CREATE TABLE IF NOT EXISTS ${hwTableName} (
-          id TEXT PRIMARY KEY,
-          userId INTEGER NOT NULL,
-          code TEXT,
-          imageUrl TEXT,
-          submittedAt TEXT DEFAULT (datetime('now')),
-          status TEXT DEFAULT 'submitted',
-          academyId INTEGER
-        )
-      `).run();
-
-      // homework_gradings 테이블 생성 (v2)
-      const gradeTableName = 'homework_gradings_v2';
-      await DB.prepare(`
-        CREATE TABLE IF NOT EXISTS ${gradeTableName} (
-          id TEXT PRIMARY KEY,
-          submissionId TEXT NOT NULL,
-          score INTEGER NOT NULL,
-          feedback TEXT,
-          strengths TEXT,
-          suggestions TEXT,
-          subject TEXT,
-          completion TEXT,
-          effort TEXT,
-          pageCount INTEGER,
-          gradedAt TEXT DEFAULT (datetime('now')),
-          gradedBy TEXT DEFAULT 'AI'
-        )
-      `).run();
-
-      // 숙제 제출 기록 생성
-      const submissionId = `homework-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      await DB.prepare(`
-        INSERT INTO ${hwTableName} (id, userId, code, imageUrl, status, academyId)
-        VALUES (?, ?, ?, 'auto-submitted', 'submitted', ?)
-      `).bind(submissionId, userId, code, codeRecord.academyId || null).run();
-
-      // AI 자동 채점
-      const gradingId = `grading-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const score = Math.floor(Math.random() * 20) + 80; // 80-100점
-      const scoreRating = score >= 95 ? 'excellent' : score >= 85 ? 'good' : 'fair';
-      
-      const feedback = `${userName}님의 출석 인증과 함께 숙제가 자동 제출되었습니다.`;
-      const strengths = score >= 90 
-        ? '정시 출석 및 자동 제출 완료. 성실한 학습 태도가 우수합니다.' 
-        : '출석 및 제출 완료. 꾸준한 학습이 필요합니다.';
-      const suggestions = score >= 90 
-        ? '계속해서 성실한 태도를 유지해주세요!' 
-        : '좀 더 집중하여 학습하면 더 좋은 결과를 얻을 수 있습니다.';
-
-      await DB.prepare(`
-        INSERT INTO ${gradeTableName} (
-          id, submissionId, score, feedback, strengths, suggestions, 
-          subject, completion, effort, pageCount, gradedBy
-        )
-        VALUES (?, ?, ?, ?, ?, ?, 'Auto Submission', ?, 'auto', 1, 'AI-Auto')
-      `).bind(gradingId, submissionId, score, feedback, strengths, suggestions, scoreRating).run();
-
-      homeworkResult = {
-        submissionId,
-        gradingId,
-        score,
-        feedback,
-        scoreRating
-      };
-      
-      console.log(`✅ Auto homework submitted and graded: ${submissionId}, Score: ${score}`);
-    } catch (err: any) {
-      homeworkError = err.message || 'Unknown homework error';
-      console.error('⚠️  Homework auto-submit error:', homeworkError, err);
-      // 숙제 제출 실패해도 출석은 성공 처리
-    }
-
+    // 출석만 기록, 숙제는 사진 촬영 후 별도 제출
     return new Response(
       JSON.stringify({
         success: true,
@@ -222,17 +141,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         verifiedAt: koreanTime,
         status: attendanceStatus,
         statusText: attendanceStatus === 'LATE' ? '지각' : '출석',
-        testDeployment: 'v3-homework-fixed',
-        homework: homeworkResult ? {
-          submitted: true,
-          submissionId: homeworkResult.submissionId,
-          score: homeworkResult.score,
-          feedback: homeworkResult.feedback,
-          graded: true
-        } : {
+        attendanceCode: code,
+        // 숙제는 아직 미제출 상태
+        homework: {
           submitted: false,
-          error: homeworkError || 'Unknown error',
-          graded: false
+          message: '숙제 사진을 촬영해주세요'
         }
       }),
       {
