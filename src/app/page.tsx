@@ -353,6 +353,14 @@ export default function Home() {
               </button>
             </div>
 
+            {/* 요금제 메뉴 - 직접 링크 */}
+            <Link 
+              href="/pricing"
+              className="text-sm font-medium hover:text-primary transition-colors py-2 flex items-center gap-1"
+            >
+              요금제
+            </Link>
+
             {/* 통합 메가메뉴 - 모든 메뉴 동시 표시 */}
             <div 
               className={`fixed left-0 right-0 mt-2 bg-white shadow-2xl border-t transition-all duration-300 z-50 overflow-hidden ${
