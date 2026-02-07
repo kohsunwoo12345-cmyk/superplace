@@ -90,15 +90,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return new Response(
       JSON.stringify({
         success: true,
-        code: {
-          id,
-          code,
-          userId,
-          academyId,
-          classId,
-          expiresAt,
-          createdAt: new Date().toISOString()
-        }
+        id,
+        code,
+        userId,
+        academyId,
+        classId,
+        expiresAt,
+        createdAt: new Date().toISOString()
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
