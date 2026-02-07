@@ -63,8 +63,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         await DB.prepare(`
           INSERT INTO academy (
             id, name, code, description, address, phone, email,
-            subscriptionPlan, maxStudents, maxTeachers, isActive, createdAt, updatedAt
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            subscriptionPlan, maxStudents, maxTeachers, isActive
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           academyId,
           academyName,
@@ -76,9 +76,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           'FREE',
           100,
           10,
-          1,
-          director.createdAt || new Date().toISOString(),
-          new Date().toISOString()
+          1
         ).run();
 
         console.log(`✅ Created academy: ${academyName} (ID: ${academyId})`);
