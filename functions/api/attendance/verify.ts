@@ -222,7 +222,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         verifiedAt: koreanTime,
         status: attendanceStatus,
         statusText: attendanceStatus === 'LATE' ? '지각' : '출석',
-        testDeployment: 'v2-homework-enabled',
+        testDeployment: 'v3-homework-fixed',
         homework: homeworkResult ? {
           submitted: true,
           submissionId: homeworkResult.submissionId,
