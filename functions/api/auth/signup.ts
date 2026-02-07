@@ -188,13 +188,21 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     
     console.log(`📊 Final academyId before user creation: ${academyId} for ${data.name}`);
 
-    // 사용자 생성 (이메일은 선택사항, 학생은 전화번호 필수)
+    // 사용자 생성 - 이메일이 없으면 전화번호 기반 이메일 생성
+    let userEmail = data.email;
+    if (!userEmail && userRole === 'STUDENT' && data.phone) {
+      // 학생이 이메일 없이 가입한 경우, 전화번호 기반 이메일 생성
+      const phoneDigits = data.phone.replace(/[^0-9]/g, '');
+      userEmail = `student_${phoneDigits}@phone.generated`;
+      console.log(`📧 Generated email for student: ${userEmail}`);
+    }
+
     const result = await context.env.DB.prepare(
       `INSERT INTO users (email, password, name, role, phone, academyId)
        VALUES (?, ?, ?, ?, ?, ?)`
     )
       .bind(
-        data.email || null, // 이메일 선택사항 (학생은 null 가능)
+        userEmail || null,
         data.password,
         data.name,
         userRole,
