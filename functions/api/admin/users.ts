@@ -22,7 +22,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const isGlobalAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
 
-    // 쿼리 작성
+    // 쿼리 작성 (snake_case와 camelCase 모두 시도)
     let query = `
       SELECT 
         u.id, 
@@ -30,25 +30,33 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.name, 
         u.phone, 
         u.role, 
-        u.academyId,
+        COALESCE(u.academyId, u.academy_id) as academyId,
         a.name as academyName,
-        u.createdAt
+        COALESCE(u.createdAt, u.created_at) as createdAt
       FROM users u
-      LEFT JOIN academy a ON CAST(u.academyId AS TEXT) = CAST(a.id AS TEXT)
+      LEFT JOIN academy a ON (
+        CAST(COALESCE(u.academyId, u.academy_id) AS TEXT) = CAST(a.id AS TEXT)
+      )
     `;
     
     const params: any[] = [];
     
     // 관리자가 아닌 경우에만 academyId로 필터링
     if (!isGlobalAdmin && academyId) {
-      query += ` WHERE (CAST(u.academyId AS TEXT) = ? OR u.academyId = ?)`;
+      query += ` WHERE (
+        CAST(COALESCE(u.academyId, u.academy_id) AS TEXT) = ? 
+        OR COALESCE(u.academyId, u.academy_id) = ?
+      )`;
       params.push(String(academyId), parseInt(academyId));
       console.log("🔍 Filtering users by academyId:", academyId, "for DIRECTOR");
     } else if (isGlobalAdmin) {
       console.log("✅ Global admin - showing all users");
     }
     
-    query += ` ORDER BY datetime(u.createdAt) DESC`;
+    query += ` ORDER BY COALESCE(u.createdAt, u.created_at) DESC`;
+
+    console.log("📝 Executing query:", query);
+    console.log("📝 With params:", params);
 
     // 쿼리 실행
     let usersResult;
