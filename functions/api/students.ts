@@ -44,7 +44,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           a.name as academyName
         FROM users u
         LEFT JOIN academy a ON CAST(u.academyId AS TEXT) = CAST(a.id AS TEXT)
-        WHERE 1=1
+        WHERE UPPER(u.role) = 'STUDENT'
       `;
 
       // admin@superplace.co.kr이 아니고 관리자가 아닌 경우에만 academyId 필터링
@@ -53,12 +53,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         params.push(String(academyId), parseInt(academyId));
         console.log('🔍 Filtering by academyId:', academyId, 'for DIRECTOR');
       } else if (isGlobalAdmin || isSuperAdminEmail) {
-        console.log('✅ Global admin or super admin email - showing all students');
+        console.log('✅ Global admin or super admin email - showing all STUDENTS');
       }
 
       query += ` LIMIT 100`;
     } else if (role === 'TEACHER' && userId) {
-      // 선생님: 모든 사용자 조회 (간단 버전)
+      // 선생님: 해당 학원의 학생만 조회
       query = `
         SELECT 
           u.id,
@@ -68,7 +68,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.role,
           u.academyId
         FROM users u
-        WHERE u.academyId = ?
+        WHERE UPPER(u.role) = 'STUDENT' AND u.academyId = ?
         LIMIT 100
       `;
       params.push(parseInt(academyId || '0'));
