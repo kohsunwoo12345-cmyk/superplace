@@ -18,18 +18,56 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
   try {
     const data: SignupRequest = await context.request.json();
 
-    // 입력 검증
-    if (!data.name || !data.email || !data.password) {
+    // 역할 설정 (검증 전에 먼저 확인)
+    let userRole = data.role || 'STUDENT';
+    if (userRole === 'member') {
+      userRole = 'DIRECTOR';
+    } else if (userRole === 'user') {
+      userRole = 'TEACHER';
+    }
+
+    // 입력 검증 - 학생은 전화번호 필수, 이메일 선택
+    if (!data.name || !data.password) {
       return new Response(
         JSON.stringify({
           success: false,
-          message: '모든 필수 항목을 입력해주세요',
+          message: '이름과 비밀번호는 필수입니다',
         }),
         {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
         }
       );
+    }
+
+    // 학생: 전화번호 필수, 이메일 선택
+    // 원장/선생님/관리자: 이메일 필수
+    if (userRole === 'STUDENT') {
+      if (!data.phone || !data.phone.trim()) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: '학생은 전화번호가 필수입니다',
+          }),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    } else {
+      if (!data.email || !data.email.trim()) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: '원장/선생님/관리자는 이메일이 필수입니다',
+          }),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
     }
 
     // D1 바인딩 확인
@@ -46,32 +84,51 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    // 이메일 중복 체크
-    const existingUser = await context.env.DB.prepare(
-      'SELECT id FROM users WHERE email = ?'
-    )
-      .bind(data.email)
-      .first();
+    // 중복 체크 - 이메일이 있으면 이메일로, 학생은 전화번호로
+    if (data.email && data.email.trim()) {
+      const existingEmail = await context.env.DB.prepare(
+        'SELECT id FROM users WHERE email = ?'
+      )
+        .bind(data.email)
+        .first();
 
-    if (existingUser) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: '이미 사용 중인 이메일입니다',
-        }),
-        {
-          status: 409,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      if (existingEmail) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: '이미 사용 중인 이메일입니다',
+          }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
     }
 
-    // 역할 설정 및 변환
-    let userRole = data.role || 'STUDENT';
-    
-    // 역할 매핑 (ADMIN, SUPER_ADMIN은 그대로 유지)
-    if (userRole === 'member') {
-      userRole = 'DIRECTOR'; // 원장
+    // 학생: 전화번호 중복 체크
+    if (userRole === 'STUDENT' && data.phone) {
+      const existingPhone = await context.env.DB.prepare(
+        'SELECT id FROM users WHERE phone = ? AND role = ?'
+      )
+        .bind(data.phone, 'STUDENT')
+        .first();
+
+      if (existingPhone) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: '이미 사용 중인 전화번호입니다',
+          }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    }
+
+    // 역할 매핑 (이미 위에서 처리했으므로 제거)
     } else if (userRole === 'user') {
       userRole = 'TEACHER'; // 선생님
     }
@@ -137,14 +194,14 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     
     console.log(`📊 Final academyId before user creation: ${academyId} for ${data.name}`);
 
-    // 사용자 생성 (id는 자동 증가, 전화번호 및 academyId 포함)
+    // 사용자 생성 (이메일은 선택사항, 학생은 전화번호 필수)
     const result = await context.env.DB.prepare(
       `INSERT INTO users (email, password, name, role, phone, academyId)
        VALUES (?, ?, ?, ?, ?, ?)`
     )
       .bind(
-        data.email,
-        data.password, // 실제로는 해시해야 하지만 기존 DB가 평문이므로
+        data.email || null, // 이메일 선택사항 (학생은 null 가능)
+        data.password,
         data.name,
         userRole,
         data.phone || null,

@@ -13,7 +13,7 @@ export default function StudentLoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +27,7 @@ export default function StudentLoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ phone, password, isStudentLogin: true }),
       });
 
       const result = await response.json();
@@ -82,17 +82,17 @@ export default function StudentLoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-semibold text-gray-700">
-                이메일
+              <Label htmlFor="phone" className="text-sm font-semibold text-gray-700">
+                전화번호
               </Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="student@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="phone"
+                  type="tel"
+                  placeholder="010-1234-5678"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   required
                   disabled={isLoading}
                   className="pl-10 h-12 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500"

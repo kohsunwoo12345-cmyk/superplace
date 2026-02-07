@@ -45,9 +45,15 @@ export default function AddStudentPage() {
       newErrors.name = "이름을 입력하세요";
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = "이메일을 입력하세요";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    // 학생은 전화번호 필수, 이메일 선택
+    if (!formData.phone || !formData.phone.trim()) {
+      newErrors.phone = "전화번호를 입력하세요";
+    } else if (!/^[0-9-]+$/.test(formData.phone)) {
+      newErrors.phone = "올바른 전화번호 형식이 아닙니다 (숫자와 - 만 입력)";
+    }
+
+    // 이메일은 선택 사항, 입력 시에만 검증
+    if (formData.email && formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "올바른 이메일 형식이 아닙니다";
     }
 
@@ -59,10 +65,6 @@ export default function AddStudentPage() {
 
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "비밀번호가 일치하지 않습니다";
-    }
-
-    if (formData.phone && !/^[0-9-]+$/.test(formData.phone)) {
-      newErrors.phone = "올바른 전화번호 형식이 아닙니다";
     }
 
     setErrors(newErrors);
@@ -88,9 +90,9 @@ export default function AddStudentPage() {
     try {
       const requestBody = {
         name: formData.name,
-        email: formData.email,
+        email: formData.email || undefined, // 이메일 선택 사항
         password: formData.password,
-        phone: formData.phone,
+        phone: formData.phone, // 전화번호 필수
         role: "STUDENT",
         academyName: formData.academyName || user?.academy_name,
         academyId: userAcademyId, // 학원장의 academyId 직접 전달
@@ -187,22 +189,40 @@ export default function AddStudentPage() {
                 )}
               </div>
 
-              {/* 이메일 */}
+              {/* 전화번호 - 필수 */}
               <div className="space-y-2">
-                <Label htmlFor="email">이메일 (아이디) *</Label>
+                <Label htmlFor="phone">전화번호 (로그인 아이디) *</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="010-1234-5678"
+                  className={errors.phone ? "border-red-500" : ""}
+                />
+                {errors.phone && (
+                  <p className="text-sm text-red-500">{errors.phone}</p>
+                )}
+                <p className="text-xs text-gray-500">
+                  학생은 전화번호로 로그인합니다
+                </p>
+              </div>
+
+              {/* 이메일 - 선택 */}
+              <div className="space-y-2">
+                <Label htmlFor="email">이메일 (선택사항)</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="student@example.com"
+                  placeholder="student@example.com (선택사항)"
                   className={errors.email ? "border-red-500" : ""}
                 />
                 {errors.email && (
                   <p className="text-sm text-red-500">{errors.email}</p>
                 )}
                 <p className="text-xs text-gray-500">
-                  이메일이 로그인 아이디로 사용됩니다
+                  이메일은 선택사항입니다
                 </p>
               </div>
 
@@ -251,24 +271,8 @@ export default function AddStudentPage() {
                 )}
               </div>
 
-              {/* 전화번호 */}
-              <div className="space-y-2">
-                <Label htmlFor="phone">전화번호</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="010-1234-5678"
-                  className={errors.phone ? "border-red-500" : ""}
-                />
-                {errors.phone && (
-                  <p className="text-sm text-red-500">{errors.phone}</p>
-                )}
-              </div>
-
               {/* 학원명 */}
-              <div className="space-y-2">
-                <Label htmlFor="academyName">학원명</Label>
+              <div className="space-y-2">\n                <Label htmlFor="academyName">학원명</Label>
                 <Input
                   id="academyName"
                   value={formData.academyName}
@@ -321,10 +325,11 @@ export default function AddStudentPage() {
           <CardContent className="p-4">
             <h3 className="font-semibold text-blue-900 mb-2">📝 안내 사항</h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• 이메일은 학생의 로그인 아이디로 사용됩니다</li>
+              <li>• <strong>전화번호</strong>가 학생의 로그인 아이디로 사용됩니다</li>
+              <li>• 이메일은 선택사항입니다</li>
               <li>• 비밀번호는 최소 6자 이상 입력해야 합니다</li>
               <li>• 학생 추가 후 정보 수정이 가능합니다</li>
-              <li>• 학생은 이메일과 비밀번호로 로그인할 수 있습니다</li>
+              <li>• 학생은 <strong>전화번호</strong>와 비밀번호로 로그인할 수 있습니다</li>
             </ul>
           </CardContent>
         </Card>
