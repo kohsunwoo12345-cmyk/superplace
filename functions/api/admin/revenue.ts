@@ -16,8 +16,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const url = new URL(context.request.url);
     const period = url.searchParams.get("period") || "month";
     const academyId = url.searchParams.get("academyId");
+    const startDate = url.searchParams.get("startDate");
+    const endDate = url.searchParams.get("endDate");
+    const searchQuery = url.searchParams.get("search");
 
-    console.log("💰 Revenue API called with period:", period, "academyId:", academyId);
+    console.log("💰 Revenue API called with:", { period, academyId, startDate, endDate, searchQuery });
 
     // 매출 테이블이 없으면 생성
     try {
@@ -41,6 +44,37 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log("⚠️ Revenue table already exists or error:", e);
     }
 
+    // 날짜 및 검색 필터 조건 구성
+    const buildWhereConditions = () => {
+      const conditions = ["status = 'completed'"];
+      const params: any[] = [];
+
+      if (academyId) {
+        conditions.push("r.academyId = ?");
+        params.push(academyId);
+      }
+
+      if (startDate) {
+        conditions.push("date(r.createdAt) >= date(?)");
+        params.push(startDate);
+      }
+
+      if (endDate) {
+        conditions.push("date(r.createdAt) <= date(?)");
+        params.push(endDate);
+      }
+
+      if (searchQuery) {
+        conditions.push("(r.academyId LIKE ? OR a.name LIKE ? OR r.transactionId LIKE ?)");
+        const searchPattern = `%${searchQuery}%`;
+        params.push(searchPattern, searchPattern, searchPattern);
+      }
+
+      return { conditions, params };
+    };
+
+    const { conditions: baseConditions, params: baseParams } = buildWhereConditions();
+
     // 통계 계산
     let totalRevenue = 0;
     let thisMonthRevenue = 0;
@@ -49,11 +83,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 전체 매출
     const totalResult = await DB.prepare(`
-      SELECT SUM(amount) as total, COUNT(*) as count
-      FROM revenue_records
-      WHERE status = 'completed'
-      ${academyId ? 'AND academyId = ?' : ''}
-    `).bind(...(academyId ? [academyId] : [])).first();
+      SELECT SUM(r.amount) as total, COUNT(*) as count
+      FROM revenue_records r
+      LEFT JOIN academy a ON r.academyId = a.id
+      WHERE ${baseConditions.join(' AND ')}
+    `).bind(...baseParams).first();
 
     totalRevenue = totalResult?.total || 0;
     transactionCount = totalResult?.count || 0;
@@ -97,13 +131,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         r.paymentMethod,
         r.createdAt,
         r.paidAt,
+        r.transactionId,
         a.name as academyName
       FROM revenue_records r
       LEFT JOIN academy a ON r.academyId = a.id
-      ${academyId ? 'WHERE r.academyId = ?' : ''}
+      WHERE ${baseConditions.join(' AND ')}
       ORDER BY r.createdAt DESC
       LIMIT 20
-    `).bind(...(academyId ? [academyId] : [])).all();
+    `).bind(...baseParams).all();
 
     const transactions = transactionsResult.results || [];
 
