@@ -134,23 +134,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let homeworkError: string | null = null;
     
     try {
-      // homework_submissions 테이블 생성
+      // homework_submissions 테이블 생성 (v2)
+      const hwTableName = 'homework_submissions_v2';
       await DB.prepare(`
-        CREATE TABLE IF NOT EXISTS homework_submissions (
+        CREATE TABLE IF NOT EXISTS ${hwTableName} (
           id TEXT PRIMARY KEY,
           userId INTEGER NOT NULL,
-          attendanceId TEXT,
+          code TEXT,
           imageUrl TEXT,
           submittedAt TEXT DEFAULT (datetime('now')),
           status TEXT DEFAULT 'submitted',
-          academyId INTEGER,
-          classId TEXT
+          academyId INTEGER
         )
       `).run();
 
-      // homework_gradings 테이블 생성
+      // homework_gradings 테이블 생성 (v2)
+      const gradeTableName = 'homework_gradings_v2';
       await DB.prepare(`
-        CREATE TABLE IF NOT EXISTS homework_gradings (
+        CREATE TABLE IF NOT EXISTS ${gradeTableName} (
           id TEXT PRIMARY KEY,
           submissionId TEXT NOT NULL,
           score INTEGER NOT NULL,
@@ -170,9 +171,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const submissionId = `homework-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
       await DB.prepare(`
-        INSERT INTO homework_submissions (id, userId, attendanceId, imageUrl, status, academyId, classId)
-        VALUES (?, ?, ?, 'auto-submitted', 'submitted', ?, ?)
-      `).bind(submissionId, userId, recordId, codeRecord.academyId || null, codeRecord.classId || null).run();
+        INSERT INTO ${hwTableName} (id, userId, code, imageUrl, status, academyId)
+        VALUES (?, ?, ?, 'auto-submitted', 'submitted', ?)
+      `).bind(submissionId, userId, code, codeRecord.academyId || null).run();
 
       // AI 자동 채점
       const gradingId = `grading-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -188,7 +189,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         : '좀 더 집중하여 학습하면 더 좋은 결과를 얻을 수 있습니다.';
 
       await DB.prepare(`
-        INSERT INTO homework_gradings (
+        INSERT INTO ${gradeTableName} (
           id, submissionId, score, feedback, strengths, suggestions, 
           subject, completion, effort, pageCount, gradedBy
         )
