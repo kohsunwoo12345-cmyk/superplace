@@ -53,7 +53,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // 출석 기록 테이블 생성
+    // 출석 기록 테이블 확인 및 재생성 (스키마 통일)
+    try {
+      // 기존 테이블 구조 확인
+      const schema = await DB.prepare(`PRAGMA table_info(attendance_records)`).all();
+      const columns = schema.results.map((col: any) => col.name);
+      
+      // attendanceCode 컬럼이 없으면 테이블 재생성
+      if (!columns.includes('attendanceCode')) {
+        console.log('⚠️  Old schema detected, dropping table...');
+        await DB.prepare('DROP TABLE IF EXISTS attendance_records').run();
+      }
+    } catch (e) {
+      console.log('⚠️  Table check error, will create new:', e);
+    }
+
+    // 표준 스키마로 테이블 생성
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS attendance_records (
         id TEXT PRIMARY KEY,
