@@ -19,7 +19,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const directorsResult = await DB.prepare(`
       SELECT id, name, email, phone, createdAt
       FROM users 
-      WHERE role IN ('DIRECTOR', 'director')
+      WHERE LOWER(role) = 'director'
       ORDER BY createdAt
     `).all();
 
