@@ -139,8 +139,7 @@ async function getAcademyDetail(DB: D1Database, academyId: string) {
         id, 
         name, 
         email, 
-        phone,
-        COALESCE(createdAt, created_at, datetime('now')) as createdAt
+        phone
       FROM users 
       WHERE academyId = ? AND LOWER(role) = 'director'
       LIMIT 1
@@ -152,8 +151,7 @@ async function getAcademyDetail(DB: D1Database, academyId: string) {
         id, 
         name, 
         email, 
-        phone,
-        COALESCE(createdAt, created_at, datetime('now')) as createdAt
+        phone
       FROM users
       WHERE academyId = ? AND LOWER(role) = 'student'
       ORDER BY id DESC
@@ -165,8 +163,7 @@ async function getAcademyDetail(DB: D1Database, academyId: string) {
         id, 
         name, 
         email, 
-        phone,
-        COALESCE(createdAt, created_at, datetime('now')) as createdAt
+        phone
       FROM users
       WHERE academyId = ? AND LOWER(role) = 'teacher'
       ORDER BY id DESC
@@ -183,18 +180,24 @@ async function getAcademyDetail(DB: D1Database, academyId: string) {
       WHERE u.academyId = ? AND LOWER(u.role) = 'student'
     `).bind(academyId).first();
 
-    // 월별 활동 통계 (최근 6개월)
-    const monthlyActivity = await DB.prepare(`
-      SELECT 
-        strftime('%Y-%m', COALESCE(ar.verifiedAt, ar.verified_at)) as month,
-        COUNT(*) as count
-      FROM attendance_records ar
-      JOIN users u ON ar.userId = u.id
-      WHERE u.academyId = ? 
-        AND COALESCE(ar.verifiedAt, ar.verified_at) >= date('now', '-6 months')
-      GROUP BY month
-      ORDER BY month DESC
-    `).bind(academyId).all();
+    // 월별 활동 통계 (최근 6개월) - 데이터가 있을 경우만
+    let monthlyActivity;
+    try {
+      monthlyActivity = await DB.prepare(`
+        SELECT 
+          strftime('%Y-%m', date(createdAt)) as month,
+          COUNT(*) as count
+        FROM attendance_records ar
+        JOIN users u ON ar.userId = u.id
+        WHERE u.academyId = ?
+        GROUP BY month
+        ORDER BY month DESC
+        LIMIT 6
+      `).bind(academyId).all();
+    } catch (e) {
+      console.log("⚠️ Could not fetch monthly activity, using empty array");
+      monthlyActivity = { results: [] };
+    }
 
     // 매출 정보 (revenue_records 테이블이 있다고 가정)
     let revenueData = null;

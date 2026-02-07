@@ -61,14 +61,12 @@ interface AcademyDetail {
     name: string;
     email: string;
     phone?: string;
-    createdAt: string;
   }>;
   teachers: Array<{
     id: number;
     name: string;
     email: string;
     phone?: string;
-    createdAt: string;
   }>;
   studentCount: number;
   teacherCount: number;
@@ -477,9 +475,7 @@ export default function AcademyDetailPage() {
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-gray-500">
-                          등록일: {formatDate(teacher.createdAt)}
-                        </p>
+                        <Badge variant="outline">ID: {teacher.id}</Badge>
                       </div>
                     </div>
                   ))}
