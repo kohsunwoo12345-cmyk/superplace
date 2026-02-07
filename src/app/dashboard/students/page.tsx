@@ -70,6 +70,9 @@ export default function StudentsPage() {
     try {
       setLoading(true);
       
+      console.log('🔍 [학생 목록] fetchStudents 시작');
+      console.log('📦 [학생 목록] localStorage user:', user);
+      
       // admin@superplace.co.kr 계정은 모든 학생 조회 가능
       const isAdminAccount = user.email === 'admin@superplace.co.kr';
       
@@ -83,7 +86,7 @@ export default function StudentsPage() {
       
       if (isAdminAccount) {
         // 관리자 계정: 모든 학생 조회 (필터 없음)
-        console.log('👑 Admin account - fetching all students');
+        console.log('👑 [학생 목록] Admin account - fetching all students');
         // role을 ADMIN으로 전달
         params.append('role', 'ADMIN');
       } else {
@@ -93,23 +96,53 @@ export default function StudentsPage() {
         }
         // academyId 추출 (3가지 형태 확인)
         const academyId = user.academyId || user.academy_id || user.AcademyId;
+        
+        console.log('🔍 [학생 목록] academyId 확인:', {
+          'user.academyId': user.academyId,
+          'user.academy_id': user.academy_id,
+          'user.AcademyId': user.AcademyId,
+          'final academyId': academyId
+        });
+        
         if (academyId) {
           params.append('academyId', String(academyId));
+          console.log('✅ [학생 목록] academyId 파라미터 추가:', academyId);
+        } else {
+          console.error('❌ [학생 목록] academyId가 없습니다! 학생 목록이 비어있을 것입니다.');
+          console.error('💡 [학생 목록] 해결 방법: 다시 로그인해주세요.');
         }
+        
         // userId 추가 (교사 권한 확인용)
         if (user.id) {
           params.append('userId', String(user.id));
         }
-        console.log('👥 Fetching students with params:', { role: user.role, academyId, userId: user.id });
+        console.log('👥 [학생 목록] Fetching students with params:', { 
+          role: user.role, 
+          academyId, 
+          userId: user.id,
+          url: `/api/students?${params.toString()}`
+        });
       }
       
       const response = await fetch(`/api/students?${params.toString()}`);
+      console.log('📡 [학생 목록] API 응답 상태:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Students data received:', data);
+        console.log('✅ [학생 목록] Students data received:', data);
         setStudents(data.students || []);
+        
+        // academyId가 없는 경우 경고
+        if (!isAdminAccount) {
+          const academyId = user.academyId || user.academy_id || user.AcademyId;
+          if (!academyId && (data.students || []).length === 0) {
+            console.warn('⚠️  [학생 목록] academyId가 없어서 학생 목록이 비어있을 수 있습니다.');
+            // 사용자에게 알림 (선택적)
+            // alert('학원 정보가 없습니다. 다시 로그인해주세요.');
+          }
+        }
       } else {
-        console.error('❌ Failed to fetch students:', response.status);
+        console.error('❌ [학생 목록] Failed to fetch students:', response.status, await response.text());
       }
     } catch (error) {
       console.error("Failed to fetch students:", error);
@@ -233,7 +266,24 @@ export default function StudentsPage() {
           ) : filteredStudents.length === 0 ? (
             <div className="text-center py-12">
               <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">학생이 없습니다</p>
+              <p className="text-gray-500 mb-2">학생이 없습니다</p>
+              {user && user.email !== 'admin@superplace.co.kr' && !user.academyId && !user.academy_id && !user.AcademyId && (
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg max-w-md mx-auto">
+                  <p className="text-sm text-yellow-800 font-semibold mb-1">⚠️ 학원 정보가 없습니다</p>
+                  <p className="text-xs text-yellow-700">
+                    다시 로그인하시거나, 관리자에게 문의하세요.
+                  </p>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem('user');
+                      window.location.href = '/login';
+                    }}
+                    className="mt-2 text-xs text-blue-600 hover:underline"
+                  >
+                    다시 로그인하기 →
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
