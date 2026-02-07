@@ -80,16 +80,68 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ? ((thisWeekStudents?.count - lastWeekStudents?.count) / lastWeekStudents?.count * 100).toFixed(1)
       : thisWeekStudents?.count > 0 ? 100 : 0;
 
+    // 9. 최근 가입 사용자 (5명)
+    const recentUsers = await DB.prepare(`
+      SELECT id, name, email, role, createdAt
+      FROM users
+      ORDER BY createdAt DESC
+      LIMIT 5
+    `).all();
+
+    // 10. 오늘 출석 수
+    const todayAttendance = await DB.prepare(`
+      SELECT COUNT(*) as count
+      FROM attendance
+      WHERE date(date) = date('now')
+        AND status = 'present'
+    `).first();
+
+    // 11. 오늘 숙제 제출 수
+    const todayHomework = await DB.prepare(`
+      SELECT COUNT(*) as count
+      FROM homework_submissions
+      WHERE date(submittedAt) = date('now')
+    `).first();
+
+    // 12. 이번 달 AI 사용량
+    const aiUsageThisMonth = await DB.prepare(`
+      SELECT COUNT(*) as count
+      FROM ai_usage_logs
+      WHERE strftime('%Y-%m', createdAt) = strftime('%Y-%m', 'now')
+    `).first();
+
+    // 13. 활성 학원 수
+    const activeAcademies = await DB.prepare(`
+      SELECT COUNT(*) as count
+      FROM academy
+      WHERE isActive = 1
+    `).first();
+
     const stats = {
+      // 기본 통계
       totalAcademies: academiesCount?.count || 0,
       totalStudents: studentsCount?.count || 0,
       totalTeachers: teachersCount?.count || 0,
+      totalUsers: (studentsCount?.count || 0) + (teachersCount?.count || 0),
+      
+      // 매출 통계
       thisMonthRevenue: thisMonthRevenue?.total || 0,
       totalRevenue: totalRevenue?.total || 0,
       pendingPayments: pendingPayments?.count || 0,
-      recentAcademies: recentAcademies.results || [],
+      
+      // 활동 통계
+      todayAttendance: todayAttendance?.count || 0,
+      todayHomework: todayHomework?.count || 0,
+      aiUsageThisMonth: aiUsageThisMonth?.count || 0,
+      
+      // 성장 통계
       studentGrowth: studentGrowth,
       thisWeekStudents: thisWeekStudents?.count || 0,
+      activeAcademies: activeAcademies?.count || 0,
+      
+      // 최근 데이터
+      recentAcademies: recentAcademies.results || [],
+      recentUsers: recentUsers.results || [],
     };
 
     return new Response(JSON.stringify(stats), {

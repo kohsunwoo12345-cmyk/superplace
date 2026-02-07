@@ -50,7 +50,15 @@ function PricingDetailContent() {
       const response = await fetch(`/api/admin/pricing?id=${planId}`);
       if (response.ok) {
         const data = await response.json();
-        setPlan(data);
+        console.log("Plan detail response:", data);
+        // API가 { success: true, plan: {...} } 형식으로 반환
+        if (data.success && data.plan) {
+          setPlan(data.plan);
+        } else {
+          console.error("Invalid response format:", data);
+        }
+      } else {
+        console.error("Failed to fetch plan:", response.status);
       }
     } catch (error) {
       console.error("요금제 상세 로드 실패:", error);
