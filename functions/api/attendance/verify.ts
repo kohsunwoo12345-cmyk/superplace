@@ -131,7 +131,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 🚀 자동 숙제 제출 및 채점
-    let homeworkResult = null;
+    let homeworkResult: any = null;
+    let homeworkError: string | null = null;
+    
     try {
       // homework_submissions 테이블 생성
       await DB.prepare(`
@@ -203,8 +205,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       };
       
       console.log(`✅ Auto homework submitted and graded: ${submissionId}, Score: ${score}`);
-    } catch (homeworkError: any) {
-      console.error('⚠️  Homework auto-submit error:', homeworkError.message);
+    } catch (err: any) {
+      homeworkError = err.message || 'Unknown homework error';
+      console.error('⚠️  Homework auto-submit error:', homeworkError, err);
       // 숙제 제출 실패해도 출석은 성공 처리
     }
 
@@ -225,7 +228,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           score: homeworkResult.score,
           feedback: homeworkResult.feedback,
           graded: true
-        } : null
+        } : {
+          submitted: false,
+          error: homeworkError || 'Unknown error',
+          graded: false
+        }
       }),
       {
         status: 200,
