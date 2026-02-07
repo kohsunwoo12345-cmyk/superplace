@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, ArrowRight, Shield, User, Camera, Upload, X } from "lucide-react";
+import { CheckCircle, ArrowRight, Shield, User, Camera, Upload, X, AlertCircle } from "lucide-react";
 
 export default function AttendanceVerifyPage() {
   const router = useRouter();
@@ -21,6 +21,15 @@ export default function AttendanceVerifyPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
 
+  // 컴포넌트 언마운트 시 카메라 정리
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
   const handleVerify = async () => {
     if (!code.trim()) {
       alert("출석 코드를 입력해주세요.");
@@ -34,7 +43,6 @@ export default function AttendanceVerifyPage() {
 
     setLoading(true);
     try {
-      // 출석 인증 API 호출
       const response = await fetch("/api/attendance/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -42,6 +50,7 @@ export default function AttendanceVerifyPage() {
       });
 
       const data = await response.json();
+      console.log("✅ 출석 인증 응답:", data);
 
       if (response.ok && data.success) {
         setStudentInfo(data);
@@ -59,73 +68,74 @@ export default function AttendanceVerifyPage() {
 
   const startCamera = async () => {
     try {
-      // 카메라 권한 체크
+      // 카메라 지원 확인
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("이 브라우저는 카메라를 지원하지 않습니다. 파일 업로드를 이용해주세요.");
+        alert("이 브라우저는 카메라를 지원하지 않습니다.");
         return;
       }
 
-      // 먼저 후면 카메라 시도, 실패 시 전면 카메라 사용
-      let mediaStream;
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: 1280, height: 720 }
-        });
-      } catch (err) {
-        console.log("후면 카메라 실패, 전면 카메라 시도 중...");
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: 1280, height: 720 }
-        });
-      }
+      // 카메라 권한 요청 및 스트림 시작
+      const constraints = {
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      };
+
+      console.log("📸 카메라 시작 시도...");
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("✅ 카메라 스트림 획득:", mediaStream);
+
+      setStream(mediaStream);
       
+      // videoRef에 스트림 연결
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        // 비디오가 로드될 때까지 대기
-        await new Promise((resolve) => {
-          if (videoRef.current) {
-            videoRef.current.onloadedmetadata = () => {
-              videoRef.current?.play();
-              resolve(true);
-            };
-          }
-        });
+        // 비디오 재생 시작
+        await videoRef.current.play();
+        console.log("✅ 비디오 재생 시작");
       }
-      setStream(mediaStream);
+      
       setShowCamera(true);
     } catch (err: any) {
-      console.error("Camera error:", err);
-      let errorMessage = "카메라를 시작할 수 없습니다.";
-      
-      if (err.name === 'NotAllowedError') {
-        errorMessage = "카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.";
-      } else if (err.name === 'NotFoundError') {
-        errorMessage = "카메라를 찾을 수 없습니다. 파일 업로드를 이용해주세요.";
-      } else if (err.name === 'NotReadableError') {
-        errorMessage = "카메라가 다른 앱에서 사용 중입니다. 다른 앱을 종료하고 다시 시도해주세요.";
-      }
-      
-      alert(errorMessage);
+      console.error("❌ 카메라 오류:", err);
+      alert(`카메라를 시작할 수 없습니다: ${err.message}\n\n파일 업로드를 이용해주세요.`);
     }
   };
 
   const stopCamera = () => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach(track => {
+        track.stop();
+        console.log("🛑 카메라 트랙 중지:", track.label);
+      });
       setStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
     setShowCamera(false);
   };
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
-      const context = canvasRef.current.getContext('2d');
-      if (context) {
-        canvasRef.current.width = videoRef.current.videoWidth;
-        canvasRef.current.height = videoRef.current.videoHeight;
-        context.drawImage(videoRef.current, 0, 0);
-        const imageData = canvasRef.current.toDataURL('image/jpeg', 0.8);
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      if (context && video.videoWidth > 0 && video.videoHeight > 0) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+        
+        const imageData = canvas.toDataURL('image/jpeg', 0.9);
+        console.log("📸 사진 촬영 완료, 크기:", imageData.length);
+        
         setCapturedImage(imageData);
         stopCamera();
+      } else {
+        alert("비디오가 로드되지 않았습니다. 잠시 후 다시 시도해주세요.");
       }
     }
   };
@@ -133,9 +143,16 @@ export default function AttendanceVerifyPage() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert("이미지 파일만 업로드 가능합니다.");
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (event) => {
-        setCapturedImage(event.target?.result as string);
+        const result = event.target?.result as string;
+        setCapturedImage(result);
+        console.log("📁 파일 업로드 완료, 크기:", result.length);
       };
       reader.readAsDataURL(file);
     }
@@ -149,17 +166,21 @@ export default function AttendanceVerifyPage() {
 
     setGrading(true);
     try {
+      console.log("📤 숙제 제출 시작...");
+      console.log("학생 정보:", studentInfo);
+      
       const response = await fetch("/api/homework/grade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: studentInfo.userId,
-          code: code,
+          code: studentInfo.attendanceCode || code,
           image: capturedImage,
         }),
       });
 
       const data = await response.json();
+      console.log("✅ 채점 응답:", data);
 
       if (response.ok && data.success) {
         // 채점 결과를 studentInfo에 추가
@@ -167,10 +188,12 @@ export default function AttendanceVerifyPage() {
           ...studentInfo,
           homework: {
             submitted: true,
-            score: data.grading.score,
-            feedback: data.grading.feedback,
+            score: data.grading?.score || 0,
+            feedback: data.grading?.feedback || "채점 완료",
+            strengths: data.grading?.strengths || "",
+            suggestions: data.grading?.suggestions || "",
             graded: true,
-            submissionId: data.submission.id
+            submissionId: data.submission?.id
           }
         });
 
@@ -179,10 +202,11 @@ export default function AttendanceVerifyPage() {
           window.location.href = '/attendance-verify';
         }, 3000);
       } else {
+        console.error("❌ 채점 실패:", data);
         alert(data.error || "채점에 실패했습니다.");
       }
     } catch (error) {
-      console.error("Homework submit error:", error);
+      console.error("❌ 숙제 제출 오류:", error);
       alert("오류가 발생했습니다.");
     } finally {
       setGrading(false);
@@ -207,17 +231,21 @@ export default function AttendanceVerifyPage() {
               </div>
             </div>
             <h2 className="text-2xl font-bold text-green-600 mb-2">출석 & 숙제 완료!</h2>
+            
+            {/* 학생 정보 */}
             <div className="bg-blue-50 rounded-lg p-4 mb-4">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <User className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-blue-900">{studentInfo.userName}</span>
+                <span className="font-semibold text-blue-900">{studentInfo.userName || "학생"}</span>
               </div>
-              <p className="text-sm text-gray-600">{studentInfo.userEmail}</p>
+              <p className="text-sm text-gray-600">{studentInfo.userEmail || ""}</p>
               <p className="text-xs text-gray-500 mt-2">
-                출석 시간: {new Date(studentInfo.verifiedAt).toLocaleString('ko-KR')}
+                출석 시간: {studentInfo.verifiedAt ? new Date(studentInfo.verifiedAt).toLocaleString('ko-KR') : "-"}
               </p>
-              <p className="text-xs font-medium text-blue-600 mt-1">
-                상태: {studentInfo.statusText}
+              <p className={`text-xs font-medium mt-1 ${
+                studentInfo.status === 'LATE' ? 'text-yellow-600' : 'text-green-600'
+              }`}>
+                상태: {studentInfo.statusText || studentInfo.status || "-"}
               </p>
             </div>
 
@@ -228,11 +256,15 @@ export default function AttendanceVerifyPage() {
                 <span className="font-semibold text-purple-900">숙제 채점 완료</span>
               </div>
               <p className="text-sm text-purple-700 mb-1">
-                채점 점수: <span className="font-bold text-lg">{studentInfo.homework.score}점</span>
+                채점 점수: <span className="font-bold text-lg">
+                  {studentInfo.homework?.score || 0}점
+                </span>
               </p>
-              <p className="text-xs text-gray-600 mt-2">
-                {studentInfo.homework.feedback}
-              </p>
+              {studentInfo.homework?.feedback && (
+                <p className="text-xs text-gray-600 mt-2">
+                  {studentInfo.homework.feedback}
+                </p>
+              )}
             </div>
 
             <p className="text-gray-600 mb-4">다음 학생 출석 대기 중...</p>
@@ -260,28 +292,37 @@ export default function AttendanceVerifyPage() {
           <CardContent className="space-y-4">
             {/* 카메라 화면 */}
             {showCamera && (
-              <div className="relative">
+              <div className="relative bg-black rounded-lg overflow-hidden">
                 <video
                   ref={videoRef}
                   autoPlay
                   playsInline
+                  muted
                   className="w-full rounded-lg"
+                  style={{ maxHeight: '400px' }}
                 />
-                <div className="flex gap-2 mt-4">
-                  <Button onClick={capturePhoto} className="flex-1">
-                    <Camera className="w-4 h-4 mr-2" />
+                <div className="absolute bottom-4 left-0 right-0 flex gap-2 px-4">
+                  <Button 
+                    onClick={capturePhoto} 
+                    className="flex-1 bg-white text-black hover:bg-gray-200"
+                    size="lg"
+                  >
+                    <Camera className="w-5 h-5 mr-2" />
                     촬영
                   </Button>
-                  <Button onClick={stopCamera} variant="outline">
-                    <X className="w-4 h-4 mr-2" />
-                    취소
+                  <Button 
+                    onClick={stopCamera} 
+                    variant="outline"
+                    className="bg-white/90"
+                  >
+                    <X className="w-5 h-5" />
                   </Button>
                 </div>
               </div>
             )}
 
             {/* 촬영된 이미지 */}
-            {capturedImage && (
+            {capturedImage && !showCamera && (
               <div className="relative">
                 <img src={capturedImage} alt="숙제" className="w-full rounded-lg" />
                 <Button
@@ -290,7 +331,8 @@ export default function AttendanceVerifyPage() {
                   size="sm"
                   className="absolute top-2 right-2"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-4 h-4 mr-1" />
+                  다시 촬영
                 </Button>
               </div>
             )}
@@ -298,21 +340,22 @@ export default function AttendanceVerifyPage() {
             {/* 버튼들 */}
             {!showCamera && !capturedImage && (
               <div className="grid grid-cols-2 gap-4">
-                <Button onClick={startCamera} className="h-32">
-                  <div className="text-center">
-                    <Camera className="w-8 h-8 mx-auto mb-2" />
-                    <span>카메라 촬영</span>
-                  </div>
+                <Button 
+                  onClick={startCamera} 
+                  className="h-32 flex flex-col"
+                  size="lg"
+                >
+                  <Camera className="w-10 h-10 mb-2" />
+                  <span className="text-lg">카메라 촬영</span>
                 </Button>
                 <Button
                   onClick={() => fileInputRef.current?.click()}
                   variant="outline"
-                  className="h-32"
+                  className="h-32 flex flex-col"
+                  size="lg"
                 >
-                  <div className="text-center">
-                    <Upload className="w-8 h-8 mx-auto mb-2" />
-                    <span>파일 업로드</span>
-                  </div>
+                  <Upload className="w-10 h-10 mb-2" />
+                  <span className="text-lg">파일 업로드</span>
                 </Button>
               </div>
             )}
@@ -322,7 +365,8 @@ export default function AttendanceVerifyPage() {
               <Button
                 onClick={submitHomework}
                 disabled={grading}
-                className="w-full h-12 text-lg"
+                className="w-full h-14 text-lg"
+                size="lg"
               >
                 {grading ? (
                   <>
@@ -330,7 +374,10 @@ export default function AttendanceVerifyPage() {
                     AI 채점 중...
                   </>
                 ) : (
-                  "숙제 제출 및 채점받기"
+                  <>
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    숙제 제출 및 채점받기
+                  </>
                 )}
               </Button>
             )}
