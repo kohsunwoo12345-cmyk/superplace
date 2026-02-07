@@ -128,12 +128,6 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       }
     }
 
-    // 역할 매핑 (이미 위에서 처리했으므로 제거)
-    } else if (userRole === 'user') {
-      userRole = 'TEACHER'; // 선생님
-    }
-    // ADMIN, SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT는 그대로 유지
-
     // academyId 설정
     let academyId: string | number | null = null;
     
