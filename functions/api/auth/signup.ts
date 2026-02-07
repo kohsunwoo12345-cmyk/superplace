@@ -181,6 +181,11 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         success: true,
         message: '회원가입 성공',
         attendanceCode: attendanceCode, // 학생인 경우 출석 코드 반환
+        debug: {
+          academyName: data.academyName,
+          academyId: academyId,
+          academyIdType: typeof academyId
+        },
         data: {
           user: {
             id: userId,
