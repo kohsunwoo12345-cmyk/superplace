@@ -57,14 +57,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS attendance_records (
         id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL,
-        userName TEXT,
-        userEmail TEXT,
-        code TEXT NOT NULL,
-        verifiedAt TEXT NOT NULL,
-        status TEXT DEFAULT 'VERIFIED',
-        homeworkSubmitted INTEGER DEFAULT 0,
-        homeworkSubmittedAt TEXT
+        userId INTEGER NOT NULL,
+        attendanceCode TEXT NOT NULL,
+        checkInTime TEXT DEFAULT (datetime('now')),
+        checkInType TEXT DEFAULT 'CODE',
+        academyId INTEGER,
+        classId TEXT,
+        status TEXT DEFAULT 'PRESENT',
+        note TEXT
       )
     `).run();
 
@@ -115,9 +115,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const recordId = `attendance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     await DB.prepare(`
-      INSERT INTO attendance_records (id, userId, userName, userEmail, code, verifiedAt, status)
+      INSERT INTO attendance_records (id, userId, attendanceCode, checkInType, academyId, classId, status)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).bind(recordId, String(userId), userName, userEmail, code, koreanTime, attendanceStatus).run();
+    `).bind(recordId, userId, code, 'CODE', codeRecord.academyId || null, codeRecord.classId || null, attendanceStatus).run();
 
     // 상태에 따른 메시지
     let statusMessage = "출석이 완료되었습니다!";
