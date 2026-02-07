@@ -53,7 +53,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 7. 최근 가입 학원 (5개)
     const recentAcademies = await DB.prepare(`
-      SELECT id, name, directorName, createdAt
+      SELECT id, name, createdAt
       FROM academy
       WHERE isActive = 1
       ORDER BY createdAt DESC
