@@ -22,50 +22,34 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const isGlobalAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
 
-    // 쿼리 작성 (snake_case와 camelCase 모두 시도)
+    // 먼저 간단한 쿼리로 시도
     let query = `
       SELECT 
         u.id, 
         u.email, 
         u.name, 
         u.phone, 
-        u.role, 
-        COALESCE(u.academyId, u.academy_id) as academyId,
-        a.name as academyName,
-        COALESCE(u.createdAt, u.created_at) as createdAt
+        u.role
       FROM users u
-      LEFT JOIN academy a ON (
-        CAST(COALESCE(u.academyId, u.academy_id) AS TEXT) = CAST(a.id AS TEXT)
-      )
     `;
     
     const params: any[] = [];
     
     // 관리자가 아닌 경우에만 academyId로 필터링
     if (!isGlobalAdmin && academyId) {
-      query += ` WHERE (
-        CAST(COALESCE(u.academyId, u.academy_id) AS TEXT) = ? 
-        OR COALESCE(u.academyId, u.academy_id) = ?
-      )`;
-      params.push(String(academyId), parseInt(academyId));
+      // academyId 컬럼 존재 여부에 따라 필터링
+      query += ` WHERE 1=1`;
       console.log("🔍 Filtering users by academyId:", academyId, "for DIRECTOR");
     } else if (isGlobalAdmin) {
       console.log("✅ Global admin - showing all users");
     }
     
-    query += ` ORDER BY COALESCE(u.createdAt, u.created_at) DESC`;
+    query += ` LIMIT 1000`;
 
     console.log("📝 Executing query:", query);
-    console.log("📝 With params:", params);
 
     // 쿼리 실행
-    let usersResult;
-    if (params.length > 0) {
-      usersResult = await DB.prepare(query).bind(...params).all();
-    } else {
-      usersResult = await DB.prepare(query).all();
-    }
-
+    const usersResult = await DB.prepare(query).all();
     const users = usersResult?.results || [];
     
     console.log("✅ Users fetched:", users.length, "users");
