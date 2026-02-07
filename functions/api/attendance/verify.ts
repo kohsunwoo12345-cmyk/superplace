@@ -53,29 +53,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // 출석 기록 테이블 확인 및 재생성 (스키마 통일)
-    try {
-      // 기존 테이블 구조 확인
-      const schema = await DB.prepare(`PRAGMA table_info(attendance_records)`).all();
-      const columns = schema.results.map((col: any) => col.name);
-      
-      // attendanceCode 컬럼이 없으면 테이블 재생성
-      if (!columns.includes('attendanceCode')) {
-        console.log('⚠️  Old schema detected, dropping table...');
-        await DB.prepare('DROP TABLE IF EXISTS attendance_records').run();
-      }
-    } catch (e) {
-      console.log('⚠️  Table check error, will create new:', e);
-    }
-
-    // 표준 스키마로 테이블 생성
+    // 새 이름으로 출석 기록 테이블 생성 (레거시 스키마 문제 우회)
+    const tableName = 'attendance_records_v2';
+    
     await DB.prepare(`
-      CREATE TABLE IF NOT EXISTS attendance_records (
+      CREATE TABLE IF NOT EXISTS ${tableName} (
         id TEXT PRIMARY KEY,
         userId INTEGER NOT NULL,
-        attendanceCode TEXT NOT NULL,
+        code TEXT NOT NULL,
         checkInTime TEXT DEFAULT (datetime('now')),
-        checkInType TEXT DEFAULT 'CODE',
         academyId INTEGER,
         classId TEXT,
         status TEXT DEFAULT 'PRESENT',
@@ -128,11 +114,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 결석 판정은 별도 프로세스에서 처리 (예: 자정에 출석하지 않은 학생 자동 결석 처리)
 
     const recordId = `attendance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const tableName = 'attendance_records_v2';
     
     await DB.prepare(`
-      INSERT INTO attendance_records (id, userId, attendanceCode, checkInType, academyId, classId, status)
+      INSERT INTO ${tableName} (id, userId, code, academyId, classId, status, checkInTime)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).bind(recordId, userId, code, 'CODE', codeRecord.academyId || null, codeRecord.classId || null, attendanceStatus).run();
+    `).bind(recordId, userId, code, codeRecord.academyId || null, codeRecord.classId || null, attendanceStatus, koreanTime).run();
 
     // 상태에 따른 메시지
     let statusMessage = "출석이 완료되었습니다!";
