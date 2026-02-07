@@ -45,7 +45,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         hg.completion as homeworkCompletion
       FROM attendance_records_v2 ar
       LEFT JOIN users u ON u.id = ar.userId
-      LEFT JOIN homework_submissions_v2 hs ON hs.userId = ar.userId AND DATE(hs.submittedAt) = DATE(ar.checkInTime)
+      LEFT JOIN homework_submissions_v2 hs ON hs.code = ar.code
       LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
       WHERE DATE(ar.checkInTime) = ?
     `;
