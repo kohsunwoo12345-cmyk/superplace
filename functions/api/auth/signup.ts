@@ -78,6 +78,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     // academyName으로 academy ID 찾기
     let academyId = null;
+    console.log('📝 Looking up academy:', data.academyName);
+    
     if (data.academyName) {
       try {
         const academy = await context.env.DB.prepare(
@@ -89,6 +91,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           console.log(`✅ Found academy ID ${academyId} for name: ${data.academyName}`);
         } else {
           // 학원이 없으면 생성
+          console.log(`📝 Creating new academy: ${data.academyName}`);
           const createResult = await context.env.DB.prepare(
             'INSERT INTO academy (name) VALUES (?)'
           ).bind(data.academyName).run();
@@ -100,7 +103,11 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         console.error('Academy lookup/creation error:', academyError);
         // academyId는 null로 유지
       }
+    } else {
+      console.log('⚠️  No academyName provided');
     }
+    
+    console.log(`📊 Final academyId: ${academyId}`);
 
     // 사용자 생성 (id는 자동 증가, 전화번호 및 academyId 포함)
     const result = await context.env.DB.prepare(
