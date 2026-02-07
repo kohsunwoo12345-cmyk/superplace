@@ -30,7 +30,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const history = await DB.prepare(`
       SELECT 
         hs.id,
-        hs.studentId,
+        hs.userId,
         hs.attendanceId,
         hs.submittedAt,
         hs.status,
@@ -46,7 +46,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         hg.gradedBy
       FROM homework_submissions hs
       LEFT JOIN homework_gradings hg ON hg.submissionId = hs.id
-      WHERE hs.studentId = ?
+      WHERE hs.userId = ?
       ORDER BY hs.submittedAt DESC
       LIMIT 50
     `).bind(userId).all();

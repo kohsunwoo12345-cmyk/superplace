@@ -138,7 +138,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       await DB.prepare(`
         CREATE TABLE IF NOT EXISTS homework_submissions (
           id TEXT PRIMARY KEY,
-          studentId INTEGER NOT NULL,
+          userId INTEGER NOT NULL,
           attendanceId TEXT,
           imageUrl TEXT,
           submittedAt TEXT DEFAULT (datetime('now')),
@@ -170,7 +170,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const submissionId = `homework-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
       await DB.prepare(`
-        INSERT INTO homework_submissions (id, studentId, attendanceId, imageUrl, status, academyId, classId)
+        INSERT INTO homework_submissions (id, userId, attendanceId, imageUrl, status, academyId, classId)
         VALUES (?, ?, ?, 'auto-submitted', 'submitted', ?, ?)
       `).bind(submissionId, userId, recordId, codeRecord.academyId || null, codeRecord.classId || null).run();
 

@@ -32,7 +32,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_submissions (
         id TEXT PRIMARY KEY,
-        studentId INTEGER NOT NULL,
+        userId INTEGER NOT NULL,
         attendanceId TEXT,
         imageUrl TEXT,
         submittedAt TEXT DEFAULT (datetime('now')),
@@ -77,7 +77,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const imageUrl = images.length > 0 ? images[0] : 'auto-submitted';
     
     await DB.prepare(`
-      INSERT INTO homework_submissions (id, studentId, attendanceId, imageUrl, status, academyId)
+      INSERT INTO homework_submissions (id, userId, attendanceId, imageUrl, status, academyId)
       VALUES (?, ?, ?, ?, 'submitted', ?)
     `).bind(submissionId, userId, attendanceId || null, imageUrl, user.academyId || null).run();
 
@@ -123,7 +123,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         message: '숙제 제출 및 채점이 완료되었습니다',
         submission: {
           id: submissionId,
-          studentId: userId,
+          userId: userId,
           studentName: user.name,
           attendanceId,
           submittedAt: new Date().toISOString(),
