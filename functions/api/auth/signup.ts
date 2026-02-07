@@ -76,17 +76,44 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
     // ADMIN, SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT는 그대로 유지
 
-    // 사용자 생성 (id는 자동 증가, 전화번호 포함)
+    // academyName으로 academy ID 찾기
+    let academyId = null;
+    if (data.academyName) {
+      try {
+        const academy = await context.env.DB.prepare(
+          'SELECT id FROM academy WHERE name = ?'
+        ).bind(data.academyName).first();
+        
+        if (academy) {
+          academyId = academy.id;
+          console.log(`✅ Found academy ID ${academyId} for name: ${data.academyName}`);
+        } else {
+          // 학원이 없으면 생성
+          const createResult = await context.env.DB.prepare(
+            'INSERT INTO academy (name) VALUES (?)'
+          ).bind(data.academyName).run();
+          
+          academyId = createResult.meta.last_row_id;
+          console.log(`✅ Created new academy ID ${academyId} for name: ${data.academyName}`);
+        }
+      } catch (academyError) {
+        console.error('Academy lookup/creation error:', academyError);
+        // academyId는 null로 유지
+      }
+    }
+
+    // 사용자 생성 (id는 자동 증가, 전화번호 및 academyId 포함)
     const result = await context.env.DB.prepare(
-      `INSERT INTO users (email, password, name, role, phone)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO users (email, password, name, role, phone, academyId)
+       VALUES (?, ?, ?, ?, ?, ?)`
     )
       .bind(
         data.email,
         data.password, // 실제로는 해시해야 하지만 기존 DB가 평문이므로
         data.name,
         userRole,
-        data.phone || null
+        data.phone || null,
+        academyId
       )
       .run();
     
@@ -153,6 +180,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
             email: data.email,
             name: data.name,
             role: userRole,
+            academyId: academyId,
           },
           token,
         },
