@@ -32,22 +32,32 @@ export default function AttendanceVerifyPage() {
   }, [stream]);
 
   const handleVerify = async () => {
-    if (!code.trim()) {
+    const trimmedCode = code.trim();
+    
+    if (!trimmedCode) {
       alert("출석 코드를 입력해주세요.");
       return;
     }
 
-    if (code.length !== 6) {
+    if (trimmedCode.length !== 6) {
       alert("6자리 출석 코드를 입력해주세요.");
+      return;
+    }
+
+    // 숫자만 포함되어 있는지 확인
+    if (!/^\d{6}$/.test(trimmedCode)) {
+      alert("출석 코드는 6자리 숫자여야 합니다.");
       return;
     }
 
     setLoading(true);
     try {
+      console.log("📤 출석 인증 요청:", { code: trimmedCode });
+      
       const response = await fetch("/api/attendance/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: code.trim() }),
+        body: JSON.stringify({ code: trimmedCode }),
       });
 
       const data = await response.json();

@@ -36,6 +36,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const body = await context.request.json() as any;
     const { code } = body;
 
+    console.log("📥 출석 인증 요청:", { code, codeType: typeof code, codeLength: code?.length });
+
     if (!DB) {
       return new Response(JSON.stringify({ error: "Database not configured" }), {
         status: 500,
@@ -52,6 +54,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    // 코드를 문자열로 변환 및 trim
+    const cleanCode = String(code).trim();
+    console.log("🧹 정제된 코드:", { cleanCode, cleanCodeLength: cleanCode.length });
 
     // 새 이름으로 출석 기록 테이블 생성 (레거시 스키마 문제 우회)
     const tableName = 'attendance_records_v2';
@@ -88,7 +94,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const codeRecord = await DB.prepare(`
       SELECT * FROM student_attendance_codes 
       WHERE code = ? AND isActive = 1
-    `).bind(code).first();
+    `).bind(cleanCode).first();
+
+    console.log("🔍 코드 조회 결과:", codeRecord ? "찾음" : "없음", { searchCode: cleanCode });
 
     if (!codeRecord) {
       return new Response(
@@ -133,7 +141,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     await DB.prepare(`
       INSERT INTO ${tableName} (id, userId, code, academyId, classId, status, checkInTime)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).bind(recordId, userId, code, codeRecord.academyId || null, codeRecord.classId || null, attendanceStatus, koreanTime).run();
+    `).bind(recordId, userId, cleanCode, codeRecord.academyId || null, codeRecord.classId || null, attendanceStatus, koreanTime).run();
 
     // 상태에 따른 메시지
     let statusMessage = "출석이 완료되었습니다!";
@@ -156,7 +164,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         verifiedAt: koreanTime,
         status: attendanceStatus,
         statusText: attendanceStatus === 'LATE' ? '지각' : '출석',
-        attendanceCode: code,
+        attendanceCode: cleanCode,
         // 숙제는 아직 미제출 상태
         homework: {
           submitted: false,
