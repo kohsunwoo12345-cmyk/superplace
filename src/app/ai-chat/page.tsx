@@ -137,16 +137,25 @@ export default function ModernAIChatPage() {
   const fetchAllBots = async () => {
     try {
       console.log('🔍 관리자 - 모든 봇 조회');
+      console.log('📡 API 요청:', '/api/admin/ai-bots');
       
       const response = await fetch('/api/admin/ai-bots');
+      console.log('📡 API 응답 상태:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📦 API 응답 데이터:', data);
+        console.log('📦 봇 개수:', data.bots?.length);
+        
         const activeBots = (data.bots || []).filter((bot: AIBot) => bot.isActive);
-        console.log(`✅ 전체 봇 ${activeBots.length}개 발견`);
+        console.log(`✅ 활성 봇 ${activeBots.length}개 발견`);
+        console.log('✅ 활성 봇 목록:', activeBots.map(b => ({ id: b.id, name: b.name, isActive: b.isActive })));
         
         if (activeBots.length > 0) {
+          console.log('✅ setBots 호출:', activeBots.length, '개');
           setBots(activeBots);
           if (!selectedBot) {
+            console.log('✅ 첫 번째 봇 선택:', activeBots[0].name);
             setSelectedBot(activeBots[0]);
           }
         } else {
@@ -155,11 +164,14 @@ export default function ModernAIChatPage() {
           setSelectedBot(null);
         }
       } else {
-        console.error('❌ 봇 조회 실패:', response.status);
+        console.error('❌ 봇 조회 실패:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('❌ 에러 응답:', errorText);
         setBots([]);
       }
     } catch (error) {
-      console.error('AI 봇 목록 로드 실패:', error);
+      console.error('❌ AI 봇 목록 로드 실패:', error);
+      console.error('❌ 에러 스택:', (error as Error).stack);
       setBots([]);
     }
   };
