@@ -20,6 +20,7 @@ export default function AttendanceVerifyPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
 
   // 컴포넌트 언마운트 시 카메라 정리
   useEffect(() => {
@@ -88,13 +89,25 @@ export default function AttendanceVerifyPage() {
       console.log("✅ 카메라 스트림 획득:", mediaStream);
 
       setStream(mediaStream);
+      setVideoReady(false);
       
       // videoRef에 스트림 연결
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        // 비디오 재생 시작
-        await videoRef.current.play();
-        console.log("✅ 비디오 재생 시작");
+        
+        // 비디오 메타데이터 로드 대기
+        videoRef.current.onloadedmetadata = async () => {
+          console.log("✅ 비디오 메타데이터 로드 완료");
+          if (videoRef.current) {
+            await videoRef.current.play();
+            console.log("✅ 비디오 재생 시작");
+            // 비디오 준비 완료
+            setTimeout(() => {
+              setVideoReady(true);
+              console.log("✅ 비디오 준비 완료");
+            }, 500); // 500ms 대기 후 촬영 가능
+          }
+        };
       }
       
       setShowCamera(true);
@@ -116,26 +129,38 @@ export default function AttendanceVerifyPage() {
       videoRef.current.srcObject = null;
     }
     setShowCamera(false);
+    setVideoReady(false);
   };
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
+      
+      // 비디오 준비 상태 재확인
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        alert("카메라가 아직 준비 중입니다. 잠시만 기다려주세요.");
+        // 1초 후 자동으로 videoReady를 true로 설정
+        setTimeout(() => {
+          setVideoReady(true);
+        }, 1000);
+        return;
+      }
+      
       const context = canvas.getContext('2d');
       
-      if (context && video.videoWidth > 0 && video.videoHeight > 0) {
+      if (context) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0);
         
         const imageData = canvas.toDataURL('image/jpeg', 0.9);
-        console.log("📸 사진 촬영 완료, 크기:", imageData.length);
+        console.log("📸 사진 촬영 완료, 크기:", imageData.length, "해상도:", canvas.width, "x", canvas.height);
         
         setCapturedImage(imageData);
         stopCamera();
       } else {
-        alert("비디오가 로드되지 않았습니다. 잠시 후 다시 시도해주세요.");
+        alert("사진 촬영에 실패했습니다. 다시 시도해주세요.");
       }
     }
   };
@@ -301,14 +326,24 @@ export default function AttendanceVerifyPage() {
                   className="w-full rounded-lg"
                   style={{ maxHeight: '400px' }}
                 />
+                {/* 비디오 준비 중 오버레이 */}
+                {!videoReady && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <div className="text-white text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mx-auto mb-2"></div>
+                      <p>카메라 준비 중...</p>
+                    </div>
+                  </div>
+                )}
                 <div className="absolute bottom-4 left-0 right-0 flex gap-2 px-4">
                   <Button 
                     onClick={capturePhoto} 
-                    className="flex-1 bg-white text-black hover:bg-gray-200"
+                    disabled={!videoReady}
+                    className="flex-1 bg-white text-black hover:bg-gray-200 disabled:opacity-50"
                     size="lg"
                   >
                     <Camera className="w-5 h-5 mr-2" />
-                    촬영
+                    {videoReady ? "촬영" : "준비 중..."}
                   </Button>
                   <Button 
                     onClick={stopCamera} 
