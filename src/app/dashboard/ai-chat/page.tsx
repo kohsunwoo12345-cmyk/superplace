@@ -2,16 +2,38 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Send, 
+  Mic, 
+  Image as ImageIcon, 
+  Plus, 
+  Menu, 
+  X,
+  Sparkles,
+  Bot,
+  User,
+  Trash2,
+  Edit,
+  MoreVertical
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Send, Bot, User, Sparkles, RefreshCw } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  imageUrl?: string;
+  audioUrl?: string;
+}
+
+interface ChatSession {
+  id: string;
+  title: string;
+  lastMessage: string;
+  timestamp: Date;
+  botId: string;
 }
 
 interface AIBot {
@@ -21,28 +43,37 @@ interface AIBot {
   profileIcon: string;
   profileImage?: string;
   systemPrompt: string;
-  welcomeMessage?: string;
-  starterMessage1?: string;
-  starterMessage2?: string;
-  starterMessage3?: string;
   model: string;
-  temperature: number;
-  maxTokens: number;
-  topK: number;
-  topP: number;
   isActive: boolean;
 }
 
-export default function AIChatPage() {
+export default function ModernAIChatPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  
+  // 봇 관련
   const [bots, setBots] = useState<AIBot[]>([]);
   const [selectedBot, setSelectedBot] = useState<AIBot | null>(null);
+  
+  // 채팅 관련
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [botsLoading, setBotsLoading] = useState(true);
+  
+  // 채팅 기록
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  
+  // UI 상태
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isRecording, setIsRecording] = useState(false);
+  
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -50,11 +81,9 @@ export default function AIChatPage() {
       router.push("/login");
       return;
     }
-
-    const userData = JSON.parse(storedUser);
-    setUser(userData);
-
+    setUser(JSON.parse(storedUser));
     fetchBots();
+    loadChatSessions();
   }, [router]);
 
   useEffect(() => {
@@ -62,38 +91,102 @@ export default function AIChatPage() {
   }, [messages]);
 
   useEffect(() => {
-    if (selectedBot && messages.length === 0) {
-      // 선택된 봇의 환영 메시지 표시
-      const welcomeMsg = selectedBot.welcomeMessage || `안녕하세요! ${selectedBot.name}입니다. 무엇을 도와드릴까요?`;
-      setMessages([
-        {
-          id: "welcome",
-          role: "assistant",
-          content: welcomeMsg,
-          timestamp: new Date(),
-        },
-      ]);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
-  }, [selectedBot]);
+  }, [input]);
 
   const fetchBots = async () => {
     try {
-      setBotsLoading(true);
       const response = await fetch("/api/admin/ai-bots");
       if (response.ok) {
         const data = await response.json();
         const activeBots = (data.bots || []).filter((bot: AIBot) => bot.isActive);
         setBots(activeBots);
-        
-        // 첫 번째 활성 봇 자동 선택
-        if (activeBots.length > 0) {
+        if (activeBots.length > 0 && !selectedBot) {
           setSelectedBot(activeBots[0]);
         }
       }
     } catch (error) {
       console.error("AI 봇 목록 로드 실패:", error);
-    } finally {
-      setBotsLoading(false);
+    }
+  };
+
+  const loadChatSessions = () => {
+    // localStorage에서 채팅 세션 불러오기
+    const storedSessions = localStorage.getItem("chatSessions");
+    if (storedSessions) {
+      const sessions = JSON.parse(storedSessions).map((s: any) => ({
+        ...s,
+        timestamp: new Date(s.timestamp),
+      }));
+      setChatSessions(sessions);
+    }
+  };
+
+  const saveChatSessions = (sessions: ChatSession[]) => {
+    localStorage.setItem("chatSessions", JSON.stringify(sessions));
+    setChatSessions(sessions);
+  };
+
+  const createNewChat = () => {
+    const newSessionId = `session-${Date.now()}`;
+    const newSession: ChatSession = {
+      id: newSessionId,
+      title: "새로운 대화",
+      lastMessage: "",
+      timestamp: new Date(),
+      botId: selectedBot?.id || "",
+    };
+    
+    const updatedSessions = [newSession, ...chatSessions];
+    saveChatSessions(updatedSessions);
+    setCurrentSessionId(newSessionId);
+    setMessages([]);
+  };
+
+  const deleteSession = (sessionId: string) => {
+    const updatedSessions = chatSessions.filter(s => s.id !== sessionId);
+    saveChatSessions(updatedSessions);
+    
+    if (currentSessionId === sessionId) {
+      setCurrentSessionId(null);
+      setMessages([]);
+    }
+  };
+
+  const loadSession = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+    // localStorage에서 해당 세션의 메시지 불러오기
+    const storedMessages = localStorage.getItem(`messages-${sessionId}`);
+    if (storedMessages) {
+      const msgs = JSON.parse(storedMessages).map((m: any) => ({
+        ...m,
+        timestamp: new Date(m.timestamp),
+      }));
+      setMessages(msgs);
+    }
+  };
+
+  const saveMessages = (sessionId: string, msgs: Message[]) => {
+    localStorage.setItem(`messages-${sessionId}`, JSON.stringify(msgs));
+    
+    // 세션 목록 업데이트
+    if (msgs.length > 0) {
+      const lastMsg = msgs[msgs.length - 1];
+      const updatedSessions = chatSessions.map(s => {
+        if (s.id === sessionId) {
+          return {
+            ...s,
+            lastMessage: lastMsg.content.substring(0, 50) + (lastMsg.content.length > 50 ? "..." : ""),
+            timestamp: new Date(),
+            title: msgs[0]?.content.substring(0, 30) || "새로운 대화",
+          };
+        }
+        return s;
+      });
+      saveChatSessions(updatedSessions);
     }
   };
 
@@ -101,371 +194,392 @@ export default function AIChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleBotSelect = (bot: AIBot) => {
-    setSelectedBot(bot);
-    setMessages([]); // 메시지 초기화
-  };
-
-  const handleStarterMessage = (message: string) => {
-    setInput(message);
-    setTimeout(() => handleSend(message), 100);
-  };
-
-  const saveChatLog = async (userMessage: string, aiResponse: string) => {
-    try {
-      if (!user?.id || !selectedBot) return;
-      
-      const logId = `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      // AI 대화 로그 저장 (추후 구현 가능)
-      await fetch("/api/ai/save-chat-log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: logId,
-          userId: user.id,
-          botId: selectedBot.id,
-          botName: selectedBot.name,
-          message: userMessage,
-          response: aiResponse,
-          model: selectedBot.model,
-        }),
-      });
-    } catch (error) {
-      console.error("채팅 로그 저장 실패:", error);
-    }
-  };
-
-  const handleSend = async (messageText?: string) => {
-    const textToSend = messageText || input;
-    if (!textToSend.trim() || !selectedBot) return;
+  const handleSend = async () => {
+    if (!input.trim() || loading || !selectedBot) return;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `user-${Date.now()}`,
       role: "user",
-      content: textToSend,
+      content: input.trim(),
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput("");
     setLoading(true);
 
+    // 현재 세션이 없으면 새로 생성
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      sessionId = `session-${Date.now()}`;
+      const newSession: ChatSession = {
+        id: sessionId,
+        title: userMessage.content.substring(0, 30),
+        lastMessage: userMessage.content,
+        timestamp: new Date(),
+        botId: selectedBot.id,
+      };
+      const updatedSessions = [newSession, ...chatSessions];
+      saveChatSessions(updatedSessions);
+      setCurrentSessionId(sessionId);
+    }
+
     try {
-      // Gemini API 호출
-      const response = await fetch("/api/ai/chat", {
+      const response = await fetch("/api/ai-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: textToSend,
-          systemPrompt: selectedBot.systemPrompt,
-          model: selectedBot.model,
-          temperature: selectedBot.temperature,
-          maxTokens: selectedBot.maxTokens,
-          topK: selectedBot.topK,
-          topP: selectedBot.topP,
+          message: input.trim(),
+          botId: selectedBot.id,
+          conversationHistory: messages.map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
         const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
+          id: `assistant-${Date.now()}`,
           role: "assistant",
           content: data.response || "응답을 생성할 수 없습니다.",
           timestamp: new Date(),
         };
-        setMessages((prev) => [...prev, assistantMessage]);
 
-        // 채팅 로그 저장
-        await saveChatLog(textToSend, assistantMessage.content);
+        const finalMessages = [...updatedMessages, assistantMessage];
+        setMessages(finalMessages);
+        saveMessages(sessionId, finalMessages);
       } else {
-        const errorData = await response.json();
-        const errorMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: `오류가 발생했습니다: ${errorData.error || "알 수 없는 오류"}`,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, errorMessage]);
+        throw new Error("AI 응답 실패");
       }
     } catch (error) {
-      console.error("메시지 전송 오류:", error);
+      console.error("AI 채팅 오류:", error);
       const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: `error-${Date.now()}`,
         role: "assistant",
-        content: "연결 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+        content: "죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.",
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      const finalMessages = [...updatedMessages, errorMessage];
+      setMessages(finalMessages);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  const resetConversation = () => {
-    setMessages([]);
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        // TODO: 음성을 텍스트로 변환하는 API 호출
+        console.log("Audio recorded:", audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error("녹음 시작 실패:", error);
+      alert("마이크 권한을 허용해주세요.");
+    }
   };
 
-  if (botsLoading) {
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 이미지를 base64로 변환
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Image = event.target?.result as string;
+      
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: "이미지를 업로드했습니다.",
+        imageUrl: base64Image,
+        timestamp: new Date(),
+      };
+
+      setMessages([...messages, userMessage]);
+      // TODO: 이미지 분석 API 호출
+    };
+    reader.readAsDataURL(file);
+  };
+
+  if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">AI 봇 로딩 중...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (bots.length === 0) {
-    return (
-      <div className="container mx-auto py-8 px-4">
-        <Card className="text-center p-12">
-          <Bot className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl sm:text-2xl font-bold mb-2">사용 가능한 AI 봇이 없습니다</h2>
-          <p className="text-gray-600 mb-6">
-            관리자에게 문의하여 AI 봇을 활성화하세요.
-          </p>
-          {user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" ? (
-            <Button onClick={() => router.push("/dashboard/admin/ai-bots/create")}>
-              <Sparkles className="w-4 h-4 mr-2" />
-              AI 봇 만들기
-            </Button>
-          ) : null}
-        </Card>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 h-[calc(100vh-8rem)]">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2 flex items-center gap-2">
-            <Sparkles className="h-8 w-8 text-purple-600" />
-            AI 챗봇
-          </h1>
-          <p className="text-gray-600">AI와 대화하며 학습을 도움받으세요</p>
+    <div className="flex h-screen bg-white overflow-hidden">
+      {/* 왼쪽 사이드바 */}
+      <div
+        className={`${
+          sidebarOpen ? "w-64" : "w-0"
+        } transition-all duration-300 border-r border-gray-200 flex flex-col bg-gray-50 overflow-hidden`}
+      >
+        {/* 사이드바 헤더 */}
+        <div className="p-4 border-b border-gray-200">
+          <Button
+            onClick={createNewChat}
+            className="w-full bg-white hover:bg-gray-100 text-gray-800 border border-gray-300"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            새 대화
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          onClick={resetConversation}
-          disabled={messages.length === 0}
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          대화 초기화
-        </Button>
+
+        {/* 나의 봇 */}
+        <div className="px-3 py-2 border-b border-gray-200">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">나의 봇</h3>
+          <div className="space-y-1">
+            {bots.map((bot) => (
+              <button
+                key={bot.id}
+                onClick={() => setSelectedBot(bot)}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  selectedBot?.id === bot.id
+                    ? "bg-blue-100 text-blue-900"
+                    : "hover:bg-gray-200 text-gray-700"
+                }`}
+              >
+                <span className="text-lg">{bot.profileIcon || "🤖"}</span>
+                <span className="truncate">{bot.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 구분선 */}
+        <div className="border-b border-gray-300 my-2"></div>
+
+        {/* 채팅 기록 */}
+        <div className="flex-1 overflow-y-auto px-3 py-2">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">최근 대화</h3>
+          <div className="space-y-1">
+            {chatSessions.map((session) => (
+              <div
+                key={session.id}
+                className={`group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  currentSessionId === session.id
+                    ? "bg-gray-200"
+                    : "hover:bg-gray-200"
+                }`}
+                onClick={() => loadSession(session.id)}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {session.title}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {session.lastMessage}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteSession(session.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-300 rounded"
+                >
+                  <Trash2 className="w-4 h-4 text-gray-600" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 h-[calc(100%-7rem)]">
-        {/* 왼쪽: 봇 선택 사이드바 */}
-        <div className="lg:col-span-1 space-y-3 overflow-y-auto max-h-full">
-          <h3 className="font-semibold text-gray-700 mb-3">AI 봇 선택</h3>
-          {bots.map((bot) => (
-            <Card
-              key={bot.id}
-              className={`cursor-pointer transition-all ${
-                selectedBot?.id === bot.id
-                  ? "border-2 border-purple-500 bg-purple-50 shadow-md"
-                  : "border hover:border-purple-300 hover:shadow"
-              }`}
-              onClick={() => handleBotSelect(bot)}
+      {/* 메인 채팅 영역 */}
+      <div className="flex-1 flex flex-col">
+        {/* 상단 헤더 */}
+        <div className="h-14 border-b border-gray-200 flex items-center justify-between px-4 bg-white">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 hover:bg-gray-100 rounded-lg"
             >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  {bot.profileImage ? (
-                    <img 
-                      src={bot.profileImage} 
-                      alt={bot.name}
-                      className="w-10 h-10 object-cover rounded-lg border-2 border-gray-200"
-                    />
-                  ) : (
-                    <div className="text-xl sm:text-2xl sm:text-3xl">{bot.profileIcon}</div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold truncate">{bot.name}</h4>
-                    {bot.description && (
-                      <p className="text-xs text-gray-600 line-clamp-2">
-                        {bot.description}
-                      </p>
-                    )}
-                  </div>
-                  {selectedBot?.id === bot.id && (
-                    <Sparkles className="w-5 h-5 text-purple-600 flex-shrink-0" />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* 오른쪽: 채팅 영역 */}
-        <div className="lg:col-span-3">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="border-b">
-              <div className="flex items-center gap-3">
-                {selectedBot?.profileImage ? (
-                  <img 
-                    src={selectedBot.profileImage} 
-                    alt={selectedBot.name}
-                    className="w-12 h-12 object-cover rounded-lg border-2 border-gray-200"
-                  />
-                ) : (
-                  <div className="text-4xl">{selectedBot?.profileIcon}</div>
-                )}
-                <div className="flex-1">
-                  <CardTitle className="flex items-center gap-2">
-                    {selectedBot?.name}
-                    <span className="text-xs font-normal text-gray-500 px-2 py-1 bg-gray-100 rounded">
-                      {selectedBot?.model}
-                    </span>
-                  </CardTitle>
-                  <CardDescription>
-                    {selectedBot?.description || "AI 어시스턴트"}
-                  </CardDescription>
+              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+            {selectedBot && (
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{selectedBot.profileIcon || "🤖"}</span>
+                <div>
+                  <h2 className="font-semibold text-gray-900">{selectedBot.name}</h2>
+                  <p className="text-xs text-gray-500">{selectedBot.description}</p>
                 </div>
               </div>
-            </CardHeader>
+            )}
+          </div>
+        </div>
 
-            <CardContent className="flex-1 overflow-y-auto py-4 space-y-4">
-              {messages.map((message, idx) => (
-                <div key={message.id}>
+        {/* 메시지 영역 */}
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="max-w-3xl mx-auto space-y-6">
+            {messages.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">{selectedBot?.profileIcon || "🤖"}</div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  {selectedBot?.name}에게 무엇이든 물어보세요
+                </h3>
+                <p className="text-gray-600">{selectedBot?.description}</p>
+              </div>
+            ) : (
+              messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex gap-3 ${
+                    message.role === "user" ? "flex-row-reverse" : ""
+                  }`}
+                >
+                  <div className="flex-shrink-0">
+                    {message.role === "assistant" ? (
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span>{selectedBot?.profileIcon || "🤖"}</span>
+                      </div>
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                        <User className="w-5 h-5 text-gray-600" />
+                      </div>
+                    )}
+                  </div>
                   <div
-                    className={`flex gap-3 ${
-                      message.role === "user" ? "justify-end" : "justify-start"
+                    className={`flex-1 ${
+                      message.role === "user" ? "flex justify-end" : ""
                     }`}
                   >
-                    {message.role === "assistant" && (
-                      selectedBot?.profileImage ? (
-                        <img 
-                          src={selectedBot.profileImage} 
-                          alt={selectedBot.name}
-                          className="w-8 h-8 object-cover rounded-lg border-2 border-gray-200 flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="text-xl sm:text-2xl sm:text-3xl flex-shrink-0">
-                          {selectedBot?.profileIcon}
-                        </div>
-                      )
-                    )}
-
                     <div
-                      className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                      className={`inline-block max-w-[80%] px-4 py-2 rounded-2xl ${
                         message.role === "user"
                           ? "bg-blue-600 text-white"
                           : "bg-gray-100 text-gray-900"
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      <p
-                        className={`text-xs mt-1 ${
-                          message.role === "user"
-                            ? "text-blue-100"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {message.timestamp.toLocaleTimeString("ko-KR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
+                      {message.imageUrl && (
+                        <img
+                          src={message.imageUrl}
+                          alt="Uploaded"
+                          className="max-w-full rounded-lg mb-2"
+                        />
+                      )}
+                      <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
-
-                    {message.role === "user" && (
-                      <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                        <User className="w-5 h-5 text-gray-600" />
-                      </div>
-                    )}
                   </div>
-
-                  {/* 스타터 메시지 버튼 (환영 메시지 다음) */}
-                  {message.id === "welcome" && idx === 0 && (
-                    <div className="ml-12 mt-3 space-y-2">
-                      {selectedBot?.starterMessage1 && (
-                        <button
-                          onClick={() => handleStarterMessage(selectedBot.starterMessage1!)}
-                          className="block text-left text-sm px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition w-full"
-                          disabled={loading}
-                        >
-                          💬 {selectedBot.starterMessage1}
-                        </button>
-                      )}
-                      {selectedBot?.starterMessage2 && (
-                        <button
-                          onClick={() => handleStarterMessage(selectedBot.starterMessage2!)}
-                          className="block text-left text-sm px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition w-full"
-                          disabled={loading}
-                        >
-                          💬 {selectedBot.starterMessage2}
-                        </button>
-                      )}
-                      {selectedBot?.starterMessage3 && (
-                        <button
-                          onClick={() => handleStarterMessage(selectedBot.starterMessage3!)}
-                          className="block text-left text-sm px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition w-full"
-                          disabled={loading}
-                        >
-                          💬 {selectedBot.starterMessage3}
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
-              ))}
-
-              {loading && (
-                <div className="flex gap-3 justify-start">
-                  {selectedBot?.profileImage ? (
-                    <img 
-                      src={selectedBot.profileImage} 
-                      alt={selectedBot.name}
-                      className="w-8 h-8 object-cover rounded-lg border-2 border-gray-200 flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="text-xl sm:text-2xl sm:text-3xl flex-shrink-0">
-                      {selectedBot?.profileIcon}
-                    </div>
-                  )}
-                  <div className="bg-gray-100 rounded-lg px-4 py-2">
+              ))
+            )}
+            {loading && (
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <span>{selectedBot?.profileIcon || "🤖"}</span>
+                </div>
+                <div className="flex-1">
+                  <div className="inline-block px-4 py-2 rounded-2xl bg-gray-100">
                     <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                      <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"></div>
+                      <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-100"></div>
+                      <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-200"></div>
                     </div>
                   </div>
                 </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </CardContent>
-
-            <div className="border-t p-4">
-              <div className="flex gap-2">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="메시지를 입력하세요..."
-                  disabled={loading}
-                  className="flex-1"
-                />
-                <Button onClick={() => handleSend()} disabled={loading || !input.trim()}>
-                  <Send className="w-4 h-4" />
-                </Button>
               </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Shift + Enter로 줄바꿈, Enter로 전송
-              </p>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* 입력 영역 */}
+        <div className="border-t border-gray-200 p-4 bg-white">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-end gap-2 bg-gray-100 rounded-3xl p-2">
+              {/* 이미지 업로드 버튼 */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                disabled={loading}
+              >
+                <ImageIcon className="w-5 h-5 text-gray-600" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+              />
+
+              {/* 텍스트 입력 */}
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="메시지를 입력하세요..."
+                className="flex-1 bg-transparent border-none outline-none resize-none max-h-32 py-2 px-2"
+                rows={1}
+                disabled={loading}
+              />
+
+              {/* 음성 입력 버튼 */}
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`p-2 rounded-full transition-colors ${
+                  isRecording
+                    ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
+                    : "hover:bg-gray-200"
+                }`}
+                disabled={loading}
+              >
+                <Mic className="w-5 h-5" />
+              </button>
+
+              {/* 전송 버튼 */}
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || loading}
+                className={`p-2 rounded-full transition-colors ${
+                  input.trim() && !loading
+                    ? "bg-blue-600 hover:bg-blue-700 text-white"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                <Send className="w-5 h-5" />
+              </button>
             </div>
-          </Card>
+            <p className="text-xs text-gray-500 text-center mt-2">
+              AI가 실수를 할 수 있습니다. 중요한 정보는 확인하세요.
+            </p>
+          </div>
         </div>
       </div>
     </div>
