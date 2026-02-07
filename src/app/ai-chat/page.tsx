@@ -84,8 +84,17 @@ export default function ModernAIChatPage() {
       router.push("/login");
       return;
     }
-    setUser(JSON.parse(storedUser));
-    fetchBots();
+    const userData = JSON.parse(storedUser);
+    setUser(userData);
+    
+    // academyId가 있어야 봇 조회 가능
+    if (userData.academyId) {
+      fetchBots(userData.academyId);
+    } else {
+      console.warn("⚠️ academyId가 없습니다. AI 봇을 사용할 수 없습니다.");
+      alert("학원 정보가 없습니다. 관리자에게 문의하세요.");
+    }
+    
     loadChatSessions();
 
     // 모바일 감지
@@ -111,19 +120,32 @@ export default function ModernAIChatPage() {
     }
   }, [input]);
 
-  const fetchBots = async () => {
+  const fetchBots = async (academyId: string) => {
     try {
-      const response = await fetch("/api/admin/ai-bots");
+      console.log(`🔍 학원(${academyId})의 할당된 봇 조회`);
+      
+      const response = await fetch(`/api/user/ai-bots?academyId=${academyId}`);
       if (response.ok) {
         const data = await response.json();
-        const activeBots = (data.bots || []).filter((bot: AIBot) => bot.isActive);
-        setBots(activeBots);
-        if (activeBots.length > 0 && !selectedBot) {
-          setSelectedBot(activeBots[0]);
+        console.log(`✅ 할당된 봇 ${data.count}개 발견`);
+        
+        if (data.bots && data.bots.length > 0) {
+          setBots(data.bots);
+          if (!selectedBot) {
+            setSelectedBot(data.bots[0]);
+          }
+        } else {
+          console.warn("⚠️ 할당된 봇이 없습니다");
+          setBots([]);
+          setSelectedBot(null);
         }
+      } else {
+        console.error("❌ 봇 조회 실패:", response.status);
+        setBots([]);
       }
     } catch (error) {
       console.error("AI 봇 목록 로드 실패:", error);
+      setBots([]);
     }
   };
 
@@ -518,7 +540,24 @@ export default function ModernAIChatPage() {
         {/* 메시지 영역 */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
           <div className="max-w-3xl mx-auto space-y-6">
-            {messages.length === 0 ? (
+            {bots.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🚫</div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  사용 가능한 AI 봇이 없습니다
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  관리자가 AI 봇을 할당하지 않았거나 사용 기간이 만료되었습니다.
+                </p>
+                <Button
+                  onClick={() => router.push('/dashboard')}
+                  variant="outline"
+                  className="mt-4"
+                >
+                  대시보드로 돌아가기
+                </Button>
+              </div>
+            ) : messages.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">{selectedBot?.profileIcon || "🤖"}</div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
@@ -593,64 +632,74 @@ export default function ModernAIChatPage() {
         {/* 입력 영역 */}
         <div className="border-t border-gray-200 p-4 bg-white">
           <div className="max-w-3xl mx-auto">
-            <div className="flex items-end gap-2 bg-gray-100 rounded-3xl p-2">
-              {/* 이미지 업로드 버튼 */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-                disabled={loading}
-              >
-                <ImageIcon className="w-5 h-5 text-gray-600" />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageUpload}
-              />
+            {bots.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500">
+                  AI 봇이 할당되지 않아 채팅을 사용할 수 없습니다.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-end gap-2 bg-gray-100 rounded-3xl p-2">
+                  {/* 이미지 업로드 버튼 */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                    disabled={loading || !selectedBot}
+                  >
+                    <ImageIcon className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                  />
 
-              {/* 텍스트 입력 */}
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="메시지를 입력하세요..."
-                className="flex-1 bg-transparent border-none outline-none resize-none max-h-32 py-2 px-2"
-                rows={1}
-                disabled={loading}
-              />
+                  {/* 텍스트 입력 */}
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="메시지를 입력하세요..."
+                    className="flex-1 bg-transparent border-none outline-none resize-none max-h-32 py-2 px-2"
+                    rows={1}
+                    disabled={loading || !selectedBot}
+                  />
 
-              {/* 음성 입력 버튼 */}
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                className={`p-2 rounded-full transition-colors ${
-                  isRecording
-                    ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
-                    : "hover:bg-gray-200"
-                }`}
-                disabled={loading}
-              >
-                <Mic className="w-5 h-5" />
-              </button>
+                  {/* 음성 입력 버튼 */}
+                  <button
+                    onClick={isRecording ? stopRecording : startRecording}
+                    className={`p-2 rounded-full transition-colors ${
+                      isRecording
+                        ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
+                        : "hover:bg-gray-200"
+                    }`}
+                    disabled={loading || !selectedBot}
+                  >
+                    <Mic className="w-5 h-5" />
+                  </button>
 
-              {/* 전송 버튼 */}
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || loading}
-                className={`p-2 rounded-full transition-colors ${
-                  input.trim() && !loading
-                    ? "bg-blue-600 hover:bg-blue-700 text-white"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 text-center mt-2">
-              AI가 실수를 할 수 있습니다. 중요한 정보는 확인하세요.
-            </p>
+                  {/* 전송 버튼 */}
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim() || loading || !selectedBot}
+                    className={`p-2 rounded-full transition-colors ${
+                      input.trim() && !loading && selectedBot
+                        ? "bg-blue-600 hover:bg-blue-700 text-white"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 text-center mt-2">
+                  AI가 실수를 할 수 있습니다. 중요한 정보는 확인하세요.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>
