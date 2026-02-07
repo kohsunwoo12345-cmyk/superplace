@@ -212,7 +212,7 @@ export default function AdminAcademiesPage() {
               <Card
                 key={academy.id}
                 className="hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => alert(`${academy.name} 상세보기 기능은 곧 추가됩니다.`)}
+                onClick={() => router.push(`/dashboard/admin/academies/detail?id=${academy.id}`)}
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
