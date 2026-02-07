@@ -66,6 +66,7 @@ export default function ModernAIChatPage() {
   
   // UI 상태
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   
   // Refs
@@ -84,6 +85,17 @@ export default function ModernAIChatPage() {
     setUser(JSON.parse(storedUser));
     fetchBots();
     loadChatSessions();
+
+    // 모바일 감지
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, [router]);
 
   useEffect(() => {
@@ -341,18 +353,31 @@ export default function ModernAIChatPage() {
   }
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-white overflow-hidden relative">
       {/* 왼쪽 사이드바 */}
       <div
         className={`${
           sidebarOpen ? "w-64" : "w-0"
-        } transition-all duration-300 border-r border-gray-200 flex flex-col bg-gray-50 overflow-hidden`}
+        } transition-all duration-300 border-r border-gray-200 flex flex-col bg-gray-50 overflow-hidden ${
+          isMobile && sidebarOpen ? "absolute z-50 h-full shadow-2xl" : ""
+        }`}
       >
         {/* 사이드바 헤더 */}
         <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-gray-900">AI 챗봇</h2>
+            {isMobile && (
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-1 hover:bg-gray-200 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
           <Button
             onClick={createNewChat}
-            className="w-full bg-white hover:bg-gray-100 text-gray-800 border border-gray-300"
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0"
           >
             <Plus className="w-4 h-4 mr-2" />
             새 대화
@@ -360,62 +385,91 @@ export default function ModernAIChatPage() {
         </div>
 
         {/* 나의 봇 */}
-        <div className="px-3 py-2 border-b border-gray-200">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">나의 봇</h3>
+        <div className="px-3 py-3 border-b border-gray-200 bg-white">
+          <h3 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-yellow-500" />
+            나의 봇
+          </h3>
           <div className="space-y-1">
-            {bots.map((bot) => (
-              <button
-                key={bot.id}
-                onClick={() => setSelectedBot(bot)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  selectedBot?.id === bot.id
-                    ? "bg-blue-100 text-blue-900"
-                    : "hover:bg-gray-200 text-gray-700"
-                }`}
-              >
-                <span className="text-lg">{bot.profileIcon || "🤖"}</span>
-                <span className="truncate">{bot.name}</span>
-              </button>
-            ))}
+            {bots.length === 0 ? (
+              <p className="text-xs text-gray-500 text-center py-4">할당된 봇이 없습니다</p>
+            ) : (
+              bots.map((bot) => (
+                <button
+                  key={bot.id}
+                  onClick={() => {
+                    setSelectedBot(bot);
+                    if (isMobile) setSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                    selectedBot?.id === bot.id
+                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md"
+                      : "hover:bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  <span className="text-xl">{bot.profileIcon || "🤖"}</span>
+                  <div className="flex-1 text-left">
+                    <div className="font-medium truncate">{bot.name}</div>
+                    {bot.description && (
+                      <div className="text-xs opacity-80 truncate">{bot.description}</div>
+                    )}
+                  </div>
+                </button>
+              ))
+            )}
           </div>
         </div>
 
         {/* 구분선 */}
-        <div className="border-b border-gray-300 my-2"></div>
+        <div className="border-b-2 border-gray-300 mx-3"></div>
 
         {/* 채팅 기록 */}
-        <div className="flex-1 overflow-y-auto px-3 py-2">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">최근 대화</h3>
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          <h3 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            최근 대화
+          </h3>
           <div className="space-y-1">
-            {chatSessions.map((session) => (
-              <div
-                key={session.id}
-                className={`group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  currentSessionId === session.id
-                    ? "bg-gray-200"
-                    : "hover:bg-gray-200"
-                }`}
-                onClick={() => loadSession(session.id)}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {session.title}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {session.lastMessage}
-                  </p>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteSession(session.id);
+            {chatSessions.length === 0 ? (
+              <p className="text-xs text-gray-500 text-center py-4">대화 기록이 없습니다</p>
+            ) : (
+              chatSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className={`group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all ${
+                    currentSessionId === session.id
+                      ? "bg-blue-50 border-l-4 border-blue-500"
+                      : "hover:bg-gray-100"
+                  }`}
+                  onClick={() => {
+                    loadSession(session.id);
+                    if (isMobile) setSidebarOpen(false);
                   }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-300 rounded"
                 >
-                  <Trash2 className="w-4 h-4 text-gray-600" />
-                </button>
-              </div>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {session.title}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                      {session.lastMessage || "대화 없음"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm('이 대화를 삭제하시겠습니까?')) {
+                        deleteSession(session.id);
+                      }
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-100 rounded transition-all"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -423,23 +477,27 @@ export default function ModernAIChatPage() {
       {/* 메인 채팅 영역 */}
       <div className="flex-1 flex flex-col">
         {/* 상단 헤더 */}
-        <div className="h-14 border-b border-gray-200 flex items-center justify-between px-4 bg-white">
+        <div className="h-16 border-b border-gray-200 flex items-center justify-between px-4 bg-gradient-to-r from-white to-gray-50">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              title={sidebarOpen ? "사이드바 닫기" : "사이드바 열기"}
             >
-              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              <Menu className="w-5 h-5" />
             </button>
             {selectedBot && (
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">{selectedBot.profileIcon || "🤖"}</span>
+              <div className="flex items-center gap-3">
+                <div className="text-3xl">{selectedBot.profileIcon || "🤖"}</div>
                 <div>
-                  <h2 className="font-semibold text-gray-900">{selectedBot.name}</h2>
-                  <p className="text-xs text-gray-500">{selectedBot.description}</p>
+                  <h2 className="font-bold text-gray-900">{selectedBot.name}</h2>
+                  <p className="text-xs text-gray-600">{selectedBot.description || "AI 어시스턴트"}</p>
                 </div>
               </div>
             )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">안녕하세요, {user?.name}님</span>
           </div>
         </div>
 
