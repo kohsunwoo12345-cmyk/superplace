@@ -69,22 +69,31 @@ export default function StudentsPage() {
     try {
       setLoading(true);
       
+      // admin@superplace.co.kr 계정은 모든 학생 조회 가능
+      const isAdminAccount = user.email === 'admin@superplace.co.kr';
+      
       // 학원별 필터링을 위한 파라미터 구성
       const params = new URLSearchParams();
-      if (user.role) {
-        params.append('role', user.role);
-      }
-      // academyId 추출 (3가지 형태 확인)
-      const academyId = user.academyId || user.academy_id || user.AcademyId;
-      if (academyId) {
-        params.append('academyId', String(academyId));
-      }
-      // userId 추가 (교사 권한 확인용)
-      if (user.id) {
-        params.append('userId', String(user.id));
-      }
       
-      console.log('👥 Fetching students with params:', { role: user.role, academyId, userId: user.id });
+      if (isAdminAccount) {
+        // 관리자 계정: 모든 학생 조회 (필터 없음)
+        console.log('👑 Admin account - fetching all students');
+      } else {
+        // 일반 사용자: 학원별 필터링
+        if (user.role) {
+          params.append('role', user.role);
+        }
+        // academyId 추출 (3가지 형태 확인)
+        const academyId = user.academyId || user.academy_id || user.AcademyId;
+        if (academyId) {
+          params.append('academyId', String(academyId));
+        }
+        // userId 추가 (교사 권한 확인용)
+        if (user.id) {
+          params.append('userId', String(user.id));
+        }
+        console.log('👥 Fetching students with params:', { role: user.role, academyId, userId: user.id });
+      }
       
       const response = await fetch(`/api/students?${params.toString()}`);
       if (response.ok) {

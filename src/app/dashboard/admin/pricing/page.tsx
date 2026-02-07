@@ -119,8 +119,17 @@ export default function PricingManagePage() {
   };
 
   const handleSave = async () => {
-    if (!formData.name.trim() || formData.monthlyPrice <= 0) {
-      alert("요금제 이름과 가격을 입력해주세요.");
+    console.log("Form data:", formData);
+    
+    if (!formData.name.trim()) {
+      alert("요금제 이름을 입력해주세요.");
+      return;
+    }
+
+    // 가격은 0 이상이어야 함 (0은 무료 플랜)
+    const monthlyPrice = Number(formData.monthlyPrice);
+    if (isNaN(monthlyPrice) || monthlyPrice < 0) {
+      alert("유효한 월간 가격을 입력해주세요.");
       return;
     }
 
@@ -131,16 +140,18 @@ export default function PricingManagePage() {
         .filter(f => f.length > 0);
 
       const payload = {
-        name: formData.name,
-        description: formData.description,
-        monthlyPrice: formData.monthlyPrice,
-        yearlyPrice: formData.yearlyPrice,
-        maxStudents: formData.maxStudents,
-        maxTeachers: formData.maxTeachers,
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        monthlyPrice: Number(formData.monthlyPrice),
+        yearlyPrice: Number(formData.yearlyPrice),
+        maxStudents: Number(formData.maxStudents),
+        maxTeachers: Number(formData.maxTeachers),
         features: featuresArray,
         isPopular: formData.isPopular,
         htmlContent: formData.htmlContent
       };
+
+      console.log("Sending payload:", payload);
 
       let response;
       if (editingPlan) {
@@ -165,7 +176,9 @@ export default function PricingManagePage() {
         setEditingPlan(null);
         fetchPlans();
       } else {
-        alert("요금제 저장에 실패했습니다.");
+        const errorData = await response.json();
+        console.error("Server error:", errorData);
+        alert("요금제 저장에 실패했습니다: " + (errorData.message || ""));
       }
     } catch (error) {
       console.error("요금제 저장 실패:", error);
