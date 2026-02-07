@@ -91,7 +91,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         { id: 'attendance', href: '/dashboard/teacher-attendance', icon: Clock, text: '출석 관리' },
         { id: 'homework', href: '/dashboard/homework/teacher', icon: FileText, text: '숙제 관리' },
         { id: 'homework-results', href: '/dashboard/homework/results', icon: Award, text: '숙제 검사 결과' },
-        { id: 'ai-chat', href: '/dashboard/ai-chat', icon: MessageCircle, text: 'AI 챗봇' },
+        { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, text: 'AI 챗봇' },
         { id: 'gemini-chat', href: '/dashboard/gemini-chat', icon: Sparkles, text: 'Gemini 채팅' },
         { id: 'analytics', href: '/dashboard/analytics', icon: BarChart2, text: '통계 분석' },
         { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
@@ -111,7 +111,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'homework', href: '/dashboard/homework/teacher', icon: FileText, text: '숙제 관리' },
           { id: 'homework-results', href: '/dashboard/homework/results', icon: Award, text: '숙제 검사 결과' },
           { id: 'analytics', href: '/dashboard/analytics', icon: BarChart2, text: '통계' },
-          { id: 'ai-chat', href: '/dashboard/ai-chat', icon: MessageCircle, text: 'AI 도우미' },
+          { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, text: 'AI 도우미' },
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
         ];
       case 'TEACHER':
@@ -123,7 +123,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'attendance', href: '/dashboard/teacher-attendance', icon: Clock, text: '출석 체크' },
           { id: 'homework', href: '/dashboard/homework/teacher', icon: FileText, text: '숙제 관리' },
           { id: 'homework-results', href: '/dashboard/homework/results', icon: Award, text: '숙제 검사 결과' },
-          { id: 'ai-chat', href: '/dashboard/ai-chat', icon: MessageCircle, text: 'AI 도우미' },
+          { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, text: 'AI 도우미' },
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
         ];
       case 'STUDENT':
@@ -135,7 +135,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'homework', href: '/dashboard/homework/student', icon: Award, text: '오늘의 숙제' },
           { id: 'attendance-record', href: '/dashboard/attendance-statistics', icon: Calendar, text: '출석 기록' },
           { id: 'classes', href: '/dashboard/classes', icon: BookOpen, text: '내 수업' },
-          { id: 'ai-chat', href: '/dashboard/ai-chat', icon: MessageCircle, text: 'AI 튜터', badge: 1 },
+          { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, text: 'AI 튜터', badge: 1 },
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
         ];
       default:

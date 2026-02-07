@@ -852,7 +852,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 mb-4">AI 학습 도우미와 대화합니다</p>
-            <Button onClick={() => router.push("/dashboard/ai-chat")} className="w-full">
+            <Button onClick={() => router.push("/ai-chat")} className="w-full">
               바로가기
             </Button>
           </CardContent>
