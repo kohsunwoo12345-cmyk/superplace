@@ -87,46 +87,9 @@ export default function PricingPage() {
     }
   };
 
-  const handlePlanSelect = async (plan: PricingPlan) => {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      alert("로그인이 필요합니다.");
-      window.location.href = "/login";
-      return;
-    }
-
-    const userData = JSON.parse(storedUser);
-    const academyId = userData.academyId || `academy-${Date.now()}`;
-    const userId = userData.id || null;
-
-    const paymentMethod = confirm("카드 결제를 원하시면 확인을, 계좌이체를 원하시면 취소를 눌러주세요.") ? "card" : "transfer";
-
-    try {
-      const payload = {
-        academyId,
-        userId,
-        planName: plan.name,
-        amount: billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice,
-        paymentMethod,
-        notes: `${plan.name} 플랜 신청 (${billingCycle === "monthly" ? "월간" : "연간"})`
-      };
-
-      const response = await fetch("/api/admin/payment-approvals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        alert(`결제 신청이 완료되었습니다!\n\n결제 방식: ${paymentMethod === "card" ? "카드 결제" : "계좌이체"}\n\n관리자 승인 후 서비스를 이용하실 수 있습니다.`);
-        window.location.href = "/dashboard";
-      } else {
-        alert("결제 신청에 실패했습니다.");
-      }
-    } catch (error) {
-      console.error("결제 신청 실패:", error);
-      alert("결제 신청 중 오류가 발생했습니다.");
-    }
+  const handlePlanSelect = (plan: PricingPlan) => {
+    // 상세 페이지로 이동
+    window.location.href = `/pricing/detail?id=${plan.id}`;
   };
 
   const getPrice = (plan: PricingPlan) => {

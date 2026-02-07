@@ -75,9 +75,16 @@ export default function StudentsPage() {
       // 학원별 필터링을 위한 파라미터 구성
       const params = new URLSearchParams();
       
+      // 이메일 파라미터 추가 (API에서 체크)
+      if (user.email) {
+        params.append('email', user.email);
+      }
+      
       if (isAdminAccount) {
         // 관리자 계정: 모든 학생 조회 (필터 없음)
         console.log('👑 Admin account - fetching all students');
+        // role을 ADMIN으로 전달
+        params.append('role', 'ADMIN');
       } else {
         // 일반 사용자: 학원별 필터링
         if (user.role) {

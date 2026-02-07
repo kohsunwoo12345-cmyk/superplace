@@ -10,6 +10,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const academyId = url.searchParams.get('academyId');
     const role = url.searchParams.get('role');
     const userId = url.searchParams.get('userId'); // 요청한 사용자 ID
+    const userEmail = url.searchParams.get('email'); // 사용자 이메일 추가
 
     if (!DB) {
       return new Response(JSON.stringify({ error: "Database not configured" }), {
@@ -18,13 +19,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    console.log('🔍 Students API called with:', { role, academyId, userId });
+    console.log('🔍 Students API called with:', { role, academyId, userId, userEmail });
 
+    // admin@superplace.co.kr 특수 처리 - 모든 학생 조회
+    const isSuperAdminEmail = userEmail === 'admin@superplace.co.kr';
+    
     let query = '';
     const params: any[] = [];
 
     // 역할별 쿼리 분기
-    const isGlobalAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+    const isGlobalAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN' || isSuperAdminEmail;
     
     if (role === 'DIRECTOR' || isGlobalAdmin) {
       // 원장: 해당 학원의 모든 학생
@@ -48,13 +52,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         WHERE u.role = 'STUDENT'
       `;
 
-      // 관리자가 아닌 경우에만 academyId 필터링
-      if (!isGlobalAdmin && academyId) {
+      // admin@superplace.co.kr이 아니고 관리자가 아닌 경우에만 academyId 필터링
+      if (!isGlobalAdmin && !isSuperAdminEmail && academyId) {
         query += ` AND (CAST(u.academyId AS TEXT) = ? OR u.academyId = ?)`;
         params.push(String(academyId), parseInt(academyId));
         console.log('🔍 Filtering by academyId:', academyId, 'for DIRECTOR');
-      } else if (isGlobalAdmin) {
-        console.log('✅ Global admin - showing all students');
+      } else if (isGlobalAdmin || isSuperAdminEmail) {
+        console.log('✅ Global admin or super admin email - showing all students');
       }
 
       query += ` ORDER BY u.createdAt DESC`;
