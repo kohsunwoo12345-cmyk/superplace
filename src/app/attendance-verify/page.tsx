@@ -240,12 +240,12 @@ export default function AttendanceVerifyPage() {
               </div>
               <p className="text-sm text-gray-600">{studentInfo.userEmail || ""}</p>
               <p className="text-xs text-gray-500 mt-2">
-                출석 시간: {studentInfo.verifiedAt ? new Date(studentInfo.verifiedAt).toLocaleString('ko-KR') : "-"}
+                출석 시간: {studentInfo.verifiedAt || "-"}
               </p>
               <p className={`text-xs font-medium mt-1 ${
                 studentInfo.status === 'LATE' ? 'text-yellow-600' : 'text-green-600'
               }`}>
-                상태: {studentInfo.statusText || studentInfo.status || "-"}
+                상태: {studentInfo.statusText || (studentInfo.status === 'LATE' ? '지각' : '출석')}
               </p>
             </div>
 

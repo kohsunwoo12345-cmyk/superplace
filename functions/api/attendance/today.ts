@@ -28,6 +28,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const isAdmin = email === 'admin@superplace.co.kr' || role === 'ADMIN' || role === 'SUPER_ADMIN';
 
     // 1. 출석 기록 조회 (attendance_records_v2)
+    // checkInTime이 "2024-01-01 09:00:00" 형식이므로 SUBSTR로 날짜 추출
     let attendanceQuery = `
       SELECT 
         ar.id,
@@ -47,7 +48,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       LEFT JOIN users u ON u.id = ar.userId
       LEFT JOIN homework_submissions_v2 hs ON hs.code = ar.code
       LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
-      WHERE DATE(ar.checkInTime) = ?
+      WHERE SUBSTR(ar.checkInTime, 1, 10) = ?
     `;
 
     const queryParams: any[] = [date];
