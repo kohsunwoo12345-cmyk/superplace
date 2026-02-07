@@ -17,10 +17,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 1. DIRECTOR 역할을 가진 모든 사용자 찾기
     const directorsResult = await DB.prepare(`
-      SELECT id, name, email, phone, createdAt
+      SELECT 
+        id, 
+        name, 
+        email, 
+        phone, 
+        COALESCE(createdAt, created_at, datetime('now')) as createdAt
       FROM users 
       WHERE LOWER(role) = 'director'
-      ORDER BY createdAt
+      ORDER BY id
     `).all();
 
     const directors = directorsResult.results || [];
