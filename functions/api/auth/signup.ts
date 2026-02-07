@@ -80,6 +80,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     let academyId: number | null = null;
     
     if (data.academyName) {
+      console.log(`📋 Looking up academy: ${data.academyName}`);
       try {
         // 학원 조회
         const academy = await context.env.DB.prepare(
@@ -88,23 +89,26 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         
         if (academy) {
           academyId = Number(academy.id);
-          console.log(`✅ Found academy ID: ${academyId} for ${data.academyName}`);
+          console.log(`✅ Found academy - ID: ${academyId}, Name: ${data.academyName}`);
         } else {
           // 학원 생성
+          console.log(`📝 Creating new academy: ${data.academyName}`);
           const createResult = await context.env.DB.prepare(
             `INSERT INTO academy (name) VALUES (?)`
           ).bind(data.academyName).run();
           
           academyId = Number(createResult.meta.last_row_id);
-          console.log(`✅ Created academy ID: ${academyId} for ${data.academyName}`);
+          console.log(`✅ Created new academy - ID: ${academyId}, Name: ${data.academyName}`);
         }
       } catch (academyError) {
-        console.error('Academy lookup/creation failed:', academyError);
+        console.error('❌ Academy lookup/creation failed:', academyError);
         // academyId는 null로 유지
       }
+    } else {
+      console.log(`⚠️  No academyName provided for ${data.name}`);
     }
     
-    console.log(`✅ Using academyId: ${academyId} for ${data.name}`);
+    console.log(`📊 Final academyId before user creation: ${academyId} for ${data.name}`);
 
     // 사용자 생성 (id는 자동 증가, 전화번호 및 academyId 포함)
     const result = await context.env.DB.prepare(
@@ -172,6 +176,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       name: data.name,
       role: userRole,
     });
+
+    console.log(`📤 Signup response - userId: ${userId}, academyId: ${academyId}, role: ${userRole}`);
 
     return new Response(
       JSON.stringify({

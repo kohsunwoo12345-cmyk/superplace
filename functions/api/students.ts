@@ -52,7 +52,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         console.log('🔍 DIRECTOR filtering by academyId:', academyId);
       }
 
-      query += ` ORDER BY u.createdAt DESC LIMIT 100`;
+      query += ` LIMIT 100`;
     } else if (isGlobalAdmin) {
       // 관리자: 모든 학원의 모든 학생
       query = `
@@ -67,7 +67,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         FROM users u
         LEFT JOIN academy a ON CAST(u.academyId AS TEXT) = CAST(a.id AS TEXT)
         WHERE UPPER(u.role) = 'STUDENT'
-        ORDER BY u.createdAt DESC
         LIMIT 100
       `;
       console.log('✅ Global admin - showing all STUDENTS');
