@@ -80,11 +80,21 @@ export default function ModernAIChatPage() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
+    console.log('👤 localStorage user 확인:', storedUser ? '존재' : '없음');
+    
     if (!storedUser) {
+      console.warn('❌ 로그인되지 않음 - /login으로 리다이렉트');
       router.push("/login");
       return;
     }
+    
     const userData = JSON.parse(storedUser);
+    console.log('👤 사용자 정보:', {
+      email: userData.email,
+      role: userData.role,
+      academyId: userData.academyId,
+      name: userData.name
+    });
     setUser(userData);
     
     // 관리자 체크
@@ -92,15 +102,25 @@ export default function ModernAIChatPage() {
                     userData.role === 'ADMIN' || 
                     userData.role === 'SUPER_ADMIN';
     
+    console.log('🔍 관리자 체크:', {
+      isAdmin,
+      emailMatch: userData.email === 'admin@superplace.co.kr',
+      roleMatch: userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN',
+      actualEmail: userData.email,
+      actualRole: userData.role
+    });
+    
     if (isAdmin) {
       // 관리자는 모든 봇 조회
       console.log('🔑 관리자 계정 - 모든 봇 조회');
       fetchAllBots();
     } else if (userData.academyId) {
       // 일반 사용자는 할당된 봇만 조회
+      console.log(`👥 일반 사용자 (academyId: ${userData.academyId}) - 할당된 봇 조회`);
       fetchBots(userData.academyId);
     } else {
       console.warn("⚠️ academyId가 없습니다. AI 봇을 사용할 수 없습니다.");
+      console.warn("⚠️ 사용자 정보:", userData);
       alert("학원 정보가 없습니다. 관리자에게 문의하세요.");
     }
 
