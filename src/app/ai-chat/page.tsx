@@ -87,8 +87,17 @@ export default function ModernAIChatPage() {
     const userData = JSON.parse(storedUser);
     setUser(userData);
     
-    // academyId가 있어야 봇 조회 가능
-    if (userData.academyId) {
+    // 관리자 체크
+    const isAdmin = userData.email === 'admin@superplace.co.kr' || 
+                    userData.role === 'ADMIN' || 
+                    userData.role === 'SUPER_ADMIN';
+    
+    if (isAdmin) {
+      // 관리자는 모든 봇 조회
+      console.log('🔑 관리자 계정 - 모든 봇 조회');
+      fetchAllBots();
+    } else if (userData.academyId) {
+      // 일반 사용자는 할당된 봇만 조회
       fetchBots(userData.academyId);
     } else {
       console.warn("⚠️ academyId가 없습니다. AI 봇을 사용할 수 없습니다.");
@@ -124,6 +133,36 @@ export default function ModernAIChatPage() {
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [input]);
+
+  const fetchAllBots = async () => {
+    try {
+      console.log('🔍 관리자 - 모든 봇 조회');
+      
+      const response = await fetch('/api/admin/ai-bots');
+      if (response.ok) {
+        const data = await response.json();
+        const activeBots = (data.bots || []).filter((bot: AIBot) => bot.isActive);
+        console.log(`✅ 전체 봇 ${activeBots.length}개 발견`);
+        
+        if (activeBots.length > 0) {
+          setBots(activeBots);
+          if (!selectedBot) {
+            setSelectedBot(activeBots[0]);
+          }
+        } else {
+          console.warn('⚠️ 활성 봇이 없습니다');
+          setBots([]);
+          setSelectedBot(null);
+        }
+      } else {
+        console.error('❌ 봇 조회 실패:', response.status);
+        setBots([]);
+      }
+    } catch (error) {
+      console.error('AI 봇 목록 로드 실패:', error);
+      setBots([]);
+    }
+  };
 
   const fetchBots = async (academyId: string) => {
     try {
