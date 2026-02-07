@@ -94,8 +94,6 @@ export default function ModernAIChatPage() {
       console.warn("⚠️ academyId가 없습니다. AI 봇을 사용할 수 없습니다.");
       alert("학원 정보가 없습니다. 관리자에게 문의하세요.");
     }
-    
-    loadChatSessions();
 
     // 모바일 감지
     const checkMobile = () => {
@@ -108,6 +106,13 @@ export default function ModernAIChatPage() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, [router]);
+
+  // user가 로드된 후 세션 로드
+  useEffect(() => {
+    if (user?.id) {
+      loadChatSessions();
+    }
+  }, [user]);
 
   useEffect(() => {
     scrollToBottom();
@@ -149,80 +154,121 @@ export default function ModernAIChatPage() {
     }
   };
 
-  const loadChatSessions = () => {
-    // localStorage에서 채팅 세션 불러오기
-    const storedSessions = localStorage.getItem("chatSessions");
-    if (storedSessions) {
-      const sessions = JSON.parse(storedSessions).map((s: any) => ({
-        ...s,
-        timestamp: new Date(s.timestamp),
-      }));
-      setChatSessions(sessions);
+  const loadChatSessions = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const response = await fetch(`/api/chat-sessions?userId=${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        const sessions = (data.sessions || []).map((s: any) => ({
+          ...s,
+          timestamp: new Date(s.updatedAt),
+        }));
+        setChatSessions(sessions);
+        console.log(`✅ ${sessions.length}개 세션 로드됨`);
+      }
+    } catch (error) {
+      console.error("세션 로드 실패:", error);
     }
   };
 
-  const saveChatSessions = (sessions: ChatSession[]) => {
-    localStorage.setItem("chatSessions", JSON.stringify(sessions));
-    setChatSessions(sessions);
+  const saveChatSession = async (session: ChatSession) => {
+    if (!user?.id || !user?.academyId) return;
+    
+    try {
+      await fetch("/api/chat-sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: session.id,
+          userId: user.id,
+          academyId: user.academyId,
+          botId: session.botId,
+          title: session.title,
+          lastMessage: session.lastMessage,
+        }),
+      });
+      // 로컬 상태 업데이트
+      const updatedSessions = [session, ...chatSessions.filter(s => s.id !== session.id)];
+      setChatSessions(updatedSessions);
+    } catch (error) {
+      console.error("세션 저장 실패:", error);
+    }
   };
 
-  const createNewChat = () => {
+  const createNewChat = async () => {
+    if (!selectedBot) return;
+    
     const newSessionId = `session-${Date.now()}`;
     const newSession: ChatSession = {
       id: newSessionId,
       title: "새로운 대화",
       lastMessage: "",
       timestamp: new Date(),
-      botId: selectedBot?.id || "",
+      botId: selectedBot.id,
     };
     
-    const updatedSessions = [newSession, ...chatSessions];
-    saveChatSessions(updatedSessions);
+    await saveChatSession(newSession);
     setCurrentSessionId(newSessionId);
     setMessages([]);
   };
 
-  const deleteSession = (sessionId: string) => {
-    const updatedSessions = chatSessions.filter(s => s.id !== sessionId);
-    saveChatSessions(updatedSessions);
-    
-    if (currentSessionId === sessionId) {
-      setCurrentSessionId(null);
-      setMessages([]);
-    }
-  };
-
-  const loadSession = (sessionId: string) => {
-    setCurrentSessionId(sessionId);
-    // localStorage에서 해당 세션의 메시지 불러오기
-    const storedMessages = localStorage.getItem(`messages-${sessionId}`);
-    if (storedMessages) {
-      const msgs = JSON.parse(storedMessages).map((m: any) => ({
-        ...m,
-        timestamp: new Date(m.timestamp),
-      }));
-      setMessages(msgs);
-    }
-  };
-
-  const saveMessages = (sessionId: string, msgs: Message[]) => {
-    localStorage.setItem(`messages-${sessionId}`, JSON.stringify(msgs));
-    
-    // 세션 목록 업데이트
-    if (msgs.length > 0) {
-      const lastMsg = msgs[msgs.length - 1];
-      const updatedSessions = chatSessions.map(s => {
-        if (s.id === sessionId) {
-          return {
-            ...s,
-            lastMessage: lastMsg.content.substring(0, 50) + (lastMsg.content.length > 50 ? "..." : ""),
-            timestamp: new Date(),
-            title: msgs[0]?.content.substring(0, 30) || "새로운 대화",
-          };
-        }
-        return s;
+  const deleteSession = async (sessionId: string) => {
+    try {
+      await fetch(`/api/chat-sessions/${sessionId}`, {
+        method: "DELETE",
       });
-      saveChatSessions(updatedSessions);
+      
+      const updatedSessions = chatSessions.filter(s => s.id !== sessionId);
+      setChatSessions(updatedSessions);
+      
+      if (currentSessionId === sessionId) {
+        setCurrentSessionId(null);
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error("세션 삭제 실패:", error);
+    }
+  };
+
+  const loadSession = async (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+    
+    try {
+      const response = await fetch(`/api/chat-messages?sessionId=${sessionId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const msgs = (data.messages || []).map((m: any) => ({
+          ...m,
+          timestamp: new Date(m.createdAt),
+        }));
+        setMessages(msgs);
+      }
+    } catch (error) {
+      console.error("메시지 로드 실패:", error);
+    }
+  };
+
+  const saveMessage = async (sessionId: string, message: Message) => {
+    if (!user?.id) return;
+    
+    try {
+      await fetch("/api/chat-messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: message.id,
+          sessionId: sessionId,
+          userId: user.id,
+          role: message.role,
+          content: message.content,
+          imageUrl: message.imageUrl,
+          audioUrl: message.audioUrl,
+        }),
+      });
+    } catch (error) {
+      console.error("메시지 저장 실패:", error);
     }
   };
 
@@ -256,10 +302,12 @@ export default function ModernAIChatPage() {
         timestamp: new Date(),
         botId: selectedBot.id,
       };
-      const updatedSessions = [newSession, ...chatSessions];
-      saveChatSessions(updatedSessions);
+      await saveChatSession(newSession);
       setCurrentSessionId(sessionId);
     }
+
+    // 사용자 메시지 저장
+    await saveMessage(sessionId, userMessage);
 
     try {
       const response = await fetch("/api/ai-chat", {
@@ -272,6 +320,8 @@ export default function ModernAIChatPage() {
             role: m.role,
             content: m.content,
           })),
+          userId: user?.id,
+          sessionId: sessionId,
         }),
       });
 
@@ -286,16 +336,20 @@ export default function ModernAIChatPage() {
 
         const finalMessages = [...updatedMessages, assistantMessage];
         setMessages(finalMessages);
-        saveMessages(sessionId, finalMessages);
+        
+        // AI 응답 저장
+        await saveMessage(sessionId, assistantMessage);
       } else {
-        throw new Error("AI 응답 실패");
+        const errorData = await response.json();
+        console.error("AI 응답 오류:", errorData);
+        throw new Error(errorData.message || "AI 응답 실패");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI 채팅 오류:", error);
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",
-        content: "죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.",
+        content: `죄송합니다. 오류가 발생했습니다: ${error.message || "다시 시도해주세요."}`,
         timestamp: new Date(),
       };
       const finalMessages = [...updatedMessages, errorMessage];
