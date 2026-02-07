@@ -100,9 +100,18 @@ export default function AdminUsersPage() {
 
   const stats = {
     total: users.length,
-    students: users.filter((u) => u.role?.toUpperCase() === "STUDENT").length,
-    teachers: users.filter((u) => u.role?.toUpperCase() === "TEACHER").length,
-    directors: users.filter((u) => u.role?.toUpperCase() === "DIRECTOR").length,
+    students: users.filter((u) => {
+      const role = u.role?.toUpperCase();
+      return role === "STUDENT";
+    }).length,
+    teachers: users.filter((u) => {
+      const role = u.role?.toUpperCase();
+      return role === "TEACHER";
+    }).length,
+    directors: users.filter((u) => {
+      const role = u.role?.toUpperCase();
+      return role === "DIRECTOR";
+    }).length,
     admins: users.filter((u) => {
       const role = u.role?.toUpperCase();
       return role === "ADMIN" || role === "SUPER_ADMIN";
