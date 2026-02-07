@@ -15,22 +15,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log("🔄 Starting academy migration...");
 
-    // 1. users 테이블에서 고유한 academyId 찾기
-    const academyIdsResult = await DB.prepare(`
-      SELECT DISTINCT academyId 
+    // 1. DIRECTOR 역할을 가진 모든 사용자 찾기
+    const directorsResult = await DB.prepare(`
+      SELECT id, name, email, phone, createdAt
       FROM users 
-      WHERE academyId IS NOT NULL 
-        AND academyId != '' 
-        AND role IN ('DIRECTOR', 'TEACHER', 'STUDENT')
+      WHERE role IN ('DIRECTOR', 'director')
+      ORDER BY createdAt
     `).all();
 
-    const academyIds = (academyIdsResult.results || []).map((r: any) => r.academyId);
-    console.log("📋 Found academyIds:", academyIds);
+    const directors = directorsResult.results || [];
+    console.log("📋 Found directors:", directors.length);
 
-    if (academyIds.length === 0) {
+    if (directors.length === 0) {
       return new Response(JSON.stringify({
         success: true,
-        message: "No academies to migrate",
+        message: "No directors found to create academies",
         migrated: 0
       }), {
         status: 200,
@@ -39,66 +38,65 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     let migratedCount = 0;
+    let updatedCount = 0;
 
-    // 2. 각 academyId에 대해 academy 레코드 생성
-    for (const academyId of academyIds) {
+    // 2. 각 디렉터에 대해 academy 생성 및 academyId 업데이트
+    for (const director of directors) {
+      const directorId = String(director.id);
+      const academyId = directorId; // director의 id를 academyId로 사용
+      
       // academy 테이블에 이미 존재하는지 확인
       const existing = await DB.prepare(`
         SELECT id FROM academy WHERE id = ?
       `).bind(academyId).first();
 
-      if (existing) {
-        console.log(`⏭️  Academy ${academyId} already exists, skipping...`);
-        continue;
+      if (!existing) {
+        // academy 레코드 생성
+        const academyName = `${director.name}의 학원`;
+        const academyCode = `AC${String(directorId).padStart(6, '0')}`;
+        
+        await DB.prepare(`
+          INSERT INTO academy (
+            id, name, code, description, address, phone, email,
+            subscriptionPlan, maxStudents, maxTeachers, isActive, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          academyId,
+          academyName,
+          academyCode,
+          `${academyName} - 스마트 학원 관리 시스템`,
+          null,
+          director.phone || null,
+          director.email,
+          'FREE',
+          100,
+          10,
+          1,
+          director.createdAt || new Date().toISOString(),
+          new Date().toISOString()
+        ).run();
+
+        console.log(`✅ Created academy: ${academyName} (ID: ${academyId})`);
+        migratedCount++;
+      } else {
+        console.log(`⏭️  Academy ${academyId} already exists`);
       }
 
-      // 해당 학원의 학원장 정보 가져오기
-      const director = await DB.prepare(`
-        SELECT id, name, email, phone, createdAt
-        FROM users
-        WHERE academyId = ? AND role = 'DIRECTOR'
-        LIMIT 1
-      `).bind(academyId).first();
-
-      if (!director) {
-        console.log(`⚠️  No director found for academyId ${academyId}, skipping...`);
-        continue;
-      }
-
-      // academy 레코드 생성
-      const academyName = `${director.name}의 학원`;
-      const academyCode = `AC${String(academyId).padStart(6, '0')}`;
-      
+      // director의 academyId 업데이트 (본인 id로)
       await DB.prepare(`
-        INSERT INTO academy (
-          id, name, code, description, address, phone, email,
-          subscriptionPlan, maxStudents, maxTeachers, isActive, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        academyId,
-        academyName,
-        academyCode,
-        `${academyName} - 스마트 학원 관리 시스템`,
-        null,
-        director.phone || null,
-        director.email,
-        'FREE',
-        100,
-        10,
-        1,
-        director.createdAt || new Date().toISOString(),
-        new Date().toISOString()
-      ).run();
-
-      console.log(`✅ Created academy: ${academyName} (ID: ${academyId})`);
-      migratedCount++;
+        UPDATE users SET academyId = ? WHERE id = ?
+      `).bind(academyId, directorId).run();
+      
+      updatedCount++;
+      console.log(`✅ Updated director ${director.name} with academyId: ${academyId}`);
     }
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Successfully migrated ${migratedCount} academies`,
+      message: `Successfully migrated ${migratedCount} academies and updated ${updatedCount} directors`,
       migrated: migratedCount,
-      total: academyIds.length
+      updated: updatedCount,
+      total: directors.length
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
