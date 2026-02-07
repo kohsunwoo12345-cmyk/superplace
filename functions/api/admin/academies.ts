@@ -186,12 +186,12 @@ async function getAcademyDetail(DB: D1Database, academyId: string) {
     // 월별 활동 통계 (최근 6개월)
     const monthlyActivity = await DB.prepare(`
       SELECT 
-        strftime('%Y-%m', ar.verifiedAt) as month,
+        strftime('%Y-%m', COALESCE(ar.verifiedAt, ar.verified_at)) as month,
         COUNT(*) as count
       FROM attendance_records ar
       JOIN users u ON ar.userId = u.id
       WHERE u.academyId = ? 
-        AND ar.verifiedAt >= date('now', '-6 months')
+        AND COALESCE(ar.verifiedAt, ar.verified_at) >= date('now', '-6 months')
       GROUP BY month
       ORDER BY month DESC
     `).bind(academyId).all();
