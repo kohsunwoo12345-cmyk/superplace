@@ -114,7 +114,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 결석 판정은 별도 프로세스에서 처리 (예: 자정에 출석하지 않은 학생 자동 결석 처리)
 
     const recordId = `attendance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const tableName = 'attendance_records_v2';
     
     await DB.prepare(`
       INSERT INTO ${tableName} (id, userId, code, academyId, classId, status, checkInTime)
