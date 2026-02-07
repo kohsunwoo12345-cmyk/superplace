@@ -2,65 +2,69 @@ interface Env {
   DB: D1Database;
 }
 
+/**
+ * 숙제 제출 이력 조회 API
+ * GET /api/homework/history?userId=123
+ */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
+    const url = new URL(context.request.url);
+    const userId = url.searchParams.get('userId');
 
     if (!DB) {
       return new Response(
-        JSON.stringify({ success: false, error: "Database not configured" }),
+        JSON.stringify({ error: "Database not configured" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const url = new URL(context.request.url);
-    const userId = url.searchParams.get("userId");
-
     if (!userId) {
       return new Response(
-        JSON.stringify({ success: false, error: "User ID is required" }),
+        JSON.stringify({ error: "userId is required" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // 사용자의 모든 숙제 제출 기록 조회 (최신순)
+    // 숙제 제출 및 채점 이력 조회
     const history = await DB.prepare(`
       SELECT 
-        id,
-        userId,
-        userName,
-        academyId,
-        attendanceRecordId,
-        score,
-        feedback,
-        strengths,
-        suggestions,
-        subject,
-        completion,
-        effort,
-        pageCount,
-        submittedAt,
-        gradedAt
-      FROM homework_submissions
-      WHERE userId = ?
-      ORDER BY submittedAt DESC
-      LIMIT 20
-    `).bind(parseInt(userId)).all();
+        hs.id,
+        hs.studentId,
+        hs.attendanceId,
+        hs.submittedAt,
+        hs.status,
+        hg.score,
+        hg.feedback,
+        hg.strengths,
+        hg.suggestions,
+        hg.subject,
+        hg.completion,
+        hg.effort,
+        hg.pageCount,
+        hg.gradedAt,
+        hg.gradedBy
+      FROM homework_submissions hs
+      LEFT JOIN homework_gradings hg ON hg.submissionId = hs.id
+      WHERE hs.studentId = ?
+      ORDER BY hs.submittedAt DESC
+      LIMIT 50
+    `).bind(userId).all();
 
     return new Response(
       JSON.stringify({
         success: true,
-        history: history.results || [],
-        count: history.results?.length || 0,
+        history: history.results,
+        count: history.results.length
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
+
   } catch (error: any) {
-    console.error("Get homework history error:", error);
+    console.error("Homework history error:", error);
     return new Response(
       JSON.stringify({
-        success: false,
-        error: "Failed to get homework history",
+        error: "Failed to fetch homework history",
         message: error.message,
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }

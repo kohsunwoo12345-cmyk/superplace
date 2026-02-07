@@ -42,10 +42,16 @@ export default function AttendanceVerifyPage() {
         setStudentInfo(data);
         setVerified(true);
         
-        // 2초 후 숙제 검사 페이지로 이동
+        // 숙제 제출 결과 표시
+        if (data.homework && data.homework.submitted) {
+          console.log('✅ 숙제 자동 제출 완료:', data.homework);
+        }
+        
+        // 3초 후 출석 인증 페이지로 다시 돌아감 (다음 학생 출석 대기)
         setTimeout(() => {
-          router.push(`/homework-check?userId=${data.userId}&attendanceId=${data.recordId}`);
-        }, 2000);
+          // 페이지 새로고침으로 초기화
+          window.location.href = '/attendance-verify';
+        }, 3000);
       } else {
         alert(data.message || "출석 인증에 실패했습니다.");
       }
@@ -83,10 +89,30 @@ export default function AttendanceVerifyPage() {
               <p className="text-xs text-gray-500 mt-2">
                 출석 시간: {new Date(studentInfo.verifiedAt).toLocaleString('ko-KR')}
               </p>
+              <p className="text-xs font-medium text-blue-600 mt-1">
+                상태: {studentInfo.statusText}
+              </p>
             </div>
-            <p className="text-gray-600 mb-4">숙제 검사 페이지로 이동합니다...</p>
+
+            {/* 숙제 제출 정보 */}
+            {studentInfo.homework && studentInfo.homework.submitted && (
+              <div className="bg-purple-50 rounded-lg p-4 mb-4 border border-purple-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <CheckCircle className="w-5 h-5 text-purple-600" />
+                  <span className="font-semibold text-purple-900">숙제 자동 제출 완료</span>
+                </div>
+                <p className="text-sm text-purple-700 mb-1">
+                  채점 점수: <span className="font-bold text-lg">{studentInfo.homework.score}점</span>
+                </p>
+                <p className="text-xs text-gray-600">
+                  {studentInfo.homework.feedback}
+                </p>
+              </div>
+            )}
+
+            <p className="text-gray-600 mb-4">다음 학생 출석 대기 중...</p>
             <div className="flex items-center justify-center gap-2 text-blue-600">
-              <span>잠시만 기다려주세요</span>
+              <span>잠시 후 자동으로 돌아갑니다</span>
               <ArrowRight className="w-5 h-5 animate-pulse" />
             </div>
           </CardContent>
