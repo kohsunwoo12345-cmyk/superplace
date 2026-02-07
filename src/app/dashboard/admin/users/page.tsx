@@ -48,18 +48,35 @@ export default function AdminUsersPage() {
     }
 
     const userData = JSON.parse(storedUser);
+    console.log('👤 Current user:', userData);
     setCurrentUser(userData);
-
-    fetchUsers();
   }, [router]);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchUsers();
+    }
+  }, [currentUser]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/users");
+      
+      const params = new URLSearchParams();
+      // role 추가 (관리자는 모든 사용자 조회)
+      if (currentUser?.role) {
+        params.append('role', currentUser.role);
+      }
+      
+      console.log('👥 Fetching all users with role:', currentUser?.role);
+      
+      const response = await fetch(`/api/admin/users?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Users data received:', data);
         setUsers(data.users || []);
+      } else {
+        console.error('❌ Failed to fetch users:', response.status);
       }
     } catch (error) {
       console.error("사용자 목록 로드 실패:", error);
