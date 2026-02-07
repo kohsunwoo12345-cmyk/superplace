@@ -135,26 +135,41 @@ async function getAcademyDetail(DB: D1Database, academyId: string) {
 
     // 학원장 정보
     const director = await DB.prepare(`
-      SELECT id, name, email, phone, createdAt 
+      SELECT 
+        id, 
+        name, 
+        email, 
+        phone,
+        COALESCE(createdAt, created_at, datetime('now')) as createdAt
       FROM users 
-      WHERE academyId = ? AND role = 'DIRECTOR' 
+      WHERE academyId = ? AND LOWER(role) = 'director'
       LIMIT 1
     `).bind(academyId).first();
 
     // 학생 목록
     const students = await DB.prepare(`
-      SELECT id, name, email, phone, createdAt
+      SELECT 
+        id, 
+        name, 
+        email, 
+        phone,
+        COALESCE(createdAt, created_at, datetime('now')) as createdAt
       FROM users
-      WHERE academyId = ? AND role = 'STUDENT'
-      ORDER BY createdAt DESC
+      WHERE academyId = ? AND LOWER(role) = 'student'
+      ORDER BY id DESC
     `).bind(academyId).all();
 
     // 선생님 목록
     const teachers = await DB.prepare(`
-      SELECT id, name, email, phone, createdAt
+      SELECT 
+        id, 
+        name, 
+        email, 
+        phone,
+        COALESCE(createdAt, created_at, datetime('now')) as createdAt
       FROM users
-      WHERE academyId = ? AND role = 'TEACHER'
-      ORDER BY createdAt DESC
+      WHERE academyId = ? AND LOWER(role) = 'teacher'
+      ORDER BY id DESC
     `).bind(academyId).all();
 
     // AI 채팅 통계
@@ -165,7 +180,7 @@ async function getAcademyDetail(DB: D1Database, academyId: string) {
       FROM users u
       LEFT JOIN attendance_records ar ON u.id = ar.userId
       LEFT JOIN homework_submissions hs ON u.id = hs.userId
-      WHERE u.academyId = ? AND u.role = 'STUDENT'
+      WHERE u.academyId = ? AND LOWER(u.role) = 'student'
     `).bind(academyId).first();
 
     // 월별 활동 통계 (최근 6개월)
