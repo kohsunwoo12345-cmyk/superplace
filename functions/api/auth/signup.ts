@@ -76,8 +76,33 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
     // ADMIN, SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT는 그대로 유지
 
-    // academyId 설정 - 간단하게 기본값 1 사용
-    let academyId = 1; // 기본 학원 ID
+    // academyId 설정 - academyName이 있으면 조회/생성
+    let academyId: number | null = null;
+    
+    if (data.academyName) {
+      try {
+        // 학원 조회
+        const academy = await context.env.DB.prepare(
+          `SELECT id FROM academy WHERE name = ?`
+        ).bind(data.academyName).first();
+        
+        if (academy) {
+          academyId = Number(academy.id);
+          console.log(`✅ Found academy ID: ${academyId} for ${data.academyName}`);
+        } else {
+          // 학원 생성
+          const createResult = await context.env.DB.prepare(
+            `INSERT INTO academy (name) VALUES (?)`
+          ).bind(data.academyName).run();
+          
+          academyId = Number(createResult.meta.last_row_id);
+          console.log(`✅ Created academy ID: ${academyId} for ${data.academyName}`);
+        }
+      } catch (academyError) {
+        console.error('Academy lookup/creation failed:', academyError);
+        // academyId는 null로 유지
+      }
+    }
     
     console.log(`✅ Using academyId: ${academyId} for ${data.name}`);
 
@@ -153,16 +178,14 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         success: true,
         message: '회원가입 성공',
         attendanceCode: attendanceCode, // 학생인 경우 출석 코드 반환
-        data: {
-          user: {
-            id: userId,
-            email: data.email,
-            name: data.name,
-            role: userRole,
-            academyId: academyId,
-          },
-          token,
+        user: {
+          id: userId,
+          email: data.email,
+          name: data.name,
+          role: userRole,
+          academyId: academyId,
         },
+        token,
       }),
       {
         status: 201,
