@@ -56,6 +56,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 새 이름으로 출석 기록 테이블 생성 (레거시 스키마 문제 우회)
     const tableName = 'attendance_records_v2';
     
+    // 테이블 생성
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS ${tableName} (
         id TEXT PRIMARY KEY,
@@ -66,6 +67,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         classId TEXT,
         status TEXT DEFAULT 'PRESENT',
         note TEXT
+      )
+    `).run();
+
+    // student_attendance_codes 테이블도 확인 및 생성
+    await DB.prepare(`
+      CREATE TABLE IF NOT EXISTS student_attendance_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER NOT NULL,
+        code TEXT NOT NULL UNIQUE,
+        academyId INTEGER,
+        classId TEXT,
+        expiresAt TEXT,
+        isActive INTEGER DEFAULT 1,
+        createdAt TEXT DEFAULT (datetime('now'))
       )
     `).run();
 

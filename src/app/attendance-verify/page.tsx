@@ -59,18 +59,52 @@ export default function AttendanceVerifyPage() {
 
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: 1280, height: 720 }
-      });
+      // 카메라 권한 체크
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("이 브라우저는 카메라를 지원하지 않습니다. 파일 업로드를 이용해주세요.");
+        return;
+      }
+
+      // 먼저 후면 카메라 시도, 실패 시 전면 카메라 사용
+      let mediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: 1280, height: 720 }
+        });
+      } catch (err) {
+        console.log("후면 카메라 실패, 전면 카메라 시도 중...");
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: 1280, height: 720 }
+        });
+      }
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        // 비디오가 로드될 때까지 대기
+        await new Promise((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              videoRef.current?.play();
+              resolve(true);
+            };
+          }
+        });
       }
       setStream(mediaStream);
       setShowCamera(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Camera error:", err);
-      alert("카메라를 시작할 수 없습니다");
+      let errorMessage = "카메라를 시작할 수 없습니다.";
+      
+      if (err.name === 'NotAllowedError') {
+        errorMessage = "카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.";
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = "카메라를 찾을 수 없습니다. 파일 업로드를 이용해주세요.";
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = "카메라가 다른 앱에서 사용 중입니다. 다른 앱을 종료하고 다시 시도해주세요.";
+      }
+      
+      alert(errorMessage);
     }
   };
 

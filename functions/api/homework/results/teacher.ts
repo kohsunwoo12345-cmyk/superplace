@@ -41,23 +41,26 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const today = getKoreanDate();
 
-    // 학원의 모든 숙제 제출 조회
+    // 학원의 모든 숙제 제출 조회 - homework_submissions_v2 및 homework_gradings_v2 테이블 사용
     let query = `
       SELECT 
         hs.id,
         hs.userId,
         u.name as userName,
         u.email as userEmail,
-        hs.score,
-        hs.feedback,
-        hs.subject,
-        hs.completion,
-        hs.effort,
+        hg.score,
+        hg.feedback,
+        hg.subject,
+        hg.completion,
+        hg.effort,
         hs.submittedAt,
-        hs.gradedAt,
-        hs.imageUrl
-      FROM homework_submissions hs
+        hg.gradedAt,
+        hs.imageUrl,
+        hg.strengths,
+        hg.suggestions
+      FROM homework_submissions_v2 hs
       JOIN users u ON hs.userId = u.id
+      LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
       WHERE 1=1
     `;
 
@@ -83,12 +86,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         : 0;
 
     const todaySubmissions = (submissions.results || []).filter((s: any) =>
-      s.submittedAt.startsWith(today)
+      s.submittedAt && s.submittedAt.startsWith(today)
     ).length;
 
     // 검토 대기 (점수가 60점 미만인 경우)
     const pendingReview = (submissions.results || []).filter(
-      (s: any) => s.score < 60
+      (s: any) => s.score && s.score < 60
     ).length;
 
     return new Response(
@@ -97,7 +100,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         submissions: submissions.results || [],
         stats: {
           totalSubmissions,
-          averageScore,
+          averageScore: Math.round(averageScore),
           todaySubmissions,
           pendingReview,
         },

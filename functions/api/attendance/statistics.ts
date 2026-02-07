@@ -40,16 +40,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 역할별로 다른 통계 제공
     if (role === "STUDENT") {
-      // 학생: 본인의 출석 기록만 (달력 형식)
+      // 학생: 본인의 출석 기록만 (달력 형식) - attendance_records_v2 테이블 사용
       const myAttendance = await DB.prepare(`
         SELECT 
-          substr(verifiedAt, 1, 10) as date,
-          substr(verifiedAt, 12, 5) as time,
+          substr(checkInTime, 1, 10) as date,
+          substr(checkInTime, 12, 5) as time,
           status
-        FROM attendance_records
+        FROM attendance_records_v2
         WHERE CAST(userId AS TEXT) = ?
-        AND substr(verifiedAt, 1, 7) = ?
-        ORDER BY verifiedAt DESC
+        AND substr(checkInTime, 1, 7) = ?
+        ORDER BY checkInTime DESC
       `).bind(String(userId), thisMonth).all();
 
       // 날짜별로 상태 집계 (하루에 여러 출석 가능하므로 가장 최근 상태 사용)
@@ -64,11 +64,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }
 
       const totalDays = await DB.prepare(`
-        SELECT COUNT(DISTINCT substr(verifiedAt, 1, 10)) as days
-        FROM attendance_records
+        SELECT COUNT(DISTINCT substr(checkInTime, 1, 10)) as days
+        FROM attendance_records_v2
         WHERE CAST(userId AS TEXT) = ?
-        AND substr(verifiedAt, 1, 7) = ?
-        AND status = 'VERIFIED'
+        AND substr(checkInTime, 1, 7) = ?
+        AND (status = 'VERIFIED' OR status = 'PRESENT')
       `).bind(String(userId), thisMonth).first();
 
       return new Response(
@@ -85,7 +85,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     console.log("📊 Statistics API called with:", { userId, role, academyId });
 
-    // 선생님/학원장/관리자: 학생 출석 통계
+    // 선생님/학원장/관리자: 학생 출석 통계 - attendance_records_v2 테이블 사용
     let query = `
       SELECT 
         ar.id,
@@ -95,10 +95,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.academyId,
         a.name as academyName,
         ar.code,
-        ar.verifiedAt,
-        ar.status,
-        ar.homeworkSubmitted
-      FROM attendance_records ar
+        ar.checkInTime as verifiedAt,
+        ar.status
+      FROM attendance_records_v2 ar
       JOIN users u ON ar.userId = u.id
       LEFT JOIN academy a ON CAST(u.academyId AS TEXT) = CAST(a.id AS TEXT)
       WHERE 1=1
@@ -119,7 +118,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.warn("⚠️ No academyId for non-admin role!");
     }
 
-    query += ` ORDER BY ar.verifiedAt DESC LIMIT 100`;
+    query += ` ORDER BY ar.checkInTime DESC LIMIT 100`;
 
     let stmt = DB.prepare(query);
     params.forEach(param => {
@@ -128,12 +127,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     
     const records = await stmt.all();
 
-    // 오늘 출석
+    // 오늘 출석 - attendance_records_v2 테이블 사용
     let todayQuery = `
       SELECT COUNT(*) as count
-      FROM attendance_records ar
+      FROM attendance_records_v2 ar
       JOIN users u ON ar.userId = u.id
-      WHERE substr(ar.verifiedAt, 1, 10) = ?
+      WHERE substr(ar.checkInTime, 1, 10) = ?
     `;
     const todayParams: any[] = [today];
 
@@ -150,12 +149,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const todayResult = await todayStmt.first();
     const todayAttendance = todayResult?.count || 0;
 
-    // 이번 달 출석
+    // 이번 달 출석 - attendance_records_v2 테이블 사용
     let monthQuery = `
       SELECT COUNT(DISTINCT ar.userId) as count
-      FROM attendance_records ar
+      FROM attendance_records_v2 ar
       JOIN users u ON ar.userId = u.id
-      WHERE substr(ar.verifiedAt, 1, 7) = ?
+      WHERE substr(ar.checkInTime, 1, 7) = ?
     `;
     const monthParams: any[] = [thisMonth];
 
@@ -208,9 +207,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
       let dayQuery = `
         SELECT COUNT(*) as count
-        FROM attendance_records ar
+        FROM attendance_records_v2 ar
         JOIN users u ON ar.userId = u.id
-        WHERE substr(ar.verifiedAt, 1, 10) = ?
+        WHERE substr(ar.checkInTime, 1, 10) = ?
       `;
       const dayParams: any[] = [dateStr];
 
