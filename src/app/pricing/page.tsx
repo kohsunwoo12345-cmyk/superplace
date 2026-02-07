@@ -32,115 +32,102 @@ interface PricingPlan {
   color: string;
 }
 
-const pricingPlans: PricingPlan[] = [
-  {
-    id: "free",
-    name: "무료",
-    description: "소규모 학원을 위한 기본 플랜",
-    monthlyPrice: 0,
-    yearlyPrice: 0,
-    maxStudents: 10,
-    maxTeachers: 2,
-    icon: <GraduationCap className="h-8 w-8" />,
-    color: "text-gray-600",
-    features: [
-      "최대 10명의 학생 관리",
-      "최대 2명의 선생님 계정",
-      "기본 출석 관리",
-      "기본 과제 제출 시스템",
-      "학생별 성적 기록",
-      "기본 학습 자료 공유",
-    ],
-    notIncluded: [
-      "AI 챗봇 기능",
-      "고급 분석 리포트",
-      "맞춤형 브랜딩",
-      "우선 고객 지원",
-    ]
-  },
-  {
-    id: "standard",
-    name: "스탠다드",
-    description: "중소규모 학원을 위한 추천 플랜",
-    monthlyPrice: 50000,
-    yearlyPrice: 500000,
-    maxStudents: 50,
-    maxTeachers: 5,
-    icon: <Users className="h-8 w-8" />,
-    color: "text-blue-600",
-    isPopular: true,
-    features: [
-      "최대 50명의 학생 관리",
-      "최대 5명의 선생님 계정",
-      "고급 출석 관리 (QR 코드)",
-      "AI 챗봇 기능 (기본)",
-      "과제 자동 채점",
-      "학습 진도 분석",
-      "학부모 알림 서비스",
-      "클라우드 저장공간 50GB",
-      "이메일 고객 지원",
-    ],
-    notIncluded: [
-      "무제한 AI 챗봇",
-      "맞춤형 브랜딩",
-      "전담 매니저",
-    ]
-  },
-  {
-    id: "premium",
-    name: "프리미엄",
-    description: "대규모 학원을 위한 완벽한 솔루션",
-    monthlyPrice: 150000,
-    yearlyPrice: 1500000,
-    maxStudents: 200,
-    maxTeachers: 20,
-    icon: <Crown className="h-8 w-8" />,
-    color: "text-purple-600",
-    features: [
-      "최대 200명의 학생 관리",
-      "최대 20명의 선생님 계정",
-      "모든 스탠다드 기능 포함",
-      "무제한 AI 챗봇 대화",
-      "고급 학습 분석 리포트",
-      "맞춤형 브랜딩 (로고, 색상)",
-      "학원 전용 모바일 앱",
-      "클라우드 저장공간 200GB",
-      "우선 고객 지원 (24/7)",
-      "월 1회 컨설팅",
-    ],
-  },
-  {
-    id: "enterprise",
-    name: "엔터프라이즈",
-    description: "대형 학원 및 프랜차이즈를 위한 맞춤형 솔루션",
-    monthlyPrice: 0,
-    yearlyPrice: 0,
-    maxStudents: 999999,
-    maxTeachers: 999999,
-    icon: <Building2 className="h-8 w-8" />,
-    color: "text-amber-600",
-    features: [
-      "무제한 학생 및 선생님",
-      "모든 프리미엄 기능 포함",
-      "다중 지점 통합 관리",
-      "전담 매니저 배정",
-      "맞춤형 기능 개발",
-      "무제한 클라우드 저장공간",
-      "API 통합 지원",
-      "온사이트 교육 및 지원",
-      "연간 전략 컨설팅",
-    ],
-  },
-];
-
 export default function PricingPage() {
+  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
+    fetchPricingPlans();
     const user = localStorage.getItem("user");
     setIsLoggedIn(!!user);
   }, []);
+
+  const fetchPricingPlans = async () => {
+    try {
+      setLoadingPlans(true);
+      const response = await fetch("/api/admin/pricing");
+      
+      if (response.ok) {
+        const data = await response.json();
+        const plans = (data.plans || [])
+          .filter((p: any) => p.isActive === 1)
+          .map((p: any, index: number) => {
+            const icons = [
+              <GraduationCap key={index} className="h-8 w-8" />,
+              <Users key={index} className="h-8 w-8" />,
+              <Crown key={index} className="h-8 w-8" />,
+              <Building2 key={index} className="h-8 w-8" />
+            ];
+            const colors = ["text-gray-600", "text-blue-600", "text-purple-600", "text-amber-600"];
+            
+            return {
+              id: p.id.toString(),
+              name: p.name,
+              description: p.description,
+              monthlyPrice: p.monthlyPrice,
+              yearlyPrice: p.yearlyPrice,
+              maxStudents: p.maxStudents,
+              maxTeachers: p.maxTeachers,
+              icon: icons[index % icons.length],
+              color: colors[index % colors.length],
+              features: p.features,
+              isPopular: p.isPopular === 1,
+            };
+          });
+        
+        setPricingPlans(plans);
+      }
+    } catch (error) {
+      console.error("요금제 데이터 로드 실패:", error);
+      setPricingPlans([]);
+    } finally {
+      setLoadingPlans(false);
+    }
+  };
+
+  const handlePlanSelect = async (plan: PricingPlan) => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      alert("로그인이 필요합니다.");
+      window.location.href = "/login";
+      return;
+    }
+
+    const userData = JSON.parse(storedUser);
+    const academyId = userData.academyId || `academy-${Date.now()}`;
+    const userId = userData.id || null;
+
+    const paymentMethod = confirm("카드 결제를 원하시면 확인을, 계좌이체를 원하시면 취소를 눌러주세요.") ? "card" : "transfer";
+
+    try {
+      const payload = {
+        academyId,
+        userId,
+        planName: plan.name,
+        amount: billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice,
+        paymentMethod,
+        notes: `${plan.name} 플랜 신청 (${billingCycle === "monthly" ? "월간" : "연간"})`
+      };
+
+      const response = await fetch("/api/admin/payment-approvals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        alert(`결제 신청이 완료되었습니다!\n\n결제 방식: ${paymentMethod === "card" ? "카드 결제" : "계좌이체"}\n\n관리자 승인 후 서비스를 이용하실 수 있습니다.`);
+        window.location.href = "/dashboard";
+      } else {
+        alert("결제 신청에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("결제 신청 실패:", error);
+      alert("결제 신청 중 오류가 발생했습니다.");
+    }
+  };
 
   const getPrice = (plan: PricingPlan) => {
     if (plan.id === "enterprise") {
@@ -303,19 +290,18 @@ export default function PricingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link href={plan.id === "enterprise" ? "/contact" : "/register"}>
-                    <Button 
-                      className={`w-full ${
-                        plan.isPopular 
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700' 
-                          : ''
-                      }`}
-                      variant={plan.isPopular ? "default" : "outline"}
-                    >
-                      {plan.id === "enterprise" ? "문의하기" : "시작하기"}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </Link>
+                  <Button 
+                    onClick={() => handlePlanSelect(plan)}
+                    className={`w-full ${
+                      plan.isPopular 
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700' 
+                        : ''
+                    }`}
+                    variant={plan.isPopular ? "default" : "outline"}
+                  >
+                    시작하기
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
                 </CardContent>
               </Card>
             ))}
