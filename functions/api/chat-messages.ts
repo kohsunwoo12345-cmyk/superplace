@@ -69,6 +69,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 메시지 조회
+    console.log(`📖 메시지 조회 시작: sessionId=${sessionId}, userId=${userId}`);
+    
     const result = await db
       .prepare(`
         SELECT * FROM chat_messages 
@@ -78,11 +80,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       .bind(sessionId)
       .all();
 
+    console.log(`📊 메시지 조회 결과:`, {
+      success: result.success,
+      count: result.results?.length,
+      meta: result.meta
+    });
+
+    const messages = result.results || [];
+
     return new Response(
       JSON.stringify({
         success: true,
-        messages: result.results || [],
-        count: result.results?.length || 0,
+        messages: messages,
+        count: messages.length,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );

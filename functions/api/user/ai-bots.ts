@@ -51,6 +51,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     `);
 
     // 할당된 봇 조회 (활성 + 만료되지 않음)
+    console.log(`🔍 봇 할당 조회 시작: academyId=${academyId}`);
+    
     const result = await db.prepare(`
       SELECT 
         b.id,
@@ -79,6 +81,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         AND (ba.expiresAt IS NULL OR datetime(ba.expiresAt) > datetime('now'))
       ORDER BY ba.createdAt DESC
     `).bind(academyId).all();
+
+    console.log(`📊 봇 할당 조회 결과:`, {
+      success: result.success,
+      count: result.results?.length,
+      meta: result.meta
+    });
 
     const bots = result.results || [];
     
