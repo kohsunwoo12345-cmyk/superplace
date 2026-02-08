@@ -2,25 +2,35 @@
 // GET /api/test-env
 
 interface Env {
-  GEMINI_API_KEY: string;
+  GOOGLE_GEMINI_API_KEY: string;
+  GEMINI_API_KEY?: string;
   DB: D1Database;
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
-    const apiKey = context.env.GEMINI_API_KEY;
+    const googleApiKey = context.env.GOOGLE_GEMINI_API_KEY;
+    const geminiApiKey = context.env.GEMINI_API_KEY;
     const db = context.env.DB;
     
     const result = {
       timestamp: new Date().toISOString(),
       environment: {
-        GEMINI_API_KEY: apiKey ? {
+        GOOGLE_GEMINI_API_KEY: googleApiKey ? {
           exists: true,
-          length: apiKey.length,
-          prefix: apiKey.substring(0, 10) + '...',
+          length: googleApiKey.length,
+          prefix: googleApiKey.substring(0, 10) + '...',
         } : {
           exists: false,
-          message: '❌ GEMINI_API_KEY가 설정되지 않았습니다'
+          message: '❌ GOOGLE_GEMINI_API_KEY가 설정되지 않았습니다'
+        },
+        GEMINI_API_KEY: geminiApiKey ? {
+          exists: true,
+          length: geminiApiKey.length,
+          prefix: geminiApiKey.substring(0, 10) + '...',
+        } : {
+          exists: false,
+          message: '⚠️ GEMINI_API_KEY가 설정되지 않았습니다 (옵션)'
         },
         DB: db ? {
           exists: true,

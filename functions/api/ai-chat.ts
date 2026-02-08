@@ -2,7 +2,7 @@
 // POST /api/ai-chat
 
 interface Env {
-  GEMINI_API_KEY: string;
+  GOOGLE_GEMINI_API_KEY: string;
   DB: D1Database;
 }
 
@@ -19,10 +19,10 @@ interface ChatRequest {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const apiKey = context.env.GEMINI_API_KEY;
+    const apiKey = context.env.GOOGLE_GEMINI_API_KEY;
     
     if (!apiKey) {
-      console.error("❌ GEMINI_API_KEY가 설정되지 않았습니다");
+      console.error("❌ GOOGLE_GEMINI_API_KEY가 설정되지 않았습니다");
       return new Response(
         JSON.stringify({
           success: false,
