@@ -381,23 +381,45 @@ export default function ModernAIChatPage() {
     await saveMessage(sessionId, userMessage);
 
     try {
+      console.log('📤 AI 챗봇 API 호출 시작');
+      console.log('📦 요청 데이터:', {
+        message: input.trim().substring(0, 50) + '...',
+        botId: selectedBot.id,
+        botName: selectedBot.name,
+        historyLength: messages.length,
+        userId: user?.id,
+        sessionId: sessionId,
+      });
+      
+      const requestBody = {
+        message: input.trim(),
+        botId: selectedBot.id,
+        conversationHistory: messages.map(m => ({
+          role: m.role,
+          content: m.content,
+        })),
+        userId: user?.id,
+        sessionId: sessionId,
+      };
+      
+      console.log('📡 API 호출: POST /api/ai-chat');
+      
       const response = await fetch("/api/ai-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: input.trim(),
-          botId: selectedBot.id,
-          conversationHistory: messages.map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
-          userId: user?.id,
-          sessionId: sessionId,
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      console.log('📡 API 응답 상태:', response.status, response.statusText);
 
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ API 응답 성공:', {
+          success: data.success,
+          responseLength: data.response?.length,
+          responsePreview: data.response?.substring(0, 100)
+        });
+        
         const assistantMessage: Message = {
           id: `assistant-${Date.now()}`,
           role: "assistant",
@@ -412,11 +434,18 @@ export default function ModernAIChatPage() {
         await saveMessage(sessionId, assistantMessage);
       } else {
         const errorData = await response.json();
-        console.error("AI 응답 오류:", errorData);
+        console.error('❌ API 응답 오류:', {
+          status: response.status,
+          errorData: errorData,
+        });
         throw new Error(errorData.message || "AI 응답 실패");
       }
     } catch (error: any) {
-      console.error("AI 채팅 오류:", error);
+      console.error('❌ AI 채팅 오류:', error);
+      console.error('❌ 에러 타입:', error.constructor.name);
+      console.error('❌ 에러 메시지:', error.message);
+      console.error('❌ 에러 스택:', error.stack);
+      
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",
@@ -559,7 +588,10 @@ export default function ModernAIChatPage() {
                 <button
                   key={bot.id}
                   onClick={() => {
+                    console.log(`🤖 봇 선택: ${bot.name} (${bot.id})`);
                     setSelectedBot(bot);
+                    // 새로운 채팅 시작
+                    createNewChat();
                     if (isMobile) setSidebarOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
