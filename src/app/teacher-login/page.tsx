@@ -61,11 +61,11 @@ export default function TeacherLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 p-4">
       <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader className="space-y-3 text-center">
+        <CardHeader className="p-4 sm:p-6 space-y-3 text-center">
           <div className="mx-auto w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
             <Users className="w-10 h-10 text-white" />
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <CardTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
             선생님 / 학원장 로그인
           </CardTitle>
           <CardDescription className="text-base">

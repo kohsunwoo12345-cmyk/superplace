@@ -4,20 +4,22 @@ interface Env {
 }
 
 interface LoginRequest {
-  email: string;
+  email?: string;
+  phone?: string;
   password: string;
+  isStudentLogin?: boolean; // 학생 로그인 여부
 }
 
 export async function onRequestPost(context: { request: Request; env: Env }) {
   try {
-    const { email, password }: LoginRequest = await context.request.json();
+    const data: LoginRequest = await context.request.json();
 
-    // 입력 검증
-    if (!email || !password) {
+    // 입력 검증 - 이메일 또는 전화번호 필요
+    if ((!data.email && !data.phone) || !data.password) {
       return new Response(
         JSON.stringify({
           success: false,
-          message: '이메일과 비밀번호를 입력해주세요',
+          message: '로그인 정보를 입력해주세요',
         }),
         {
           status: 400,
@@ -46,18 +48,29 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    // 사용자 조회 (모든 컬럼 조회)
-    const user = await context.env.DB.prepare(
-      'SELECT * FROM users WHERE email = ?'
-    )
-      .bind(email)
-      .first();
+    // 사용자 조회 - 학생은 전화번호로, 그 외는 이메일로
+    let user;
+    if (data.isStudentLogin && data.phone) {
+      console.log(`🔍 Student login attempt with phone: ${data.phone}`);
+      user = await context.env.DB.prepare(
+        'SELECT * FROM users WHERE phone = ? AND role = ?'
+      )
+        .bind(data.phone, 'STUDENT')
+        .first();
+    } else if (data.email) {
+      console.log(`🔍 Login attempt with email: ${data.email}`);
+      user = await context.env.DB.prepare(
+        'SELECT * FROM users WHERE email = ?'
+      )
+        .bind(data.email)
+        .first();
+    }
 
     if (!user) {
       return new Response(
         JSON.stringify({
           success: false,
-          message: '이메일 또는 비밀번호가 올바르지 않습니다',
+          message: data.isStudentLogin ? '전화번호 또는 비밀번호가 올바르지 않습니다' : '이메일 또는 비밀번호가 올바르지 않습니다',
         }),
         {
           status: 401,
@@ -67,7 +80,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
 
     // 비밀번호 검증 (평문 비교)
-    const loginSuccess = user.password === password;
+    const loginSuccess = user.password === data.password;
     
     // IP 주소 가져오기
     const ip = context.request.headers.get("CF-Connecting-IP") || 
@@ -124,13 +137,25 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
+    // 역할 변환 로직
+    // DB에서 member/user 같은 역할을 원장/선생님/학생으로 변환
+    let userRole = user.role || 'STUDENT';
+    
+    // 역할 매핑 (ADMIN, SUPER_ADMIN은 그대로 유지)
+    if (userRole === 'member') {
+      userRole = 'DIRECTOR'; // 원장
+    } else if (userRole === 'user') {
+      userRole = 'TEACHER'; // 선생님
+    }
+    // ADMIN, SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT는 그대로 유지
+
     // JWT 토큰 생성
     const token = generateToken({
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
-      academyId: user.academyId || null,
+      role: userRole,
+      academyId: user.academyId || user.academy_id || null,
     });
 
     return new Response(
@@ -142,8 +167,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role,
-            academyId: user.academyId || null,
+            role: userRole,
+            academyId: user.academyId || user.academy_id || null,
           },
           token,
         },

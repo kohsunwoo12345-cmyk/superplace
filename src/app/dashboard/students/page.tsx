@@ -63,20 +63,86 @@ export default function StudentsPage() {
     if (user) {
       fetchStudents();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/students", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
+      
+      console.log('🔍 [학생 목록] fetchStudents 시작');
+      console.log('📦 [학생 목록] localStorage user:', user);
+      
+      // admin@superplace.co.kr 계정은 모든 학생 조회 가능
+      const isAdminAccount = user.email === 'admin@superplace.co.kr';
+      
+      // 학원별 필터링을 위한 파라미터 구성
+      const params = new URLSearchParams();
+      
+      // 이메일 파라미터 추가 (API에서 체크)
+      if (user.email) {
+        params.append('email', user.email);
+      }
+      
+      if (isAdminAccount) {
+        // 관리자 계정: 모든 학생 조회 (필터 없음)
+        console.log('👑 [학생 목록] Admin account - fetching all students');
+        // role을 ADMIN으로 전달
+        params.append('role', 'ADMIN');
+      } else {
+        // 일반 사용자: 학원별 필터링
+        if (user.role) {
+          params.append('role', user.role);
+        }
+        // academyId 추출 (3가지 형태 확인)
+        const academyId = user.academyId || user.academy_id || user.AcademyId;
+        
+        console.log('🔍 [학생 목록] academyId 확인:', {
+          'user.academyId': user.academyId,
+          'user.academy_id': user.academy_id,
+          'user.AcademyId': user.AcademyId,
+          'final academyId': academyId
+        });
+        
+        if (academyId) {
+          params.append('academyId', String(academyId));
+          console.log('✅ [학생 목록] academyId 파라미터 추가:', academyId);
+        } else {
+          console.error('❌ [학생 목록] academyId가 없습니다! 학생 목록이 비어있을 것입니다.');
+          console.error('💡 [학생 목록] 해결 방법: 다시 로그인해주세요.');
+        }
+        
+        // userId 추가 (교사 권한 확인용)
+        if (user.id) {
+          params.append('userId', String(user.id));
+        }
+        console.log('👥 [학생 목록] Fetching students with params:', { 
+          role: user.role, 
+          academyId, 
+          userId: user.id,
+          url: `/api/students?${params.toString()}`
+        });
+      }
+      
+      const response = await fetch(`/api/students?${params.toString()}`);
+      console.log('📡 [학생 목록] API 응답 상태:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ [학생 목록] Students data received:', data);
         setStudents(data.students || []);
+        
+        // academyId가 없는 경우 경고
+        if (!isAdminAccount) {
+          const academyId = user.academyId || user.academy_id || user.AcademyId;
+          if (!academyId && (data.students || []).length === 0) {
+            console.warn('⚠️  [학생 목록] academyId가 없어서 학생 목록이 비어있을 수 있습니다.');
+            // 사용자에게 알림 (선택적)
+            // alert('학원 정보가 없습니다. 다시 로그인해주세요.');
+          }
+        }
+      } else {
+        console.error('❌ [학생 목록] Failed to fetch students:', response.status, await response.text());
       }
     } catch (error) {
       console.error("Failed to fetch students:", error);
@@ -103,13 +169,13 @@ export default function StudentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
             <Users className="h-8 w-8 text-blue-600" />
             학생 관리
           </h1>
           <p className="text-gray-600 mt-1">전체 학생 목록을 확인하고 관리합니다</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => router.push('/dashboard/students/add')}>
           <UserPlus className="h-5 w-5" />
           학생 추가
         </Button>
@@ -118,54 +184,54 @@ export default function StudentsPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="border-2 border-blue-100">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
               전체 학생
             </CardTitle>
             <Users className="h-5 w-5 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">{students.length}명</div>
+            <div className="text-2xl sm:text-3xl font-bold text-blue-600">{students.length}명</div>
           </CardContent>
         </Card>
 
         <Card className="border-2 border-green-100">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
               활동 중
             </CardTitle>
             <CheckCircle className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">
+            <div className="text-2xl sm:text-3xl font-bold text-green-600">
               {students.filter(s => s.status === 'ACTIVE').length}명
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-2 border-yellow-100">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
               대기 중
             </CardTitle>
             <Clock className="h-5 w-5 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-yellow-600">
+            <div className="text-2xl sm:text-3xl font-bold text-yellow-600">
               {students.filter(s => s.status === 'PENDING').length}명
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-2 border-purple-100">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
               이번 달 신규
             </CardTitle>
             <GraduationCap className="h-5 w-5 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-purple-600">
+            <div className="text-2xl sm:text-3xl font-bold text-purple-600">
               {students.filter(s => {
                 const created = new Date(s.createdAt || 0);
                 const now = new Date();
@@ -200,7 +266,24 @@ export default function StudentsPage() {
           ) : filteredStudents.length === 0 ? (
             <div className="text-center py-12">
               <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">학생이 없습니다</p>
+              <p className="text-gray-500 mb-2">학생이 없습니다</p>
+              {user && user.email !== 'admin@superplace.co.kr' && !user.academyId && !user.academy_id && !user.AcademyId && (
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg max-w-md mx-auto">
+                  <p className="text-sm text-yellow-800 font-semibold mb-1">⚠️ 학원 정보가 없습니다</p>
+                  <p className="text-xs text-yellow-700">
+                    다시 로그인하시거나, 관리자에게 문의하세요.
+                  </p>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem('user');
+                      window.location.href = '/login';
+                    }}
+                    className="mt-2 text-xs text-blue-600 hover:underline"
+                  >
+                    다시 로그인하기 →
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -248,7 +331,7 @@ export default function StudentsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => router.push(`/dashboard/students/${student.id}`)}
+                      onClick={() => router.push(`/dashboard/students/detail?id=${student.id}`)}
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       상세보기

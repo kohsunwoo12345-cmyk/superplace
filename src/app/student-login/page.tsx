@@ -13,7 +13,7 @@ export default function StudentLoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +27,7 @@ export default function StudentLoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ phone, password, isStudentLogin: true }),
       });
 
       const result = await response.json();
@@ -61,11 +61,11 @@ export default function StudentLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
       <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader className="space-y-3 text-center">
+        <CardHeader className="p-4 sm:p-6 space-y-3 text-center">
           <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
             <GraduationCap className="w-10 h-10 text-white" />
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <CardTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             학생 로그인
           </CardTitle>
           <CardDescription className="text-base">
@@ -82,17 +82,17 @@ export default function StudentLoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-semibold text-gray-700">
-                이메일
+              <Label htmlFor="phone" className="text-sm font-semibold text-gray-700">
+                전화번호
               </Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="student@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="phone"
+                  type="tel"
+                  placeholder="010-1234-5678"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   required
                   disabled={isLoading}
                   className="pl-10 h-12 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500"

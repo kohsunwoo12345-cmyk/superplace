@@ -94,9 +94,9 @@ export default function ClassManagementPage() {
   return (
     <div className="container mx-auto py-8 px-4">
       {/* 헤더 */}
-      <div className="mb-8 flex justify-between items-center">
+      <div className="mb-6 sm:mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold mb-2">클래스 관리</h1>
+          <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2">클래스 관리</h1>
           <p className="text-gray-600">학원의 클래스를 관리합니다</p>
         </div>
         <Button onClick={() => alert("클래스 추가 기능은 곧 추가됩니다.")}>
@@ -116,7 +116,7 @@ export default function ClassManagementPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-blue-600" />
-              <span className="text-2xl font-bold">{classes.length}</span>
+              <span className="text-xl sm:text-2xl font-bold">{classes.length}</span>
             </div>
           </CardContent>
         </Card>
@@ -130,7 +130,7 @@ export default function ClassManagementPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-green-600" />
-              <span className="text-2xl font-bold">
+              <span className="text-xl sm:text-2xl font-bold">
                 {classes.reduce((sum, cls) => sum + cls._count.students, 0)}
               </span>
             </div>
@@ -146,7 +146,7 @@ export default function ClassManagementPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-purple-600" />
-              <span className="text-2xl font-bold">
+              <span className="text-xl sm:text-2xl font-bold">
                 {classes.filter((c) => c.isActive).length}
               </span>
             </div>
@@ -171,7 +171,7 @@ export default function ClassManagementPage() {
       </Card>
 
       {/* 클래스 목록 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {filteredClasses.map((cls) => (
           <Card key={cls.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>

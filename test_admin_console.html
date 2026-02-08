@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>관리자 AI 챗봇 테스트</title>
+</head>
+<body>
+    <h1>관리자 AI 챗봇 콘솔 테스트</h1>
+    <script>
+        // 관리자 사용자 정보 설정
+        const adminUser = {
+            id: 'admin-001',
+            email: 'admin@superplace.co.kr',
+            role: 'ADMIN',
+            name: '관리자',
+            academyId: null
+        };
+        
+        // localStorage에 저장
+        localStorage.setItem('user', JSON.stringify(adminUser));
+        console.log('✅ 관리자 정보 설정 완료:', adminUser);
+        
+        // 봇 조회 테스트
+        async function testFetchBots() {
+            console.log('🔍 봇 조회 시작...');
+            
+            try {
+                const response = await fetch('https://genspark-ai-developer.superplacestudy.pages.dev/api/admin/ai-bots');
+                console.log('📡 Response status:', response.status);
+                
+                const data = await response.json();
+                console.log('📦 Response data:', data);
+                
+                if (data.bots && data.bots.length > 0) {
+                    console.log(`✅ ${data.bots.length}개의 봇 발견`);
+                    console.log('첫 번째 봇:', data.bots[0]);
+                } else {
+                    console.warn('⚠️ 봇이 없습니다');
+                }
+            } catch (error) {
+                console.error('❌ 오류 발생:', error);
+            }
+        }
+        
+        // 페이지 로드 후 실행
+        window.addEventListener('load', () => {
+            console.log('🚀 페이지 로드 완료');
+            testFetchBots();
+        });
+    </script>
+</body>
+</html>

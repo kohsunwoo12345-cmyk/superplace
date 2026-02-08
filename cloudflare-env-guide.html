@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare 환경 변수 설정 가이드</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #f38020;
+            border-bottom: 3px solid #f38020;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #333;
+            margin-top: 30px;
+            display: flex;
+            align-items: center;
+        }
+        .step {
+            background: #fff9f0;
+            border-left: 4px solid #f38020;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .step-number {
+            background: #f38020;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .important {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .important::before {
+            content: "⚠️ ";
+            font-weight: bold;
+        }
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .success::before {
+            content: "✅ ";
+        }
+        .error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .error::before {
+            content: "❌ ";
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #e83e8c;
+        }
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .menu-path {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        .checklist li {
+            padding: 8px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .checklist li::before {
+            content: "☐ ";
+            color: #6c757d;
+            font-size: 1.2em;
+            margin-right: 10px;
+        }
+        .tab-example {
+            display: inline-block;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .tab-inactive {
+            background: #e9ecef;
+            color: #6c757d;
+        }
+        .tab-active {
+            background: #f38020;
+            color: white;
+        }
+        .screenshot-placeholder {
+            background: #e9ecef;
+            border: 2px dashed #6c757d;
+            padding: 40px;
+            text-align: center;
+            color: #6c757d;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Cloudflare Pages 환경 변수 설정 가이드</h1>
+        <p style="font-size: 1.1em; color: #666;">
+            비개발자도 쉽게 따라할 수 있는 단계별 가이드입니다.<br>
+            <strong>목표:</strong> Preview 환경에 <code>GOOGLE_GEMINI_API_KEY</code> 추가하기
+        </p>
+
+        <!-- Step 1 -->
+        <div class="step">
+            <h2><span class="step-number">1</span>Cloudflare 대시보드 접속</h2>
+            <p>1. 웹브라우저를 열고 다음 주소로 이동:</p>
+            <div class="code-block">https://dash.cloudflare.com/</div>
+            <p>2. 로그인 (이메일과 비밀번호 입력)</p>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step">
+            <h2><span class="step-number">2</span>Workers & Pages 메뉴 찾기</h2>
+            <p>왼쪽 사이드바 또는 상단 메뉴에서 <strong>"Workers & Pages"</strong> 클릭</p>
+            <div class="menu-path">
+                🏠 Home<br>
+                🌐 Websites<br>
+                ⚡ <strong>Workers & Pages</strong> ← 여기를 클릭!<br>
+                📧 Email
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step">
+            <h2><span class="step-number">3</span>프로젝트 선택</h2>
+            <p>프로젝트 목록에서 <strong>"superplace"</strong> 프로젝트를 찾아서 클릭</p>
+            <div class="screenshot-placeholder">
+                📄 프로젝트 목록에서 "superplace" 찾기
+            </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="step">
+            <h2><span class="step-number">4</span>Settings 탭으로 이동</h2>
+            <p>프로젝트 페이지 상단에 있는 탭들 중 <strong>"Settings"</strong> 클릭</p>
+            <div style="text-align: center; margin: 15px 0;">
+                <span style="padding: 8px 16px; background: #e9ecef; border-radius: 5px; margin: 0 5px;">Overview</span>
+                <span style="padding: 8px 16px; background: #e9ecef; border-radius: 5px; margin: 0 5px;">Deployments</span>
+                <span style="padding: 8px 16px; background: #f38020; color: white; border-radius: 5px; margin: 0 5px;">Settings ← 클릭</span>
+            </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="step">
+            <h2><span class="step-number">5</span>Environment variables 섹션 찾기</h2>
+            <p>Settings 페이지를 아래로 스크롤하여 <strong>"Environment variables"</strong> 섹션 찾기</p>
+            <div class="menu-path">
+                Settings 페이지:<br>
+                ├── General<br>
+                ├── Builds & deployments<br>
+                ├── <strong>Environment variables</strong> ← 여기!<br>
+                ├── Functions<br>
+                └── ...
+            </div>
+        </div>
+
+        <!-- Step 6 - Most Important -->
+        <div class="step" style="border-left-color: #dc3545; background: #fff5f5;">
+            <h2><span class="step-number" style="background: #dc3545;">6</span>Preview 탭 선택 ⭐ 가장 중요!</h2>
+            <div class="important">
+                <strong>주의!</strong> Production이 아닌 <strong>Preview</strong> 탭을 선택해야 합니다!
+            </div>
+            <p>Environment variables 섹션 안에 2개의 탭이 있습니다:</p>
+            <div style="text-align: center; margin: 20px 0;">
+                <span class="tab-example tab-inactive">Production</span>
+                <span class="tab-example tab-active">Preview ← 여기를 클릭!</span>
+            </div>
+        </div>
+
+        <!-- Step 7 -->
+        <div class="step">
+            <h2><span class="step-number">7</span>환경 변수 추가</h2>
+            <p>1. <strong>"Add variable"</strong> 또는 <strong>"변수 추가"</strong> 버튼 클릭</p>
+            <p>2. 다음 정보를 정확히 입력:</p>
+            <div class="code-block">
+<strong>Variable name:</strong>
+GOOGLE_GEMINI_API_KEY
+
+<strong>Value:</strong>
+[여기에 Google Gemini API 키를 붙여넣기]
+            </div>
+            <div class="important">
+                <strong>정확히 입력하세요:</strong><br>
+                • 변수 이름: <code>GOOGLE_GEMINI_API_KEY</code> (대소문자, 언더스코어 정확히)<br>
+                • 띄어쓰기 없음<br>
+                • 앞뒤 공백 없음
+            </div>
+        </div>
+
+        <!-- Step 8 -->
+        <div class="step">
+            <h2><span class="step-number">8</span>저장</h2>
+            <p><strong>"Save"</strong> 또는 <strong>"저장"</strong> 버튼을 클릭하여 설정 완료</p>
+        </div>
+
+        <!-- Step 9 -->
+        <div class="step">
+            <h2><span class="step-number">9</span>재배포 (선택사항)</h2>
+            <p>환경 변수는 다음 배포부터 적용됩니다.</p>
+            <p><strong>즉시 적용하려면:</strong></p>
+            <ol>
+                <li>Deployments 탭으로 이동</li>
+                <li>가장 최근 배포의 우측 <strong>"..."</strong> 메뉴 클릭</li>
+                <li><strong>"Retry deployment"</strong> 또는 <strong>"재배포"</strong> 클릭</li>
+            </ol>
+        </div>
+
+        <!-- Verification -->
+        <h2>✅ 확인 방법</h2>
+        <div class="success">
+            다음 URL을 웹브라우저에서 열어보세요:
+        </div>
+        <div class="code-block">
+https://genspark-ai-developer.superplacestudy.pages.dev/api/test-env
+        </div>
+        <p><strong>성공 시 화면:</strong></p>
+        <div class="code-block">
+{
+  "hasKey": true,
+  "keyLength": 39,
+  "keyPrefix": "AIzaSyBxxx"
+}
+        </div>
+        <p><strong>실패 시 화면:</strong></p>
+        <div class="code-block">
+{
+  "hasKey": false,
+  "keyLength": 0,
+  "keyPrefix": "undefined"
+}
+        </div>
+        <div class="error">
+            실패가 나온다면 Preview 탭에 설정했는지 다시 확인하고 재배포하세요!
+        </div>
+
+        <!-- Common Mistakes -->
+        <h2>🔍 자주 하는 실수</h2>
+        <div class="error">
+            <strong>실수 1:</strong> Production 탭에만 설정<br>
+            → Preview 탭을 꼭 선택하세요!
+        </div>
+        <div class="error">
+            <strong>실수 2:</strong> 변수 이름 오타<br>
+            → 정확히 <code>GOOGLE_GEMINI_API_KEY</code>
+        </div>
+        <div class="error">
+            <strong>실수 3:</strong> 값에 공백 포함<br>
+            → API 키 앞뒤에 공백 없이 붙여넣기
+        </div>
+        <div class="error">
+            <strong>실수 4:</strong> 배포 안 함<br>
+            → Retry deployment로 즉시 적용
+        </div>
+
+        <!-- Checklist -->
+        <h2>📝 체크리스트</h2>
+        <ul class="checklist">
+            <li>Cloudflare 대시보드 로그인</li>
+            <li>Workers & Pages 메뉴로 이동</li>
+            <li>superplace 프로젝트 선택</li>
+            <li>Settings 탭 클릭</li>
+            <li>Environment variables 섹션 찾기</li>
+            <li><strong style="color: #dc3545;">Preview 탭 선택 ⭐</strong></li>
+            <li>Add variable 클릭</li>
+            <li>GOOGLE_GEMINI_API_KEY 입력</li>
+            <li>API 키 값 붙여넣기</li>
+            <li>Save 클릭</li>
+            <li>(선택) Retry deployment</li>
+            <li>test-env URL로 확인</li>
+        </ul>
+
+        <div class="success">
+            <strong>💡 핵심 포인트:</strong> 가장 중요한 것은 <strong>Preview 탭</strong>을 선택하는 것입니다!<br>
+            Production이 아닌 Preview에 설정해야 genspark-ai-developer 브랜치에서 작동합니다.
+        </div>
+    </div>
+</body>
+</html>

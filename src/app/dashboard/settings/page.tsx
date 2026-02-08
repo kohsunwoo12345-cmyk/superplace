@@ -107,12 +107,12 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">설정</h1>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2">설정</h1>
         <p className="text-gray-600">계정 설정을 관리합니다</p>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile">
             <User className="w-4 h-4 mr-2" />

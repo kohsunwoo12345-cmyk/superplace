@@ -22,13 +22,15 @@ import {
   TestTube,
   Send,
   Smile,
+  ImageIcon,
 } from "lucide-react";
 
 const GEMINI_MODELS = [
-  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (실험적, 최신)", description: "가장 빠르고 최신 기능" },
-  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (추천)", description: "균형잡힌 성능과 품질" },
-  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash", description: "빠른 응답 속도" },
-  { value: "gemini-1.0-pro", label: "Gemini 1.0 Pro", description: "안정적인 버전" },
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (추천)", description: "균형잡힌 속도와 품질, 안정 버전", recommended: true },
+  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "고급 추론 능력, 복잡한 작업에 최적", recommended: false },
+  { value: "gemini-3-flash-preview", label: "Gemini 3 Flash (프리뷰)", description: "차세대 모델, 최신 기능", recommended: false },
+  { value: "gemini-3-pro-preview", label: "Gemini 3 Pro (프리뷰)", description: "최고 성능, 가장 강력한 모델", recommended: false },
+  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", description: "초고속, 비용 효율적", recommended: false },
 ];
 
 const PRESET_PROMPTS = [
@@ -154,44 +156,53 @@ const PRESET_PROMPTS = [
   },
 ];
 
-// 프로필 아이콘 옵션 (100+ 이모지)
+// 프로필 아이콘 옵션 (200+ 이모지)
 const PROFILE_EMOJIS = [
-  // 기술 & AI
-  "🤖", "💻", "🖥️", "⌨️", "🖱️", "💾", "💿", "📱", "📲", "☎️",
-  // 교육 & 학습
-  "🎓", "📚", "📖", "📝", "✏️", "✒️", "🖊️", "📕", "📗", "📘",
-  // 에너지 & 빛
-  "💡", "🔦", "🕯️", "💫", "⭐", "🌟", "✨", "🌠", "🔆", "☀️",
-  // 우주 & 과학
-  "🚀", "🛸", "🛰️", "🔬", "🔭", "⚗️", "🧪", "🧬", "🔋", "⚡",
-  // 예술 & 창작
-  "🎨", "🖼️", "🎭", "🎪", "🎬", "🎤", "🎧", "🎼", "🎹", "🎸",
-  // 스포츠 & 성취
-  "🏆", "🥇", "🥈", "🥉", "🏅", "🎖️", "🎯", "🎲", "🎰", "🎳",
-  // 자연 & 날씨
-  "🌈", "🌤️", "⛅", "🌦️", "🌧️", "⛈️", "🌩️", "🌨️", "☃️", "⛄",
-  // 동물 - 포유류
-  "🐱", "🐶", "🦊", "🐼", "🦁", "🐯", "🐨", "🐻", "🐰", "🐹",
-  "🐭", "🐮", "🐷", "🐸", "🐵", "🙈", "🙉", "🙊", "🦍", "🦧",
-  // 동물 - 조류 & 해양
-  "🦅", "🦆", "🦉", "🦜", "🐧", "🐦", "🐤", "🐣", "🐥", "🦩",
-  "🐬", "🐳", "🐋", "🦈", "🐙", "🦑", "🦀", "🦞", "🐠", "🐟",
-  // 곤충 & 작은 생물
-  "🐝", "🦋", "🐛", "🐌", "🐞", "🦗", "🕷️", "🦂", "🐜", "🪰",
-  // 식물 & 꽃
-  "🌸", "🌺", "🌻", "🌼", "🌷", "🥀", "🏵️", "🌹", "🍀", "🍁",
-  "🍂", "🍃", "🌿", "🌱", "🌾", "🌵", "🎄", "🌲", "🌳", "🌴",
-  // 음식 & 음료
-  "🍎", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🍑", "🍒", "🍍",
-  "🥝", "🥑", "🍔", "🍕", "🍰", "🎂", "🍪", "🍩", "☕", "🍵",
-  // 여행 & 장소
-  "✈️", "🚁", "🚂", "🚃", "🚄", "🚅", "🚆", "🚇", "🚈", "🚉",
-  "🏠", "🏡", "🏢", "🏣", "🏤", "🏥", "🏦", "🏨", "🏩", "🏪",
-  // 시간 & 도구
-  "⏰", "⏱️", "⏲️", "⏳", "⌛", "🕐", "🕑", "🕒", "🔧", "🔨",
-  // 기타 유용한 이모지
-  "💝", "💖", "💗", "💓", "💞", "💕", "💟", "❣️", "💔", "❤️",
-  "🧡", "💛", "💚", "💙", "💜", "🤎", "🖤", "🤍", "♥️", "💯"
+  // 기술 & AI (확장)
+  "🤖", "💻", "🖥️", "⌨️", "🖱️", "💾", "💿", "📱", "📲", "☎️", "📞", "📟", "📠", "📡", "🔌", "💡", "🔦", "💾", "🖨️", "⌚",
+  // 교육 & 학습 (확장)
+  "🎓", "📚", "📖", "📝", "✏️", "✒️", "🖊️", "🖍️", "📕", "📗", "📘", "📙", "📔", "📓", "📒", "📃", "📜", "📄", "📰", "🗞️",
+  // 에너지 & 빛 (확장)
+  "💡", "🔦", "🕯️", "💫", "⭐", "🌟", "✨", "🌠", "🔆", "☀️", "🌞", "🌝", "🌛", "🌜", "🌙", "⚡", "🔥", "💥", "✴️", "🌟",
+  // 우주 & 과학 (확장)
+  "🚀", "🛸", "🛰️", "🔬", "🔭", "⚗️", "🧪", "🧬", "🔋", "⚡", "🌌", "🪐", "🌍", "🌎", "🌏", "🗺️", "🧭", "⚙️", "🔩", "🔧",
+  // 예술 & 창작 (확장)
+  "🎨", "🖼️", "🎭", "🎪", "🎬", "🎤", "🎧", "🎼", "🎹", "🎸", "🎺", "🎷", "🥁", "🎻", "🪕", "🎲", "♟️", "🎯", "🎰", "🎮",
+  // 스포츠 & 성취 (확장)
+  "🏆", "🥇", "🥈", "🥉", "🏅", "🎖️", "🎯", "🎲", "🎰", "🎳", "⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🏉", "🥊", "🥋", "🎿",
+  // 자연 & 날씨 (확장)
+  "🌈", "🌤️", "⛅", "🌦️", "🌧️", "⛈️", "🌩️", "🌨️", "☃️", "⛄", "❄️", "☁️", "🌪️", "🌫️", "🌬️", "💨", "🌊", "💦", "💧", "☔",
+  // 동물 - 포유류 (확장)
+  "🐱", "🐶", "🦊", "🐼", "🦁", "🐯", "🐨", "🐻", "🐰", "🐹", "🐭", "🐮", "🐷", "🐸", "🐵", "🙈", "🙉", "🙊", "🦍", "🦧",
+  "🐺", "🦝", "🦨", "🦦", "🦥", "🦘", "🦡", "🐘", "🦏", "🦛", "🐪", "🐫", "🦒", "🦌", "🐎", "🦓", "🦙", "🐐", "🐑", "🦙",
+  // 동물 - 조류 & 해양 (확장)
+  "🦅", "🦆", "🦉", "🦜", "🐧", "🐦", "🐤", "🐣", "🐥", "🦩", "🦚", "🦃", "🦢", "🕊️", "🐓", "🐔",
+  "🐬", "🐳", "🐋", "🦈", "🐙", "🦑", "🦀", "🦞", "🦐", "🐠", "🐟", "🐡", "🐚", "🦪", "🪼", "🐢",
+  // 곤충 & 작은 생물 (확장)
+  "🐝", "🦋", "🐛", "🐌", "🐞", "🦗", "🕷️", "🦂", "🐜", "🪰", "🪱", "🦟", "🪲", "🐾",
+  // 식물 & 꽃 (확장)
+  "🌸", "🌺", "🌻", "🌼", "🌷", "🥀", "🏵️", "🌹", "🍀", "🍁", "🍂", "🍃", "🌿", "🌱", "🌾", "🌵", "🎄", "🌲", "🌳", "🌴",
+  "🎋", "🎍", "🌾", "🌺", "🌻", "🏞️", "🌾", "🪴", "🪵",
+  // 음식 & 음료 (확장)
+  "🍎", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🍑", "🍒", "🍍", "🥝", "🥑", "🍔", "🍕", "🍰", "🎂", "🍪", "🍩", "☕", "🍵",
+  "🥐", "🥖", "🥨", "🥯", "🥞", "🧇", "🧀", "🍖", "🍗", "🥩", "🥓", "🍤", "🍱", "🍛", "🍜", "🍝", "🍠", "🍢", "🍣", "🍥",
+  "🍦", "🍧", "🍨", "🍬", "🍭", "🍮", "🍯", "🍼", "🥛", "🍷", "🍸", "🍹", "🍺", "🍻", "🥂", "🥃", "🧃", "🧉", "🧊",
+  // 여행 & 장소 (확장)
+  "✈️", "🚁", "🚂", "🚃", "🚄", "🚅", "🚆", "🚇", "🚈", "🚉", "🚊", "🚝", "🚞", "🚋", "🚌", "🚍", "🚎", "🚐", "🚑", "🚒",
+  "🚓", "🚔", "🚕", "🚖", "🚗", "🚘", "🚙", "🚚", "🚛", "🚜",
+  "🏠", "🏡", "🏢", "🏣", "🏤", "🏥", "🏦", "🏨", "🏩", "🏪", "🏫", "🏬", "🏭", "🏯", "🏰", "💒", "🗼", "🗽", "⛪", "🕌",
+  // 시간 & 도구 (확장)
+  "⏰", "⏱️", "⏲️", "⏳", "⌛", "🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚", "🕛",
+  "🔧", "🔨", "⚒️", "🛠️", "⛏️", "🪛", "🔩", "⚙️", "🔗", "⛓️", "📎", "🖇️", "📌", "📍", "✂️", "🗃️", "🗄️", "🗑️",
+  // 기타 유용한 이모지 (확장)
+  "💝", "💖", "💗", "💓", "💞", "💕", "💟", "❣️", "💔", "❤️", "🧡", "💛", "💚", "💙", "💜", "🤎", "🖤", "🤍", "♥️", "💯",
+  "💢", "💬", "💭", "🗨️", "🗯️", "💤", "💮", "🏁", "🚩", "🎌", "🏴", "🏳️", "🏳️‍🌈", "🏴‍☠️",
+  // 표정 & 감정
+  "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😗", "😚", "😙",
+  "🥲", "😋", "😛", "😜", "🤪", "😝", "🤑", "🤗", "🤭", "🤫", "🤔", "🤐", "🤨", "😐", "😑", "😶", "😏", "😒", "🙄", "😬",
+  // 상징 & 기호
+  "✅", "❎", "✔️", "✖️", "❌", "➕", "➖", "✳️", "✴️", "❇️", "‼️", "⁉️", "❓", "❔", "❕", "❗", "〰️", "©️", "®️", "™️",
+  "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤", "⚫", "⚪", "🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🟫", "⬛", "⬜", "◼️", "◻️"
 ];
 
 interface Message {
@@ -220,7 +231,8 @@ export default function CreateAIBotPage() {
     starterMessage2: "",
     starterMessage3: "",
     profileIcon: "🤖",
-    model: "gemini-1.5-pro",
+    profileImage: "", // 이미지 URL 추가
+    model: "gemini-2.5-flash",
     temperature: "0.7",
     maxTokens: "2000",
     topK: "40",
@@ -451,39 +463,83 @@ export default function CreateAIBotPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* 프로필 아이콘 선택 */}
+                {/* 프로필 아이콘/이미지 선택 */}
                 <div>
-                  <Label className="text-base mb-2 block">프로필 아이콘</Label>
-                  <div className="flex items-center gap-3">
-                    <div className="text-5xl">{formData.profileIcon}</div>
-                    <div className="flex-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        className="w-full"
-                      >
-                        <Smile className="w-4 h-4 mr-2" />
-                        아이콘 변경
-                      </Button>
-                      {showEmojiPicker && (
-                        <div className="mt-2 p-3 border rounded-lg bg-white shadow-lg grid grid-cols-10 gap-2 max-h-48 overflow-y-auto">
-                          {PROFILE_EMOJIS.map((emoji, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              className="text-2xl hover:bg-gray-100 p-2 rounded transition"
-                              onClick={() => {
-                                setFormData({ ...formData, profileIcon: emoji });
-                                setShowEmojiPicker(false);
-                              }}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
+                  <Label className="text-base mb-2 block">프로필 아이콘 / 이미지</Label>
+                  <div className="space-y-3">
+                    {/* 미리보기 */}
+                    <div className="flex items-center gap-3">
+                      {formData.profileImage ? (
+                        <img 
+                          src={formData.profileImage} 
+                          alt="프로필 이미지" 
+                          className="w-16 h-16 object-cover rounded-lg border-2 border-gray-200"
+                        />
+                      ) : (
+                        <div className="text-5xl">{formData.profileIcon}</div>
                       )}
+                      <div className="flex-1 space-y-2">
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            className="flex-1"
+                          >
+                            <Smile className="w-4 h-4 mr-2" />
+                            이모지 선택
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              const url = prompt("이미지 URL을 입력하세요:");
+                              if (url) {
+                                setFormData({ ...formData, profileImage: url, profileIcon: "" });
+                              }
+                            }}
+                            className="flex-1"
+                          >
+                            <ImageIcon className="w-4 h-4 mr-2" />
+                            이미지 URL
+                          </Button>
+                        </div>
+                        {(formData.profileImage || formData.profileIcon !== "🤖") && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFormData({ ...formData, profileImage: "", profileIcon: "🤖" })}
+                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            초기화
+                          </Button>
+                        )}
+                      </div>
                     </div>
+                    
+                    {/* 이모지 선택 그리드 */}
+                    {showEmojiPicker && (
+                      <div className="p-3 border rounded-lg bg-white shadow-lg grid grid-cols-10 gap-2 max-h-64 overflow-y-auto">
+                        {PROFILE_EMOJIS.map((emoji, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            className="text-2xl hover:bg-blue-50 p-2 rounded transition"
+                            onClick={() => {
+                              setFormData({ ...formData, profileIcon: emoji, profileImage: "" });
+                              setShowEmojiPicker(false);
+                            }}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <p className="text-sm text-gray-500">
+                      이모지 또는 이미지 URL을 선택하여 봇의 프로필을 설정할 수 있습니다
+                    </p>
                   </div>
                 </div>
 
@@ -603,12 +659,25 @@ export default function CreateAIBotPage() {
                     💡 효과적인 지침 작성 팁:
                   </p>
                   <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• <strong>역할 정의:</strong> "당신은 ~입니다" 형식으로 명확히</li>
-                    <li>• <strong>구체적 행동:</strong> 해야 할 것과 하지 말아야 할 것</li>
-                    <li>• <strong>톤과 스타일:</strong> 친근한, 전문적인, 교육적인 등</li>
-                    <li>• <strong>응답 형식:</strong> 구조화된 답변 방식 제시</li>
+                    <li>• <strong>역할 정의:</strong> "당신은 ~입니다" 형식으로 명확히 (예: "당신은 친절한 수학 선생님입니다")</li>
+                    <li>• <strong>구체적 행동:</strong> 해야 할 것과 하지 말아야 할 것을 명시</li>
+                    <li>• <strong>톤과 스타일:</strong> 친근한, 전문적인, 교육적인, 격려하는 등</li>
+                    <li>• <strong>응답 형식:</strong> 구조화된 답변 방식 제시 (단계별, 번호 매기기 등)</li>
                     <li>• <strong>제약 사항:</strong> 길이, 형식, 내용 제한 명시</li>
+                    <li>• <strong>예시 제공:</strong> 원하는 응답의 구체적 예시 포함</li>
+                    <li>• <strong>맥락 설명:</strong> 대상 사용자, 사용 목적 명시</li>
                   </ul>
+                  <div className="mt-3 pt-3 border-t border-blue-300">
+                    <p className="text-xs font-semibold text-blue-900 mb-1">🎯 실전 적용 가능한 요소:</p>
+                    <ul className="text-xs text-blue-800 space-y-0.5">
+                      <li>✓ <strong>페르소나:</strong> 나이, 성격, 전문 분야 설정</li>
+                      <li>✓ <strong>대화 스타일:</strong> 이모지 사용 여부, 반말/존댓말</li>
+                      <li>✓ <strong>응답 길이:</strong> 간결한 답변 vs 상세한 설명</li>
+                      <li>✓ <strong>오류 처리:</strong> 모르는 답변 시 대응 방법</li>
+                      <li>✓ <strong>안전 장치:</strong> 부적절한 질문 대응 방식</li>
+                      <li>✓ <strong>특화 기능:</strong> 코드 블록, 표, 리스트 활용</li>
+                    </ul>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -628,7 +697,7 @@ export default function CreateAIBotPage() {
                 {/* 모델 선택 */}
                 <div>
                   <Label htmlFor="model" className="text-base mb-3 block">Gemini 모델 선택</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     {GEMINI_MODELS.map((model) => (
                       <div
                         key={model.value}
@@ -641,7 +710,14 @@ export default function CreateAIBotPage() {
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="font-semibold text-sm">{model.label}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-semibold text-sm">{model.label}</div>
+                              {model.recommended && (
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                                  추천
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-gray-600 mt-1">{model.description}</div>
                           </div>
                           {formData.model === model.value && (
@@ -651,96 +727,128 @@ export default function CreateAIBotPage() {
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    💡 선택한 모델이 테스트와 실제 Gem에 적용됩니다
-                  </p>
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs font-semibold text-blue-900 mb-1">💡 모델 선택 가이드:</p>
+                    <ul className="text-xs text-blue-800 space-y-1">
+                      <li>• <strong>2.5 Flash (추천):</strong> 대부분의 작업에 적합, 빠르고 비용 효율적</li>
+                      <li>• <strong>2.5 Pro:</strong> 복잡한 추론, 코드 생성, 데이터 분석에 최적</li>
+                      <li>• <strong>3.0 Preview:</strong> 최신 기능 테스트용, 프로덕션 미권장</li>
+                      <li>• <strong>2.5 Flash Lite:</strong> 간단한 작업, 초고속 응답 필요시</li>
+                    </ul>
+                  </div>
                 </div>
 
                 {/* 파라미터 설정 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="temperature" className="text-base">
-                      Temperature (창의성)
-                    </Label>
-                    <div className="flex items-center gap-3 mt-2">
-                      <input
-                        id="temperature"
-                        type="range"
-                        min="0"
-                        max="2"
-                        step="0.1"
-                        value={formData.temperature}
-                        onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
-                        className="flex-1"
-                      />
-                      <span className="text-sm font-mono w-12 text-right">
-                        {formData.temperature}
-                      </span>
+                <div className="space-y-4">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-amber-900 mb-1">⚙️ 파라미터 조정 가이드:</p>
+                    <ul className="text-xs text-amber-800 space-y-0.5">
+                      <li>• <strong>창의적 작업</strong> (시, 스토리): Temperature 0.8-1.2</li>
+                      <li>• <strong>일반 대화</strong> (상담, 조언): Temperature 0.6-0.8</li>
+                      <li>• <strong>정확한 답변</strong> (계산, 번역): Temperature 0.3-0.5</li>
+                      <li>• <strong>코드 생성</strong>: Temperature 0.2-0.4, Top-K 20-30</li>
+                    </ul>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="temperature" className="text-base">
+                        Temperature (창의성) 🌡️
+                      </Label>
+                      <div className="flex items-center gap-3 mt-2">
+                        <input
+                          id="temperature"
+                          type="range"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={formData.temperature}
+                          onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
+                          className="flex-1"
+                        />
+                        <span className="text-sm font-mono w-12 text-right font-semibold">
+                          {formData.temperature}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex justify-between text-xs text-gray-600">
+                        <span>정확함 (0.0)</span>
+                        <span>창의적 (2.0)</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {parseFloat(formData.temperature) < 0.5 ? "🎯 매우 일관적이고 정확한 응답" :
+                         parseFloat(formData.temperature) < 1.0 ? "⚖️ 균형잡힌 응답 (추천)" :
+                         "🎨 창의적이고 다양한 응답"}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      낮을수록 일관적, 높을수록 창의적 (기본: 0.7)
-                    </p>
-                  </div>
 
-                  <div>
-                    <Label htmlFor="topP" className="text-base">
-                      Top-P (다양성)
-                    </Label>
-                    <div className="flex items-center gap-3 mt-2">
-                      <input
-                        id="topP"
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={formData.topP}
-                        onChange={(e) => setFormData({ ...formData, topP: e.target.value })}
-                        className="flex-1"
-                      />
-                      <span className="text-sm font-mono w-12 text-right">
-                        {formData.topP}
-                      </span>
+                    <div>
+                      <Label htmlFor="topP" className="text-base">
+                        Top-P (다양성) 🎲
+                      </Label>
+                      <div className="flex items-center gap-3 mt-2">
+                        <input
+                          id="topP"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={formData.topP}
+                          onChange={(e) => setFormData({ ...formData, topP: e.target.value })}
+                          className="flex-1"
+                        />
+                        <span className="text-sm font-mono w-12 text-right font-semibold">
+                          {formData.topP}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex justify-between text-xs text-gray-600">
+                        <span>집중 (0.0)</span>
+                        <span>다양함 (1.0)</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {parseFloat(formData.topP) < 0.5 ? "🎯 가장 확률 높은 답변만" :
+                         parseFloat(formData.topP) < 0.9 ? "⚖️ 적절한 다양성" :
+                         "🌈 매우 다양한 표현"}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      응답의 다양성 조절 (기본: 0.95)
-                    </p>
-                  </div>
 
-                  <div>
-                    <Label htmlFor="topK" className="text-base">
-                      Top-K
-                    </Label>
-                    <Input
-                      id="topK"
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={formData.topK}
-                      onChange={(e) => setFormData({ ...formData, topK: e.target.value })}
-                      className="mt-2"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      상위 K개 토큰만 고려 (기본: 40)
-                    </p>
-                  </div>
+                    <div>
+                      <Label htmlFor="topK" className="text-base">
+                        Top-K (어휘 범위) 📚
+                      </Label>
+                      <Input
+                        id="topK"
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={formData.topK}
+                        onChange={(e) => setFormData({ ...formData, topK: e.target.value })}
+                        className="mt-2"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        상위 K개 단어만 고려 (낮을수록 일관적, 기본: 40)
+                      </p>
+                    </div>
 
-                  <div>
-                    <Label htmlFor="maxTokens" className="text-base">
-                      최대 토큰
-                    </Label>
-                    <Input
-                      id="maxTokens"
-                      type="number"
-                      step="100"
-                      min="100"
-                      max="8000"
-                      value={formData.maxTokens}
-                      onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
-                      className="mt-2"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      응답 최대 길이 (기본: 2000)
-                    </p>
+                    <div>
+                      <Label htmlFor="maxTokens" className="text-base">
+                        최대 토큰 (응답 길이) 📏
+                      </Label>
+                      <Input
+                        id="maxTokens"
+                        type="number"
+                        step="100"
+                        min="100"
+                        max="8000"
+                        value={formData.maxTokens}
+                        onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
+                        className="mt-2"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {parseInt(formData.maxTokens) < 1000 ? "짧은 답변 (~500자)" :
+                         parseInt(formData.maxTokens) < 3000 ? "중간 길이 (~1500자)" :
+                         "긴 답변 (~4000자)"} · 기본: 2000
+                      </p>
+                    </div>
                   </div>
                 </div>
 

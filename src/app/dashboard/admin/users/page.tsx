@@ -29,6 +29,7 @@ interface User {
   academyName?: string;
   createdAt: string;
   lastLoginAt?: string;
+  attendanceCode?: string; // 출석 코드 추가
 }
 
 export default function AdminUsersPage() {
@@ -47,18 +48,35 @@ export default function AdminUsersPage() {
     }
 
     const userData = JSON.parse(storedUser);
+    console.log('👤 Current user:', userData);
     setCurrentUser(userData);
-
-    fetchUsers();
   }, [router]);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchUsers();
+    }
+  }, [currentUser]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/users");
+      
+      const params = new URLSearchParams();
+      // role 추가 (관리자는 모든 사용자 조회)
+      if (currentUser?.role) {
+        params.append('role', currentUser.role);
+      }
+      
+      console.log('👥 Fetching all users with role:', currentUser?.role);
+      
+      const response = await fetch(`/api/admin/users?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Users data received:', data);
         setUsers(data.users || []);
+      } else {
+        console.error('❌ Failed to fetch users:', response.status);
       }
     } catch (error) {
       console.error("사용자 목록 로드 실패:", error);
@@ -82,9 +100,18 @@ export default function AdminUsersPage() {
 
   const stats = {
     total: users.length,
-    students: users.filter((u) => u.role?.toUpperCase() === "STUDENT").length,
-    teachers: users.filter((u) => u.role?.toUpperCase() === "TEACHER").length,
-    directors: users.filter((u) => u.role?.toUpperCase() === "DIRECTOR").length,
+    students: users.filter((u) => {
+      const role = u.role?.toUpperCase();
+      return role === "STUDENT";
+    }).length,
+    teachers: users.filter((u) => {
+      const role = u.role?.toUpperCase();
+      return role === "TEACHER";
+    }).length,
+    directors: users.filter((u) => {
+      const role = u.role?.toUpperCase();
+      return role === "DIRECTOR";
+    }).length,
     admins: users.filter((u) => {
       const role = u.role?.toUpperCase();
       return role === "ADMIN" || role === "SUPER_ADMIN";
@@ -124,7 +151,7 @@ export default function AdminUsersPage() {
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
             <Users className="h-8 w-8 text-blue-600" />
             사용자 관리
           </h1>
@@ -140,7 +167,7 @@ export default function AdminUsersPage() {
       {/* 통계 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card className={selectedRole === "ALL" ? "border-2 border-blue-500" : ""}>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               전체 사용자
             </CardTitle>
@@ -148,7 +175,7 @@ export default function AdminUsersPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-blue-600" />
-              <span className="text-2xl font-bold">{stats.total}명</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.total}명</span>
             </div>
             <Button
               variant={selectedRole === "ALL" ? "default" : "outline"}
@@ -162,7 +189,7 @@ export default function AdminUsersPage() {
         </Card>
 
         <Card className={selectedRole === "STUDENT" ? "border-2 border-blue-500" : ""}>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               학생
             </CardTitle>
@@ -170,7 +197,7 @@ export default function AdminUsersPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <GraduationCap className="w-4 h-4 text-blue-600" />
-              <span className="text-2xl font-bold">{stats.students}명</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.students}명</span>
             </div>
             <Button
               variant={selectedRole === "STUDENT" ? "default" : "outline"}
@@ -184,7 +211,7 @@ export default function AdminUsersPage() {
         </Card>
 
         <Card className={selectedRole === "TEACHER" ? "border-2 border-green-500" : ""}>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               선생님
             </CardTitle>
@@ -192,7 +219,7 @@ export default function AdminUsersPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <UserCheck className="w-4 h-4 text-green-600" />
-              <span className="text-2xl font-bold">{stats.teachers}명</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.teachers}명</span>
             </div>
             <Button
               variant={selectedRole === "TEACHER" ? "default" : "outline"}
@@ -206,7 +233,7 @@ export default function AdminUsersPage() {
         </Card>
 
         <Card className={selectedRole === "DIRECTOR" ? "border-2 border-purple-500" : ""}>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               학원장
             </CardTitle>
@@ -214,7 +241,7 @@ export default function AdminUsersPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-purple-600" />
-              <span className="text-2xl font-bold">{stats.directors}명</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.directors}명</span>
             </div>
             <Button
               variant={selectedRole === "DIRECTOR" ? "default" : "outline"}
@@ -228,7 +255,7 @@ export default function AdminUsersPage() {
         </Card>
 
         <Card className={selectedRole === "ADMIN" ? "border-2 border-red-500" : ""}>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               관리자
             </CardTitle>
@@ -236,7 +263,7 @@ export default function AdminUsersPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-red-600" />
-              <span className="text-2xl font-bold">{stats.admins}명</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.admins}명</span>
             </div>
             <Button
               variant={selectedRole === "ADMIN" ? "default" : "outline"}
@@ -252,7 +279,7 @@ export default function AdminUsersPage() {
 
       {/* 검색 */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 sm:pt-6 p-4 sm:p-6">
           <div className="flex gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -316,6 +343,13 @@ export default function AdminUsersPage() {
                         가입일: {new Date(user.createdAt).toLocaleDateString()}
                       </span>
                     </div>
+                    {user.role === 'STUDENT' && user.attendanceCode && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline" className="text-base font-mono bg-blue-50">
+                          출석코드: {user.attendanceCode}
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2">
