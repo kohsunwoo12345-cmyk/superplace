@@ -29,6 +29,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const url = new URL(context.request.url);
     const sessionId = url.searchParams.get("sessionId");
+    const userId = url.searchParams.get("userId"); // 사용자 확인용 (옵션)
 
     if (!sessionId) {
       return new Response(
@@ -50,6 +51,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // userId가 제공된 경우, 세션 소유자 확인
+    if (userId) {
+      const sessionCheck = await db
+        .prepare(`SELECT userId FROM chat_sessions WHERE id = ?`)
+        .bind(sessionId)
+        .first();
+      
+      if (sessionCheck && sessionCheck.userId !== userId) {
+        console.error(`⚠️ 권한 없음: 사용자 ${userId}가 세션 ${sessionId} 접근 시도`);
+        return new Response(
+          JSON.stringify({ success: false, message: "권한이 없습니다" }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     // 메시지 조회
     const result = await db

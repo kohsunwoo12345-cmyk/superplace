@@ -136,12 +136,13 @@ export default function ModernAIChatPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, [router]);
 
-  // user가 로드된 후 세션 로드
+  // user가 로드된 후 세션 로드 (봇 로드 후 실행)
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && bots.length > 0) {
+      console.log(`🔄 봇 로드 완료 (${bots.length}개) - 세션 로드 시작`);
       loadChatSessions();
     }
-  }, [user]);
+  }, [user, bots]);
 
   useEffect(() => {
     scrollToBottom();
@@ -229,6 +230,7 @@ export default function ModernAIChatPage() {
     if (!user?.id) return;
     
     try {
+      console.log(`📂 사용자(${user.id})의 채팅 세션 로드 중...`);
       const response = await fetch(`/api/chat-sessions?userId=${user.id}`);
       if (response.ok) {
         const data = await response.json();
@@ -238,9 +240,25 @@ export default function ModernAIChatPage() {
         }));
         setChatSessions(sessions);
         console.log(`✅ ${sessions.length}개 세션 로드됨`);
+        
+        // 마지막 세션 자동 로드
+        if (sessions.length > 0 && !currentSessionId) {
+          const lastSession = sessions[0]; // 가장 최근 세션
+          console.log(`🔄 마지막 세션 자동 로드: ${lastSession.id} (${lastSession.title})`);
+          await loadSession(lastSession.id);
+          
+          // 해당 세션의 봇 선택
+          if (lastSession.botId && bots.length > 0) {
+            const bot = bots.find(b => b.id === lastSession.botId);
+            if (bot) {
+              console.log(`🤖 세션의 봇 선택: ${bot.name}`);
+              setSelectedBot(bot);
+            }
+          }
+        }
       }
     } catch (error) {
-      console.error("세션 로드 실패:", error);
+      console.error("❌ 세션 로드 실패:", error);
     }
   };
 
@@ -304,20 +322,38 @@ export default function ModernAIChatPage() {
   };
 
   const loadSession = async (sessionId: string) => {
+    console.log(`📖 세션 로드 시작: ${sessionId}`);
     setCurrentSessionId(sessionId);
     
     try {
-      const response = await fetch(`/api/chat-messages?sessionId=${sessionId}`);
+      const url = `/api/chat-messages?sessionId=${sessionId}${user?.id ? `&userId=${user.id}` : ''}`;
+      console.log(`📡 메시지 조회 요청: ${url}`);
+      
+      const response = await fetch(url);
+      console.log(`📡 메시지 조회 응답: ${response.status}`);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log(`📦 메시지 데이터:`, data);
+        
         const msgs = (data.messages || []).map((m: any) => ({
           ...m,
           timestamp: new Date(m.createdAt),
         }));
+        
+        console.log(`✅ ${msgs.length}개 메시지 로드됨`);
         setMessages(msgs);
+      } else {
+        const errorData = await response.json();
+        console.error(`❌ 메시지 로드 실패: ${response.status}`, errorData);
+        
+        if (response.status === 403) {
+          alert("이 세션에 접근할 권한이 없습니다.");
+          setMessages([]);
+        }
       }
     } catch (error) {
-      console.error("메시지 로드 실패:", error);
+      console.error("❌ 메시지 로드 오류:", error);
     }
   };
 
