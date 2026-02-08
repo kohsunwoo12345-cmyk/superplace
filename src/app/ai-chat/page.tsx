@@ -293,7 +293,9 @@ export default function ModernAIChatPage() {
     if (!user?.id || !user?.academyId) return;
     
     try {
-      await fetch("/api/chat-sessions", {
+      console.log(`💾 세션 저장 시작:`, session);
+      
+      const response = await fetch("/api/chat-sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -305,9 +307,19 @@ export default function ModernAIChatPage() {
           lastMessage: session.lastMessage,
         }),
       });
-      // 로컬 상태 업데이트
-      const updatedSessions = [session, ...chatSessions.filter(s => s.id !== session.id)];
-      setChatSessions(updatedSessions);
+      
+      if (response.ok) {
+        console.log(`✅ 세션 저장 성공: ${session.id}`);
+        
+        // 로컬 상태 업데이트
+        const updatedSessions = [{ ...session, timestamp: new Date() }, ...chatSessions.filter(s => s.id !== session.id)];
+        setChatSessions(updatedSessions);
+        
+        // 세션 목록 새로고침
+        await loadChatSessions();
+      } else {
+        console.error(`❌ 세션 저장 실패: ${response.status}`);
+      }
     } catch (error) {
       console.error("세션 저장 실패:", error);
     }
@@ -351,6 +363,18 @@ export default function ModernAIChatPage() {
   const loadSession = async (sessionId: string) => {
     console.log(`📖 세션 로드 시작: ${sessionId}`);
     setCurrentSessionId(sessionId);
+    
+    // 세션의 봇 찾기 및 선택
+    const session = chatSessions.find(s => s.id === sessionId);
+    if (session && session.botId) {
+      const bot = bots.find(b => b.id === session.botId);
+      if (bot) {
+        console.log(`🤖 세션의 봇 선택: ${bot.name}`);
+        setSelectedBot(bot);
+      } else {
+        console.warn(`⚠️ 세션의 봇을 찾을 수 없음: ${session.botId}`);
+      }
+    }
     
     try {
       const url = `/api/chat-messages?sessionId=${sessionId}${user?.id ? `&userId=${user.id}` : ''}`;

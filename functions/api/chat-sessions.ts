@@ -123,26 +123,59 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       )
     `);
 
-    // 세션 생성
-    await db
-      .prepare(`
-        INSERT INTO chat_sessions (id, userId, academyId, botId, title, lastMessage, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-      `)
-      .bind(
-        data.id,
-        data.userId,
-        data.academyId,
-        data.botId,
-        data.title || "새로운 대화",
-        data.lastMessage || ""
-      )
-      .run();
+    // 세션 생성 또는 업데이트 (UPSERT)
+    console.log(`💾 세션 저장/업데이트: ${data.id}`);
+    
+    // 기존 세션 확인
+    const existingSession = await db
+      .prepare(`SELECT id FROM chat_sessions WHERE id = ?`)
+      .bind(data.id)
+      .first();
+    
+    if (existingSession) {
+      // 업데이트
+      console.log(`🔄 기존 세션 업데이트: ${data.id}`);
+      await db
+        .prepare(`
+          UPDATE chat_sessions 
+          SET title = ?, lastMessage = ?, botId = ?, updatedAt = datetime('now')
+          WHERE id = ?
+        `)
+        .bind(
+          data.title || "새로운 대화",
+          data.lastMessage || "",
+          data.botId,
+          data.id
+        )
+        .run();
+      
+      return new Response(
+        JSON.stringify({ success: true, message: "세션이 업데이트되었습니다", sessionId: data.id }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    } else {
+      // 새로 생성
+      console.log(`✨ 새 세션 생성: ${data.id}`);
+      await db
+        .prepare(`
+          INSERT INTO chat_sessions (id, userId, academyId, botId, title, lastMessage, createdAt, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `)
+        .bind(
+          data.id,
+          data.userId,
+          data.academyId,
+          data.botId,
+          data.title || "새로운 대화",
+          data.lastMessage || ""
+        )
+        .run();
 
-    return new Response(
-      JSON.stringify({ success: true, message: "세션이 생성되었습니다", sessionId: data.id }),
-      { status: 201, headers: { "Content-Type": "application/json" } }
-    );
+      return new Response(
+        JSON.stringify({ success: true, message: "세션이 생성되었습니다", sessionId: data.id }),
+        { status: 201, headers: { "Content-Type": "application/json" } }
+      );
+    }
   } catch (error: any) {
     console.error("세션 생성 오류:", error);
     return new Response(
