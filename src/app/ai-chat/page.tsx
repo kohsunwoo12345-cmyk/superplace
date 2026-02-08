@@ -539,23 +539,154 @@ export default function ModernAIChatPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 이미지 크기 확인 (5MB 제한)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("이미지 크기는 5MB 이하여야 합니다.");
+      return;
+    }
+
+    console.log(`📷 이미지 업로드: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+
     // 이미지를 base64로 변환
     const reader = new FileReader();
     reader.onload = async (event) => {
       const base64Image = event.target?.result as string;
       
-      const userMessage: Message = {
-        id: `user-${Date.now()}`,
-        role: "user",
-        content: "이미지를 업로드했습니다.",
-        imageUrl: base64Image,
+      // 입력창에 이미지 업로드 메시지 설정
+      setInput("이 이미지에 대해 설명해주세요.");
+      
+      // 파일 입력 초기화
+      if (e.target) {
+        e.target.value = '';
+      }
+      
+      console.log(`✅ 이미지 base64 변환 완료 (길이: ${base64Image.length})`);
+      
+      // 이미지와 함께 메시지 전송
+      await handleSendWithImage(base64Image);
+    };
+    
+    reader.onerror = (error) => {
+      console.error("❌ 이미지 읽기 실패:", error);
+      alert("이미지를 읽는 중 오류가 발생했습니다.");
+    };
+    
+    reader.readAsDataURL(file);
+  };
+
+  const handleSendWithImage = async (imageUrl: string) => {
+    if (!selectedBot) {
+      alert("봇을 먼저 선택해주세요.");
+      return;
+    }
+
+    const messageText = input.trim() || "이 이미지에 대해 설명해주세요.";
+    
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: messageText,
+      imageUrl: imageUrl,
+      timestamp: new Date(),
+    };
+
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    setInput("");
+    setLoading(true);
+
+    // 현재 세션이 없으면 새로 생성
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      sessionId = `session-${Date.now()}`;
+      const newSession: ChatSession = {
+        id: sessionId,
+        title: "이미지 분석",
+        lastMessage: messageText,
+        timestamp: new Date(),
+        botId: selectedBot.id,
+      };
+      await saveChatSession(newSession);
+      setCurrentSessionId(sessionId);
+    }
+
+    // 사용자 메시지 저장 (이미지 URL 포함)
+    await saveMessage(sessionId, userMessage);
+
+    try {
+      console.log('📤 이미지 포함 AI 챗봇 API 호출');
+      console.log('📦 요청 데이터:', {
+        message: messageText.substring(0, 50) + '...',
+        botId: selectedBot.id,
+        hasImage: true,
+        imageLength: imageUrl.length,
+      });
+      
+      const requestBody = {
+        message: messageText,
+        botId: selectedBot.id,
+        conversationHistory: messages.map(m => ({
+          role: m.role,
+          content: m.content,
+        })),
+        userId: user?.id,
+        sessionId: sessionId,
+        imageUrl: imageUrl, // ✅ 이미지 URL 포함
+      };
+      
+      console.log('📡 API 호출: POST /api/ai-chat (이미지 포함)');
+      
+      const response = await fetch("/api/ai-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('📡 API 응답 상태:', response.status, response.statusText);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ API 응답 성공:', {
+          success: data.success,
+          responseLength: data.response?.length,
+          responsePreview: data.response?.substring(0, 100)
+        });
+        
+        const assistantMessage: Message = {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: data.response || "응답을 생성할 수 없습니다.",
+          timestamp: new Date(),
+        };
+
+        const finalMessages = [...updatedMessages, assistantMessage];
+        setMessages(finalMessages);
+        
+        // AI 응답 저장
+        await saveMessage(sessionId, assistantMessage);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ API 응답 오류:', {
+          status: response.status,
+          errorData: errorData,
+        });
+        throw new Error(errorData.message || "AI 응답 실패");
+      }
+    } catch (error: any) {
+      console.error('❌ AI 채팅 오류:', error);
+      console.error('❌ 에러 메시지:', error.message);
+      
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: "assistant",
+        content: `죄송합니다. 이미지 분석 중 오류가 발생했습니다: ${error.message || "다시 시도해주세요."}`,
         timestamp: new Date(),
       };
-
-      setMessages([...messages, userMessage]);
-      // TODO: 이미지 분석 API 호출
-    };
-    reader.readAsDataURL(file);
+      const finalMessages = [...updatedMessages, errorMessage];
+      setMessages(finalMessages);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!user) {

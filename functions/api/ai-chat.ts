@@ -15,6 +15,7 @@ interface ChatRequest {
   }>;
   userId?: string;
   sessionId?: string;
+  imageUrl?: string; // ✅ 이미지 URL 추가
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -105,13 +106,49 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
     
-    // 현재 메시지
+    // 현재 메시지 (이미지 포함 가능)
+    const currentMessageParts: any[] = [];
+    
+    // 이미지가 있는 경우
+    if (data.imageUrl) {
+      console.log(`🖼️ 이미지 포함됨 (길이: ${data.imageUrl.length})`);
+      
+      // base64 이미지를 Gemini 형식으로 변환
+      // data:image/jpeg;base64,/9j/4AAQ... 형태를 분리
+      const base64Match = data.imageUrl.match(/^data:image\/(.*?);base64,(.*)$/);
+      
+      if (base64Match) {
+        const mimeType = `image/${base64Match[1]}`;
+        const base64Data = base64Match[2];
+        
+        console.log(`📷 이미지 타입: ${mimeType}`);
+        
+        // 텍스트 먼저 추가
+        currentMessageParts.push({ text: data.message });
+        
+        // 이미지 데이터 추가
+        currentMessageParts.push({
+          inline_data: {
+            mime_type: mimeType,
+            data: base64Data
+          }
+        });
+      } else {
+        console.warn("⚠️ 이미지 형식이 올바르지 않습니다. 텍스트만 전송합니다.");
+        currentMessageParts.push({ text: data.message });
+      }
+    } else {
+      // 텍스트만 있는 경우
+      currentMessageParts.push({ text: data.message });
+    }
+    
     contents.push({
       role: "user",
-      parts: [{ text: data.message }]
+      parts: currentMessageParts
     });
 
-    console.log(`📤 Gemini API 호출 중... (${contents.length}개 메시지)`);
+    console.log(`📤 Gemini API 호출 중... (${contents.length}개 메시지, 이미지: ${data.imageUrl ? '있음' : '없음'})`);
+
 
     const geminiResponse = await fetch(apiUrl, {
       method: "POST",
