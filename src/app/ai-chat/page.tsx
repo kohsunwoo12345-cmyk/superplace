@@ -138,11 +138,11 @@ export default function ModernAIChatPage() {
 
   // user가 로드된 후 세션 로드 (봇 로드 후 실행)
   useEffect(() => {
-    if (user?.id && bots.length > 0) {
+    if (user?.id && bots.length > 0 && chatSessions.length === 0) {
       console.log(`🔄 봇 로드 완료 (${bots.length}개) - 세션 로드 시작`);
       loadChatSessions();
     }
-  }, [user, bots]);
+  }, [user?.id, bots.length]);
 
   useEffect(() => {
     scrollToBottom();
@@ -227,38 +227,65 @@ export default function ModernAIChatPage() {
   };
 
   const loadChatSessions = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.warn('⚠️ user.id가 없어서 세션을 로드할 수 없습니다');
+      return;
+    }
     
     try {
       console.log(`📂 사용자(${user.id})의 채팅 세션 로드 중...`);
+      console.log(`📂 현재 상태: bots.length=${bots.length}, currentSessionId=${currentSessionId}`);
+      
       const response = await fetch(`/api/chat-sessions?userId=${user.id}`);
+      console.log(`📡 세션 API 응답: ${response.status}`);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log(`📦 세션 API 데이터:`, data);
+        
         const sessions = (data.sessions || []).map((s: any) => ({
           ...s,
           timestamp: new Date(s.updatedAt),
         }));
-        setChatSessions(sessions);
+        
         console.log(`✅ ${sessions.length}개 세션 로드됨`);
+        console.log(`📋 세션 목록:`, sessions.map(s => ({ id: s.id, title: s.title, botId: s.botId })));
+        
+        setChatSessions(sessions);
         
         // 마지막 세션 자동 로드
         if (sessions.length > 0 && !currentSessionId) {
           const lastSession = sessions[0]; // 가장 최근 세션
           console.log(`🔄 마지막 세션 자동 로드: ${lastSession.id} (${lastSession.title})`);
+          console.log(`🔄 세션 상세:`, lastSession);
+          
           await loadSession(lastSession.id);
           
           // 해당 세션의 봇 선택
           if (lastSession.botId && bots.length > 0) {
             const bot = bots.find(b => b.id === lastSession.botId);
+            console.log(`🔍 봇 검색: botId=${lastSession.botId}, 찾은 봇:`, bot);
+            
             if (bot) {
               console.log(`🤖 세션의 봇 선택: ${bot.name}`);
               setSelectedBot(bot);
+            } else {
+              console.warn(`⚠️ 세션의 봇을 찾을 수 없음: ${lastSession.botId}`);
             }
+          } else {
+            console.warn(`⚠️ 봇 목록이 비어있거나 botId가 없음: bots.length=${bots.length}, botId=${lastSession.botId}`);
           }
+        } else {
+          console.log(`ℹ️ 세션 자동 로드 건너뛰기: sessions.length=${sessions.length}, currentSessionId=${currentSessionId}`);
         }
+      } else {
+        console.error(`❌ 세션 로드 실패: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`❌ 에러 응답:`, errorText);
       }
     } catch (error) {
       console.error("❌ 세션 로드 실패:", error);
+      console.error("❌ 에러 스택:", (error as Error).stack);
     }
   };
 
