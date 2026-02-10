@@ -20,7 +20,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const {
       message,
       systemPrompt,
-      model = "gemini-1.5-pro",
+      model = "gemini-2.5-flash",
       temperature = 0.7,
       maxTokens = 2000,
       topK = 40,
@@ -38,7 +38,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // Gemini API 호출
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
 
     const requestBody = {
       contents: [

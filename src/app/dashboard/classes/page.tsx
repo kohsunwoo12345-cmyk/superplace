@@ -8,18 +8,52 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Users,
-  Plus,
-  Calendar,
   BookOpen,
   Loader2,
+  TrendingUp,
+  Calendar,
+  Target,
+  AlertCircle,
+  CheckCircle,
+  Plus,
   Search,
 } from "lucide-react";
 
+// 학생용 타입
+type ProgressAnalysis = {
+  currentProgress: string;
+  level: string;
+  mainTopics: string[];
+  nextExpected: string;
+  summary: string;
+  details: string;
+};
+
+type ClassProgressData = {
+  success: boolean;
+  hasClass: boolean;
+  hasData: boolean;
+  className?: string;
+  classGrade?: string;
+  classDescription?: string;
+  classmatesCount?: number;
+  homeworkCount?: number;
+  message?: string;
+  student: {
+    id: number;
+    name: string;
+    grade: string | null;
+  };
+  progressAnalysis?: ProgressAnalysis;
+};
+
+// 관리자/학원장용 타입
 type ClassData = {
   id: string;
   name: string;
   grade: string | null;
   description: string | null;
+  color?: string | null;
   capacity: number;
   isActive: boolean;
   students: Array<{
@@ -44,33 +78,112 @@ type ClassData = {
   };
 };
 
-export default function ClassManagementPage() {
+export default function ClassesPage() {
   const router = useRouter();
-  const [classes, setClasses] = useState<ClassData[]>([]);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // 학생용 상태
+  const [classData, setClassData] = useState<ClassProgressData | null>(null);
+
+  // 관리자/학원장용 상태
+  const [classes, setClasses] = useState<ClassData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    // localStorage에서 사용자 정보 확인
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
       router.push("/login");
       return;
     }
 
-    loadClasses();
+    try {
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+
+      const role = userData.role?.toUpperCase();
+      const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
+      const isDirector = role === "DIRECTOR";
+      const isStudent = role === "STUDENT";
+
+      if (isAdmin || isDirector) {
+        // 관리자/학원장: 클래스 목록 로드
+        loadClasses();
+      } else if (isStudent) {
+        // 학생: 진도 확인
+        loadClassProgress(userData.id);
+      } else {
+        // 선생님: 클래스 목록 로드
+        loadClasses();
+      }
+    } catch (error) {
+      console.error("사용자 정보 파싱 오류:", error);
+      router.push("/login");
+    }
   }, [router]);
 
+  // 학생용: 진도 로드
+  const loadClassProgress = async (userId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/dashboard/my-class-progress?userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📚 나의 반 데이터:', data);
+        setClassData(data);
+      } else {
+        console.error('반 진도 조회 실패:', response.status);
+      }
+    } catch (error) {
+      console.error("반 진도 로딩 오류:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 관리자/학원장용: 클래스 목록 로드
   const loadClasses = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/classes/manage");
+      
+      const storedUser = localStorage.getItem("user");
+      if (!storedUser) {
+        console.error('사용자 정보 없음');
+        setLoading(false);
+        return;
+      }
+
+      const userData = JSON.parse(storedUser);
+      const userId = userData.id || '';
+      const role = userData.role || '';
+      const academyId = userData.academyId || '';
+
+      console.log('📚 클래스 목록 로드:', { userId, role, academyId });
+
+      const params = new URLSearchParams({
+        userId: userId.toString(),
+        role: role,
+      });
+
+      if (academyId) {
+        params.append('academyId', academyId.toString());
+      }
+
+      const response = await fetch(`/api/classes/manage?${params.toString()}`);
+      
       if (response.ok) {
         const data = await response.json();
-        setClasses(data.classes);
+        console.log('✅ 클래스 데이터:', data);
+        setClasses(data.classes || []);
+      } else {
+        console.error('❌ 클래스 조회 실패:', response.status);
+        const errorData = await response.json();
+        console.error('❌ 오류 내용:', errorData);
+        setClasses([]);
       }
     } catch (error) {
       console.error("반 목록 로딩 오류:", error);
+      setClasses([]);
     } finally {
       setLoading(false);
     }
@@ -91,134 +204,106 @@ export default function ClassManagementPage() {
     );
   }
 
+  // 학생용 화면
+  if (user?.role?.toUpperCase() === "STUDENT") {
+    return <StudentClassView classData={classData} />;
+  }
+
+  // 관리자/학원장/선생님용 화면
   return (
     <div className="container mx-auto py-8 px-4">
       {/* 헤더 */}
-      <div className="mb-8 flex justify-between items-center">
+      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold mb-2">클래스 관리</h1>
+          <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2">클래스 관리</h1>
           <p className="text-gray-600">학원의 클래스를 관리합니다</p>
         </div>
-        <Button onClick={() => alert("클래스 추가 기능은 곧 추가됩니다.")}>
-          <Plus className="w-4 h-4 mr-2" />
-          클래스 추가
-        </Button>
-      </div>
-
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              전체 클래스
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-blue-600" />
-              <span className="text-2xl font-bold">{classes.length}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              전체 학생
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-green-600" />
-              <span className="text-2xl font-bold">
-                {classes.reduce((sum, cls) => sum + cls._count.students, 0)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              활성 클래스
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-purple-600" />
-              <span className="text-2xl font-bold">
-                {classes.filter((c) => c.isActive).length}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        {(user?.role?.toUpperCase() === "SUPER_ADMIN" || 
+          user?.role?.toUpperCase() === "ADMIN" ||
+          user?.role?.toUpperCase() === "DIRECTOR") && (
+          <Button
+            onClick={() => router.push("/dashboard/classes/add")}
+            className="w-full sm:w-auto"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            클래스 추가
+          </Button>
+        )}
       </div>
 
       {/* 검색 */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              type="text"
-              placeholder="클래스 이름으로 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="클래스 이름으로 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
 
       {/* 클래스 목록 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredClasses.map((cls) => (
-          <Card key={cls.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>{cls.name}</CardTitle>
-                  <CardDescription>{cls.grade || "모든 학년"}</CardDescription>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {filteredClasses.map((classItem) => (
+          <Card
+            key={classItem.id}
+            className="cursor-pointer hover:shadow-lg transition-shadow relative overflow-hidden"
+            onClick={() => {
+              const url = `/dashboard/classes/edit/?id=${classItem.id}`;
+              console.log('🔍 Navigating to:', url);
+              console.log('📝 Class ID:', classItem.id);
+              router.push(url);
+            }}
+          >
+            {/* 색상 바 */}
+            {classItem.color && (
+              <div 
+                className="absolute top-0 left-0 right-0 h-1.5"
+                style={{ backgroundColor: classItem.color }}
+              />
+            )}
+            <CardHeader className="pt-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 flex items-center gap-3">
+                  {/* 색상 인디케이터 */}
+                  {classItem.color && (
+                    <div 
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: classItem.color }}
+                    />
+                  )}
+                  <div className="flex-1">
+                    <CardTitle className="text-lg">{classItem.name}</CardTitle>
+                    <CardDescription className="mt-1">
+                      {classItem.grade || "학년 미지정"}
+                    </CardDescription>
+                  </div>
                 </div>
-                <Badge variant={cls.isActive ? "default" : "secondary"}>
-                  {cls.isActive ? "활성" : "비활성"}
+                <Badge variant={classItem.isActive ? "default" : "secondary"}>
+                  {classItem.isActive ? "활성" : "비활성"}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="w-4 h-4" />
-                    <span>학생 {cls._count.students}명</span>
+              <div className="space-y-3">
+                {classItem.description && (
+                  <p className="text-sm text-gray-600 line-clamp-2">
+                    {classItem.description}
+                  </p>
+                )}
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1 text-gray-600">
+                    <Users className="h-4 w-4" />
+                    <span>{classItem._count?.students || 0}명</span>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    정원 {cls.capacity}명
+                  <div className="flex items-center gap-1 text-gray-600">
+                    <BookOpen className="h-4 w-4" />
+                    <span>{classItem.schedules?.length || 0}개 수업</span>
                   </div>
                 </div>
-
-                {cls.schedules && cls.schedules.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium">수업 시간</div>
-                    {cls.schedules.slice(0, 2).map((schedule) => (
-                      <div key={schedule.id} className="flex items-center gap-2 text-sm text-gray-600">
-                        <Calendar className="w-4 h-4" />
-                        <span>
-                          {["일", "월", "화", "수", "목", "금", "토"][schedule.dayOfWeek]}{" "}
-                          {schedule.startTime} - {schedule.endTime}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
-                >
-                  자세히 보기
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -226,13 +311,232 @@ export default function ClassManagementPage() {
       </div>
 
       {filteredClasses.length === 0 && (
+        <div className="text-center py-12">
+          <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">클래스가 없습니다</h3>
+          <p className="text-gray-600 mb-6">
+            {searchQuery
+              ? "검색 결과가 없습니다"
+              : "새로운 클래스를 추가해보세요"}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 학생용 화면 컴포넌트
+function StudentClassView({ classData }: { classData: ClassProgressData | null }) {
+  const router = useRouter();
+
+  if (!classData) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">데이터를 불러올 수 없습니다</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 소속된 반이 없는 경우
+  if (!classData.hasClass) {
+    return (
+      <div className="container mx-auto py-8 px-4">
         <Card>
-          <CardContent className="py-12 text-center">
-            <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">검색 결과가 없습니다.</p>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-6 w-6" />
+              나의 반
+            </CardTitle>
+            <CardDescription>내가 속한 반의 진도를 확인합니다</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-12">
+              <AlertCircle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">소속된 반이 없습니다</h3>
+              <p className="text-gray-600 mb-6">
+                선생님께서 반에 배정해주시면 진도를 확인할 수 있습니다.
+              </p>
+              <div className="bg-blue-50 p-4 rounded-lg max-w-md mx-auto">
+                <p className="text-sm text-blue-800">
+                  💡 반 배정은 선생님께 문의해주세요
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // 반은 있지만 데이터가 없는 경우
+  if (!classData.hasData) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">나의 반</h1>
+          <p className="text-gray-600">우리 반의 현재 진도를 확인합니다</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-6 w-6" />
+              {classData.className}
+            </CardTitle>
+            <CardDescription>
+              {classData.classGrade && `${classData.classGrade} | `}
+              같은 반 학생 {classData.classmatesCount}명
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-12">
+              <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">아직 숙제 검사 데이터가 없습니다</h3>
+              <p className="text-gray-600 mb-6">
+                숙제를 제출하고 검사를 받으면 우리 반의 진도를 확인할 수 있습니다.
+              </p>
+              <div className="bg-blue-50 p-4 rounded-lg max-w-md mx-auto">
+                <p className="text-sm text-blue-800">
+                  💡 숙제를 꾸준히 제출하면 AI가 우리 반의 학습 진도를 분석해드립니다
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // 진도 데이터가 있는 경우
+  const analysis = classData.progressAnalysis!;
+  const levelColor = {
+    '상': 'text-green-600 bg-green-50',
+    '중': 'text-blue-600 bg-blue-50',
+    '하': 'text-orange-600 bg-orange-50'
+  }[analysis.level] || 'text-gray-600 bg-gray-50';
+
+  return (
+    <div className="container mx-auto py-8 px-4">
+      {/* 헤더 */}
+      <div className="mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">나의 반</h1>
+        <p className="text-gray-600">우리 반의 현재 학습 진도를 확인합니다</p>
+      </div>
+
+      {/* 반 정보 카드 */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-6 w-6" />
+            {classData.className}
+          </CardTitle>
+          <CardDescription>
+            {classData.classGrade && `${classData.classGrade} | `}
+            같은 반 학생 {classData.classmatesCount}명 · 최근 숙제 {classData.homeworkCount}건
+          </CardDescription>
+        </CardHeader>
+        {classData.classDescription && (
+          <CardContent>
+            <p className="text-sm text-gray-600">{classData.classDescription}</p>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* 현재 진도 */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-6 w-6" />
+            현재 진도
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className={levelColor}>
+                  학습 수준: {analysis.level}
+                </Badge>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">
+                {analysis.currentProgress}
+              </h3>
+              <p className="text-gray-600">
+                {analysis.summary}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 주요 학습 내용 */}
+      {analysis.mainTopics && analysis.mainTopics.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-6 w-6" />
+              주요 학습 내용
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3">
+              {analysis.mainTopics.map((topic, index) => (
+                <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-700">{topic}</span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
+
+      {/* 다음 예상 진도 */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-6 w-6" />
+            다음 예상 진도
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <p className="text-blue-900 font-medium">
+              {analysis.nextExpected}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 상세 분석 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-6 w-6" />
+            상세 분석
+          </CardTitle>
+          <CardDescription>
+            최근 30일간 우리 반 숙제 검사 데이터 기반
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="prose max-w-none">
+            <p className="text-gray-700 whitespace-pre-line">
+              {analysis.details}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 업데이트 안내 */}
+      <div className="mt-6 text-center text-sm text-gray-500">
+        <p>
+          💡 진도 정보는 우리 반 학생들의 숙제 제출 현황을 바탕으로 AI가 자동으로 분석합니다
+        </p>
+      </div>
     </div>
   );
 }

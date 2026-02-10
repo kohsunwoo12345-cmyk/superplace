@@ -15,17 +15,33 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 사용자 정보 조회 (포인트, 마지막 로그인 포함)
+    // 사용자 정보 조회 - lastLoginAt, lastLoginIp, student_code 포함
     const user = await DB.prepare(
       `SELECT 
-        id, email, name, phone, role, password, 
-        points, balance,
+        id, 
+        email, 
+        name, 
+        phone, 
+        role, 
+        password, 
+        points, 
+        balance,
         academy_id as academyId, 
         academy_name as academyName,
-        created_at as createdAt
+        created_at as createdAt,
+        lastLoginAt,
+        lastLoginIp,
+        student_code as studentCode
        FROM users 
        WHERE id = ?`
     ).bind(userId).first();
+
+    if (!user) {
+      return new Response(JSON.stringify({ error: "User not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     // 마지막 로그인 정보 조회
     let lastLogin = null;
@@ -42,19 +58,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log("Login logs table not found:", e);
     }
 
-    if (!user) {
-      return new Response(JSON.stringify({ error: "User not found" }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
     return new Response(
       JSON.stringify({ 
         user: {
           ...user,
-          lastLoginAt: lastLogin?.loginAt || null,
-          lastLoginIp: lastLogin?.ip || null
+          // user 테이블의 lastLoginAt, lastLoginIp 사용
+          // 로그 테이블에서 가져온 값은 참고용으로만 사용
+          lastLoginAt: user.lastLoginAt || lastLogin?.loginAt || null,
+          lastLoginIp: user.lastLoginIp || lastLogin?.ip || null
         }
       }),
       {

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>출석 & 숙제 제출 테스트</title>
+  <style>
+    body { font-family: Arial; padding: 20px; max-width: 800px; margin: 0 auto; }
+    h1, h2 { color: #333; }
+    .step { 
+      margin: 20px 0; 
+      padding: 15px; 
+      border: 2px solid #ddd; 
+      border-radius: 8px;
+      background: #f9f9f9;
+    }
+    .step.active { border-color: #4CAF50; background: #e8f5e9; }
+    .step.done { border-color: #2196F3; background: #e3f2fd; }
+    button { 
+      padding: 12px 24px; 
+      margin: 10px 5px 0 0;
+      font-size: 16px; 
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      background: #4CAF50;
+      color: white;
+    }
+    button:hover { background: #45a049; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    input { 
+      padding: 10px; 
+      margin: 10px 0;
+      font-size: 16px;
+      width: 200px;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+    }
+    video { 
+      width: 100%; 
+      max-width: 600px; 
+      border: 3px solid #333; 
+      border-radius: 8px;
+      background: #000;
+    }
+    .log { 
+      background: #f0f0f0; 
+      padding: 8px; 
+      margin: 5px 0; 
+      border-left: 4px solid #4CAF50;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+    }
+    .log.error { border-left-color: #f44336; color: #c62828; }
+    .log.success { border-left-color: #4CAF50; color: #2e7d32; }
+    .log.info { border-left-color: #2196F3; color: #1565c0; }
+    #logs { max-height: 400px; overflow-y: auto; margin-top: 20px; }
+    .image-preview { 
+      max-width: 200px; 
+      margin: 10px;
+      border: 2px solid #4CAF50;
+      border-radius: 5px;
+    }
+    .result { 
+      padding: 15px; 
+      margin: 10px 0;
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 8px;
+    }
+    #cameraStatus {
+      padding: 10px;
+      margin: 10px 0;
+      font-weight: bold;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 출석 & 숙제 제출 전체 플로우 테스트</h1>
+  
+  <div id="step1" class="step active">
+    <h2>1단계: 출석 코드 인증</h2>
+    <input type="text" id="attendanceCode" placeholder="6자리 코드" maxlength="6" />
+    <button onclick="verifyAttendance()">출석 인증</button>
+    <div id="attendanceResult"></div>
+  </div>
+
+  <div id="step2" class="step">
+    <h2>2단계: 카메라 테스트 (1초 내 활성화)</h2>
+    <button onclick="testCamera()">카메라 시작</button>
+    <button onclick="stopCamera()">카메라 중지</button>
+    <div id="cameraStatus"></div>
+    <video id="video" autoplay playsinline muted style="display:none; margin-top: 10px;"></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+  </div>
+
+  <div id="step3" class="step">
+    <h2>3단계: 사진 촬영 (여러 장 가능)</h2>
+    <button onclick="capturePhoto()" id="captureBtn" disabled>사진 촬영</button>
+    <button onclick="clearPhotos()">모두 삭제</button>
+    <div id="photoCount" style="margin: 10px 0; font-weight: bold;"></div>
+    <div id="photos"></div>
+  </div>
+
+  <div id="step4" class="step">
+    <h2>4단계: 숙제 제출 & AI 채점</h2>
+    <button onclick="submitHomework()" id="submitBtn" disabled>숙제 제출 및 채점</button>
+    <div id="gradingResult"></div>
+  </div>
+
+  <div id="logs"></div>
+
+  <script>
+    let stream = null;
+    let capturedPhotos = [];
+    let userId = null;
+    let userName = null;
+    let attendanceCode = null;
+    let cameraReadyTime = 0;
+
+    const BASE_URL = 'https://genspark-ai-developer.superplacestudy.pages.dev';
+
+    function log(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `log ${type}`;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      document.getElementById('logs').insertBefore(div, document.getElementById('logs').firstChild);
+      console.log(message);
+    }
+
+    async function verifyAttendance() {
+      const code = document.getElementById('attendanceCode').value.trim();
+      if (!code || code.length !== 6) {
+        alert('6자리 출석 코드를 입력하세요');
+        return;
+      }
+
+      log('📤 출석 인증 요청...', 'info');
+      
+      try {
+        const response = await fetch(`${BASE_URL}/api/attendance/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+
+        const data = await response.json();
+        log(`응답: ${JSON.stringify(data)}`, 'info');
+
+        if (response.ok && data.success) {
+          userId = data.student.id;
+          userName = data.student.name;
+          attendanceCode = code;
+          
+          log(`✅ 출석 인증 성공! 학생: ${userName}`, 'success');
+          document.getElementById('attendanceResult').innerHTML = 
+            `<div class="result">✅ ${userName}님 출석 완료 (${data.attendance.status})</div>`;
+          
+          document.getElementById('step1').classList.remove('active');
+          document.getElementById('step1').classList.add('done');
+          document.getElementById('step2').classList.add('active');
+        } else {
+          log(`❌ 출석 인증 실패: ${data.error || data.message}`, 'error');
+          alert(data.message || data.error || '출석 인증 실패');
+        }
+      } catch (err) {
+        log(`❌ 오류: ${err.message}`, 'error');
+        alert('출석 인증 중 오류 발생');
+      }
+    }
+
+    async function testCamera() {
+      log('📸 카메라 시작...', 'info');
+      const startTime = Date.now();
+      
+      try {
+        const statusDiv = document.getElementById('cameraStatus');
+        statusDiv.textContent = '⏳ 카메라 권한 요청 중...';
+        statusDiv.style.background = '#fff3cd';
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: 1280, height: 720 }
+        });
+        
+        log('✅ 스트림 획득 완료', 'success');
+
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+        video.style.display = 'block';
+        
+        await video.play();
+
+        // 준비 상태 체크
+        const checkReady = () => {
+          if (video.videoWidth > 0) {
+            cameraReadyTime = Date.now() - startTime;
+            log(`✅ 카메라 준비 완료! (${cameraReadyTime}ms)`, 'success');
+            
+            statusDiv.textContent = `✅ 카메라 활성화 완료 (${cameraReadyTime}ms)`;
+            statusDiv.style.background = '#d4edda';
+            
+            document.getElementById('captureBtn').disabled = false;
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step2').classList.add('done');
+            document.getElementById('step3').classList.add('active');
+            
+            if (cameraReadyTime > 1000) {
+              log(`⚠️ 경고: 1초 초과 (${cameraReadyTime}ms)`, 'error');
+            }
+            return true;
+          }
+          return false;
+        };
+
+        // 즉시 체크
+        if (checkReady()) return;
+
+        // 100ms마다 체크 (최대 20번 = 2초)
+        let attempts = 0;
+        const interval = setInterval(() => {
+          attempts++;
+          if (checkReady() || attempts >= 20) {
+            clearInterval(interval);
+            if (attempts >= 20) {
+              log('⚠️ 2초 경과, 강제 활성화', 'error');
+              document.getElementById('captureBtn').disabled = false;
+              statusDiv.textContent = '⚠️ 카메라 준비 지연 (강제 활성화)';
+              statusDiv.style.background = '#f8d7da';
+            }
+          }
+        }, 100);
+
+      } catch (err) {
+        log(`❌ 카메라 오류: ${err.name} - ${err.message}`, 'error');
+        document.getElementById('cameraStatus').textContent = `❌ 오류: ${err.message}`;
+        document.getElementById('cameraStatus').style.background = '#f8d7da';
+      }
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+        document.getElementById('video').style.display = 'none';
+        document.getElementById('cameraStatus').textContent = '카메라 중지됨';
+        log('🛑 카메라 중지', 'info');
+      }
+    }
+
+    function capturePhoto() {
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      
+      const photo = canvas.toDataURL('image/jpeg', 0.8);
+      capturedPhotos.push(photo);
+      
+      log(`📷 사진 촬영 완료 (${capturedPhotos.length}장)`, 'success');
+      
+      updatePhotoDisplay();
+    }
+
+    function updatePhotoDisplay() {
+      const photosDiv = document.getElementById('photos');
+      photosDiv.innerHTML = capturedPhotos.map((photo, i) => 
+        `<img src="${photo}" class="image-preview" alt="사진 ${i+1}" />`
+      ).join('');
+      
+      document.getElementById('photoCount').textContent = 
+        `촬영한 사진: ${capturedPhotos.length}장`;
+      
+      document.getElementById('submitBtn').disabled = capturedPhotos.length === 0;
+      
+      if (capturedPhotos.length > 0) {
+        document.getElementById('step3').classList.remove('active');
+        document.getElementById('step3').classList.add('done');
+        document.getElementById('step4').classList.add('active');
+      }
+    }
+
+    function clearPhotos() {
+      capturedPhotos = [];
+      updatePhotoDisplay();
+      log('🗑️ 모든 사진 삭제', 'info');
+    }
+
+    async function submitHomework() {
+      if (!userId) {
+        alert('먼저 출석 인증을 해주세요');
+        return;
+      }
+
+      if (capturedPhotos.length === 0) {
+        alert('최소 1장의 사진을 촬영해주세요');
+        return;
+      }
+
+      log(`📤 숙제 제출 시작 (${capturedPhotos.length}장)...`, 'info');
+      document.getElementById('submitBtn').disabled = true;
+      document.getElementById('submitBtn').textContent = '채점 중...';
+
+      try {
+        const response = await fetch(`${BASE_URL}/api/homework/grade`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            code: attendanceCode,
+            images: capturedPhotos
+          })
+        });
+
+        const data = await response.json();
+        log(`채점 응답: ${JSON.stringify(data)}`, 'info');
+
+        if (response.ok) {
+          log(`✅ 채점 완료! 점수: ${data.grading.score}점`, 'success');
+          
+          document.getElementById('gradingResult').innerHTML = `
+            <div class="result">
+              <h3>📊 채점 결과</h3>
+              <p><strong>점수:</strong> ${data.grading.score}점 / 100점</p>
+              <p><strong>정답 수:</strong> ${data.grading.correctAnswers || 0} / ${data.grading.totalQuestions || 0}</p>
+              <p><strong>피드백:</strong> ${data.grading.feedback}</p>
+              <p><strong>강점:</strong> ${data.grading.strengths}</p>
+              <p><strong>개선사항:</strong> ${data.grading.suggestions}</p>
+              ${data.grading.weaknessTypes && data.grading.weaknessTypes.length > 0 ? 
+                `<p><strong>약점 유형:</strong> ${data.grading.weaknessTypes.join(', ')}</p>` : ''}
+            </div>
+          `;
+
+          document.getElementById('step4').classList.remove('active');
+          document.getElementById('step4').classList.add('done');
+          
+          log('✅ 전체 플로우 테스트 완료!', 'success');
+        } else {
+          log(`❌ 채점 실패: ${data.error}`, 'error');
+          alert('채점 실패: ' + data.error);
+        }
+      } catch (err) {
+        log(`❌ 오류: ${err.message}`, 'error');
+        alert('숙제 제출 중 오류 발생');
+      } finally {
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('submitBtn').textContent = '숙제 제출 및 채점';
+      }
+    }
+
+    log('📱 테스트 페이지 로드 완료', 'success');
+    log('ℹ️ 1단계부터 차례대로 진행하세요', 'info');
+  </script>
+</body>
+</html>

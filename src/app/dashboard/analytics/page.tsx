@@ -76,20 +76,20 @@ export default function AnalyticsPage() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">분석</h1>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2">분석</h1>
         <p className="text-gray-600">학습 데이터와 성과를 분석합니다</p>
       </div>
 
       {/* 메인 통계 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 sm:mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">전체 학생</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalStudents}</div>
+            <div className="text-xl sm:text-2xl font-bold">{stats.totalStudents}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600">+{stats.monthlyGrowth}%</span> 지난 달 대비
             </p>
@@ -102,7 +102,7 @@ export default function AnalyticsPage() {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalClasses}</div>
+            <div className="text-xl sm:text-2xl font-bold">{stats.totalClasses}</div>
             <p className="text-xs text-muted-foreground">활성 클래스</p>
           </CardContent>
         </Card>
@@ -113,7 +113,7 @@ export default function AnalyticsPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalAssignments}</div>
+            <div className="text-xl sm:text-2xl font-bold">{stats.totalAssignments}</div>
             <p className="text-xs text-muted-foreground">이번 학기</p>
           </CardContent>
         </Card>
@@ -124,7 +124,7 @@ export default function AnalyticsPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.averageAttendance}%</div>
+            <div className="text-xl sm:text-2xl font-bold">{stats.averageAttendance}%</div>
             <p className="text-xs text-muted-foreground">지난 30일</p>
           </CardContent>
         </Card>
@@ -135,7 +135,7 @@ export default function AnalyticsPage() {
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.completionRate}%</div>
+            <div className="text-xl sm:text-2xl font-bold">{stats.completionRate}%</div>
             <p className="text-xs text-muted-foreground">전체 평균</p>
           </CardContent>
         </Card>
@@ -146,14 +146,14 @@ export default function AnalyticsPage() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">+{stats.monthlyGrowth}%</div>
+            <div className="text-xl sm:text-2xl font-bold text-green-600">+{stats.monthlyGrowth}%</div>
             <p className="text-xs text-muted-foreground">지난 달 대비</p>
           </CardContent>
         </Card>
       </div>
 
       {/* 차트 섹션 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>월별 출석 현황</CardTitle>

@@ -35,19 +35,19 @@ export default function ForgotPasswordPage() {
       <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-pink-200 rounded-full opacity-20 blur-xl"></div>
 
       <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2 mb-6">
-            <GraduationCap className="h-10 w-10 text-primary" />
-            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <div className="text-center mb-6 sm:mb-8">
+          <Link href="/" className="inline-flex items-center space-x-2 mb-4 sm:mb-6">
+            <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
+            <span className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               SUPER PLACE
             </span>
           </Link>
-          <h1 className="text-2xl font-bold mb-2">비밀번호 찾기</h1>
+          <h1 className="text-xl sm:text-2xl font-bold mb-2">비밀번호 찾기</h1>
           <p className="text-gray-600">등록된 이메일로 비밀번호 재설정 링크를 보내드립니다</p>
         </div>
 
         <Card className="border-2 border-blue-100 shadow-2xl">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 space-y-3">
+          <CardHeader className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-purple-50 space-y-3">
             <div className="flex justify-center">
               <div className="p-3 bg-white rounded-full shadow-md">
                 <Mail className="h-8 w-8 text-blue-600" />
@@ -58,9 +58,9 @@ export default function ForgotPasswordPage() {
               가입하신 이메일 주소를 입력해주세요
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 sm:pt-6 p-4 sm:p-6">
             {!success ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
                 {error && (
                   <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm flex items-start gap-2">
                     <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
@@ -99,7 +99,7 @@ export default function ForgotPasswordPage() {
                 </div>
               </form>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div className="bg-green-50 text-green-700 px-4 py-3 rounded-md flex items-start gap-2">
                   <CheckCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
                   <div>

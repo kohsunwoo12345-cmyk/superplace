@@ -139,7 +139,7 @@ export default function TeachersManagementPage() {
       {/* 헤더 */}
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold mb-2">선생님 관리</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">선생님 관리</h1>
           <p className="text-gray-600">학원 소속 선생님을 관리합니다</p>
         </div>
         <Button onClick={() => alert("선생님 추가 기능은 곧 추가됩니다.")}>
@@ -151,7 +151,7 @@ export default function TeachersManagementPage() {
       {/* 통계 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               전체 선생님
             </CardTitle>
@@ -159,13 +159,13 @@ export default function TeachersManagementPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <UserCheck className="w-4 h-4 text-blue-600" />
-              <span className="text-2xl font-bold">{stats.total}</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.total}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               승인됨
             </CardTitle>
@@ -173,13 +173,13 @@ export default function TeachersManagementPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-600" />
-              <span className="text-2xl font-bold">{stats.approved}</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.approved}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
               승인 대기
             </CardTitle>
@@ -187,7 +187,7 @@ export default function TeachersManagementPage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-yellow-600" />
-              <span className="text-2xl font-bold">{stats.pending}</span>
+              <span className="text-xl sm:text-2xl font-bold">{stats.pending}</span>
             </div>
           </CardContent>
         </Card>
@@ -195,7 +195,7 @@ export default function TeachersManagementPage() {
 
       {/* 검색 및 필터 */}
       <Card className="mb-6">
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 sm:pt-6 p-4 sm:p-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -231,7 +231,7 @@ export default function TeachersManagementPage() {
       <div className="grid grid-cols-1 gap-4">
         {filteredTeachers.map((teacher) => (
           <Card key={teacher.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 sm:pt-6 p-4 sm:p-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
