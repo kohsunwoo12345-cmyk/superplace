@@ -163,10 +163,24 @@ ${homeworkAnalysisText}
 5. 한국어로 작성하세요`;
 
     // 4. Gemini API 호출
-    const geminiApiKey = GOOGLE_GEMINI_API_KEY || 'AIzaSyDSKFT7gvtwYe01z0JWqFDz3PHSxZiKyoE';
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`;
+    const geminiApiKey = GOOGLE_GEMINI_API_KEY;
+    
+    if (!geminiApiKey) {
+      console.error('❌ GOOGLE_GEMINI_API_KEY not configured');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'GOOGLE_GEMINI_API_KEY environment variable not configured. Please set it in Cloudflare dashboard.'
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Use stable gemini-1.5-flash instead of experimental model
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
 
     console.log('🔄 Calling Gemini API for homework-based weak concept analysis...');
+    console.log(`📍 Using endpoint: gemini-1.5-flash`);
     
     const geminiResponse = await fetch(geminiEndpoint, {
       method: 'POST',
