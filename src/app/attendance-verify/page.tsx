@@ -303,8 +303,44 @@ export default function AttendanceVerifyPage() {
         const reader = new FileReader();
         reader.onload = (event) => {
           const result = event.target?.result as string;
-          setCapturedImages(prev => [...prev, result]);
-          console.log("📁 파일 업로드 완료, 크기:", result.length);
+          
+          // 이미지 압축
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (ctx) {
+              // 640px로 리사이즈
+              const maxWidth = 640;
+              const scale = Math.min(1, maxWidth / img.width);
+              canvas.width = img.width * scale;
+              canvas.height = img.height * scale;
+              
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              // 반복 압축
+              let compressed = canvas.toDataURL('image/jpeg', 0.5);
+              let attempts = 0;
+              
+              while (compressed.length > 1024 * 1024 && attempts < 5) {
+                attempts++;
+                const quality = Math.max(0.3, 0.5 - (attempts * 0.1));
+                compressed = canvas.toDataURL('image/jpeg', quality);
+                console.log(`🔄 압축 시도 ${attempts}: ${(compressed.length / 1024 / 1024).toFixed(2)}MB`);
+              }
+              
+              console.log(`✅ 파일 업로드 완료, 압축 후 크기: ${(compressed.length / 1024 / 1024).toFixed(2)}MB`);
+              
+              if (compressed.length > 1024 * 1024) {
+                alert(`${file.name}이(가) 너무 큽니다 (${(compressed.length / 1024 / 1024).toFixed(2)}MB). 1MB 이하로 압축할 수 없습니다.`);
+                return;
+              }
+              
+              setCapturedImages(prev => [...prev, compressed]);
+            }
+          };
+          img.src = result;
         };
         reader.readAsDataURL(file);
       });
