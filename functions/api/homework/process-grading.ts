@@ -101,6 +101,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const kstDate = new Date(now.getTime() + kstOffset * 60 * 1000);
     const kstTimestamp = kstDate.toISOString().replace('T', ' ').substring(0, 19);
 
+    // strengths와 suggestions를 문자열로 변환 (배열이면 JSON.stringify, 문자열이면 그대로)
+    const strengthsStr = Array.isArray(gradingResult.strengths)
+      ? gradingResult.strengths.join(', ')
+      : (typeof gradingResult.strengths === 'string' ? gradingResult.strengths : '');
+    
+    const suggestionsStr = Array.isArray(gradingResult.suggestions)
+      ? gradingResult.suggestions.join(', ')
+      : (typeof gradingResult.suggestions === 'string' ? gradingResult.suggestions : '');
+
     await DB.prepare(`
       INSERT INTO homework_gradings_v2 (
         id, submissionId, score, feedback, strengths, suggestions,
@@ -114,8 +123,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       submissionId,
       gradingResult.score,
       gradingResult.feedback,
-      gradingResult.strengths,
-      gradingResult.suggestions,
+      strengthsStr,
+      suggestionsStr,
       gradingResult.subject,
       gradingResult.completion,
       imageArray.length,
