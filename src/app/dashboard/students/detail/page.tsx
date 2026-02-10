@@ -1265,7 +1265,7 @@ function StudentDetailContent() {
                   </div>
                   <Button
                     onClick={analyzeWeakConcepts}
-                    disabled={conceptAnalyzingLoading || chatHistory.length === 0}
+                    disabled={conceptAnalyzingLoading || homeworkSubmissions.length === 0}
                   >
                     {conceptAnalyzingLoading ? (
                       <>
