@@ -24,6 +24,14 @@ export default function AttendanceVerifyPage() {
   const [videoReady, setVideoReady] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  // 빌드 버전 표시
+  const BUILD_VERSION = '2026-02-11-auto-grading-v3';
+  
+  useEffect(() => {
+    console.log('🔧 빌드 버전:', BUILD_VERSION);
+    console.log('📅 페이지 로드:', new Date().toLocaleString('ko-KR'));
+  }, []);
+
   // 컴포넌트 언마운트 시 카메라 정리
   useEffect(() => {
     return () => {
