@@ -396,6 +396,27 @@ export default function AttendanceVerifyPage() {
 
       if (response.ok && data.success) {
         console.log("✅ 제출 성공!");
+        
+        const submissionId = data.submission?.id;
+        console.log("📋 제출 ID:", submissionId);
+        
+        // 즉시 채점 API 호출 (백그라운드가 아닌 명시적 호출)
+        if (submissionId) {
+          console.log("🚀 채점 API 호출 시작...");
+          fetch("/api/homework/process-grading", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ submissionId })
+          }).then(gradingRes => {
+            console.log("📊 채점 응답:", gradingRes.status);
+            return gradingRes.json();
+          }).then(gradingData => {
+            console.log("✅ 채점 결과:", gradingData);
+          }).catch(gradingErr => {
+            console.error("❌ 채점 오류:", gradingErr);
+          });
+        }
+        
         // 제출 완료 상태로 업데이트
         setStudentInfo({
           ...studentInfo,

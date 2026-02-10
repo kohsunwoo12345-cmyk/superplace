@@ -113,31 +113,28 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ 숙제 제출 완료: ${submissionId}, 이미지 ${imageArray.length}장 저장`);
 
-    // 6. 백그라운드 채점 시작 (여러 방법으로 시도)
+    // 6. 백그라운드 채점 강제 시작 (즉시 실행, 응답 대기 없음)
     const gradingUrl = `${new URL(context.request.url).origin}/api/homework/process-grading`;
     
-    // 방법 1: context.waitUntil (Cloudflare Workers API)
-    const gradingPromise = fetch(gradingUrl, {
+    console.log(`🚀 채점 API 호출 시작: ${gradingUrl}`);
+    console.log(`📋 채점 대상: ${submissionId}`);
+    
+    // Cloudflare Pages Functions는 context.waitUntil을 지원하지 않을 수 있으므로
+    // 채점을 즉시 시작하지만 응답은 기다리지 않음
+    fetch(gradingUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ submissionId })
     }).then(res => {
-      console.log(`📊 채점 API 호출 완료: ${res.status}`);
+      console.log(`📊 채점 API 응답: ${res.status}`);
       return res.json();
     }).then(data => {
-      console.log(`✅ 채점 결과:`, data);
+      console.log(`✅ 채점 완료:`, data);
     }).catch(err => {
-      console.error('❌ 백그라운드 채점 오류:', err);
+      console.error('❌ 백그라운드 채점 오류:', err.message);
     });
     
-    if (context.waitUntil) {
-      context.waitUntil(gradingPromise);
-      console.log('🔄 백그라운드 채점 시작 (waitUntil)');
-    } else {
-      // 방법 2: 응답 전에 채점 시작 (fallback)
-      gradingPromise;
-      console.log('🔄 백그라운드 채점 시작 (promise)');
-    }
+    console.log('🔄 채점 프로세스가 백그라운드에서 시작되었습니다');
 
     // 7. 즉시 응답 반환
     return new Response(
