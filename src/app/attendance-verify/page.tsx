@@ -400,21 +400,41 @@ export default function AttendanceVerifyPage() {
         const submissionId = data.submission?.id;
         console.log("📋 제출 ID:", submissionId);
         
-        // 즉시 채점 API 호출 (백그라운드가 아닌 명시적 호출)
-        if (submissionId) {
-          console.log("🚀 채점 API 호출 시작...");
-          fetch("/api/homework/process-grading", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ submissionId })
-          }).then(gradingRes => {
+        // 채점 트리거 함수 (재시도 로직 포함)
+        const triggerGrading = async (id: string, retryCount = 0) => {
+          console.log(`🚀 채점 API 호출 시작... (시도 ${retryCount + 1}/3)`);
+          
+          // 첫 시도는 3초 대기, 재시도는 5초 대기
+          await new Promise(resolve => setTimeout(resolve, retryCount === 0 ? 3000 : 5000));
+          
+          try {
+            const gradingRes = await fetch("/api/homework/process-grading", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ submissionId: id })
+            });
+            
             console.log("📊 채점 응답:", gradingRes.status);
-            return gradingRes.json();
-          }).then(gradingData => {
+            const gradingData = await gradingRes.json();
             console.log("✅ 채점 결과:", gradingData);
-          }).catch(gradingErr => {
-            console.error("❌ 채점 오류:", gradingErr);
-          });
+            
+            if (!gradingData.success && retryCount < 2) {
+              // 실패 시 최대 2번 재시도
+              console.log(`⚠️ 채점 실패, ${3 - retryCount}초 후 재시도...`);
+              triggerGrading(id, retryCount + 1);
+            }
+          } catch (gradingErr: any) {
+            console.error("❌ 채점 오류:", gradingErr.message);
+            if (retryCount < 2) {
+              console.log(`⚠️ 오류 발생, ${3 - retryCount}초 후 재시도...`);
+              triggerGrading(id, retryCount + 1);
+            }
+          }
+        };
+        
+        // 즉시 채점 트리거 (비동기, 응답 대기 안함)
+        if (submissionId) {
+          triggerGrading(submissionId);
         }
         
         // 제출 완료 상태로 업데이트

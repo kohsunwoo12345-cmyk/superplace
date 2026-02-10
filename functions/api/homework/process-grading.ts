@@ -32,23 +32,63 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`🔍 채점 시작: ${submissionId}`);
 
-    // 1. 제출 정보 조회
+    // 1. 중복 채점 방지: 이미 채점이 존재하는지 확인
+    const existingGrading = await DB.prepare(`
+      SELECT id, score, subject
+      FROM homework_gradings_v2
+      WHERE submissionId = ?
+      LIMIT 1
+    `).bind(submissionId).first();
+
+    if (existingGrading) {
+      console.log(`✅ 이미 채점 완료: ${submissionId} (점수: ${existingGrading.score})`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "이미 채점이 완료되었습니다",
+          grading: {
+            id: existingGrading.id,
+            score: existingGrading.score,
+            subject: existingGrading.subject
+          }
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // 2. 제출 정보 조회
     const submission = await DB.prepare(`
       SELECT s.id, s.userId, s.imageUrl, s.code, s.academyId, u.name, u.email
       FROM homework_submissions_v2 s
       JOIN users u ON s.userId = u.id
-      WHERE s.id = ? AND s.status = 'pending'
+      WHERE s.id = ?
     `).bind(submissionId).first();
 
     if (!submission) {
-      console.log(`⚠️ 제출 정보 없음 또는 이미 처리됨: ${submissionId}`);
+      console.log(`⚠️ 제출 정보 없음: ${submissionId}`);
       return new Response(
-        JSON.stringify({ error: "Submission not found or already processed" }),
+        JSON.stringify({ error: "Submission not found" }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // 2. 이미지를 별도 테이블에서 조회
+    // 제출 상태가 이미 graded인 경우 (중복 호출 방지)
+    const submissionStatus = await DB.prepare(`
+      SELECT status FROM homework_submissions_v2 WHERE id = ?
+    `).bind(submissionId).first();
+
+    if (submissionStatus && submissionStatus.status === 'graded') {
+      console.log(`⚠️ 이미 채점 완료된 제출: ${submissionId}`);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "이미 채점이 완료되었습니다 (상태: graded)" 
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // 3. 이미지를 별도 테이블에서 조회
     const images = await DB.prepare(`
       SELECT imageData
       FROM homework_images
@@ -67,10 +107,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const imageArray = images.results.map((img: any) => img.imageData);
     console.log(`📚 채점할 이미지 수: ${imageArray.length}장`);
 
-    // 3. Gemini AI 채점 수행
+    // 4. Gemini AI 채점 수행
     const gradingResult = await performGrading(imageArray, GOOGLE_GEMINI_API_KEY);
 
-    // 4. homework_gradings_v2 테이블 생성
+    // 5. homework_gradings_v2 테이블 생성
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_gradings_v2 (
         id TEXT PRIMARY KEY,
