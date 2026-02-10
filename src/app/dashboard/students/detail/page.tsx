@@ -356,27 +356,219 @@ function StudentDetailContent() {
               <html>
               <head>
                 <title>${student?.name}님 맞춤 유사문제</title>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                  body { font-family: sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-                  h1 { color: #2563eb; }
-                  .problem { margin: 30px 0; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; }
-                  .problem h3 { color: #1f2937; margin-top: 0; }
-                  .problem pre { background: #f3f4f6; padding: 15px; border-radius: 4px; overflow-x: auto; }
-                  .weakness-type { display: inline-block; background: #fef3c7; color: #92400e; padding: 4px 12px; border-radius: 12px; margin: 4px; font-size: 14px; }
-                  .print-btn { background: #2563eb; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 20px 0; }
-                  .print-btn:hover { background: #1d4ed8; }
-                  @media print { .print-btn { display: none; } }
+                  * { box-sizing: border-box; }
+                  body { 
+                    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif; 
+                    padding: 40px; 
+                    max-width: 1000px; 
+                    margin: 0 auto; 
+                    background: #f9fafb;
+                    line-height: 1.6;
+                  }
+                  h1 { 
+                    color: #1e40af; 
+                    text-align: center;
+                    margin-bottom: 10px;
+                  }
+                  .header-info {
+                    text-align: center;
+                    color: #6b7280;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 2px solid #e5e7eb;
+                  }
+                  .weakness-types {
+                    display: flex;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                    gap: 8px;
+                    margin-top: 15px;
+                  }
+                  .weakness-type { 
+                    display: inline-block; 
+                    background: #fef3c7; 
+                    color: #92400e; 
+                    padding: 6px 16px; 
+                    border-radius: 16px; 
+                    font-size: 14px;
+                    font-weight: 500;
+                  }
+                  .print-btn { 
+                    background: #2563eb; 
+                    color: white; 
+                    padding: 12px 32px; 
+                    border: none; 
+                    border-radius: 8px; 
+                    cursor: pointer; 
+                    font-size: 16px; 
+                    margin: 20px auto;
+                    display: block;
+                    font-weight: 600;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    transition: all 0.2s;
+                  }
+                  .print-btn:hover { 
+                    background: #1d4ed8;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+                    transform: translateY(-1px);
+                  }
+                  
+                  /* 문제 섹션 스타일 */
+                  .problem-section {
+                    background: white;
+                    margin: 30px 0;
+                    padding: 30px;
+                    border-radius: 12px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                  }
+                  .weakness-title {
+                    color: #dc2626;
+                    font-size: 22px;
+                    margin-top: 0;
+                    padding-bottom: 15px;
+                    border-bottom: 3px solid #fee2e2;
+                  }
+                  
+                  /* 난이도별 그룹 */
+                  .difficulty-group {
+                    margin: 25px 0;
+                    padding: 20px;
+                    border-radius: 10px;
+                    background: #fafafa;
+                  }
+                  .difficulty-level {
+                    font-size: 18px;
+                    font-weight: 700;
+                    margin: 0 0 15px 0;
+                    padding: 10px 15px;
+                    border-radius: 8px;
+                    display: inline-block;
+                  }
+                  .difficulty-level.basic {
+                    background: #dbeafe;
+                    color: #1e40af;
+                  }
+                  .difficulty-level.variation {
+                    background: #fef3c7;
+                    color: #92400e;
+                  }
+                  .difficulty-level.advanced {
+                    background: #fee2e2;
+                    color: #991b1b;
+                  }
+                  
+                  /* 문제 스타일 */
+                  .problem { 
+                    background: white;
+                    margin: 20px 0; 
+                    padding: 25px; 
+                    border: 2px solid #e5e7eb; 
+                    border-radius: 10px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                  }
+                  .problem-content {
+                    margin-bottom: 15px;
+                  }
+                  .problem-content p {
+                    font-size: 16px;
+                    color: #1f2937;
+                    line-height: 1.8;
+                  }
+                  .problem-content strong {
+                    color: #111827;
+                    font-size: 17px;
+                  }
+                  
+                  /* Details 스타일 */
+                  details { 
+                    margin: 12px 0; 
+                    padding: 15px; 
+                    border-radius: 8px;
+                    cursor: pointer;
+                  }
+                  details.hint {
+                    background: #eff6ff;
+                    border-left: 4px solid #3b82f6;
+                  }
+                  details.solution {
+                    background: #f0fdf4;
+                    border-left: 4px solid #10b981;
+                  }
+                  summary { 
+                    font-weight: 600; 
+                    color: #374151;
+                    font-size: 15px;
+                    padding: 5px 0;
+                    list-style: none;
+                  }
+                  summary::-webkit-details-marker {
+                    display: none;
+                  }
+                  summary:hover {
+                    opacity: 0.8;
+                  }
+                  details[open] summary {
+                    margin-bottom: 12px;
+                    padding-bottom: 12px;
+                    border-bottom: 1px solid #e5e7eb;
+                  }
+                  details p {
+                    color: #4b5563;
+                    margin: 8px 0;
+                  }
+                  .solution-steps {
+                    margin-top: 15px;
+                    padding: 15px;
+                    background: #f9fafb;
+                    border-radius: 6px;
+                  }
+                  .solution-steps ol {
+                    margin: 10px 0;
+                    padding-left: 25px;
+                  }
+                  .solution-steps li {
+                    margin: 8px 0;
+                    line-height: 1.7;
+                    color: #374151;
+                  }
+                  
+                  .footer {
+                    text-align: center;
+                    color: #9ca3af;
+                    font-size: 14px;
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 1px solid #e5e7eb;
+                  }
+                  
+                  @media print { 
+                    .print-btn { display: none; }
+                    body { background: white; }
+                    .problem-section { box-shadow: none; page-break-inside: avoid; }
+                    .difficulty-group { page-break-inside: avoid; }
+                  }
                 </style>
               </head>
               <body>
-                <h1>${student?.name}님 맞춤 유사문제</h1>
-                <p>생성일: ${new Date().toLocaleString('ko-KR')}</p>
-                <p>약점 유형: ${weaknessTypesArray.map(t => `<span class="weakness-type">${t}</span>`).join(' ')}</p>
-                <button class="print-btn" onclick="window.print()">인쇄하기</button>
-                <hr>
+                <h1>📚 ${student?.name}님 맞춤 유사문제</h1>
+                <div class="header-info">
+                  <p><strong>생성일:</strong> ${new Date().toLocaleString('ko-KR')}</p>
+                  <p><strong>분석된 약점 유형:</strong></p>
+                  <div class="weakness-types">
+                    ${weaknessTypesArray.map(t => `<span class="weakness-type">${t}</span>`).join('')}
+                  </div>
+                </div>
+                <button class="print-btn" onclick="window.print()">🖨️ 인쇄하기</button>
+                
                 ${data.problems}
-                <hr>
-                <p style="color: #6b7280; font-size: 14px;">이 문제는 AI가 생성한 맞춤형 유사문제입니다.</p>
+                
+                <div class="footer">
+                  <p>이 문제는 학생의 약점 분석을 바탕으로 AI가 생성한 맞춤형 유사문제입니다.</p>
+                  <p>슈퍼플레이스 스터디 - 생성일: ${new Date().toLocaleString('ko-KR')}</p>
+                </div>
               </body>
               </html>
             `);
