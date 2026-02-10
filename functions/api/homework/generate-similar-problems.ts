@@ -156,8 +156,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     console.log(`📍 Using model: gemini-1.5-flash`);
     console.log(`📍 API Key length: ${GOOGLE_GEMINI_API_KEY.length} characters`);
 
-    // Gemini API 호출
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
+    // Gemini API 호출 (v1 API 사용)
+    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
     
     const response = await fetch(apiUrl, {
       method: 'POST',
