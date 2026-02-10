@@ -95,7 +95,6 @@ export default function TeacherHomeworkResultsPage() {
       console.error('이미지 로드 실패:', error);
     }
   };
-  const [submissionImages, setSubmissionImages] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
