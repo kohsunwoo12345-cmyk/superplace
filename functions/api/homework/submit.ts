@@ -113,15 +113,30 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ 숙제 제출 완료: ${submissionId}, 이미지 ${imageArray.length}장 저장`);
 
-    // 6. 백그라운드 채점 시작 (context.waitUntil 사용)
+    // 6. 백그라운드 채점 시작 (여러 방법으로 시도)
+    const gradingUrl = `${new URL(context.request.url).origin}/api/homework/process-grading`;
+    
+    // 방법 1: context.waitUntil (Cloudflare Workers API)
+    const gradingPromise = fetch(gradingUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ submissionId })
+    }).then(res => {
+      console.log(`📊 채점 API 호출 완료: ${res.status}`);
+      return res.json();
+    }).then(data => {
+      console.log(`✅ 채점 결과:`, data);
+    }).catch(err => {
+      console.error('❌ 백그라운드 채점 오류:', err);
+    });
+    
     if (context.waitUntil) {
-      context.waitUntil(
-        fetch(`${new URL(context.request.url).origin}/api/homework/process-grading`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ submissionId })
-        }).catch(err => console.error('백그라운드 채점 시작 실패:', err))
-      );
+      context.waitUntil(gradingPromise);
+      console.log('🔄 백그라운드 채점 시작 (waitUntil)');
+    } else {
+      // 방법 2: 응답 전에 채점 시작 (fallback)
+      gradingPromise;
+      console.log('🔄 백그라운드 채점 시작 (promise)');
     }
 
     // 7. 즉시 응답 반환
