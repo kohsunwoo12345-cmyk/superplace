@@ -1,4 +1,5 @@
 "use client";
+// Version: 2026-02-10-v2 - Iterative compression fix
 
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -104,6 +105,10 @@ function HomeworkCheckContent() {
       const context = canvas.getContext('2d');
 
       if (context) {
+        // Version check - DO NOT REMOVE
+        const BUILD_VERSION = '2026-02-10-v2-iterative-compression';
+        console.log(`🔧 빌드 버전: ${BUILD_VERSION}`);
+        
         // 강력한 해상도 제한 (너비 640px) - 더 작게!
         const maxWidth = 640;
         const scale = Math.min(1, maxWidth / video.videoWidth);
