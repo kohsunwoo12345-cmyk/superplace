@@ -107,6 +107,7 @@ function StudentDetailContent() {
   const [weakConcepts, setWeakConcepts] = useState<WeakConcept[]>([]);
   const [conceptRecommendations, setConceptRecommendations] = useState<ConceptRecommendation[]>([]);
   const [conceptSummary, setConceptSummary] = useState<string>("");
+  const [dailyProgress, setDailyProgress] = useState<DailyProgress[]>([]);
   const [studentCode, setStudentCode] = useState<string>("");
   const [attendanceCode, setAttendanceCode] = useState<AttendanceCode | null>(null);
   const [homeworkSubmissions, setHomeworkSubmissions] = useState<HomeworkSubmission[]>([]);
@@ -296,6 +297,7 @@ function StudentDetailContent() {
         setWeakConcepts(data.weakConcepts || []);
         setConceptRecommendations(data.recommendations || []);
         setConceptSummary(data.summary || "");
+        setDailyProgress(data.dailyProgress || []);
       } else {
         throw new Error("부족한 개념 분석에 실패했습니다.");
       }
@@ -1258,7 +1260,7 @@ function StudentDetailContent() {
                       부족한 개념 분석
                     </CardTitle>
                     <CardDescription>
-                      AI가 대화를 분석하여 학생이 어려워하는 개념을 찾아냅니다
+                      숙제 제출 데이터를 분석하여 학생이 어려워하는 개념을 찾아냅니다
                     </CardDescription>
                   </div>
                   <Button
@@ -1284,8 +1286,8 @@ function StudentDetailContent() {
                   <div className="text-center py-12">
                     <AlertTriangle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 mb-2">
-                      {chatHistory.length === 0
-                        ? "분석할 대화 내역이 없습니다."
+                      {homeworkSubmissions.length === 0
+                        ? "분석할 숙제 제출 내역이 없습니다."
                         : "개념 분석을 시작해보세요."}
                     </p>
                   </div>
@@ -1340,6 +1342,55 @@ function StudentDetailContent() {
                               </div>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {dailyProgress.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <Calendar className="w-5 h-5 text-blue-600" />
+                          매일매일 학습 기록
+                        </h4>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b bg-gray-50">
+                                <th className="px-3 py-2 text-left font-medium">날짜</th>
+                                <th className="px-3 py-2 text-left font-medium">과목</th>
+                                <th className="px-3 py-2 text-center font-medium">점수</th>
+                                <th className="px-3 py-2 text-center font-medium">상태</th>
+                                <th className="px-3 py-2 text-left font-medium">메모</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {dailyProgress.map((progress, idx) => (
+                                <tr key={idx} className="border-b hover:bg-gray-50">
+                                  <td className="px-3 py-2">{progress.date}</td>
+                                  <td className="px-3 py-2">{progress.subject}</td>
+                                  <td className="px-3 py-2 text-center">
+                                    <Badge 
+                                      variant={progress.score >= 80 ? "default" : progress.score >= 60 ? "secondary" : "destructive"}
+                                    >
+                                      {progress.score.toFixed(1)}점
+                                    </Badge>
+                                  </td>
+                                  <td className="px-3 py-2 text-center">
+                                    <Badge 
+                                      variant={
+                                        progress.status === '개선됨' ? "default" : 
+                                        progress.status === '유지' ? "secondary" : 
+                                        "destructive"
+                                      }
+                                    >
+                                      {progress.status}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-3 py-2 text-gray-600">{progress.note}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     )}
