@@ -75,7 +75,7 @@ function HomeworkCheckContent() {
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: 960, height: 540 }
+        video: { facingMode: 'environment', width: 640, height: 480 }
       });
       
       if (videoRef.current) {
@@ -104,8 +104,8 @@ function HomeworkCheckContent() {
       const context = canvas.getContext('2d');
 
       if (context) {
-        // 최대 해상도 제한 (너비 800px)
-        const maxWidth = 800;
+        // 강력한 해상도 제한 (너비 640px) - 더 작게!
+        const maxWidth = 640;
         const scale = Math.min(1, maxWidth / video.videoWidth);
         
         canvas.width = video.videoWidth * scale;
@@ -113,14 +113,23 @@ function HomeworkCheckContent() {
         
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        // 이미지 압축률 0.6 (60%) - SQLite 제한 회피
-        const imageData = canvas.toDataURL('image/jpeg', 0.6);
+        // 초강력 압축: 0.5 (50%) → 반복 압축
+        let imageData = canvas.toDataURL('image/jpeg', 0.5);
+        let attempts = 0;
         
-        console.log(`📸 이미지 캡처: ${(imageData.length / 1024 / 1024).toFixed(2)}MB`);
+        // 1MB 이하가 될 때까지 반복 압축
+        while (imageData.length > 1024 * 1024 && attempts < 5) {
+          attempts++;
+          const quality = Math.max(0.3, 0.5 - (attempts * 0.1));
+          imageData = canvas.toDataURL('image/jpeg', quality);
+          console.log(`🔄 압축 시도 ${attempts}: ${(imageData.length / 1024 / 1024).toFixed(2)}MB (품질: ${quality * 100}%)`);
+        }
         
-        // 1MB 제한 확인
+        console.log(`✅ 최종 이미지: ${(imageData.length / 1024 / 1024).toFixed(2)}MB`);
+        
+        // 여전히 1MB 초과 시 오류
         if (imageData.length > 1024 * 1024) {
-          setError("이미지가 너무 큽니다. 다시 촬영해주세요.");
+          setError(`이미지가 너무 큽니다 (${(imageData.length / 1024 / 1024).toFixed(2)}MB). 더 간단한 배경에서 다시 촬영해주세요.`);
           return;
         }
         
