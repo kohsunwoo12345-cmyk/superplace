@@ -111,6 +111,8 @@ function StudentDetailContent() {
   const [attendanceCode, setAttendanceCode] = useState<AttendanceCode | null>(null);
   const [homeworkSubmissions, setHomeworkSubmissions] = useState<HomeworkSubmission[]>([]);
   const [generatingSimilarProblems, setGeneratingSimilarProblems] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [hasAdminBackup, setHasAdminBackup] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [analyzingLoading, setAnalyzingLoading] = useState(false);
@@ -120,6 +122,9 @@ function StudentDetailContent() {
   const [attendanceCodeCopied, setAttendanceCodeCopied] = useState(false);
 
   useEffect(() => {
+    // Client-side only flag
+    setIsClient(true);
+    
     const userStr = localStorage.getItem("user");
     if (!userStr) {
       router.push("/login");
@@ -127,6 +132,10 @@ function StudentDetailContent() {
     }
 
     if (studentId) {
+      // Check for admin backup in sessionStorage (client-side only)
+      if (typeof window !== 'undefined' && sessionStorage.getItem('admin_backup_user')) {
+        setHasAdminBackup(true);
+      }
       fetchStudentData();
     }
   }, [studentId, router]);
@@ -814,12 +823,15 @@ function StudentDetailContent() {
                     className="w-full bg-indigo-600 hover:bg-indigo-700"
                     onClick={() => {
                       if (confirm(`${student.name} 학생 계정으로 로그인하시겠습니까?`)) {
-                        // 현재 관리자/교사 정보를 임시 저장
-                        const currentUser = localStorage.getItem('user');
-                        const currentToken = localStorage.getItem('token');
-                        if (currentUser && currentToken) {
-                          sessionStorage.setItem('admin_backup_user', currentUser);
-                          sessionStorage.setItem('admin_backup_token', currentToken);
+                        // 현재 관리자/교사 정보를 임시 저장 (client-side only)
+                        if (typeof window !== 'undefined') {
+                          const currentUser = localStorage.getItem('user');
+                          const currentToken = localStorage.getItem('token');
+                          if (currentUser && currentToken) {
+                            sessionStorage.setItem('admin_backup_user', currentUser);
+                            sessionStorage.setItem('admin_backup_token', currentToken);
+                            setHasAdminBackup(true);
+                          }
                         }
                         
                         // 학생 계정으로 전환
@@ -841,7 +853,7 @@ function StudentDetailContent() {
                     {student.name} 계정으로 로그인
                   </Button>
                   
-                  {sessionStorage.getItem('admin_backup_user') && (
+                  {isClient && hasAdminBackup && (
                     <div className="mt-3 pt-3 border-t border-indigo-200">
                       <p className="text-xs text-indigo-700 mb-2">
                         💡 원래 계정으로 돌아가기
@@ -851,14 +863,17 @@ function StudentDetailContent() {
                         size="sm"
                         className="w-full"
                         onClick={() => {
-                          const backupUser = sessionStorage.getItem('admin_backup_user');
-                          const backupToken = sessionStorage.getItem('admin_backup_token');
-                          if (backupUser && backupToken) {
-                            localStorage.setItem('user', backupUser);
-                            localStorage.setItem('token', backupToken);
-                            sessionStorage.removeItem('admin_backup_user');
-                            sessionStorage.removeItem('admin_backup_token');
-                            window.location.href = '/dashboard';
+                          if (typeof window !== 'undefined') {
+                            const backupUser = sessionStorage.getItem('admin_backup_user');
+                            const backupToken = sessionStorage.getItem('admin_backup_token');
+                            if (backupUser && backupToken) {
+                              localStorage.setItem('user', backupUser);
+                              localStorage.setItem('token', backupToken);
+                              sessionStorage.removeItem('admin_backup_user');
+                              sessionStorage.removeItem('admin_backup_token');
+                              setHasAdminBackup(false);
+                              window.location.href = '/dashboard';
+                            }
                           }
                         }}
                       >
