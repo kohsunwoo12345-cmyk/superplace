@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, MessageSquare,
   TrendingUp, Brain, Loader2, RefreshCw, CheckCircle, XCircle,
-  ClipboardCheck, AlertTriangle, Copy, Check
+  ClipboardCheck, AlertTriangle, Copy, Check, QrCode
 } from "lucide-react";
 
 interface StudentDetail {
