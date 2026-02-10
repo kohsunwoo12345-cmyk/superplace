@@ -9,9 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, MessageSquare,
   TrendingUp, Brain, Loader2, RefreshCw, CheckCircle, XCircle,
-  ClipboardCheck, AlertTriangle, QrCode, Copy, Check
+  ClipboardCheck, AlertTriangle, Copy, Check
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 
 interface StudentDetail {
   id: number;
@@ -77,6 +76,24 @@ interface ConceptRecommendation {
   action: string;
 }
 
+interface HomeworkSubmission {
+  id: string;
+  userId: number;
+  score: number;
+  subject: string;
+  totalQuestions: number;
+  correctAnswers: number;
+  feedback: string;
+  strengths: string;
+  suggestions: string;
+  weaknessTypes: string[];
+  detailedAnalysis: string;
+  studyDirection: string;
+  submittedAt: string;
+  gradedAt: string;
+  imageCount: number;
+}
+
 function StudentDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -92,6 +109,8 @@ function StudentDetailContent() {
   const [conceptSummary, setConceptSummary] = useState<string>("");
   const [studentCode, setStudentCode] = useState<string>("");
   const [attendanceCode, setAttendanceCode] = useState<AttendanceCode | null>(null);
+  const [homeworkSubmissions, setHomeworkSubmissions] = useState<HomeworkSubmission[]>([]);
+  const [generatingSimilarProblems, setGeneratingSimilarProblems] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [analyzingLoading, setAnalyzingLoading] = useState(false);
@@ -197,6 +216,22 @@ function StudentDetailContent() {
         }
       }
 
+      // 5. 숙제 제출 내역 조회
+      const homeworkResponse = await fetch(`/api/homework/results?role=ADMIN&email=admin@superplace.co.kr`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (homeworkResponse.ok) {
+        const homeworkData = await homeworkResponse.json();
+        if (homeworkData.success && homeworkData.submissions) {
+          // 해당 학생의 숙제만 필터링
+          const studentHomework = homeworkData.submissions.filter(
+            (hw: any) => hw.userId === parseInt(studentId || '0')
+          );
+          setHomeworkSubmissions(studentHomework);
+          console.log(`✅ 학생 숙제 ${studentHomework.length}건 로드됨`);
+        }
+      }
+
     } catch (error: any) {
       console.error("Failed to fetch student data:", error);
       setError(error.message || "오류가 발생했습니다.");
@@ -260,6 +295,92 @@ function StudentDetailContent() {
       alert(error.message || "부족한 개념 분석 중 오류가 발생했습니다.");
     } finally {
       setConceptAnalyzingLoading(false);
+    }
+  };
+
+  const generateSimilarProblems = async () => {
+    try {
+      setGeneratingSimilarProblems(true);
+      const token = localStorage.getItem("token");
+
+      // 최근 틀린 문제들의 약점 유형 수집
+      const recentHomework = homeworkSubmissions.slice(0, 5); // 최근 5개
+      const weaknessTypes = new Set<string>();
+      recentHomework.forEach(hw => {
+        if (hw.weaknessTypes && Array.isArray(hw.weaknessTypes)) {
+          hw.weaknessTypes.forEach(type => weaknessTypes.add(type));
+        }
+      });
+
+      const weaknessTypesArray = Array.from(weaknessTypes);
+
+      if (weaknessTypesArray.length === 0) {
+        alert("분석 가능한 약점 유형이 없습니다. 먼저 숙제를 제출해주세요.");
+        return;
+      }
+
+      console.log('🎯 약점 유형:', weaknessTypesArray);
+
+      const response = await fetch(`/api/homework/generate-similar-problems`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          studentId,
+          weaknessTypes: weaknessTypesArray,
+          studentName: student?.name || '학생'
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // 새 탭에서 유사문제 페이지 열기
+          const problemsWindow = window.open('', '_blank');
+          if (problemsWindow) {
+            problemsWindow.document.write(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <title>${student?.name}님 맞춤 유사문제</title>
+                <style>
+                  body { font-family: sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+                  h1 { color: #2563eb; }
+                  .problem { margin: 30px 0; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; }
+                  .problem h3 { color: #1f2937; margin-top: 0; }
+                  .problem pre { background: #f3f4f6; padding: 15px; border-radius: 4px; overflow-x: auto; }
+                  .weakness-type { display: inline-block; background: #fef3c7; color: #92400e; padding: 4px 12px; border-radius: 12px; margin: 4px; font-size: 14px; }
+                  .print-btn { background: #2563eb; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 20px 0; }
+                  .print-btn:hover { background: #1d4ed8; }
+                  @media print { .print-btn { display: none; } }
+                </style>
+              </head>
+              <body>
+                <h1>${student?.name}님 맞춤 유사문제</h1>
+                <p>생성일: ${new Date().toLocaleString('ko-KR')}</p>
+                <p>약점 유형: ${weaknessTypesArray.map(t => `<span class="weakness-type">${t}</span>`).join(' ')}</p>
+                <button class="print-btn" onclick="window.print()">인쇄하기</button>
+                <hr>
+                ${data.problems}
+                <hr>
+                <p style="color: #6b7280; font-size: 14px;">이 문제는 AI가 생성한 맞춤형 유사문제입니다.</p>
+              </body>
+              </html>
+            `);
+          }
+        } else {
+          alert(data.error || "유사문제 생성에 실패했습니다.");
+        }
+      } else {
+        throw new Error("유사문제 생성에 실패했습니다.");
+      }
+    } catch (error: any) {
+      console.error("Failed to generate similar problems:", error);
+      alert(error.message || "유사문제 생성 중 오류가 발생했습니다.");
+    } finally {
+      setGeneratingSimilarProblems(false);
     }
   };
 
@@ -407,17 +528,200 @@ function StudentDetailContent() {
               <p className="text-gray-600 mt-1">{student.email}</p>
             </div>
           </div>
+          <Button 
+            onClick={generateSimilarProblems}
+            disabled={generatingSimilarProblems || homeworkSubmissions.length === 0}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+          >
+            {generatingSimilarProblems ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                생성 중...
+              </>
+            ) : (
+              <>
+                <Brain className="w-4 h-4 mr-2" />
+                유사문제 출제
+              </>
+            )}
+          </Button>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="overview">전체</TabsTrigger>
             <TabsTrigger value="info">개인 정보</TabsTrigger>
             <TabsTrigger value="code">학생 코드</TabsTrigger>
             <TabsTrigger value="attendance">출결</TabsTrigger>
             <TabsTrigger value="chat">AI 대화</TabsTrigger>
             <TabsTrigger value="concepts">부족한 개념</TabsTrigger>
           </TabsList>
+
+          {/* 전체 탭 - 새로 추가 */}
+          <TabsContent value="overview" className="space-y-4">
+            {/* 이번 달 출결 요약 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                  이번 달 출결 현황
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {attendanceStats ? (
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-600">{attendanceStats.total}</p>
+                      <p className="text-sm text-gray-600">총 출석일</p>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <p className="text-2xl font-bold text-green-600">{attendanceStats.present}</p>
+                      <p className="text-sm text-gray-600">출석</p>
+                    </div>
+                    <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                      <p className="text-2xl font-bold text-yellow-600">{attendanceStats.late}</p>
+                      <p className="text-sm text-gray-600">지각</p>
+                    </div>
+                    <div className="text-center p-4 bg-red-50 rounded-lg">
+                      <p className="text-2xl font-bold text-red-600">{attendanceStats.absent}</p>
+                      <p className="text-sm text-gray-600">결석</p>
+                    </div>
+                    <div className="text-center p-4 bg-purple-50 rounded-lg">
+                      <p className="text-2xl font-bold text-purple-600">
+                        {attendanceStats.attendanceRate.toFixed(1)}%
+                      </p>
+                      <p className="text-sm text-gray-600">출석률</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-500">출석 데이터가 없습니다.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 숙제 제출 현황 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardCheck className="w-5 h-5 text-green-600" />
+                  숙제 제출 현황
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {homeworkSubmissions.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="text-center p-4 bg-blue-50 rounded-lg">
+                        <p className="text-2xl font-bold text-blue-600">{homeworkSubmissions.length}</p>
+                        <p className="text-sm text-gray-600">총 제출</p>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 rounded-lg">
+                        <p className="text-2xl font-bold text-green-600">
+                          {(homeworkSubmissions.reduce((acc, hw) => acc + hw.score, 0) / homeworkSubmissions.length).toFixed(1)}
+                        </p>
+                        <p className="text-sm text-gray-600">평균 점수</p>
+                      </div>
+                      <div className="text-center p-4 bg-purple-50 rounded-lg">
+                        <p className="text-2xl font-bold text-purple-600">
+                          {homeworkSubmissions[0]?.subject || '-'}
+                        </p>
+                        <p className="text-sm text-gray-600">최근 과목</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm text-gray-700">최근 제출 (최대 5개)</h4>
+                      {homeworkSubmissions.slice(0, 5).map((hw, idx) => (
+                        <div key={hw.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={hw.score >= 80 ? "default" : hw.score >= 60 ? "secondary" : "destructive"}>
+                                {hw.score}점
+                              </Badge>
+                              <span className="text-sm font-medium">{hw.subject}</span>
+                              <span className="text-xs text-gray-500">
+                                ({hw.correctAnswers}/{hw.totalQuestions})
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              제출: {new Date(hw.submittedAt).toLocaleDateString('ko-KR')}
+                            </p>
+                          </div>
+                          {hw.score >= 80 ? (
+                            <CheckCircle className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-500">아직 제출한 숙제가 없습니다.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 부족한 개념 요약 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                  보통 부족한 개념
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {homeworkSubmissions.length > 0 ? (
+                  <div className="space-y-3">
+                    {/* 약점 유형 통계 */}
+                    {(() => {
+                      const weaknessCount = new Map<string, number>();
+                      homeworkSubmissions.forEach(hw => {
+                        if (hw.weaknessTypes && Array.isArray(hw.weaknessTypes)) {
+                          hw.weaknessTypes.forEach(type => {
+                            weaknessCount.set(type, (weaknessCount.get(type) || 0) + 1);
+                          });
+                        }
+                      });
+                      
+                      const sortedWeaknesses = Array.from(weaknessCount.entries())
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5);
+                      
+                      return sortedWeaknesses.length > 0 ? (
+                        <div className="space-y-2">
+                          {sortedWeaknesses.map(([type, count], idx) => (
+                            <div key={type} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-yellow-800">{idx + 1}.</span>
+                                <span className="text-sm font-medium">{type}</span>
+                              </div>
+                              <Badge variant="outline">{count}회 반복</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500">약점 유형 데이터가 없습니다.</p>
+                      );
+                    })()}
+                    
+                    {/* 개선 제안 */}
+                    {homeworkSubmissions[0]?.suggestions && (
+                      <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                        <h4 className="font-semibold text-sm text-blue-900 mb-2">💡 개선 할 점</h4>
+                        <p className="text-sm text-blue-800 whitespace-pre-wrap">
+                          {homeworkSubmissions[0].suggestions}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-500">숙제 제출 후 분석 결과가 표시됩니다.</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* 개인 정보 탭 */}
           <TabsContent value="info" className="space-y-4">
@@ -627,15 +931,6 @@ function StudentDetailContent() {
                       </div>
                     </div>
 
-                    <div className="flex justify-center">
-                      <div className="p-6 bg-white border-2 border-green-200 rounded-lg">
-                        <QRCodeSVG value={attendanceCode.code} size={200} />
-                        <p className="text-center text-xs text-gray-500 mt-3">
-                          출석 QR 코드
-                        </p>
-                      </div>
-                    </div>
-
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
                         <MessageSquare className="w-4 h-4 text-blue-600" />
@@ -643,8 +938,8 @@ function StudentDetailContent() {
                       </h4>
                       <ul className="text-sm text-gray-700 space-y-1">
                         <li>• 출석 체크 시 이 6자리 코드를 입력하세요</li>
-                        <li>• QR 코드를 스캔하여 빠르게 출석 처리 가능</li>
                         <li>• 코드는 학생마다 고유하게 부여됩니다</li>
+                        <li>• 코드가 활성화되어 있어야 출석 체크가 가능합니다</li>
                       </ul>
                     </div>
                   </>
