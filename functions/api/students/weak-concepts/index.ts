@@ -1,6 +1,5 @@
 interface Env {
   DB: D1Database;
-  GOOGLE_GEMINI_API_KEY: string;
 }
 
 interface HomeworkSubmission {
@@ -11,7 +10,7 @@ interface HomeworkSubmission {
   feedback: string;
   strengths: string;
   suggestions: string;
-  weaknessTypes: string;
+  weaknessTypes: string | string[];
   detailedAnalysis: string;
   totalQuestions: number;
   correctAnswers: number;
@@ -19,13 +18,30 @@ interface HomeworkSubmission {
   gradedAt: string;
 }
 
+interface WeakConcept {
+  concept: string;
+  description: string;
+  severity: 'high' | 'medium' | 'low';
+  relatedTopics: string[];
+  evidence: string;
+}
+
+interface DailyProgress {
+  date: string;
+  score: number;
+  subject: string;
+  status: string;
+  note: string;
+}
+
 /**
  * POST /api/students/weak-concepts
  * 숙제 제출 데이터를 기반으로 학생의 부족한 개념 분석
+ * Gemini API 없이 기존 채점 데이터에서 직접 분석
  */
 export const onRequestPost = async (context: { request: Request; env: Env }) => {
   const { request, env } = context;
-  const { DB, GOOGLE_GEMINI_API_KEY } = env;
+  const { DB } = env;
 
   if (!DB) {
     return new Response(JSON.stringify({ success: false, error: "Database not configured" }), {
@@ -102,162 +118,114 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
-    // 3. 숙제 데이터 분석 텍스트 생성
-    const homeworkAnalysisText = homeworkSubmissions
-      .slice(0, 20)
-      .map((hw, index) => {
-        return `
-[숙제 ${index + 1}]
-과목: ${hw.subject || '정보 없음'}
-제출일: ${hw.submittedAt}
-점수: ${hw.score || 0}점 (정답: ${hw.correctAnswers || 0}/${hw.totalQuestions || 0})
-피드백: ${hw.feedback || '없음'}
-강점: ${hw.strengths || '없음'}
-약점: ${hw.suggestions || '없음'}
-약점 유형: ${hw.weaknessTypes || '없음'}
-상세 분석: ${hw.detailedAnalysis || '없음'}
-`;
-      })
-      .join('\n---\n');
+    // 3. 채점 데이터에서 직접 부족한 개념 추출
+    const weakConceptsMap = new Map<string, { count: number; descriptions: string[], submissions: string[] }>();
+    const allSubjects = new Set<string>();
+    let totalScore = 0;
+    let totalCorrect = 0;
+    let totalQuestions = 0;
 
-    const prompt = `당신은 학생의 학습 상태를 분석하는 교육 전문가입니다. 다음은 한 학생의 최근 숙제 제출 및 채점 결과입니다. 이 데이터를 바탕으로 학생이 부족한 개념과 개선이 필요한 점을 분석해주세요.
+    homeworkSubmissions.forEach((hw, index) => {
+      if (hw.subject) allSubjects.add(hw.subject);
+      totalScore += hw.score || 0;
+      totalCorrect += hw.correctAnswers || 0;
+      totalQuestions += hw.totalQuestions || 0;
 
-숙제 제출 내역 (최근 ${homeworkSubmissions.length}개):
-${homeworkAnalysisText}
+      // weaknessTypes 파싱 (배열 또는 JSON 문자열)
+      let weaknesses: string[] = [];
+      if (hw.weaknessTypes) {
+        try {
+          if (typeof hw.weaknessTypes === 'string') {
+            // JSON 배열 문자열인 경우
+            if (hw.weaknessTypes.startsWith('[')) {
+              weaknesses = JSON.parse(hw.weaknessTypes);
+            } else {
+              // 쉼표로 구분된 문자열인 경우
+              weaknesses = hw.weaknessTypes.split(',').map(w => w.trim()).filter(w => w.length > 0);
+            }
+          } else if (Array.isArray(hw.weaknessTypes)) {
+            weaknesses = hw.weaknessTypes;
+          }
+        } catch (e) {
+          console.warn('Failed to parse weaknessTypes:', hw.weaknessTypes);
+          weaknesses = [];
+        }
+      }
 
-위 데이터를 분석하여 다음 형식의 JSON으로 응답해주세요:
-
-{
-  "summary": "학생의 전반적인 학습 상태 요약 (3-4문장). 평균 점수, 강점, 약점, 학습 패턴 등을 포함",
-  "weakConcepts": [
-    {
-      "concept": "부족한 개념명 (예: 2차 방정식의 해법)",
-      "description": "왜 이 개념이 부족한지 구체적 설명 (2-3문장)",
-      "severity": "high/medium/low (빈도와 중요도 기준)",
-      "relatedTopics": ["관련된 수학/과학 주제1", "주제2"],
-      "evidence": "어떤 숙제에서 이 문제가 나타났는지 (예: 숙제 1, 3, 5에서 반복)"
-    }
-  ],
-  "recommendations": [
-    {
-      "concept": "개념명",
-      "action": "구체적이고 실천 가능한 학습 방법 (2-3문장)"
-    }
-  ],
-  "dailyProgress": [
-    {
-      "date": "YYYY-MM-DD",
-      "score": 85.5,
-      "subject": "수학",
-      "status": "개선됨/유지/하락",
-      "note": "간단한 한줄 평가"
-    }
-  ]
-}
-
-**분석 가이드라인:**
-1. 최대 5개의 부족한 개념을 찾아주세요
-2. 점수가 낮거나 반복적으로 틀린 문제 유형에 집중하세요
-3. 구체적이고 실용적인 학습 방법을 제안하세요
-4. dailyProgress는 제출일별로 정리해서 최근 10개만 포함하세요
-5. 한국어로 작성하세요`;
-
-    // 4. Gemini API 호출
-    const geminiApiKey = GOOGLE_GEMINI_API_KEY;
-    
-    if (!geminiApiKey) {
-      console.error('❌ GOOGLE_GEMINI_API_KEY not configured');
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'GOOGLE_GEMINI_API_KEY environment variable not configured. Please set it in Cloudflare dashboard.'
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Use stable gemini-1.5-flash instead of experimental model
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
-
-    console.log('🔄 Calling Gemini API for homework-based weak concept analysis...');
-    console.log(`📍 Using endpoint: gemini-1.5-flash`);
-    
-    const geminiResponse = await fetch(geminiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 4096,
-        },
-      }),
+      // 각 약점 유형별로 집계
+      weaknesses.forEach(weakness => {
+        if (!weakConceptsMap.has(weakness)) {
+          weakConceptsMap.set(weakness, { count: 0, descriptions: [], submissions: [] });
+        }
+        const data = weakConceptsMap.get(weakness)!;
+        data.count += 1;
+        if (hw.suggestions && !data.descriptions.includes(hw.suggestions)) {
+          data.descriptions.push(hw.suggestions);
+        }
+        data.submissions.push(`숙제 ${index + 1}`);
+      });
     });
 
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error('❌ Gemini API error:', errorText);
-      throw new Error(`Gemini API failed: ${geminiResponse.status}`);
-    }
+    // 4. 부족한 개념 리스트 생성 (빈도순으로 정렬, 최대 5개)
+    const weakConcepts: WeakConcept[] = Array.from(weakConceptsMap.entries())
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([concept, data]) => {
+        const severity: 'high' | 'medium' | 'low' = 
+          data.count >= 3 ? 'high' : data.count >= 2 ? 'medium' : 'low';
+        
+        return {
+          concept,
+          description: data.descriptions.join(' ').slice(0, 200) || `${concept}에 대한 이해가 부족합니다.`,
+          severity,
+          relatedTopics: Array.from(allSubjects),
+          evidence: data.submissions.join(', ')
+        };
+      });
 
-    const geminiData = await geminiResponse.json();
-    console.log('✅ Gemini API response received');
+    // 5. 학습 개선 방안 생성
+    const recommendations = weakConcepts.slice(0, 3).map(wc => ({
+      concept: wc.concept,
+      action: `${wc.concept} 개념을 복습하고, 관련 문제를 반복 연습하세요. 특히 ${wc.evidence}에서 나타난 실수를 분석하고 개선하세요.`
+    }));
 
-    // 5. Gemini 응답 파싱
-    let analysisResult;
-    try {
-      const responseText = geminiData.candidates[0].content.parts[0].text;
+    // 6. 매일 학습 기록 생성
+    const dailyProgress: DailyProgress[] = homeworkSubmissions.slice(0, 10).map((hw, idx) => {
+      const prevScore = idx < homeworkSubmissions.length - 1 ? homeworkSubmissions[idx + 1].score : hw.score;
+      const status = hw.score > prevScore ? '개선됨' : hw.score === prevScore ? '유지' : '하락';
       
-      let jsonText = responseText.trim();
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/```json\s*/, '').replace(/```\s*$/, '');
-      } else if (jsonText.startsWith('```')) {
-        jsonText = jsonText.replace(/```\s*/, '').replace(/```\s*$/, '');
-      }
-      
-      analysisResult = JSON.parse(jsonText);
-      
-      console.log('✅ Homework-based weak concept analysis completed successfully');
-      console.log(`📊 Found ${analysisResult.weakConcepts?.length || 0} weak concepts`);
-      console.log(`📈 Daily progress entries: ${analysisResult.dailyProgress?.length || 0}`);
-    } catch (parseError) {
-      console.error('❌ Failed to parse Gemini response:', parseError);
-      
-      // 폴백: 간단한 분석 제공
-      const avgScore = homeworkSubmissions.reduce((sum, hw) => sum + (hw.score || 0), 0) / homeworkSubmissions.length;
-      const subjects = [...new Set(homeworkSubmissions.map(hw => hw.subject).filter(Boolean))];
-      
-      analysisResult = {
-        summary: `평균 점수: ${avgScore.toFixed(1)}점. 분석된 과목: ${subjects.join(', ')}. AI 분석 중 오류가 발생했습니다.`,
-        weakConcepts: [],
-        recommendations: [{
-          concept: "전반적인 학습",
-          action: "지속적으로 숙제를 제출하여 학습 패턴을 분석받으세요."
-        }],
-        dailyProgress: homeworkSubmissions.slice(0, 10).map(hw => ({
-          date: hw.submittedAt?.split(' ')[0] || 'N/A',
-          score: hw.score || 0,
-          subject: hw.subject || 'N/A',
-          status: '분석 중',
-          note: `${hw.correctAnswers || 0}/${hw.totalQuestions || 0} 정답`
-        })),
+      return {
+        date: hw.submittedAt?.split(' ')[0] || 'N/A',
+        score: hw.score || 0,
+        subject: hw.subject || 'N/A',
+        status,
+        note: `${hw.correctAnswers || 0}/${hw.totalQuestions || 0} 정답`
       };
-    }
+    });
+
+    // 7. 전반적인 요약 생성
+    const avgScore = totalScore / homeworkSubmissions.length;
+    const avgCorrectRate = totalQuestions > 0 ? (totalCorrect / totalQuestions * 100) : 0;
+    const subjects = Array.from(allSubjects).join(', ');
+    
+    const summary = `평균 점수 ${avgScore.toFixed(1)}점 (정답률 ${avgCorrectRate.toFixed(1)}%). ` +
+      `최근 ${homeworkSubmissions.length}개의 ${subjects} 숙제를 분석했습니다. ` +
+      (weakConcepts.length > 0 
+        ? `특히 ${weakConcepts[0].concept}에서 반복적인 실수가 나타났습니다.`
+        : `전반적으로 양호한 학습 상태입니다.`);
+
+    console.log(`✅ Analysis complete: ${weakConcepts.length} weak concepts found`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        ...analysisResult,
+        weakConcepts,
+        summary,
+        recommendations,
+        dailyProgress,
         homeworkCount: homeworkSubmissions.length,
-        averageScore: (homeworkSubmissions.reduce((sum, hw) => sum + (hw.score || 0), 0) / homeworkSubmissions.length).toFixed(1),
+        averageScore: avgScore.toFixed(1),
+        correctRate: avgCorrectRate.toFixed(1)
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
