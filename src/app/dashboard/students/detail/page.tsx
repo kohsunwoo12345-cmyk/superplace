@@ -793,6 +793,83 @@ function StudentDetailContent() {
               </CardContent>
             </Card>
 
+            {/* 학생 계정 로그인 카드 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5 text-indigo-600" />
+                  학생 계정 접속
+                </CardTitle>
+                <CardDescription>
+                  학생의 관점에서 시스템을 확인하거나 테스트할 수 있습니다
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                  <p className="text-sm text-indigo-900 mb-4">
+                    이 버튼을 클릭하면 학생 계정으로 자동 로그인됩니다. 
+                    학생이 보는 화면을 확인하거나 문제를 테스트할 수 있습니다.
+                  </p>
+                  <Button
+                    className="w-full bg-indigo-600 hover:bg-indigo-700"
+                    onClick={() => {
+                      if (confirm(`${student.name} 학생 계정으로 로그인하시겠습니까?`)) {
+                        // 현재 관리자/교사 정보를 임시 저장
+                        const currentUser = localStorage.getItem('user');
+                        const currentToken = localStorage.getItem('token');
+                        if (currentUser && currentToken) {
+                          sessionStorage.setItem('admin_backup_user', currentUser);
+                          sessionStorage.setItem('admin_backup_token', currentToken);
+                        }
+                        
+                        // 학생 계정으로 전환
+                        localStorage.setItem('user', JSON.stringify({
+                          id: student.id,
+                          email: student.email,
+                          name: student.name,
+                          role: 'STUDENT',
+                          academyId: student.academy_id
+                        }));
+                        
+                        // 학생 대시보드로 이동
+                        alert(`${student.name} 학생으로 로그인되었습니다.\n\n원래 계정으로 돌아가려면 로그아웃 후 다시 로그인하세요.`);
+                        window.location.href = '/';
+                      }
+                    }}
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    {student.name} 계정으로 로그인
+                  </Button>
+                  
+                  {sessionStorage.getItem('admin_backup_user') && (
+                    <div className="mt-3 pt-3 border-t border-indigo-200">
+                      <p className="text-xs text-indigo-700 mb-2">
+                        💡 원래 계정으로 돌아가기
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => {
+                          const backupUser = sessionStorage.getItem('admin_backup_user');
+                          const backupToken = sessionStorage.getItem('admin_backup_token');
+                          if (backupUser && backupToken) {
+                            localStorage.setItem('user', backupUser);
+                            localStorage.setItem('token', backupToken);
+                            sessionStorage.removeItem('admin_backup_user');
+                            sessionStorage.removeItem('admin_backup_token');
+                            window.location.href = '/dashboard';
+                          }
+                        }}
+                      >
+                        관리자 계정으로 복귀
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* 역량 분석 카드 */}
             <Card>
               <CardHeader>
