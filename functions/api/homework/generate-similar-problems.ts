@@ -1,344 +1,29 @@
 interface Env {
   DB: D1Database;
-}
-
-interface WeaknessTemplate {
-  basic: {
-    problem: string;
-    hint: string;
-    answer: string;
-    solution: string[];
-  };
-  variation: {
-    problem: string;
-    hint: string;
-    answer: string;
-    solution: string[];
-  };
-  advanced: {
-    problem: string;
-    hint: string;
-    answer: string;
-    solution: string[];
-  };
-}
-
-// 약점 유형별 문제 템플릿
-const weaknessTemplates: { [key: string]: WeaknessTemplate } = {
-  "문자 곱셈 시 지수 처리": {
-    basic: {
-      problem: "x × x를 간단히 하시오.",
-      hint: "같은 문자끼리 곱하면 지수가 증가합니다. x가 몇 번 곱해지는지 세어보세요.",
-      answer: "x²",
-      solution: [
-        "x × x는 x가 2번 곱해진 것입니다.",
-        "같은 문자끼리 곱하면 지수를 더합니다: x¹ × x¹ = x²",
-        "따라서 답은 x²입니다."
-      ]
-    },
-    variation: {
-      problem: "3x × 2x를 간단히 하시오.",
-      hint: "계수는 계수끼리, 문자는 문자끼리 따로 곱합니다.",
-      answer: "6x²",
-      solution: [
-        "계수 부분: 3 × 2 = 6",
-        "문자 부분: x × x = x²",
-        "두 결과를 합치면: 6x²"
-      ]
-    },
-    advanced: {
-      problem: "(2x)² × 3x를 간단히 하시오.",
-      hint: "먼저 (2x)²를 전개한 후, 나머지 부분과 곱합니다.",
-      answer: "12x³",
-      solution: [
-        "(2x)² = 2² × x² = 4x²",
-        "4x² × 3x를 계산합니다.",
-        "계수: 4 × 3 = 12",
-        "문자: x² × x = x³",
-        "따라서 답은 12x³입니다."
-      ]
-    }
-  },
-  "다항식의 완전한 분배": {
-    basic: {
-      problem: "2(x + 3)을 전개하시오.",
-      hint: "괄호 밖의 숫자를 괄호 안의 모든 항에 곱합니다.",
-      answer: "2x + 6",
-      solution: [
-        "2를 괄호 안의 각 항에 분배합니다.",
-        "2 × x = 2x",
-        "2 × 3 = 6",
-        "따라서 2x + 6입니다."
-      ]
-    },
-    variation: {
-      problem: "(x + 2)(x + 3)을 전개하시오.",
-      hint: "첫 번째 괄호의 각 항을 두 번째 괄호의 모든 항과 곱합니다.",
-      answer: "x² + 5x + 6",
-      solution: [
-        "x × x = x²",
-        "x × 3 = 3x",
-        "2 × x = 2x",
-        "2 × 3 = 6",
-        "모두 더하면: x² + 3x + 2x + 6 = x² + 5x + 6"
-      ]
-    },
-    advanced: {
-      problem: "(x + 1)(x² - x + 1)을 전개하시오.",
-      hint: "첫 번째 괄호의 x와 1을 각각 두 번째 괄호의 모든 항과 곱한 후 정리합니다.",
-      answer: "x³ + 1",
-      solution: [
-        "x × (x² - x + 1) = x³ - x² + x",
-        "1 × (x² - x + 1) = x² - x + 1",
-        "두 결과를 더합니다: x³ - x² + x + x² - x + 1",
-        "동류항을 정리하면: x³ + 1"
-      ]
-    }
-  },
-  "완전 제곱 공식": {
-    basic: {
-      problem: "(x + 2)²를 전개하시오.",
-      hint: "공식 (a + b)² = a² + 2ab + b²를 사용합니다.",
-      answer: "x² + 4x + 4",
-      solution: [
-        "공식 (a + b)² = a² + 2ab + b²에서",
-        "a = x, b = 2를 대입합니다.",
-        "x² + 2(x)(2) + 2² = x² + 4x + 4"
-      ]
-    },
-    variation: {
-      problem: "(x - 3)²를 전개하시오.",
-      hint: "공식 (a - b)² = a² - 2ab + b²를 사용합니다.",
-      answer: "x² - 6x + 9",
-      solution: [
-        "공식 (a - b)² = a² - 2ab + b²에서",
-        "a = x, b = 3을 대입합니다.",
-        "x² - 2(x)(3) + 3² = x² - 6x + 9"
-      ]
-    },
-    advanced: {
-      problem: "(x + 1)² - (x - 1)²을 간단히 하시오.",
-      hint: "각각 완전제곱 공식으로 전개한 후 빼기를 수행합니다.",
-      answer: "4x",
-      solution: [
-        "(x + 1)² = x² + 2x + 1",
-        "(x - 1)² = x² - 2x + 1",
-        "(x² + 2x + 1) - (x² - 2x + 1)를 계산합니다.",
-        "= x² + 2x + 1 - x² + 2x - 1",
-        "= 4x"
-      ]
-    }
-  },
-  "계수 계산": {
-    basic: {
-      problem: "2x + 3x를 계산하시오.",
-      hint: "같은 문자를 가진 항의 계수를 더합니다.",
-      answer: "5x",
-      solution: [
-        "2x와 3x는 동류항입니다.",
-        "계수만 더합니다: 2 + 3 = 5",
-        "따라서 5x입니다."
-      ]
-    },
-    variation: {
-      problem: "5x - 2x + 3을 계산하시오.",
-      hint: "x가 있는 항끼리 먼저 계산합니다.",
-      answer: "3x + 3",
-      solution: [
-        "x항을 정리합니다: 5x - 2x = 3x",
-        "상수항은 그대로: 3",
-        "따라서 3x + 3입니다."
-      ]
-    },
-    advanced: {
-      problem: "3(2x + 1) - 2(x - 3)을 계산하시오.",
-      hint: "먼저 괄호를 전개한 후 동류항을 정리합니다.",
-      answer: "4x + 9",
-      solution: [
-        "3(2x + 1) = 6x + 3",
-        "2(x - 3) = 2x - 6",
-        "6x + 3 - (2x - 6) = 6x + 3 - 2x + 6",
-        "= 4x + 9"
-      ]
-    }
-  },
-  "지수법칙": {
-    basic: {
-      problem: "x² × x³을 간단히 하시오.",
-      hint: "같은 밑을 가진 거듭제곱의 곱셈은 지수를 더합니다.",
-      answer: "x⁵",
-      solution: [
-        "밑이 같은 거듭제곱의 곱셈: x^a × x^b = x^(a+b)",
-        "x² × x³ = x^(2+3) = x⁵"
-      ]
-    },
-    variation: {
-      problem: "(x²)³을 간단히 하시오.",
-      hint: "거듭제곱의 거듭제곱은 지수를 곱합니다.",
-      answer: "x⁶",
-      solution: [
-        "거듭제곱의 거듭제곱: (x^a)^b = x^(a×b)",
-        "(x²)³ = x^(2×3) = x⁶"
-      ]
-    },
-    advanced: {
-      problem: "(2x²)³ × x⁴를 간단히 하시오.",
-      hint: "먼저 (2x²)³을 전개한 후, 지수법칙을 적용합니다.",
-      answer: "8x¹⁰",
-      solution: [
-        "(2x²)³ = 2³ × (x²)³ = 8x⁶",
-        "8x⁶ × x⁴를 계산합니다.",
-        "계수: 8",
-        "지수: x⁶ × x⁴ = x^(6+4) = x¹⁰",
-        "따라서 8x¹⁰입니다."
-      ]
-    }
-  }
-};
-
-// 기본 템플릿 (약점 유형이 템플릿에 없을 때)
-const defaultTemplate: WeaknessTemplate = {
-  basic: {
-    problem: "이 개념과 관련된 기본 문제를 풀어보세요.",
-    hint: "기본 개념을 다시 한번 복습해보세요.",
-    answer: "선생님께 문의하세요",
-    solution: ["이 문제는 선생님과 함께 풀어보세요."]
-  },
-  variation: {
-    problem: "이 개념을 응용한 변형 문제를 풀어보세요.",
-    hint: "기본 문제와 비슷하지만 약간 다른 형태입니다.",
-    answer: "선생님께 문의하세요",
-    solution: ["이 문제는 선생님과 함께 풀어보세요."]
-  },
-  advanced: {
-    problem: "이 개념을 활용한 심화 문제를 풀어보세요.",
-    hint: "여러 개념을 종합적으로 활용해야 합니다.",
-    answer: "선생님께 문의하세요",
-    solution: ["이 문제는 선생님과 함께 풀어보세요."]
-  }
-};
-
-function generateProblemHTML(weaknessType: string, template: WeaknessTemplate): string {
-  return `
-<div class="problem-section">
-  <h2 class="weakness-title">🎯 약점: ${weaknessType}</h2>
-  
-  <div class="difficulty-group">
-    <h3 class="difficulty-level basic">📌 기본 유형 문제</h3>
-    <div class="problem">
-      <div class="problem-content">
-        <p><strong>문제:</strong> ${template.basic.problem}</p>
-      </div>
-      <details class="hint">
-        <summary>💡 힌트</summary>
-        <p>${template.basic.hint}</p>
-      </details>
-      <details class="solution">
-        <summary>✅ 정답 및 풀이</summary>
-        <p><strong>정답:</strong> ${template.basic.answer}</p>
-        <div class="solution-steps">
-          <p><strong>풀이:</strong></p>
-          <ol>
-            ${template.basic.solution.map(step => `<li>${step}</li>`).join('\n            ')}
-          </ol>
-        </div>
-      </details>
-    </div>
-  </div>
-
-  <div class="difficulty-group">
-    <h3 class="difficulty-level variation">🔄 변형 문제</h3>
-    <div class="problem">
-      <div class="problem-content">
-        <p><strong>문제:</strong> ${template.variation.problem}</p>
-      </div>
-      <details class="hint">
-        <summary>💡 힌트</summary>
-        <p>${template.variation.hint}</p>
-      </details>
-      <details class="solution">
-        <summary>✅ 정답 및 풀이</summary>
-        <p><strong>정답:</strong> ${template.variation.answer}</p>
-        <div class="solution-steps">
-          <p><strong>풀이:</strong></p>
-          <ol>
-            ${template.variation.solution.map(step => `<li>${step}</li>`).join('\n            ')}
-          </ol>
-        </div>
-      </details>
-    </div>
-  </div>
-
-  <div class="difficulty-group">
-    <h3 class="difficulty-level advanced">🚀 심화 문제</h3>
-    <div class="problem">
-      <div class="problem-content">
-        <p><strong>문제:</strong> ${template.advanced.problem}</p>
-      </div>
-      <details class="hint">
-        <summary>💡 힌트</summary>
-        <p>${template.advanced.hint}</p>
-      </details>
-      <details class="solution">
-        <summary>✅ 정답 및 풀이</summary>
-        <p><strong>정답:</strong> ${template.advanced.answer}</p>
-        <div class="solution-steps">
-          <p><strong>풀이:</strong></p>
-          <ol>
-            ${template.advanced.solution.map(step => `<li>${step}</li>`).join('\n            ')}
-          </ol>
-        </div>
-      </details>
-    </div>
-  </div>
-</div>
-`;
-}
-
-function findMatchingTemplate(weaknessType: string): WeaknessTemplate {
-  // 정확히 일치하는 템플릿 찾기
-  if (weaknessTemplates[weaknessType]) {
-    return weaknessTemplates[weaknessType];
-  }
-  
-  // 부분 일치하는 템플릿 찾기
-  const normalizedInput = weaknessType.toLowerCase().replace(/\s+/g, '');
-  for (const [key, template] of Object.entries(weaknessTemplates)) {
-    const normalizedKey = key.toLowerCase().replace(/\s+/g, '');
-    if (normalizedInput.includes(normalizedKey) || normalizedKey.includes(normalizedInput)) {
-      return template;
-    }
-  }
-  
-  // 키워드 기반 매칭
-  if (weaknessType.includes('곱셈') || weaknessType.includes('지수') || weaknessType.includes('x*x')) {
-    return weaknessTemplates["문자 곱셈 시 지수 처리"];
-  }
-  if (weaknessType.includes('분배') || weaknessType.includes('전개')) {
-    return weaknessTemplates["다항식의 완전한 분배"];
-  }
-  if (weaknessType.includes('제곱') || weaknessType.includes('(a+b)²')) {
-    return weaknessTemplates["완전 제곱 공식"];
-  }
-  if (weaknessType.includes('계수')) {
-    return weaknessTemplates["계수 계산"];
-  }
-  if (weaknessType.includes('지수법칙')) {
-    return weaknessTemplates["지수법칙"];
-  }
-  
-  // 매칭되는 템플릿이 없으면 기본 템플릿 반환
-  return defaultTemplate;
+  GOOGLE_GEMINI_API_KEY: string;
 }
 
 /**
  * POST /api/homework/generate-similar-problems
- * 학생의 약점 유형을 분석하여 유사문제 생성 (기본/변형/심화)
+ * 학생의 약점 유형을 분석하여 Gemini API로 유사문제 생성 (기본/변형/심화)
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
+    const { GOOGLE_GEMINI_API_KEY } = context.env;
     const body = await context.request.json();
     const { studentId, weaknessTypes, studentName } = body;
+
+    // API 키 검증
+    if (!GOOGLE_GEMINI_API_KEY) {
+      console.error('❌ GOOGLE_GEMINI_API_KEY environment variable not configured');
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "GOOGLE_GEMINI_API_KEY가 설정되지 않았습니다. Cloudflare 환경 변수를 확인해주세요." 
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     if (!studentId || !weaknessTypes || weaknessTypes.length === 0) {
       return new Response(
@@ -353,22 +38,193 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     console.log(`🎯 유사문제 생성 요청: ${studentName} (ID: ${studentId})`);
     console.log(`📋 약점 유형 (${weaknessTypes.length}개): ${weaknessTypes.join(', ')}`);
 
-    // 각 약점 유형에 대해 문제 생성
-    const problemsHTML = weaknessTypes.map((weaknessType: string) => {
-      console.log(`📝 문제 생성 중: ${weaknessType}`);
-      const template = findMatchingTemplate(weaknessType);
-      return generateProblemHTML(weaknessType, template);
-    }).join('\n');
+    // Gemini API 프롬프트 생성
+    const prompt = `당신은 수학 교육 전문가입니다. 다음 약점 유형을 가진 학생을 위한 맞춤형 유사문제를 생성해주세요.
 
-    console.log(`✅ 유사문제 생성 완료: ${weaknessTypes.length}개 약점 유형, ${weaknessTypes.length * 3}개 문제`);
+학생 정보:
+- 이름: ${studentName}
+- 약점 유형: ${weaknessTypes.join(', ')}
+
+요구사항:
+1. 각 약점 유형마다 **반드시 3가지 난이도**의 문제를 생성하세요:
+   - **📌 기본 유형 문제**: 개념 이해를 위한 기초 문제 (쉬움)
+   - **🔄 변형 문제**: 유사하지만 약간 변형된 문제 (보통)
+   - **🚀 심화 문제**: 개념을 응용한 고난도 문제 (어려움)
+
+2. 각 문제는 다음을 포함해야 합니다:
+   - 명확한 문제 설명
+   - 💡 힌트 제공
+   - ✅ 정답 및 단계별 풀이
+
+3. **반드시 아래 HTML 형식을 정확히 따르세요**:
+
+<div class="problem-section">
+  <h2 class="weakness-title">🎯 약점: [약점 유형명]</h2>
+  
+  <div class="difficulty-group">
+    <h3 class="difficulty-level basic">📌 기본 유형 문제</h3>
+    <div class="problem">
+      <div class="problem-content">
+        <p><strong>문제:</strong> [구체적인 문제 내용을 여기에 작성]</p>
+      </div>
+      <details class="hint">
+        <summary>💡 힌트</summary>
+        <p>[학생이 문제를 풀 수 있도록 도움이 되는 힌트]</p>
+      </details>
+      <details class="solution">
+        <summary>✅ 정답 및 풀이</summary>
+        <p><strong>정답:</strong> [정답]</p>
+        <div class="solution-steps">
+          <p><strong>풀이:</strong></p>
+          <ol>
+            <li>[풀이 단계 1]</li>
+            <li>[풀이 단계 2]</li>
+            <li>[풀이 단계 3]</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div class="difficulty-group">
+    <h3 class="difficulty-level variation">🔄 변형 문제</h3>
+    <div class="problem">
+      <div class="problem-content">
+        <p><strong>문제:</strong> [변형 문제 내용]</p>
+      </div>
+      <details class="hint">
+        <summary>💡 힌트</summary>
+        <p>[힌트]</p>
+      </details>
+      <details class="solution">
+        <summary>✅ 정답 및 풀이</summary>
+        <p><strong>정답:</strong> [정답]</p>
+        <div class="solution-steps">
+          <p><strong>풀이:</strong></p>
+          <ol>
+            <li>[풀이 단계 1]</li>
+            <li>[풀이 단계 2]</li>
+            <li>[풀이 단계 3]</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div class="difficulty-group">
+    <h3 class="difficulty-level advanced">🚀 심화 문제</h3>
+    <div class="problem">
+      <div class="problem-content">
+        <p><strong>문제:</strong> [심화 문제 내용]</p>
+      </div>
+      <details class="hint">
+        <summary>💡 힌트</summary>
+        <p>[힌트]</p>
+      </details>
+      <details class="solution">
+        <summary>✅ 정답 및 풀이</summary>
+        <p><strong>정답:</strong> [정답]</p>
+        <div class="solution-steps">
+          <p><strong>풀이:</strong></p>
+          <ol>
+            <li>[풀이 단계 1]</li>
+            <li>[풀이 단계 2]</li>
+            <li>[풀이 단계 3]</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+
+중요: 
+- 각 약점 유형마다 위 구조를 정확히 따라 작성하세요
+- 대괄호 [...] 부분을 실제 내용으로 채우세요
+- HTML 태그와 클래스명을 정확히 사용하세요
+- 수학 기호는 유니코드로 표현하세요 (예: ², ³, ×, ÷, ≠, ≤, ≥)
+
+약점 유형별 문제 예시:
+- "문자 곱셈 시 지수 처리": x × x = x², 3x × 2x = 6x², (2x)² × 3x = 12x³
+- "다항식의 완전한 분배": 2(x+3), (x+2)(x+3), (x+1)(x²-x+1)
+- "완전 제곱 공식": (x+2)², (x-3)², (x+1)²-(x-1)²
+- "계수 계산": 2x+3x, 5x-2x+3, 3(2x+1)-2(x-3)
+- "지수법칙": x²×x³, (x²)³, (2x²)³×x⁴
+
+각 약점 유형에 대해 위 HTML 형식으로 문제를 생성해주세요.`;
+
+    console.log('🔄 Calling Gemini API for similar problem generation...');
+    console.log(`📍 Using model: gemini-1.5-flash`);
+    console.log(`📍 API Key length: ${GOOGLE_GEMINI_API_KEY.length} characters`);
+
+    // Gemini API 호출
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Gemini API failed: ${response.status}`, errorText);
+      
+      // 에러 상세 정보 제공
+      let errorMessage = `Gemini API 호출 실패 (${response.status})`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error?.message) {
+          errorMessage = errorJson.error.message;
+        }
+      } catch (e) {
+        errorMessage = errorText.substring(0, 200);
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    console.log('📦 Gemini API response received');
+    
+    // 응답 파싱
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    if (!generatedText) {
+      console.error('❌ No content generated from Gemini API');
+      console.error('Response structure:', JSON.stringify(data, null, 2));
+      throw new Error('Gemini API에서 문제를 생성하지 못했습니다.');
+    }
+
+    console.log('✅ 유사문제 생성 완료');
+    console.log(`📊 생성된 문제 길이: ${generatedText.length} characters`);
+
+    // HTML 정리 (불필요한 마크다운 코드 블록 제거)
+    let cleanedHTML = generatedText;
+    if (cleanedHTML.includes('```html')) {
+      cleanedHTML = cleanedHTML.replace(/```html\n?/g, '').replace(/```\n?/g, '');
+    }
+    if (cleanedHTML.includes('```')) {
+      cleanedHTML = cleanedHTML.replace(/```\n?/g, '');
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
-        problems: problemsHTML,
+        problems: cleanedHTML,
         weaknessTypes,
         studentName,
-        generatedAt: new Date().toISOString()
+        generatedAt: new Date().toISOString(),
+        model: 'gemini-1.5-flash'
       }),
       { 
         status: 200, 
