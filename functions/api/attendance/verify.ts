@@ -19,7 +19,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
   try {
     const body = await request.json();
-    const { code, classId } = body;
+    const { code, name, classId } = body;
 
     if (!code) {
       return new Response(
@@ -28,7 +28,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
-    console.log('🔍 Verifying attendance code:', code);
+    console.log('🔍 Verifying attendance code:', code, 'name:', name);
 
     // 1. 출석 코드로 학생 찾기 - 모든 필드 조회
     const attendanceCode = await DB.prepare(`
@@ -97,6 +97,18 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         JSON.stringify({ success: false, error: "학생 정보를 찾을 수 없습니다" }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
+    }
+
+    // 2.5. 이름 업데이트 (요청에 이름이 포함된 경우)
+    if (name && name.trim()) {
+      console.log('📝 Updating student name:', name.trim());
+      await DB.prepare(`
+        UPDATE users SET name = ? WHERE id = ?
+      `).bind(name.trim(), userId).run();
+      
+      // 업데이트된 이름을 student 객체에 반영
+      student.name = name.trim();
+      console.log('✅ Student name updated to:', student.name);
     }
 
     // 3. 오늘 날짜 확인 (한국 시간)

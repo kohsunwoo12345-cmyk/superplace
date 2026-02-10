@@ -10,6 +10,7 @@ import { CheckCircle, ArrowRight, Shield, User, Camera, Upload, X, AlertCircle, 
 export default function AttendanceVerifyPage() {
   const router = useRouter();
   const [code, setCode] = useState("");
+  const [studentName, setStudentName] = useState("");
   const [loading, setLoading] = useState(false);
   const [verified, setVerified] = useState(false);
   const [studentInfo, setStudentInfo] = useState<any>(null);
@@ -53,12 +54,15 @@ export default function AttendanceVerifyPage() {
 
     setLoading(true);
     try {
-      console.log("📤 출석 인증 요청:", { code: trimmedCode });
+      console.log("📤 출석 인증 요청:", { code: trimmedCode, name: studentName.trim() || undefined });
       
       const response = await fetch("/api/attendance/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: trimmedCode }),
+        body: JSON.stringify({ 
+          code: trimmedCode,
+          name: studentName.trim() || undefined
+        }),
       });
 
       const data = await response.json();
@@ -691,6 +695,22 @@ export default function AttendanceVerifyPage() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* 이름 입력 (선택) */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-700">이름 (선택)</label>
+            <Input
+              type="text"
+              placeholder="이름을 입력하세요 (선택사항)"
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              className="text-base h-12 border-2 focus:border-purple-500"
+              disabled={loading}
+            />
+            <p className="text-xs text-gray-500">
+              💡 이름을 입력하면 결과 페이지에 표시됩니다
+            </p>
           </div>
 
           {/* 출석 코드 입력 */}
