@@ -53,30 +53,35 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     try {
       const query = `
         SELECT 
-          id,
-          userId,
-          score,
-          subject,
-          feedback,
-          strengths,
-          suggestions,
-          weaknessTypes,
-          detailedAnalysis,
-          totalQuestions,
-          correctAnswers,
-          submittedAt,
-          gradedAt
-        FROM homework_submissions_v2
-        WHERE userId = ? AND status = 'graded'
-        ORDER BY submittedAt DESC
+          hs.id,
+          hs.userId,
+          hs.submittedAt,
+          hg.score,
+          hg.subject,
+          hg.feedback,
+          hg.strengths,
+          hg.suggestions,
+          hg.weaknessTypes,
+          hg.detailedAnalysis,
+          hg.totalQuestions,
+          hg.correctAnswers,
+          hg.gradedAt
+        FROM homework_submissions_v2 hs
+        LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
+        WHERE hs.userId = ? AND hg.score IS NOT NULL
+        ORDER BY hs.submittedAt DESC
         LIMIT 30
       `;
       
       const result = await DB.prepare(query).bind(parseInt(studentId)).all();
       homeworkSubmissions = result.results as any[] || [];
-      console.log(`✅ Found ${homeworkSubmissions.length} homework submissions`);
+      console.log(`✅ Found ${homeworkSubmissions.length} homework submissions for student ${studentId}`);
+      
+      if (homeworkSubmissions.length > 0) {
+        console.log(`📋 Sample homework data:`, JSON.stringify(homeworkSubmissions[0], null, 2));
+      }
     } catch (dbError: any) {
-      console.warn('⚠️ homework_submissions_v2 table error:', dbError.message);
+      console.error('❌ Database query error:', dbError.message);
       homeworkSubmissions = [];
     }
 
