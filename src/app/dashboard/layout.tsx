@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import ModernLayout from '@/components/layouts/ModernLayout';
 
 export default function DashboardLayout({
   children,
@@ -10,7 +11,6 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -19,158 +19,27 @@ export default function DashboardLayout({
     if (userStr) {
       try {
         const userData = JSON.parse(userStr);
-        console.log('🔍 Dashboard Layout - User Data:', userData);
-        console.log('🔍 Dashboard Layout - User Role:', userData.role);
         setUser(userData);
-        // 대소문자 구분 없이 체크
-        const role = userData.role?.toUpperCase();
-        const isAdminRole = role === 'ADMIN' || role === 'SUPER_ADMIN';
-        console.log('🔍 Dashboard Layout - isAdmin:', isAdminRole);
-        setIsAdmin(isAdminRole);
+        console.log('🔍 DashboardLayout - User Data:', userData);
+        console.log('🔍 DashboardLayout - User Role:', userData.role);
       } catch (error) {
         console.error('Failed to parse user data:', error);
       }
-    } else {
-      console.log('⚠️ Dashboard Layout - No user in localStorage');
     }
   }, []);
 
-  // 클라이언트 사이드에서만 렌더링
   if (!mounted) {
     return null;
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    router.push('/login');
-  };
+  // 로그인하지 않은 경우 로그인 페이지로 리다이렉트
+  if (!user) {
+    if (typeof window !== 'undefined') {
+      router.push('/login');
+    }
+    return null;
+  }
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">SuperPlace</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">{user?.email || 'Loading...'}</span>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-            >
-              로그아웃
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-64 bg-white shadow-lg min-h-screen">
-          <nav className="p-4 space-y-2">
-            <a
-              href="/dashboard"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              📊 대시보드
-            </a>
-
-            {/* 디버그: 실시간 상태 확인 */}
-            <div className="px-4 py-2 text-xs bg-yellow-50 border border-yellow-200 rounded">
-              <div>Role: {user?.role || 'null'}</div>
-              <div>isAdmin: {isAdmin ? 'true' : 'false'}</div>
-              <div>Mounted: {mounted ? 'true' : 'false'}</div>
-            </div>
-            
-            {/* Admin Menu Section - Only visible for ADMIN and SUPER_ADMIN */}
-            {isAdmin && (
-              <>
-                <div className="pt-4 pb-2">
-                  <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    관리자 메뉴
-                  </div>
-                </div>
-                <a
-                  href="/dashboard/admin/users"
-                  className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-                >
-                  👥 사용자 관리
-                </a>
-                <a
-                  href="/dashboard/admin/academies"
-                  className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-                >
-                  🎓 학원 관리
-                </a>
-                <a
-                  href="/dashboard/admin/ai-bots"
-                  className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-                >
-                  🤖 AI 봇 관리
-                </a>
-                <a
-                  href="/dashboard/admin/inquiries"
-                  className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-                >
-                  📝 문의 관리
-                </a>
-                <a
-                  href="/dashboard/admin/system"
-                  className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-                >
-                  ⚙️ 시스템 설정
-                </a>
-                <div className="pt-2 pb-2">
-                  <div className="border-t border-gray-200"></div>
-                </div>
-              </>
-            )}
-
-            {/* General Menu */}
-            <a
-              href="/dashboard/students"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              👨‍🎓 학생 관리
-            </a>
-            <a
-              href="/dashboard/teachers"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              👨‍🏫 선생님 관리
-            </a>
-            <a
-              href="/dashboard/classes"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              📚 수업 관리
-            </a>
-            <a
-              href="/dashboard/ai-chat"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              🤖 AI 챗봇
-            </a>
-            <a
-              href="/dashboard/analytics"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              📈 통계 분석
-            </a>
-            <a
-              href="/dashboard/settings"
-              className="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition"
-            >
-              ⚙️ 설정
-            </a>
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 p-8">
-          {children}
-        </main>
-      </div>
-    </div>
-  );
+  // 모든 사용자는 Modern Layout 사용 (관리자 포함)
+  return <ModernLayout role={user.role}>{children}</ModernLayout>;
 }

@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .delay-100 {
+    animation-delay: 0.1s;
+  }
+  .delay-200 {
+    animation-delay: 0.2s;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -57,28 +66,54 @@
     @apply bg-background text-foreground;
   }
   
-  /* 스무스 스크롤 */
   html {
     scroll-behavior: smooth;
   }
   
-  /* 모든 요소에 기본 전환 효과 */
-  * {
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  /* 버튼과 링크에 부드러운 호버 효과 */
   button, a {
     transition: all 0.2s ease-in-out;
   }
-  
-  /* 카드 호버 효과 */
-  [class*="card"] {
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+@layer utilities {
+  .responsive-container {
+    @apply w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 max-w-7xl mx-auto;
   }
   
-  [class*="card"]:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  .responsive-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6;
+  }
+  
+  .responsive-card-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6;
+  }
+  
+  .responsive-heading {
+    @apply text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold;
+  }
+  
+  .responsive-subheading {
+    @apply text-xl sm:text-2xl md:text-3xl font-semibold;
+  }
+  
+  .responsive-text {
+    @apply text-sm sm:text-base md:text-lg;
+  }
+  
+  .responsive-spacing {
+    @apply space-y-4 md:space-y-6 lg:space-y-8;
+  }
+  
+  .responsive-padding {
+    @apply p-4 sm:p-6 md:p-8 lg:p-10;
+  }
+  
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+  
+  .break-words-all {
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,9 @@ import {
   EyeOff,
   LogIn,
   AlertCircle,
+  Coins,
+  PlusCircle,
+  MinusCircle,
 } from "lucide-react";
 
 interface UserDetail {
@@ -81,17 +84,10 @@ interface Payment {
   paidAt: string;
 }
 
-export default function UserDetailPage() {
+function UserDetailPage() {
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // 클라이언트에서 쿼리 파라미터 읽기
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      setUserId(params.get("id"));
-    }
-  }, []);
+  const searchParams = useSearchParams();
+  const userId = searchParams.get("id");
 
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loginLogs, setLoginLogs] = useState<LoginLog[]>([]);
@@ -116,26 +112,38 @@ export default function UserDetailPage() {
     setCurrentUser(userData);
 
     if (userId) {
-      fetchUserDetail();
-      fetchLoginLogs();
-      fetchActivityLogs();
-      fetchBotAssignments();
-      fetchPayments();
+      loadAllData();
     }
-  }, [router, userId]);
+  }, [userId]);
+
+  const loadAllData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchUserDetail(),
+        fetchLoginLogs(),
+        fetchActivityLogs(),
+        fetchBotAssignments(),
+        fetchPayments()
+      ]);
+    } catch (error) {
+      console.error("데이터 로드 실패:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchUserDetail = async () => {
     try {
-      setLoading(true);
       const response = await fetch(`/api/admin/users/${userId}`);
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+      } else {
+        console.error("사용자 정보 로드 실패:", response.status);
       }
     } catch (error) {
       console.error("사용자 정보 로드 실패:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -148,6 +156,8 @@ export default function UserDetailPage() {
       }
     } catch (error) {
       console.error("로그인 기록 로드 실패:", error);
+      // API가 없으면 빈 배열로 설정
+      setLoginLogs([]);
     }
   };
 
@@ -160,6 +170,8 @@ export default function UserDetailPage() {
       }
     } catch (error) {
       console.error("활동 기록 로드 실패:", error);
+      // API가 없으면 빈 배열로 설정
+      setActivityLogs([]);
     }
   };
 
@@ -172,6 +184,8 @@ export default function UserDetailPage() {
       }
     } catch (error) {
       console.error("봇 할당 정보 로드 실패:", error);
+      // API가 없으면 빈 배열로 설정
+      setBotAssignments([]);
     }
   };
 
@@ -184,6 +198,8 @@ export default function UserDetailPage() {
       }
     } catch (error) {
       console.error("결제 정보 로드 실패:", error);
+      // API가 없으면 빈 배열로 설정
+      setPayments([]);
     }
   };
 
@@ -207,7 +223,7 @@ export default function UserDetailPage() {
       if (response.ok) {
         alert("비밀번호가 재설정되었습니다.");
         setNewPassword("");
-        fetchUserDetail();
+        await fetchUserDetail();
       } else {
         alert("비밀번호 재설정에 실패했습니다.");
       }
@@ -283,8 +299,7 @@ export default function UserDetailPage() {
         alert(`${action} 완료!\n\n${data.points.before.toLocaleString()}P → ${data.points.after.toLocaleString()}P`);
         setPointsAmount("");
         setPointsReason("");
-        fetchUserDetail();
-        fetchActivityLogs();
+        await Promise.all([fetchUserDetail(), fetchActivityLogs()]);
       } else {
         const data = await response.json();
         alert(`포인트 ${action} 실패: ${data.error}`);
@@ -882,5 +897,21 @@ export default function UserDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// Wrapper with Suspense for useSearchParams
+export default function UserDetailPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    }>
+      <UserDetailPage />
+    </Suspense>
   );
 }
