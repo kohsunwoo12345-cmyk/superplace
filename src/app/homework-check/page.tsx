@@ -75,7 +75,7 @@ function HomeworkCheckContent() {
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: 1280, height: 720 }
+        video: { facingMode: 'environment', width: 960, height: 540 }
       });
       
       if (videoRef.current) {
@@ -104,11 +104,26 @@ function HomeworkCheckContent() {
       const context = canvas.getContext('2d');
 
       if (context) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
+        // 최대 해상도 제한 (너비 800px)
+        const maxWidth = 800;
+        const scale = Math.min(1, maxWidth / video.videoWidth);
         
-        const imageData = canvas.toDataURL('image/jpeg', 0.9);
+        canvas.width = video.videoWidth * scale;
+        canvas.height = video.videoHeight * scale;
+        
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // 이미지 압축률 0.6 (60%) - SQLite 제한 회피
+        const imageData = canvas.toDataURL('image/jpeg', 0.6);
+        
+        console.log(`📸 이미지 캡처: ${(imageData.length / 1024 / 1024).toFixed(2)}MB`);
+        
+        // 1MB 제한 확인
+        if (imageData.length > 1024 * 1024) {
+          setError("이미지가 너무 큽니다. 다시 촬영해주세요.");
+          return;
+        }
+        
         setCapturedImages(prev => [...prev, imageData]);
         
         stopCamera();
