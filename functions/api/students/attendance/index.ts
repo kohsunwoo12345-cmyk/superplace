@@ -99,10 +99,10 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     // 출결 통계 계산
     const stats = {
       total: attendanceRecords.length,
-      present: attendanceRecords.filter((r: any) => r.status === 'present').length,
-      late: attendanceRecords.filter((r: any) => r.status === 'late').length,
-      absent: attendanceRecords.filter((r: any) => r.status === 'absent').length,
-      excused: attendanceRecords.filter((r: any) => r.status === 'excused').length,
+      present: attendanceRecords.filter((r: any) => r.status?.toLowerCase() === 'present' || r.status === 'PRESENT').length,
+      late: attendanceRecords.filter((r: any) => r.status?.toLowerCase() === 'late' || r.status === 'LATE').length,
+      absent: attendanceRecords.filter((r: any) => r.status?.toLowerCase() === 'absent' || r.status === 'ABSENT').length,
+      excused: attendanceRecords.filter((r: any) => r.status?.toLowerCase() === 'excused' || r.status === 'EXCUSED').length,
     };
 
     // 출석률 계산
