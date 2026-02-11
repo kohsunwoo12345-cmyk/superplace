@@ -9,8 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, MessageSquare,
   TrendingUp, Brain, Loader2, RefreshCw, CheckCircle, XCircle,
-  ClipboardCheck, AlertTriangle, Copy, Check, QrCode
+  ClipboardCheck, AlertTriangle, QrCode, Copy, Check
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 interface StudentDetail {
   id: number;
@@ -76,24 +77,6 @@ interface ConceptRecommendation {
   action: string;
 }
 
-interface HomeworkSubmission {
-  id: string;
-  userId: number;
-  score: number;
-  subject: string;
-  totalQuestions: number;
-  correctAnswers: number;
-  feedback: string;
-  strengths: string;
-  suggestions: string;
-  weaknessTypes: string[];
-  detailedAnalysis: string;
-  studyDirection: string;
-  submittedAt: string;
-  gradedAt: string;
-  imageCount: number;
-}
-
 function StudentDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -107,13 +90,8 @@ function StudentDetailContent() {
   const [weakConcepts, setWeakConcepts] = useState<WeakConcept[]>([]);
   const [conceptRecommendations, setConceptRecommendations] = useState<ConceptRecommendation[]>([]);
   const [conceptSummary, setConceptSummary] = useState<string>("");
-  const [dailyProgress, setDailyProgress] = useState<DailyProgress[]>([]);
   const [studentCode, setStudentCode] = useState<string>("");
   const [attendanceCode, setAttendanceCode] = useState<AttendanceCode | null>(null);
-  const [homeworkSubmissions, setHomeworkSubmissions] = useState<HomeworkSubmission[]>([]);
-  const [generatingSimilarProblems, setGeneratingSimilarProblems] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-  const [hasAdminBackup, setHasAdminBackup] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [analyzingLoading, setAnalyzingLoading] = useState(false);
@@ -123,9 +101,6 @@ function StudentDetailContent() {
   const [attendanceCodeCopied, setAttendanceCodeCopied] = useState(false);
 
   useEffect(() => {
-    // Client-side only flag
-    setIsClient(true);
-    
     const userStr = localStorage.getItem("user");
     if (!userStr) {
       router.push("/login");
@@ -133,10 +108,6 @@ function StudentDetailContent() {
     }
 
     if (studentId) {
-      // Check for admin backup in sessionStorage (client-side only)
-      if (typeof window !== 'undefined' && sessionStorage.getItem('admin_backup_user')) {
-        setHasAdminBackup(true);
-      }
       fetchStudentData();
     }
   }, [studentId, router]);
@@ -226,22 +197,6 @@ function StudentDetailContent() {
         }
       }
 
-      // 5. 숙제 제출 내역 조회
-      const homeworkResponse = await fetch(`/api/homework/results?role=ADMIN&email=admin@superplace.co.kr`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (homeworkResponse.ok) {
-        const homeworkData = await homeworkResponse.json();
-        if (homeworkData.success && homeworkData.submissions) {
-          // 해당 학생의 숙제만 필터링
-          const studentHomework = homeworkData.submissions.filter(
-            (hw: any) => hw.userId === parseInt(studentId || '0')
-          );
-          setHomeworkSubmissions(studentHomework);
-          console.log(`✅ 학생 숙제 ${studentHomework.length}건 로드됨`);
-        }
-      }
-
     } catch (error: any) {
       console.error("Failed to fetch student data:", error);
       setError(error.message || "오류가 발생했습니다.");
@@ -297,7 +252,6 @@ function StudentDetailContent() {
         setWeakConcepts(data.weakConcepts || []);
         setConceptRecommendations(data.recommendations || []);
         setConceptSummary(data.summary || "");
-        setDailyProgress(data.dailyProgress || []);
       } else {
         throw new Error("부족한 개념 분석에 실패했습니다.");
       }
@@ -306,345 +260,6 @@ function StudentDetailContent() {
       alert(error.message || "부족한 개념 분석 중 오류가 발생했습니다.");
     } finally {
       setConceptAnalyzingLoading(false);
-    }
-  };
-
-  const generateSimilarProblems = async () => {
-    try {
-      setGeneratingSimilarProblems(true);
-      const token = localStorage.getItem("token");
-
-      // 모든 숙제 제출 내역에서 약점 유형 수집
-      const weaknessTypes = new Set<string>();
-      
-      homeworkSubmissions.forEach(hw => {
-        // 1. weaknessTypes 배열에서 추출
-        if (hw.weaknessTypes && Array.isArray(hw.weaknessTypes)) {
-          hw.weaknessTypes.forEach(type => {
-            if (type && type.trim()) weaknessTypes.add(type.trim());
-          });
-        }
-        
-        // 2. weaknesses 배열에서 추출
-        if (hw.weaknesses && Array.isArray(hw.weaknesses)) {
-          hw.weaknesses.forEach(weakness => {
-            if (weakness && typeof weakness === 'string' && weakness.trim()) {
-              weaknessTypes.add(weakness.trim());
-            }
-          });
-        }
-        
-        // 3. conceptsNeeded 배열에서 추출
-        if (hw.conceptsNeeded && Array.isArray(hw.conceptsNeeded)) {
-          hw.conceptsNeeded.forEach(concept => {
-            if (concept && typeof concept === 'string' && concept.trim()) {
-              weaknessTypes.add(concept.trim());
-            }
-          });
-        }
-        
-        // 4. suggestions에서 키워드 추출
-        if (hw.suggestions && typeof hw.suggestions === 'string') {
-          const suggestions = hw.suggestions;
-          // 일반적인 수학 약점 키워드 추출
-          if (suggestions.includes('지수') || suggestions.includes('곱셈')) {
-            weaknessTypes.add('문자 곱셈 시 지수 처리');
-          }
-          if (suggestions.includes('분배') || suggestions.includes('전개')) {
-            weaknessTypes.add('다항식의 완전한 분배');
-          }
-          if (suggestions.includes('제곱') || suggestions.includes('완전')) {
-            weaknessTypes.add('완전 제곱 공식');
-          }
-          if (suggestions.includes('계수') || suggestions.includes('동류항')) {
-            weaknessTypes.add('계수 계산');
-          }
-          if (suggestions.includes('지수법칙')) {
-            weaknessTypes.add('지수법칙');
-          }
-        }
-        
-        // 5. detailedAnalysis에서 키워드 추출
-        if (hw.detailedAnalysis && typeof hw.detailedAnalysis === 'string') {
-          const analysis = hw.detailedAnalysis;
-          if (analysis.includes('지수') || analysis.includes('곱셈')) {
-            weaknessTypes.add('문자 곱셈 시 지수 처리');
-          }
-          if (analysis.includes('분배') || analysis.includes('전개')) {
-            weaknessTypes.add('다항식의 완전한 분배');
-          }
-          if (analysis.includes('제곱')) {
-            weaknessTypes.add('완전 제곱 공식');
-          }
-        }
-      });
-
-      let weaknessTypesArray = Array.from(weaknessTypes);
-
-      // 약점 유형이 없으면 기본 주제 사용
-      if (weaknessTypesArray.length === 0) {
-        console.log('⚠️ 약점 유형이 없어 기본 주제를 사용합니다.');
-        weaknessTypesArray = [
-          '기본 연산',
-          '방정식 풀이',
-          '식의 계산'
-        ];
-      }
-
-      console.log('🎯 약점 유형:', weaknessTypesArray);
-
-      const response = await fetch(`/api/homework/generate-similar-problems`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          studentId,
-          weaknessTypes: weaknessTypesArray,
-          studentName: student?.name || '학생'
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          // 새 탭에서 유사문제 페이지 열기
-          const problemsWindow = window.open('', '_blank');
-          if (problemsWindow) {
-            problemsWindow.document.write(`
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <title>${student?.name}님 맞춤 유사문제</title>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                  * { box-sizing: border-box; }
-                  body { 
-                    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif; 
-                    padding: 40px; 
-                    max-width: 1000px; 
-                    margin: 0 auto; 
-                    background: #f9fafb;
-                    line-height: 1.6;
-                  }
-                  h1 { 
-                    color: #1e40af; 
-                    text-align: center;
-                    margin-bottom: 10px;
-                  }
-                  .header-info {
-                    text-align: center;
-                    color: #6b7280;
-                    margin-bottom: 30px;
-                    padding-bottom: 20px;
-                    border-bottom: 2px solid #e5e7eb;
-                  }
-                  .weakness-types {
-                    display: flex;
-                    flex-wrap: wrap;
-                    justify-content: center;
-                    gap: 8px;
-                    margin-top: 15px;
-                  }
-                  .weakness-type { 
-                    display: inline-block; 
-                    background: #fef3c7; 
-                    color: #92400e; 
-                    padding: 6px 16px; 
-                    border-radius: 16px; 
-                    font-size: 14px;
-                    font-weight: 500;
-                  }
-                  .print-btn { 
-                    background: #2563eb; 
-                    color: white; 
-                    padding: 12px 32px; 
-                    border: none; 
-                    border-radius: 8px; 
-                    cursor: pointer; 
-                    font-size: 16px; 
-                    margin: 20px auto;
-                    display: block;
-                    font-weight: 600;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    transition: all 0.2s;
-                  }
-                  .print-btn:hover { 
-                    background: #1d4ed8;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-                    transform: translateY(-1px);
-                  }
-                  
-                  /* 문제 섹션 스타일 */
-                  .problem-section {
-                    background: white;
-                    margin: 30px 0;
-                    padding: 30px;
-                    border-radius: 12px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-                  }
-                  .weakness-title {
-                    color: #dc2626;
-                    font-size: 22px;
-                    margin-top: 0;
-                    padding-bottom: 15px;
-                    border-bottom: 3px solid #fee2e2;
-                  }
-                  
-                  /* 난이도별 그룹 */
-                  .difficulty-group {
-                    margin: 25px 0;
-                    padding: 20px;
-                    border-radius: 10px;
-                    background: #fafafa;
-                  }
-                  .difficulty-level {
-                    font-size: 18px;
-                    font-weight: 700;
-                    margin: 0 0 15px 0;
-                    padding: 10px 15px;
-                    border-radius: 8px;
-                    display: inline-block;
-                  }
-                  .difficulty-level.basic {
-                    background: #dbeafe;
-                    color: #1e40af;
-                  }
-                  .difficulty-level.variation {
-                    background: #fef3c7;
-                    color: #92400e;
-                  }
-                  .difficulty-level.advanced {
-                    background: #fee2e2;
-                    color: #991b1b;
-                  }
-                  
-                  /* 문제 스타일 */
-                  .problem { 
-                    background: white;
-                    margin: 20px 0; 
-                    padding: 25px; 
-                    border: 2px solid #e5e7eb; 
-                    border-radius: 10px;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-                  }
-                  .problem-content {
-                    margin-bottom: 15px;
-                  }
-                  .problem-content p {
-                    font-size: 16px;
-                    color: #1f2937;
-                    line-height: 1.8;
-                  }
-                  .problem-content strong {
-                    color: #111827;
-                    font-size: 17px;
-                  }
-                  
-                  /* Details 스타일 */
-                  details { 
-                    margin: 12px 0; 
-                    padding: 15px; 
-                    border-radius: 8px;
-                    cursor: pointer;
-                  }
-                  details.hint {
-                    background: #eff6ff;
-                    border-left: 4px solid #3b82f6;
-                  }
-                  details.solution {
-                    background: #f0fdf4;
-                    border-left: 4px solid #10b981;
-                  }
-                  summary { 
-                    font-weight: 600; 
-                    color: #374151;
-                    font-size: 15px;
-                    padding: 5px 0;
-                    list-style: none;
-                  }
-                  summary::-webkit-details-marker {
-                    display: none;
-                  }
-                  summary:hover {
-                    opacity: 0.8;
-                  }
-                  details[open] summary {
-                    margin-bottom: 12px;
-                    padding-bottom: 12px;
-                    border-bottom: 1px solid #e5e7eb;
-                  }
-                  details p {
-                    color: #4b5563;
-                    margin: 8px 0;
-                  }
-                  .solution-steps {
-                    margin-top: 15px;
-                    padding: 15px;
-                    background: #f9fafb;
-                    border-radius: 6px;
-                  }
-                  .solution-steps ol {
-                    margin: 10px 0;
-                    padding-left: 25px;
-                  }
-                  .solution-steps li {
-                    margin: 8px 0;
-                    line-height: 1.7;
-                    color: #374151;
-                  }
-                  
-                  .footer {
-                    text-align: center;
-                    color: #9ca3af;
-                    font-size: 14px;
-                    margin-top: 40px;
-                    padding-top: 20px;
-                    border-top: 1px solid #e5e7eb;
-                  }
-                  
-                  @media print { 
-                    .print-btn { display: none; }
-                    body { background: white; }
-                    .problem-section { box-shadow: none; page-break-inside: avoid; }
-                    .difficulty-group { page-break-inside: avoid; }
-                  }
-                </style>
-              </head>
-              <body>
-                <h1>📚 ${student?.name}님 맞춤 유사문제</h1>
-                <div class="header-info">
-                  <p><strong>생성일:</strong> ${new Date().toLocaleString('ko-KR')}</p>
-                  <p><strong>분석된 약점 유형:</strong></p>
-                  <div class="weakness-types">
-                    ${weaknessTypesArray.map(t => `<span class="weakness-type">${t}</span>`).join('')}
-                  </div>
-                </div>
-                <button class="print-btn" onclick="window.print()">🖨️ 인쇄하기</button>
-                
-                ${data.problems}
-                
-                <div class="footer">
-                  <p>이 문제는 학생의 약점 분석을 바탕으로 AI가 생성한 맞춤형 유사문제입니다.</p>
-                  <p>슈퍼플레이스 스터디 - 생성일: ${new Date().toLocaleString('ko-KR')}</p>
-                </div>
-              </body>
-              </html>
-            `);
-          }
-        } else {
-          alert(data.error || "유사문제 생성에 실패했습니다.");
-        }
-      } else {
-        throw new Error("유사문제 생성에 실패했습니다.");
-      }
-    } catch (error: any) {
-      console.error("Failed to generate similar problems:", error);
-      alert(error.message || "유사문제 생성 중 오류가 발생했습니다.");
-    } finally {
-      setGeneratingSimilarProblems(false);
     }
   };
 
@@ -792,200 +407,17 @@ function StudentDetailContent() {
               <p className="text-gray-600 mt-1">{student.email}</p>
             </div>
           </div>
-          <Button 
-            onClick={generateSimilarProblems}
-            disabled={generatingSimilarProblems || homeworkSubmissions.length === 0}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-          >
-            {generatingSimilarProblems ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                생성 중...
-              </>
-            ) : (
-              <>
-                <Brain className="w-4 h-4 mr-2" />
-                유사문제 출제
-              </>
-            )}
-          </Button>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="overview">전체</TabsTrigger>
+        <Tabs defaultValue="info" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="info">개인 정보</TabsTrigger>
             <TabsTrigger value="code">학생 코드</TabsTrigger>
             <TabsTrigger value="attendance">출결</TabsTrigger>
             <TabsTrigger value="chat">AI 대화</TabsTrigger>
             <TabsTrigger value="concepts">부족한 개념</TabsTrigger>
           </TabsList>
-
-          {/* 전체 탭 - 새로 추가 */}
-          <TabsContent value="overview" className="space-y-4">
-            {/* 이번 달 출결 요약 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                  이번 달 출결 현황
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {attendanceStats ? (
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-600">{attendanceStats.total}</p>
-                      <p className="text-sm text-gray-600">총 출석일</p>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <p className="text-2xl font-bold text-green-600">{attendanceStats.present}</p>
-                      <p className="text-sm text-gray-600">출석</p>
-                    </div>
-                    <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                      <p className="text-2xl font-bold text-yellow-600">{attendanceStats.late}</p>
-                      <p className="text-sm text-gray-600">지각</p>
-                    </div>
-                    <div className="text-center p-4 bg-red-50 rounded-lg">
-                      <p className="text-2xl font-bold text-red-600">{attendanceStats.absent}</p>
-                      <p className="text-sm text-gray-600">결석</p>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <p className="text-2xl font-bold text-purple-600">
-                        {attendanceStats.attendanceRate.toFixed(1)}%
-                      </p>
-                      <p className="text-sm text-gray-600">출석률</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-gray-500">출석 데이터가 없습니다.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* 숙제 제출 현황 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ClipboardCheck className="w-5 h-5 text-green-600" />
-                  숙제 제출 현황
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {homeworkSubmissions.length > 0 ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-3 gap-4 mb-4">
-                      <div className="text-center p-4 bg-blue-50 rounded-lg">
-                        <p className="text-2xl font-bold text-blue-600">{homeworkSubmissions.length}</p>
-                        <p className="text-sm text-gray-600">총 제출</p>
-                      </div>
-                      <div className="text-center p-4 bg-green-50 rounded-lg">
-                        <p className="text-2xl font-bold text-green-600">
-                          {(homeworkSubmissions.reduce((acc, hw) => acc + hw.score, 0) / homeworkSubmissions.length).toFixed(1)}
-                        </p>
-                        <p className="text-sm text-gray-600">평균 점수</p>
-                      </div>
-                      <div className="text-center p-4 bg-purple-50 rounded-lg">
-                        <p className="text-2xl font-bold text-purple-600">
-                          {homeworkSubmissions[0]?.subject || '-'}
-                        </p>
-                        <p className="text-sm text-gray-600">최근 과목</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm text-gray-700">최근 제출 (최대 5개)</h4>
-                      {homeworkSubmissions.slice(0, 5).map((hw, idx) => (
-                        <div key={hw.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <Badge variant={hw.score >= 80 ? "default" : hw.score >= 60 ? "secondary" : "destructive"}>
-                                {hw.score}점
-                              </Badge>
-                              <span className="text-sm font-medium">{hw.subject}</span>
-                              <span className="text-xs text-gray-500">
-                                ({hw.correctAnswers}/{hw.totalQuestions})
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              제출: {new Date(hw.submittedAt).toLocaleDateString('ko-KR')}
-                            </p>
-                          </div>
-                          {hw.score >= 80 ? (
-                            <CheckCircle className="w-5 h-5 text-green-500" />
-                          ) : (
-                            <AlertTriangle className="w-5 h-5 text-yellow-500" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-gray-500">아직 제출한 숙제가 없습니다.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* 부족한 개념 요약 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-yellow-600" />
-                  보통 부족한 개념
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {homeworkSubmissions.length > 0 ? (
-                  <div className="space-y-3">
-                    {/* 약점 유형 통계 */}
-                    {(() => {
-                      const weaknessCount = new Map<string, number>();
-                      homeworkSubmissions.forEach(hw => {
-                        if (hw.weaknessTypes && Array.isArray(hw.weaknessTypes)) {
-                          hw.weaknessTypes.forEach(type => {
-                            weaknessCount.set(type, (weaknessCount.get(type) || 0) + 1);
-                          });
-                        }
-                      });
-                      
-                      const sortedWeaknesses = Array.from(weaknessCount.entries())
-                        .sort((a, b) => b[1] - a[1])
-                        .slice(0, 5);
-                      
-                      return sortedWeaknesses.length > 0 ? (
-                        <div className="space-y-2">
-                          {sortedWeaknesses.map(([type, count], idx) => (
-                            <div key={type} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-yellow-800">{idx + 1}.</span>
-                                <span className="text-sm font-medium">{type}</span>
-                              </div>
-                              <Badge variant="outline">{count}회 반복</Badge>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-gray-500">약점 유형 데이터가 없습니다.</p>
-                      );
-                    })()}
-                    
-                    {/* 개선 제안 */}
-                    {homeworkSubmissions[0]?.suggestions && (
-                      <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                        <h4 className="font-semibold text-sm text-blue-900 mb-2">💡 개선 할 점</h4>
-                        <p className="text-sm text-blue-800 whitespace-pre-wrap">
-                          {homeworkSubmissions[0].suggestions}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-gray-500">숙제 제출 후 분석 결과가 표시됩니다.</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* 개인 정보 탭 */}
           <TabsContent value="info" className="space-y-4">
@@ -1051,89 +483,6 @@ function StudentDetailContent() {
                           {new Date(student.created_at).toLocaleDateString('ko-KR')}
                         </p>
                       </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 학생 계정 로그인 카드 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5 text-indigo-600" />
-                  학생 계정 접속
-                </CardTitle>
-                <CardDescription>
-                  학생의 관점에서 시스템을 확인하거나 테스트할 수 있습니다
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                  <p className="text-sm text-indigo-900 mb-4">
-                    이 버튼을 클릭하면 학생 계정으로 자동 로그인됩니다. 
-                    학생이 보는 화면을 확인하거나 문제를 테스트할 수 있습니다.
-                  </p>
-                  <Button
-                    className="w-full bg-indigo-600 hover:bg-indigo-700"
-                    onClick={() => {
-                      if (confirm(`${student.name} 학생 계정으로 로그인하시겠습니까?`)) {
-                        // 현재 관리자/교사 정보를 임시 저장 (client-side only)
-                        if (typeof window !== 'undefined') {
-                          const currentUser = localStorage.getItem('user');
-                          const currentToken = localStorage.getItem('token');
-                          if (currentUser && currentToken) {
-                            sessionStorage.setItem('admin_backup_user', currentUser);
-                            sessionStorage.setItem('admin_backup_token', currentToken);
-                            setHasAdminBackup(true);
-                          }
-                        }
-                        
-                        // 학생 계정으로 전환
-                        localStorage.setItem('user', JSON.stringify({
-                          id: student.id,
-                          email: student.email,
-                          name: student.name,
-                          role: 'STUDENT',
-                          academyId: student.academy_id
-                        }));
-                        
-                        // 학생 대시보드로 이동
-                        alert(`${student.name} 학생으로 로그인되었습니다.\n\n원래 계정으로 돌아가려면 로그아웃 후 다시 로그인하세요.`);
-                        window.location.href = '/';
-                      }
-                    }}
-                  >
-                    <User className="w-4 h-4 mr-2" />
-                    {student.name} 계정으로 로그인
-                  </Button>
-                  
-                  {isClient && hasAdminBackup && (
-                    <div className="mt-3 pt-3 border-t border-indigo-200">
-                      <p className="text-xs text-indigo-700 mb-2">
-                        💡 원래 계정으로 돌아가기
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => {
-                          if (typeof window !== 'undefined') {
-                            const backupUser = sessionStorage.getItem('admin_backup_user');
-                            const backupToken = sessionStorage.getItem('admin_backup_token');
-                            if (backupUser && backupToken) {
-                              localStorage.setItem('user', backupUser);
-                              localStorage.setItem('token', backupToken);
-                              sessionStorage.removeItem('admin_backup_user');
-                              sessionStorage.removeItem('admin_backup_token');
-                              setHasAdminBackup(false);
-                              window.location.href = '/dashboard';
-                            }
-                          }
-                        }}
-                      >
-                        관리자 계정으로 복귀
-                      </Button>
                     </div>
                   )}
                 </div>
@@ -1278,6 +627,15 @@ function StudentDetailContent() {
                       </div>
                     </div>
 
+                    <div className="flex justify-center">
+                      <div className="p-6 bg-white border-2 border-green-200 rounded-lg">
+                        <QRCodeSVG value={attendanceCode.code} size={200} />
+                        <p className="text-center text-xs text-gray-500 mt-3">
+                          출석 QR 코드
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
                         <MessageSquare className="w-4 h-4 text-blue-600" />
@@ -1285,8 +643,8 @@ function StudentDetailContent() {
                       </h4>
                       <ul className="text-sm text-gray-700 space-y-1">
                         <li>• 출석 체크 시 이 6자리 코드를 입력하세요</li>
+                        <li>• QR 코드를 스캔하여 빠르게 출석 처리 가능</li>
                         <li>• 코드는 학생마다 고유하게 부여됩니다</li>
-                        <li>• 코드가 활성화되어 있어야 출석 체크가 가능합니다</li>
                       </ul>
                     </div>
                   </>
@@ -1513,12 +871,12 @@ function StudentDetailContent() {
                       부족한 개념 분석
                     </CardTitle>
                     <CardDescription>
-                      숙제 제출 데이터를 분석하여 학생이 어려워하는 개념을 찾아냅니다
+                      AI가 대화를 분석하여 학생이 어려워하는 개념을 찾아냅니다
                     </CardDescription>
                   </div>
                   <Button
                     onClick={analyzeWeakConcepts}
-                    disabled={conceptAnalyzingLoading || homeworkSubmissions.length === 0}
+                    disabled={conceptAnalyzingLoading || chatHistory.length === 0}
                   >
                     {conceptAnalyzingLoading ? (
                       <>
@@ -1539,8 +897,8 @@ function StudentDetailContent() {
                   <div className="text-center py-12">
                     <AlertTriangle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 mb-2">
-                      {homeworkSubmissions.length === 0
-                        ? "분석할 숙제 제출 내역이 없습니다."
+                      {chatHistory.length === 0
+                        ? "분석할 대화 내역이 없습니다."
                         : "개념 분석을 시작해보세요."}
                     </p>
                   </div>
@@ -1595,55 +953,6 @@ function StudentDetailContent() {
                               </div>
                             </div>
                           ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {dailyProgress.length > 0 && (
-                      <div>
-                        <h4 className="font-semibold mb-3 flex items-center gap-2">
-                          <Calendar className="w-5 h-5 text-blue-600" />
-                          매일매일 학습 기록
-                        </h4>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b bg-gray-50">
-                                <th className="px-3 py-2 text-left font-medium">날짜</th>
-                                <th className="px-3 py-2 text-left font-medium">과목</th>
-                                <th className="px-3 py-2 text-center font-medium">점수</th>
-                                <th className="px-3 py-2 text-center font-medium">상태</th>
-                                <th className="px-3 py-2 text-left font-medium">메모</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {dailyProgress.map((progress, idx) => (
-                                <tr key={idx} className="border-b hover:bg-gray-50">
-                                  <td className="px-3 py-2">{progress.date}</td>
-                                  <td className="px-3 py-2">{progress.subject}</td>
-                                  <td className="px-3 py-2 text-center">
-                                    <Badge 
-                                      variant={progress.score >= 80 ? "default" : progress.score >= 60 ? "secondary" : "destructive"}
-                                    >
-                                      {progress.score.toFixed(1)}점
-                                    </Badge>
-                                  </td>
-                                  <td className="px-3 py-2 text-center">
-                                    <Badge 
-                                      variant={
-                                        progress.status === '개선됨' ? "default" : 
-                                        progress.status === '유지' ? "secondary" : 
-                                        "destructive"
-                                      }
-                                    >
-                                      {progress.status}
-                                    </Badge>
-                                  </td>
-                                  <td className="px-3 py-2 text-gray-600">{progress.note}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
                         </div>
                       </div>
                     )}

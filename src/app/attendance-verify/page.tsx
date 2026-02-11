@@ -10,7 +10,6 @@ import { CheckCircle, ArrowRight, Shield, User, Camera, Upload, X, AlertCircle, 
 export default function AttendanceVerifyPage() {
   const router = useRouter();
   const [code, setCode] = useState("");
-  const [studentName, setStudentName] = useState("");
   const [loading, setLoading] = useState(false);
   const [verified, setVerified] = useState(false);
   const [studentInfo, setStudentInfo] = useState<any>(null);
@@ -23,14 +22,6 @@ export default function AttendanceVerifyPage() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [videoReady, setVideoReady] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-  // 빌드 버전 표시
-  const BUILD_VERSION = '2026-02-11-auto-grading-v3';
-  
-  useEffect(() => {
-    console.log('🔧 빌드 버전:', BUILD_VERSION);
-    console.log('📅 페이지 로드:', new Date().toLocaleString('ko-KR'));
-  }, []);
 
   // 컴포넌트 언마운트 시 카메라 정리
   useEffect(() => {
@@ -62,15 +53,12 @@ export default function AttendanceVerifyPage() {
 
     setLoading(true);
     try {
-      console.log("📤 출석 인증 요청:", { code: trimmedCode, name: studentName.trim() || undefined });
+      console.log("📤 출석 인증 요청:", { code: trimmedCode });
       
       const response = await fetch("/api/attendance/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          code: trimmedCode,
-          name: studentName.trim() || undefined
-        }),
+        body: JSON.stringify({ code: trimmedCode }),
       });
 
       const data = await response.json();
@@ -315,44 +303,8 @@ export default function AttendanceVerifyPage() {
         const reader = new FileReader();
         reader.onload = (event) => {
           const result = event.target?.result as string;
-          
-          // 이미지 압축
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            if (ctx) {
-              // 640px로 리사이즈
-              const maxWidth = 640;
-              const scale = Math.min(1, maxWidth / img.width);
-              canvas.width = img.width * scale;
-              canvas.height = img.height * scale;
-              
-              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-              
-              // 반복 압축
-              let compressed = canvas.toDataURL('image/jpeg', 0.5);
-              let attempts = 0;
-              
-              while (compressed.length > 1024 * 1024 && attempts < 5) {
-                attempts++;
-                const quality = Math.max(0.3, 0.5 - (attempts * 0.1));
-                compressed = canvas.toDataURL('image/jpeg', quality);
-                console.log(`🔄 압축 시도 ${attempts}: ${(compressed.length / 1024 / 1024).toFixed(2)}MB`);
-              }
-              
-              console.log(`✅ 파일 업로드 완료, 압축 후 크기: ${(compressed.length / 1024 / 1024).toFixed(2)}MB`);
-              
-              if (compressed.length > 1024 * 1024) {
-                alert(`${file.name}이(가) 너무 큽니다 (${(compressed.length / 1024 / 1024).toFixed(2)}MB). 1MB 이하로 압축할 수 없습니다.`);
-                return;
-              }
-              
-              setCapturedImages(prev => [...prev, compressed]);
-            }
-          };
-          img.src = result;
+          setCapturedImages(prev => [...prev, result]);
+          console.log("📁 파일 업로드 완료, 크기:", result.length);
         };
         reader.readAsDataURL(file);
       });
@@ -404,47 +356,6 @@ export default function AttendanceVerifyPage() {
 
       if (response.ok && data.success) {
         console.log("✅ 제출 성공!");
-        
-        const submissionId = data.submission?.id;
-        console.log("📋 제출 ID:", submissionId);
-        
-        // 채점 트리거 함수 (재시도 로직 포함)
-        const triggerGrading = async (id: string, retryCount = 0) => {
-          console.log(`🚀 채점 API 호출 시작... (시도 ${retryCount + 1}/3)`);
-          
-          // 첫 시도는 3초 대기, 재시도는 5초 대기
-          await new Promise(resolve => setTimeout(resolve, retryCount === 0 ? 3000 : 5000));
-          
-          try {
-            const gradingRes = await fetch("/api/homework/process-grading", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ submissionId: id })
-            });
-            
-            console.log("📊 채점 응답:", gradingRes.status);
-            const gradingData = await gradingRes.json();
-            console.log("✅ 채점 결과:", gradingData);
-            
-            if (!gradingData.success && retryCount < 2) {
-              // 실패 시 최대 2번 재시도
-              console.log(`⚠️ 채점 실패, ${3 - retryCount}초 후 재시도...`);
-              triggerGrading(id, retryCount + 1);
-            }
-          } catch (gradingErr: any) {
-            console.error("❌ 채점 오류:", gradingErr.message);
-            if (retryCount < 2) {
-              console.log(`⚠️ 오류 발생, ${3 - retryCount}초 후 재시도...`);
-              triggerGrading(id, retryCount + 1);
-            }
-          }
-        };
-        
-        // 즉시 채점 트리거 (비동기, 응답 대기 안함)
-        if (submissionId) {
-          triggerGrading(submissionId);
-        }
-        
         // 제출 완료 상태로 업데이트
         setStudentInfo({
           ...studentInfo,
@@ -744,22 +655,6 @@ export default function AttendanceVerifyPage() {
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* 이름 입력 (선택) */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700">이름 (선택)</label>
-            <Input
-              type="text"
-              placeholder="이름을 입력하세요 (선택사항)"
-              value={studentName}
-              onChange={(e) => setStudentName(e.target.value)}
-              className="text-base h-12 border-2 focus:border-purple-500"
-              disabled={loading}
-            />
-            <p className="text-xs text-gray-500">
-              💡 이름을 입력하면 결과 페이지에 표시됩니다
-            </p>
           </div>
 
           {/* 출석 코드 입력 */}

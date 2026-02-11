@@ -1,47 +1,23 @@
 interface Env {
   DB: D1Database;
+  GEMINI_API_KEY: string;
 }
 
-interface HomeworkSubmission {
-  id: string;
-  userId: number;
-  score: number;
-  subject: string;
-  feedback: string;
-  strengths: string;
-  suggestions: string;
-  weaknessTypes: string | string[];
-  detailedAnalysis: string;
-  totalQuestions: number;
-  correctAnswers: number;
-  submittedAt: string;
-  gradedAt: string;
-}
-
-interface WeakConcept {
-  concept: string;
-  description: string;
-  severity: 'high' | 'medium' | 'low';
-  relatedTopics: string[];
-  evidence: string;
-}
-
-interface DailyProgress {
-  date: string;
-  score: number;
-  subject: string;
-  status: string;
-  note: string;
+interface ChatMessage {
+  id: number;
+  studentId: number;
+  message: string;
+  role: string;
+  createdAt: string;
 }
 
 /**
  * POST /api/students/weak-concepts
- * 숙제 제출 데이터를 기반으로 학생의 부족한 개념 분석
- * Gemini API 없이 기존 채점 데이터에서 직접 분석
+ * Gemini API를 사용하여 학생의 부족한 개념 분석
  */
 export const onRequestPost = async (context: { request: Request; env: Env }) => {
   const { request, env } = context;
-  const { DB } = env;
+  const { DB, GEMINI_API_KEY } = env;
 
   if (!DB) {
     return new Response(JSON.stringify({ success: false, error: "Database not configured" }), {
@@ -61,171 +37,144 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
-    console.log('🔍 Analyzing weak concepts from homework for student:', studentId);
+    console.log('🔍 Analyzing weak concepts for student:', studentId);
 
-    // 1. 학생의 숙제 제출 내역 가져오기 (최근 30개)
-    let homeworkSubmissions: HomeworkSubmission[] = [];
+    // 1. 학생의 채팅 내역 가져오기
+    let chatHistory: ChatMessage[] = [];
     
     try {
       const query = `
         SELECT 
-          hs.id,
-          hs.userId,
-          hs.submittedAt,
-          hg.score,
-          hg.subject,
-          hg.feedback,
-          hg.strengths,
-          hg.suggestions,
-          hg.weaknessTypes,
-          hg.detailedAnalysis,
-          hg.totalQuestions,
-          hg.correctAnswers,
-          hg.gradedAt
-        FROM homework_submissions_v2 hs
-        LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
-        WHERE hs.userId = ? AND hg.score IS NOT NULL
-        ORDER BY hs.submittedAt DESC
-        LIMIT 30
+          id,
+          student_id as studentId,
+          message,
+          role,
+          created_at as createdAt
+        FROM chat_messages
+        WHERE student_id = ?
+        ORDER BY created_at DESC
+        LIMIT 100
       `;
       
       const result = await DB.prepare(query).bind(parseInt(studentId)).all();
-      homeworkSubmissions = result.results as any[] || [];
-      console.log(`✅ Found ${homeworkSubmissions.length} homework submissions for student ${studentId}`);
-      
-      if (homeworkSubmissions.length > 0) {
-        console.log(`📋 Sample homework data:`, JSON.stringify(homeworkSubmissions[0], null, 2));
-      }
+      chatHistory = result.results as any[] || [];
+      console.log(`✅ Found ${chatHistory.length} chat messages for concept analysis`);
     } catch (dbError: any) {
-      console.error('❌ Database query error:', dbError.message);
-      homeworkSubmissions = [];
+      console.warn('⚠️ chat_messages table may not exist:', dbError.message);
+      chatHistory = [];
     }
 
-    // 2. 숙제 제출 내역이 없는 경우
-    if (homeworkSubmissions.length === 0) {
+    // 2. 채팅 내역이 없는 경우
+    if (chatHistory.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
           weakConcepts: [],
-          summary: "분석할 숙제 제출 내역이 없습니다.",
-          recommendations: [{
-            concept: "숙제 제출",
-            action: "숙제를 제출하여 학습 상태를 분석받으세요."
-          }],
-          dailyProgress: [],
+          summary: "분석할 대화 내역이 없습니다.",
+          recommendations: ["AI 챗봇과 대화를 시작하여 부족한 개념을 파악하세요."],
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // 3. 채점 데이터에서 직접 부족한 개념 추출
-    const weakConceptsMap = new Map<string, { count: number; descriptions: string[], submissions: string[] }>();
-    const allSubjects = new Set<string>();
-    let totalScore = 0;
-    let totalCorrect = 0;
-    let totalQuestions = 0;
+    // 3. Gemini API 호출 준비
+    const conversationText = chatHistory
+      .slice(0, 50)
+      .reverse()
+      .map(msg => `${msg.role === 'user' ? '학생' : 'AI'}: ${msg.message}`)
+      .join('\n\n');
 
-    homeworkSubmissions.forEach((hw, index) => {
-      if (hw.subject) allSubjects.add(hw.subject);
-      totalScore += hw.score || 0;
-      totalCorrect += hw.correctAnswers || 0;
-      totalQuestions += hw.totalQuestions || 0;
+    const prompt = `다음은 한 학생이 AI 챗봇과 나눈 학습 대화 내역입니다. 이 학생이 질문한 내용과 AI의 답변을 분석하여, 학생이 이해하지 못하거나 부족한 개념들을 파악해주세요.
 
-      // weaknessTypes 파싱 (배열 또는 JSON 문자열)
-      let weaknesses: string[] = [];
-      if (hw.weaknessTypes) {
-        try {
-          if (typeof hw.weaknessTypes === 'string') {
-            // JSON 배열 문자열인 경우
-            if (hw.weaknessTypes.startsWith('[')) {
-              weaknesses = JSON.parse(hw.weaknessTypes);
-            } else {
-              // 쉼표로 구분된 문자열인 경우
-              weaknesses = hw.weaknessTypes.split(',').map(w => w.trim()).filter(w => w.length > 0);
-            }
-          } else if (Array.isArray(hw.weaknessTypes)) {
-            weaknesses = hw.weaknessTypes;
-          }
-        } catch (e) {
-          console.warn('Failed to parse weaknessTypes:', hw.weaknessTypes);
-          weaknesses = [];
-        }
-      }
+대화 내역:
+${conversationText}
 
-      // 각 약점 유형별로 집계
-      weaknesses.forEach(weakness => {
-        if (!weakConceptsMap.has(weakness)) {
-          weakConceptsMap.set(weakness, { count: 0, descriptions: [], submissions: [] });
-        }
-        const data = weakConceptsMap.get(weakness)!;
-        data.count += 1;
-        if (hw.suggestions && !data.descriptions.includes(hw.suggestions)) {
-          data.descriptions.push(hw.suggestions);
-        }
-        data.submissions.push(`숙제 ${index + 1}`);
-      });
-    });
+다음 형식으로 JSON 응답을 제공해주세요:
+{
+  "summary": "학생의 전반적인 이해도 요약 (2-3문장)",
+  "weakConcepts": [
+    {
+      "concept": "개념명",
+      "description": "부족한 이유 설명",
+      "severity": "high/medium/low",
+      "relatedTopics": ["관련 주제1", "관련 주제2"]
+    }
+  ],
+  "recommendations": [
+    {
+      "concept": "개념명",
+      "action": "구체적인 학습 방법"
+    }
+  ]
+}
 
-    // 4. 부족한 개념 리스트 생성 (빈도순으로 정렬, 최대 5개)
-    const weakConcepts: WeakConcept[] = Array.from(weakConceptsMap.entries())
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 5)
-      .map(([concept, data]) => {
-        const severity: 'high' | 'medium' | 'low' = 
-          data.count >= 3 ? 'high' : data.count >= 2 ? 'medium' : 'low';
-        
-        return {
-          concept,
-          description: data.descriptions.join(' ').slice(0, 200) || `${concept}에 대한 이해가 부족합니다.`,
-          severity,
-          relatedTopics: Array.from(allSubjects),
-          evidence: data.submissions.join(', ')
-        };
-      });
+한국어로 작성하고, 최대 5개의 부족한 개념을 찾아주세요. 구체적이고 실용적인 분석을 제공해주세요.`;
 
-    // 5. 학습 개선 방안 생성
-    const recommendations = weakConcepts.slice(0, 3).map(wc => ({
-      concept: wc.concept,
-      action: `${wc.concept} 개념을 복습하고, 관련 문제를 반복 연습하세요. 특히 ${wc.evidence}에서 나타난 실수를 분석하고 개선하세요.`
-    }));
+    // 4. Gemini API 호출
+    const geminiApiKey = GEMINI_API_KEY || 'AIzaSyDSKFT7gvtwYe01z0JWqFDz3PHSxZiKyoE';
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`;
 
-    // 6. 매일 학습 기록 생성
-    const dailyProgress: DailyProgress[] = homeworkSubmissions.slice(0, 10).map((hw, idx) => {
-      const prevScore = idx < homeworkSubmissions.length - 1 ? homeworkSubmissions[idx + 1].score : hw.score;
-      const status = hw.score > prevScore ? '개선됨' : hw.score === prevScore ? '유지' : '하락';
-      
-      return {
-        date: hw.submittedAt?.split(' ')[0] || 'N/A',
-        score: hw.score || 0,
-        subject: hw.subject || 'N/A',
-        status,
-        note: `${hw.correctAnswers || 0}/${hw.totalQuestions || 0} 정답`
-      };
-    });
-
-    // 7. 전반적인 요약 생성
-    const avgScore = totalScore / homeworkSubmissions.length;
-    const avgCorrectRate = totalQuestions > 0 ? (totalCorrect / totalQuestions * 100) : 0;
-    const subjects = Array.from(allSubjects).join(', ');
+    console.log('🔄 Calling Gemini API for weak concept analysis...');
     
-    const summary = `평균 점수 ${avgScore.toFixed(1)}점 (정답률 ${avgCorrectRate.toFixed(1)}%). ` +
-      `최근 ${homeworkSubmissions.length}개의 ${subjects} 숙제를 분석했습니다. ` +
-      (weakConcepts.length > 0 
-        ? `특히 ${weakConcepts[0].concept}에서 반복적인 실수가 나타났습니다.`
-        : `전반적으로 양호한 학습 상태입니다.`);
+    const geminiResponse = await fetch(geminiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 3048,
+        },
+      }),
+    });
 
-    console.log(`✅ Analysis complete: ${weakConcepts.length} weak concepts found`);
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text();
+      console.error('❌ Gemini API error:', errorText);
+      throw new Error(`Gemini API failed: ${geminiResponse.status}`);
+    }
+
+    const geminiData = await geminiResponse.json();
+    console.log('✅ Gemini API response received');
+
+    // 5. Gemini 응답 파싱
+    let analysisResult;
+    try {
+      const responseText = geminiData.candidates[0].content.parts[0].text;
+      
+      let jsonText = responseText.trim();
+      if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.replace(/```json\s*/, '').replace(/```\s*$/, '');
+      } else if (jsonText.startsWith('```')) {
+        jsonText = jsonText.replace(/```\s*/, '').replace(/```\s*$/, '');
+      }
+      
+      analysisResult = JSON.parse(jsonText);
+      
+      console.log('✅ Weak concept analysis completed successfully');
+    } catch (parseError) {
+      console.error('❌ Failed to parse Gemini response:', parseError);
+      
+      analysisResult = {
+        summary: "AI 분석 중 오류가 발생했습니다.",
+        weakConcepts: [],
+        recommendations: [],
+      };
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
-        weakConcepts,
-        summary,
-        recommendations,
-        dailyProgress,
-        homeworkCount: homeworkSubmissions.length,
-        averageScore: avgScore.toFixed(1),
-        correctRate: avgCorrectRate.toFixed(1)
+        ...analysisResult,
+        chatCount: chatHistory.length,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
