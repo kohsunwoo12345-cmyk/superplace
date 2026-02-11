@@ -261,6 +261,9 @@ async function performGrading(imageArray: string[], apiKey: string) {
           console.log('파싱 실패, 기본값 사용');
         }
       }
+    } else {
+      const errorText = await subjectResponse.text();
+      console.error('❌ 과목 판별 API 오류:', subjectResponse.status, errorText);
     }
   } catch (e) {
     console.error('과목 판별 오류:', e);
@@ -370,7 +373,9 @@ async function performGrading(imageArray: string[], apiKey: string) {
   );
 
   if (!gradingResponse.ok) {
-    throw new Error(`Gemini API error: ${gradingResponse.status}`);
+    const errorText = await gradingResponse.text();
+    console.error('❌ Gemini API error:', gradingResponse.status, errorText);
+    throw new Error(`Gemini API error: ${gradingResponse.status} - ${errorText}`);
   }
 
   const data = await gradingResponse.json();
