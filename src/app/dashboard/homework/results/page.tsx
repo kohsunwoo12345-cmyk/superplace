@@ -140,8 +140,12 @@ export default function TeacherHomeworkResultsPage() {
     if (userStr) {
       const user = JSON.parse(userStr);
       setCurrentUser(user);
-      // 기본값: 오늘 날짜
-      const today = new Date().toISOString().split('T')[0];
+      // 기본값: 오늘 날짜 (한국 시간 KST 기준)
+      const now = new Date();
+      const kstOffset = 9 * 60; // 한국 시간 UTC+9
+      const kstDate = new Date(now.getTime() + kstOffset * 60 * 1000);
+      const today = kstDate.toISOString().split('T')[0];
+      console.log('🇰🇷 한국 시간 기준 오늘:', today);
       setSelectedDate(today);
       fetchHomeworkResults(user, today);
     } else {

@@ -48,8 +48,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       // 기간 조회
       dateFilter = `AND SUBSTR(hs.submittedAt, 1, 10) BETWEEN '${startDate}' AND '${endDate}'`;
     } else {
-      // 기본값: 오늘 날짜
-      const today = new Date().toISOString().split('T')[0];
+      // 기본값: 오늘 날짜 (한국 시간 KST 기준)
+      const now = new Date();
+      const kstOffset = 9 * 60; // 한국 시간은 UTC+9
+      const kstDate = new Date(now.getTime() + kstOffset * 60 * 1000);
+      const today = kstDate.toISOString().split('T')[0];
+      console.log('🇰🇷 한국 시간 기준 오늘:', today);
       dateFilter = `AND SUBSTR(hs.submittedAt, 1, 10) = '${today}'`;
     }
 
@@ -103,13 +107,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     console.log(`✅ 조회된 숙제: ${submissions.length}개`);
 
     // 통계 계산
+    const now = new Date();
+    const kstOffset = 9 * 60; // 한국 시간 UTC+9
+    const kstDate = new Date(now.getTime() + kstOffset * 60 * 1000);
+    const today = kstDate.toISOString().split('T')[0];
+    
     const stats = {
       totalSubmissions: submissions.length,
       averageScore: submissions.length > 0 
         ? submissions.reduce((sum: number, s: any) => sum + (s.score || 0), 0) / submissions.length 
         : 0,
       todaySubmissions: submissions.filter((s: any) => {
-        const today = new Date().toISOString().split('T')[0];
         return s.submittedAt && s.submittedAt.startsWith(today);
       }).length,
       pendingReview: submissions.filter((s: any) => !s.gradingId).length,
