@@ -163,6 +163,7 @@ function HomeworkCheckContent() {
     setError("");
 
     try {
+      console.log('📤 [숙제 제출] 시작...');
       const response = await fetch("/api/homework/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -174,9 +175,33 @@ function HomeworkCheckContent() {
       });
 
       const data = await response.json();
+      console.log('📥 [제출 응답]:', data);
 
       if (response.ok && data.success) {
         setResult(data);
+        
+        // ✅ 핵심: 제출 성공 후 즉시 채점 API 호출
+        const submissionId = data.submission?.id;
+        if (submissionId) {
+          console.log('🤖 [채점 시작] submissionId:', submissionId);
+          
+          // 채점 API 호출 (백그라운드가 아닌 명시적 호출)
+          fetch("/api/homework/process-grading", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ submissionId })
+          })
+          .then(res => res.json())
+          .then(gradingData => {
+            console.log('✅ [채점 완료]:', gradingData);
+            // 채점 완료 후 히스토리 새로고침
+            fetchHomeworkHistory(currentUser.id);
+          })
+          .catch(err => {
+            console.error('❌ [채점 실패]:', err);
+          });
+        }
+        
         fetchHomeworkHistory(currentUser.id);
         setCapturedImages([]);
         
