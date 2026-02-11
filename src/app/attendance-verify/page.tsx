@@ -411,6 +411,8 @@ export default function AttendanceVerifyPage() {
 
       if (response.ok && data.success) {
         console.log("✅ 제출 성공!");
+        const submissionId = data.submission?.id;
+        
         // 제출 완료 상태로 업데이트
         setStudentInfo({
           ...studentInfo,
@@ -421,12 +423,31 @@ export default function AttendanceVerifyPage() {
             strengths: "",
             suggestions: "",
             graded: false, // 아직 채점 안됨
-            submissionId: data.submission?.id,
+            submissionId: submissionId,
             imageCount: capturedImages.length
           }
         });
 
-        alert("제출이 완료되었습니다!\n\nAI 채점은 백그라운드에서 진행됩니다.\n결과는 '숙제 결과' 페이지에서 확인하세요.");
+        // 자동 채점 시작 (백그라운드)
+        if (submissionId) {
+          console.log('🤖 자동 채점 시작:', submissionId);
+          fetch('/api/homework/process-grading', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ submissionId })
+          }).then(gradingResponse => {
+            if (gradingResponse.ok) {
+              return gradingResponse.json();
+            }
+            throw new Error('채점 API 오류');
+          }).then(gradingData => {
+            console.log('✅ 자동 채점 완료:', gradingData);
+          }).catch(err => {
+            console.error('❌ 자동 채점 실패:', err);
+          });
+        }
+
+        alert("제출이 완료되었습니다!\n\nAI 채점이 자동으로 시작되었습니다.\n결과는 10초 후 '숙제 결과' 페이지에서 확인하세요.");
 
         // 3초 후 페이지 새로고침
         setTimeout(() => {
