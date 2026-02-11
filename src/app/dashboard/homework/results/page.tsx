@@ -99,6 +99,47 @@ export default function TeacherHomeworkResultsPage() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [dateMode, setDateMode] = useState<'single' | 'range'>('single');
+  const [grading, setGrading] = useState(false);
+
+  // 수동 채점 트리거
+  const handleManualGrading = async (submissionId: string) => {
+    if (!confirm('이 숙제를 다시 채점하시겠습니까?')) return;
+    
+    try {
+      setGrading(true);
+      console.log('🔄 [수동 채점] 시작:', submissionId);
+      
+      const response = await fetch('/api/homework/process-grading', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionId })
+      });
+      
+      console.log('📡 [수동 채점] 응답 상태:', response.status);
+      const data = await response.json();
+      console.log('📦 [수동 채점] 응답 데이터:', data);
+      
+      if (response.ok && data.success) {
+        alert('채점이 완료되었습니다! 잠시 후 결과를 확인하세요.');
+        // 결과 새로고침
+        if (currentUser) {
+          if (dateMode === 'range') {
+            fetchHomeworkResults(currentUser, undefined, startDate, endDate);
+          } else {
+            fetchHomeworkResults(currentUser, selectedDate);
+          }
+        }
+      } else {
+        alert(`채점 실패: ${data.message || data.error || '알 수 없는 오류'}`);
+        console.error('❌ [수동 채점] 실패:', data);
+      }
+    } catch (error: any) {
+      console.error('❌ [수동 채점] 오류:', error);
+      alert(`채점 중 오류 발생: ${error.message}`);
+    } finally {
+      setGrading(false);
+    }
+  };
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -543,12 +584,24 @@ export default function TeacherHomeworkResultsPage() {
                 <h2 className="text-2xl font-bold">
                   {selectedSubmission.userName}님의 숙제
                 </h2>
-                <Button
-                  variant="ghost"
-                  onClick={() => setSelectedSubmission(null)}
-                >
-                  ✕ 닫기
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* 채점 대기 중일 때 수동 채점 버튼 표시 */}
+                  {selectedSubmission.completion === 'pending' && (
+                    <Button
+                      onClick={() => handleManualGrading(selectedSubmission.id)}
+                      disabled={grading}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {grading ? '채점 중...' : '🤖 AI 채점하기'}
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    onClick={() => setSelectedSubmission(null)}
+                  >
+                    ✕ 닫기
+                  </Button>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <Badge

@@ -113,15 +113,51 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ 숙제 제출 완료: ${submissionId}, 이미지 ${imageArray.length}장 저장`);
 
-    // 6. 백그라운드 채점 시작 (context.waitUntil 사용)
+    // 6. 백그라운드 채점 시작
+    console.log('🚀 [백그라운드 채점] 시작 시도...');
+    console.log('🔍 [context.waitUntil] 존재 여부:', !!context.waitUntil);
+    
+    const gradingUrl = `${new URL(context.request.url).origin}/api/homework/process-grading`;
+    console.log('🌐 [채점 API URL]:', gradingUrl);
+    
+    // waitUntil 사용 시도
     if (context.waitUntil) {
+      console.log('✅ [방법 1] context.waitUntil 사용');
       context.waitUntil(
-        fetch(`${new URL(context.request.url).origin}/api/homework/process-grading`, {
+        fetch(gradingUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ submissionId })
-        }).catch(err => console.error('백그라운드 채점 시작 실패:', err))
+        })
+        .then(res => {
+          console.log('✅ [백그라운드 채점] API 호출 성공:', res.status);
+          return res.json();
+        })
+        .then(data => {
+          console.log('✅ [백그라운드 채점] 응답:', data);
+        })
+        .catch(err => {
+          console.error('❌ [백그라운드 채점] 실패:', err.message);
+        })
       );
+    } else {
+      // waitUntil이 없으면 즉시 호출 (non-blocking)
+      console.log('⚠️ [방법 2] 직접 fetch 호출 (waitUntil 없음)');
+      fetch(gradingUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionId })
+      })
+      .then(res => {
+        console.log('✅ [즉시 채점] API 호출 성공:', res.status);
+        return res.json();
+      })
+      .then(data => {
+        console.log('✅ [즉시 채점] 응답:', data);
+      })
+      .catch(err => {
+        console.error('❌ [즉시 채점] 실패:', err.message);
+      });
     }
 
     // 7. 즉시 응답 반환
