@@ -153,11 +153,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 각 약점 유형에 대해 위 HTML 형식으로 문제를 생성해주세요.`;
 
     console.log('🔄 Calling Gemini API for similar problem generation...');
-    console.log(`📍 Using model: gemini-1.5-flash`);
+    console.log(`📍 Using model: gemini-1.5-flash-latest`);
     console.log(`📍 API Key length: ${GOOGLE_GEMINI_API_KEY.length} characters`);
 
-    // Gemini API 호출 (v1 API 사용)
-    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
+    // Gemini API 호출 (v1 API, flash-latest 모델 사용)
+    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
     
     const response = await fetch(apiUrl, {
       method: 'POST',
