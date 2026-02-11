@@ -31,9 +31,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       SELECT 
         hs.id,
         hs.userId,
-        hs.attendanceId,
+        hs.code,
+        hs.imageUrl,
         hs.submittedAt,
         hs.status,
+        hs.academyId,
+        hg.id as gradingId,
         hg.score,
         hg.feedback,
         hg.strengths,
@@ -43,9 +46,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         hg.effort,
         hg.pageCount,
         hg.gradedAt,
-        hg.gradedBy
-      FROM homework_submissions hs
-      LEFT JOIN homework_gradings hg ON hg.submissionId = hs.id
+        hg.gradedBy,
+        hg.totalQuestions,
+        hg.correctAnswers,
+        hg.problemAnalysis,
+        hg.weaknessTypes,
+        hg.detailedAnalysis,
+        hg.studyDirection
+      FROM homework_submissions_v2 hs
+      LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
       WHERE hs.userId = ?
       ORDER BY hs.submittedAt DESC
       LIMIT 50

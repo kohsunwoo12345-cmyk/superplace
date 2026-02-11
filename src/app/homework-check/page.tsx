@@ -19,6 +19,8 @@ interface HomeworkHistory {
   pageCount: number;
   submittedAt: string;
   gradedAt: string;
+  status?: string;
+  gradingId?: string;
 }
 
 function HomeworkCheckContent() {
@@ -38,6 +40,7 @@ function HomeworkCheckContent() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [homeworkHistory, setHomeworkHistory] = useState<HomeworkHistory[]>([]);
   const [selectedHistory, setSelectedHistory] = useState<HomeworkHistory | null>(null);
+  const [gradingSubmissionId, setGradingSubmissionId] = useState<string | null>(null);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -151,6 +154,38 @@ function HomeworkCheckContent() {
 
   const addMorePhotos = () => {
     startCamera();
+  };
+
+  // 수동 채점 함수
+  const manualGrading = async (submissionId: string) => {
+    try {
+      setGradingSubmissionId(submissionId);
+      console.log('🤖 [MANUAL] 수동 채점 시작:', submissionId);
+      
+      const response = await fetch("/api/homework/process-grading", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissionId })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '채점 실패');
+      }
+      
+      const data = await response.json();
+      console.log('✅ [MANUAL] 채점 완료:', data);
+      
+      // 히스토리 새로고침
+      await fetchHomeworkHistory(currentUser.id);
+      
+      alert(`✅ 채점 완료!\n점수: ${data.grading?.score || '확인 중'}점`);
+    } catch (error: any) {
+      console.error('❌ [MANUAL] 채점 오류:', error);
+      alert('채점 중 오류가 발생했습니다: ' + error.message);
+    } finally {
+      setGradingSubmissionId(null);
+    }
   };
 
   const submitHomework = async () => {
@@ -498,17 +533,37 @@ function HomeworkCheckContent() {
                       </div>
                     )}
 
-                    {/* 상세보기 버튼 */}
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      size="sm"
-                      onClick={() => setSelectedHistory(hw)}
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      자세히 보기
-                      <ChevronRight className="w-4 h-4 ml-auto" />
-                    </Button>
+                    {/* 상세보기 버튼 또는 채점 버튼 */}
+                    {!hw.score || hw.score === 0 || hw.status === 'pending' ? (
+                      <Button
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
+                        size="sm"
+                        onClick={() => manualGrading(hw.id)}
+                        disabled={gradingSubmissionId === hw.id}
+                      >
+                        {gradingSubmissionId === hw.id ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            채점 중...
+                          </>
+                        ) : (
+                          <>
+                            🤖 AI 채점하기
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        size="sm"
+                        onClick={() => setSelectedHistory(hw)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        자세히 보기
+                        <ChevronRight className="w-4 h-4 ml-auto" />
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ))}
