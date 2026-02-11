@@ -949,7 +949,7 @@ function StudentDetailContent() {
                       </div>
                     </div>
                   </div>
-                ) : weakConcepts.length === 0 ? (
+                ) : !conceptSummary ? (
                   <div className="text-center py-12">
                     <AlertTriangle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 mb-2">
@@ -958,6 +958,29 @@ function StudentDetailContent() {
                     <p className="text-sm text-gray-400 mt-1">
                       대화 내역과 숙제 데이터를 종합하여 분석합니다.
                     </p>
+                  </div>
+                ) : conceptSummary.includes('오류') || conceptSummary.includes('없습니다') ? (
+                  <div className="text-center py-12">
+                    <div className="bg-orange-50 p-6 rounded-lg border-2 border-orange-200">
+                      <AlertTriangle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+                      <p className="text-orange-700 font-medium text-lg mb-2">
+                        {conceptSummary}
+                      </p>
+                      <p className="text-sm text-orange-600 mt-3">
+                        {conceptSummary.includes('오류') 
+                          ? '잠시 후 다시 시도해주세요. 문제가 계속되면 관리자에게 문의하세요.'
+                          : 'AI 챗봇과 대화를 하거나 숙제를 제출하여 부족한 개념을 파악하세요.'}
+                      </p>
+                      <Button
+                        onClick={analyzeWeakConcepts}
+                        variant="outline"
+                        className="mt-4"
+                        size="sm"
+                      >
+                        <Brain className="w-4 h-4 mr-2" />
+                        다시 분석하기
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-6">
