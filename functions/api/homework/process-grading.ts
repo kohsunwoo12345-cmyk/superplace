@@ -237,7 +237,7 @@ async function performGrading(imageArray: string[], apiKey: string) {
 {"subject": "수학" 또는 "영어" 또는 "국어" 등, "grade": 초등학교 학년 (1~6) 또는 중학교 학년 (7~9), "concepts": ["덧셈", "뺄셈"] 등}`;
 
     const subjectResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -359,7 +359,7 @@ async function performGrading(imageArray: string[], apiKey: string) {
 **반드시 위 형식의 JSON만 출력하세요. 다른 설명이나 추가 텍스트는 포함하지 마세요.**`;
 
   const gradingResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
