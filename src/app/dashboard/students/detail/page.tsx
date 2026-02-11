@@ -390,33 +390,33 @@ function StudentDetailContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* 헤더 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
             <Button variant="outline" size="sm" onClick={() => router.back()}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              뒤로가기
+              <ArrowLeft className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">뒤로가기</span>
             </Button>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-                <User className="h-8 w-8 text-blue-600" />
-                {student.name}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2 truncate">
+                <User className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
+                <span className="truncate">{student.name}</span>
               </h1>
-              <p className="text-gray-600 mt-1">{student.email}</p>
+              <p className="text-sm sm:text-base text-gray-600 mt-1 truncate">{student.email}</p>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="info">개인 정보</TabsTrigger>
-            <TabsTrigger value="code">학생 코드</TabsTrigger>
-            <TabsTrigger value="attendance">출결</TabsTrigger>
-            <TabsTrigger value="chat">AI 대화</TabsTrigger>
-            <TabsTrigger value="concepts">부족한 개념</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1">
+            <TabsTrigger value="info" className="text-xs sm:text-sm">개인 정보</TabsTrigger>
+            <TabsTrigger value="code" className="text-xs sm:text-sm">학생 코드</TabsTrigger>
+            <TabsTrigger value="attendance" className="text-xs sm:text-sm">출결</TabsTrigger>
+            <TabsTrigger value="chat" className="text-xs sm:text-sm">AI 대화</TabsTrigger>
+            <TabsTrigger value="concepts" className="text-xs sm:text-sm">부족한 개념</TabsTrigger>
           </TabsList>
 
           {/* 개인 정보 탭 */}
@@ -628,8 +628,12 @@ function StudentDetailContent() {
                     </div>
 
                     <div className="flex justify-center">
-                      <div className="p-6 bg-white border-2 border-green-200 rounded-lg">
-                        <QRCodeSVG value={attendanceCode.code} size={200} />
+                      <div className="p-4 sm:p-6 bg-white border-2 border-green-200 rounded-lg">
+                        <QRCodeSVG 
+                          value={attendanceCode.code} 
+                          size={window.innerWidth < 640 ? 150 : 200}
+                          className="w-full h-auto max-w-[200px]"
+                        />
                         <p className="text-center text-xs text-gray-500 mt-3">
                           출석 QR 코드
                         </p>
@@ -738,35 +742,35 @@ function StudentDetailContent() {
               </CardHeader>
               <CardContent>
                 {attendanceStats && (
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
                     <Card className="border-2 border-gray-100">
-                      <CardContent className="pt-4">
-                        <p className="text-sm text-gray-500">총 출결</p>
-                        <p className="text-2xl font-bold">{attendanceStats.total}일</p>
+                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                        <p className="text-xs sm:text-sm text-gray-500">총 출결</p>
+                        <p className="text-xl sm:text-2xl font-bold">{attendanceStats.total}일</p>
                       </CardContent>
                     </Card>
                     <Card className="border-2 border-green-100">
-                      <CardContent className="pt-4">
-                        <p className="text-sm text-gray-500">출석</p>
-                        <p className="text-2xl font-bold text-green-600">{attendanceStats.present}일</p>
+                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                        <p className="text-xs sm:text-sm text-gray-500">출석</p>
+                        <p className="text-xl sm:text-2xl font-bold text-green-600">{attendanceStats.present}일</p>
                       </CardContent>
                     </Card>
                     <Card className="border-2 border-yellow-100">
-                      <CardContent className="pt-4">
-                        <p className="text-sm text-gray-500">지각</p>
-                        <p className="text-2xl font-bold text-yellow-600">{attendanceStats.late}일</p>
+                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                        <p className="text-xs sm:text-sm text-gray-500">지각</p>
+                        <p className="text-xl sm:text-2xl font-bold text-yellow-600">{attendanceStats.late}일</p>
                       </CardContent>
                     </Card>
                     <Card className="border-2 border-red-100">
-                      <CardContent className="pt-4">
-                        <p className="text-sm text-gray-500">결석</p>
-                        <p className="text-2xl font-bold text-red-600">{attendanceStats.absent}일</p>
+                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                        <p className="text-xs sm:text-sm text-gray-500">결석</p>
+                        <p className="text-xl sm:text-2xl font-bold text-red-600">{attendanceStats.absent}일</p>
                       </CardContent>
                     </Card>
                     <Card className="border-2 border-blue-100">
-                      <CardContent className="pt-4">
-                        <p className="text-sm text-gray-500">출석률</p>
-                        <p className="text-2xl font-bold text-blue-600">{attendanceStats.attendanceRate}%</p>
+                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                        <p className="text-xs sm:text-sm text-gray-500">출석률</p>
+                        <p className="text-xl sm:text-2xl font-bold text-blue-600">{attendanceStats.attendanceRate}%</p>
                       </CardContent>
                     </Card>
                   </div>
@@ -782,12 +786,12 @@ function StudentDetailContent() {
                     {attendance.map((record) => (
                       <div
                         key={record.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-gray-50 rounded-lg border gap-2"
                       >
                         <div className="flex items-center gap-3">
-                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
                           <div>
-                            <p className="font-medium">
+                            <p className="font-medium text-sm sm:text-base">
                               {new Date(record.date).toLocaleDateString('ko-KR')}
                             </p>
                             {record.checkInTime && (
@@ -812,14 +816,14 @@ function StudentDetailContent() {
           <TabsContent value="chat" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
                     <CardTitle>AI 챗봇 대화 내역</CardTitle>
                     <CardDescription>
                       총 {chatHistory.length}개의 대화가 있습니다
                     </CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={fetchStudentData}>
+                  <Button variant="outline" size="sm" onClick={fetchStudentData} className="w-full sm:w-auto">
                     <RefreshCw className="w-4 h-4 mr-2" />
                     새로고침
                   </Button>
@@ -832,7 +836,7 @@ function StudentDetailContent() {
                     <p className="text-gray-500">아직 대화 내역이 없습니다.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto">
                     {chatHistory.map((msg) => (
                       <div
                         key={msg.id}
@@ -841,14 +845,14 @@ function StudentDetailContent() {
                         }`}
                       >
                         <div
-                          className={`max-w-[80%] rounded-lg p-3 ${
+                          className={`max-w-[85%] sm:max-w-[80%] rounded-lg p-3 ${
                             msg.role === 'user'
                               ? 'bg-blue-500 text-white'
                               : 'bg-gray-200 text-gray-800'
                           }`}
                         >
-                          <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                          <p className="text-xs opacity-70 mt-1">
+                          <p className="text-xs sm:text-sm whitespace-pre-wrap break-words">{msg.message}</p>
+                          <p className="text-[10px] sm:text-xs opacity-70 mt-1">
                             {new Date(msg.createdAt).toLocaleString('ko-KR')}
                           </p>
                         </div>
@@ -864,19 +868,21 @@ function StudentDetailContent() {
           <TabsContent value="concepts" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <AlertTriangle className="w-5 h-5 text-orange-600" />
                       부족한 개념 분석
                     </CardTitle>
-                    <CardDescription>
-                      AI가 대화를 분석하여 학생이 어려워하는 개념을 찾아냅니다
+                    <CardDescription className="mt-1">
+                      AI가 대화 내역과 숙제 채점 데이터를 분석하여 학생이 어려워하는 개념을 찾아냅니다
                     </CardDescription>
                   </div>
                   <Button
                     onClick={analyzeWeakConcepts}
-                    disabled={conceptAnalyzingLoading || chatHistory.length === 0}
+                    disabled={conceptAnalyzingLoading}
+                    className="w-full sm:w-auto whitespace-nowrap"
+                    size="sm"
                   >
                     {conceptAnalyzingLoading ? (
                       <>
@@ -897,9 +903,10 @@ function StudentDetailContent() {
                   <div className="text-center py-12">
                     <AlertTriangle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 mb-2">
-                      {chatHistory.length === 0
-                        ? "분석할 대화 내역이 없습니다."
-                        : "개념 분석을 시작해보세요."}
+                      개념 분석 버튼을 클릭하여 AI 분석을 시작해보세요.
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      대화 내역과 숙제 데이터를 종합하여 분석합니다.
                     </p>
                   </div>
                 ) : (
@@ -912,20 +919,23 @@ function StudentDetailContent() {
                     )}
 
                     <div>
-                      <h4 className="font-semibold mb-3">부족한 개념</h4>
+                      <h4 className="font-semibold mb-3 text-sm sm:text-base">부족한 개념</h4>
                       <div className="space-y-3">
                         {weakConcepts.map((concept, idx) => (
                           <div
                             key={idx}
-                            className={`p-4 border-2 rounded-lg ${getSeverityColor(concept.severity)}`}
+                            className={`p-3 sm:p-4 border-2 rounded-lg ${getSeverityColor(concept.severity)}`}
                           >
-                            <div className="flex items-start justify-between mb-2">
-                              <h5 className="font-semibold">{concept.concept}</h5>
-                              <Badge variant={concept.severity === 'high' ? 'destructive' : 'outline'}>
+                            <div className="flex flex-col sm:flex-row items-start justify-between gap-2 mb-2">
+                              <h5 className="font-semibold text-sm sm:text-base">{concept.concept}</h5>
+                              <Badge 
+                                variant={concept.severity === 'high' ? 'destructive' : 'outline'}
+                                className="text-xs whitespace-nowrap"
+                              >
                                 {concept.severity === 'high' ? '높음' : concept.severity === 'medium' ? '중간' : '낮음'}
                               </Badge>
                             </div>
-                            <p className="text-sm text-gray-700 mb-2">{concept.description}</p>
+                            <p className="text-xs sm:text-sm text-gray-700 mb-2">{concept.description}</p>
                             {concept.relatedTopics && concept.relatedTopics.length > 0 && (
                               <div className="flex gap-1 flex-wrap">
                                 {concept.relatedTopics.map((topic, topicIdx) => (
