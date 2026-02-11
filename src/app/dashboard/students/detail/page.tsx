@@ -314,20 +314,81 @@ function StudentDetailContent() {
       setGeneratingSimilarProblems(true);
       const token = localStorage.getItem("token");
 
-      // 최근 틀린 문제들의 약점 유형 수집
-      const recentHomework = homeworkSubmissions.slice(0, 5); // 최근 5개
+      // 모든 숙제 제출 내역에서 약점 유형 수집
       const weaknessTypes = new Set<string>();
-      recentHomework.forEach(hw => {
+      
+      homeworkSubmissions.forEach(hw => {
+        // 1. weaknessTypes 배열에서 추출
         if (hw.weaknessTypes && Array.isArray(hw.weaknessTypes)) {
-          hw.weaknessTypes.forEach(type => weaknessTypes.add(type));
+          hw.weaknessTypes.forEach(type => {
+            if (type && type.trim()) weaknessTypes.add(type.trim());
+          });
+        }
+        
+        // 2. weaknesses 배열에서 추출
+        if (hw.weaknesses && Array.isArray(hw.weaknesses)) {
+          hw.weaknesses.forEach(weakness => {
+            if (weakness && typeof weakness === 'string' && weakness.trim()) {
+              weaknessTypes.add(weakness.trim());
+            }
+          });
+        }
+        
+        // 3. conceptsNeeded 배열에서 추출
+        if (hw.conceptsNeeded && Array.isArray(hw.conceptsNeeded)) {
+          hw.conceptsNeeded.forEach(concept => {
+            if (concept && typeof concept === 'string' && concept.trim()) {
+              weaknessTypes.add(concept.trim());
+            }
+          });
+        }
+        
+        // 4. suggestions에서 키워드 추출
+        if (hw.suggestions && typeof hw.suggestions === 'string') {
+          const suggestions = hw.suggestions;
+          // 일반적인 수학 약점 키워드 추출
+          if (suggestions.includes('지수') || suggestions.includes('곱셈')) {
+            weaknessTypes.add('문자 곱셈 시 지수 처리');
+          }
+          if (suggestions.includes('분배') || suggestions.includes('전개')) {
+            weaknessTypes.add('다항식의 완전한 분배');
+          }
+          if (suggestions.includes('제곱') || suggestions.includes('완전')) {
+            weaknessTypes.add('완전 제곱 공식');
+          }
+          if (suggestions.includes('계수') || suggestions.includes('동류항')) {
+            weaknessTypes.add('계수 계산');
+          }
+          if (suggestions.includes('지수법칙')) {
+            weaknessTypes.add('지수법칙');
+          }
+        }
+        
+        // 5. detailedAnalysis에서 키워드 추출
+        if (hw.detailedAnalysis && typeof hw.detailedAnalysis === 'string') {
+          const analysis = hw.detailedAnalysis;
+          if (analysis.includes('지수') || analysis.includes('곱셈')) {
+            weaknessTypes.add('문자 곱셈 시 지수 처리');
+          }
+          if (analysis.includes('분배') || analysis.includes('전개')) {
+            weaknessTypes.add('다항식의 완전한 분배');
+          }
+          if (analysis.includes('제곱')) {
+            weaknessTypes.add('완전 제곱 공식');
+          }
         }
       });
 
-      const weaknessTypesArray = Array.from(weaknessTypes);
+      let weaknessTypesArray = Array.from(weaknessTypes);
 
+      // 약점 유형이 없으면 기본 주제 사용
       if (weaknessTypesArray.length === 0) {
-        alert("분석 가능한 약점 유형이 없습니다. 먼저 숙제를 제출해주세요.");
-        return;
+        console.log('⚠️ 약점 유형이 없어 기본 주제를 사용합니다.');
+        weaknessTypesArray = [
+          '기본 연산',
+          '방정식 풀이',
+          '식의 계산'
+        ];
       }
 
       console.log('🎯 약점 유형:', weaknessTypesArray);
