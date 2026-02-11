@@ -180,6 +180,24 @@ function HomeworkCheckContent() {
         fetchHomeworkHistory(currentUser.id);
         setCapturedImages([]);
         
+        // 🚀 채점 API 명시적 호출
+        console.log('🚀 채점 API 호출 시작:', data.submission.id);
+        fetch("/api/homework/process-grading", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            submissionId: data.submission.id
+          })
+        }).then(res => res.json())
+          .then(gradingData => {
+            console.log('✅ 채점 완료:', gradingData);
+            // 채점 완료 후 히스토리 다시 불러오기
+            fetchHomeworkHistory(currentUser.id);
+          })
+          .catch(err => {
+            console.error('❌ 채점 오류:', err);
+          });
+        
         setTimeout(() => {
           setResult(null);
         }, 3000);

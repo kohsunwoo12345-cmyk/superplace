@@ -113,30 +113,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ 숙제 제출 완료: ${submissionId}, 이미지 ${imageArray.length}장 저장`);
 
-    // 6. 백그라운드 채점 강제 시작 (즉시 실행, 응답 대기 없음)
-    const gradingUrl = `${new URL(context.request.url).origin}/api/homework/process-grading`;
-    
-    console.log(`🚀 채점 API 호출 시작: ${gradingUrl}`);
-    console.log(`📋 채점 대상: ${submissionId}`);
-    
-    // Cloudflare Pages Functions는 context.waitUntil을 지원하지 않을 수 있으므로
-    // 채점을 즉시 시작하지만 응답은 기다리지 않음
-    fetch(gradingUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ submissionId })
-    }).then(res => {
-      console.log(`📊 채점 API 응답: ${res.status}`);
-      return res.json();
-    }).then(data => {
-      console.log(`✅ 채점 완료:`, data);
-    }).catch(err => {
-      console.error('❌ 백그라운드 채점 오류:', err.message);
-    });
-    
-    console.log('🔄 채점 프로세스가 백그라운드에서 시작되었습니다');
-
-    // 7. 즉시 응답 반환
+    // 7. 즉시 응답 반환 (채점은 클라이언트에서 호출)
     return new Response(
       JSON.stringify({
         success: true,
