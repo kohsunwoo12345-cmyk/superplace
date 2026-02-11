@@ -1,6 +1,6 @@
 interface Env {
   DB: D1Database;
-  GEMINI_API_KEY: string;
+  GOOGLE_GEMINI_API_KEY: string;
 }
 
 interface ChatMessage {
@@ -17,7 +17,7 @@ interface ChatMessage {
  */
 export const onRequestPost = async (context: { request: Request; env: Env }) => {
   const { request, env } = context;
-  const { DB, GEMINI_API_KEY } = env;
+  const { DB, GOOGLE_GEMINI_API_KEY } = env;
 
   if (!DB) {
     return new Response(JSON.stringify({ success: false, error: "Database not configured" }), {
@@ -111,8 +111,11 @@ ${conversationText}
 한국어로 작성하고, 최대 5개의 부족한 개념을 찾아주세요. 구체적이고 실용적인 분석을 제공해주세요.`;
 
     // 4. Gemini API 호출
-    const geminiApiKey = GEMINI_API_KEY || 'AIzaSyDSKFT7gvtwYe01z0JWqFDz3PHSxZiKyoE';
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`;
+    const geminiApiKey = GOOGLE_GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      throw new Error('GOOGLE_GEMINI_API_KEY is not configured');
+    }
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
     console.log('🔄 Calling Gemini API for weak concept analysis...');
     

@@ -1,5 +1,5 @@
 "use client";
-// Version: 2026-02-11-v4-ALERT - Force alert for debugging
+// Version: 2026-02-11-v5-FINAL - Guaranteed auto grading
 
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -162,9 +162,10 @@ function HomeworkCheckContent() {
     setLoading(true);
     setError("");
     
-    // 강제 알림으로 사용자에게 진행 상황 표시
-    alert('🚀 제출 시작! 채점까지 약 10초 소요됩니다.');
-    console.log('🚀 [DEBUG] 제출 시작 - 빌드 버전: 2026-02-11-v4-ALERT');
+    console.log('═══════════════════════════════════════════');
+    console.log('🚀 [SUBMIT-v5] 제출 시작');
+    console.log('빌드 버전: 2026-02-11-v5-FINAL');
+    console.log('═══════════════════════════════════════════');
 
     try {
       const response = await fetch("/api/homework/submit", {
@@ -181,12 +182,16 @@ function HomeworkCheckContent() {
       console.log('📦 [DEBUG] 제출 응답:', data);
 
       if (response.ok && data.success) {
+        console.log('✅ [SUBMIT-v5] 제출 성공:', data.submission.id);
+        
         setResult(data);
         setCapturedImages([]);
         
-        // 🚀 채점 API 명시적 호출 (await 사용)
-        console.log('🚀 [SUBMIT] 채점 API 호출 시작:', data.submission.id);
-        console.log('📍 [SUBMIT] API URL: /api/homework/process-grading');
+        // 🚀 채점 API 호출 (별도 try-catch로 안전하게)
+        console.log('─────────────────────────────────────────');
+        console.log('🤖 [GRADING-v5] 자동 채점 시작');
+        console.log('Submission ID:', data.submission.id);
+        console.log('─────────────────────────────────────────');
         
         try {
           const gradingResponse = await fetch("/api/homework/process-grading", {
@@ -197,34 +202,36 @@ function HomeworkCheckContent() {
             })
           });
           
-          console.log('📊 [SUBMIT] 채점 응답 상태:', gradingResponse.status);
-          
-          const gradingData = await gradingResponse.json();
-          console.log('✅ [SUBMIT] 채점 완료:', gradingData);
+          console.log('📊 [GRADING-v5] 응답 상태:', gradingResponse.status);
           
           if (!gradingResponse.ok) {
-            console.error('❌ [SUBMIT] 채점 API 오류:', gradingData);
-            alert('❌ 채점 실패: ' + JSON.stringify(gradingData));
-            throw new Error('채점 API 오류');
+            const errorData = await gradingResponse.text();
+            console.error('❌ [GRADING-v5] API 오류:', errorData);
+            throw new Error(`채점 API 오류: ${gradingResponse.status}`);
           }
           
-          // 채점 완료 알림
-          alert('✅ 채점 완료! 점수: ' + (gradingData.grading?.score || '확인 중'));
+          const gradingData = await gradingResponse.json();
+          console.log('✅ [GRADING-v5] 채점 완료!');
+          console.log('점수:', gradingData.grading?.score);
+          console.log('과목:', gradingData.grading?.subject);
           
-          // 채점 완료 후 히스토리 다시 불러오기
-          console.log('🔄 [SUBMIT] 히스토리 새로고침 시작...');
+          // 히스토리 새로고침
+          console.log('🔄 [GRADING-v5] 히스토리 새로고침...');
           await fetchHomeworkHistory(currentUser.id);
-          console.log('✅ [SUBMIT] 히스토리 새로고침 완료');
+          console.log('✅ [GRADING-v5] 완료! 화면에 결과가 표시됩니다.');
+          console.log('═══════════════════════════════════════════');
           
           // 성공 메시지 3초 후 제거
           setTimeout(() => {
             setResult(null);
           }, 3000);
         } catch (err: any) {
-          console.error('❌ [SUBMIT] 채점 오류:', err);
-          console.error('❌ [SUBMIT] 오류 상세:', err.message, err.stack);
-          alert('❌ 채점 중 오류: ' + err.message);
-          setError("채점 중 오류가 발생했습니다: " + err.message);
+          console.error('═══════════════════════════════════════════');
+          console.error('❌ [GRADING-v5] 채점 실패!');
+          console.error('오류:', err.message);
+          console.error('Stack:', err.stack);
+          console.error('═══════════════════════════════════════════');
+          setError("채점 중 오류: " + err.message);
         }
       } else {
         setError(data.error || "제출 실패");
