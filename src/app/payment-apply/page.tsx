@@ -16,13 +16,34 @@ import {
   ArrowRight,
   GraduationCap,
   FileText,
-  CheckCircle
+  CheckCircle,
+  Bot,
+  Package
 } from "lucide-react";
+
+// 요금제 정보
+const PLANS = [
+  { id: "FREE", name: "무료 플랜", price: 0, maxStudents: 10, maxTeachers: 2 },
+  { id: "BASIC", name: "베이직 플랜", price: 29000, maxStudents: 30, maxTeachers: 5 },
+  { id: "PREMIUM", name: "프리미엄 플랜", price: 49000, maxStudents: 100, maxTeachers: 20 },
+  { id: "ENTERPRISE", name: "엔터프라이즈 플랜", price: 99000, maxStudents: 999999, maxTeachers: 999999 }
+];
+
+interface AIBot {
+  id: string;
+  name: string;
+  description: string;
+  profileIcon: string;
+  price: number;
+}
 
 export default function PaymentApplyPage() {
   const router = useRouter();
   const [paymentMethod, setPaymentMethod] = useState<"card" | "transfer">("card");
+  const [purchaseType, setPurchaseType] = useState<"plan" | "bot">("plan");
   const [submitting, setSubmitting] = useState(false);
+  const [availableBots, setAvailableBots] = useState<AIBot[]>([]);
+  const [loadingBots, setLoadingBots] = useState(false);
   
   const [formData, setFormData] = useState({
     academyName: "",
@@ -30,6 +51,8 @@ export default function PaymentApplyPage() {
     phone: "",
     email: "",
     planName: "",
+    selectedPlan: "",
+    selectedBot: "",
     amount: "",
     cardNumber: "",
     cardExpiry: "",
@@ -55,10 +78,69 @@ export default function PaymentApplyPage() {
         console.error("사용자 정보 파싱 실패:", e);
       }
     }
+
+    // AI 봇 목록 로드
+    fetchAvailableBots();
   }, []);
 
+  const fetchAvailableBots = async () => {
+    try {
+      setLoadingBots(true);
+      const response = await fetch("/api/admin/ai-bots");
+      if (response.ok) {
+        const data = await response.json();
+        // 봇 가격 설정 (실제로는 봇마다 다를 수 있음)
+        const botsWithPrice = (data.bots || []).map((bot: any) => ({
+          ...bot,
+          price: 15000 // 기본 봇 가격
+        }));
+        setAvailableBots(botsWithPrice);
+      }
+    } catch (error) {
+      console.error("봇 목록 로드 실패:", error);
+    } finally {
+      setLoadingBots(false);
+    }
+  };
+
+  // 요금제 선택 시
+  const handlePlanSelect = (planId: string) => {
+    const plan = PLANS.find(p => p.id === planId);
+    if (plan) {
+      setFormData({
+        ...formData,
+        selectedPlan: planId,
+        planName: plan.id,
+        amount: plan.price.toString()
+      });
+    }
+  };
+
+  // 봇 선택 시
+  const handleBotSelect = (botId: string) => {
+    const bot = availableBots.find(b => b.id === botId);
+    if (bot) {
+      setFormData({
+        ...formData,
+        selectedBot: botId,
+        planName: `BOT-${botId}`,
+        amount: bot.price.toString()
+      });
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!formData.academyName.trim() || !formData.directorName.trim() || !formData.phone.trim() || !formData.planName.trim() || !formData.amount.trim()) {
+    // 구매 항목 선택 확인
+    if (purchaseType === "plan" && !formData.selectedPlan) {
+      alert("요금제를 선택해주세요.");
+      return;
+    }
+    if (purchaseType === "bot" && !formData.selectedBot) {
+      alert("AI 봇을 선택해주세요.");
+      return;
+    }
+
+    if (!formData.academyName.trim() || !formData.directorName.trim() || !formData.phone.trim() || !formData.amount.trim()) {
       alert("필수 정보를 모두 입력해주세요.");
       return;
     }
@@ -75,7 +157,11 @@ export default function PaymentApplyPage() {
       }
     }
 
-    if (!confirm(`${paymentMethod === "card" ? "카드 결제" : "계좌이체"} 신청을 제출하시겠습니까?`)) {
+    const itemName = purchaseType === "plan"
+      ? PLANS.find(p => p.id === formData.selectedPlan)?.name || ""
+      : availableBots.find(b => b.id === formData.selectedBot)?.name || "";
+
+    if (!confirm(`${itemName} - ${paymentMethod === "card" ? "카드 결제" : "계좌이체"} 신청을 제출하시겠습니까?`)) {
       return;
     }
 
@@ -156,6 +242,132 @@ ${paymentInfo}
         </div>
 
         <div className="space-y-6">
+          {/* 구매 유형 선택 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                구매 유형 선택
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => {
+                    setPurchaseType("plan");
+                    setFormData(prev => ({ ...prev, selectedBot: "", planName: "", amount: "" }));
+                  }}
+                  className={`p-6 border-2 rounded-lg transition-all ${
+                    purchaseType === "plan"
+                      ? "border-purple-500 bg-purple-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <GraduationCap className="w-8 h-8 mx-auto mb-2" />
+                  <div className="font-semibold">요금제 구독</div>
+                  <div className="text-xs text-gray-500 mt-1">월간 구독 플랜</div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setPurchaseType("bot");
+                    setFormData(prev => ({ ...prev, selectedPlan: "", planName: "", amount: "" }));
+                  }}
+                  className={`p-6 border-2 rounded-lg transition-all ${
+                    purchaseType === "bot"
+                      ? "border-purple-500 bg-purple-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <Bot className="w-8 h-8 mx-auto mb-2" />
+                  <div className="font-semibold">AI 봇 구매</div>
+                  <div className="text-xs text-gray-500 mt-1">영구 사용 가능</div>
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 요금제 또는 봇 선택 */}
+          {purchaseType === "plan" ? (
+            <Card className="border-purple-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 text-purple-600" />
+                  요금제 선택
+                </CardTitle>
+                <CardDescription>학원에 적합한 요금제를 선택해주세요</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {PLANS.map((plan) => (
+                    <button
+                      key={plan.id}
+                      onClick={() => handlePlanSelect(plan.id)}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        formData.selectedPlan === plan.id
+                          ? "border-purple-500 bg-purple-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="font-bold text-lg">{plan.name}</div>
+                      <div className="text-2xl font-bold text-purple-600 mt-2">
+                        {plan.price === 0 ? "무료" : `₩${plan.price.toLocaleString()}`}
+                        {plan.price > 0 && <span className="text-sm text-gray-500">/월</span>}
+                      </div>
+                      <div className="text-sm text-gray-600 mt-3 space-y-1">
+                        <div>• 학생 최대 {plan.maxStudents === 999999 ? "무제한" : `${plan.maxStudents}명`}</div>
+                        <div>• 교사 최대 {plan.maxTeachers === 999999 ? "무제한" : `${plan.maxTeachers}명`}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-blue-600" />
+                  AI 봇 선택
+                </CardTitle>
+                <CardDescription>구매할 AI 봇을 선택해주세요</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingBots ? (
+                  <div className="text-center py-8 text-gray-500">봇 목록을 불러오는 중...</div>
+                ) : availableBots.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">사용 가능한 봇이 없습니다.</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {availableBots.map((bot) => (
+                      <button
+                        key={bot.id}
+                        onClick={() => handleBotSelect(bot.id)}
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${
+                          formData.selectedBot === bot.id
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="text-3xl">{bot.profileIcon || "🤖"}</div>
+                          <div>
+                            <div className="font-bold">{bot.name}</div>
+                            <div className="text-sm text-gray-600">{bot.description?.substring(0, 50) || "AI 봇"}</div>
+                          </div>
+                        </div>
+                        <div className="text-lg font-bold text-blue-600">
+                          ₩{bot.price.toLocaleString()}
+                          <span className="text-sm text-gray-500 ml-1">영구 사용</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* 결제 방법 선택 */}
           <Card>
             <CardHeader>
@@ -241,21 +453,26 @@ ${paymentInfo}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">요금제 *</label>
+                  <label className="block text-sm font-medium mb-2">구매 항목</label>
                   <Input
-                    value={formData.planName}
-                    onChange={(e) => setFormData({ ...formData, planName: e.target.value })}
-                    placeholder="예: 스탠다드"
+                    value={
+                      purchaseType === "plan" 
+                        ? PLANS.find(p => p.id === formData.selectedPlan)?.name || ""
+                        : availableBots.find(b => b.id === formData.selectedBot)?.name || ""
+                    }
+                    disabled
+                    className="bg-gray-100"
+                    placeholder="위에서 항목을 선택해주세요"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">결제 금액 (원) *</label>
+                  <label className="block text-sm font-medium mb-2">결제 금액 (원)</label>
                   <Input
-                    type="number"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    placeholder="50000"
+                    type="text"
+                    value={formData.amount ? `₩${parseInt(formData.amount).toLocaleString()}` : ""}
+                    disabled
+                    className="bg-gray-100 text-lg font-bold"
                   />
                 </div>
               </div>

@@ -274,6 +274,22 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     const { approvedBy, rejectedReason, transactionId } = body;
 
     if (action === "approve") {
+      // 승인 요청 정보 가져오기
+      const approval: any = await DB.prepare(`
+        SELECT * FROM payment_approvals WHERE id = ?
+      `).bind(id).first();
+
+      if (!approval) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Payment approval not found"
+        }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      // 승인 상태 업데이트
       await DB.prepare(`
         UPDATE payment_approvals
         SET status = 'approved', 
@@ -283,12 +299,25 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         WHERE id = ?
       `).bind(approvedBy || null, transactionId || null, id).run();
 
-      // 승인 시 revenue_records에도 추가
-      const approval = await DB.prepare(`
-        SELECT * FROM payment_approvals WHERE id = ?
-      `).bind(id).first();
+      // 1. 매출 기록 추가
+      try {
+        // revenue_records 테이블이 없으면 생성
+        await DB.prepare(`
+          CREATE TABLE IF NOT EXISTS revenue_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            academyId TEXT NOT NULL,
+            amount REAL NOT NULL,
+            type TEXT NOT NULL,
+            description TEXT,
+            status TEXT DEFAULT 'completed',
+            paymentMethod TEXT,
+            transactionId TEXT,
+            paidAt TEXT DEFAULT (datetime('now', '+9 hours')),
+            createdAt TEXT DEFAULT (datetime('now', '+9 hours')),
+            FOREIGN KEY (academyId) REFERENCES academy(id)
+          )
+        `).run();
 
-      if (approval) {
         await DB.prepare(`
           INSERT INTO revenue_records 
           (academyId, amount, type, description, status, paymentMethod, transactionId, paidAt)
@@ -297,10 +326,113 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           approval.academyId,
           approval.amount,
           approval.planName,
-          `${approval.planName} 구독 결제 승인`,
+          `${approval.planName} 결제 승인`,
           approval.paymentMethod,
           transactionId || null
         ).run();
+      } catch (error) {
+        console.error("매출 기록 추가 오류:", error);
+      }
+
+      // 2. 요금제 구매인 경우 - academy 테이블 업데이트
+      const planNames = ['FREE', 'BASIC', 'PREMIUM', 'ENTERPRISE'];
+      const upperPlanName = approval.planName.toUpperCase();
+      
+      if (planNames.includes(upperPlanName)) {
+        try {
+          // 요금제에 따른 제한 설정
+          let maxStudents = 10;
+          let maxTeachers = 2;
+          
+          switch (upperPlanName) {
+            case 'FREE':
+              maxStudents = 10;
+              maxTeachers = 2;
+              break;
+            case 'BASIC':
+              maxStudents = 30;
+              maxTeachers = 5;
+              break;
+            case 'PREMIUM':
+              maxStudents = 100;
+              maxTeachers = 20;
+              break;
+            case 'ENTERPRISE':
+              maxStudents = 999999;
+              maxTeachers = 999999;
+              break;
+          }
+
+          await DB.prepare(`
+            UPDATE academy
+            SET subscriptionPlan = ?,
+                maxStudents = ?,
+                maxTeachers = ?,
+                updatedAt = datetime('now', '+9 hours')
+            WHERE id = ?
+          `).bind(upperPlanName, maxStudents, maxTeachers, approval.academyId).run();
+
+          console.log(`✅ Academy ${approval.academyId} plan updated to ${upperPlanName}`);
+        } catch (error) {
+          console.error("요금제 업데이트 오류:", error);
+        }
+      }
+
+      // 3. 봇 구매인 경우 - bot_assignments 테이블에 추가
+      // planName에 'BOT-' 접두어가 있거나 봇 ID가 포함된 경우
+      if (approval.planName.includes('BOT-') || approval.planName.includes('bot-')) {
+        try {
+          // planName에서 봇 ID 추출 (예: "BOT-bot-123456789")
+          const botIdMatch = approval.planName.match(/bot-[a-z0-9-]+/i);
+          
+          if (botIdMatch) {
+            const botId = botIdMatch[0];
+
+            // bot_assignments 테이블이 없으면 생성
+            await DB.prepare(`
+              CREATE TABLE IF NOT EXISTS bot_assignments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                academyId TEXT NOT NULL,
+                botId TEXT NOT NULL,
+                assignedBy TEXT,
+                assignedAt DATETIME DEFAULT (datetime('now', '+9 hours')),
+                expiresAt DATETIME,
+                isActive INTEGER DEFAULT 1,
+                notes TEXT,
+                createdAt DATETIME DEFAULT (datetime('now', '+9 hours')),
+                updatedAt DATETIME DEFAULT (datetime('now', '+9 hours'))
+              )
+            `).run();
+
+            // 중복 체크
+            const existing = await DB.prepare(`
+              SELECT id FROM bot_assignments 
+              WHERE academyId = ? AND botId = ? AND isActive = 1
+            `).bind(approval.academyId, botId).first();
+
+            if (!existing) {
+              // 만료일 설정 (1년 후)
+              const expiresAt = new Date();
+              expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+              
+              await DB.prepare(`
+                INSERT INTO bot_assignments (academyId, botId, expiresAt, notes, isActive)
+                VALUES (?, ?, ?, ?, 1)
+              `).bind(
+                approval.academyId,
+                botId,
+                expiresAt.toISOString(),
+                `결제 승인을 통한 자동 할당 (거래ID: ${transactionId || 'N/A'})`
+              ).run();
+
+              console.log(`✅ Bot ${botId} assigned to academy ${approval.academyId}`);
+            } else {
+              console.log(`⚠️ Bot ${botId} already assigned to academy ${approval.academyId}`);
+            }
+          }
+        } catch (error) {
+          console.error("봇 할당 오류:", error);
+        }
       }
 
       return new Response(JSON.stringify({
