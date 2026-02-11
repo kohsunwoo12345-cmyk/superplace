@@ -226,58 +226,19 @@ async function performGrading(imageArray: string[], apiKey: string) {
     };
   });
 
-  let detectedSubject = '수학';
-  let detectedGrade = 3;
-
-  // 1단계: 과목 판별
-  try {
-    console.log('🔍 1단계: 과목 판별 시작...');
-    const subjectPrompt = `다음 ${imageArray.length}장의 숙제 사진을 분석하여 과목과 학년을 판별해주세요.
-다음 JSON 형식으로 응답해주세요:
-{"subject": "수학" 또는 "영어" 또는 "국어" 등, "grade": 초등학교 학년 (1~6) 또는 중학교 학년 (7~9), "concepts": ["덧셈", "뺄셈"] 등}`;
-
-    const subjectResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: subjectPrompt }, ...imageParts] }]
-        })
-      }
-    );
-
-    if (subjectResponse.ok) {
-      const data = await subjectResponse.json();
-      const text = data.candidates[0].content.parts[0].text;
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) {
-        try {
-          const info = JSON.parse(match[0]);
-          detectedSubject = info.subject;
-          detectedGrade = info.grade;
-          console.log(`📚 감지: ${detectedSubject}, ${detectedGrade}학년`);
-        } catch (e) {
-          console.log('파싱 실패, 기본값 사용');
-        }
-      }
-    } else {
-      const errorText = await subjectResponse.text();
-      console.error('❌ 과목 판별 API 오류:', subjectResponse.status, errorText);
-    }
-  } catch (e) {
-    console.error('과목 판별 오류:', e);
-  }
-
-  // 2단계: 상세 채점
-  console.log('📝 2단계: 상세 채점 시작...');
+  // Gemini API 한 번에 호출: 과목 판별 + 상세 채점
+  console.log('📝 Gemini API를 통한 종합 채점 시작...');
   
-  const gradingPrompt = `당신은 ${detectedSubject} 전문 선생님입니다. 학생의 학년은 ${detectedGrade}학년입니다.
+  const gradingPrompt = `당신은 초등학교/중학교 전문 선생님입니다.
 
 🎯 **채점 목표:**
 제공된 ${imageArray.length}장의 숙제 사진을 **매우 상세하고 정확하게** 분석하여 채점하세요.
 
-📋 **채점 방법:**
+📋 **채점 순서:**
+
+0. **먼저 과목과 학년을 판별하세요:**
+   - 사진을 보고 과목을 판별 (수학, 영어, 국어 등)
+   - 학년 추정 (초등 1~6학년 또는 중등 7~9학년)
 
 1. **모든 문제를 하나씩 확인하세요:**
    - 각 페이지의 모든 문제 번호를 확인
@@ -325,8 +286,8 @@ async function performGrading(imageArray: string[], apiKey: string) {
 
 📄 **출력 형식 (JSON):**
 {
-  "subject": "${detectedSubject}",
-  "grade": ${detectedGrade},
+  "subject": "수학" (또는 "영어", "국어" 등 - 사진에서 판별),
+  "grade": 3 (초등/중등 학년 - 사진에서 추정),
   "score": 86.7,
   "totalQuestions": 15,
   "correctAnswers": 13,
