@@ -39,6 +39,25 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
 
     console.log('🔍 Fetching cached weak concepts for student:', studentId);
 
+    // 테이블 생성 (존재하지 않으면)
+    try {
+      await DB.prepare(`
+        CREATE TABLE IF NOT EXISTS student_weak_concepts (
+          id TEXT PRIMARY KEY,
+          studentId INTEGER NOT NULL,
+          summary TEXT,
+          weakConcepts TEXT,
+          recommendations TEXT,
+          chatCount INTEGER,
+          homeworkCount INTEGER,
+          analyzedAt TEXT DEFAULT (datetime('now')),
+          UNIQUE(studentId)
+        )
+      `).run();
+    } catch (createError: any) {
+      console.warn('⚠️ Failed to create table:', createError.message);
+    }
+
     // 캐시된 분석 결과 조회
     const result = await DB.prepare(`
       SELECT 
