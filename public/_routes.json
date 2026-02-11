@@ -1,12 +1,11 @@
 {
   "version": 1,
   "include": [
-    "/api/*"
+    "/*"
   ],
   "exclude": [
     "/_next/*",
-    "/static/*",
-    "/favicon.ico",
-    "/favicon.svg"
+    "/favicon.svg",
+    "/api/*"
   ]
 }
