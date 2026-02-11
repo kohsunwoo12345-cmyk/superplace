@@ -161,6 +161,8 @@ function HomeworkCheckContent() {
 
     setLoading(true);
     setError("");
+    
+    console.log('🚀 [DEBUG] 제출 시작 - 빌드 버전: 2026-02-11-v3-auto-grading-fix');
 
     try {
       const response = await fetch("/api/homework/submit", {
@@ -174,6 +176,7 @@ function HomeworkCheckContent() {
       });
 
       const data = await response.json();
+      console.log('📦 [DEBUG] 제출 응답:', data);
 
       if (response.ok && data.success) {
         setResult(data);
@@ -181,6 +184,7 @@ function HomeworkCheckContent() {
         
         // 🚀 채점 API 명시적 호출 (await 사용)
         console.log('🚀 [SUBMIT] 채점 API 호출 시작:', data.submission.id);
+        console.log('📍 [SUBMIT] API URL: /api/homework/process-grading');
         
         try {
           const gradingResponse = await fetch("/api/homework/process-grading", {
@@ -191,25 +195,35 @@ function HomeworkCheckContent() {
             })
           });
           
+          console.log('📊 [SUBMIT] 채점 응답 상태:', gradingResponse.status);
+          
           const gradingData = await gradingResponse.json();
           console.log('✅ [SUBMIT] 채점 완료:', gradingData);
           
+          if (!gradingResponse.ok) {
+            console.error('❌ [SUBMIT] 채점 API 오류:', gradingData);
+            throw new Error('채점 API 오류');
+          }
+          
           // 채점 완료 후 히스토리 다시 불러오기
+          console.log('🔄 [SUBMIT] 히스토리 새로고침 시작...');
           await fetchHomeworkHistory(currentUser.id);
+          console.log('✅ [SUBMIT] 히스토리 새로고침 완료');
           
           // 성공 메시지 3초 후 제거
           setTimeout(() => {
             setResult(null);
           }, 3000);
-        } catch (err) {
+        } catch (err: any) {
           console.error('❌ [SUBMIT] 채점 오류:', err);
-          setError("채점 중 오류가 발생했습니다");
+          console.error('❌ [SUBMIT] 오류 상세:', err.message, err.stack);
+          setError("채점 중 오류가 발생했습니다: " + err.message);
         }
       } else {
         setError(data.error || "제출 실패");
       }
-    } catch (err) {
-      console.error("Submit error:", err);
+    } catch (err: any) {
+      console.error("❌ [SUBMIT] 제출 오류:", err);
       setError("제출 중 오류가 발생했습니다");
     } finally {
       setLoading(false);
