@@ -1,5 +1,5 @@
 "use client";
-// Version: 2026-02-10-v2 - Iterative compression fix
+// Version: 2026-02-11-v3 - Auto grading on submit fix
 
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -106,7 +106,7 @@ function HomeworkCheckContent() {
 
       if (context) {
         // Version check - DO NOT REMOVE
-        const BUILD_VERSION = '2026-02-10-v2-iterative-compression';
+        const BUILD_VERSION = '2026-02-11-v3-auto-grading-fix';
         console.log(`🔧 빌드 버전: ${BUILD_VERSION}`);
         
         // 강력한 해상도 제한 (너비 640px) - 더 작게!
@@ -177,30 +177,34 @@ function HomeworkCheckContent() {
 
       if (response.ok && data.success) {
         setResult(data);
-        fetchHomeworkHistory(currentUser.id);
         setCapturedImages([]);
         
-        // 🚀 채점 API 명시적 호출
-        console.log('🚀 채점 API 호출 시작:', data.submission.id);
-        fetch("/api/homework/process-grading", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            submissionId: data.submission.id
-          })
-        }).then(res => res.json())
-          .then(gradingData => {
-            console.log('✅ 채점 완료:', gradingData);
-            // 채점 완료 후 히스토리 다시 불러오기
-            fetchHomeworkHistory(currentUser.id);
-          })
-          .catch(err => {
-            console.error('❌ 채점 오류:', err);
-          });
+        // 🚀 채점 API 명시적 호출 (await 사용)
+        console.log('🚀 [SUBMIT] 채점 API 호출 시작:', data.submission.id);
         
-        setTimeout(() => {
-          setResult(null);
-        }, 3000);
+        try {
+          const gradingResponse = await fetch("/api/homework/process-grading", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              submissionId: data.submission.id
+            })
+          });
+          
+          const gradingData = await gradingResponse.json();
+          console.log('✅ [SUBMIT] 채점 완료:', gradingData);
+          
+          // 채점 완료 후 히스토리 다시 불러오기
+          await fetchHomeworkHistory(currentUser.id);
+          
+          // 성공 메시지 3초 후 제거
+          setTimeout(() => {
+            setResult(null);
+          }, 3000);
+        } catch (err) {
+          console.error('❌ [SUBMIT] 채점 오류:', err);
+          setError("채점 중 오류가 발생했습니다");
+        }
       } else {
         setError(data.error || "제출 실패");
       }
