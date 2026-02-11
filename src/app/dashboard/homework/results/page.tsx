@@ -450,6 +450,11 @@ export default function TeacherHomeworkResultsPage() {
                         <Badge variant="outline" className="mb-2">
                           {submission.subject}
                         </Badge>
+                        {submission.score > 0 && (
+                          <Badge className="bg-green-100 text-green-800 mb-2 ml-2">
+                            ✅ 숙제 검사 완료
+                          </Badge>
+                        )}
                         <p className="text-sm text-gray-600">
                           {formatDate(submission.submittedAt)}
                         </p>
@@ -464,6 +469,12 @@ export default function TeacherHomeworkResultsPage() {
                       <Badge variant="outline">
                         노력도: {submission.effort}
                       </Badge>
+                      {submission.imageUrl && (
+                        <Badge variant="outline" className="flex items-center gap-1">
+                          <ImageIcon className="w-4 h-4" />
+                          사진 {submission.imageUrl.includes('image') ? submission.imageUrl.match(/\d+/)?.[0] || '1' : '1'}장
+                        </Badge>
+                      )}
                     </div>
                     {submission.feedback && (
                       <p className="text-gray-700 line-clamp-2 mb-3">
@@ -502,7 +513,7 @@ export default function TeacherHomeworkResultsPage() {
                         variant="outline"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedSubmission(submission);
+                          handleViewSubmission(submission);
                         }}
                       >
                         상세 보기
@@ -628,6 +639,11 @@ export default function TeacherHomeworkResultsPage() {
                   {getScoreEmoji(selectedSubmission.score)}{" "}
                   {selectedSubmission.score}점
                 </Badge>
+                {selectedSubmission.score > 0 && (
+                  <Badge className="bg-green-100 text-green-800 text-lg py-2 px-3">
+                    ✅ 숙제 검사 완료
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-lg py-2 px-3">
                   {selectedSubmission.subject}
                 </Badge>
