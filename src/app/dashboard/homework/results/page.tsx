@@ -75,6 +75,41 @@ export default function TeacherHomeworkResultsPage() {
   const [stats, setStats] = useState<SubmissionStats | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<HomeworkSubmission | null>(null);
   const [submissionImages, setSubmissionImages] = useState<string[]>([]);
+  const [gradingSubmissionId, setGradingSubmissionId] = useState<string | null>(null);
+
+  // AI 채점 함수 추가
+  const handleGradeSubmission = async (submissionId: string) => {
+    try {
+      setGradingSubmissionId(submissionId);
+      console.log('🤖 AI 채점 시작:', submissionId);
+      
+      const response = await fetch("/api/homework/process-grading", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissionId })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '채점 실패');
+      }
+      
+      const data = await response.json();
+      console.log('✅ 채점 완료:', data);
+      
+      // 결과 페이지 새로고침
+      if (currentUser) {
+        await fetchHomeworkResults(currentUser, selectedDate, startDate, endDate);
+      }
+      
+      alert(`✅ 채점 완료!\n점수: ${data.grading?.score || '확인 중'}점`);
+    } catch (error: any) {
+      console.error('❌ 채점 오류:', error);
+      alert('채점 중 오류가 발생했습니다: ' + error.message);
+    } finally {
+      setGradingSubmissionId(null);
+    }
+  };
 
   // 제출 상세 보기 + 이미지 로드
   const handleViewSubmission = async (submission: HomeworkSubmission) => {
@@ -426,19 +461,49 @@ export default function TeacherHomeworkResultsPage() {
                         노력도: {submission.effort}
                       </Badge>
                     </div>
-                    <p className="text-gray-700 line-clamp-2">
-                      {submission.feedback}
-                    </p>
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedSubmission(submission);
-                      }}
-                    >
-                      상세 보기
-                    </Button>
+                    {submission.feedback && (
+                      <p className="text-gray-700 line-clamp-2 mb-3">
+                        {submission.feedback}
+                      </p>
+                    )}
+                    
+                    <div className="flex gap-2 mt-4">
+                      {/* AI 채점하기 버튼: score가 0이거나 null일 때만 표시 */}
+                      {(!submission.score || submission.score === 0) && (
+                        <Button
+                          variant="default"
+                          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleGradeSubmission(submission.id);
+                          }}
+                          disabled={gradingSubmissionId === submission.id}
+                        >
+                          {gradingSubmissionId === submission.id ? (
+                            <>
+                              <Brain className="w-4 h-4 mr-2 animate-pulse" />
+                              채점 중...
+                            </>
+                          ) : (
+                            <>
+                              <Brain className="w-4 h-4 mr-2" />
+                              AI 채점하기
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      
+                      {/* 상세 보기 버튼 */}
+                      <Button
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedSubmission(submission);
+                        }}
+                      >
+                        상세 보기
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}

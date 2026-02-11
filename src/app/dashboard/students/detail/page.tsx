@@ -252,6 +252,12 @@ function StudentDetailContent() {
       setConceptAnalyzingLoading(true);
       const token = localStorage.getItem("token");
 
+      console.log('🧠 부족한 개념 분석 시작...');
+
+      // 타임아웃 설정 (30초)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const response = await fetch(`/api/students/weak-concepts`, {
         method: 'POST',
         headers: {
@@ -259,19 +265,35 @@ function StudentDetailContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ studentId }),
+        signal: controller.signal,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setWeakConcepts(data.weakConcepts || []);
-        setConceptRecommendations(data.recommendations || []);
-        setConceptSummary(data.summary || "");
-      } else {
-        throw new Error("부족한 개념 분석에 실패했습니다.");
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ API 오류:', response.status, errorData);
+        throw new Error(errorData.error || `API 오류: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log('✅ 분석 완료:', data);
+      
+      setWeakConcepts(data.weakConcepts || []);
+      setConceptRecommendations(data.recommendations || []);
+      setConceptSummary(data.summary || "");
+      
+      alert('✅ 분석이 완료되었습니다!');
     } catch (error: any) {
       console.error("Failed to analyze weak concepts:", error);
-      alert(error.message || "부족한 개념 분석 중 오류가 발생했습니다.");
+      
+      if (error.name === 'AbortError') {
+        alert('⏱️ 분석 시간이 초과되었습니다. 다시 시도해주세요.');
+      } else if (error.message.includes('Failed to fetch')) {
+        alert('🌐 네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
+      } else {
+        alert('❌ ' + (error.message || "부족한 개념 분석 중 오류가 발생했습니다."));
+      }
     } finally {
       setConceptAnalyzingLoading(false);
     }
@@ -913,7 +935,20 @@ function StudentDetailContent() {
                 </div>
               </CardHeader>
               <CardContent>
-                {weakConcepts.length === 0 ? (
+                {conceptAnalyzingLoading ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-16 h-16 animate-spin text-blue-500 mx-auto mb-4" />
+                    <p className="text-gray-700 font-medium text-lg">AI가 분석 중입니다...</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      약 10-15초 정도 소요될 수 있습니다.
+                    </p>
+                    <div className="mt-4">
+                      <div className="w-64 h-2 bg-gray-200 rounded-full mx-auto overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-blue-400 to-purple-500 animate-pulse"></div>
+                      </div>
+                    </div>
+                  </div>
+                ) : weakConcepts.length === 0 ? (
                   <div className="text-center py-12">
                     <AlertTriangle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 mb-2">
