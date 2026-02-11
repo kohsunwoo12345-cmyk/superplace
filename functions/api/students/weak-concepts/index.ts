@@ -12,6 +12,90 @@ interface ChatMessage {
 }
 
 /**
+ * GET /api/students/weak-concepts?studentId={studentId}
+ * 캐시된 부족한 개념 분석 결과 조회
+ */
+export const onRequestGet = async (context: { request: Request; env: Env }) => {
+  const { request, env } = context;
+  const { DB } = env;
+
+  if (!DB) {
+    return new Response(JSON.stringify({ success: false, error: "Database not configured" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  try {
+    const url = new URL(request.url);
+    const studentId = url.searchParams.get("studentId");
+
+    if (!studentId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "studentId is required" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log('🔍 Fetching cached weak concepts for student:', studentId);
+
+    // 캐시된 분석 결과 조회
+    const result = await DB.prepare(`
+      SELECT 
+        id,
+        studentId,
+        summary,
+        weakConcepts,
+        recommendations,
+        chatCount,
+        homeworkCount,
+        analyzedAt
+      FROM student_weak_concepts
+      WHERE studentId = ?
+      ORDER BY analyzedAt DESC
+      LIMIT 1
+    `).bind(parseInt(studentId)).first();
+
+    if (!result) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          cached: false,
+          weakConcepts: [],
+          recommendations: [],
+          summary: "",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        cached: true,
+        weakConcepts: JSON.parse(result.weakConcepts as string),
+        recommendations: JSON.parse(result.recommendations as string),
+        summary: result.summary,
+        chatCount: result.chatCount,
+        homeworkCount: result.homeworkCount,
+        analyzedAt: result.analyzedAt,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+
+  } catch (error: any) {
+    console.error("❌ Fetch cached weak concepts error:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || "캐시된 분석 결과 조회 중 오류가 발생했습니다",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+};
+
+/**
  * POST /api/students/weak-concepts
  * Gemini API를 사용하여 학생의 부족한 개념 분석
  */
@@ -226,6 +310,43 @@ ${analysisContext}
         weakConcepts: [],
         recommendations: [],
       };
+    }
+
+    // 6. 분석 결과를 DB에 저장 (캐싱)
+    try {
+      await DB.prepare(`
+        CREATE TABLE IF NOT EXISTS student_weak_concepts (
+          id TEXT PRIMARY KEY,
+          studentId INTEGER NOT NULL,
+          summary TEXT,
+          weakConcepts TEXT,
+          recommendations TEXT,
+          chatCount INTEGER,
+          homeworkCount INTEGER,
+          analyzedAt TEXT DEFAULT (datetime('now')),
+          UNIQUE(studentId)
+        )
+      `).run();
+
+      const cacheId = `weak-concepts-${studentId}-${Date.now()}`;
+      
+      await DB.prepare(`
+        INSERT OR REPLACE INTO student_weak_concepts 
+        (id, studentId, summary, weakConcepts, recommendations, chatCount, homeworkCount, analyzedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).bind(
+        cacheId,
+        parseInt(studentId),
+        analysisResult.summary || "",
+        JSON.stringify(analysisResult.weakConcepts || []),
+        JSON.stringify(analysisResult.recommendations || []),
+        chatHistory.length,
+        homeworkData.length
+      ).run();
+
+      console.log('✅ Weak concepts analysis cached successfully');
+    } catch (cacheError) {
+      console.warn('⚠️ Failed to cache analysis result:', cacheError);
     }
 
     return new Response(

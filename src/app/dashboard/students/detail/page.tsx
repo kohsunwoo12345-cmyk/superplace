@@ -197,6 +197,20 @@ function StudentDetailContent() {
         }
       }
 
+      // 5. 캐시된 부족한 개념 분석 결과 조회
+      const weakConceptsResponse = await fetch(`/api/students/weak-concepts?studentId=${studentId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (weakConceptsResponse.ok) {
+        const weakConceptsData = await weakConceptsResponse.json();
+        if (weakConceptsData.cached && weakConceptsData.weakConcepts.length > 0) {
+          console.log('📦 Loaded cached weak concepts analysis');
+          setWeakConcepts(weakConceptsData.weakConcepts || []);
+          setConceptRecommendations(weakConceptsData.recommendations || []);
+          setConceptSummary(weakConceptsData.summary || "");
+        }
+      }
+
     } catch (error: any) {
       console.error("Failed to fetch student data:", error);
       setError(error.message || "오류가 발생했습니다.");
@@ -937,7 +951,7 @@ function StudentDetailContent() {
                             </div>
                             <p className="text-xs sm:text-sm text-gray-700 mb-2">{concept.description}</p>
                             {concept.relatedTopics && concept.relatedTopics.length > 0 && (
-                              <div className="flex gap-1 flex-wrap">
+                              <div className="flex gap-1 flex-wrap mb-3">
                                 {concept.relatedTopics.map((topic, topicIdx) => (
                                   <Badge key={topicIdx} variant="secondary" className="text-xs">
                                     {topic}
@@ -945,6 +959,17 @@ function StudentDetailContent() {
                                 ))}
                               </div>
                             )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full sm:w-auto text-xs sm:text-sm"
+                              onClick={() => {
+                                alert(`${concept.concept}에 대한 유사문제를 생성합니다.`);
+                                // TODO: 유사문제 생성 API 호출
+                              }}
+                            >
+                              📝 유사문제 출제
+                            </Button>
                           </div>
                         ))}
                       </div>
