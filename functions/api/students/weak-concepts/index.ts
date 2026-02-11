@@ -59,21 +59,29 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     }
 
     // 캐시된 분석 결과 조회
-    const result = await DB.prepare(`
-      SELECT 
-        id,
-        studentId,
-        summary,
-        weakConcepts,
-        recommendations,
-        chatCount,
-        homeworkCount,
-        analyzedAt
-      FROM student_weak_concepts
-      WHERE studentId = ?
-      ORDER BY analyzedAt DESC
-      LIMIT 1
-    `).bind(parseInt(studentId)).first();
+    let result = null;
+    
+    try {
+      result = await DB.prepare(`
+        SELECT 
+          id,
+          studentId,
+          summary,
+          weakConcepts,
+          recommendations,
+          chatCount,
+          homeworkCount,
+          analyzedAt
+        FROM student_weak_concepts
+        WHERE studentId = ?
+        ORDER BY analyzedAt DESC
+        LIMIT 1
+      `).bind(parseInt(studentId)).first();
+    } catch (queryError: any) {
+      console.warn('⚠️ Failed to query cached results:', queryError.message);
+      // 테이블이 없으면 캐시 없음으로 처리
+      result = null;
+    }
 
     if (!result) {
       return new Response(
