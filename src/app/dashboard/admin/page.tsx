@@ -259,6 +259,22 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
 
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-green-200"
+                onClick={() => router.push("/dashboard/admin/payment-approvals")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                결제 승인
+              </CardTitle>
+              <CardDescription>
+                결제 요청을 검토하고 승인합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-green-600 hover:bg-green-700">바로가기</Button>
+            </CardContent>
+          </Card>
+
           <Card className="hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => router.push("/dashboard/admin/system")}>
             <CardHeader>

@@ -428,31 +428,51 @@ export default function AttendanceVerifyPage() {
           }
         });
 
-        // 자동 채점 시작 (백그라운드)
+        // 자동 채점 시작 (동기 처리로 변경)
         if (submissionId) {
           console.log('🤖 자동 채점 시작:', submissionId);
-          fetch('/api/homework/process-grading', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ submissionId })
-          }).then(gradingResponse => {
+          
+          // 사용자에게 알림
+          alert("제출이 완료되었습니다!\n\nAI 채점이 시작됩니다.\n약 10-20초 정도 소요됩니다.");
+          
+          try {
+            const gradingResponse = await fetch('/api/homework/process-grading', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ submissionId })
+            });
+            
             if (gradingResponse.ok) {
-              return gradingResponse.json();
+              const gradingData = await gradingResponse.json();
+              console.log('✅ 자동 채점 완료:', gradingData);
+              
+              // 채점 완료 후 결과 표시
+              alert(`✅ AI 채점이 완료되었습니다!\n\n점수: ${gradingData.grading?.score || '확인 중'}점\n과목: ${gradingData.grading?.subject || '알 수 없음'}\n\n결과 페이지로 이동합니다.`);
+              
+              // 결과 페이지로 이동
+              setTimeout(() => {
+                window.location.href = '/dashboard/homework/results/';
+              }, 2000);
+            } else {
+              throw new Error('채점 API 오류');
             }
-            throw new Error('채점 API 오류');
-          }).then(gradingData => {
-            console.log('✅ 자동 채점 완료:', gradingData);
-          }).catch(err => {
+          } catch (err) {
             console.error('❌ 자동 채점 실패:', err);
-          });
+            alert("⚠️ 자동 채점에 실패했습니다.\n\n'숙제 결과' 페이지에서 'AI 채점하기' 버튼을 눌러주세요.");
+            
+            // 실패 시에도 출석 페이지로 이동
+            setTimeout(() => {
+              window.location.href = '/attendance-verify';
+            }, 2000);
+          }
+        } else {
+          alert("제출이 완료되었습니다!\n\n하지만 자동 채점을 시작할 수 없습니다.\n'숙제 결과' 페이지에서 'AI 채점하기' 버튼을 눌러주세요.");
+          
+          // 3초 후 페이지 새로고침
+          setTimeout(() => {
+            window.location.href = '/attendance-verify';
+          }, 3000);
         }
-
-        alert("제출이 완료되었습니다!\n\nAI 채점이 자동으로 시작되었습니다.\n결과는 10초 후 '숙제 결과' 페이지에서 확인하세요.");
-
-        // 3초 후 페이지 새로고침
-        setTimeout(() => {
-          window.location.href = '/attendance-verify';
-        }, 3000);
       } else {
         console.error("❌ 제출 실패:", {
           status: response.status,
