@@ -141,6 +141,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       kstTimestamp
     });
 
+    // 문자열로 변환 (D1은 긴 텍스트를 object로 인식하는 버그 방지)
+    const strengthsStr = typeof gradingResult.strengths === 'string' 
+      ? gradingResult.strengths 
+      : String(gradingResult.strengths || '');
+    const suggestionsStr = typeof gradingResult.suggestions === 'string'
+      ? gradingResult.suggestions
+      : String(gradingResult.suggestions || '');
+    const feedbackStr = typeof gradingResult.feedback === 'string'
+      ? gradingResult.feedback
+      : String(gradingResult.feedback || '');
+    const detailedAnalysisStr = typeof gradingResult.detailedAnalysis === 'string'
+      ? gradingResult.detailedAnalysis
+      : String(gradingResult.detailedAnalysis || '');
+    const studyDirectionStr = typeof gradingResult.studyDirection === 'string'
+      ? gradingResult.studyDirection
+      : String(gradingResult.studyDirection || '');
+
     await DB.prepare(`
       INSERT INTO homework_gradings_v2 (
         id, submissionId, score, feedback, strengths, suggestions,
@@ -153,9 +170,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       gradingId,
       submissionId,
       gradingResult.score,
-      gradingResult.feedback,
-      gradingResult.strengths,
-      gradingResult.suggestions,
+      feedbackStr,
+      strengthsStr,
+      suggestionsStr,
       gradingResult.subject,
       gradingResult.completion,
       imageArray.length,
@@ -164,8 +181,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       gradingResult.correctAnswers,
       JSON.stringify(gradingResult.problemAnalysis || []),
       JSON.stringify(gradingResult.weaknessTypes || []),
-      gradingResult.detailedAnalysis || '',
-      gradingResult.studyDirection || ''
+      detailedAnalysisStr,
+      studyDirectionStr
     ).run();
 
     console.log(`✅ [Step 5 완료] 채점 결과 저장: ${gradingId}`);
