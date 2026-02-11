@@ -113,11 +113,44 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ 숙제 제출 완료: ${submissionId}, 이미지 ${imageArray.length}장 저장`);
 
-    // 7. 즉시 응답 반환 (채점은 클라이언트에서 호출)
+    // 6. 백그라운드 자동 채점 시작 (context.waitUntil 사용)
+    console.log('🤖 자동 AI 채점 시작...');
+    
+    const gradingPromise = (async () => {
+      try {
+        // 1초 대기 후 채점 API 호출
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        console.log('📡 채점 API 호출:', submissionId);
+        
+        // 내부 fetch로 채점 API 호출
+        const gradingUrl = new URL('/api/homework/process-grading', context.request.url);
+        const gradingResponse = await fetch(gradingUrl.toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ submissionId })
+        });
+        
+        if (gradingResponse.ok) {
+          const gradingResult = await gradingResponse.json();
+          console.log('✅ 자동 채점 완료:', gradingResult);
+        } else {
+          const errorText = await gradingResponse.text();
+          console.error('❌ 자동 채점 실패:', gradingResponse.status, errorText);
+        }
+      } catch (err: any) {
+        console.error('❌ 자동 채점 오류:', err.message);
+      }
+    })();
+    
+    // waitUntil로 백그라운드 실행 (응답은 즉시 반환)
+    context.waitUntil(gradingPromise);
+
+    // 7. 즉시 응답 반환 (채점은 백그라운드에서 진행)
     return new Response(
       JSON.stringify({
         success: true,
-        message: "숙제 제출이 완료되었습니다! AI 채점은 백그라운드에서 진행됩니다.",
+        message: "숙제 제출이 완료되었습니다! AI 채점이 자동으로 시작되었습니다.",
         submission: {
           id: submissionId,
           userId: userId,
@@ -126,7 +159,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           status: 'pending',
           imageCount: imageArray.length
         },
-        note: "채점 결과는 숙제 결과 페이지에서 확인하실 수 있습니다."
+        note: "채점 결과는 10초 후 숙제 결과 페이지에서 확인하실 수 있습니다."
       }),
       { 
         status: 200, 
