@@ -1,5 +1,5 @@
 "use client";
-// Version: 2026-02-11-v3 - Auto grading on submit fix
+// Version: 2026-02-11-v4-ALERT - Force alert for debugging
 
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -162,7 +162,9 @@ function HomeworkCheckContent() {
     setLoading(true);
     setError("");
     
-    console.log('🚀 [DEBUG] 제출 시작 - 빌드 버전: 2026-02-11-v3-auto-grading-fix');
+    // 강제 알림으로 사용자에게 진행 상황 표시
+    alert('🚀 제출 시작! 채점까지 약 10초 소요됩니다.');
+    console.log('🚀 [DEBUG] 제출 시작 - 빌드 버전: 2026-02-11-v4-ALERT');
 
     try {
       const response = await fetch("/api/homework/submit", {
@@ -202,8 +204,12 @@ function HomeworkCheckContent() {
           
           if (!gradingResponse.ok) {
             console.error('❌ [SUBMIT] 채점 API 오류:', gradingData);
+            alert('❌ 채점 실패: ' + JSON.stringify(gradingData));
             throw new Error('채점 API 오류');
           }
+          
+          // 채점 완료 알림
+          alert('✅ 채점 완료! 점수: ' + (gradingData.grading?.score || '확인 중'));
           
           // 채점 완료 후 히스토리 다시 불러오기
           console.log('🔄 [SUBMIT] 히스토리 새로고침 시작...');
@@ -217,6 +223,7 @@ function HomeworkCheckContent() {
         } catch (err: any) {
           console.error('❌ [SUBMIT] 채점 오류:', err);
           console.error('❌ [SUBMIT] 오류 상세:', err.message, err.stack);
+          alert('❌ 채점 중 오류: ' + err.message);
           setError("채점 중 오류가 발생했습니다: " + err.message);
         }
       } else {
