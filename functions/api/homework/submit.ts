@@ -33,8 +33,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`📚 처리할 이미지 수: ${imageArray.length}장`);
     
-    // 이미지 크기 검증 (각 이미지 최대 1MB - SQLite TEXT 제한)
-    const MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
+    // 이미지 크기 검증 (각 이미지 최대 2MB - Base64 인코딩 고려)
+    const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
     for (let i = 0; i < imageArray.length; i++) {
       const imgSize = imageArray[i].length;
       console.log(`📏 이미지 ${i + 1} 크기: ${(imgSize / 1024 / 1024).toFixed(2)}MB`);
@@ -43,7 +43,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         return new Response(
           JSON.stringify({ 
             error: "Image too large",
-            message: `이미지 ${i + 1}의 크기가 너무 큽니다 (최대 1MB). 사진을 다시 촬영해주세요.`,
+            message: `이미지 ${i + 1}의 크기가 너무 큽니다 (최대 2MB). 사진을 다시 촬영해주세요.`,
             imageSize: `${(imgSize / 1024 / 1024).toFixed(2)}MB`
           }),
           { status: 400, headers: { "Content-Type": "application/json" } }

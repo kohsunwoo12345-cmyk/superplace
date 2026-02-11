@@ -272,12 +272,32 @@ export default function AttendanceVerifyPage() {
       const context = canvas.getContext('2d');
       
       if (context) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
+        // ✅ 해상도 제한 추가 (최대 1280px)
+        const maxWidth = 1280;
+        const scale = Math.min(1, maxWidth / video.videoWidth);
         
-        const imageData = canvas.toDataURL('image/jpeg', 0.9);
-        console.log("📸 사진 촬영 완료, 크기:", imageData.length, "해상도:", canvas.width, "x", canvas.height);
+        canvas.width = video.videoWidth * scale;
+        canvas.height = video.videoHeight * scale;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // ✅ 압축 강도 0.7 (파일 크기 감소)
+        let imageData = canvas.toDataURL('image/jpeg', 0.7);
+        console.log("📸 사진 촬영 완료, 크기:", (imageData.length / 1024 / 1024).toFixed(2), "MB, 해상도:", canvas.width, "x", canvas.height);
+        
+        // ✅ 2MB 초과 시 추가 압축
+        let quality = 0.7;
+        let attempts = 0;
+        while (imageData.length > 2 * 1024 * 1024 && attempts < 3) {
+          attempts++;
+          quality = Math.max(0.3, quality - 0.15);
+          imageData = canvas.toDataURL('image/jpeg', quality);
+          console.log(`🔄 추가 압축 ${attempts}: ${(imageData.length / 1024 / 1024).toFixed(2)}MB (품질: ${(quality * 100).toFixed(0)}%)`);
+        }
+        
+        if (imageData.length > 2 * 1024 * 1024) {
+          alert(`이미지 크기가 너무 큽니다 (${(imageData.length / 1024 / 1024).toFixed(2)}MB). 더 간단한 배경에서 촬영해주세요.`);
+          return;
+        }
         
         // 다중 이미지 배열에 추가
         setCapturedImages([...capturedImages, imageData]);
@@ -303,8 +323,43 @@ export default function AttendanceVerifyPage() {
         const reader = new FileReader();
         reader.onload = (event) => {
           const result = event.target?.result as string;
-          setCapturedImages(prev => [...prev, result]);
-          console.log("📁 파일 업로드 완료, 크기:", result.length);
+          
+          // ✅ 파일 업로드 시에도 압축 적용
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxWidth = 1280;
+            const scale = Math.min(1, maxWidth / img.width);
+            
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              let imageData = canvas.toDataURL('image/jpeg', 0.7);
+              console.log("📁 파일 업로드 완료, 크기:", (imageData.length / 1024 / 1024).toFixed(2), "MB");
+              
+              // 2MB 초과 시 추가 압축
+              let quality = 0.7;
+              let attempts = 0;
+              while (imageData.length > 2 * 1024 * 1024 && attempts < 3) {
+                attempts++;
+                quality = Math.max(0.3, quality - 0.15);
+                imageData = canvas.toDataURL('image/jpeg', quality);
+                console.log(`🔄 파일 압축 ${attempts}: ${(imageData.length / 1024 / 1024).toFixed(2)}MB`);
+              }
+              
+              if (imageData.length > 2 * 1024 * 1024) {
+                alert(`파일 크기가 너무 큽니다 (${(imageData.length / 1024 / 1024).toFixed(2)}MB). 더 작은 이미지를 선택해주세요.`);
+                return;
+              }
+              
+              setCapturedImages(prev => [...prev, imageData]);
+            }
+          };
+          img.src = result;
         };
         reader.readAsDataURL(file);
       });
