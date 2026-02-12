@@ -243,6 +243,22 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
 
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-purple-200"
+                onClick={() => router.push("/dashboard/admin/ai-bots/assign")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5 text-purple-600" />
+                AI 봇 할당
+              </CardTitle>
+              <CardDescription>
+                사용자에게 AI 봇을 할당합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">할당하기</Button>
+            </CardContent>
+          </Card>
+
           <Card className="hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => router.push("/dashboard/admin/inquiries")}>
             <CardHeader>
@@ -264,14 +280,14 @@ export default function AdminDashboardPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-600" />
-                결제 승인
+                💳 결제 승인
               </CardTitle>
               <CardDescription>
                 결제 요청을 검토하고 승인합니다
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full bg-green-600 hover:bg-green-700">바로가기</Button>
+              <Button className="w-full bg-green-600 hover:bg-green-700 text-white">바로가기</Button>
             </CardContent>
           </Card>
 
