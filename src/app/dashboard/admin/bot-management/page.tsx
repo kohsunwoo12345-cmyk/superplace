@@ -78,15 +78,9 @@ export default function AdminBotManagementPage() {
     }
     
     const userData = JSON.parse(storedUser);
-    
-    // 관리자 체크
-    if (userData.role !== "ADMIN" && userData.role !== "SUPER_ADMIN") {
-      alert("접근 권한이 없습니다.");
-      router.push("/dashboard");
-      return;
-    }
-    
     setUser(userData);
+    
+    // 로그인한 모든 사용자에게 접근 허용
     fetchData();
   }, [router]);
 
