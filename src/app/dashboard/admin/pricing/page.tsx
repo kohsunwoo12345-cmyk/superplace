@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Check, Plus, Edit, Trash2, X, Save } from "lucide-react";
+import { CreditCard, Check, Plus, Edit, Trash2, X, Save, CheckCircle } from "lucide-react";
 
 interface PricingPlan {
   id: number;
@@ -232,12 +232,22 @@ export default function PricingManagePage() {
           </h1>
           <p className="text-gray-600 mt-1">서비스 요금제 설정 및 관리</p>
         </div>
-        {!isEditing && (
-          <Button onClick={handleCreate}>
-            <Plus className="w-4 h-4 mr-2" />
-            새 요금제 추가
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => router.push("/dashboard/admin/payment-approvals")}
+            variant="outline"
+            className="border-green-500 text-green-600 hover:bg-green-50"
+          >
+            <CheckCircle className="w-4 h-4 mr-2" />
+            결제 승인
           </Button>
-        )}
+          {!isEditing && (
+            <Button onClick={handleCreate}>
+              <Plus className="w-4 h-4 mr-2" />
+              새 요금제 추가
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* 요금제 생성/수정 폼 */}
