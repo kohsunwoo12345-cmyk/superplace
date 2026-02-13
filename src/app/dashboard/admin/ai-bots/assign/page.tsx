@@ -83,33 +83,9 @@ export default function AIBotAssignPage() {
     setCurrentUser(userData);
 
     console.log("📋 localStorage에서 읽은 사용자 데이터:", userData);
+    console.log("✅ AI 봇 할당 페이지 접근 허용 - 로그인한 모든 사용자");
 
-    // ADMIN, SUPER_ADMIN, DIRECTOR(학원 원장) 접근 허용
-    // 대소문자 구분 없이 체크
-    const userRole = (userData.role || "").toString().toUpperCase().trim();
-    const allowedRoles = ["ADMIN", "SUPER_ADMIN", "DIRECTOR", "MEMBER"];
-    
-    console.log("🔍 AI 봇 할당 페이지 접근 확인:", {
-      userData: userData,
-      originalRole: userData.role,
-      roleType: typeof userData.role,
-      normalizedRole: userRole,
-      allowedRoles: allowedRoles,
-      hasAccess: allowedRoles.includes(userRole)
-    });
-    
-    if (!allowedRoles.includes(userRole)) {
-      console.error("❌ 접근 권한 없음:", {
-        userRole: userData.role,
-        normalizedRole: userRole,
-        allowedRoles: allowedRoles
-      });
-      alert(`접근 권한이 없습니다.\n\n현재 역할: ${userData.role}\n정규화된 역할: ${userRole}\n허용된 역할: ${allowedRoles.join(", ")}\n\n관리자 또는 학원 원장만 접근 가능합니다.`);
-      router.push("/dashboard");
-      return;
-    }
-
-    console.log("✅ 접근 권한 확인 완료");
+    // 로그인한 모든 사용자에게 접근 허용
     fetchData();
   }, [router]);
 
