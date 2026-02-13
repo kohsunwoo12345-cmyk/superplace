@@ -27,6 +27,7 @@ import {
   Brain,
   Image as ImageIcon,
   Download,
+  Search,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -76,6 +77,20 @@ export default function TeacherHomeworkResultsPage() {
   const [selectedSubmission, setSelectedSubmission] = useState<HomeworkSubmission | null>(null);
   const [submissionImages, setSubmissionImages] = useState<string[]>([]);
   const [gradingSubmissionId, setGradingSubmissionId] = useState<string | null>(null);
+  
+  // 검색 기능 추가
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // 필터링된 제출 목록
+  const filteredSubmissions = submissions.filter((submission) => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      submission.userName.toLowerCase().includes(search) ||
+      submission.userEmail.toLowerCase().includes(search) ||
+      submission.subject.toLowerCase().includes(search)
+    );
+  });
 
   // AI 채점 함수 추가
   const handleGradeSubmission = async (submissionId: string) => {
@@ -395,33 +410,76 @@ export default function TeacherHomeworkResultsPage() {
         </div>
       )}
 
+      {/* 학생 검색 */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="w-5 h-5" />
+            학생 검색
+          </CardTitle>
+          <CardDescription>
+            학생 이름, 이메일, 과목으로 검색하세요
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="학생 이름, 이메일 또는 과목 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {searchTerm && (
+              <Button
+                variant="outline"
+                onClick={() => setSearchTerm("")}
+              >
+                초기화
+              </Button>
+            )}
+          </div>
+          {searchTerm && (
+            <p className="text-sm text-gray-600 mt-2">
+              검색 결과: {filteredSubmissions.length}건
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-6">
-          <TabsTrigger value="all">전체 ({submissions.length})</TabsTrigger>
+          <TabsTrigger value="all">전체 ({filteredSubmissions.length})</TabsTrigger>
           <TabsTrigger value="high">
-            높은 점수 ({submissions.filter((s) => s.score >= 80).length})
+            높은 점수 ({filteredSubmissions.filter((s) => s.score >= 80).length})
           </TabsTrigger>
           <TabsTrigger value="low">
-            낮은 점수 ({submissions.filter((s) => s.score < 60).length})
+            낮은 점수 ({filteredSubmissions.filter((s) => s.score < 60).length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
-          {submissions.length === 0 ? (
+          {filteredSubmissions.length === 0 ? (
             <Card className="text-center py-12">
               <CardContent>
                 <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">
-                  아직 제출된 숙제가 없습니다
+                  {searchTerm ? '검색 결과가 없습니다' : '아직 제출된 숙제가 없습니다'}
                 </h3>
                 <p className="text-gray-600">
-                  학생들이 숙제를 제출하면 여기에 표시됩니다.
+                  {searchTerm 
+                    ? '다른 검색어를 입력하거나 검색을 초기화해보세요.' 
+                    : '학생들이 숙제를 제출하면 여기에 표시됩니다.'
+                  }
                 </p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-1 gap-4">
-              {submissions.map((submission) => (
+              {filteredSubmissions.map((submission) => (
                 <Card
                   key={submission.id}
                   className="hover:shadow-lg transition-shadow cursor-pointer"
@@ -528,7 +586,7 @@ export default function TeacherHomeworkResultsPage() {
 
         <TabsContent value="high" className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
-            {submissions
+            {filteredSubmissions
               .filter((s) => s.score >= 80)
               .map((submission) => (
                 <Card
@@ -566,7 +624,7 @@ export default function TeacherHomeworkResultsPage() {
 
         <TabsContent value="low" className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
-            {submissions
+            {filteredSubmissions
               .filter((s) => s.score < 60)
               .map((submission) => (
                 <Card
