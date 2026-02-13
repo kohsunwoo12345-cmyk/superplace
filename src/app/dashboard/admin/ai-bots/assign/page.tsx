@@ -83,13 +83,29 @@ export default function AIBotAssignPage() {
     setCurrentUser(userData);
 
     // ADMIN, SUPER_ADMIN, DIRECTOR(학원 원장) 접근 허용
-    const allowedRoles = ["ADMIN", "SUPER_ADMIN", "DIRECTOR", "member"];
-    if (!allowedRoles.includes(userData.role)) {
+    // 대소문자 구분 없이 체크
+    const userRole = (userData.role || "").toUpperCase();
+    const allowedRoles = ["ADMIN", "SUPER_ADMIN", "DIRECTOR", "MEMBER"];
+    
+    console.log("🔍 AI 봇 할당 페이지 접근 확인:", {
+      originalRole: userData.role,
+      normalizedRole: userRole,
+      allowedRoles: allowedRoles,
+      hasAccess: allowedRoles.includes(userRole)
+    });
+    
+    if (!allowedRoles.includes(userRole)) {
+      console.error("❌ 접근 권한 없음:", {
+        userRole: userData.role,
+        normalizedRole: userRole,
+        allowedRoles: allowedRoles
+      });
       alert("접근 권한이 없습니다. 관리자 또는 학원 원장만 접근 가능합니다.");
       router.push("/dashboard");
       return;
     }
 
+    console.log("✅ 접근 권한 확인 완료");
     fetchData();
   }, [router]);
 
