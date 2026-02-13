@@ -1,4 +1,5 @@
 "use client";
+// Force redeploy: 2026-02-13 16:48:18 - Add Payment Approval to Main Dashboard
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -372,6 +373,21 @@ export default function DashboardPage() {
                       <p className="font-medium text-sm">문의 관리</p>
                       <p className="text-xs text-gray-600">
                         고객 문의 응답
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3 border border-green-200 rounded-lg hover:bg-green-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/payment-approvals")}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">💳 결제 승인</p>
+                      <p className="text-xs text-gray-600">
+                        결제 요청 검토
                       </p>
                     </div>
                   </div>
