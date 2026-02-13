@@ -76,6 +76,7 @@ export default function AIBotAssignPage() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
+      alert("DEBUG: localStorage에 user 없음 - 로그인 페이지로 이동");
       router.push("/login");
       return;
     }
@@ -83,6 +84,8 @@ export default function AIBotAssignPage() {
     const userData = JSON.parse(storedUser);
     setCurrentUser(userData);
 
+    alert(`DEBUG: 접근 허용!\n이메일: ${userData.email}\nRole: ${userData.role}\n\n페이지 로딩을 시작합니다.`);
+    
     console.log("📋 localStorage에서 읽은 사용자 데이터:", userData);
     console.log("✅ AI 봇 할당 페이지 접근 허용 - 로그인한 모든 사용자");
 
