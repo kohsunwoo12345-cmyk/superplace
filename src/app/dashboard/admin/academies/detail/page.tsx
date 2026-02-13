@@ -21,6 +21,11 @@ import {
   Edit,
   TrendingUp,
   BarChart3,
+  Bot,
+  CreditCard,
+  CheckCircle,
+  Clock,
+  XCircle,
 } from "lucide-react";
 import {
   LineChart,
@@ -61,6 +66,7 @@ interface AcademyDetail {
     name: string;
     email: string;
     phone?: string;
+    createdAt?: string;
   }>;
   teachers: Array<{
     id: number;
@@ -76,6 +82,21 @@ interface AcademyDetail {
   monthlyActivity: Array<{
     month: string;
     count: number;
+  }>;
+  assignedBots?: Array<{
+    id: number;
+    name: string;
+    description?: string;
+    assignedAt: string;
+    status: string;
+  }>;
+  payments?: Array<{
+    id: number;
+    planName: string;
+    amount: number;
+    status: string;
+    createdAt: string;
+    approvedAt?: string;
   }>;
   revenue?: {
     totalRevenue: number;
@@ -280,10 +301,11 @@ export default function AcademyDetailPage() {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">개요</TabsTrigger>
+          <TabsTrigger value="bots">AI 봇 ({academy.assignedBots?.length || 0})</TabsTrigger>
+          <TabsTrigger value="payments">결제내역 ({academy.payments?.length || 0})</TabsTrigger>
           <TabsTrigger value="students">학생 ({academy.studentCount})</TabsTrigger>
           <TabsTrigger value="teachers">선생님 ({academy.teacherCount})</TabsTrigger>
           <TabsTrigger value="statistics">통계</TabsTrigger>
-          <TabsTrigger value="revenue">매출</TabsTrigger>
         </TabsList>
 
         {/* 개요 탭 */}
@@ -408,6 +430,195 @@ export default function AcademyDetailPage() {
           )}
         </TabsContent>
 
+        {/* AI 봇 탭 */}
+        <TabsContent value="bots">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-purple-600" />
+                할당된 AI 봇 ({academy.assignedBots?.length || 0}개)
+              </CardTitle>
+              <CardDescription>
+                이 학원에 할당된 AI 챗봇 목록
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {academy.assignedBots && academy.assignedBots.length > 0 ? (
+                <div className="space-y-4">
+                  {academy.assignedBots.map((bot) => (
+                    <div
+                      key={bot.id}
+                      className="flex items-center justify-between p-4 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                          <Bot className="h-6 w-6 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-lg">{bot.name}</p>
+                          {bot.description && (
+                            <p className="text-sm text-gray-600">{bot.description}</p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1">
+                            할당일: {formatDate(bot.assignedAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge 
+                          variant={bot.status === 'ACTIVE' ? 'default' : 'secondary'}
+                          className="bg-green-100 text-green-700"
+                        >
+                          {bot.status === 'ACTIVE' ? '활성' : '비활성'}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-2">할당된 AI 봇이 없습니다.</p>
+                  <p className="text-sm text-gray-500">
+                    AI 봇 할당은 관리자 메뉴에서 할 수 있습니다.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 결제내역 탭 */}
+        <TabsContent value="payments">
+          <div className="space-y-4">
+            {/* 결제 요약 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">
+                    총 결제액
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-green-600" />
+                    <span className="text-3xl font-bold text-green-600">
+                      {academy.revenue
+                        ? formatCurrency(academy.revenue.totalRevenue)
+                        : "₩0"}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">
+                    승인된 결제
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                    <span className="text-3xl font-bold text-blue-600">
+                      {academy.revenue?.transactionCount || 0}건
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">
+                    현재 요금제
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-purple-600" />
+                    <Badge variant="outline" className="text-lg px-3 py-1">
+                      {academy.subscriptionPlan}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* 결제 목록 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>결제 내역</CardTitle>
+                <CardDescription>
+                  모든 결제 요청 및 승인 기록
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {academy.payments && academy.payments.length > 0 ? (
+                  <div className="space-y-3">
+                    {academy.payments.map((payment) => (
+                      <div
+                        key={payment.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                            payment.status === 'APPROVED' ? 'bg-green-100' :
+                            payment.status === 'PENDING' ? 'bg-yellow-100' :
+                            'bg-red-100'
+                          }`}>
+                            {payment.status === 'APPROVED' ? (
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                            ) : payment.status === 'PENDING' ? (
+                              <Clock className="h-5 w-5 text-yellow-600" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-red-600" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-semibold">{payment.planName}</p>
+                            <p className="text-sm text-gray-600">
+                              신청일: {formatDate(payment.createdAt)}
+                            </p>
+                            {payment.approvedAt && (
+                              <p className="text-xs text-gray-500">
+                                승인일: {formatDate(payment.approvedAt)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold">
+                            {formatCurrency(payment.amount)}
+                          </p>
+                          <Badge 
+                            variant={
+                              payment.status === 'APPROVED' ? 'default' :
+                              payment.status === 'PENDING' ? 'secondary' :
+                              'destructive'
+                            }
+                          >
+                            {payment.status === 'APPROVED' ? '승인완료' :
+                             payment.status === 'PENDING' ? '대기중' :
+                             payment.status === 'REJECTED' ? '거절됨' : payment.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 mb-2">결제 내역이 없습니다.</p>
+                    <p className="text-sm text-gray-500">
+                      첫 결제를 진행해주세요.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         {/* 학생 목록 탭 */}
         <TabsContent value="students">
           <Card>
@@ -433,9 +644,11 @@ export default function AcademyDetailPage() {
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-gray-500">
-                          등록일: {formatDate(student.createdAt)}
-                        </p>
+                        {student.createdAt && (
+                          <p className="text-xs text-gray-500">
+                            등록일: {formatDate(student.createdAt)}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -596,77 +809,6 @@ export default function AcademyDetailPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        {/* 매출 탭 */}
-        <TabsContent value="revenue">
-          <Card>
-            <CardHeader>
-              <CardTitle>매출 현황</CardTitle>
-              <CardDescription>
-                이 학원의 매출 및 거래 내역
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {academy.revenue && academy.revenue.totalRevenue > 0 ? (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-6 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <DollarSign className="w-5 h-5 text-orange-600" />
-                        <p className="text-sm text-gray-600">총 매출</p>
-                      </div>
-                      <p className="text-3xl font-bold text-orange-600">
-                        {formatCurrency(academy.revenue.totalRevenue)}
-                      </p>
-                    </div>
-
-                    <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <BarChart3 className="w-5 h-5 text-blue-600" />
-                        <p className="text-sm text-gray-600">총 거래</p>
-                      </div>
-                      <p className="text-3xl font-bold text-blue-600">
-                        {academy.revenue.transactionCount}건
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600">
-                      💡 매출 관리 시스템은{" "}
-                      <a
-                        href="https://superplace-academy.pages.dev/tools/revenue-management"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 underline"
-                      >
-                        여기
-                      </a>
-                      에서 확인하실 수 있습니다.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-2">아직 매출 데이터가 없습니다.</p>
-                  <p className="text-sm text-gray-500">
-                    매출 정보는{" "}
-                    <a
-                      href="https://superplace-academy.pages.dev/tools/revenue-management"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 underline"
-                    >
-                      매출 관리 시스템
-                    </a>
-                    에서 관리됩니다.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>
