@@ -1,5 +1,6 @@
 "use client";
 // Force redeploy: 2026-02-13 16:48:18 - Add Payment Approval to Main Dashboard
+// Force redeploy: 2026-02-13 16:54:36 - Add Payment Menu to Director Dashboard
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -601,6 +602,54 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 관리 메뉴 - 학원장 전용 (DIRECTOR만 표시) */}
+        {isDirector && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-600" />
+                관리 메뉴
+              </CardTitle>
+              <CardDescription>시스템 관리</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="flex flex-col items-center justify-center p-4 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/users")}>
+                  <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mb-2">
+                    <Users className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <p className="font-medium text-sm text-center">사용자 관리</p>
+                </div>
+
+                <div className="flex flex-col items-center justify-center p-4 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/academies")}>
+                  <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center mb-2">
+                    <GraduationCap className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <p className="font-medium text-sm text-center">학원 관리</p>
+                </div>
+
+                <div className="flex flex-col items-center justify-center p-4 border border-green-200 rounded-lg hover:bg-green-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/ai-bots")}>
+                  <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-2">
+                    <Target className="h-6 w-6 text-green-600" />
+                  </div>
+                  <p className="font-medium text-sm text-center">AI 봇 관리</p>
+                </div>
+
+                <div className="flex flex-col items-center justify-center p-4 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/admin/payment-approvals")}>
+                  <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-2">
+                    <CheckCircle className="h-6 w-6 text-emerald-600" />
+                  </div>
+                  <p className="font-medium text-sm text-center">💳 결제 승인</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   }
