@@ -137,7 +137,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         return;
       }
 
-      if (userRole === "SUPER_ADMIN") {
+      if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") {
         setLoading(false);
         return;
       }
@@ -167,13 +167,14 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 
   // 봇 메뉴를 대시보드 다음에 삽입
   const navigation = [...baseNavigation];
-  if (botMenuItems.length > 0 && userRole !== "SUPER_ADMIN") {
+  if (botMenuItems.length > 0 && userRole !== "SUPER_ADMIN" && userRole !== "ADMIN") {
     navigation.splice(1, 0, ...botMenuItems);
   }
 
   const getRoleBadge = (role: string) => {
     const badges: Record<string, { text: string; color: string }> = {
       SUPER_ADMIN: { text: "관리자", color: "bg-red-100 text-red-800" },
+      ADMIN: { text: "관리자", color: "bg-red-100 text-red-800" },
       DIRECTOR: { text: "학원장", color: "bg-blue-100 text-blue-800" },
       TEACHER: { text: "선생님", color: "bg-green-100 text-green-800" },
       STUDENT: { text: "학생", color: "bg-purple-100 text-purple-800" },
