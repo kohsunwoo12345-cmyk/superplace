@@ -64,6 +64,7 @@ export default function AIBotAssignPage() {
   // 폼 상태
   const [selectedBot, setSelectedBot] = useState("");
   const [selectedUser, setSelectedUser] = useState("");
+  const [selectedRole, setSelectedRole] = useState("all");
   const [duration, setDuration] = useState("1");
   const [durationUnit, setDurationUnit] = useState("month");
   
@@ -81,8 +82,10 @@ export default function AIBotAssignPage() {
     const userData = JSON.parse(storedUser);
     setCurrentUser(userData);
 
-    if (userData.role !== "ADMIN") {
-      alert("접근 권한이 없습니다.");
+    // ADMIN, SUPER_ADMIN, DIRECTOR(학원 원장) 접근 허용
+    const allowedRoles = ["ADMIN", "SUPER_ADMIN", "DIRECTOR", "member"];
+    if (!allowedRoles.includes(userData.role)) {
+      alert("접근 권한이 없습니다. 관리자 또는 학원 원장만 접근 가능합니다.");
       router.push("/dashboard");
       return;
     }
@@ -205,6 +208,24 @@ export default function AIBotAssignPage() {
     }
   };
 
+  // 역할별로 사용자 필터링
+  const filteredUsers = selectedRole === "all" 
+    ? users 
+    : users.filter(user => {
+        if (selectedRole === "ACADEMY") return user.role === "DIRECTOR" || user.role === "member";
+        if (selectedRole === "TEACHER") return user.role === "TEACHER" || user.role === "user";
+        if (selectedRole === "STUDENT") return user.role === "STUDENT";
+        return false;
+      });
+
+  // 역할별 사용자 수
+  const roleStats = {
+    all: users.length,
+    academy: users.filter(u => u.role === "DIRECTOR" || u.role === "member").length,
+    teacher: users.filter(u => u.role === "TEACHER" || u.role === "user").length,
+    student: users.filter(u => u.role === "STUDENT").length,
+  };
+
   if (loading || !currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -261,13 +282,43 @@ export default function AIBotAssignPage() {
                   <SelectValue placeholder="봇을 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  {bots.map((bot) => (
+                  {bots.filter(bot => bot.isActive).map((bot) => (
                     <SelectItem key={bot.id} value={bot.id}>
-                      {bot.name} {!bot.isActive && "(비활성)"}
+                      {bot.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-gray-500">
+                활성화된 봇만 표시됩니다 ({bots.filter(b => b.isActive).length}개)
+              </p>
+            </div>
+
+            {/* 역할 필터 */}
+            <div className="space-y-2">
+              <Label htmlFor="role-filter">사용자 역할 필터</Label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger id="role-filter">
+                  <SelectValue placeholder="역할을 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    전체 ({roleStats.all}명)
+                  </SelectItem>
+                  <SelectItem value="ACADEMY">
+                    학원 원장 ({roleStats.academy}명)
+                  </SelectItem>
+                  <SelectItem value="TEACHER">
+                    선생님 ({roleStats.teacher}명)
+                  </SelectItem>
+                  <SelectItem value="STUDENT">
+                    학생 ({roleStats.student}명)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                역할별로 사용자를 필터링합니다
+              </p>
             </div>
 
             {/* 사용자 선택 */}
@@ -278,13 +329,16 @@ export default function AIBotAssignPage() {
                   <SelectValue placeholder="사용자를 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  {users.map((user) => (
+                  {filteredUsers.map((user) => (
                     <SelectItem key={user.id} value={user.id.toString()}>
                       {user.name} ({user.email}) - {user.role}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-gray-500">
+                {filteredUsers.length}명의 사용자
+              </p>
             </div>
 
             {/* 기간 입력 */}
