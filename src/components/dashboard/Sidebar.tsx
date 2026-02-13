@@ -122,8 +122,12 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const [assignedBots, setAssignedBots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const userRole = session?.user?.role || "STUDENT";
+  const userRole = (session?.user?.role || "STUDENT").toUpperCase();
   const baseNavigation = navigationByRole[userRole as keyof typeof navigationByRole] || navigationByRole.STUDENT;
+  
+  // 디버깅: 콘솔에 역할 출력
+  console.log('🔍 Sidebar - User Role:', userRole);
+  console.log('🔍 Sidebar - Session:', session?.user);
 
   // 할당된 AI 봇 가져오기
   useEffect(() => {
