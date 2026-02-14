@@ -289,12 +289,20 @@ function StudentDetailContent() {
 
       const data = await response.json();
       console.log('✅ 분석 완료:', data);
+      console.log('📊 weakConcepts:', data.weakConcepts);
+      console.log('📊 weakConcepts 개수:', data.weakConcepts?.length);
+      console.log('📊 recommendations:', data.recommendations);
+      console.log('📊 summary:', data.summary);
       
       setWeakConcepts(data.weakConcepts || []);
       setConceptRecommendations(data.recommendations || []);
       setConceptSummary(data.summary || "");
       
-      alert('✅ 분석이 완료되었습니다!');
+      if (data.weakConcepts && data.weakConcepts.length > 0) {
+        alert(`✅ 분석이 완료되었습니다!\n\n부족한 개념 ${data.weakConcepts.length}개를 발견했습니다.`);
+      } else {
+        alert('✅ 분석이 완료되었습니다!\n\n현재 부족한 개념이 발견되지 않았습니다.');
+      }
     } catch (error: any) {
       console.error("Failed to analyze weak concepts:", error);
       
