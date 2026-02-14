@@ -412,18 +412,8 @@ Rules:
       
     } catch (parseError: any) {
       console.error('❌ 파싱 실패:', parseError.message);
-
-        const rawText = geminiData.candidates[0].content.parts[0].text;
-        console.error('❌ 파싱 실패한 원본 응답 (전체):', rawText);
-        console.error('❌ 원본 응답 길이:', rawText.length);
-        console.error('❌ 첫 100자:', rawText.substring(0, 100));
-        console.error('❌ 마지막 100자:', rawText.substring(rawText.length - 100));
-        console.error('❌ Gemini 응답 전체 구조:', JSON.stringify(geminiData, null, 2));
-      } catch (e) {
-        console.error('❌ 원본 응답 확인 불가:', e);
-      }
       
-      // 파싱 실패 시 상세한 오류 메시지와 함께 빈 결과 반환
+      // 파싱 실패 시 빈 결과 반환
       analysisResult = {
         summary: `AI 응답 파싱 실패\n\n오류: ${parseError.message}\n\nGemini 2.5 Flash API는 정상 응답했지만 JSON 파싱에 실패했습니다.\n\n**해결 방법:**\n1. Cloudflare Pages 대시보드 → Workers & Pages → superplacestudy → Logs에서 전체 응답 확인\n2. '📝 Gemini 2.5 Flash 원본 응답' 로그 확인\n3. API 키가 올바른지 확인\n\n분석 대상: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건`,
         weakConcepts: [],
