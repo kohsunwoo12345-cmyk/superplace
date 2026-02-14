@@ -288,7 +288,8 @@ ${analysisContext}
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+    // Gemini 2.0 Flash (experimental) 사용 - v1beta API 필요
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`;
 
     console.log('🔄 Calling Gemini API for weak concept analysis...');
     
