@@ -283,31 +283,33 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       analysisContext += `\n📚 숙제 채점 데이터 (${homeworkData.length}건):\n${homeworkText}\n`;
     }
 
-    const prompt = `다음은 한 학생의 학습 데이터입니다. 이 데이터를 종합적으로 분석하여 학생이 이해하지 못하거나 부족한 개념들을 파악해주세요.
+    const prompt = `You are a JSON generator. Output ONLY valid JSON without any markdown, explanations, or code blocks.
+
+Analyze this student's learning data and identify weak concepts:
 
 ${analysisContext}
 
-**분석 요구사항:**
-1. 숙제 채점 데이터의 "약점 유형", "상세 분석", "학습 방향"을 최우선으로 참고하세요
-2. 80점 미만의 숙제에서 반복되는 문제점을 찾으세요
-3. 한국어로 구체적이고 실용적인 분석을 제공하세요
-4. 최대 5개의 부족한 개념을 찾아주세요
+Requirements:
+1. Focus on homework with scores below 80
+2. Identify patterns in "약점 유형" and "상세 분석"
+3. Find up to 5 weak concepts
+4. Output ONLY the JSON below (no markdown, no explanations)
 
-**출력 형식:**
+JSON OUTPUT (respond with this exact structure):
 {
-  "summary": "학생의 전반적인 이해도와 학습 상태 요약 (2-3문장, 한국어)",
+  "summary": "학생의 전반적인 이해도 요약 (한국어, 2-3문장)",
   "weakConcepts": [
     {
-      "concept": "개념명 (예: 이차방정식의 근의 공식)",
-      "description": "부족한 이유 설명 (예: 판별식 계산 시 부호 실수가 잦음)",
+      "concept": "개념명",
+      "description": "부족한 이유 (한국어)",
       "severity": "high",
-      "relatedTopics": ["관련 주제1", "관련 주제2"]
+      "relatedTopics": ["관련주제1", "관련주제2"]
     }
   ],
   "recommendations": [
     {
       "concept": "개념명",
-      "action": "구체적인 학습 방법 (예: 유형별 문제 10개씩 반복 연습)"
+      "action": "학습 방법 (한국어)"
     }
   ]
 }`;
@@ -343,10 +345,64 @@ ${analysisContext}
           }]
         }],
         generationConfig: {
-          temperature: 0.3,
-          topK: 40,
-          topP: 0.95,
+          temperature: 0.1,
+          topK: 1,
+          topP: 0.1,
           maxOutputTokens: 4096,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              summary: {
+                type: "STRING",
+                description: "학생의 전반적인 이해도 요약"
+              },
+              weakConcepts: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    concept: { 
+                      type: "STRING",
+                      description: "부족한 개념명"
+                    },
+                    description: { 
+                      type: "STRING",
+                      description: "부족한 이유"
+                    },
+                    severity: { 
+                      type: "STRING",
+                      description: "심각도 (high, medium, low)"
+                    },
+                    relatedTopics: {
+                      type: "ARRAY",
+                      items: { type: "STRING" },
+                      description: "관련 주제들"
+                    }
+                  },
+                  required: ["concept", "description", "severity"]
+                }
+              },
+              recommendations: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    concept: { 
+                      type: "STRING",
+                      description: "개념명"
+                    },
+                    action: { 
+                      type: "STRING",
+                      description: "학습 방법"
+                    }
+                  },
+                  required: ["concept", "action"]
+                }
+              }
+            },
+            required: ["summary", "weakConcepts", "recommendations"]
+          }
         },
       }),
     });
@@ -367,42 +423,82 @@ ${analysisContext}
     const geminiData = await geminiResponse.json();
     console.log('✅ Gemini API response received');
 
-    // 5. Gemini 응답 파싱 (Gemini 2.5 Flash 응답 처리)
+    // 5. Gemini 응답 파싱 (JSON Schema 모드 - 이미 파싱된 JSON 반환)
     let analysisResult;
     try {
       const responseText = geminiData.candidates[0].content.parts[0].text;
       console.log('📝 Gemini 2.5 Flash 원본 응답 (전체):', responseText);
+      console.log('📝 응답 타입:', typeof responseText);
       
-      // JSON 블록 추출 (```json ... ``` 제거)
-      let cleanedText = responseText.trim();
-      if (cleanedText.startsWith('```json')) {
-        cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      } else if (cleanedText.startsWith('```')) {
-        cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      // responseMimeType이 application/json이면 이미 JSON 문자열로 반환됨
+      // 하지만 여전히 파싱이 필요함
+      let parsedData;
+      
+      // 1차 시도: 직접 파싱
+      try {
+        parsedData = JSON.parse(responseText);
+        console.log('✅ 1차 파싱 성공 (직접 파싱)');
+      } catch (e1) {
+        console.warn('⚠️ 1차 파싱 실패, 2차 시도 (마크다운 제거)');
+        
+        // 2차 시도: 마크다운 제거 후 파싱
+        let cleanedText = responseText.trim();
+        
+        // ```json ... ``` 제거
+        if (cleanedText.startsWith('```json')) {
+          cleanedText = cleanedText.replace(/^```json\s*/m, '').replace(/\s*```\s*$/m, '');
+        } else if (cleanedText.startsWith('```')) {
+          cleanedText = cleanedText.replace(/^```\s*/m, '').replace(/\s*```\s*$/m, '');
+        }
+        
+        // 개행 문자 이스케이프 처리
+        cleanedText = cleanedText
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\r')
+          .replace(/\t/g, '\\t');
+        
+        console.log('🧹 정제된 텍스트 (처음 500자):', cleanedText.substring(0, 500));
+        
+        try {
+          parsedData = JSON.parse(cleanedText);
+          console.log('✅ 2차 파싱 성공 (마크다운 제거)');
+        } catch (e2) {
+          console.error('❌ 2차 파싱 실패, 3차 시도 (강제 수정)');
+          
+          // 3차 시도: JSON 문자열 내부의 특수문자 처리
+          const fixedText = cleanedText
+            .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // 제어 문자 제거
+            .replace(/\\"/g, '"') // 이스케이프된 따옴표 처리
+            .replace(/"\s*:\s*"/g, '":"') // 공백 제거
+            .trim();
+          
+          console.log('🔧 강제 수정된 텍스트 (처음 500자):', fixedText.substring(0, 500));
+          
+          parsedData = JSON.parse(fixedText);
+          console.log('✅ 3차 파싱 성공 (강제 수정)');
+        }
       }
       
-      console.log('🧹 정제된 JSON:', cleanedText.substring(0, 500));
+      // 파싱 결과 검증
+      analysisResult = parsedData;
       
-      // JSON 파싱
-      analysisResult = JSON.parse(cleanedText);
-      
-      // 결과 검증 및 기본값 설정
       if (!analysisResult || typeof analysisResult !== 'object') {
-        throw new Error('유효하지 않은 JSON 객체');
+        throw new Error('파싱된 결과가 유효한 객체가 아닙니다');
       }
       
+      // 필수 필드 검증 및 기본값 설정
       if (!analysisResult.summary || typeof analysisResult.summary !== 'string') {
         console.warn('⚠️ summary 필드 누락, 기본값 설정');
         analysisResult.summary = '분석이 완료되었습니다.';
       }
       
       if (!Array.isArray(analysisResult.weakConcepts)) {
-        console.warn('⚠️ weakConcepts 필드 누락, 빈 배열 설정');
+        console.warn('⚠️ weakConcepts 필드 누락 또는 잘못된 타입, 빈 배열 설정');
         analysisResult.weakConcepts = [];
       }
       
       if (!Array.isArray(analysisResult.recommendations)) {
-        console.warn('⚠️ recommendations 필드 누락, 빈 배열 설정');
+        console.warn('⚠️ recommendations 필드 누락 또는 잘못된 타입, 빈 배열 설정');
         analysisResult.recommendations = [];
       }
       
@@ -417,7 +513,7 @@ ${analysisContext}
       }
       
     } catch (parseError: any) {
-      console.error('❌ Gemini 2.5 Flash 응답 파싱 실패:', parseError);
+      console.error('❌ Gemini 2.5 Flash 응답 파싱 완전 실패:', parseError);
       console.error('❌ 오류 상세:', parseError.message);
       console.error('❌ 오류 스택:', parseError.stack);
       
@@ -425,6 +521,9 @@ ${analysisContext}
       try {
         const rawText = geminiData.candidates[0].content.parts[0].text;
         console.error('❌ 파싱 실패한 원본 응답 (전체):', rawText);
+        console.error('❌ 원본 응답 길이:', rawText.length);
+        console.error('❌ 첫 100자:', rawText.substring(0, 100));
+        console.error('❌ 마지막 100자:', rawText.substring(rawText.length - 100));
         console.error('❌ Gemini 응답 전체 구조:', JSON.stringify(geminiData, null, 2));
       } catch (e) {
         console.error('❌ 원본 응답 확인 불가:', e);
