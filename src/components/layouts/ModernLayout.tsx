@@ -9,6 +9,7 @@ import {
   DollarSign, CreditCard, Presentation, ClipboardList, Sparkles, Bot
 } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
+import SearchBar from '@/components/SearchBar';
 
 interface MenuItem {
   id: string;
@@ -236,10 +237,8 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
               )}
 
               {/* Search */}
-              <button className="hidden md:flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
-                <Search className="w-4 h-4 text-gray-600" />
-                <span className="text-sm text-gray-600">검색...</span>
-              </button>
+              <SearchBar menuItems={menuItems} />
+              <SearchBar menuItems={menuItems} isMobile={true} />
 
               {/* Notifications */}
               <NotificationCenter />
