@@ -326,8 +326,8 @@ ${analysisContext}
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-    // Gemini 1.5 Pro 모델 사용 (더 안정적)
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
+    // Gemini 1.5 Pro 모델 사용 (v1 API)
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
 
     console.log('🔄 Calling Gemini 1.5 Pro API (안정적 버전)...');
     console.log('📊 분석 대상: 채팅', chatHistory.length, '건, 숙제', homeworkData.length, '건');
