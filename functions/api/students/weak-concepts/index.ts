@@ -283,36 +283,36 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       analysisContext += `\n📚 숙제 채점 데이터 (${homeworkData.length}건):\n${homeworkText}\n`;
     }
 
-    const prompt = `You are a JSON generator. Output ONLY valid JSON without any markdown, explanations, or code blocks.
-
-Analyze this student's learning data and identify weak concepts:
+    // 매우 명확한 프롬프트 (Gemini 1.5 Pro용)
+    const prompt = `다음은 한 학생의 학습 데이터입니다. 이 데이터를 분석하여 부족한 개념을 찾아주세요.
 
 ${analysisContext}
 
-Requirements:
-1. Focus on homework with scores below 80
-2. Identify patterns in "약점 유형" and "상세 분석"
-3. Find up to 5 weak concepts
-4. Output ONLY the JSON below (no markdown, no explanations)
+**중요**: 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트나 설명은 포함하지 마세요.
 
-JSON OUTPUT (respond with this exact structure):
 {
-  "summary": "학생의 전반적인 이해도 요약 (한국어, 2-3문장)",
+  "summary": "학생의 이해도 요약 (한국어로 2-3문장)",
   "weakConcepts": [
     {
-      "concept": "개념명",
-      "description": "부족한 이유 (한국어)",
+      "concept": "부족한 개념 이름",
+      "description": "왜 이 개념이 부족한지 설명",
       "severity": "high",
-      "relatedTopics": ["관련주제1", "관련주제2"]
+      "relatedTopics": ["관련 주제1", "관련 주제2"]
     }
   ],
   "recommendations": [
     {
-      "concept": "개념명",
-      "action": "학습 방법 (한국어)"
+      "concept": "개념 이름",
+      "action": "구체적인 학습 방법"
     }
   ]
-}`;
+}
+
+분석 기준:
+1. 80점 미만 숙제에서 반복되는 약점 찾기
+2. 최대 5개 개념 추출
+3. severity는 "high", "medium", "low" 중 하나
+4. 모든 텍스트는 한국어로 작성`;
 
     // 4. Gemini API 호출
     const geminiApiKey = GOOGLE_GEMINI_API_KEY;
@@ -326,10 +326,10 @@ JSON OUTPUT (respond with this exact structure):
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-    // Gemini 2.5 Flash 모델 사용 (v1beta API)
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+    // Gemini 1.5 Pro 모델 사용 (더 안정적)
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
 
-    console.log('🔄 Calling Gemini 2.5 Flash API...');
+    console.log('🔄 Calling Gemini 1.5 Pro API (안정적 버전)...');
     console.log('📊 분석 대상: 채팅', chatHistory.length, '건, 숙제', homeworkData.length, '건');
     console.log('📅 분석 기간:', startDate, '~', endDate);
     
@@ -345,64 +345,10 @@ JSON OUTPUT (respond with this exact structure):
           }]
         }],
         generationConfig: {
-          temperature: 0.1,
-          topK: 1,
-          topP: 0.1,
+          temperature: 0.4,
+          topK: 40,
+          topP: 0.95,
           maxOutputTokens: 4096,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              summary: {
-                type: "STRING",
-                description: "학생의 전반적인 이해도 요약"
-              },
-              weakConcepts: {
-                type: "ARRAY",
-                items: {
-                  type: "OBJECT",
-                  properties: {
-                    concept: { 
-                      type: "STRING",
-                      description: "부족한 개념명"
-                    },
-                    description: { 
-                      type: "STRING",
-                      description: "부족한 이유"
-                    },
-                    severity: { 
-                      type: "STRING",
-                      description: "심각도 (high, medium, low)"
-                    },
-                    relatedTopics: {
-                      type: "ARRAY",
-                      items: { type: "STRING" },
-                      description: "관련 주제들"
-                    }
-                  },
-                  required: ["concept", "description", "severity"]
-                }
-              },
-              recommendations: {
-                type: "ARRAY",
-                items: {
-                  type: "OBJECT",
-                  properties: {
-                    concept: { 
-                      type: "STRING",
-                      description: "개념명"
-                    },
-                    action: { 
-                      type: "STRING",
-                      description: "학습 방법"
-                    }
-                  },
-                  required: ["concept", "action"]
-                }
-              }
-            },
-            required: ["summary", "weakConcepts", "recommendations"]
-          }
         },
       }),
     });
@@ -427,7 +373,7 @@ JSON OUTPUT (respond with this exact structure):
     let analysisResult;
     try {
       const responseText = geminiData.candidates[0].content.parts[0].text;
-      console.log('📝 Gemini 2.5 Flash 원본 응답 (전체):', responseText);
+      console.log('📝 Gemini 1.5 Pro 원본 응답 (전체):', responseText);
       console.log('📝 응답 타입:', typeof responseText);
       
       // responseMimeType이 application/json이면 이미 JSON 문자열로 반환됨
@@ -502,7 +448,7 @@ JSON OUTPUT (respond with this exact structure):
         analysisResult.recommendations = [];
       }
       
-      console.log('✅ Gemini 2.5 Flash 분석 완료!');
+      console.log('✅ Gemini 1.5 Pro 분석 완료!');
       console.log('📊 분석된 개념 개수:', analysisResult.weakConcepts.length);
       console.log('📊 추천 개수:', analysisResult.recommendations.length);
       
@@ -513,7 +459,7 @@ JSON OUTPUT (respond with this exact structure):
       }
       
     } catch (parseError: any) {
-      console.error('❌ Gemini 2.5 Flash 응답 파싱 완전 실패:', parseError);
+      console.error('❌ Gemini 1.5 Pro 응답 파싱 실패:', parseError);
       console.error('❌ 오류 상세:', parseError.message);
       console.error('❌ 오류 스택:', parseError.stack);
       
