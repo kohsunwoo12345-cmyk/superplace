@@ -288,7 +288,7 @@ ${analysisContext}
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
 
     console.log('🔄 Calling Gemini API for weak concept analysis...');
     
@@ -332,6 +332,7 @@ ${analysisContext}
     let analysisResult;
     try {
       const responseText = geminiData.candidates[0].content.parts[0].text;
+      console.log('📝 Gemini 원본 응답 (처음 500자):', responseText.substring(0, 500));
       
       let jsonText = responseText.trim();
       if (jsonText.startsWith('```json')) {
@@ -340,14 +341,25 @@ ${analysisContext}
         jsonText = jsonText.replace(/```\s*/, '').replace(/```\s*$/, '');
       }
       
+      console.log('📝 파싱할 JSON (처음 500자):', jsonText.substring(0, 500));
       analysisResult = JSON.parse(jsonText);
       
       console.log('✅ Weak concept analysis completed successfully');
-    } catch (parseError) {
+      console.log('📊 분석된 개념 개수:', analysisResult.weakConcepts?.length || 0);
+    } catch (parseError: any) {
       console.error('❌ Failed to parse Gemini response:', parseError);
+      console.error('❌ Parse error message:', parseError.message);
+      
+      // 파싱 실패 시에도 원본 텍스트를 확인할 수 있도록
+      try {
+        const rawText = geminiData.candidates[0].content.parts[0].text;
+        console.error('❌ 파싱 실패한 원본 텍스트 (전체):', rawText);
+      } catch (e) {
+        console.error('❌ 원본 텍스트 추출도 실패');
+      }
       
       analysisResult = {
-        summary: "AI 분석 중 오류가 발생했습니다.",
+        summary: "AI 응답 파싱 중 오류가 발생했습니다. 관리자가 로그를 확인 중입니다.",
         weakConcepts: [],
         recommendations: [],
       };
