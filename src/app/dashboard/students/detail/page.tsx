@@ -96,6 +96,8 @@ function StudentDetailContent() {
   const [loading, setLoading] = useState(true);
   const [analyzingLoading, setAnalyzingLoading] = useState(false);
   const [conceptAnalyzingLoading, setConceptAnalyzingLoading] = useState(false);
+  const [generatingProblems, setGeneratingProblems] = useState(false);
+  const [similarProblems, setSimilarProblems] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
   const [attendanceCodeCopied, setAttendanceCodeCopied] = useState(false);
@@ -346,6 +348,45 @@ function StudentDetailContent() {
     } catch (error: any) {
       console.error("Failed to generate student code:", error);
       alert(error.message || "학생 코드 생성 중 오류가 발생했습니다.");
+    }
+  };
+
+  const generateSimilarProblems = async (concept?: string) => {
+    try {
+      setGeneratingProblems(true);
+      const token = localStorage.getItem("token");
+
+      console.log('📝 유사문제 생성 시작:', concept || '전체');
+
+      const response = await fetch(`/api/students/generate-similar-problems`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ studentId, concept }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API 오류: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ 유사문제 생성 완료:', data);
+      
+      setSimilarProblems(data.problems || []);
+      
+      if (data.problems && data.problems.length > 0) {
+        alert(`✅ ${concept || '자주 틀리는 문제'}에 대한 유사문제 ${data.problems.length}개가 생성되었습니다!`);
+      } else {
+        alert('⚠️ ' + (data.message || '생성된 문제가 없습니다.'));
+      }
+    } catch (error: any) {
+      console.error("Failed to generate similar problems:", error);
+      alert('❌ 유사문제 생성 중 오류가 발생했습니다.\n\n' + (error.message || '알 수 없는 오류'));
+    } finally {
+      setGeneratingProblems(false);
     }
   };
 
@@ -1056,12 +1097,17 @@ function StudentDetailContent() {
                               size="sm"
                               variant="outline"
                               className="w-full sm:w-auto text-xs sm:text-sm"
-                              onClick={() => {
-                                alert(`${concept.concept}에 대한 유사문제를 생성합니다.`);
-                                // TODO: 유사문제 생성 API 호출
-                              }}
+                              onClick={() => generateSimilarProblems(concept.concept)}
+                              disabled={generatingProblems}
                             >
-                              📝 유사문제 출제
+                              {generatingProblems ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  생성 중...
+                                </>
+                              ) : (
+                                '📝 유사문제 출제'
+                              )}
                             </Button>
                           </div>
                         ))}
@@ -1080,6 +1126,59 @@ function StudentDetailContent() {
                                 <p className="font-medium text-sm">{rec.concept}</p>
                                 <p className="text-sm text-gray-700">{rec.action}</p>
                               </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 생성된 유사문제 표시 */}
+                    {similarProblems.length > 0 && (
+                      <div className="mt-6">
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <FileText className="w-5 h-5 text-green-600" />
+                          생성된 유사문제 ({similarProblems.length}개)
+                        </h4>
+                        <div className="space-y-4">
+                          {similarProblems.map((problem, idx) => (
+                            <div key={idx} className="border-2 border-green-200 bg-green-50 p-4 rounded-lg">
+                              <div className="flex items-start justify-between mb-2">
+                                <h5 className="font-bold text-green-900">{problem.title}</h5>
+                                <Badge variant={
+                                  problem.difficulty === 'hard' ? 'destructive' : 
+                                  problem.difficulty === 'medium' ? 'default' : 'outline'
+                                }>
+                                  {problem.difficulty === 'hard' ? '어려움' : 
+                                   problem.difficulty === 'medium' ? '보통' : '쉬움'}
+                                </Badge>
+                              </div>
+                              
+                              {problem.concept && (
+                                <p className="text-sm text-green-700 mb-2">
+                                  <strong>관련 개념:</strong> {problem.concept}
+                                </p>
+                              )}
+                              
+                              <div className="bg-white p-3 rounded mb-3">
+                                <p className="text-sm font-medium mb-1">문제:</p>
+                                <p className="text-sm whitespace-pre-wrap">{problem.question}</p>
+                              </div>
+                              
+                              {problem.hint && (
+                                <div className="bg-yellow-50 p-3 rounded mb-3">
+                                  <p className="text-sm font-medium mb-1">💡 힌트:</p>
+                                  <p className="text-sm text-gray-700">{problem.hint}</p>
+                                </div>
+                              )}
+                              
+                              <details className="cursor-pointer">
+                                <summary className="text-sm font-medium text-blue-600 hover:text-blue-800">
+                                  정답 및 풀이 보기
+                                </summary>
+                                <div className="mt-2 p-3 bg-blue-50 rounded">
+                                  <p className="text-sm whitespace-pre-wrap">{problem.solution}</p>
+                                </div>
+                              </details>
                             </div>
                           ))}
                         </div>
