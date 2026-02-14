@@ -274,7 +274,17 @@ function StudentDetailContent() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ API 오류:', response.status, errorData);
-        throw new Error(errorData.error || `API 오류: ${response.status}`);
+        
+        // 상세 에러 메시지 표시
+        let errorMessage = '분석 중 오류가 발생했습니다.';
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        
+        console.error('❌ 전체 응답:', await response.text().catch(() => 'no text'));
+        throw new Error(`${errorMessage} (상태: ${response.status})`);
       }
 
       const data = await response.json();
@@ -292,8 +302,13 @@ function StudentDetailContent() {
         alert('⏱️ 분석 시간이 초과되었습니다. 다시 시도해주세요.');
       } else if (error.message.includes('Failed to fetch')) {
         alert('🌐 네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
+      } else if (error.message.includes('GOOGLE_GEMINI_API_KEY')) {
+        alert('⚙️ AI 분석 설정이 완료되지 않았습니다. 관리자에게 문의하세요.');
       } else {
-        alert('❌ ' + (error.message || "부족한 개념 분석 중 오류가 발생했습니다."));
+        // 상세 에러 메시지 표시
+        alert('❌ AI 분석 중 오류가 발생했습니다.\n\n' + 
+              '상세 정보: ' + (error.message || "알 수 없는 오류") + '\n\n' +
+              '잠시 후 다시 시도해주세요. 문제가 계속되면 관리자에게 문의하세요.');
       }
     } finally {
       setConceptAnalyzingLoading(false);

@@ -279,7 +279,14 @@ ${analysisContext}
     // 4. Gemini API 호출
     const geminiApiKey = GOOGLE_GEMINI_API_KEY;
     if (!geminiApiKey) {
-      throw new Error('GOOGLE_GEMINI_API_KEY is not configured');
+      console.error('❌ GOOGLE_GEMINI_API_KEY is not configured');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'AI 분석 기능이 설정되지 않았습니다. GOOGLE_GEMINI_API_KEY 환경 변수를 설정해주세요.',
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
     }
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
@@ -307,8 +314,15 @@ ${analysisContext}
 
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
-      console.error('❌ Gemini API error:', errorText);
-      throw new Error(`Gemini API failed: ${geminiResponse.status}`);
+      console.error('❌ Gemini API error:', geminiResponse.status, errorText);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Gemini AI 분석 실패 (상태: ${geminiResponse.status}). API 키를 확인해주세요.`,
+          details: errorText.substring(0, 200),
+        }),
+        { status: geminiResponse.status, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const geminiData = await geminiResponse.json();
