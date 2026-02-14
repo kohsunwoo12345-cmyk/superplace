@@ -283,7 +283,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       analysisContext += `\n📚 숙제 채점 데이터 (${homeworkData.length}건):\n${homeworkText}\n`;
     }
 
-    // 매우 명확한 프롬프트 (Gemini 1.5 Pro용)
+    // 매우 명확한 프롬프트 (Gemini 2.5 Flash용)
     const prompt = `다음은 한 학생의 학습 데이터입니다. 이 데이터를 분석하여 부족한 개념을 찾아주세요.
 
 ${analysisContext}
@@ -326,10 +326,10 @@ ${analysisContext}
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-    // Gemini 1.5 Pro Latest 모델 사용 (v1 API)
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-latest:generateContent?key=${geminiApiKey}`;
+    // Gemini 2.5 Flash 모델 사용 (정확한 모델명)
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
-    console.log('🔄 Calling Gemini 1.5 Pro API (안정적 버전)...');
+    console.log('🔄 Calling Gemini 2.5 Flash API...');
     console.log('📊 분석 대상: 채팅', chatHistory.length, '건, 숙제', homeworkData.length, '건');
     console.log('📅 분석 기간:', startDate, '~', endDate);
     
@@ -373,7 +373,7 @@ ${analysisContext}
     let analysisResult;
     try {
       const responseText = geminiData.candidates[0].content.parts[0].text;
-      console.log('📝 Gemini 1.5 Pro 원본 응답 (전체):', responseText);
+      console.log('📝 Gemini 2.5 Flash 원본 응답 (전체):', responseText);
       console.log('📝 응답 타입:', typeof responseText);
       
       // responseMimeType이 application/json이면 이미 JSON 문자열로 반환됨
@@ -448,7 +448,7 @@ ${analysisContext}
         analysisResult.recommendations = [];
       }
       
-      console.log('✅ Gemini 1.5 Pro 분석 완료!');
+      console.log('✅ Gemini 2.5 Flash 분석 완료!');
       console.log('📊 분석된 개념 개수:', analysisResult.weakConcepts.length);
       console.log('📊 추천 개수:', analysisResult.recommendations.length);
       
@@ -459,7 +459,7 @@ ${analysisContext}
       }
       
     } catch (parseError: any) {
-      console.error('❌ Gemini 1.5 Pro 응답 파싱 실패:', parseError);
+      console.error('❌ Gemini 2.5 Flash 응답 파싱 실패:', parseError);
       console.error('❌ 오류 상세:', parseError.message);
       console.error('❌ 오류 스택:', parseError.stack);
       
