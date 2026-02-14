@@ -1089,26 +1089,103 @@ function StudentDetailContent() {
                     </p>
                   </div>
                 ) : conceptSummary.includes('오류') || conceptSummary.includes('없습니다') ? (
-                  <div className="text-center py-12">
-                    <div className="bg-orange-50 p-6 rounded-lg border-2 border-orange-200">
-                      <AlertTriangle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
-                      <p className="text-orange-700 font-medium text-lg mb-2">
-                        {conceptSummary}
-                      </p>
-                      <p className="text-sm text-orange-600 mt-3">
-                        {conceptSummary.includes('오류') 
-                          ? '잠시 후 다시 시도해주세요. 문제가 계속되면 관리자에게 문의하세요.'
-                          : 'AI 챗봇과 대화를 하거나 숙제를 제출하여 부족한 개념을 파악하세요.'}
-                      </p>
-                      <Button
-                        onClick={analyzeWeakConcepts}
-                        variant="outline"
-                        className="mt-4"
-                        size="sm"
-                      >
-                        <Brain className="w-4 h-4 mr-2" />
-                        다시 분석하기
-                      </Button>
+                  <div className="space-y-6">
+                    {/* 분석 상태 헤더 */}
+                    <div className="bg-gradient-to-r from-orange-50 to-red-50 p-6 rounded-xl border-2 border-orange-200">
+                      <div className="flex items-start gap-4">
+                        <AlertTriangle className="w-12 h-12 text-orange-500 flex-shrink-0" />
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold text-orange-900 mb-2">
+                            데이터 분석 결과
+                          </h3>
+                          <p className="text-orange-700 leading-relaxed mb-4">
+                            {conceptSummary}
+                          </p>
+                          
+                          {/* 상세 안내 */}
+                          <div className="bg-white/80 backdrop-blur p-4 rounded-lg border border-orange-200">
+                            <h4 className="font-semibold text-orange-900 mb-3 flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
+                              분석을 위해 필요한 데이터
+                            </h4>
+                            <ul className="space-y-2 text-sm text-orange-800">
+                              <li className="flex items-start gap-2">
+                                <span className="text-orange-500 mt-0.5">▪</span>
+                                <span><strong>AI 챗봇 대화 기록:</strong> 학생의 질문과 AI 응답을 통해 이해도를 파악합니다</span>
+                              </li>
+                              <li className="flex items-start gap-2">
+                                <span className="text-orange-500 mt-0.5">▪</span>
+                                <span><strong>숙제 제출 및 채점 결과:</strong> 80점 미만의 문제에서 반복되는 약점을 찾습니다</span>
+                              </li>
+                              <li className="flex items-start gap-2">
+                                <span className="text-orange-500 mt-0.5">▪</span>
+                                <span><strong>오답 패턴 분석:</strong> 유사한 오류가 반복되는 개념을 도출합니다</span>
+                              </li>
+                            </ul>
+                          </div>
+
+                          {/* 액션 버튼 */}
+                          <div className="mt-4 flex flex-wrap gap-3">
+                            <Button
+                              onClick={analyzeWeakConcepts}
+                              variant="default"
+                              className="bg-orange-600 hover:bg-orange-700"
+                              size="default"
+                            >
+                              <Brain className="w-4 h-4 mr-2" />
+                              {conceptSummary.includes('오류') ? '다시 분석하기' : '분석 시작하기'}
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                window.open('/dashboard/gemini-chat', '_blank');
+                              }}
+                              variant="outline"
+                              size="default"
+                            >
+                              AI 챗봇 사용하기
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 도움말 카드 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white font-bold">1</span>
+                          </div>
+                          <h5 className="font-semibold text-blue-900">AI 챗봇 대화</h5>
+                        </div>
+                        <p className="text-sm text-blue-700">
+                          학생이 AI 챗봇과 대화하면 자동으로 이해도가 분석됩니다.
+                        </p>
+                      </div>
+                      
+                      <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                            <span className="text-white font-bold">2</span>
+                          </div>
+                          <h5 className="font-semibold text-green-900">숙제 제출</h5>
+                        </div>
+                        <p className="text-sm text-green-700">
+                          숙제를 제출하고 채점을 받으면 약점이 자동으로 분석됩니다.
+                        </p>
+                      </div>
+                      
+                      <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                            <span className="text-white font-bold">3</span>
+                          </div>
+                          <h5 className="font-semibold text-purple-900">분석 실행</h5>
+                        </div>
+                        <p className="text-sm text-purple-700">
+                          충분한 데이터가 모이면 AI가 부족한 개념을 자동으로 찾아드립니다.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ) : (
