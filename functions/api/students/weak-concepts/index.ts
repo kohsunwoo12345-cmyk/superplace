@@ -324,11 +324,12 @@ ${analysisContext}
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-    // Gemini 2.5 Flash 모델 사용 + JSON 모드 강제
+    // Gemini 2.5 Flash 모델 사용 (v1beta API)
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
-    console.log('🔄 Calling Gemini 2.5 Flash API with JSON mode...');
+    console.log('🔄 Calling Gemini 2.5 Flash API...');
     console.log('📊 분석 대상: 채팅', chatHistory.length, '건, 숙제', homeworkData.length, '건');
+    console.log('📅 분석 기간:', startDate, '~', endDate);
     
     const geminiResponse = await fetch(geminiEndpoint, {
       method: 'POST',
@@ -342,48 +343,10 @@ ${analysisContext}
           }]
         }],
         generationConfig: {
-          temperature: 0.2,
-          topK: 20,
-          topP: 0.8,
+          temperature: 0.3,
+          topK: 40,
+          topP: 0.95,
           maxOutputTokens: 4096,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "object",
-            properties: {
-              summary: {
-                type: "string",
-                description: "학생의 전반적인 이해도 요약"
-              },
-              weakConcepts: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    concept: { type: "string" },
-                    description: { type: "string" },
-                    severity: { type: "string", enum: ["high", "medium", "low"] },
-                    relatedTopics: {
-                      type: "array",
-                      items: { type: "string" }
-                    }
-                  },
-                  required: ["concept", "description", "severity"]
-                }
-              },
-              recommendations: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    concept: { type: "string" },
-                    action: { type: "string" }
-                  },
-                  required: ["concept", "action"]
-                }
-              }
-            },
-            required: ["summary", "weakConcepts", "recommendations"]
-          }
         },
       }),
     });
@@ -404,50 +367,76 @@ ${analysisContext}
     const geminiData = await geminiResponse.json();
     console.log('✅ Gemini API response received');
 
-    // 5. Gemini 응답 파싱 (JSON 모드는 자동으로 JSON 반환)
+    // 5. Gemini 응답 파싱 (Gemini 2.5 Flash 응답 처리)
     let analysisResult;
     try {
       const responseText = geminiData.candidates[0].content.parts[0].text;
-      console.log('📝 Gemini JSON 응답 (처음 500자):', responseText.substring(0, 500));
+      console.log('📝 Gemini 2.5 Flash 원본 응답 (전체):', responseText);
       
-      // JSON 모드는 이미 JSON을 반환하므로 바로 파싱
-      analysisResult = JSON.parse(responseText);
+      // JSON 블록 추출 (```json ... ``` 제거)
+      let cleanedText = responseText.trim();
+      if (cleanedText.startsWith('```json')) {
+        cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      console.log('🧹 정제된 JSON:', cleanedText.substring(0, 500));
+      
+      // JSON 파싱
+      analysisResult = JSON.parse(cleanedText);
       
       // 결과 검증 및 기본값 설정
-      if (!analysisResult.summary || typeof analysisResult.summary !== 'string') {
-        analysisResult.summary = '분석 완료';
+      if (!analysisResult || typeof analysisResult !== 'object') {
+        throw new Error('유효하지 않은 JSON 객체');
       }
+      
+      if (!analysisResult.summary || typeof analysisResult.summary !== 'string') {
+        console.warn('⚠️ summary 필드 누락, 기본값 설정');
+        analysisResult.summary = '분석이 완료되었습니다.';
+      }
+      
       if (!Array.isArray(analysisResult.weakConcepts)) {
+        console.warn('⚠️ weakConcepts 필드 누락, 빈 배열 설정');
         analysisResult.weakConcepts = [];
       }
+      
       if (!Array.isArray(analysisResult.recommendations)) {
+        console.warn('⚠️ recommendations 필드 누락, 빈 배열 설정');
         analysisResult.recommendations = [];
       }
       
-      console.log('✅ Weak concept analysis completed successfully!');
+      console.log('✅ Gemini 2.5 Flash 분석 완료!');
       console.log('📊 분석된 개념 개수:', analysisResult.weakConcepts.length);
       console.log('📊 추천 개수:', analysisResult.recommendations.length);
-      console.log('📊 개념 목록:', analysisResult.weakConcepts.map((c: any) => c.concept).join(', '));
-    } catch (parseError: any) {
-      console.error('❌ Failed to parse Gemini JSON response:', parseError);
-      console.error('❌ Parse error details:', parseError.message);
       
-      // 원본 응답 확인
-      try {
-        const rawText = geminiData.candidates[0].content.parts[0].text;
-        console.error('❌ 파싱 실패한 원본 텍스트 (전체):', rawText);
-        console.error('❌ Gemini 응답 구조:', JSON.stringify(geminiData, null, 2).substring(0, 1000));
-      } catch (e) {
-        console.error('❌ 원본 응답도 확인 불가:', e);
+      if (analysisResult.weakConcepts.length > 0) {
+        console.log('📊 개념 목록:', analysisResult.weakConcepts.map((c: any) => c.concept).join(', '));
+      } else {
+        console.log('ℹ️ 발견된 부족한 개념이 없습니다.');
       }
       
-      // 파싱 실패하면 비어있는 결과 반환 (오류 메시지 포함)
+    } catch (parseError: any) {
+      console.error('❌ Gemini 2.5 Flash 응답 파싱 실패:', parseError);
+      console.error('❌ 오류 상세:', parseError.message);
+      console.error('❌ 오류 스택:', parseError.stack);
+      
+      // 원본 응답 전체 로그
+      try {
+        const rawText = geminiData.candidates[0].content.parts[0].text;
+        console.error('❌ 파싱 실패한 원본 응답 (전체):', rawText);
+        console.error('❌ Gemini 응답 전체 구조:', JSON.stringify(geminiData, null, 2));
+      } catch (e) {
+        console.error('❌ 원본 응답 확인 불가:', e);
+      }
+      
+      // 파싱 실패 시 상세한 오류 메시지와 함께 빈 결과 반환
       analysisResult = {
-        summary: `AI 분석 중 오류가 발생했습니다. \n\n오류: ${parseError.message}\n\nGemini API는 정상 응답했지만 JSON 파싱에 실패했습니다. \nCloudflare Worker 로그를 확인하며 원본 응답을 확인해주세요.`,
+        summary: `AI 응답 파싱 실패\n\n오류: ${parseError.message}\n\nGemini 2.5 Flash API는 정상 응답했지만 JSON 파싱에 실패했습니다.\n\n**해결 방법:**\n1. Cloudflare Pages 대시보드 → Workers & Pages → superplacestudy → Logs에서 전체 응답 확인\n2. '📝 Gemini 2.5 Flash 원본 응답' 로그 확인\n3. API 키가 올바른지 확인\n\n분석 대상: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건`,
         weakConcepts: [],
         recommendations: []
       };
-      console.error('❌ 파싱 실패로 비어있는 결과 반환');
+      console.error('❌ 파싱 실패로 오류 메시지와 함께 빈 결과 반환');
     }
 
     // 6. 분석 결과를 DB에 저장 (캐싱)
