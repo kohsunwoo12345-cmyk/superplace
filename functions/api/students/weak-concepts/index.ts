@@ -139,7 +139,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
   try {
     const body = await request.json();
-    const { studentId } = body;
+    const { studentId, startDate, endDate } = body;
 
     if (!studentId) {
       return new Response(
@@ -149,12 +149,14 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     }
 
     console.log('🔍 Analyzing weak concepts for student:', studentId);
+    console.log('📅 Date range:', startDate, '~', endDate);
 
     // 1. 학생의 채팅 내역 가져오기
     let chatHistory: ChatMessage[] = [];
     
     try {
-      const query = `
+      // 기간 필터 추가
+      let query = `
         SELECT 
           id,
           student_id as studentId,
@@ -163,11 +165,18 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           created_at as createdAt
         FROM chat_messages
         WHERE student_id = ?
-        ORDER BY created_at DESC
-        LIMIT 100
       `;
       
-      const result = await DB.prepare(query).bind(parseInt(studentId)).all();
+      const params: any[] = [parseInt(studentId)];
+      
+      if (startDate && endDate) {
+        query += ` AND created_at BETWEEN ? AND ?`;
+        params.push(startDate, endDate);
+      }
+      
+      query += ` ORDER BY created_at DESC LIMIT 100`;
+      
+      const result = await DB.prepare(query).bind(...params).all();
       chatHistory = result.results as any[] || [];
       console.log(`✅ Found ${chatHistory.length} chat messages for concept analysis`);
     } catch (dbError: any) {
@@ -175,35 +184,58 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       chatHistory = [];
     }
 
-    // 2. 학생의 숙제 채점 데이터 가져오기
+    // 2. 학생의 숙제 채점 데이터 가져오기 - 여러 테이블 시도
     let homeworkData: any[] = [];
     
-    try {
-      const homeworkQuery = `
-        SELECT 
-          hs.id,
-          hs.submittedAt,
-          hg.score,
-          hg.subject,
-          hg.feedback,
-          hg.weaknessTypes,
-          hg.detailedAnalysis,
-          hg.studyDirection,
-          hg.problemAnalysis
-        FROM homework_submissions_v2 hs
-        LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
-        WHERE hs.userId = ? AND hg.score IS NOT NULL
-        ORDER BY hs.submittedAt DESC
-        LIMIT 10
-      `;
-      
-      const homeworkResult = await DB.prepare(homeworkQuery).bind(parseInt(studentId)).all();
-      homeworkData = homeworkResult.results || [];
-      console.log(`✅ Found ${homeworkData.length} homework records for concept analysis`);
-    } catch (dbError: any) {
-      console.warn('⚠️ homework tables may not exist:', dbError.message);
-      homeworkData = [];
+    // 시도할 테이블명 조합들
+    const tableCombinations = [
+      { submissions: 'homework_submissions_v2', gradings: 'homework_gradings_v2' },
+      { submissions: 'homework_submissions', gradings: 'homework_gradings' },
+      { submissions: 'homeworkSubmissions', gradings: 'homeworkGradings' },
+    ];
+    
+    for (const tables of tableCombinations) {
+      try {
+        let homeworkQuery = `
+          SELECT 
+            hs.id,
+            hs.submittedAt,
+            hg.score,
+            hg.subject,
+            hg.feedback,
+            hg.weaknessTypes,
+            hg.detailedAnalysis,
+            hg.studyDirection,
+            hg.problemAnalysis
+          FROM ${tables.submissions} hs
+          LEFT JOIN ${tables.gradings} hg ON hg.submissionId = hs.id
+          WHERE hs.userId = ? AND hg.score IS NOT NULL
+        `;
+        
+        const params: any[] = [parseInt(studentId)];
+        
+        // 기간 필터 추가
+        if (startDate && endDate) {
+          homeworkQuery += ` AND hs.submittedAt BETWEEN ? AND ?`;
+          params.push(startDate, endDate);
+        }
+        
+        homeworkQuery += ` ORDER BY hs.submittedAt DESC LIMIT 50`;
+        
+        const homeworkResult = await DB.prepare(homeworkQuery).bind(...params).all();
+        homeworkData = homeworkResult.results || [];
+        
+        if (homeworkData.length > 0) {
+          console.log(`✅ Found ${homeworkData.length} homework records using tables: ${tables.submissions}, ${tables.gradings}`);
+          break; // 성공하면 루프 종료
+        }
+      } catch (dbError: any) {
+        console.warn(`⚠️ Failed with tables ${tables.submissions}, ${tables.gradings}:`, dbError.message);
+        continue; // 다음 조합 시도
+      }
     }
+    
+    console.log(`📊 Final homework data count: ${homeworkData.length}`);
 
     // 3. 채팅 내역과 숙제 데이터가 모두 없는 경우
     if (chatHistory.length === 0 && homeworkData.length === 0) {

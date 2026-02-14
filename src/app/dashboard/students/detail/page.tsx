@@ -101,6 +101,20 @@ function StudentDetailContent() {
   const [error, setError] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
   const [attendanceCodeCopied, setAttendanceCodeCopied] = useState(false);
+  
+  // 기간 필터 상태
+  const [analysisStartDate, setAnalysisStartDate] = useState<string>('');
+  const [analysisEndDate, setAnalysisEndDate] = useState<string>('');
+
+  // 기본 기간 설정 (최근 30일)
+  useEffect(() => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    setAnalysisEndDate(today.toISOString().split('T')[0]);
+    setAnalysisStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
+  }, []);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -256,6 +270,7 @@ function StudentDetailContent() {
       const token = localStorage.getItem("token");
 
       console.log('🧠 부족한 개념 분석 시작...');
+      console.log('📅 분석 기간:', analysisStartDate, '~', analysisEndDate);
 
       // 타임아웃 설정 (30초)
       const controller = new AbortController();
@@ -267,7 +282,11 @@ function StudentDetailContent() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ studentId }),
+        body: JSON.stringify({ 
+          studentId,
+          startDate: analysisStartDate,
+          endDate: analysisEndDate
+        }),
         signal: controller.signal,
       });
 
@@ -969,34 +988,80 @@ function StudentDetailContent() {
           <TabsContent value="concepts" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-orange-600" />
-                      부족한 개념 분석
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      AI가 대화 내역과 숙제 채점 데이터를 분석하여 학생이 어려워하는 개념을 찾아냅니다
-                    </CardDescription>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5 text-orange-600" />
+                        부족한 개념 분석
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        AI가 대화 내역과 숙제 채점 데이터를 분석하여 학생이 어려워하는 개념을 찾아냅니다
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={analyzeWeakConcepts}
+                      disabled={conceptAnalyzingLoading}
+                      className="w-full sm:w-auto whitespace-nowrap"
+                      size="sm"
+                    >
+                      {conceptAnalyzingLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          분석 중...
+                        </>
+                      ) : (
+                        <>
+                          <Brain className="w-4 h-4 mr-2" />
+                          개념 분석 실행
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <Button
-                    onClick={analyzeWeakConcepts}
-                    disabled={conceptAnalyzingLoading}
-                    className="w-full sm:w-auto whitespace-nowrap"
-                    size="sm"
-                  >
-                    {conceptAnalyzingLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        분석 중...
-                      </>
-                    ) : (
-                      <>
-                        <Brain className="w-4 h-4 mr-2" />
-                        개념 분석 실행
-                      </>
-                    )}
-                  </Button>
+                  
+                  {/* 기간 선택 */}
+                  <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <span className="text-sm font-medium text-blue-900 whitespace-nowrap">분석 기간:</span>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <input
+                        type="date"
+                        value={analysisStartDate}
+                        onChange={(e) => setAnalysisStartDate(e.target.value)}
+                        className="px-3 py-1.5 text-sm border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-blue-700">~</span>
+                      <input
+                        type="date"
+                        value={analysisEndDate}
+                        onChange={(e) => setAnalysisEndDate(e.target.value)}
+                        className="px-3 py-1.5 text-sm border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={() => {
+                          const today = new Date();
+                          const thirtyDaysAgo = new Date(today);
+                          thirtyDaysAgo.setDate(today.getDate() - 30);
+                          setAnalysisStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
+                          setAnalysisEndDate(today.toISOString().split('T')[0]);
+                        }}
+                        className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        최근 30일
+                      </button>
+                      <button
+                        onClick={() => {
+                          const today = new Date();
+                          const ninetyDaysAgo = new Date(today);
+                          ninetyDaysAgo.setDate(today.getDate() - 90);
+                          setAnalysisStartDate(ninetyDaysAgo.toISOString().split('T')[0]);
+                          setAnalysisEndDate(today.toISOString().split('T')[0]);
+                        }}
+                        className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        최근 90일
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
