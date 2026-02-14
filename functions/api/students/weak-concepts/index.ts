@@ -283,36 +283,37 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       analysisContext += `\n📚 숙제 채점 데이터 (${homeworkData.length}건):\n${homeworkText}\n`;
     }
 
-    // 매우 명확한 프롬프트 (Gemini 2.5 Flash용)
-    const prompt = `다음은 한 학생의 학습 데이터입니다. 이 데이터를 분석하여 부족한 개념을 찾아주세요.
+    // Gemini 2.5 Flash용 JSON 전용 프롬프트
+    const prompt = `Analyze student learning data and return ONLY valid JSON. No explanations, no markdown, no text before or after JSON.
 
+Student Data:
 ${analysisContext}
 
-**중요**: 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트나 설명은 포함하지 마세요.
-
+Return this exact JSON structure (Korean text inside):
 {
-  "summary": "학생의 이해도 요약 (한국어로 2-3문장)",
+  "summary": "학생 이해도 요약 2-3문장",
   "weakConcepts": [
     {
-      "concept": "부족한 개념 이름",
-      "description": "왜 이 개념이 부족한지 설명",
+      "concept": "개념명",
+      "description": "부족한 이유",
       "severity": "high",
-      "relatedTopics": ["관련 주제1", "관련 주제2"]
+      "relatedTopics": ["주제1", "주제2"]
     }
   ],
   "recommendations": [
     {
-      "concept": "개념 이름",
-      "action": "구체적인 학습 방법"
+      "concept": "개념명",
+      "action": "학습방법"
     }
   ]
 }
 
-분석 기준:
-1. 80점 미만 숙제에서 반복되는 약점 찾기
-2. 최대 5개 개념 추출
-3. severity는 "high", "medium", "low" 중 하나
-4. 모든 텍스트는 한국어로 작성`;
+Rules:
+- Find weak concepts from homework scores below 80
+- Maximum 5 concepts
+- severity: "high", "medium", or "low"
+- All Korean text must use proper escaping
+- Return ONLY the JSON object`;
 
     // 4. Gemini API 호출
     const geminiApiKey = GOOGLE_GEMINI_API_KEY;
@@ -369,102 +370,49 @@ ${analysisContext}
     const geminiData = await geminiResponse.json();
     console.log('✅ Gemini API response received');
 
-    // 5. Gemini 응답 파싱 (JSON Schema 모드 - 이미 파싱된 JSON 반환)
+    // 5. Gemini 응답 파싱 (강력한 JSON 추출)
     let analysisResult;
     try {
       const responseText = geminiData.candidates[0].content.parts[0].text;
-      console.log('📝 Gemini 2.5 Flash 원본 응답 (전체):', responseText);
-      console.log('📝 응답 타입:', typeof responseText);
+      console.log('📝 Gemini 2.5 Flash 원본 응답:', responseText);
+      console.log('📏 응답 길이:', responseText.length);
       
-      // responseMimeType이 application/json이면 이미 JSON 문자열로 반환됨
-      // 하지만 여전히 파싱이 필요함
+      // JSON 추출: 첫 { 부터 마지막 } 까지
+      let jsonString = responseText.trim();
+      jsonString = jsonString.replace(/^```(?:json)?\s*/gm, '').replace(/\s*```\s*$/gm, '');
+      
+      const firstBrace = jsonString.indexOf('{');
+      const lastBrace = jsonString.lastIndexOf('}');
+      
+      if (firstBrace === -1 || lastBrace === -1) {
+        throw new Error('JSON 객체를 찾을 수 없습니다');
+      }
+      
+      jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+      console.log('🔍 추출된 JSON (300자):', jsonString.substring(0, 300));
+      
+      // JSON 파싱
       let parsedData;
-      
-      // 1차 시도: 직접 파싱
       try {
-        parsedData = JSON.parse(responseText);
-        console.log('✅ 1차 파싱 성공 (직접 파싱)');
+        parsedData = JSON.parse(jsonString);
+        console.log('✅ 파싱 성공!');
       } catch (e1) {
-        console.warn('⚠️ 1차 파싱 실패, 2차 시도 (마크다운 제거)');
-        
-        // 2차 시도: 마크다운 제거 후 파싱
-        let cleanedText = responseText.trim();
-        
-        // ```json ... ``` 제거
-        if (cleanedText.startsWith('```json')) {
-          cleanedText = cleanedText.replace(/^```json\s*/m, '').replace(/\s*```\s*$/m, '');
-        } else if (cleanedText.startsWith('```')) {
-          cleanedText = cleanedText.replace(/^```\s*/m, '').replace(/\s*```\s*$/m, '');
-        }
-        
-        // 개행 문자 이스케이프 처리
-        cleanedText = cleanedText
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\r')
-          .replace(/\t/g, '\\t');
-        
-        console.log('🧹 정제된 텍스트 (처음 500자):', cleanedText.substring(0, 500));
-        
-        try {
-          parsedData = JSON.parse(cleanedText);
-          console.log('✅ 2차 파싱 성공 (마크다운 제거)');
-        } catch (e2) {
-          console.error('❌ 2차 파싱 실패, 3차 시도 (강제 수정)');
-          
-          // 3차 시도: JSON 문자열 내부의 특수문자 처리
-          const fixedText = cleanedText
-            .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // 제어 문자 제거
-            .replace(/\\"/g, '"') // 이스케이프된 따옴표 처리
-            .replace(/"\s*:\s*"/g, '":"') // 공백 제거
-            .trim();
-          
-          console.log('🔧 강제 수정된 텍스트 (처음 500자):', fixedText.substring(0, 500));
-          
-          parsedData = JSON.parse(fixedText);
-          console.log('✅ 3차 파싱 성공 (강제 수정)');
-        }
+        console.warn('⚠️ 1차 실패, 정제 시도');
+        const cleaned = jsonString.replace(/[\x00-\x1F\x7F-\x9F]/g, '').replace(/\n/g, ' ').replace(/\r/g, '').replace(/\t/g, ' ').replace(/\s+/g, ' ').trim();
+        parsedData = JSON.parse(cleaned);
+        console.log('✅ 2차 파싱 성공!');
       }
       
-      // 파싱 결과 검증
       analysisResult = parsedData;
+      if (!analysisResult.summary) analysisResult.summary = '분석 완료';
+      if (!Array.isArray(analysisResult.weakConcepts)) analysisResult.weakConcepts = [];
+      if (!Array.isArray(analysisResult.recommendations)) analysisResult.recommendations = [];
       
-      if (!analysisResult || typeof analysisResult !== 'object') {
-        throw new Error('파싱된 결과가 유효한 객체가 아닙니다');
-      }
-      
-      // 필수 필드 검증 및 기본값 설정
-      if (!analysisResult.summary || typeof analysisResult.summary !== 'string') {
-        console.warn('⚠️ summary 필드 누락, 기본값 설정');
-        analysisResult.summary = '분석이 완료되었습니다.';
-      }
-      
-      if (!Array.isArray(analysisResult.weakConcepts)) {
-        console.warn('⚠️ weakConcepts 필드 누락 또는 잘못된 타입, 빈 배열 설정');
-        analysisResult.weakConcepts = [];
-      }
-      
-      if (!Array.isArray(analysisResult.recommendations)) {
-        console.warn('⚠️ recommendations 필드 누락 또는 잘못된 타입, 빈 배열 설정');
-        analysisResult.recommendations = [];
-      }
-      
-      console.log('✅ Gemini 2.5 Flash 분석 완료!');
-      console.log('📊 분석된 개념 개수:', analysisResult.weakConcepts.length);
-      console.log('📊 추천 개수:', analysisResult.recommendations.length);
-      
-      if (analysisResult.weakConcepts.length > 0) {
-        console.log('📊 개념 목록:', analysisResult.weakConcepts.map((c: any) => c.concept).join(', '));
-      } else {
-        console.log('ℹ️ 발견된 부족한 개념이 없습니다.');
-      }
+      console.log('✅ 분석 완료! 개념:', analysisResult.weakConcepts.length);
       
     } catch (parseError: any) {
-      console.error('❌ Gemini 2.5 Flash 응답 파싱 실패:', parseError);
-      console.error('❌ 오류 상세:', parseError.message);
-      console.error('❌ 오류 스택:', parseError.stack);
-      
-      // 원본 응답 전체 로그
-      try {
+      console.error('❌ 파싱 실패:', parseError.message);
+
         const rawText = geminiData.candidates[0].content.parts[0].text;
         console.error('❌ 파싱 실패한 원본 응답 (전체):', rawText);
         console.error('❌ 원본 응답 길이:', rawText.length);
