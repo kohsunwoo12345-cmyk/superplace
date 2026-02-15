@@ -194,8 +194,13 @@ function StudentDetailContent() {
           academyName: studentData.academyName,
           school: studentData.school,
           grade: studentData.grade,
-          diagnostic_memo: studentData.diagnostic_memo
+          diagnostic_memo: studentData.diagnostic_memo,
+          className: studentData.className
         });
+        
+        console.log("🔄 After formatting:");
+        console.log("  - phone:", studentData.phone, "→", formatPhoneNumber(studentData.phone));
+        console.log("  - email:", studentData.email, "→", displayEmail(studentData.email));
         
         setStudent(studentData);
         
