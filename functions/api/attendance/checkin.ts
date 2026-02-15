@@ -34,7 +34,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         academyId INTEGER,
         classId TEXT,
         status TEXT DEFAULT 'PRESENT',
-        note TEXT
+        note TEXT,
+        modifiedBy INTEGER,
+        modifiedAt TEXT
       )
     `).run();
 
@@ -70,11 +72,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 오늘 이미 체크인했는지 확인
-    const today = new Date().toISOString().split('T')[0];
     const existingRecord = await DB.prepare(
       `SELECT * FROM attendance_records 
-       WHERE userId = ? AND date(checkInTime) = date('now')`
-    ).bind(attendanceCode.userId).first();
+       WHERE userId = ? AND date(checkInTime) = date('now') AND classId = ?`
+    ).bind(attendanceCode.userId, attendanceCode.classId).first();
 
     if (existingRecord) {
       return new Response(
@@ -87,13 +88,46 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
+    // Class 정보 조회하여 수업 시간 확인
+    const classInfo = await DB.prepare(
+      `SELECT * FROM classes WHERE id = ?`
+    ).bind(attendanceCode.classId).first();
+
+    const now = new Date();
+    let status = 'PRESENT'; // 기본 출석
+
+    // Class에 스케줄 정보가 있으면 정확한 시간 비교
+    if (classInfo && classInfo.schedules) {
+      try {
+        const schedules = JSON.parse(classInfo.schedules);
+        const currentDay = now.getDay(); // 0-6 (일-토)
+        const currentTime = now.toTimeString().substring(0, 5); // HH:MM
+
+        // 오늘 해당하는 스케줄 찾기
+        const todaySchedule = schedules.find((schedule: any) => 
+          schedule.dayOfWeek && schedule.dayOfWeek.includes(currentDay)
+        );
+
+        if (todaySchedule && todaySchedule.startTime) {
+          // 수업 시작 시간보다 1분이라도 늦으면 지각
+          if (currentTime > todaySchedule.startTime) {
+            status = 'LATE';
+          }
+        }
+      } catch (error) {
+        console.error("Schedule parsing error:", error);
+        // 파싱 실패 시 기본 로직 사용 (9시 기준)
+        const hour = now.getHours();
+        status = hour >= 9 ? 'LATE' : 'PRESENT';
+      }
+    } else {
+      // 스케줄 정보가 없으면 기본 로직 (9시 기준)
+      const hour = now.getHours();
+      status = hour >= 9 ? 'LATE' : 'PRESENT';
+    }
+
     // 출석 기록 생성
     const id = `attendance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const now = new Date();
-    const hour = now.getHours();
-    
-    // 지각 판단 (9시 이후 체크인은 지각)
-    const status = hour >= 9 ? 'LATE' : 'PRESENT';
 
     await DB.prepare(`
       INSERT INTO attendance_records (
@@ -114,10 +148,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       "SELECT id, email, name, role FROM users WHERE id = ?"
     ).bind(attendanceCode.userId).first();
 
+    const statusMessage = 
+      status === 'LATE' ? '지각 처리되었습니다' : 
+      status === 'PRESENT' ? '출석 완료!' : 
+      '출석 확인되었습니다';
+
     return new Response(
       JSON.stringify({
         success: true,
-        message: status === 'LATE' ? '지각 처리되었습니다' : '출석 완료!',
+        message: statusMessage,
         attendance: {
           id,
           userId: attendanceCode.userId,
