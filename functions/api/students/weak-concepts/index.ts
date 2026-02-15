@@ -468,12 +468,45 @@ Rules:
         }
       }
       
-      analysisResult = parsedData;
-      if (!analysisResult.summary) analysisResult.summary = '분석 완료';
-      if (!Array.isArray(analysisResult.weakConcepts)) analysisResult.weakConcepts = [];
-      if (!Array.isArray(analysisResult.recommendations)) analysisResult.recommendations = [];
+      // Gemini 응답을 프론트엔드 형식으로 변환
+      analysisResult = {
+        summary: parsedData.overallAssessment || parsedData.summary || '분석 완료',
+        weakConcepts: [],
+        recommendations: []
+      };
       
-      console.log('✅ 분석 완료! 개념:', analysisResult.weakConcepts.length);
+      // conceptsNeedingReview → weakConcepts 변환
+      if (Array.isArray(parsedData.conceptsNeedingReview)) {
+        analysisResult.weakConcepts = parsedData.conceptsNeedingReview.map((item: any) => ({
+          concept: item.concept || '개념',
+          description: item.reason || item.description || '',
+          severity: item.priority || 'medium',
+          relatedTopics: item.relatedTopics || []
+        }));
+      }
+      
+      // weaknessPatterns를 weakConcepts에 추가
+      if (Array.isArray(parsedData.weaknessPatterns)) {
+        parsedData.weaknessPatterns.forEach((item: any) => {
+          analysisResult.weakConcepts.push({
+            concept: item.pattern || '약점 패턴',
+            description: item.description || '',
+            severity: 'medium',
+            relatedTopics: []
+          });
+        });
+      }
+      
+      // improvementSuggestions → recommendations 변환
+      if (Array.isArray(parsedData.improvementSuggestions)) {
+        analysisResult.recommendations = parsedData.improvementSuggestions.map((item: any) => ({
+          concept: item.area || '개선 영역',
+          action: item.method || item.action || ''
+        }));
+      }
+      
+      console.log('✅ 분석 완료! weakConcepts:', analysisResult.weakConcepts.length, 'recommendations:', analysisResult.recommendations.length);
+      console.log('📊 변환된 데이터:', JSON.stringify(analysisResult, null, 2));
       
     } catch (parseError: any) {
       console.error('❌ 모든 파싱 실패:', parseError.message);
