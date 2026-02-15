@@ -129,7 +129,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const userId = insertUserResult.meta.last_row_id;
     console.log('✅ Student user created with ID:', userId);
 
-    // students 테이블에도 레코드 생성 (있는 경우)
+    // students 테이블에도 레코드 생성
+    // 버전: 2026-02-15-v2 (columns 스코프 수정)
     try {
       console.log('📋 Checking students table structure...');
       
