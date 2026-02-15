@@ -145,6 +145,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const koreanTime = getKoreanTime();
+    
+    // 만료일 처리: 빈 문자열이나 undefined면 null로 변환
+    const finalExpiresAt = expiresAt && expiresAt.trim() !== '' ? expiresAt : null;
+    
+    console.log('📅 Expiry date:', { original: expiresAt, final: finalExpiresAt });
 
     // director_bot_assignments 테이블 생성 (없으면)
     await DB.prepare(`
@@ -172,7 +177,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       userId,
       userRole,
       koreanTime,
-      expiresAt || null,
+      finalExpiresAt,
       koreanTime
     ).run();
 
