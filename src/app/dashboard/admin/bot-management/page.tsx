@@ -125,13 +125,20 @@ export default function AdminBotManagementPage() {
 
   const fetchAssignments = async () => {
     try {
+      console.log("🔍 할당 목록 조회 시작...");
       const response = await fetch("/api/admin/bot-assignments");
+      console.log("📥 응답 상태:", response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log("✅ 할당 목록:", data);
         setAssignments(data.assignments || []);
+      } else {
+        const errorData = await response.json();
+        console.error("❌ 할당 목록 로드 실패:", errorData);
       }
     } catch (error) {
-      console.error("봇 할당 목록 로드 실패:", error);
+      console.error("💥 봇 할당 목록 로드 오류:", error);
     }
   };
 
@@ -142,16 +149,24 @@ export default function AdminBotManagementPage() {
     }
 
     try {
+      const requestData = {
+        academyId: assignAcademyId,
+        botId: assignBotId,
+        expiresAt: assignExpiresAt || null,
+        notes: assignNotes,
+      };
+      
+      console.log("📤 할당 요청 전송:", requestData);
+      
       const response = await fetch("/api/admin/bot-assignments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          academyId: assignAcademyId,
-          botId: assignBotId,
-          expiresAt: assignExpiresAt || null,
-          notes: assignNotes,
-        }),
+        body: JSON.stringify(requestData),
       });
+
+      console.log("📥 응답 상태:", response.status);
+      const data = await response.json();
+      console.log("📥 응답 데이터:", data);
 
       if (response.ok) {
         alert("봇이 할당되었습니다.");
@@ -159,12 +174,11 @@ export default function AdminBotManagementPage() {
         resetAssignForm();
         fetchAssignments();
       } else {
-        const data = await response.json();
-        alert(data.message || "봇 할당 실패");
+        alert(`할당 실패: ${data.message || "알 수 없는 오류"}\n\n상세: ${data.error || ""}`);
       }
     } catch (error) {
-      console.error("봇 할당 오류:", error);
-      alert("봇 할당 중 오류가 발생했습니다.");
+      console.error("💥 봇 할당 오류:", error);
+      alert(`봇 할당 중 오류가 발생했습니다.\n\n${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
