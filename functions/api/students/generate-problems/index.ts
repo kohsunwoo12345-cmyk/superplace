@@ -4,10 +4,14 @@ interface Env {
 }
 
 interface Problem {
+  concept: string;
+  type: string;
   question: string;
   options?: string[];
   answerSpace: boolean;
-  concept: string;
+  answer: string;
+  explanation: string;
+  difficulty: string;
 }
 
 /**
@@ -20,7 +24,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
   try {
     const body = await request.json();
-    const { studentId, concepts, problemType, studentName } = body;
+    const { studentId, concepts, problemTypes, problemCount, studentName } = body;
 
     if (!studentId || !concepts || concepts.length === 0) {
       return new Response(
@@ -29,18 +33,26 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
+    if (!problemTypes || problemTypes.length === 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: "problemTypes is required" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     console.log('📝 Generating problems for student:', studentId);
     console.log('🎯 Concepts:', concepts);
-    console.log('📚 Problem type:', problemType);
+    console.log('📚 Problem types:', problemTypes);
+    console.log('🔢 Problem count:', problemCount);
 
     // 문제 유형별 설명
-    const typeDescriptions = {
+    const typeDescriptions: { [key: string]: string } = {
       concept: '개념을 정확히 이해했는지 확인하는 기본 문제',
       pattern: '실제 시험에 자주 나오는 유형의 문제',
       advanced: '개념을 응용하고 확장한 심화 문제'
     };
 
-    const typeExamples = {
+    const typeExamples: { [key: string]: string } = {
       concept: '개념의 정의를 묻거나 간단한 계산 문제',
       pattern: '여러 단계를 거쳐 풀어야 하는 응용 문제',
       advanced: '창의적 사고가 필요한 종합 문제'
@@ -52,40 +64,51 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       throw new Error('GOOGLE_GEMINI_API_KEY is not configured');
     }
 
-    const prompt = `You are an educational content creator. Generate ${concepts.length * 2} practice problems for a student.
+    const prompt = `You are an educational content creator. Generate ${problemCount} practice problems for a student.
 
 Student Information:
 - Name: ${studentName}
 - Weak Concepts: ${concepts.join(', ')}
-- Problem Type: ${problemType} (${typeDescriptions[problemType as keyof typeof typeDescriptions]})
-- Problem Style: ${typeExamples[problemType as keyof typeof typeExamples]}
+- Problem Types to Include: ${problemTypes.map((t: string) => typeDescriptions[t]).join(', ')}
+- Total Problems: ${problemCount}
 
-Requirements:
-1. Create ${concepts.length * 2} problems total (2 problems per concept)
-2. Each problem should directly address the concept weakness
-3. Problems should be age-appropriate and educational
-4. Include both multiple choice and open-ended questions
-5. Return ONLY valid JSON with NO markdown or extra text
+Distribution:
+- Mix problems evenly across selected types: ${problemTypes.join(', ')}
+- Each problem should focus on one of the weak concepts
+- Include both multiple choice and open-ended questions
+
+Requirements for EACH problem:
+1. Set "type" field to one of: ${problemTypes.map((t: string) => `"${t}"`).join(', ')}
+2. Set "concept" to the specific weak concept being tested
+3. Set "difficulty" to "easy", "medium", or "hard" based on type
+4. Provide clear "question" text
+5. For multiple choice: provide 4 options in "options" array, set "answerSpace" to false
+6. For open-ended: set "options" to null, set "answerSpace" to true
+7. ALWAYS provide "answer" with the correct answer
+8. ALWAYS provide "explanation" with detailed step-by-step solution
 
 Return this EXACT JSON structure:
 {
   "problems": [
     {
       "concept": "개념명",
+      "type": "${problemTypes[0]}" or "${problemTypes[1] || problemTypes[0]}" or "${problemTypes[2] || problemTypes[0]}",
       "question": "문제 내용 (명확하고 구체적으로)",
       "options": ["선택지1", "선택지2", "선택지3", "선택지4"] or null,
       "answerSpace": true or false,
+      "answer": "정답 (객관식은 번호, 주관식은 답)",
+      "explanation": "상세한 풀이 과정 (단계별로 설명)",
       "difficulty": "easy/medium/hard"
     }
   ]
 }
 
 Rules:
-- Use ONLY Korean for all problem text
+- Use ONLY Korean for all text
 - Make questions clear and unambiguous
-- For multiple choice, provide 4 options
-- For open-ended, set options to null and answerSpace to true
-- Ensure problems are ${problemType === 'concept' ? 'straightforward' : problemType === 'pattern' ? 'moderately challenging' : 'highly challenging'}
+- Ensure answers are correct and complete
+- Provide detailed explanations (3-5 sentences)
+- Balance problem types according to selected types
 - NO markdown formatting, NO code blocks, ONLY the JSON object`;
 
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
@@ -107,7 +130,7 @@ Rules:
           temperature: 0.7,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
         },
       }),
     });
@@ -161,18 +184,34 @@ Rules:
         throw new Error('문제 배열을 찾을 수 없습니다');
       }
 
-      console.log(`✅ Successfully parsed ${problemsResult.problems.length} problems`);
+      // 문제 수 제한
+      if (problemsResult.problems.length > problemCount) {
+        problemsResult.problems = problemsResult.problems.slice(0, problemCount);
+      }
+
+      // 답안과 해설 검증
+      problemsResult.problems = problemsResult.problems.map((problem: any) => ({
+        ...problem,
+        answer: problem.answer || '답안 참조',
+        explanation: problem.explanation || '문제를 단계적으로 풀어보세요.',
+        type: problem.type || problemTypes[0]
+      }));
+
+      console.log(`✅ Successfully parsed ${problemsResult.problems.length} problems with answers and explanations`);
 
     } catch (parseError: any) {
       console.error('❌ Failed to parse Gemini response:', parseError);
 
       // 기본 문제 생성
       problemsResult = {
-        problems: concepts.map((concept: string, idx: number) => ({
+        problems: concepts.slice(0, problemCount).map((concept: string, idx: number) => ({
           concept: concept,
+          type: problemTypes[idx % problemTypes.length],
           question: `${concept}에 대한 문제 ${idx + 1}: 이 개념을 설명하고 예시를 들어보세요.`,
           options: null,
           answerSpace: true,
+          answer: '개념 설명 및 예시 참조',
+          explanation: '해당 개념의 정의와 실생활 예시를 들어 설명해주세요.',
           difficulty: 'medium'
         }))
       };
