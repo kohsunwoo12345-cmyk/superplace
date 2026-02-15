@@ -79,55 +79,66 @@ export default function DirectorAISystemPage() {
         return;
       }
       setUser(userData);
-      loadData();
+      loadData(userData); // userData를 직접 전달
     } catch (error) {
       console.error("Failed to parse user data:", error);
       router.push("/login");
     }
   }, [router]);
 
-  const loadData = async () => {
+  const loadData = async (userData?: any) => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const academyId = user.academyId; // 학원장의 academy_id
+      const currentUser = userData || user;
+      const academyId = currentUser?.academy_id || currentUser?.academyId; // 학원장의 academy_id
       
       if (!academyId) {
         console.error("❌ No academyId found for director");
-        alert("학원 정보를 찾을 수 없습니다");
+        console.error("User data:", currentUser);
+        alert("학원 정보를 찾을 수 없습니다. localStorage의 user 정보를 확인해주세요.");
         return;
       }
 
       console.log(`📋 Loading data for academy ${academyId}`);
       
       // 봇 목록 조회 (학원에 할당된 봇만)
+      console.log(`🤖 Fetching bots for academy ${academyId}...`);
       const botsResponse = await fetch(`/api/director/ai-bots?academyId=${academyId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (botsResponse.ok) {
         const botsData = await botsResponse.json();
         setBots(botsData.bots || []);
-        console.log(`✅ Loaded ${botsData.bots?.length || 0} bots`);
+        console.log(`✅ Loaded ${botsData.bots?.length || 0} bots:`, botsData.bots);
+      } else {
+        console.error(`❌ Failed to load bots:`, botsResponse.status, await botsResponse.text());
       }
       
       // 학생 목록 조회 (학원 소속 학생만)
+      console.log(`👨‍🎓 Fetching students for academy ${academyId}...`);
       const studentsResponse = await fetch(`/api/director/users?role=STUDENT&academyId=${academyId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (studentsResponse.ok) {
         const studentsData = await studentsResponse.json();
         setStudents(studentsData.users || []);
-        console.log(`✅ Loaded ${studentsData.users?.length || 0} students`);
+        console.log(`✅ Loaded ${studentsData.users?.length || 0} students:`, studentsData.users);
+      } else {
+        console.error(`❌ Failed to load students:`, studentsResponse.status, await studentsResponse.text());
       }
       
       // 교사 목록 조회 (학원 소속 교사만)
+      console.log(`👨‍🏫 Fetching teachers for academy ${academyId}...`);
       const teachersResponse = await fetch(`/api/director/users?role=TEACHER&academyId=${academyId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (teachersResponse.ok) {
         const teachersData = await teachersResponse.json();
         setTeachers(teachersData.users || []);
-        console.log(`✅ Loaded ${teachersData.users?.length || 0} teachers`);
+        console.log(`✅ Loaded ${teachersData.users?.length || 0} teachers:`, teachersData.users);
+      } else {
+        console.error(`❌ Failed to load teachers:`, teachersResponse.status, await teachersResponse.text());
       }
       
       // 할당 목록 조회
@@ -303,7 +314,7 @@ export default function DirectorAISystemPage() {
 
               {/* 봇 선택 */}
               <div>
-                <Label htmlFor="bot-select">AI 봇 선택 *</Label>
+                <Label htmlFor="bot-select">AI 봇 선택 * ({bots.filter(b => b.status === 'ACTIVE').length}개)</Label>
                 <select
                   id="bot-select"
                   className="w-full mt-1 p-2 border rounded-md"
@@ -312,18 +323,27 @@ export default function DirectorAISystemPage() {
                   required
                 >
                   <option value="">봇을 선택하세요</option>
-                  {bots.filter(b => b.status === 'ACTIVE').map(bot => (
-                    <option key={bot.id} value={bot.id}>
-                      {bot.profileIcon} {bot.name}
-                    </option>
-                  ))}
+                  {bots.filter(b => b.status === 'ACTIVE').length === 0 ? (
+                    <option disabled>사용 가능한 봇이 없습니다</option>
+                  ) : (
+                    bots.filter(b => b.status === 'ACTIVE').map(bot => (
+                      <option key={bot.id} value={bot.id}>
+                        {bot.profileIcon} {bot.name}
+                      </option>
+                    ))
+                  )}
                 </select>
+                {bots.filter(b => b.status === 'ACTIVE').length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    ⚠️ 학원에 할당된 AI 봇이 없습니다. 관리자에게 문의하세요.
+                  </p>
+                )}
               </div>
 
               {/* 사용자 선택 */}
               <div>
                 <Label htmlFor="user-select">
-                  {selectedUserType === 'STUDENT' ? '학생' : '교사'} 선택 *
+                  {selectedUserType === 'STUDENT' ? '학생' : '교사'} 선택 * ({userList.length}명)
                 </Label>
                 <select
                   id="user-select"
@@ -335,12 +355,21 @@ export default function DirectorAISystemPage() {
                   <option value="">
                     {selectedUserType === 'STUDENT' ? '학생을' : '교사를'} 선택하세요
                   </option>
-                  {userList.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.email})
-                    </option>
-                  ))}
+                  {userList.length === 0 ? (
+                    <option disabled>등록된 {selectedUserType === 'STUDENT' ? '학생이' : '교사가'} 없습니다</option>
+                  ) : (
+                    userList.map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.email})
+                      </option>
+                    ))
+                  )}
                 </select>
+                {userList.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    ⚠️ 등록된 {selectedUserType === 'STUDENT' ? '학생이' : '교사가'} 없습니다. 먼저 {selectedUserType === 'STUDENT' ? '학생을' : '교사를'} 추가해주세요.
+                  </p>
+                )}
               </div>
 
               {/* 만료일 */}
