@@ -100,3 +100,62 @@ CREATE TABLE IF NOT EXISTS AIBot (
 CREATE INDEX IF NOT EXISTS idx_ai_bot_id ON AIBot(botId);
 CREATE INDEX IF NOT EXISTS idx_ai_bot_active ON AIBot(isActive);
 CREATE INDEX IF NOT EXISTS idx_ai_bot_creator ON AIBot(createdById);
+
+-- Store Product Table
+CREATE TABLE IF NOT EXISTS StoreProduct (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL, -- academy_operation, marketing_blog, expert
+  section TEXT NOT NULL, -- academy_bots, blog_bots, expert_bots
+  description TEXT NOT NULL,
+  shortDescription TEXT,
+  price INTEGER NOT NULL DEFAULT 0,
+  monthlyPrice INTEGER,
+  yearlyPrice INTEGER,
+  features TEXT, -- JSON array of features
+  detailHtml TEXT, -- HTML content for detail page
+  imageUrl TEXT,
+  botId TEXT, -- Reference to AIBot
+  isActive INTEGER DEFAULT 1,
+  isFeatured INTEGER DEFAULT 0,
+  displayOrder INTEGER DEFAULT 0,
+  keywords TEXT, -- Comma separated keywords for search
+  createdById TEXT NOT NULL,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Indexes for StoreProduct
+CREATE INDEX IF NOT EXISTS idx_store_product_category ON StoreProduct(category);
+CREATE INDEX IF NOT EXISTS idx_store_product_active ON StoreProduct(isActive);
+CREATE INDEX IF NOT EXISTS idx_store_product_featured ON StoreProduct(isFeatured);
+CREATE INDEX IF NOT EXISTS idx_store_product_bot ON StoreProduct(botId);
+
+-- Purchase Request Table
+CREATE TABLE IF NOT EXISTS PurchaseRequest (
+  id TEXT PRIMARY KEY,
+  productId TEXT NOT NULL,
+  productName TEXT NOT NULL,
+  directorUserId TEXT NOT NULL,
+  directorName TEXT NOT NULL,
+  directorEmail TEXT NOT NULL,
+  directorPhone TEXT NOT NULL,
+  paymentMethod TEXT NOT NULL, -- card, bank_transfer
+  subscriptionMonths INTEGER NOT NULL, -- 1, 6, 12
+  totalPrice INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING', -- PENDING, APPROVED, REJECTED, CANCELLED
+  notes TEXT,
+  approvedById TEXT,
+  approvedAt TEXT,
+  rejectionReason TEXT,
+  botAssignmentId TEXT, -- Link to BotAssignment after approval
+  expiresAt TEXT, -- Bot expiration date after approval
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Indexes for PurchaseRequest
+CREATE INDEX IF NOT EXISTS idx_purchase_request_product ON PurchaseRequest(productId);
+CREATE INDEX IF NOT EXISTS idx_purchase_request_director ON PurchaseRequest(directorUserId);
+CREATE INDEX IF NOT EXISTS idx_purchase_request_status ON PurchaseRequest(status);
+CREATE INDEX IF NOT EXISTS idx_purchase_request_approved ON PurchaseRequest(approvedById);

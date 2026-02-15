@@ -18,6 +18,9 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
+  ShoppingCart,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
@@ -180,6 +183,33 @@ export default function AdminDashboardPage() {
       <div>
         <h2 className="text-xl font-bold mb-4">빠른 액세스</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* AI 봇 쇼핑몰 업데이트 - 가장 눈에 띄는 카드 */}
+          <Card className="hover:shadow-2xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white border-4 border-yellow-300 shadow-xl relative overflow-hidden group"
+                onClick={() => router.push("/dashboard/admin/store-management")}>
+            <div className="absolute inset-0 bg-gradient-to-r from-yellow-200/20 to-pink-200/20 animate-pulse"></div>
+            <div className="absolute top-0 right-0 bg-yellow-400 text-black px-3 py-1 text-xs font-bold rounded-bl-lg flex items-center gap-1">
+              <Sparkles className="h-3 w-3" />
+              NEW
+            </div>
+            <CardHeader className="relative">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <ShoppingCart className="h-6 w-6 animate-bounce" />
+                🛒 AI 봇 쇼핑몰 업데이트
+                <Zap className="h-5 w-5 animate-pulse" />
+              </CardTitle>
+              <CardDescription className="text-white/90 font-medium">
+                쇼핑몰 제품을 추가하고 관리합니다 (NEW!)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="relative">
+              <Button className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold shadow-lg group-hover:scale-105 transition-transform">
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                쇼핑몰 관리하기
+                <Sparkles className="h-4 w-4 ml-2" />
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card className="hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => router.push("/dashboard/admin/users")}>
             <CardHeader>

@@ -16,7 +16,11 @@ import {
   User,
   Calendar,
   DollarSign,
-  AlertCircle
+  AlertCircle,
+  ShoppingCart,
+  Package,
+  Mail,
+  Phone
 } from "lucide-react";
 
 interface PaymentApproval {
@@ -39,6 +43,25 @@ interface PaymentApproval {
   notes?: string;
 }
 
+interface PurchaseRequest {
+  id: string;
+  productId: string;
+  productName: string;
+  directorUserId: string;
+  directorName: string;
+  directorEmail: string;
+  directorPhone: string;
+  paymentMethod: string;
+  subscriptionMonths: number;
+  totalPrice: number;
+  status: string;
+  notes?: string;
+  approvedById?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+}
+
 interface Stats {
   total: number;
   pending: number;
@@ -51,9 +74,19 @@ interface Stats {
 export default function PaymentApprovalsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"subscriptions" | "store">("subscriptions");
   const [statusFilter, setStatusFilter] = useState("all");
   const [approvals, setApprovals] = useState<PaymentApproval[]>([]);
+  const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
   const [stats, setStats] = useState<Stats>({
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    pendingAmount: 0,
+    approvedAmount: 0,
+  });
+  const [storeStats, setStoreStats] = useState<Stats>({
     total: 0,
     pending: 0,
     approved: 0,
@@ -63,6 +96,7 @@ export default function PaymentApprovalsPage() {
   });
 
   const [selectedApproval, setSelectedApproval] = useState<PaymentApproval | null>(null);
+  const [selectedPurchase, setSelectedPurchase] = useState<PurchaseRequest | null>(null);
   const [transactionId, setTransactionId] = useState("");
   const [rejectedReason, setRejectedReason] = useState("");
 
@@ -82,8 +116,12 @@ export default function PaymentApprovalsPage() {
       return;
     }
 
-    fetchApprovals();
-  }, [router, statusFilter]);
+    if (activeTab === "subscriptions") {
+      fetchApprovals();
+    } else {
+      fetchPurchaseRequests();
+    }
+  }, [router, statusFilter, activeTab]);
 
   const fetchApprovals = async () => {
     try {
@@ -97,6 +135,32 @@ export default function PaymentApprovalsPage() {
       }
     } catch (error) {
       console.error("결제 승인 데이터 로드 실패:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPurchaseRequests = async () => {
+    try {
+      setLoading(true);
+      // TODO: Cloudflare Worker API 연결
+      // const response = await fetch(`/api/admin/purchase-approvals?status=${statusFilter}`);
+      // if (response.ok) {
+      //   const data = await response.json();
+      //   setPurchaseRequests(data.purchaseRequests || []);
+      //   setStoreStats(data.stats || {});
+      // }
+      setPurchaseRequests([]);
+      setStoreStats({
+        total: 0,
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        pendingAmount: 0,
+        approvedAmount: 0,
+      });
+    } catch (error) {
+      console.error("구매 요청 데이터 로드 실패:", error);
     } finally {
       setLoading(false);
     }
@@ -172,6 +236,25 @@ export default function PaymentApprovalsPage() {
     }
   };
 
+  const handleApprovePurchase = async (purchaseId: string) => {
+    if (!confirm("이 구매 요청을 승인하시겠습니까? AI 봇이 자동으로 할당됩니다.")) return;
+
+    alert("구매 승인 API가 Cloudflare Worker에서 구현되어야 합니다.");
+    // TODO: Cloudflare Worker API 연결
+  };
+
+  const handleRejectPurchase = async (purchaseId: string) => {
+    if (!rejectedReason.trim()) {
+      alert("거부 사유를 입력해주세요.");
+      return;
+    }
+
+    if (!confirm("이 구매 요청을 거부하시겠습니까?")) return;
+
+    alert("구매 거부 API가 Cloudflare Worker에서 구현되어야 합니다.");
+    // TODO: Cloudflare Worker API 연결
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("ko-KR", {
       style: "currency",
@@ -224,12 +307,44 @@ export default function PaymentApprovalsPage() {
     );
   }
 
+  const currentStats = activeTab === "subscriptions" ? stats : storeStats;
+
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">💳 결제 승인 관리</h1>
-        <p className="text-gray-600">학원 구독 결제 요청을 승인하거나 거부합니다</p>
+        <p className="text-gray-600">학원 구독 및 AI 봇 쇼핑몰 구매 요청을 승인하거나 거부합니다</p>
       </div>
+
+      {/* 탭 선택 */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setActiveTab("subscriptions")}
+              variant={activeTab === "subscriptions" ? "default" : "outline"}
+              className="flex items-center gap-2"
+            >
+              <CreditCard className="h-4 w-4" />
+              학원 구독
+              {stats.pending > 0 && (
+                <Badge className="ml-2 bg-yellow-500">{stats.pending}</Badge>
+              )}
+            </Button>
+            <Button
+              onClick={() => setActiveTab("store")}
+              variant={activeTab === "store" ? "default" : "outline"}
+              className="flex items-center gap-2"
+            >
+              <ShoppingCart className="h-4 w-4" />
+              AI 봇 쇼핑몰
+              {storeStats.pending > 0 && (
+                <Badge className="ml-2 bg-yellow-500">{storeStats.pending}</Badge>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 통계 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -238,7 +353,7 @@ export default function PaymentApprovalsPage() {
             <CardTitle className="text-sm font-medium">전체 요청</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}건</div>
+            <div className="text-2xl font-bold">{currentStats.total}건</div>
           </CardContent>
         </Card>
 
@@ -247,8 +362,8 @@ export default function PaymentApprovalsPage() {
             <CardTitle className="text-sm font-medium">승인 대기</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}건</div>
-            <p className="text-sm text-gray-500 mt-1">{formatCurrency(stats.pendingAmount)}</p>
+            <div className="text-2xl font-bold text-yellow-600">{currentStats.pending}건</div>
+            <p className="text-sm text-gray-500 mt-1">{formatCurrency(currentStats.pendingAmount)}</p>
           </CardContent>
         </Card>
 
@@ -257,8 +372,8 @@ export default function PaymentApprovalsPage() {
             <CardTitle className="text-sm font-medium">승인 완료</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.approved}건</div>
-            <p className="text-sm text-gray-500 mt-1">{formatCurrency(stats.approvedAmount)}</p>
+            <div className="text-2xl font-bold text-green-600">{currentStats.approved}건</div>
+            <p className="text-sm text-gray-500 mt-1">{formatCurrency(currentStats.approvedAmount)}</p>
           </CardContent>
         </Card>
 
@@ -267,7 +382,7 @@ export default function PaymentApprovalsPage() {
             <CardTitle className="text-sm font-medium">거부됨</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.rejected}건</div>
+            <div className="text-2xl font-bold text-red-600">{currentStats.rejected}건</div>
           </CardContent>
         </Card>
       </div>
@@ -307,10 +422,15 @@ export default function PaymentApprovalsPage() {
       {/* 승인 목록 */}
       <Card>
         <CardHeader>
-          <CardTitle>결제 승인 요청 목록</CardTitle>
-          <CardDescription>{approvals.length}개의 요청</CardDescription>
+          <CardTitle>
+            {activeTab === "subscriptions" ? "학원 구독 결제 요청 목록" : "AI 봇 쇼핑몰 구매 요청 목록"}
+          </CardTitle>
+          <CardDescription>
+            {activeTab === "subscriptions" ? `${approvals.length}개의 요청` : `${purchaseRequests.length}개의 요청`}
+          </CardDescription>
         </CardHeader>
         <CardContent>
+          {activeTab === "subscriptions" ? (
           <div className="space-y-4">
             {approvals.map((approval) => (
               <Card key={approval.id} className="border-2">
@@ -422,6 +542,127 @@ export default function PaymentApprovalsPage() {
               </div>
             )}
           </div>
+          ) : (
+            /* AI 봇 쇼핑몰 구매 요청 목록 */
+            <div className="space-y-4">
+              {purchaseRequests.map((purchase) => (
+                <Card key={purchase.id} className="border-2">
+                  <CardContent className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Package className="w-5 h-5 text-purple-600" />
+                            <h3 className="text-xl font-bold">{purchase.productName}</h3>
+                          </div>
+                          {getStatusBadge(purchase.status.toLowerCase())}
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <User className="w-4 h-4" />
+                          <span className="text-sm font-semibold">{purchase.directorName}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Mail className="w-4 h-4" />
+                          <span className="text-sm">{purchase.directorEmail}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Phone className="w-4 h-4" />
+                          <span className="text-sm">{purchase.directorPhone}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Calendar className="w-4 h-4" />
+                          <span className="text-sm">신청: {formatDateTime(purchase.createdAt)}</span>
+                        </div>
+
+                        {purchase.notes && (
+                          <div className="bg-gray-50 p-3 rounded">
+                            <p className="text-sm text-gray-600">요청사항: {purchase.notes}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-3xl font-bold text-purple-600">
+                            {formatCurrency(purchase.totalPrice)}
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <Badge variant="outline">{purchase.subscriptionMonths}개월 구독</Badge>
+                            {getPaymentMethodBadge(purchase.paymentMethod)}
+                          </div>
+                        </div>
+
+                        {purchase.status === "PENDING" && (
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => handleApprovePurchase(purchase.id)}
+                                className="flex-1 bg-green-600 hover:bg-green-700"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                승인 (봇 자동 할당)
+                              </Button>
+                              <Button
+                                onClick={() => setSelectedPurchase(purchase)}
+                                variant="destructive"
+                                className="flex-1"
+                              >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                거부
+                              </Button>
+                            </div>
+                            {selectedPurchase?.id === purchase.id && (
+                              <div className="space-y-2">
+                                <Textarea
+                                  placeholder="거부 사유 입력 (필수)"
+                                  value={rejectedReason}
+                                  onChange={(e) => setRejectedReason(e.target.value)}
+                                  rows={3}
+                                />
+                                <Button
+                                  onClick={() => handleRejectPurchase(purchase.id)}
+                                  variant="destructive"
+                                  className="w-full"
+                                >
+                                  거부 확정
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {purchase.status === "APPROVED" && purchase.approvedAt && (
+                          <div className="text-sm text-green-600">
+                            승인 완료: {formatDateTime(purchase.approvedAt)}
+                            {purchase.botAssignmentId && (
+                              <p className="mt-1">봇 할당 ID: {purchase.botAssignmentId}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {purchase.status === "REJECTED" && purchase.rejectionReason && (
+                          <div className="bg-red-50 p-3 rounded">
+                            <p className="text-sm text-red-600">거부 사유: {purchase.rejectionReason}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {purchaseRequests.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>AI 봇 쇼핑몰 구매 요청이 없습니다.</p>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
