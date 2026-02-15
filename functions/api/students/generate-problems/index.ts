@@ -24,7 +24,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
   try {
     const body = await request.json();
-    const { studentId, concepts, problemTypes, questionFormats, problemCount, studentName, studentGrade } = body;
+    const { studentId, concepts, problemTypes, questionFormats, problemCount, studentName, studentGrade, subject } = body;
 
     if (!studentId || !concepts || concepts.length === 0) {
       return new Response(
@@ -51,29 +51,32 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     console.log('📋 Question formats:', formats);
     console.log('🔢 Problem count:', problemCount);
     console.log('🎓 Student grade:', studentGrade);
+    console.log('📘 Selected subject:', subject);
 
-    // 학생의 숙제 데이터에서 과목 추출
+    // 학생의 숙제 데이터에서 과목 추출 (subject가 없으면)
     const { DB } = env;
-    let dominantSubject = null;
+    let finalSubject = subject || null; // 사용자 선택 과목 우선
     let gradeLevel = studentGrade || null;
     
     if (DB) {
       try {
-        // 최근 숙제 과목 조회
-        const subjectQuery = `
-          SELECT hg.subject, COUNT(*) as count
-          FROM homework_submissions_v2 hs
-          LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
-          WHERE hs.userId = ? AND hg.subject IS NOT NULL
-          GROUP BY hg.subject
-          ORDER BY count DESC
-          LIMIT 1
-        `;
-        
-        const subjectResult = await DB.prepare(subjectQuery).bind(parseInt(studentId)).first();
-        if (subjectResult && subjectResult.subject) {
-          dominantSubject = subjectResult.subject;
-          console.log('📘 Dominant subject:', dominantSubject);
+        // 과목이 선택되지 않은 경우만 DB에서 추출
+        if (!finalSubject) {
+          const subjectQuery = `
+            SELECT hg.subject, COUNT(*) as count
+            FROM homework_submissions_v2 hs
+            LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
+            WHERE hs.userId = ? AND hg.subject IS NOT NULL
+            GROUP BY hg.subject
+            ORDER BY count DESC
+            LIMIT 1
+          `;
+          
+          const subjectResult = await DB.prepare(subjectQuery).bind(parseInt(studentId)).first();
+          if (subjectResult && subjectResult.subject) {
+            finalSubject = subjectResult.subject;
+            console.log('📘 Auto-detected subject:', finalSubject);
+          }
         }
         
         // 학생 테이블에서 학년 정보 조회 (프론트에서 전달되지 않은 경우)
@@ -131,8 +134,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       : 'Grade Level: Not specified (use medium difficulty)';
 
     // 과목별 문제 유형 설정
-    const subjectInfo = dominantSubject
-      ? `Primary Subject: ${dominantSubject} (focus problems on this subject)`
+    const subjectInfo = finalSubject
+      ? `Primary Subject: ${finalSubject} (ALL problems MUST be ${finalSubject} subject)`
       : 'Subject: General (mixed subjects allowed)';
 
     const prompt = `You are an educational content creator. Generate ${problemCount} practice problems for a student.
@@ -146,15 +149,19 @@ Student Information:
 - Question Formats: ${formats.map((f: string) => formatDescriptions[f]).join(', ')}
 - Total Problems: ${problemCount}
 
-CRITICAL FORMAT REQUIREMENTS:
-1. **객관식 (multiple_choice)**: Problems with 4 numbered options (①, ②, ③, ④) where student picks ONE correct answer
-   - Example: "다음 중 올바른 것은? ① 답1 ② 답2 ③ 답3 ④ 답4"
-   - Set "options" array with 4 items
+**CRITICAL FORMAT REQUIREMENTS - MUST FOLLOW EXACTLY:**
+
+1. **객관식 (multiple_choice)**: Problems with 4 numbered options where student picks ONE
+   - Question format: "다음 중 올바른 것은?"
+   - Options format: ["① 선택지1", "② 선택지2", "③ 선택지3", "④ 선택지4"]
+   - Answer format: "①" or "②" or "③" or "④" (ONLY the number)
+   - Set "options" array with exactly 4 items
    - Set "answerSpace" to false
    
-2. **주관식 (open_ended)**: Problems requiring written explanations or calculations
-   - Example: "다음 문제를 풀고 풀이 과정을 쓰시오: ..."
-   - Set "options" to null
+2. **주관식 (open_ended)**: Problems requiring written answers or explanations
+   - Question format: "다음 문제를 풀고 답을 쓰시오:" or "다음을 설명하시오:"
+   - Options: null (NO OPTIONS AT ALL)
+   - Answer format: The actual written answer
    - Set "answerSpace" to true
 
 Distribution:
@@ -162,7 +169,7 @@ Distribution:
 - Each problem should focus on one of the weak concepts
 - ${formatInstructions}
 - Grade-appropriate difficulty (${gradeLevel || 'medium level'})
-- Subject-focused content (${dominantSubject || 'general'})
+- **Subject: ${finalSubject || 'general'} - ALL PROBLEMS MUST BE THIS SUBJECT**
 
 Requirements for EACH problem:
 1. Set "type" field to one of: ${problemTypes.map((t: string) => `"${t}"`).join(', ')}
@@ -173,9 +180,9 @@ Requirements for EACH problem:
    - Provide exactly 4 options in "options" array
    - Use numbered format: ①, ②, ③, ④
    - Set "answerSpace" to false
-   - Set "answer" to the option number (e.g., "①", "②", "③", or "④")
+   - Set "answer" to ONLY the option number (e.g., "①", "②", "③", or "④")
 6. For open-ended (주관식):
-   - Set "options" to null
+   - Set "options" to null (NO OPTIONS)
    - Set "answerSpace" to true
    - Set "answer" to the correct written answer
 7. ALWAYS provide "explanation" with detailed step-by-step solution
@@ -196,19 +203,21 @@ Return this EXACT JSON structure:
   ]
 }
 
-Rules:
+**STRICT Rules:**
 - Use ONLY Korean for all text
 - Make questions clear and unambiguous
 - Ensure answers are correct and complete
 - Provide detailed explanations (3-5 sentences)
 - Balance problem types according to selected types
 - Adjust difficulty based on grade level: ${gradeLevel || 'medium'}
-- Focus content on subject: ${dominantSubject || 'general'}
-${formats.length === 1 && formats.includes('multiple_choice') ? '- ALL problems MUST be multiple choice (객관식) with exactly 4 numbered options (①②③④)' : ''}
-${formats.length === 1 && formats.includes('open_ended') ? '- ALL problems MUST be open-ended (주관식) with options: null and answerSpace: true' : ''}
-${formats.length === 2 ? '- Mix multiple choice (객관식) and open-ended (주관식) questions approximately 50/50' : ''}
+- **Focus ALL content on subject: ${finalSubject || 'general'}**
 - Generate EXACTLY ${problemCount} problems, no more, no less
-- NO markdown formatting, NO code blocks, ONLY the JSON object`;
+${formats.length === 1 && formats.includes('multiple_choice') ? '- **ALL problems MUST be multiple choice (객관식) with exactly 4 numbered options (①②③④)**' : ''}
+${formats.length === 1 && formats.includes('open_ended') ? '- **ALL problems MUST be open-ended (주관식) with options: null and answerSpace: true**' : ''}
+${formats.length === 2 ? '- **Mix multiple choice (객관식) and open-ended (주관식) questions approximately 50/50**' : ''}
+- NO markdown formatting, NO code blocks, ONLY the JSON object
+- For 객관식, answer MUST be one of: ①, ②, ③, ④ (NOT 1, 2, 3, 4)
+- For 주관식, answer MUST be the actual answer text (NOT a number)`;
 
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 

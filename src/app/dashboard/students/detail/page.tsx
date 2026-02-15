@@ -96,6 +96,9 @@ function StudentDetailContent() {
   const [weakConcepts, setWeakConcepts] = useState<WeakConcept[]>([]);
   const [conceptRecommendations, setConceptRecommendations] = useState<ConceptRecommendation[]>([]);
   const [conceptSummary, setConceptSummary] = useState<string>("");
+  const [detailedAnalysis, setDetailedAnalysis] = useState<string>("");
+  const [learningDirection, setLearningDirection] = useState<string>("");
+  const [commonMistakes, setCommonMistakes] = useState<any[]>([]);
   const [studentCode, setStudentCode] = useState<string>("");
   const [attendanceCode, setAttendanceCode] = useState<AttendanceCode | null>(null);
   
@@ -115,6 +118,7 @@ function StudentDetailContent() {
   const [selectedConcepts, setSelectedConcepts] = useState<string[]>([]);
   const [selectedProblemTypes, setSelectedProblemTypes] = useState<string[]>(['concept']);
   const [selectedQuestionFormats, setSelectedQuestionFormats] = useState<string[]>(['multiple_choice', 'open_ended']); // 문제 형식
+  const [selectedSubject, setSelectedSubject] = useState<string>(''); // 과목 선택
   const [problemCount, setProblemCount] = useState<number>(5);
   const [generatedProblems, setGeneratedProblems] = useState<any[]>([]);
   const [generatingProblems, setGeneratingProblems] = useState(false);
@@ -361,6 +365,9 @@ function StudentDetailContent() {
       setWeakConcepts(data.weakConcepts || []);
       setConceptRecommendations(data.recommendations || []);
       setConceptSummary(data.summary || "");
+      setDetailedAnalysis(data.detailedAnalysis || "");
+      setLearningDirection(data.learningDirection || "");
+      setCommonMistakes(data.commonMistakeTypes || []);
       
       alert('✅ 분석이 완료되었습니다!');
     } catch (error: any) {
@@ -412,6 +419,7 @@ function StudentDetailContent() {
           problemCount,
           studentName: student?.name || '학생',
           studentGrade: student?.grade || null, // 학년 정보 추가
+          subject: selectedSubject || null, // 과목 정보 추가
         }),
       });
 
@@ -1200,7 +1208,7 @@ function StudentDetailContent() {
                       대화 내역과 숙제 데이터를 종합하여 분석합니다.
                     </p>
                   </div>
-                ) : conceptSummary.includes('오류') || conceptSummary.includes('없습니다') ? (
+                ) : conceptSummary.includes('분석할 데이터가 없습니다') ? (
                   <div className="text-center py-12">
                     <div className="bg-orange-50 p-6 rounded-lg border-2 border-orange-200">
                       <AlertTriangle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
@@ -1208,9 +1216,7 @@ function StudentDetailContent() {
                         {conceptSummary}
                       </p>
                       <p className="text-sm text-orange-600 mt-3">
-                        {conceptSummary.includes('오류') 
-                          ? '잠시 후 다시 시도해주세요. 문제가 계속되면 관리자에게 문의하세요.'
-                          : 'AI 챗봇과 대화를 하거나 숙제를 제출하여 부족한 개념을 파악하세요.'}
+                        AI 챗봇과 대화를 하거나 숙제를 제출하여 부족한 개념을 파악하세요.
                       </p>
                       <Button
                         onClick={analyzeWeakConcepts}
@@ -1228,7 +1234,54 @@ function StudentDetailContent() {
                     {conceptSummary && (
                       <div className="bg-blue-50 p-4 rounded-lg">
                         <h4 className="font-semibold mb-2">전반적인 이해도</h4>
-                        <p className="text-sm text-gray-700">{conceptSummary}</p>
+                        <p className="text-sm text-gray-700 whitespace-pre-line">{conceptSummary}</p>
+                      </div>
+                    )}
+
+                    {detailedAnalysis && (
+                      <div className="bg-indigo-50 p-4 rounded-lg border-2 border-indigo-200">
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <FileText className="w-5 h-5 text-indigo-600" />
+                          상세 분석
+                        </h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-line">{detailedAnalysis}</p>
+                      </div>
+                    )}
+
+                    {commonMistakes && commonMistakes.length > 0 && (
+                      <div className="bg-red-50 p-4 rounded-lg border-2 border-red-200">
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5 text-red-600" />
+                          자주 틀리는 유형
+                        </h4>
+                        <div className="space-y-3">
+                          {commonMistakes.map((mistake, idx) => (
+                            <div key={idx} className="bg-white p-3 rounded-lg">
+                              <div className="flex items-start justify-between mb-2">
+                                <h5 className="font-medium text-sm text-red-700">{mistake.type}</h5>
+                                <Badge variant={mistake.frequency === 'high' ? 'destructive' : 'outline'} className="text-xs">
+                                  {mistake.frequency === 'high' ? '높음' : mistake.frequency === 'medium' ? '중간' : '낮음'}
+                                </Badge>
+                              </div>
+                              {mistake.example && (
+                                <p className="text-xs text-gray-600 mb-1">예시: {mistake.example}</p>
+                              )}
+                              {mistake.solution && (
+                                <p className="text-xs text-blue-700 font-medium">해결: {mistake.solution}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {learningDirection && (
+                      <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-green-600" />
+                          앞으로의 학습 방향
+                        </h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-line">{learningDirection}</p>
                       </div>
                     )}
 
@@ -1366,7 +1419,7 @@ function StudentDetailContent() {
                             : 'border-gray-300 hover:border-gray-400'
                         }`}
                       >
-                        {selectedQuestionFormats.includes('multiple_choice') && '✓ '}객관식 (4지선다)
+                        {selectedQuestionFormats.includes('multiple_choice') && '✓ '}객관식 (1~4번 선택)
                       </button>
                       <button
                         onClick={() => toggleQuestionFormat('open_ended')}
@@ -1376,12 +1429,33 @@ function StudentDetailContent() {
                             : 'border-gray-300 hover:border-gray-400'
                         }`}
                       >
-                        {selectedQuestionFormats.includes('open_ended') && '✓ '}서술형 (주관식)
+                        {selectedQuestionFormats.includes('open_ended') && '✓ '}주관식 (서술형)
                       </button>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
                       {selectedQuestionFormats.length}개 형식 선택됨
-                      {selectedQuestionFormats.length === 2 && ' · 객관식과 서술형 혼합 출제'}
+                      {selectedQuestionFormats.length === 2 && ' · 객관식과 주관식 혼합 출제'}
+                    </p>
+                  </div>
+
+                  {/* 과목 선택 */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">과목 선택</label>
+                    <select
+                      value={selectedSubject}
+                      onChange={(e) => setSelectedSubject(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">자동 (숙제 데이터 기반)</option>
+                      <option value="수학">수학</option>
+                      <option value="영어">영어</option>
+                      <option value="국어">국어</option>
+                      <option value="과학">과학</option>
+                      <option value="사회">사회</option>
+                      <option value="역사">역사</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {selectedSubject ? `${selectedSubject} 과목으로 문제 생성` : '학생의 숙제 데이터에서 자동으로 과목 추출'}
                     </p>
                   </div>
 

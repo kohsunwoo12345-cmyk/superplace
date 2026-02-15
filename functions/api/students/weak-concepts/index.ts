@@ -316,37 +316,50 @@ CRITICAL: Return ONLY this JSON structure with NO extra text, markdown, or expla
 
 {
   "overallAssessment": "종합평가 (학생의 전반적인 학습 상태를 2-3문장으로 요약)",
-  "detailedAnalysis": "상세 분석 (숙제 데이터를 바탕으로 한 구체적인 분석 내용)",
+  "detailedAnalysis": "상세 분석 (숙제 데이터를 바탕으로 한 구체적인 분석 내용 - 3-5문장으로 상세히)",
+  "commonMistakeTypes": [
+    {
+      "type": "자주 틀리는 유형명 (예: 계산 실수, 개념 혼동, 풀이 과정 생략)",
+      "frequency": "빈도 (high/medium/low)",
+      "example": "구체적인 예시",
+      "solution": "해결 방법"
+    }
+  ],
   "weaknessPatterns": [
     {
-      "pattern": "약점 유형명",
-      "description": "이 약점이 나타나는 이유와 패턴"
+      "pattern": "약점 패턴명",
+      "description": "이 약점이 나타나는 이유와 패턴 상세 설명"
     }
   ],
   "conceptsNeedingReview": [
     {
-      "concept": "복습이 필요한 개념명",
-      "reason": "왜 복습이 필요한지",
-      "priority": "high"
+      "concept": "복습이 필요한 개념명 (구체적으로)",
+      "reason": "왜 복습이 필요한지 상세 설명",
+      "priority": "high/medium/low",
+      "relatedTopics": ["관련 주제1", "관련 주제2"]
     }
   ],
   "improvementSuggestions": [
     {
       "area": "개선이 필요한 영역",
-      "method": "구체적인 개선 방법"
+      "method": "구체적인 개선 방법 (실천 가능하게)",
+      "expectedEffect": "기대 효과"
     }
   ],
-  "learningDirection": "앞으로의 학습 방향 제시 (2-3문장)"
+  "learningDirection": "앞으로의 학습 방향 제시 (3-4문장, 단계별로 구체적으로)"
 }
 
 Rules:
 1. Focus on homework scores below 80 points
-2. Identify recurring error patterns
-3. Use ONLY Korean text for all values
-4. Maximum 5 items per array
-5. priority can be "high", "medium", or "low"
-6. NO markdown, NO explanations, ONLY the JSON object
-7. Ensure all JSON syntax is perfect (proper commas, quotes, brackets)`;
+2. Identify recurring error patterns from homework data
+3. Provide SPECIFIC and ACTIONABLE recommendations
+4. Use ONLY Korean text for all values
+5. Maximum 5 items per array (but at least 2-3 items)
+6. priority can be "high", "medium", or "low"
+7. frequency can be "high" (>60%), "medium" (30-60%), or "low" (<30%)
+8. NO markdown, NO explanations, ONLY the JSON object
+9. Ensure all JSON syntax is perfect (proper commas, quotes, brackets)
+10. Make analysis DETAILED and PROFESSIONAL - this is for teachers/parents`;
 
 
     // 4. Gemini API 호출
@@ -471,6 +484,9 @@ Rules:
       // Gemini 응답을 프론트엔드 형식으로 변환
       analysisResult = {
         summary: parsedData.overallAssessment || parsedData.summary || '분석 완료',
+        detailedAnalysis: parsedData.detailedAnalysis || '',
+        learningDirection: parsedData.learningDirection || '',
+        commonMistakeTypes: parsedData.commonMistakeTypes || [],
         weakConcepts: [],
         recommendations: []
       };
@@ -501,7 +517,8 @@ Rules:
       if (Array.isArray(parsedData.improvementSuggestions)) {
         analysisResult.recommendations = parsedData.improvementSuggestions.map((item: any) => ({
           concept: item.area || '개선 영역',
-          action: item.method || item.action || ''
+          action: item.method || item.action || '',
+          expectedEffect: item.expectedEffect || ''
         }));
       }
       
