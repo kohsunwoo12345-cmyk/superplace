@@ -33,6 +33,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         topK INTEGER DEFAULT 40,
         topP REAL DEFAULT 0.95,
         language TEXT DEFAULT 'ko',
+        voiceIndex INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1,
         conversationCount INTEGER DEFAULT 0,
         lastUsedAt TEXT,
@@ -40,6 +41,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         updatedAt TEXT DEFAULT (datetime('now'))
       )
     `).run();
+
+    // voiceIndex 컬럼 추가 (이미 존재하면 무시)
+    try {
+      await DB.prepare(`
+        ALTER TABLE ai_bots ADD COLUMN voiceIndex INTEGER DEFAULT 0
+      `).run();
+    } catch (e) {
+      // 컬럼이 이미 존재하면 무시
+    }
 
     // 모든 AI 봇 조회
     const botsResult = await DB.prepare(
@@ -89,6 +99,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topK = 40,
       topP = 0.95,
       language = "ko",
+      voiceIndex = 0,
     } = body;
 
     if (!name || !systemPrompt) {
@@ -104,9 +115,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       INSERT INTO ai_bots (
         id, name, description, systemPrompt, welcomeMessage, 
         starterMessage1, starterMessage2, starterMessage3, profileIcon, profileImage,
-        model, temperature, maxTokens, topK, topP, language,
+        model, temperature, maxTokens, topK, topP, language, voiceIndex,
         isActive, conversationCount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
     `).bind(
       botId,
       name,
@@ -123,7 +134,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       maxTokens,
       topK,
       topP,
-      language
+      language,
+      voiceIndex
     ).run();
 
     return new Response(

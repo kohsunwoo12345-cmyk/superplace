@@ -25,6 +25,13 @@ interface AIBot {
   conversationCount: number;
   lastUsedAt?: string;
   createdAt: string;
+  voiceIndex?: number;
+  systemPrompt?: string;
+  welcomeMessage?: string;
+  starterMessages?: string[];
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
 }
 
 export default function AdminAIBotsPage() {
@@ -33,6 +40,9 @@ export default function AdminAIBotsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [editingBot, setEditingBot] = useState<AIBot | null>(null);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [editFormData, setEditFormData] = useState<any>({});
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -43,6 +53,18 @@ export default function AdminAIBotsPage() {
 
     const userData = JSON.parse(storedUser);
     setCurrentUser(userData);
+
+    // Load TTS voices
+    const loadVoices = () => {
+      const availableVoices = window.speechSynthesis.getVoices();
+      if (availableVoices.length > 0) {
+        setVoices(availableVoices);
+      }
+    };
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
 
     fetchBots();
   }, [router]);
@@ -94,6 +116,61 @@ export default function AdminAIBotsPage() {
       }
     } catch (error) {
       console.error("삭제 실패:", error);
+    }
+  };
+
+  const handleEditClick = async (bot: AIBot) => {
+    try {
+      // Fetch full bot details
+      const response = await fetch(`/api/admin/ai-bots/${bot.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setEditingBot(data.bot);
+        setEditFormData({
+          voiceIndex: data.bot.voiceIndex || 0,
+          name: data.bot.name || "",
+          description: data.bot.description || "",
+        });
+      }
+    } catch (error) {
+      console.error("봇 정보 로드 실패:", error);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingBot) return;
+
+    try {
+      const response = await fetch(`/api/admin/ai-bots/${editingBot.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          voiceIndex: parseInt(editFormData.voiceIndex),
+          name: editFormData.name,
+          description: editFormData.description,
+        }),
+      });
+
+      if (response.ok) {
+        alert("수정되었습니다.");
+        setEditingBot(null);
+        fetchBots();
+      }
+    } catch (error) {
+      console.error("수정 실패:", error);
+      alert("수정 중 오류가 발생했습니다.");
+    }
+  };
+
+  const testVoice = () => {
+    const voiceIndex = parseInt(editFormData.voiceIndex);
+    if (voiceIndex >= 0 && voiceIndex < voices.length) {
+      const utterance = new SpeechSynthesisUtterance("안녕하세요! 이 목소리로 응답합니다.");
+      utterance.voice = voices[voiceIndex];
+      utterance.lang = "ko-KR";
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
     }
   };
 
@@ -268,7 +345,7 @@ export default function AdminAIBotsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => alert(`${bot.name} 설정 기능은 곧 추가됩니다.`)}
+                      onClick={() => handleEditClick(bot)}
                     >
                       <Settings className="w-4 h-4" />
                     </Button>
@@ -298,6 +375,91 @@ export default function AdminAIBotsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* 편집 모달 */}
+      {editingBot && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                AI 봇 설정 편집
+              </CardTitle>
+              <CardDescription>
+                {editingBot.name} 봇의 설정을 수정합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* 봇 이름 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">봇 이름</label>
+                <Input
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  placeholder="봇 이름"
+                />
+              </div>
+
+              {/* 봇 설명 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">봇 설명</label>
+                <Input
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  placeholder="봇 설명"
+                />
+              </div>
+
+              {/* 음성 선택 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  🎤 TTS 음성 선택
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={editFormData.voiceIndex}
+                    onChange={(e) => setEditFormData({ ...editFormData, voiceIndex: e.target.value })}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {voices.map((voice, index) => (
+                      <option key={index} value={index}>
+                        {voice.name} ({voice.lang})
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={testVoice}
+                  >
+                    테스트
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  선택한 음성으로 AI 응답이 재생됩니다. 테스트 버튼으로 미리 들어보세요.
+                </p>
+              </div>
+
+              {/* 버튼 */}
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingBot(null)}
+                  className="flex-1"
+                >
+                  취소
+                </Button>
+                <Button
+                  onClick={handleSaveEdit}
+                  className="flex-1"
+                >
+                  저장
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

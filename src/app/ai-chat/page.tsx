@@ -50,6 +50,7 @@ interface AIBot {
   systemPrompt: string;
   model: string;
   isActive: boolean;
+  voiceIndex?: number;
 }
 
 export default function ModernAIChatPage() {
@@ -204,6 +205,14 @@ export default function ModernAIChatPage() {
       }
     }
   }, []);
+
+  // 선택된 봇의 voiceIndex를 자동 적용
+  useEffect(() => {
+    if (selectedBot && selectedBot.voiceIndex !== undefined) {
+      console.log(`🎤 봇 "${selectedBot.name}"의 음성 인덱스 적용: ${selectedBot.voiceIndex}`);
+      setSelectedVoiceIndex(selectedBot.voiceIndex);
+    }
+  }, [selectedBot]);
 
   useEffect(() => {
     if (textareaRef.current) {

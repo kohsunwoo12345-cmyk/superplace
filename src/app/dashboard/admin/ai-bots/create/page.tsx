@@ -222,6 +222,9 @@ export default function CreateAIBotPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   
+  // TTS 음성 관련
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -238,6 +241,7 @@ export default function CreateAIBotPage() {
     topK: "40",
     topP: "0.95",
     language: "ko",
+    voiceIndex: "0", // TTS 음성 인덱스
   });
 
   useEffect(() => {
@@ -249,6 +253,18 @@ export default function CreateAIBotPage() {
 
     const userData = JSON.parse(storedUser);
     setCurrentUser(userData);
+
+    // Load TTS voices
+    const loadVoices = () => {
+      const availableVoices = window.speechSynthesis.getVoices();
+      if (availableVoices.length > 0) {
+        setVoices(availableVoices);
+      }
+    };
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
   }, [router]);
 
   useEffect(() => {
@@ -361,6 +377,7 @@ export default function CreateAIBotPage() {
           maxTokens: parseInt(formData.maxTokens),
           topK: parseInt(formData.topK),
           topP: parseFloat(formData.topP),
+          voiceIndex: parseInt(formData.voiceIndex),
         }),
       });
 
@@ -611,6 +628,49 @@ export default function CreateAIBotPage() {
                       placeholder="예: 과학 개념 알려줘"
                     />
                   </div>
+                </div>
+
+                {/* TTS 음성 선택 */}
+                <div>
+                  <Label className="text-base mb-2 block flex items-center gap-2">
+                    🎤 TTS 음성 선택
+                  </Label>
+                  <p className="text-sm text-gray-500 mb-3">
+                    AI 응답에 사용할 음성을 선택하세요. 사용자는 채팅 중 음성 재생 버튼을 눌러 응답을 들을 수 있습니다.
+                  </p>
+                  <div className="flex gap-2">
+                    <select
+                      value={formData.voiceIndex}
+                      onChange={(e) => setFormData({ ...formData, voiceIndex: e.target.value })}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {voices.map((voice, index) => (
+                        <option key={index} value={index}>
+                          {voice.name} ({voice.lang})
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const voiceIndex = parseInt(formData.voiceIndex);
+                        if (voiceIndex >= 0 && voiceIndex < voices.length) {
+                          const utterance = new SpeechSynthesisUtterance("안녕하세요! 이 목소리로 응답합니다.");
+                          utterance.voice = voices[voiceIndex];
+                          utterance.lang = "ko-KR";
+                          utterance.rate = 1.0;
+                          utterance.pitch = 1.0;
+                          window.speechSynthesis.speak(utterance);
+                        }
+                      }}
+                    >
+                      테스트
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 한국어 음성: Google 한국어, Microsoft Heami (여성), Microsoft InJoon (남성) 추천
+                  </p>
                 </div>
               </CardContent>
             </Card>
