@@ -35,7 +35,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 1. 현재 데이터 확인
     const beforeUpdate = await DB.prepare(`
-      SELECT id, name, email, phone, school, grade, diagnostic_memo, academy_id
+      SELECT id, name, email, phone, school, grade, diagnostic_memo, academy_id, academy_name
       FROM users 
       WHERE id = ? AND role = 'STUDENT'
     `).bind(studentId).first();
@@ -129,7 +129,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 4. 업데이트 후 데이터 확인
     const afterUpdate = await DB.prepare(`
-      SELECT id, name, email, phone, school, grade, diagnostic_memo, academy_id
+      SELECT id, name, email, phone, school, grade, diagnostic_memo, academy_id, academy_name
       FROM users 
       WHERE id = ?
     `).bind(studentId).first();
