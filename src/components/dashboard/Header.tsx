@@ -11,16 +11,22 @@ import {
   User,
   ChevronDown,
   Home,
+  ShoppingCart,
+  Sparkles,
 } from "lucide-react";
 
 interface User {
   name?: string | null;
   email?: string | null;
   image?: string | null;
+  role?: string | null;
 }
 
 export default function DashboardHeader({ user }: { user: User }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  
+  // 관리자 및 학원장만 AI 쇼핑몰 버튼 표시
+  const showStoreButton = user.role && ['SUPER_ADMIN', 'ADMIN', 'DIRECTOR'].includes(user.role.toUpperCase());
 
   return (
     <header className="bg-white border-b sticky top-0 z-40 lg:static">
@@ -31,6 +37,20 @@ export default function DashboardHeader({ user }: { user: User }) {
 
           {/* Right section - 반응형 간격 조정 */}
           <div className="flex items-center gap-2 sm:gap-4">
+            {/* AI 쇼핑몰 버튼 - 관리자/학원장만 표시 */}
+            {showStoreButton && (
+              <Link href="/store">
+                <Button 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+                  size="sm"
+                >
+                  <ShoppingCart className="h-4 w-4 animate-pulse" />
+                  <span className="hidden sm:inline font-semibold">AI 쇼핑몰</span>
+                  <Sparkles className="h-3 w-3 hidden md:inline animate-bounce" />
+                </Button>
+              </Link>
+            )}
+            
             {/* Home Button - 태블릿 이상에서만 텍스트 표시 */}
             <Link href="/">
               <Button variant="outline" size="sm" className="flex items-center gap-2">
