@@ -55,6 +55,30 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 할당된 봇 ID 조회
     console.log(`🔍 academyId ${academyId}에 할당된 봇 ID 조회 중...`);
+    
+    // 현재 시간 확인
+    const nowQuery = await db.prepare("SELECT datetime('now') as currentTime").first();
+    console.log(`⏰ 현재 서버 시간: ${nowQuery?.currentTime}`);
+    
+    // 모든 할당 조회 (만료 체크 전)
+    const allAssignments = await db.prepare(`
+      SELECT botId, expiresAt, isActive,
+             CASE 
+               WHEN expiresAt IS NULL THEN 'NO_EXPIRY'
+               WHEN datetime(expiresAt) > datetime('now') THEN 'VALID'
+               ELSE 'EXPIRED'
+             END as status
+      FROM bot_assignments
+      WHERE academyId = ?
+    `).bind(academyId).all();
+    
+    console.log(`📊 전체 할당 ${allAssignments.results?.length || 0}개 (만료 체크 전)`);
+    if (allAssignments.results && allAssignments.results.length > 0) {
+      allAssignments.results.forEach((a: any) => {
+        console.log(`  - botId: ${a.botId}, expiresAt: ${a.expiresAt}, isActive: ${a.isActive}, status: ${a.status}`);
+      });
+    }
+    
     const assignments = await db.prepare(`
       SELECT botId, expiresAt
       FROM bot_assignments
@@ -63,9 +87,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         AND (expiresAt IS NULL OR datetime(expiresAt) > datetime('now'))
     `).bind(academyId).all();
 
-    console.log(`📊 할당된 봇 ${assignments.results?.length || 0}개 발견`);
+    console.log(`📊 유효한 할당 ${assignments.results?.length || 0}개 (만료 체크 후)`);
     if (assignments.results && assignments.results.length > 0) {
-      console.log("📊 할당 목록:", assignments.results);
+      console.log("📊 유효한 할당 목록:", assignments.results);
     }
 
     if (!assignments.results || assignments.results.length === 0) {

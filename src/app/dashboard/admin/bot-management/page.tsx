@@ -82,6 +82,14 @@ export default function AdminBotManagementPage() {
     
     // 로그인한 모든 사용자에게 접근 허용
     fetchData();
+    
+    // 30초마다 자동 새로고침 (만료 상태 업데이트)
+    const interval = setInterval(() => {
+      console.log("🔄 자동 새로고침 (만료 상태 업데이트)");
+      fetchAssignments();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [router]);
 
   const fetchData = async () => {
@@ -228,6 +236,25 @@ export default function AdminBotManagementPage() {
   const isExpired = (expiresAt: string | null) => {
     if (!expiresAt) return false;
     return new Date(expiresAt) < new Date();
+  };
+
+  const getTimeRemaining = (expiresAt: string | null) => {
+    if (!expiresAt) return "무제한";
+    
+    const now = new Date();
+    const expiry = new Date(expiresAt);
+    const diff = expiry.getTime() - now.getTime();
+    
+    if (diff < 0) return "만료됨";
+    
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}일 남음`;
+    if (hours > 0) return `${hours}시간 남음`;
+    if (minutes > 0) return `${minutes}분 남음`;
+    return "1분 미만 남음";
   };
 
   if (loading) {
@@ -394,8 +421,24 @@ export default function AdminBotManagementPage() {
                           할당일: {new Date(assignment.assignedAt).toLocaleDateString()}
                         </span>
                         {assignment.expiresAt && (
-                          <span>
-                            만료일: {new Date(assignment.expiresAt).toLocaleDateString()}
+                          <>
+                            <span>
+                              만료일: {new Date(assignment.expiresAt).toLocaleDateString()} {new Date(assignment.expiresAt).toLocaleTimeString()}
+                            </span>
+                            <span className={`font-semibold ${
+                              isExpired(assignment.expiresAt) 
+                                ? 'text-red-600' 
+                                : getTimeRemaining(assignment.expiresAt).includes('분') || getTimeRemaining(assignment.expiresAt).includes('시간')
+                                  ? 'text-orange-600'
+                                  : 'text-blue-600'
+                            }`}>
+                              ({getTimeRemaining(assignment.expiresAt)})
+                            </span>
+                          </>
+                        )}
+                        {!assignment.expiresAt && (
+                          <span className="text-green-600 font-semibold">
+                            (무제한)
                           </span>
                         )}
                       </div>
@@ -479,6 +522,58 @@ export default function AdminBotManagementPage() {
                   onChange={(e) => setAssignExpiresAt(e.target.value)}
                   placeholder="만료일을 설정하지 않으면 무제한"
                 />
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const now = new Date();
+                      now.setMinutes(now.getMinutes() + 1);
+                      setAssignExpiresAt(now.toISOString().slice(0, 16));
+                    }}
+                    className="text-xs"
+                  >
+                    1분 후
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const now = new Date();
+                      now.setMinutes(now.getMinutes() + 5);
+                      setAssignExpiresAt(now.toISOString().slice(0, 16));
+                    }}
+                    className="text-xs"
+                  >
+                    5분 후
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const now = new Date();
+                      now.setHours(now.getHours() + 1);
+                      setAssignExpiresAt(now.toISOString().slice(0, 16));
+                    }}
+                    className="text-xs"
+                  >
+                    1시간 후
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setAssignExpiresAt("");
+                    }}
+                    className="text-xs"
+                  >
+                    무제한
+                  </Button>
+                </div>
                 <p className="text-xs text-gray-500 mt-1">
                   비워두면 무제한으로 사용할 수 있습니다
                 </p>

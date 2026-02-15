@@ -46,11 +46,26 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     console.log("🔍 할당 목록 조회 중...");
     
+    // 현재 시간 확인
+    const nowQuery = await db.prepare("SELECT datetime('now') as currentTime").first();
+    console.log(`⏰ 현재 서버 시간: ${nowQuery?.currentTime}`);
+    
     // 먼저 전체 데이터 확인
-    const allData = await db.prepare("SELECT * FROM bot_assignments").all();
+    const allData = await db.prepare(`
+      SELECT *,
+             CASE 
+               WHEN expiresAt IS NULL THEN 'NO_EXPIRY'
+               WHEN datetime(expiresAt) > datetime('now') THEN 'VALID'
+               ELSE 'EXPIRED'
+             END as expiryStatus
+      FROM bot_assignments
+    `).all();
+    
     console.log("📊 bot_assignments 테이블 전체 데이터:", allData.results?.length, "개");
     if (allData.results && allData.results.length > 0) {
-      console.log("📊 첫 번째 데이터:", allData.results[0]);
+      allData.results.forEach((d: any) => {
+        console.log(`  - ID: ${d.id}, academyId: ${d.academyId}, botId: ${d.botId}, expiresAt: ${d.expiresAt}, status: ${d.expiryStatus}`);
+      });
     }
     
     // 기본 쿼리 (JOIN 없이)
