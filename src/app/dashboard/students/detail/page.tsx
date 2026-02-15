@@ -103,6 +103,13 @@ function StudentDetailContent() {
   // 날짜 필터 상태 추가
   const [analysisStartDate, setAnalysisStartDate] = useState<string>("");
   const [analysisEndDate, setAnalysisEndDate] = useState<string>("");
+  
+  // 유사문제 출제 상태
+  const [showProblemModal, setShowProblemModal] = useState(false);
+  const [selectedConcepts, setSelectedConcepts] = useState<string[]>([]);
+  const [problemType, setProblemType] = useState<'concept' | 'pattern' | 'advanced'>('concept');
+  const [generatedProblems, setGeneratedProblems] = useState<any[]>([]);
+  const [generatingProblems, setGeneratingProblems] = useState(false);
 
   // 기본 날짜 설정 (최근 30일)
   useEffect(() => {
@@ -318,6 +325,60 @@ function StudentDetailContent() {
     }
   };
 
+  const generateSimilarProblems = async () => {
+    if (selectedConcepts.length === 0) {
+      alert('최소 1개 이상의 개념을 선택해주세요.');
+      return;
+    }
+
+    try {
+      setGeneratingProblems(true);
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(`/api/students/generate-problems`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentId,
+          concepts: selectedConcepts,
+          problemType,
+          studentName: student?.name || '학생'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '문제 생성에 실패했습니다.');
+      }
+
+      const data = await response.json();
+      setGeneratedProblems(data.problems || []);
+      setShowProblemModal(false);
+      
+      // 시험지 출력 모드로 전환
+      setTimeout(() => {
+        window.print();
+      }, 500);
+      
+    } catch (error: any) {
+      console.error("Failed to generate problems:", error);
+      alert('❌ ' + (error.message || "문제 생성 중 오류가 발생했습니다."));
+    } finally {
+      setGeneratingProblems(false);
+    }
+  };
+
+  const toggleConceptSelection = (concept: string) => {
+    setSelectedConcepts(prev => 
+      prev.includes(concept) 
+        ? prev.filter(c => c !== concept)
+        : [...prev, concept]
+    );
+  };
+
   const generateStudentCode = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -462,6 +523,15 @@ function StudentDetailContent() {
               <p className="text-sm sm:text-base text-gray-600 mt-1 truncate">{student.email}</p>
             </div>
           </div>
+          <Button
+            onClick={() => setShowProblemModal(true)}
+            disabled={weakConcepts.length === 0}
+            className="whitespace-nowrap"
+            size="sm"
+          >
+            <ClipboardCheck className="w-4 h-4 mr-2" />
+            유사문제 출제
+          </Button>
         </div>
 
         {/* Tabs */}
@@ -1117,6 +1187,202 @@ function StudentDetailContent() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* 유사문제 출제 모달 */}
+        {showProblemModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">유사문제 출제</h2>
+                  <button
+                    onClick={() => setShowProblemModal(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <XCircle className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* 문제 유형 선택 */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">문제 유형</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => setProblemType('concept')}
+                        className={`p-3 border-2 rounded-lg text-sm font-medium transition-colors ${
+                          problemType === 'concept'
+                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        개념 문제
+                      </button>
+                      <button
+                        onClick={() => setProblemType('pattern')}
+                        className={`p-3 border-2 rounded-lg text-sm font-medium transition-colors ${
+                          problemType === 'pattern'
+                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        유형 문제
+                      </button>
+                      <button
+                        onClick={() => setProblemType('advanced')}
+                        className={`p-3 border-2 rounded-lg text-sm font-medium transition-colors ${
+                          problemType === 'advanced'
+                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        심화 문제
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 개념 선택 */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">출제할 개념 선택</label>
+                    <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-3">
+                      {weakConcepts.map((concept, idx) => (
+                        <label
+                          key={idx}
+                          className="flex items-start gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedConcepts.includes(concept.concept)}
+                            onChange={() => toggleConceptSelection(concept.concept)}
+                            className="mt-1"
+                          />
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{concept.concept}</p>
+                            <p className="text-xs text-gray-600">{concept.description}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {selectedConcepts.length}개 선택됨
+                    </p>
+                  </div>
+
+                  {/* 버튼 */}
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowProblemModal(false)}
+                      disabled={generatingProblems}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      onClick={generateSimilarProblems}
+                      disabled={generatingProblems || selectedConcepts.length === 0}
+                    >
+                      {generatingProblems ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          생성 중...
+                        </>
+                      ) : (
+                        <>
+                          <ClipboardCheck className="w-4 h-4 mr-2" />
+                          문제 생성 및 인쇄
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 시험지 출력 영역 (인쇄 전용) */}
+        {generatedProblems.length > 0 && (
+          <div className="print:block hidden">
+            <style jsx global>{`
+              @media print {
+                body * {
+                  visibility: hidden;
+                }
+                .print-area, .print-area * {
+                  visibility: visible;
+                }
+                .print-area {
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  width: 100%;
+                }
+                @page {
+                  margin: 2cm;
+                }
+              }
+            `}</style>
+            <div className="print-area">
+              <div className="max-w-4xl mx-auto p-8 bg-white">
+                {/* 시험지 헤더 */}
+                <div className="border-b-2 border-black pb-4 mb-6">
+                  <h1 className="text-3xl font-bold text-center mb-2">
+                    {problemType === 'concept' ? '개념 확인 문제' : 
+                     problemType === 'pattern' ? '유형 문제' : '심화 문제'}
+                  </h1>
+                  <div className="flex justify-between text-sm mt-4">
+                    <div>
+                      <span className="font-semibold">학생명:</span> {student?.name}
+                    </div>
+                    <div>
+                      <span className="font-semibold">출제일:</span> {new Date().toLocaleDateString('ko-KR')}
+                    </div>
+                  </div>
+                  <div className="text-sm mt-2">
+                    <span className="font-semibold">출제 개념:</span> {selectedConcepts.join(', ')}
+                  </div>
+                </div>
+
+                {/* 문제 */}
+                <div className="space-y-8">
+                  {generatedProblems.map((problem, idx) => (
+                    <div key={idx} className="border border-gray-300 p-4 rounded">
+                      <div className="flex items-start gap-3">
+                        <span className="font-bold text-lg">{idx + 1}.</span>
+                        <div className="flex-1">
+                          <p className="text-base whitespace-pre-wrap mb-4">{problem.question}</p>
+                          
+                          {problem.options && problem.options.length > 0 && (
+                            <div className="space-y-2 ml-4">
+                              {problem.options.map((option: string, optIdx: number) => (
+                                <div key={optIdx} className="flex items-start gap-2">
+                                  <span>({optIdx + 1})</span>
+                                  <span>{option}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {problem.answerSpace && (
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                              <p className="text-sm text-gray-600 mb-2">풀이:</p>
+                              <div className="min-h-[100px] border border-gray-300 rounded"></div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 시험지 푸터 */}
+                <div className="mt-12 pt-4 border-t border-gray-300 text-sm text-gray-600">
+                  <p>※ 문제를 풀고 선생님께 제출해주세요.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
