@@ -1,161 +1,189 @@
-import { Env } from '../types';
+// Cloudflare Worker - Store Products API
+// D1 데이터베이스와 연동하여 제품 CRUD 작업 수행
 
-// GET: 모든 제품 조회
-export const onRequestGet = async (context: { request: Request; env: Env }) => {
-  const { env } = context;
+interface Env {
+  DB: D1Database;
+}
 
-  try {
-    const { results } = await env.DB.prepare(`
-      SELECT * FROM store_products 
-      ORDER BY display_order ASC, created_at DESC
-    `).all();
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      products: results || [] 
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error.message 
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-};
-
-// POST: 새 제품 추가
-export const onRequestPost = async (context: { request: Request; env: Env }) => {
+export async function onRequest(context: { request: Request; env: Env }) {
   const { request, env } = context;
+  const url = new URL(request.url);
+  const method = request.method;
 
-  try {
-    const data = await request.json();
-    const productId = `prod_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // CORS 헤더
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
 
-    await env.DB.prepare(`
-      INSERT INTO store_products (
-        id, name, category, description, price, discount_price,
-        image_url, featured, active, display_order, detail_html,
-        bot_id, keywords
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      productId,
-      data.name,
-      data.category,
-      data.description || '',
-      data.price || 0,
-      data.discount_price || 0,
-      data.image_url || '',
-      data.featured ? 1 : 0,
-      data.active ? 1 : 0,
-      data.display_order || 0,
-      data.detail_html || '',
-      data.bot_id || '',
-      data.keywords || ''
-    ).run();
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      productId,
-      message: '제품이 추가되었습니다.' 
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error.message 
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+  // OPTIONS 요청 처리
+  if (method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
-};
-
-// PUT: 제품 수정
-export const onRequestPut = async (context: { request: Request; env: Env }) => {
-  const { request, env } = context;
 
   try {
-    const data = await request.json();
-    const { id, ...updates } = data;
+    // GET - 모든 제품 조회
+    if (method === "GET" && url.pathname === "/api/admin/store-products") {
+      const { results } = await env.DB.prepare(
+        `SELECT * FROM StoreProduct ORDER BY displayOrder ASC, createdAt DESC`
+      ).all();
 
-    await env.DB.prepare(`
-      UPDATE store_products 
-      SET name = ?, category = ?, description = ?, price = ?, 
-          discount_price = ?, image_url = ?, featured = ?, active = ?,
-          display_order = ?, detail_html = ?, bot_id = ?, keywords = ?,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      updates.name,
-      updates.category,
-      updates.description,
-      updates.price,
-      updates.discount_price,
-      updates.image_url,
-      updates.featured ? 1 : 0,
-      updates.active ? 1 : 0,
-      updates.display_order,
-      updates.detail_html,
-      updates.bot_id,
-      updates.keywords,
-      id
-    ).run();
+      return new Response(
+        JSON.stringify({
+          products: results || [],
+          total: results?.length || 0,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: '제품이 수정되었습니다.' 
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error.message 
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-};
+    // POST - 제품 생성
+    if (method === "POST" && url.pathname === "/api/admin/store-products") {
+      const body = await request.json();
+      const {
+        name,
+        category,
+        section,
+        description,
+        shortDescription,
+        price,
+        monthlyPrice,
+        yearlyPrice,
+        features,
+        detailHtml,
+        imageUrl,
+        botId,
+        isActive,
+        isFeatured,
+        displayOrder,
+        keywords,
+        createdById,
+      } = body;
 
-// DELETE: 제품 삭제
-export const onRequestDelete = async (context: { request: Request; env: Env }) => {
-  const { request, env } = context;
+      // 필수 필드 검증
+      if (!name || !description || !category || !section || !createdById) {
+        return new Response(
+          JSON.stringify({ error: "Missing required fields" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
 
-  try {
-    const url = new URL(request.url);
-    const id = url.searchParams.get('id');
+      // ID 생성
+      const id = `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    if (!id) {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: '제품 ID가 필요합니다.' 
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
+      // features를 JSON 문자열로 변환
+      const featuresJson = Array.isArray(features)
+        ? JSON.stringify(features)
+        : null;
+
+      // 제품 생성
+      await env.DB.prepare(
+        `INSERT INTO StoreProduct (
+          id, name, category, section, description, shortDescription,
+          price, monthlyPrice, yearlyPrice, features, detailHtml, imageUrl, botId,
+          isActive, isFeatured, displayOrder, keywords, createdById, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      )
+        .bind(
+          id,
+          name,
+          category,
+          section,
+          description,
+          shortDescription || null,
+          price || 0,
+          monthlyPrice || null,
+          yearlyPrice || null,
+          featuresJson,
+          detailHtml || null,
+          imageUrl || null,
+          botId || null,
+          isActive !== undefined ? isActive : 1,
+          isFeatured !== undefined ? isFeatured : 0,
+          displayOrder || 0,
+          keywords || null,
+          createdById
+        )
+        .run();
+
+      // 생성된 제품 조회
+      const { results } = await env.DB.prepare(
+        `SELECT * FROM StoreProduct WHERE id = ?`
+      )
+        .bind(id)
+        .all();
+
+      const product = results && results.length > 0 ? results[0] : null;
+
+      return new Response(
+        JSON.stringify({
+          message: "Product created successfully",
+          product,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // GET - 특정 제품 조회
+    if (method === "GET" && url.pathname.match(/^\/api\/admin\/store-products\/(.+)$/)) {
+      const productId = url.pathname.split("/").pop();
+      
+      const { results } = await env.DB.prepare(
+        `SELECT * FROM StoreProduct WHERE id = ?`
+      )
+        .bind(productId)
+        .all();
+
+      const product = results && results.length > 0 ? results[0] : null;
+
+      if (!product) {
+        return new Response(JSON.stringify({ error: "Product not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ product }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    await env.DB.prepare(`DELETE FROM store_products WHERE id = ?`).bind(id).run();
+    // DELETE - 제품 삭제
+    if (method === "DELETE" && url.pathname.match(/^\/api\/admin\/store-products\/(.+)$/)) {
+      const productId = url.pathname.split("/").pop();
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: '제품이 삭제되었습니다.' 
-    }), {
-      headers: { 'Content-Type': 'application/json' }
+      await env.DB.prepare(`DELETE FROM StoreProduct WHERE id = ?`)
+        .bind(productId)
+        .run();
+
+      return new Response(
+        JSON.stringify({ message: "Product deleted successfully" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    return new Response(JSON.stringify({ error: "Not found" }), {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error.message 
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+  } catch (error) {
+    console.error("Error:", error);
+    return new Response(
+      JSON.stringify({ error: "Internal server error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
-};
+}

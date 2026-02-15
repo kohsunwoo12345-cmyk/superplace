@@ -1,79 +1,139 @@
-import { Env } from '../types';
+// Cloudflare Worker - D1 Database Setup for Store
+// AI 봇 쇼핑몰용 테이블 생성 스크립트
 
-export const onRequestPost = async (context: { request: Request; env: Env }) => {
+interface Env {
+  DB: D1Database;
+}
+
+export async function onRequest(context: { request: Request; env: Env }) {
   const { request, env } = context;
 
+  // CORS 헤더
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  // OPTIONS 요청 처리
+  if (request.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
-    // store_products 테이블 생성 (쇼핑몰 제품)
+    // StoreProduct 테이블 생성
     await env.DB.exec(`
-      CREATE TABLE IF NOT EXISTS store_products (
+      CREATE TABLE IF NOT EXISTS StoreProduct (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         category TEXT NOT NULL,
-        description TEXT,
-        price INTEGER,
-        discount_price INTEGER,
-        image_url TEXT,
-        featured INTEGER DEFAULT 0,
-        active INTEGER DEFAULT 1,
-        display_order INTEGER DEFAULT 0,
-        detail_html TEXT,
-        bot_id TEXT,
+        section TEXT NOT NULL,
+        description TEXT NOT NULL,
+        shortDescription TEXT,
+        price INTEGER NOT NULL DEFAULT 0,
+        monthlyPrice INTEGER,
+        yearlyPrice INTEGER,
+        features TEXT,
+        detailHtml TEXT,
+        imageUrl TEXT,
+        botId TEXT,
+        isActive INTEGER DEFAULT 1,
+        isFeatured INTEGER DEFAULT 0,
+        displayOrder INTEGER DEFAULT 0,
         keywords TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
+        createdById TEXT NOT NULL,
+        createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+        updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+      );
     `);
 
-    // bot_purchases 테이블 생성 (봇 구매 신청)
     await env.DB.exec(`
-      CREATE TABLE IF NOT EXISTS bot_purchases (
+      CREATE INDEX IF NOT EXISTS idx_store_product_category ON StoreProduct(category);
+    `);
+
+    await env.DB.exec(`
+      CREATE INDEX IF NOT EXISTS idx_store_product_active ON StoreProduct(isActive);
+    `);
+
+    await env.DB.exec(`
+      CREATE INDEX IF NOT EXISTS idx_store_product_featured ON StoreProduct(isFeatured);
+    `);
+
+    await env.DB.exec(`
+      CREATE INDEX IF NOT EXISTS idx_store_product_bot ON StoreProduct(botId);
+    `);
+
+    // PurchaseRequest 테이블 생성
+    await env.DB.exec(`
+      CREATE TABLE IF NOT EXISTS PurchaseRequest (
         id TEXT PRIMARY KEY,
-        product_id TEXT NOT NULL,
-        product_name TEXT NOT NULL,
-        academy_id TEXT,
-        director_name TEXT NOT NULL,
-        director_phone TEXT NOT NULL,
-        director_email TEXT NOT NULL,
-        payment_method TEXT NOT NULL,
-        subscription_period INTEGER NOT NULL,
-        total_amount INTEGER NOT NULL,
-        status TEXT DEFAULT 'pending',
-        approved_by TEXT,
-        approved_at DATETIME,
-        bot_assigned INTEGER DEFAULT 0,
-        bot_assignment_date DATETIME,
+        productId TEXT NOT NULL,
+        productName TEXT NOT NULL,
+        directorUserId TEXT NOT NULL,
+        directorName TEXT NOT NULL,
+        directorEmail TEXT NOT NULL,
+        directorPhone TEXT NOT NULL,
+        paymentMethod TEXT NOT NULL,
+        subscriptionMonths INTEGER NOT NULL,
+        totalPrice INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'PENDING',
         notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (product_id) REFERENCES store_products(id)
-      )
+        approvedById TEXT,
+        approvedAt TEXT,
+        rejectionReason TEXT,
+        botAssignmentId TEXT,
+        expiresAt TEXT,
+        createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+        updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+      );
     `);
 
-    // 인덱스 생성
     await env.DB.exec(`
-      CREATE INDEX IF NOT EXISTS idx_store_products_category ON store_products(category);
-      CREATE INDEX IF NOT EXISTS idx_store_products_featured ON store_products(featured);
-      CREATE INDEX IF NOT EXISTS idx_store_products_active ON store_products(active);
-      CREATE INDEX IF NOT EXISTS idx_bot_purchases_status ON bot_purchases(status);
-      CREATE INDEX IF NOT EXISTS idx_bot_purchases_academy ON bot_purchases(academy_id);
+      CREATE INDEX IF NOT EXISTS idx_purchase_request_product ON PurchaseRequest(productId);
     `);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: 'AI 봇 쇼핑몰 테이블이 생성되었습니다.' 
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    await env.DB.exec(`
+      CREATE INDEX IF NOT EXISTS idx_purchase_request_director ON PurchaseRequest(directorUserId);
+    `);
 
-  } catch (error: any) {
-    console.error('Database setup error:', error);
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error.message 
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    await env.DB.exec(`
+      CREATE INDEX IF NOT EXISTS idx_purchase_request_status ON PurchaseRequest(status);
+    `);
+
+    await env.DB.exec(`
+      CREATE INDEX IF NOT EXISTS idx_purchase_request_approved ON PurchaseRequest(approvedById);
+    `);
+
+    return new Response(
+      JSON.stringify({
+        message: "Store database tables created successfully",
+        tables: ["StoreProduct", "PurchaseRequest"],
+        indexes: [
+          "idx_store_product_category",
+          "idx_store_product_active",
+          "idx_store_product_featured",
+          "idx_store_product_bot",
+          "idx_purchase_request_product",
+          "idx_purchase_request_director",
+          "idx_purchase_request_status",
+          "idx_purchase_request_approved",
+        ],
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  } catch (error) {
+    console.error("Database setup error:", error);
+    return new Response(
+      JSON.stringify({
+        error: "Failed to create tables",
+        message: error.message,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
-};
+}
