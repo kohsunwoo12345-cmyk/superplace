@@ -90,32 +90,44 @@ export default function DirectorAISystemPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
+      const academyId = user.academyId; // 학원장의 academy_id
       
-      // 봇 목록 조회
-      const botsResponse = await fetch("/api/director/ai-bots", {
+      if (!academyId) {
+        console.error("❌ No academyId found for director");
+        alert("학원 정보를 찾을 수 없습니다");
+        return;
+      }
+
+      console.log(`📋 Loading data for academy ${academyId}`);
+      
+      // 봇 목록 조회 (학원에 할당된 봇만)
+      const botsResponse = await fetch(`/api/director/ai-bots?academyId=${academyId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (botsResponse.ok) {
         const botsData = await botsResponse.json();
         setBots(botsData.bots || []);
+        console.log(`✅ Loaded ${botsData.bots?.length || 0} bots`);
       }
       
-      // 학생 목록 조회
-      const studentsResponse = await fetch("/api/director/users?role=STUDENT", {
+      // 학생 목록 조회 (학원 소속 학생만)
+      const studentsResponse = await fetch(`/api/director/users?role=STUDENT&academyId=${academyId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (studentsResponse.ok) {
         const studentsData = await studentsResponse.json();
         setStudents(studentsData.users || []);
+        console.log(`✅ Loaded ${studentsData.users?.length || 0} students`);
       }
       
-      // 교사 목록 조회
-      const teachersResponse = await fetch("/api/director/users?role=TEACHER", {
+      // 교사 목록 조회 (학원 소속 교사만)
+      const teachersResponse = await fetch(`/api/director/users?role=TEACHER&academyId=${academyId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (teachersResponse.ok) {
         const teachersData = await teachersResponse.json();
         setTeachers(teachersData.users || []);
+        console.log(`✅ Loaded ${teachersData.users?.length || 0} teachers`);
       }
       
       // 할당 목록 조회
