@@ -52,7 +52,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         let botInfo = null;
         try {
           botInfo = await DB.prepare(`
-            SELECT name, profile_icon as profileIcon
+            SELECT name, profileIcon
             FROM ai_bots
             WHERE id = ?
           `).bind(assignment.botId).first();

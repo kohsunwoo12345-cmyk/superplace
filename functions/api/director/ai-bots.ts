@@ -83,12 +83,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         id,
         name,
         description,
-        profile_icon as profileIcon,
+        profileIcon,
         status,
-        is_active as isActive
+        isActive
       FROM ai_bots
       WHERE id IN (${placeholders})
-      ORDER BY created_at DESC
+      ORDER BY createdAt DESC
     `).bind(...botIds).all();
 
     console.log(`✅ Found ${bots.results?.length || 0} bots (before filtering):`, 
