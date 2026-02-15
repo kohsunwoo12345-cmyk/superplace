@@ -77,11 +77,21 @@ export default function DashboardPage() {
 
         if (endpoint) {
           const token = localStorage.getItem("token");
+          // academy_id와 academyId 둘 다 확인
+          const academyId = (userData as any).academy_id || userData.academyId || "";
+          
+          console.log('🔍 Dashboard - Academy ID:', academyId);
+          console.log('🔍 Dashboard - userData.academy_id:', (userData as any).academy_id);
+          console.log('🔍 Dashboard - userData.academyId:', userData.academyId);
+          
           const params = new URLSearchParams({
             userId: userData.id,
             role: userData.role,
-            academyId: userData.academyId || "",
+            academyId: academyId,
           });
+          
+          console.log('🔍 Dashboard - API call:', `${endpoint}?${params.toString()}`);
+          
           const response = await fetch(`${endpoint}?${params}`, {
             headers: {
               "Authorization": `Bearer ${token}`,
@@ -93,6 +103,8 @@ export default function DashboardPage() {
             setStats(data);
           } else {
             console.error('❌ Dashboard - Stats fetch failed:', response.status);
+            const errorText = await response.text();
+            console.error('❌ Dashboard - Error response:', errorText);
           }
         }
       } catch (error) {

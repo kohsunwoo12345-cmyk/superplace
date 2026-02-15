@@ -14,14 +14,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     console.log('📊 Director stats - academyId:', academyIdParam, 'role:', role, 'userId:', userId);
 
     if (!DB) {
+      console.error('❌ Database not configured');
       return new Response(JSON.stringify({ error: "Database not configured" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    if (!academyIdParam) {
-      return new Response(JSON.stringify({ error: "Academy ID required" }), {
+    if (!academyIdParam || academyIdParam === '' || academyIdParam === 'null' || academyIdParam === 'undefined') {
+      console.error('❌ Academy ID is missing or invalid:', academyIdParam);
+      return new Response(JSON.stringify({ 
+        error: "Academy ID required",
+        details: "학원장 계정에 academy_id가 설정되어 있지 않습니다. 관리자에게 문의하세요.",
+        receivedValue: academyIdParam
+      }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
