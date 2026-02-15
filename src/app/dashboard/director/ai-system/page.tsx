@@ -391,23 +391,37 @@ export default function DirectorAISystemPage() {
               </div>
 
               {/* 할당 버튼 */}
-              <Button
-                onClick={handleAssignBot}
-                disabled={assigning || !selectedBot || !selectedUser}
-                className="w-full"
-              >
-                {assigning ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    할당 중...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4 mr-2" />
-                    봇 할당하기
-                  </>
-                )}
-              </Button>
+              <div>
+                <Button
+                  onClick={handleAssignBot}
+                  disabled={assigning || !selectedBot || !selectedUser}
+                  className="w-full"
+                >
+                  {assigning ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      할당 중...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" />
+                      봇 할당하기
+                    </>
+                  )}
+                </Button>
+                
+                {/* 디버깅 정보 */}
+                <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+                  <p>🔍 디버깅 정보:</p>
+                  <p>• 로딩 중: {loading ? 'Yes' : 'No'}</p>
+                  <p>• 할당 중: {assigning ? 'Yes' : 'No'}</p>
+                  <p>• 봇 개수: {bots.length}개</p>
+                  <p>• 선택된 봇: {selectedBot || 'None'}</p>
+                  <p>• 사용자 개수: {userList.length}명</p>
+                  <p>• 선택된 사용자: {selectedUser || 'None'}</p>
+                  <p>• 버튼 활성화: {(!assigning && selectedBot && selectedUser) ? 'Yes ✅' : 'No ❌'}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
