@@ -38,14 +38,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const body: any = await context.request.json();
     const { name, email, password, phone, school, grade, diagnosticMemo, academyId, role } = body;
 
-    console.log('➕ Create student request:', { name, email, phone, school, grade, academyId, role });
+    console.log('➕ Create student request received');
+    console.log('📦 Request body:', JSON.stringify(body, null, 2));
+    console.log('🔍 Parsed fields:', { name, email, phone, school, grade, hasPassword: !!password, academyId, role });
 
     // 필수 필드 검증
     if (!name || !phone) {
+      console.error('❌ Missing required fields:', { name: !!name, phone: !!phone });
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Missing required fields: name, phone" 
+          error: "Missing required fields: name, phone",
+          received: { name: !!name, phone: !!phone }
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
@@ -53,10 +57,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 이메일과 비밀번호가 제공되었는지 확인
     if (!email || !password) {
+      console.error('❌ Missing auto-generated fields:', { email: !!email, password: !!password });
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Email and password are required (should be auto-generated on client)" 
+          error: "Email and password are required (should be auto-generated on client)",
+          received: { email: !!email, password: !!password }
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );

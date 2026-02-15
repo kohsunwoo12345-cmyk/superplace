@@ -67,31 +67,41 @@ export default function AddStudentPage() {
     setLoading(true);
 
     try {
+      const requestBody = {
+        name: name.trim(),
+        email: finalEmail,
+        password: finalPassword,
+        phone: phone.trim(),
+        school: school.trim() || null,
+        grade: grade.trim() || null,
+        diagnosticMemo: diagnosticMemo.trim() || null,
+        academyId: user.academyId,
+        role: user.role
+      };
+      
+      console.log("📤 학생 추가 요청:", requestBody);
+      
       const response = await fetch("/api/students/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: finalEmail,
-          password: finalPassword,
-          phone: phone.trim(),
-          school: school.trim() || null,
-          grade: grade.trim() || null,
-          diagnosticMemo: diagnosticMemo.trim() || null,
-          academyId: user.academyId,
-          role: user.role
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log("📥 응답 상태:", response.status);
+      
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Failed to create student");
+        console.error("❌ 학생 추가 실패:", error);
+        throw new Error(error.error || error.message || "Failed to create student");
       }
 
+      const result = await response.json();
+      console.log("✅ 학생 추가 성공:", result);
+      
       alert("학생이 추가되었습니다");
       router.push("/dashboard/students/");
     } catch (error: any) {
-      console.error("Failed to create student:", error);
+      console.error("💥 Failed to create student:", error);
       alert(`학생 추가 실패: ${error.message}`);
     } finally {
       setLoading(false);
