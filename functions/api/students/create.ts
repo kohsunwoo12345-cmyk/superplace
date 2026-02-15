@@ -136,6 +136,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       // 먼저 테이블 구조 확인
       let tableExists = false;
       let hasDiagnosticMemo = false;
+      let hasName = false;
+      let columns: any = null;
       
       try {
         const tableInfo = await DB.prepare(`
@@ -147,9 +149,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           console.log('✅ Students table exists');
           
           // 컬럼 확인
-          const columns = await DB.prepare(`PRAGMA table_info(students)`).all();
+          columns = await DB.prepare(`PRAGMA table_info(students)`).all();
           hasDiagnosticMemo = columns.results?.some((col: any) => col.name === 'diagnostic_memo') || false;
+          hasName = columns.results?.some((col: any) => col.name === 'name') || false;
           console.log('📋 Table columns:', columns.results?.map((c: any) => c.name).join(', '));
+          console.log('📋 Has name column:', hasName);
           console.log('📋 Has diagnostic_memo column:', hasDiagnosticMemo);
         }
       } catch (e) {
@@ -163,7 +167,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           CREATE TABLE IF NOT EXISTS students (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            name TEXT NOT NULL,
+            name TEXT,
             academy_id INTEGER,
             school TEXT,
             grade TEXT,
@@ -174,22 +178,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           )
         `).run();
         hasDiagnosticMemo = true;
+        hasName = true;
         console.log('✅ Students table created with name and diagnostic_memo');
       }
       
       // name 컬럼 확인 및 추가
-      if (tableExists) {
-        const hasName = columns.results?.some((col: any) => col.name === 'name') || false;
-        if (!hasName) {
-          console.log('📋 Adding name column...');
-          try {
-            await DB.prepare(`
-              ALTER TABLE students ADD COLUMN name TEXT
-            `).run();
-            console.log('✅ name column added');
-          } catch (e) {
-            console.log('⚠️ Could not add name column (may already exist):', e);
-          }
+      if (tableExists && !hasName) {
+        console.log('📋 Adding name column...');
+        try {
+          await DB.prepare(`
+            ALTER TABLE students ADD COLUMN name TEXT
+          `).run();
+          hasName = true;
+          console.log('✅ name column added');
+        } catch (e) {
+          console.log('⚠️ Could not add name column (may already exist):', e);
         }
       }
       
