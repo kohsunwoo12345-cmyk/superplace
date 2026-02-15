@@ -24,7 +24,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
   try {
     const body = await request.json();
-    const { studentId, concepts, problemTypes, problemCount, studentName } = body;
+    const { studentId, concepts, problemTypes, questionFormats, problemCount, studentName } = body;
 
     if (!studentId || !concepts || concepts.length === 0) {
       return new Response(
@@ -40,9 +40,15 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
+    // 기본값: 둘 다 선택
+    const formats = questionFormats && questionFormats.length > 0 
+      ? questionFormats 
+      : ['multiple_choice', 'open_ended'];
+
     console.log('📝 Generating problems for student:', studentId);
     console.log('🎯 Concepts:', concepts);
     console.log('📚 Problem types:', problemTypes);
+    console.log('📋 Question formats:', formats);
     console.log('🔢 Problem count:', problemCount);
 
     // 문제 유형별 설명
@@ -64,18 +70,31 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       throw new Error('GOOGLE_GEMINI_API_KEY is not configured');
     }
 
+    // 형식별 설명
+    const formatDescriptions: { [key: string]: string } = {
+      multiple_choice: '객관식 (4지선다)',
+      open_ended: '서술형 (주관식)'
+    };
+
+    const formatInstructions = formats.length === 2
+      ? 'Mix both multiple choice (4 options) and open-ended questions evenly'
+      : formats.includes('multiple_choice')
+      ? 'ALL problems should be multiple choice with 4 options'
+      : 'ALL problems should be open-ended (essay/short answer)';
+
     const prompt = `You are an educational content creator. Generate ${problemCount} practice problems for a student.
 
 Student Information:
 - Name: ${studentName}
 - Weak Concepts: ${concepts.join(', ')}
 - Problem Types to Include: ${problemTypes.map((t: string) => typeDescriptions[t]).join(', ')}
+- Question Formats: ${formats.map((f: string) => formatDescriptions[f]).join(', ')}
 - Total Problems: ${problemCount}
 
 Distribution:
 - Mix problems evenly across selected types: ${problemTypes.join(', ')}
 - Each problem should focus on one of the weak concepts
-- Include both multiple choice and open-ended questions
+- ${formatInstructions}
 
 Requirements for EACH problem:
 1. Set "type" field to one of: ${problemTypes.map((t: string) => `"${t}"`).join(', ')}
@@ -109,6 +128,9 @@ Rules:
 - Ensure answers are correct and complete
 - Provide detailed explanations (3-5 sentences)
 - Balance problem types according to selected types
+${formats.length === 1 && formats.includes('multiple_choice') ? '- ALL problems MUST be multiple choice with exactly 4 options' : ''}
+${formats.length === 1 && formats.includes('open_ended') ? '- ALL problems MUST be open-ended (options: null, answerSpace: true)' : ''}
+${formats.length === 2 ? '- Mix multiple choice and open-ended questions approximately 50/50' : ''}
 - NO markdown formatting, NO code blocks, ONLY the JSON object`;
 
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;

@@ -114,6 +114,7 @@ function StudentDetailContent() {
   const [showProblemModal, setShowProblemModal] = useState(false);
   const [selectedConcepts, setSelectedConcepts] = useState<string[]>([]);
   const [selectedProblemTypes, setSelectedProblemTypes] = useState<string[]>(['concept']);
+  const [selectedQuestionFormats, setSelectedQuestionFormats] = useState<string[]>(['multiple_choice', 'open_ended']); // 문제 형식
   const [problemCount, setProblemCount] = useState<number>(5);
   const [generatedProblems, setGeneratedProblems] = useState<any[]>([]);
   const [generatingProblems, setGeneratingProblems] = useState(false);
@@ -388,6 +389,11 @@ function StudentDetailContent() {
       return;
     }
 
+    if (selectedQuestionFormats.length === 0) {
+      alert('최소 1개 이상의 문제 형식을 선택해주세요.');
+      return;
+    }
+
     try {
       setGeneratingProblems(true);
       const token = localStorage.getItem("token");
@@ -402,6 +408,7 @@ function StudentDetailContent() {
           studentId,
           concepts: selectedConcepts,
           problemTypes: selectedProblemTypes,
+          questionFormats: selectedQuestionFormats, // 문제 형식 추가
           problemCount,
           studentName: student?.name || '학생'
         }),
@@ -442,6 +449,14 @@ function StudentDetailContent() {
       prev.includes(type)
         ? prev.filter(t => t !== type)
         : [...prev, type]
+    );
+  };
+
+  const toggleQuestionFormat = (format: string) => {
+    setSelectedQuestionFormats(prev =>
+      prev.includes(format)
+        ? prev.filter(f => f !== format)
+        : [...prev, format]
     );
   };
 
@@ -1350,6 +1365,37 @@ function StudentDetailContent() {
                     </p>
                   </div>
 
+                  {/* 문제 형식 선택 (객관식/서술형) */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">문제 형식 (여러 개 선택 가능)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => toggleQuestionFormat('multiple_choice')}
+                        className={`p-3 border-2 rounded-lg text-sm font-medium transition-colors ${
+                          selectedQuestionFormats.includes('multiple_choice')
+                            ? 'border-green-600 bg-green-50 text-green-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        {selectedQuestionFormats.includes('multiple_choice') && '✓ '}객관식 (4지선다)
+                      </button>
+                      <button
+                        onClick={() => toggleQuestionFormat('open_ended')}
+                        className={`p-3 border-2 rounded-lg text-sm font-medium transition-colors ${
+                          selectedQuestionFormats.includes('open_ended')
+                            ? 'border-green-600 bg-green-50 text-green-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        {selectedQuestionFormats.includes('open_ended') && '✓ '}서술형 (주관식)
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {selectedQuestionFormats.length}개 형식 선택됨
+                      {selectedQuestionFormats.length === 2 && ' · 객관식과 서술형 혼합 출제'}
+                    </p>
+                  </div>
+
                   {/* 문제 수 설정 */}
                   <div>
                     <label className="block text-sm font-semibold mb-2">문제 수</label>
@@ -1404,7 +1450,7 @@ function StudentDetailContent() {
                     </Button>
                     <Button
                       onClick={generateSimilarProblems}
-                      disabled={generatingProblems || selectedConcepts.length === 0 || selectedProblemTypes.length === 0}
+                      disabled={generatingProblems || selectedConcepts.length === 0 || selectedProblemTypes.length === 0 || selectedQuestionFormats.length === 0}
                     >
                       {generatingProblems ? (
                         <>
