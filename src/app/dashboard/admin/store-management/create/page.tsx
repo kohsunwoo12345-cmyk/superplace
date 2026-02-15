@@ -24,6 +24,9 @@ export default function CreateStoreProductPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [availableBots, setAvailableBots] = useState<any[]>([]);
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  
   const [formData, setFormData] = useState({
     name: "",
     category: "academy_operation",
@@ -74,6 +77,20 @@ export default function CreateStoreProductPage() {
     }
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setImagePreview(base64String);
+        setFormData((prev) => ({ ...prev, imageUrl: base64String }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -84,41 +101,31 @@ export default function CreateStoreProductPage() {
 
     setLoading(true);
 
-    alert("제품 생성 API가 Cloudflare Worker에서 구현되어야 합니다. 데이터베이스 스키마는 준비되었습니다.");
-    console.log("제품 데이터:", {
-      ...formData,
-      features: formData.features ? formData.features.split("\n").filter((f) => f.trim()) : [],
-      createdById: user.id,
-    });
-    setLoading(false);
-    
-    // TODO: Cloudflare Worker API 연결
-    // try {
-    //   const response = await fetch("/api/admin/store/products", {
-    //     method: "POST",
-    //     headers: {
-    //       "Content-Type": "application/json",
-    //     },
-    //     body: JSON.stringify({
-    //       ...formData,
-    //       features: formData.features ? formData.features.split("\n").filter((f) => f.trim()) : [],
-    //       createdById: user.id,
-    //     }),
-    //   });
-
-    //   if (response.ok) {
-    //     alert("제품이 성공적으로 생성되었습니다.");
-    //     router.push("/dashboard/admin/store-management");
-    //   } else {
-    //     const error = await response.json();
-    //     alert(`제품 생성에 실패했습니다: ${error.error}`);
-    //   }
-    // } catch (error) {
-    //   console.error("Error creating product:", error);
-    //   alert("오류가 발생했습니다.");
-    // } finally {
-    //   setLoading(false);
-    // }
+    try {
+      // localStorage에 제품 저장 (임시 솔루션)
+      const existingProducts = localStorage.getItem("storeProducts");
+      const products = existingProducts ? JSON.parse(existingProducts) : [];
+      
+      const newProduct = {
+        id: `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        ...formData,
+        features: formData.features ? formData.features.split("\n").filter((f) => f.trim()) : [],
+        createdById: user.id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      products.push(newProduct);
+      localStorage.setItem("storeProducts", JSON.stringify(products));
+      
+      alert("제품이 성공적으로 생성되었습니다!");
+      router.push("/dashboard/admin/store-management");
+    } catch (error) {
+      console.error("Error creating product:", error);
+      alert("오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -348,21 +355,61 @@ export default function CreateStoreProductPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">이미지 URL</label>
+                <label className="block text-sm font-medium mb-2">제품 이미지</label>
+                
+                {/* 이미지 미리보기 */}
+                {imagePreview && (
+                  <div className="mb-4">
+                    <img
+                      src={imagePreview}
+                      alt="제품 이미지 미리보기"
+                      className="w-full h-64 object-cover rounded-lg border-2 border-gray-200"
+                    />
+                  </div>
+                )}
+                
                 <div className="flex gap-2">
                   <input
                     type="text"
                     name="imageUrl"
-                    value={formData.imageUrl}
+                    value={formData.imageUrl && !imagePreview ? formData.imageUrl : ""}
                     onChange={handleChange}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://example.com/image.jpg"
+                    placeholder="또는 이미지 URL 입력"
+                    disabled={!!imagePreview}
                   />
-                  <Button type="button" variant="outline">
+                  <input
+                    type="file"
+                    id="imageUpload"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => document.getElementById('imageUpload')?.click()}
+                  >
                     <ImageIcon className="h-4 w-4 mr-2" />
-                    업로드
+                    {imagePreview ? "변경" : "업로드"}
                   </Button>
+                  {imagePreview && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setImagePreview("");
+                        setImageFile(null);
+                        setFormData((prev) => ({ ...prev, imageUrl: "" }));
+                      }}
+                    >
+                      삭제
+                    </Button>
+                  )}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  이미지 파일을 업로드하거나 URL을 입력하세요
+                </p>
               </div>
 
               <div>

@@ -77,19 +77,14 @@ export default function StoreManagementPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      // TODO: Cloudflare Worker API로 교체 필요
-      // const response = await fetch("/api/admin/store/products");
-      // if (response.ok) {
-      //   const data = await response.json();
-      //   setProducts(data.products || []);
-      //   setFilteredProducts(data.products || []);
-      //   calculateStats(data.products || []);
-      // }
       
-      // 임시 mock 데이터
-      setProducts([]);
-      setFilteredProducts([]);
-      calculateStats([]);
+      // localStorage에서 제품 읽기
+      const storedProducts = localStorage.getItem("storeProducts");
+      const products = storedProducts ? JSON.parse(storedProducts) : [];
+      
+      setProducts(products);
+      setFilteredProducts(products);
+      calculateStats(products);
     } catch (error) {
       console.error("Failed to fetch products:", error);
     } finally {
@@ -133,16 +128,32 @@ export default function StoreManagementPage() {
       return;
     }
 
-    alert("API 구현이 필요합니다. Cloudflare Worker에서 구현 예정.");
-    // TODO: Cloudflare Worker API 연결
-    // const response = await fetch(`/api/admin/store/products/${productId}`, {
-    //   method: "DELETE",
-    // });
+    try {
+      const storedProducts = localStorage.getItem("storeProducts");
+      const products = storedProducts ? JSON.parse(storedProducts) : [];
+      const updatedProducts = products.filter((p: any) => p.id !== productId);
+      localStorage.setItem("storeProducts", JSON.stringify(updatedProducts));
+      
+      alert("제품이 삭제되었습니다.");
+      fetchProducts();
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      alert("오류가 발생했습니다.");
+    }
   };
 
   const toggleActive = async (productId: string, currentStatus: number) => {
-    alert("API 구현이 필요합니다. Cloudflare Worker에서 구현 예정.");
-    // TODO: Cloudflare Worker API 연결
+    try {
+      const storedProducts = localStorage.getItem("storeProducts");
+      const products = storedProducts ? JSON.parse(storedProducts) : [];
+      const updatedProducts = products.map((p: any) => 
+        p.id === productId ? { ...p, isActive: currentStatus === 1 ? 0 : 1 } : p
+      );
+      localStorage.setItem("storeProducts", JSON.stringify(updatedProducts));
+      fetchProducts();
+    } catch (error) {
+      console.error("Error toggling active status:", error);
+    }
   };
 
   const getCategoryLabel = (category: string) => {

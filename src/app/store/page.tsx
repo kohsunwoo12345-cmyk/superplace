@@ -18,6 +18,7 @@ const AIStorePage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
   const [sliderPositions, setSliderPositions] = useState<{ [key: string]: number }>({
     section1: 0,
     section2: 0,
@@ -29,8 +30,42 @@ const AIStorePage = () => {
     section3: false,
   });
 
-  // 제품 데이터
-  const products: Product[] = [
+  // localStorage에서 제품 불러오기
+  useEffect(() => {
+    const storedProducts = localStorage.getItem("storeProducts");
+    if (storedProducts) {
+      const parsedProducts = JSON.parse(storedProducts);
+      // 활성화된 제품만 필터링
+      const activeProducts = parsedProducts
+        .filter((p: any) => p.isActive === 1)
+        .map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          description: p.shortDescription || p.description,
+          price: p.monthlyPrice ? `${p.monthlyPrice.toLocaleString()}원/월` : '문의',
+          category: getCategoryLabel(p.category),
+          imageUrl: p.imageUrl || '/api/placeholder/400/480',
+          keywords: p.keywords ? p.keywords.split(',').map((k: string) => k.trim()) : [],
+          featured: p.isFeatured === 1,
+        }));
+      setProducts(activeProducts);
+    } else {
+      // 기본 제품 데이터 (localStorage에 저장)
+      const defaultProducts = getDefaultProducts();
+      setProducts(defaultProducts);
+    }
+  }, []);
+
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      academy_operation: '학원 운영',
+      marketing_blog: '마케팅 & 블로그',
+      expert: '전문가',
+    };
+    return labels[category] || category;
+  };
+
+  const getDefaultProducts = () => [
     // 학원 운영 봇
     {
       id: '1',
