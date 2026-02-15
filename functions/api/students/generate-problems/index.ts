@@ -95,13 +95,13 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     const typeDescriptions: { [key: string]: string } = {
       concept: '개념을 정확히 이해했는지 확인하는 기본 문제',
       pattern: '실제 시험에 자주 나오는 유형의 문제',
-      advanced: '개념을 응용하고 확장한 심화 문제'
+      advanced: '쎈(SSEN) 심화 유형 - 창의적 사고와 복합적 개념 적용이 필요한 고난도 문제'
     };
 
     const typeExamples: { [key: string]: string } = {
       concept: '개념의 정의를 묻거나 간단한 계산 문제',
       pattern: '여러 단계를 거쳐 풀어야 하는 응용 문제',
-      advanced: '창의적 사고가 필요한 종합 문제'
+      advanced: '쎈 심화 유형 - 여러 개념을 복합적으로 활용하고 창의적 접근이 필요한 문제 (예: 도형과 방정식 결합, 복잡한 응용 문제, 수학적 추론 문제)'
     };
 
     // Gemini API 호출
@@ -214,6 +214,62 @@ Distribution Requirements:
 - Grade level: ${gradeLevel || 'medium'}
 - **Subject: ${finalSubject} - EVERY SINGLE PROBLEM MUST BE THIS SUBJECT**
 
+${problemTypes.includes('advanced') ? `
+**🔥🔥🔥 SPECIAL REQUIREMENTS FOR "advanced" (심화) PROBLEMS 🔥🔥🔥**
+
+For problems with type: "advanced", you MUST follow 쎈(SSEN) 심화 문제 유형 style:
+
+1. **복합 개념 적용 (Multiple Concept Integration)**
+   - Combine 2-3 concepts from the student's weak areas
+   - Require multi-step reasoning and problem-solving
+   - Example (수학): "이차방정식과 도형의 넓이를 결합한 문제"
+   - Example (수학): "함수와 부등식을 동시에 활용하는 문제"
+
+2. **쎈 심화 유형 특징 (SSEN Advanced Problem Characteristics)**
+   - 단순 공식 적용이 아닌 창의적 사고 요구
+   - 여러 단계의 논리적 추론 필요
+   - 학생의 자주 틀리는 유형을 심화 난이도로 출제
+   - 실생활 응용 또는 복잡한 조건이 포함된 문제
+
+3. **난이도 설정 (Difficulty Level)**
+   - MUST set "difficulty": "hard" for ALL advanced problems
+   - Problem complexity should be significantly higher than concept/pattern types
+   - Require 3-5 solution steps (not 1-2 simple steps)
+
+4. **쎈 심화 예시 스타일 (SSEN Advanced Example Styles)**
+   
+   수학 예시:
+   - "이차방정식 x² - (k+1)x + k = 0의 두 근의 차가 3일 때, 상수 k의 값을 구하시오."
+   - "직사각형 ABCD에서 AB=x, BC=x+2이고, 넓이가 48일 때 x의 값을 구하시오."
+   - "함수 f(x) = ax² + bx + c가 x=2에서 최솟값 -1을 가질 때, a+b+c의 값을 구하시오."
+   
+   영어 예시:
+   - "다음 글의 빈칸에 들어갈 말로 가장 적절한 것은? (복합 문맥 추론)"
+   - "주어진 단락을 읽고 필자의 의도를 추론하시오. (심층 독해)"
+   
+   국어 예시:
+   - "다음 시의 표현 기법과 주제 의식을 연결하여 분석하시오. (복합 문학 분석)"
+   - "주어진 글의 논리 구조를 파악하고 빈칸 추론하시오. (고급 독해)"
+
+5. **학생의 약점 반영 (Student's Weak Areas)**
+   - Focus on concepts where student frequently makes mistakes: ${concepts.join(', ')}
+   - Create problems that specifically target these weak areas at advanced level
+   - Make the problem complex enough to challenge but solvable with proper understanding
+
+6. **풀이 과정 상세화 (Detailed Solution Process)**
+   - Explanation MUST include 3-5 detailed steps
+   - Show complete mathematical reasoning or logical flow
+   - Explain WHY each step is necessary (not just HOW)
+
+**쎈 심화 문제 생성 체크리스트:**
+- [ ] Does it combine multiple concepts? ✓
+- [ ] Does it require creative/logical thinking beyond formulas? ✓
+- [ ] Is difficulty set to "hard"? ✓
+- [ ] Does it target student's weak areas at advanced level? ✓
+- [ ] Does explanation show 3-5 detailed reasoning steps? ✓
+- [ ] Is it similar to 쎈 심화 problem style? ✓
+` : ''}
+
 Requirements for EACH problem:
 1. Set "type" field to one of: ${problemTypes.map((t: string) => `"${t}"`).join(', ')}
 2. Set "concept" to the specific weak concept being tested
@@ -259,6 +315,7 @@ Return this EXACT JSON structure:
 10. For 객관식: answer is "1번" or "2번" or "3번" or "4번" or "5번" (NOT 1, 2, 3, 4, 5)
 11. For 주관식: answer is actual text (NOT "1번", NOT a number)
 12. **CRITICAL**: For math calculation problems, provide SPECIFIC NUMERIC answers (e.g., "1+2=?" → options: ["1번: 1", "2번: 2", "3번: 3", "4번: 13", "5번: 20"])
+${problemTypes.includes('advanced') ? `13. **CRITICAL FOR ADVANCED**: All "advanced" type problems MUST follow 쎈 심화 style - combine multiple concepts, require creative thinking, set difficulty: "hard", provide 3-5 step detailed explanation` : ''}
 
 **FINAL CHECK BEFORE RETURNING:**
 - Count problems array length = ${problemCount}? ✓
@@ -270,7 +327,10 @@ Return this EXACT JSON structure:
 - All 주관식 have answerSpace: true? ✓
 - All 주관식 answers are text? ✓
 - All subjects are ${finalSubject}? ✓
-- Math problems have SPECIFIC NUMERIC options? ✓`;
+- Math problems have SPECIFIC NUMERIC options? ✓
+${problemTypes.includes('advanced') ? `- All "advanced" problems follow 쎈 심화 style (복합 개념, 창의적 사고, difficulty: "hard")? ✓
+- All "advanced" problems have 3-5 step detailed explanations? ✓
+- All "advanced" problems target student's weak areas at advanced level? ✓` : ''}`;
 
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
