@@ -138,7 +138,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'homework', href: '/dashboard/homework/student', icon: Award, text: '오늘의 숙제' },
           { id: 'attendance-record', href: '/dashboard/attendance-statistics', icon: Calendar, text: '출석 기록' },
           { id: 'classes', href: '/dashboard/classes', icon: BookOpen, text: '내 수업' },
-          { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, text: 'AI 튜터', badge: 1 },
+          { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, text: 'AI 튜터' },
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
         ];
       default:
