@@ -14,6 +14,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const school = url.searchParams.get('school');
     const grade = url.searchParams.get('grade');
     const diagnosticMemo = url.searchParams.get('diagnosticMemo') || '';
+    const academyName = url.searchParams.get('academyName');
 
     if (!DB) {
       return new Response(JSON.stringify({ error: "Database not configured" }), {
@@ -73,6 +74,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log("ℹ️ diagnostic_memo column already exists");
     }
 
+    try {
+      await DB.prepare(`ALTER TABLE users ADD COLUMN academy_name TEXT`).run();
+      console.log("✅ Added academy_name column");
+    } catch (e) {
+      console.log("ℹ️ academy_name column already exists");
+    }
+
     // 3. 강제 업데이트
     const updates: string[] = [];
     const values: any[] = [];
@@ -88,6 +96,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (diagnosticMemo) {
       updates.push("diagnostic_memo = ?");
       values.push(diagnosticMemo);
+    }
+    if (academyName) {
+      updates.push("academy_name = ?");
+      values.push(academyName);
     }
 
     // academy_id가 없으면 기본값 설정

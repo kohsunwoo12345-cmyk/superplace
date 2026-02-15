@@ -892,7 +892,7 @@ function StudentDetailContent() {
               </CardContent>
             </Card>
 
-            {/* 학생 식별 코드 (기존) */}
+            {/* 학생 식별 코드 - QR 코드 제거 버전 */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
