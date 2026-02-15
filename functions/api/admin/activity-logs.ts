@@ -57,16 +57,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
       const loginLogs = await DB.prepare(`
         SELECT 
-          id,
-          loginAt as timestamp,
-          CASE WHEN success = 1 THEN 'success' ELSE 'error' END as level,
+          ull.id,
+          ull.loginAt as timestamp,
+          CASE WHEN ull.success = 1 THEN 'success' ELSE 'error' END as level,
           'login' as category,
-          (SELECT email FROM users WHERE id = userId) as user,
-          CASE WHEN success = 1 THEN '로그인 성공' ELSE '로그인 실패' END as action,
-          ip,
-          reason as details
-        FROM user_login_logs
-        ORDER BY loginAt DESC
+          COALESCE(u.email, u.phone, 'unknown') as user,
+          COALESCE(u.name, u.email, u.phone, 'unknown') as userName,
+          CASE WHEN ull.success = 1 THEN '로그인 성공' ELSE '로그인 실패' END as action,
+          ull.ip,
+          ('사용자: ' || COALESCE(u.name, u.email, u.phone, 'unknown') || ', IP: ' || ull.ip || CASE WHEN ull.userAgent IS NOT NULL THEN ', 브라우저: ' || ull.userAgent ELSE '' END) as details
+        FROM user_login_logs ull
+        LEFT JOIN users u ON ull.userId = u.id
+        ORDER BY ull.loginAt DESC
         LIMIT 100
       `).all();
 
@@ -153,18 +155,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log("⚠️ users 테이블 없음:", e);
     }
 
-    // 5. 페이지 조회 로그
+    // 5. 접속자 로그 (페이지 조회)
     try {
       const pageViewLogs = await DB.prepare(`
         SELECT 
           id,
           timestamp,
           'info' as level,
-          'page_view' as category,
+          'visitor' as category,
           user_email as user,
-          action,
+          page_title || ' 접속' as action,
           ip,
-          details
+          ('사용자: ' || CASE WHEN user_email = 'guest' THEN '비회원' ELSE user_email END || ', IP: ' || COALESCE(ip, 'N/A') || ', 페이지: ' || page_path) as details
         FROM page_view_logs
         ORDER BY timestamp DESC
         LIMIT 100
@@ -172,11 +174,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
       if (pageViewLogs.results) {
         logs.push(...pageViewLogs.results.map((r: any) => ({
-          id: `page-${r.id}`,
+          id: `visitor-${r.id}`,
           timestamp: r.timestamp,
           level: r.level,
           category: r.category,
-          user: r.user || 'unknown',
+          user: r.user === 'guest' ? '비회원' : (r.user || '비회원'),
           action: r.action,
           ip: r.ip || 'N/A',
           details: r.details || ''

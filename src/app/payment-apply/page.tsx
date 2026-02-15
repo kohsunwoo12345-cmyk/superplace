@@ -51,43 +51,11 @@ export default function PaymentApplyPage() {
           phone: userData.phone || "",
           email: userData.email || ""
         }));
-
-        // 페이지 진입 로그 기록
-        logPageView(userData);
       } catch (e) {
         console.error("사용자 정보 파싱 실패:", e);
       }
-    } else {
-      // 비로그인 사용자도 로그 기록
-      logPageView(null);
     }
   }, []);
-
-  const logPageView = async (userData: any) => {
-    try {
-      const token = localStorage.getItem("token");
-      await fetch("/api/admin/page-view-log", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: JSON.stringify({
-          user_email: userData?.email || "guest",
-          user_id: userData?.id?.toString() || null,
-          page_path: "/payment-apply",
-          page_title: "결제 신청",
-          action: "결제 페이지 조회",
-          details: userData 
-            ? `사용자 ${userData.name || userData.email}이(가) 결제 신청 페이지에 접속했습니다`
-            : "비로그인 사용자가 결제 신청 페이지에 접속했습니다",
-        }),
-      });
-      console.log("📝 결제 페이지 조회 로그 기록됨");
-    } catch (error) {
-      console.error("페이지 조회 로그 기록 실패:", error);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!formData.academyName.trim() || !formData.directorName.trim() || !formData.phone.trim() || !formData.planName.trim() || !formData.amount.trim()) {

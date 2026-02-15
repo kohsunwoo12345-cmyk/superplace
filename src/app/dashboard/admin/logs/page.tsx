@@ -45,37 +45,8 @@ export default function LogsPage() {
       return;
     }
 
-    const user = JSON.parse(userStr);
-
-    // 페이지 진입 로그 기록
-    logPageView(user);
-
     loadLogs();
   }, [router]);
-
-  const logPageView = async (user: any) => {
-    try {
-      const token = localStorage.getItem("token");
-      await fetch("/api/admin/page-view-log", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          user_email: user.email,
-          user_id: user.id?.toString(),
-          page_path: "/dashboard/admin/logs",
-          page_title: "관리자 활동 로그",
-          action: "페이지 조회",
-          details: `관리자 ${user.name || user.email}이(가) 활동 로그 페이지에 접속했습니다`,
-        }),
-      });
-      console.log("📝 페이지 조회 로그 기록됨");
-    } catch (error) {
-      console.error("페이지 조회 로그 기록 실패:", error);
-    }
-  };
 
   const loadLogs = async () => {
     try {
@@ -152,7 +123,7 @@ export default function LogsPage() {
         return <UserPlus className="w-4 h-4" />;
       case "purchase":
         return <ShoppingCart className="w-4 h-4" />;
-      case "page_view":
+      case "visitor":
         return <Eye className="w-4 h-4" />;
       default:
         return <Info className="w-4 h-4" />;
@@ -185,7 +156,7 @@ export default function LogsPage() {
   const loginStats = getCategoryStats("login");
   const signupStats = getCategoryStats("signup");
   const purchaseStats = getCategoryStats("purchase");
-  const pageViewStats = getCategoryStats("page_view");
+  const visitorStats = getCategoryStats("visitor");
 
   if (loading) {
     return (
@@ -328,9 +299,9 @@ export default function LogsPage() {
             <ShoppingCart className="w-4 h-4 mr-1" />
             구매
           </TabsTrigger>
-          <TabsTrigger value="page_view">
+          <TabsTrigger value="visitor">
             <Eye className="w-4 h-4 mr-1" />
-            페이지 뷰
+            접속자
           </TabsTrigger>
         </TabsList>
 
@@ -343,7 +314,7 @@ export default function LogsPage() {
                 {activeTab === "login" && "로그인 로그"}
                 {activeTab === "signup" && "회원가입 로그"}
                 {activeTab === "purchase" && "구매 로그"}
-                {activeTab === "page_view" && "페이지 조회 로그"}
+                {activeTab === "visitor" && "접속자 로그"}
               </CardTitle>
               <CardDescription>
                 {filteredLogs.length}개의 로그 항목
