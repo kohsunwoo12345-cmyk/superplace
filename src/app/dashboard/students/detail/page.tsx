@@ -156,6 +156,19 @@ function StudentDetailContent() {
       if (userResponse.ok) {
         const userData = await userResponse.json();
         const studentData = userData.user || userData;
+        
+        console.log("📥 Received student data:", studentData);
+        console.log("📋 Student fields:", {
+          id: studentData.id,
+          name: studentData.name,
+          phone: studentData.phone,
+          email: studentData.email,
+          academyName: studentData.academyName,
+          school: studentData.school,
+          grade: studentData.grade,
+          diagnostic_memo: studentData.diagnostic_memo
+        });
+        
         setStudent(studentData);
         
         // student_code가 없으면 자동 생성
@@ -592,7 +605,7 @@ function StudentDetailContent() {
 
                   <div className="flex items-start gap-3">
                     <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm text-gray-500">전화번호</p>
                       <p className="font-medium">{student.phone || '미등록'}</p>
                     </div>
@@ -600,7 +613,7 @@ function StudentDetailContent() {
 
                   <div className="flex items-start gap-3">
                     <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm text-gray-500">이메일</p>
                       <p className="font-medium">
                         {student.email?.includes('@temp.student.local') 
@@ -610,55 +623,48 @@ function StudentDetailContent() {
                     </div>
                   </div>
 
-                  {student.school && (
-                    <div className="flex items-start gap-3">
-                      <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div>
-                        <p className="text-sm text-gray-500">학교</p>
-                        <p className="font-medium">{student.school}</p>
-                      </div>
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500">소속 학교</p>
+                      <p className="font-medium">{student.school || '미등록'}</p>
                     </div>
-                  )}
+                  </div>
 
-                  {student.grade && (
-                    <div className="flex items-start gap-3">
-                      <Badge variant="outline" className="mt-0.5">
-                        {student.grade}
-                      </Badge>
-                      <div>
-                        <p className="text-sm text-gray-500">학년</p>
-                        <p className="font-medium">{student.grade}</p>
-                      </div>
+                  <div className="flex items-start gap-3">
+                    <Badge variant="outline" className="mt-0.5">
+                      학년
+                    </Badge>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500">학년</p>
+                      <p className="font-medium">{student.grade || '미등록'}</p>
                     </div>
-                  )}
+                  </div>
 
-                  {student.academyName && (
-                    <div className="flex items-start gap-3">
-                      <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div>
-                        <p className="text-sm text-gray-500">소속 학원</p>
-                        <p className="font-medium">{student.academyName}</p>
-                      </div>
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500">소속 학원</p>
+                      <p className="font-medium">{student.academyName || '미등록'}</p>
                     </div>
-                  )}
+                  </div>
 
                   {student.created_at && (
                     <div className="flex items-start gap-3">
                       <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm text-gray-500">가입일</p>
-                        <p className="font-medium">
-                          {new Date(student.created_at).toLocaleDateString('ko-KR')}
-                        </p>
+                        <p className="font-medium">{new Date(student.created_at).toLocaleDateString('ko-KR')}</p>
                       </div>
                     </div>
                   )}
                 </div>
 
+                {/* 진단 메모 */}
                 {student.diagnostic_memo && (
-                  <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm font-medium text-blue-900 mb-2">진단 메모</p>
-                    <p className="text-sm text-blue-800 whitespace-pre-wrap">{student.diagnostic_memo}</p>
+                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 className="text-sm font-medium text-blue-900 mb-2">진단 메모</h3>
+                    <p className="text-sm text-blue-700">{student.diagnostic_memo}</p>
                   </div>
                 )}
               </CardContent>

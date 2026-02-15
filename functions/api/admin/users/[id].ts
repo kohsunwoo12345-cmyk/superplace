@@ -51,7 +51,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
          FROM students 
          WHERE user_id = ?`
       ).bind(userId).first();
-      console.log("✅ Student info found:", studentInfo);
+      console.log("✅ Student info query result:", JSON.stringify(studentInfo));
+      console.log("📋 Fields:", {
+        school: studentInfo?.school,
+        grade: studentInfo?.grade,
+        diagnostic_memo: studentInfo?.diagnostic_memo
+      });
     } catch (e) {
       console.log("⚠️ Students table not found or error:", e);
     }
@@ -70,6 +75,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       // 테이블이 없으면 무시
       console.log("Login logs table not found:", e);
     }
+
+    console.log("📤 Returning user data with fields:", {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      academyName: user.academyName,
+      school: studentInfo?.school || null,
+      grade: studentInfo?.grade || null,
+      diagnostic_memo: studentInfo?.diagnostic_memo || null
+    });
 
     return new Response(
       JSON.stringify({ 
