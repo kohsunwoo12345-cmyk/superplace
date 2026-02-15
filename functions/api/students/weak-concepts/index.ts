@@ -582,75 +582,92 @@ Rules:
         if (homeworkData.length > 0) {
           lowScoreHomework = homeworkData.filter((hw: any) => hw.score < 80);
           
-          if (lowScoreHomework.length > 0) {
-            // 가장 낮은 점수의 과목 찾기
-            const lowestScoreHW = lowScoreHomework.reduce((prev: any, curr: any) => 
-              (curr.score < prev.score) ? curr : prev
-            );
-            
-            // 상세 분석 개념 추가
-            defaultWeakConcepts.push({
-              concept: `${lowestScoreHW.subject || '수학'} - 기본 연산 원리`,
-              description: `${lowestScoreHW.subject || '수학'} 과목에서 ${lowestScoreHW.score}점을 받았습니다. 기본적인 연산 원리에 대한 이해는 시작되었으나, 핵심 개념 적용에서 반복적인 오류가 발견되었습니다.`,
-              severity: lowestScoreHW.score < 60 ? 'high' : lowestScoreHW.score < 70 ? 'medium' : 'low',
-              relatedTopics: []
-            });
-            
-            // 복잡한 문제 해결 능력 약점 추가
-            if (lowestScoreHW.score < 70) {
-              defaultWeakConcepts.push({
-                concept: '복합 문제 해결 능력',
-                description: '복잡한 혼합 계산이나 문장제 문제에서 문제 해결 의지 부족 및 풀이 미완성 경향이 두드러집니다. 단계별 사고력과 끈기 있는 문제 풀이 습관이 필요합니다.',
-                severity: 'high',
-                relatedTopics: []
-              });
-            }
-            
-            // 기초 개념 약점 추가
-            defaultWeakConcepts.push({
-              concept: '꼼꼼한 풀이 습관',
-              description: '계산 실수나 부호 처리 오류 등 기본적인 실수가 반복되고 있습니다. 전반적으로 기초 개념을 확실히 다지고 꼼꼼한 풀이 습관을 기르는 것이 시급합니다.',
-              severity: 'medium',
-              relatedTopics: []
-            });
-            
-            // 학습 방향 권장사항 추가
-            defaultRecommendations.push({
-              concept: '기초 개념 재학습',
-              action: '핵심 개념(지수 법칙, 부호 처리 등)을 중점적으로 복습하고, 기본 문제부터 단계적으로 풀어나가세요. 매일 10-15문제씩 꾸준히 연습하는 것이 중요합니다.'
-            });
-            
-            defaultRecommendations.push({
-              concept: '문제 풀이 습관 개선',
-              action: '문제를 풀 때 중간 과정을 반드시 기록하고, 각 단계를 확인하는 습관을 들이세요. 틀린 문제는 오답노트에 정리하여 반복 학습하세요.'
-            });
-            
-            defaultRecommendations.push({
-              concept: '단계별 학습 전략',
-              action: '먼저 쉬운 문제로 자신감을 쌓고, 점진적으로 난이도를 높여가세요. 복잡한 문제는 작은 단위로 나누어 풀이하는 연습이 필요합니다.'
-            });
-          }
+          // 🔥 1단계: 실제 숙제 데이터에서 약점 유형 우선 추출
+          const weaknessMap = new Map<string, { count: number; subject: string; totalScore: number; scoreCount: number }>();
           
-          // 약점 유형 추출 및 상세 분석
-          const allWeaknesses = new Set<string>();
           homeworkData.forEach((hw: any) => {
             if (hw.weaknessTypes) {
               try {
                 const types = JSON.parse(hw.weaknessTypes);
-                types.forEach((type: string) => allWeaknesses.add(type));
+                types.forEach((type: string) => {
+                  if (!weaknessMap.has(type)) {
+                    weaknessMap.set(type, { 
+                      count: 1, 
+                      subject: hw.subject || '수학',
+                      totalScore: hw.score || 0,
+                      scoreCount: 1
+                    });
+                  } else {
+                    const existing = weaknessMap.get(type)!;
+                    existing.count++;
+                    existing.totalScore += (hw.score || 0);
+                    existing.scoreCount++;
+                  }
+                });
               } catch (e) {
-                // 무시
+                console.error('⚠️ weaknessTypes JSON 파싱 오류:', e);
               }
             }
           });
           
-          Array.from(allWeaknesses).slice(0, 3).forEach(weakness => {
+          // 🔥 2단계: 빈도순으로 정렬하여 상위 약점 개념 생성 (최대 5개)
+          const sortedWeaknesses = Array.from(weaknessMap.entries())
+            .sort((a, b) => b[1].count - a[1].count)
+            .slice(0, 5);
+          
+          console.log(`✅ 실제 추출된 약점 유형 ${sortedWeaknesses.length}개:`, sortedWeaknesses.map(w => `${w[0]} (${w[1].count}회)`));
+          
+          sortedWeaknesses.forEach(([weakness, data]) => {
+            const avgScore = Math.round(data.totalScore / data.scoreCount);
+            const severity = avgScore < 70 ? 'high' : avgScore < 80 ? 'medium' : 'low';
             defaultWeakConcepts.push({
               concept: weakness,
-              description: `이 유형의 문제에서 실수가 자주 발생합니다.`,
-              severity: 'medium',
-              relatedTopics: []
+              description: `${data.subject} 과목에서 ${data.count}회 반복된 약점 유형입니다. 평균 점수 ${avgScore}점으로, 집중 보완이 필요합니다.`,
+              severity,
+              relatedTopics: [data.subject]
             });
+          });
+          
+          // 🔥 3단계: 약점이 3개 미만이면 점수 기반 일반 개념 추가
+          if (defaultWeakConcepts.length < 3 && lowScoreHomework.length > 0) {
+            const lowestScoreHW = lowScoreHomework.reduce((prev: any, curr: any) => 
+              (curr.score < prev.score) ? curr : prev
+            );
+            
+            defaultWeakConcepts.push({
+              concept: `${lowestScoreHW.subject || '수학'} 기본 개념 이해`,
+              description: `${lowestScoreHW.subject || '수학'} 과목에서 ${lowestScoreHW.score}점을 받았습니다. 핵심 개념 적용에서 반복적인 오류가 발생하고 있습니다.`,
+              severity: lowestScoreHW.score < 70 ? 'high' : 'medium',
+              relatedTopics: [lowestScoreHW.subject || '수학']
+            });
+            
+            if (lowestScoreHW.score < 70 && defaultWeakConcepts.length < 3) {
+              defaultWeakConcepts.push({
+                concept: '복합 문제 해결 능력',
+                description: '여러 개념이 결합된 문제에서 어려움을 겪고 있습니다. 단계별로 문제를 분해하여 풀이하는 연습이 필요합니다.',
+                severity: 'high',
+                relatedTopics: []
+              });
+            }
+          }
+          
+          // 🔥 4단계: 실제 약점 기반 학습 권장사항 생성
+          if (sortedWeaknesses.length > 0) {
+            const topWeakness = sortedWeaknesses[0];
+            defaultRecommendations.push({
+              concept: `${topWeakness[0]} 집중 보완`,
+              action: `가장 자주 실수하는 "${topWeakness[0]}" 유형을 집중적으로 연습하세요. 유사한 문제를 반복 풀이하며 패턴을 익히는 것이 중요합니다. 매일 5-10문제씩 꾸준히 학습하세요.`
+            });
+          }
+          
+          defaultRecommendations.push({
+            concept: '오답노트 활용',
+            action: '틀린 문제는 반드시 오답노트에 정리하세요. 왜 틀렸는지, 어떤 개념이 부족했는지 분석하고, 일주일 후 다시 풀어보며 복습하세요.'
+          });
+          
+          defaultRecommendations.push({
+            concept: '단계별 난이도 조절',
+            action: '기본 문제로 자신감을 쌓은 후, 점진적으로 난이도를 높여가세요. 쎈 교재의 A단계 → B단계 → C단계 순으로 학습하는 것을 추천합니다.'
           });
         }
         
