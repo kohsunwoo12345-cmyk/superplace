@@ -154,10 +154,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const userId = insertUserResult.meta.last_row_id;
     console.log('✅ Student user created with ID:', userId);
+    console.log('📝 Inserted values:', {
+      name,
+      email,
+      phone,
+      school,
+      grade,
+      academyId: finalAcademyId
+    });
+    
+    // 삽입 후 즉시 확인
+    const verifyUser = await DB.prepare(`
+      SELECT id, name, email, phone, school, grade FROM users WHERE id = ?
+    `).bind(userId).first();
+    console.log('🔍 Verification - User record:', verifyUser);
 
     // 성공 응답 반환 (students 테이블 사용하지 않음)
-    // v3 - 2026-02-15 - students 테이블 의존성 완전 제거
-    console.log('✅ Student created successfully without students table dependency');
+    // v4 - 2026-02-15 - users 테이블에 직접 저장, 검증 추가
+    console.log('✅ Student created successfully with school/grade in users table');
     
     return new Response(
       JSON.stringify({
