@@ -198,9 +198,26 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         diagnosticMemo: hasDiagnosticMemo ? diagnosticMemo : '(skipped - column missing)'
       });
       
+      console.log('🔍 DEBUG - Raw values being bound:', {
+        userId_type: typeof userId,
+        userId_value: userId,
+        finalAcademyId_type: typeof finalAcademyId,
+        finalAcademyId_value: finalAcademyId,
+        school_type: typeof school,
+        school_value: school,
+        school_or_null: school || null,
+        grade_type: typeof grade,
+        grade_value: grade,
+        grade_or_null: grade || null,
+        diagnosticMemo_type: typeof diagnosticMemo,
+        diagnosticMemo_value: diagnosticMemo,
+        diagnosticMemo_or_null: diagnosticMemo || null
+      });
+      
       // diagnostic_memo 컬럼 유무에 따라 다른 쿼리 사용
       let insertResult;
       if (hasDiagnosticMemo) {
+        console.log('🔍 Using INSERT with diagnostic_memo column');
         insertResult = await DB.prepare(`
           INSERT INTO students (user_id, academy_id, school, grade, diagnostic_memo, status, created_at)
           VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)
@@ -213,6 +230,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           koreanTime
         ).run();
       } else {
+        console.log('🔍 Using INSERT without diagnostic_memo column');
         // diagnostic_memo 컬럼이 없으면 제외하고 삽입
         insertResult = await DB.prepare(`
           INSERT INTO students (user_id, academy_id, school, grade, status, created_at)
