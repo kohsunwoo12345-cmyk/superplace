@@ -113,16 +113,42 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       finalAcademyId = Math.floor(parseFloat(String(academyId)));
     }
 
-    // 학생 생성 (users 테이블)
+    // 학생 생성 (users 테이블) - school, grade 포함
+    // v4 - 2026-02-15 - users 테이블에 직접 저장
+    
+    // users 테이블에 school, grade 컬럼 추가 (없으면)
+    try {
+      await DB.prepare(`ALTER TABLE users ADD COLUMN school TEXT`).run();
+      console.log('✅ Added school column to users table');
+    } catch (e) {
+      console.log('⚠️ School column may already exist');
+    }
+    
+    try {
+      await DB.prepare(`ALTER TABLE users ADD COLUMN grade TEXT`).run();
+      console.log('✅ Added grade column to users table');
+    } catch (e) {
+      console.log('⚠️ Grade column may already exist');
+    }
+    
+    try {
+      await DB.prepare(`ALTER TABLE users ADD COLUMN diagnostic_memo TEXT`).run();
+      console.log('✅ Added diagnostic_memo column to users table');
+    } catch (e) {
+      console.log('⚠️ Diagnostic_memo column may already exist');
+    }
+    
     const insertUserResult = await DB.prepare(`
-      INSERT INTO users (name, email, password, phone, role, academy_id, created_at)
-      VALUES (?, ?, ?, ?, 'STUDENT', ?, ?)
+      INSERT INTO users (name, email, password, phone, role, academy_id, school, grade, created_at)
+      VALUES (?, ?, ?, ?, 'STUDENT', ?, ?, ?, ?)
     `).bind(
       name,
       email,
-      password, // 실제 운영 환경에서는 해시 처리 필요
+      password,
       phone || null,
       finalAcademyId,
+      school || null,
+      grade || null,
       koreanTime
     ).run();
 

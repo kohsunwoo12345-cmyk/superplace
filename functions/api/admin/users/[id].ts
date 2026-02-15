@@ -15,7 +15,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 사용자 정보 조회 - lastLoginAt, lastLoginIp, student_code 포함
+    // 사용자 정보 조회 - school, grade 포함 (users 테이블에서 직접)
     const user = await DB.prepare(
       `SELECT 
         id, 
@@ -28,6 +28,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         balance,
         academy_id as academyId, 
         academy_name as academyName,
+        school,
+        grade,
         created_at as createdAt,
         lastLoginAt,
         lastLoginIp,
@@ -69,23 +71,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // students 테이블에서 추가 정보 조회
-    let studentInfo = null;
-    try {
-      studentInfo = await DB.prepare(
-        `SELECT school, grade, diagnostic_memo
-         FROM students 
-         WHERE user_id = ?`
-      ).bind(userId).first();
-      console.log("✅ Student info query result:", JSON.stringify(studentInfo));
-      console.log("📋 Fields:", {
-        school: studentInfo?.school,
-        grade: studentInfo?.grade,
-        diagnostic_memo: studentInfo?.diagnostic_memo
-      });
-    } catch (e) {
-      console.log("⚠️ Students table not found or error:", e);
-    }
+    // students 테이블 조회 제거 - users 테이블에서 직접 가져옴
+    // v2 - 2026-02-15 - students 테이블 의존성 제거
+    console.log("✅ Using school/grade from users table directly");
+    console.log("📋 Fields:", {
+      school: user.school,
+      grade: user.grade
+    });
 
     // 소속 반 정보 조회
     let classInfo = null;
@@ -123,11 +115,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       email: user.email,
       phone: user.phone,
       academyName: finalAcademyName,
-      school: studentInfo?.school || null,
-      grade: studentInfo?.grade || null,
-      diagnostic_memo: studentInfo?.diagnostic_memo || null,
-      className: classInfo?.className || null,
-      classId: classInfo?.id || null
+      school: user.school,
+      grade: user.grade
     });
 
     return new Response(
@@ -135,15 +124,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         user: {
           ...user,
           // user 테이블의 lastLoginAt, lastLoginIp 사용
-          // 로그 테이블에서 가져온 값은 참고용으로만 사용
           lastLoginAt: user.lastLoginAt || lastLogin?.loginAt || null,
           lastLoginIp: user.lastLoginIp || lastLogin?.ip || null,
           // academy 이름 (테이블에서 조회한 값 사용)
           academyName: finalAcademyName,
-          // students 테이블의 정보 추가
-          school: studentInfo?.school || null,
-          grade: studentInfo?.grade || null,
-          diagnostic_memo: studentInfo?.diagnostic_memo || null,
+          // users 테이블에서 직접 가져온 정보
+          school: user.school || null,
+          grade: user.grade || null,
           // 소속 반 정보 추가
           className: classInfo?.className || null,
           classId: classInfo?.id || null
