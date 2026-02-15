@@ -650,7 +650,7 @@ function StudentDetailContent() {
                       AI 기반 역량 분석
                     </CardTitle>
                     <CardDescription>
-                      Gemini AI가 학생의 대화를 분석하여 역량을 평가합니다
+                      AI가 학생의 대화를 분석하여 역량을 평가합니다
                     </CardDescription>
                   </div>
                   <Button
