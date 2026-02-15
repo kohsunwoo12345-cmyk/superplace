@@ -19,6 +19,8 @@ import {
   Trash2,
   X,
   Edit,
+  Smile,
+  Image as ImageIcon,
 } from "lucide-react";
 
 const GEMINI_MODELS = [
@@ -29,8 +31,41 @@ const GEMINI_MODELS = [
 ];
 
 const PROFILE_EMOJIS = [
-  "🤖", "💻", "📚", "🎓", "🧠", "💡", "🔬", "🎨", "🎯", "🚀",
-  "⭐", "✨", "🌟", "💫", "🔥", "🎪", "🎭", "🎬", "🎤", "🎧"
+  // 기술 & AI
+  "🤖", "💻", "🖥️", "⌨️", "🖱️", "💾", "💿", "📱", "📲", "☎️", "📞", "📟", "📠", "📡", "🔌", "💡", "🔦", "💾", "🖨️", "⌚",
+  // 교육 & 학습
+  "🎓", "📚", "📖", "📝", "✏️", "✒️", "🖊️", "🖍️", "📕", "📗", "📘", "📙", "📔", "📓", "📒", "📃", "📜", "📄", "📰", "🗞️",
+  // 에너지 & 빛
+  "💡", "🔦", "🕯️", "💫", "⭐", "🌟", "✨", "🌠", "🔆", "☀️", "🌞", "🌝", "🌛", "🌜", "🌙", "⚡", "🔥", "💥", "✴️",
+  // 우주 & 과학
+  "🚀", "🛸", "🛰️", "🔬", "🔭", "⚗️", "🧪", "🧬", "🔋", "🌌", "🪐", "🌍", "🌎", "🌏", "🗺️", "🧭", "⚙️", "🔩", "🔧",
+  // 예술 & 창작
+  "🎨", "🖼️", "🎭", "🎪", "🎬", "🎤", "🎧", "🎼", "🎹", "🎸", "🎺", "🎷", "🥁", "🎻", "🪕", "🎲", "♟️", "🎯", "🎰", "🎮",
+  // 스포츠 & 성취
+  "🏆", "🥇", "🥈", "🥉", "🏅", "🎖️", "🎳", "⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🏉", "🥊", "🥋", "🎿",
+  // 자연 & 날씨
+  "🌈", "🌤️", "⛅", "🌦️", "🌧️", "⛈️", "🌩️", "🌨️", "☃️", "⛄", "❄️", "☁️", "🌪️", "🌫️", "🌬️", "💨", "🌊", "💦", "💧", "☔",
+  // 동물
+  "🐱", "🐶", "🦊", "🐼", "🦁", "🐯", "🐨", "🐻", "🐰", "🐹", "🐭", "🐮", "🐷", "🐸", "🐵", "🙈", "🙉", "🙊", "🦍",
+  "🐺", "🦝", "🦨", "🦦", "🦥", "🦘", "🦡", "🐘", "🦏", "🦛", "🐪", "🐫", "🦒", "🦌", "🐎", "🦓", "🦙", "🐐", "🐑",
+  "🦅", "🦆", "🦉", "🦜", "🐧", "🐦", "🐤", "🐣", "🐥", "🦩", "🦚", "🦃", "🦢", "🕊️", "🐓", "🐔",
+  "🐬", "🐳", "🐋", "🦈", "🐙", "🦑", "🦀", "🦞", "🦐", "🐠", "🐟", "🐡", "🐚", "🦪", "🐢",
+  "🐝", "🦋", "🐛", "🐌", "🐞", "🦗", "🕷️", "🦂", "🐜",
+  // 식물 & 꽃
+  "🌸", "🌺", "🌻", "🌼", "🌷", "🥀", "🏵️", "🌹", "🍀", "🍁", "🍂", "🍃", "🌿", "🌱", "🌾", "🌵", "🎄", "🌲", "🌳", "🌴", "🪴",
+  // 음식 & 음료
+  "🍎", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🍑", "🍒", "🍍", "🥝", "🥑", "🍔", "🍕", "🍰", "🎂", "🍪", "🍩", "☕", "🍵",
+  "🥐", "🥖", "🍖", "🍗", "🍤", "🍱", "🍛", "🍜", "🍝", "🍣", "🍦", "🍧", "🍨",
+  // 여행 & 장소
+  "✈️", "🚁", "🚂", "🚄", "🚇", "🚌", "🚗", "🏠", "🏢", "🏫", "🏥", "🏦", "🏨", "🏰", "🗼", "🗽",
+  // 시간 & 도구
+  "⏰", "⏱️", "⏲️", "⏳", "⌛", "🔧", "🔨", "⚒️", "🛠️", "⛏️", "🪛", "📎", "📌", "✂️",
+  // 표정 & 감정
+  "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😋", "😛", "😜",
+  "🤔", "🤐", "🤨", "😐", "😑", "😶", "😏", "😒", "🙄", "😬",
+  // 상징 & 기호
+  "✅", "❎", "✔️", "✖️", "❌", "➕", "➖", "✳️", "✴️", "❇️", "‼️", "⁉️", "❓", "❔", "❕", "❗",
+  "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤", "⚫", "⚪"
 ];
 
 interface AIBot {
@@ -62,6 +97,7 @@ export default function AdminAIBotsPage() {
   const [editingBotId, setEditingBotId] = useState<string | null>(null);
   const [editingBot, setEditingBot] = useState<AIBot | null>(null);
   const [editFormData, setEditFormData] = useState<any>({});
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -656,22 +692,83 @@ export default function AdminAIBotsPage() {
                   />
                 </div>
 
-                {/* 프로필 아이콘 */}
+                {/* 프로필 아이콘/이미지 선택 */}
                 <div>
-                  <Label>프로필 아이콘</Label>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="text-4xl">{editFormData.profileIcon}</div>
-                    <select
-                      value={editFormData.profileIcon}
-                      onChange={(e) => setEditFormData({ ...editFormData, profileIcon: e.target.value })}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      {PROFILE_EMOJIS.map((emoji) => (
-                        <option key={emoji} value={emoji}>
-                          {emoji}
-                        </option>
-                      ))}
-                    </select>
+                  <Label className="text-base mb-2 block">프로필 아이콘 / 이미지</Label>
+                  <div className="space-y-3">
+                    {/* 미리보기 */}
+                    <div className="flex items-center gap-3">
+                      {editFormData.profileImage ? (
+                        <img 
+                          src={editFormData.profileImage} 
+                          alt="프로필 이미지" 
+                          className="w-16 h-16 object-cover rounded-lg border-2 border-gray-200"
+                        />
+                      ) : (
+                        <div className="text-5xl">{editFormData.profileIcon}</div>
+                      )}
+                      <div className="flex-1 space-y-2">
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            className="flex-1"
+                          >
+                            <Smile className="w-4 h-4 mr-2" />
+                            이모지 선택
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              const url = prompt("이미지 URL을 입력하세요:");
+                              if (url) {
+                                setEditFormData({ ...editFormData, profileImage: url, profileIcon: "" });
+                              }
+                            }}
+                            className="flex-1"
+                          >
+                            <ImageIcon className="w-4 h-4 mr-2" />
+                            이미지 URL
+                          </Button>
+                        </div>
+                        {(editFormData.profileImage || editFormData.profileIcon !== "🤖") && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditFormData({ ...editFormData, profileImage: "", profileIcon: "🤖" })}
+                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            초기화
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* 이모지 선택 그리드 */}
+                    {showEmojiPicker && (
+                      <div className="p-3 border rounded-lg bg-white shadow-lg grid grid-cols-10 gap-2 max-h-64 overflow-y-auto">
+                        {PROFILE_EMOJIS.map((emoji, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            className="text-2xl hover:bg-blue-50 p-2 rounded transition"
+                            onClick={() => {
+                              setEditFormData({ ...editFormData, profileIcon: emoji, profileImage: "" });
+                              setShowEmojiPicker(false);
+                            }}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <p className="text-sm text-gray-500">
+                      이모지 또는 이미지 URL을 선택하여 봇의 프로필을 설정할 수 있습니다
+                    </p>
                   </div>
                 </div>
               </div>
