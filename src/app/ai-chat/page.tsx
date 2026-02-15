@@ -18,7 +18,8 @@ import {
   Home,
   ArrowLeft,
   Volume2,
-  VolumeX
+  VolumeX,
+  Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -78,6 +79,11 @@ export default function ModernAIChatPage() {
   // 이미지 미리보기
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  
+  // TTS 음성 설정
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceIndex, setSelectedVoiceIndex] = useState<number>(0);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -170,6 +176,34 @@ export default function ModernAIChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // TTS 음성 목록 로드
+  useEffect(() => {
+    if ('speechSynthesis' in window) {
+      const loadVoices = () => {
+        const availableVoices = window.speechSynthesis.getVoices();
+        // 한국어 음성 우선, 그 외 모든 음성 포함
+        const koreanVoices = availableVoices.filter(v => v.lang.startsWith('ko'));
+        const otherVoices = availableVoices.filter(v => !v.lang.startsWith('ko'));
+        setVoices([...koreanVoices, ...otherVoices]);
+        
+        // 저장된 음성 설정 불러오기
+        const savedVoiceIndex = localStorage.getItem('ttsVoiceIndex');
+        if (savedVoiceIndex) {
+          setSelectedVoiceIndex(parseInt(savedVoiceIndex));
+        }
+        
+        console.log(`🔊 사용 가능한 음성: ${availableVoices.length}개`);
+      };
+
+      loadVoices();
+      
+      // 음성 로드가 지연될 수 있으므로 이벤트 리스너 추가
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -673,8 +707,15 @@ export default function ModernAIChatPage() {
 
     const utterance = new SpeechSynthesisUtterance(text);
     
-    // 한국어로 설정
-    utterance.lang = 'ko-KR';
+    // 선택된 음성 사용
+    if (voices.length > 0 && voices[selectedVoiceIndex]) {
+      utterance.voice = voices[selectedVoiceIndex];
+      console.log(`🔊 선택된 음성: ${voices[selectedVoiceIndex].name} (${voices[selectedVoiceIndex].lang})`);
+    } else {
+      // 기본 한국어 설정
+      utterance.lang = 'ko-KR';
+    }
+    
     utterance.rate = 1.0; // 속도
     utterance.pitch = 1.0; // 음높이
     utterance.volume = 1.0; // 볼륨
@@ -1117,9 +1158,65 @@ export default function ModernAIChatPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* 음성 설정 버튼 */}
+            <button
+              onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
+              title="음성 설정"
+            >
+              <Settings className="w-5 h-5 text-gray-600" />
+            </button>
             <span className="text-xs text-gray-500">안녕하세요, {user?.name}님</span>
           </div>
         </div>
+
+        {/* 음성 설정 패널 */}
+        {showVoiceSettings && (
+          <div className="border-b border-gray-200 bg-blue-50 p-4">
+            <div className="max-w-3xl mx-auto">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <Volume2 className="w-5 h-5 text-blue-600" />
+                  음성 설정
+                </h3>
+                <button
+                  onClick={() => setShowVoiceSettings(false)}
+                  className="p-1 hover:bg-gray-200 rounded transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  음성 선택 ({voices.length}개 사용 가능)
+                </label>
+                <select
+                  value={selectedVoiceIndex}
+                  onChange={(e) => {
+                    const index = parseInt(e.target.value);
+                    setSelectedVoiceIndex(index);
+                    localStorage.setItem('ttsVoiceIndex', index.toString());
+                    console.log(`🔊 음성 변경: ${voices[index]?.name}`);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {voices.map((voice, index) => (
+                    <option key={index} value={index}>
+                      {voice.name} ({voice.lang}) {voice.default ? '⭐ 기본' : ''}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => speakText('안녕하세요. 이 음성으로 말합니다.')}
+                  className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                >
+                  <Volume2 className="w-4 h-4 inline mr-2" />
+                  음성 테스트
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 메시지 영역 */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
