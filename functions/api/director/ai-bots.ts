@@ -28,19 +28,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     console.log(`📋 Fetching bots for academy ${academyId}`);
 
-    // 🔥 학원에 할당된 봇 목록 조회 (academyId 기준)
-    // academy_assignments 테이블 또는 bot_assignments 테이블에서 조회
+    // 🔥 1단계: bot_assignments 테이블 조회 (academyId 기준)
     const assignments = await DB.prepare(`
       SELECT DISTINCT ba.botId
       FROM bot_assignments ba
       WHERE ba.academyId = ?
-        AND ba.isActive = 1
         AND (ba.expiresAt IS NULL OR datetime(ba.expiresAt) > datetime('now'))
     `).bind(academyId).all();
 
-    console.log(`🔍 Found ${assignments.results?.length || 0} bot assignments for academy ${academyId}`);
+    console.log(`🔍 Found ${assignments.results?.length || 0} bot_assignments for academy ${academyId}`);
 
-    // 🔥 만약 할당이 없다면, academy_assignments 테이블 확인
+    // 🔥 2단계: 없으면 academy_assignments 테이블 조회 (폴백)
     let botIds: number[] = [];
     
     if (!assignments.results || assignments.results.length === 0) {
@@ -50,7 +48,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         SELECT DISTINCT aa.botId
         FROM academy_assignments aa
         WHERE aa.academyId = ?
-          AND aa.isActive = 1
           AND (aa.expiresAt IS NULL OR datetime(aa.expiresAt) > datetime('now'))
       `).bind(academyId).all();
       
@@ -76,7 +73,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       botIds = assignments.results.map((a: any) => a.botId);
     }
 
-    // 할당된 봇들의 상세 정보 조회
+    console.log(`📌 botIds to query:`, botIds);
+
+    // 🔥 3단계: 할당된 봇들의 상세 정보 조회 (status 조건 제거하여 모든 봇 조회)
     const placeholders = botIds.map(() => '?').join(',');
     
     const bots = await DB.prepare(`
@@ -85,18 +84,34 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         name,
         description,
         profile_icon as profileIcon,
-        status
+        status,
+        is_active as isActive
       FROM ai_bots
-      WHERE id IN (${placeholders}) AND status = 'ACTIVE'
+      WHERE id IN (${placeholders})
       ORDER BY created_at DESC
     `).bind(...botIds).all();
 
-    console.log(`✅ Found ${bots.results?.length || 0} active bots for assignment`);
+    console.log(`✅ Found ${bots.results?.length || 0} bots (before filtering):`, 
+      bots.results?.map((b: any) => ({ id: b.id, name: b.name, status: b.status, isActive: b.isActive }))
+    );
+
+    // 🔥 4단계: ACTIVE 상태이거나 is_active=1인 봇만 필터링
+    const activeBots = (bots.results || []).filter((bot: any) => {
+      const isActiveStatus = bot.status === 'ACTIVE' || bot.status === 'active';
+      const isActiveFlag = bot.isActive === 1 || bot.isActive === true;
+      return isActiveStatus || isActiveFlag;
+    });
+
+    console.log(`✅ Filtered to ${activeBots.length} active bots:`,
+      activeBots.map((b: any) => ({ id: b.id, name: b.name, status: b.status, isActive: b.isActive }))
+    );
 
     return new Response(
       JSON.stringify({
         success: true,
-        bots: bots.results || []
+        bots: activeBots,
+        totalBots: bots.results?.length || 0,
+        activeBotCount: activeBots.length
       }),
       {
         status: 200,

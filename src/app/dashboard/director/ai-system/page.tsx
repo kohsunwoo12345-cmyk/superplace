@@ -314,7 +314,7 @@ export default function DirectorAISystemPage() {
 
               {/* 봇 선택 */}
               <div>
-                <Label htmlFor="bot-select">AI 봇 선택 * ({bots.filter(b => b.status === 'ACTIVE').length}개)</Label>
+                <Label htmlFor="bot-select">AI 봇 선택 * ({bots.length}개)</Label>
                 <select
                   id="bot-select"
                   className="w-full mt-1 p-2 border rounded-md"
@@ -323,19 +323,24 @@ export default function DirectorAISystemPage() {
                   required
                 >
                   <option value="">봇을 선택하세요</option>
-                  {bots.filter(b => b.status === 'ACTIVE').length === 0 ? (
+                  {bots.length === 0 ? (
                     <option disabled>사용 가능한 봇이 없습니다</option>
                   ) : (
-                    bots.filter(b => b.status === 'ACTIVE').map(bot => (
+                    bots.map(bot => (
                       <option key={bot.id} value={bot.id}>
-                        {bot.profileIcon} {bot.name}
+                        {bot.profileIcon} {bot.name} [{bot.status}]
                       </option>
                     ))
                   )}
                 </select>
-                {bots.filter(b => b.status === 'ACTIVE').length === 0 && (
+                {bots.length === 0 && (
                   <p className="text-xs text-amber-600 mt-1">
                     ⚠️ 학원에 할당된 AI 봇이 없습니다. 관리자에게 문의하세요.
+                  </p>
+                )}
+                {bots.length > 0 && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✅ {bots.length}개의 봇이 로드되었습니다. (콘솔 로그 확인: F12)
                   </p>
                 )}
               </div>
