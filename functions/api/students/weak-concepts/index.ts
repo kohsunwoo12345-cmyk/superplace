@@ -695,8 +695,43 @@ Rules:
           detailedSummary += `💡 학습 방향: 현재 수준을 잘 유지하면서, 더 높은 난이도의 문제에 도전하여 실력을 향상시키세요.`;
         }
         
+        // 상세 분석 생성
+        const detailedAnalysisText = lowScoreHomework.length > 0 
+          ? `학생의 최근 성적을 분석한 결과, ${lowestScoreHW.subject || '수학'} 과목에서 가장 낮은 점수(${lowestScoreHW.score}점)를 기록했습니다. 기본 개념은 이해하고 있으나, 실제 문제 풀이에서 핵심 원리를 적용하는 단계에서 반복적인 실수가 발생하고 있습니다. 특히 복합적인 계산이 필요한 문제나 여러 단계를 거쳐야 하는 문장제 문제에서 어려움을 겪고 있으며, 중간 과정을 생략하거나 부주의한 계산 실수로 인한 오답이 많습니다.`
+          : '학생은 전반적으로 학습 내용을 잘 이해하고 있습니다. 계속해서 꾸준히 학습하면서 더 높은 난이도의 문제에 도전해보세요.';
+        
+        // 자주 틀리는 유형 생성
+        const commonMistakeTypes = lowScoreHomework.length > 0 ? [
+          {
+            type: '기본 연산 원리 적용 오류',
+            example: '지수 법칙, 부호 처리, 분수 계산 등에서 반복적인 실수',
+            frequency: lowestScoreHW.score < 60 ? 'high' : 'medium',
+            solution: '핵심 공식과 원리를 다시 복습하고, 유사 문제를 반복 연습하세요.'
+          },
+          {
+            type: '복합 문제 해결 능력 부족',
+            example: '여러 단계가 필요한 문장제나 혼합 계산 문제',
+            frequency: lowestScoreHW.score < 70 ? 'high' : 'medium',
+            solution: '문제를 작은 단위로 나누어 단계별로 풀이하는 연습이 필요합니다.'
+          },
+          {
+            type: '꼼꼼하지 못한 계산 습관',
+            example: '중간 과정 생략, 부호 실수, 계산 실수 등',
+            frequency: 'medium',
+            solution: '풀이 과정을 반드시 기록하고, 각 단계를 검토하는 습관을 들이세요.'
+          }
+        ] : [];
+        
+        // 학습 방향 생성
+        const learningDirectionText = lowScoreHomework.length > 0 
+          ? `1. **기초 개념 재학습**: 핵심 공식과 원리를 확실히 이해할 때까지 반복 학습하세요. 특히 지수 법칙, 부호 처리, 분수 계산 등 기본 연산 원리를 다시 복습해야 합니다.\n\n2. **단계별 문제 풀이 연습**: 쉬운 문제부터 시작하여 자신감을 회복한 후, 점진적으로 난이도를 높여가세요. 복잡한 문제는 작은 단위로 나누어 풀이하는 연습이 필요합니다.\n\n3. **꼼꼼한 풀이 습관 기르기**: 문제를 풀 때 중간 과정을 반드시 기록하고, 각 단계를 확인하는 습관을 들이세요. 틀린 문제는 오답노트에 정리하여 반복 학습하세요.\n\n4. **매일 꾸준한 연습**: 매일 10-15문제씩 꾸준히 풀면서 실력을 쌓아가세요. 일주일에 1-2회는 종합 문제로 실전 감각을 유지하세요.`
+          : '현재 수준을 잘 유지하면서, 더 높은 난이도의 문제에 도전하여 실력을 향상시키세요.';
+        
         analysisResult = {
           summary: detailedSummary,
+          detailedAnalysis: detailedAnalysisText,
+          learningDirection: learningDirectionText,
+          commonMistakeTypes: commonMistakeTypes,
           weakConcepts: defaultWeakConcepts,
           recommendations: defaultRecommendations.length > 0 ? defaultRecommendations : [
             {
@@ -788,9 +823,40 @@ Rules:
           detailedSummary += `💡 학습 방향: 전반적으로 기초 개념을 확실히 다지고 꼼꼼한 풀이 습관을 기르는 것이 시급합니다. `;
           detailedSummary += `단계별로 쉬운 문제부터 시작하여 자신감을 회복하고, 점진적으로 난이도를 높여가는 전략이 필요합니다.`;
           
+          // 상세 분석 생성
+          const detailedAnalysisText = `학생의 최근 성적을 분석한 결과, ${lowestScoreHW.subject || '수학'} 과목에서 가장 낮은 점수(${lowestScoreHW.score}점)를 기록했습니다. 기본 개념은 이해하고 있으나, 실제 문제 풀이에서 핵심 원리를 적용하는 단계에서 반복적인 실수가 발생하고 있습니다. 특히 복합적인 계산이 필요한 문제나 여러 단계를 거쳐야 하는 문장제 문제에서 어려움을 겪고 있으며, 중간 과정을 생략하거나 부주의한 계산 실수로 인한 오답이 많습니다.`;
+          
+          // 자주 틀리는 유형 생성
+          const commonMistakeTypes = [
+            {
+              type: '기본 연산 원리 적용 오류',
+              example: '지수 법칙, 부호 처리, 분수 계산 등에서 반복적인 실수',
+              frequency: lowestScoreHW.score < 60 ? 'high' : 'medium',
+              solution: '핵심 공식과 원리를 다시 복습하고, 유사 문제를 반복 연습하세요.'
+            },
+            {
+              type: '복합 문제 해결 능력 부족',
+              example: '여러 단계가 필요한 문장제나 혼합 계산 문제',
+              frequency: lowestScoreHW.score < 70 ? 'high' : 'medium',
+              solution: '문제를 작은 단위로 나누어 단계별로 풀이하는 연습이 필요합니다.'
+            },
+            {
+              type: '꼼꼼하지 못한 계산 습관',
+              example: '중간 과정 생략, 부호 실수, 계산 실수 등',
+              frequency: 'medium',
+              solution: '풀이 과정을 반드시 기록하고, 각 단계를 검토하는 습관을 들이세요.'
+            }
+          ];
+          
+          // 학습 방향 생성
+          const learningDirectionText = `1. **기초 개념 재학습**: 핵심 공식과 원리를 확실히 이해할 때까지 반복 학습하세요. 특히 지수 법칙, 부호 처리, 분수 계산 등 기본 연산 원리를 다시 복습해야 합니다.\n\n2. **단계별 문제 풀이 연습**: 쉬운 문제부터 시작하여 자신감을 회복한 후, 점진적으로 난이도를 높여가세요. 복잡한 문제는 작은 단위로 나누어 풀이하는 연습이 필요합니다.\n\n3. **꼼꼼한 풀이 습관 기르기**: 문제를 풀 때 중간 과정을 반드시 기록하고, 각 단계를 확인하는 습관을 들이세요. 틀린 문제는 오답노트에 정리하여 반복 학습하세요.\n\n4. **매일 꾸준한 연습**: 매일 10-15문제씩 꾸준히 풀면서 실력을 쌓아가세요. 일주일에 1-2회는 종합 문제로 실전 감각을 유지하세요.`;
+          
           // 분석 결과 덮어쓰기
           analysisResult = {
             summary: detailedSummary,
+            detailedAnalysis: detailedAnalysisText,
+            learningDirection: learningDirectionText,
+            commonMistakeTypes: commonMistakeTypes,
             weakConcepts: defaultWeakConcepts,
             recommendations: defaultRecommendations
           };
