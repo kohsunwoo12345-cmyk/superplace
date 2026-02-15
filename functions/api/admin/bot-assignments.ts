@@ -28,7 +28,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     console.log("📋 테이블 생성 확인 중...");
     // bot_assignments 테이블이 없으면 생성
-    await db.exec(`
+    await db.prepare(`
       CREATE TABLE IF NOT EXISTS bot_assignments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         academyId TEXT NOT NULL,
@@ -41,7 +41,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `);
+    `).run();
     console.log("✅ 테이블 생성/확인 완료");
 
     console.log("🔍 할당 목록 조회 중...");
@@ -108,6 +108,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         headers: { "Content-Type": "application/json" },
       });
     }
+
+    // 테이블 생성 (없으면)
+    console.log("📋 테이블 생성 확인 중...");
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS bot_assignments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        academyId TEXT NOT NULL,
+        botId TEXT NOT NULL,
+        assignedBy TEXT,
+        assignedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expiresAt DATETIME,
+        isActive INTEGER DEFAULT 1,
+        notes TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+    console.log("✅ 테이블 생성/확인 완료");
 
     const data: BotAssignmentRequest = await context.request.json();
     console.log("📥 받은 데이터:", data);
