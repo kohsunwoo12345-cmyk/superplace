@@ -27,22 +27,39 @@ export default function CreateStoreProductPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    category: string;
+    section: string;
+    description: string;
+    shortDescription: string;
+    price: number | string;
+    monthlyPrice: number | string;
+    yearlyPrice: number | string;
+    features: string;
+    detailHtml: string;
+    imageUrl: string;
+    botId: string;
+    isActive: number;
+    isFeatured: number;
+    displayOrder: number | string;
+    keywords: string;
+  }>({
     name: "",
     category: "academy_operation",
     section: "academy_bots",
     description: "",
     shortDescription: "",
-    price: 0,
-    monthlyPrice: 0,
-    yearlyPrice: 0,
+    price: "",
+    monthlyPrice: "",
+    yearlyPrice: "",
     features: "",
     detailHtml: "",
     imageUrl: "",
     botId: "",
     isActive: 1,
     isFeatured: 0,
-    displayOrder: 0,
+    displayOrder: "",
     keywords: "",
   });
 
@@ -109,8 +126,12 @@ export default function CreateStoreProductPage() {
       const newProduct = {
         id: `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         ...formData,
+        price: formData.price === "" ? 0 : Number(formData.price),
+        monthlyPrice: formData.monthlyPrice === "" ? 0 : Number(formData.monthlyPrice),
+        yearlyPrice: formData.yearlyPrice === "" ? 0 : Number(formData.yearlyPrice),
+        displayOrder: formData.displayOrder === "" ? 0 : Number(formData.displayOrder),
         features: formData.features ? formData.features.split("\n").filter((f) => f.trim()) : [],
-        createdById: user.id,
+        createdById: user?.id || "admin",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -132,7 +153,7 @@ export default function CreateStoreProductPage() {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "number" ? parseInt(value) || 0 : value,
+      [name]: type === "number" ? (value === "" ? "" : parseInt(value) || 0) : value,
     }));
   };
 
@@ -223,19 +244,19 @@ export default function CreateStoreProductPage() {
 
                 {/* 가격 정보 */}
                 <div className="flex gap-6 mb-6">
-                  {formData.monthlyPrice > 0 && (
+                  {Number(formData.monthlyPrice) > 0 && (
                     <div className="bg-blue-50 p-4 rounded-lg flex-1">
                       <p className="text-sm text-gray-600 mb-1">월간 구독</p>
                       <p className="text-2xl font-bold text-blue-600">
-                        {formData.monthlyPrice.toLocaleString()}원
+                        {Number(formData.monthlyPrice).toLocaleString()}원
                       </p>
                     </div>
                   )}
-                  {formData.yearlyPrice > 0 && (
+                  {Number(formData.yearlyPrice) > 0 && (
                     <div className="bg-purple-50 p-4 rounded-lg flex-1">
                       <p className="text-sm text-gray-600 mb-1">연간 구독</p>
                       <p className="text-2xl font-bold text-purple-600">
-                        {formData.yearlyPrice.toLocaleString()}원
+                        {Number(formData.yearlyPrice).toLocaleString()}원
                       </p>
                     </div>
                   )}
