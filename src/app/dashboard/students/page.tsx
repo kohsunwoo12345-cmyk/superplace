@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, UserPlus, Search, Mail, Phone, School } from "lucide-react";
+import { Loader2, UserPlus, Search, Mail, Phone, School, RefreshCw } from "lucide-react";
 
 interface Student {
   id: number;
@@ -21,10 +21,12 @@ interface Student {
 
 export default function StudentsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -37,7 +39,7 @@ export default function StudentsPage() {
     setUser(userData);
     
     loadStudents(userData);
-  }, [router]);
+  }, [router, refreshKey, searchParams]);
 
   const loadStudents = async (userData: any) => {
     try {
@@ -74,7 +76,10 @@ export default function StudentsPage() {
         params.append('role', userRole);
       }
       
-      const response = await fetch(`/api/students?${params.toString()}`);
+      const apiUrl = `/api/students?${params.toString()}`;
+      console.log('🔍 Fetching students from:', apiUrl);
+      
+      const response = await fetch(apiUrl);
       
       if (!response.ok) {
         console.error('❌ Failed to load students:', response.status);
@@ -82,7 +87,8 @@ export default function StudentsPage() {
       }
       
       const data = await response.json();
-      console.log('✅ Loaded students:', data.students?.length || 0);
+      console.log('✅ Loaded students:', data.students?.length || 0, 'students');
+      console.log('📊 First student:', data.students?.[0]);
       setStudents(data.students || []);
       
     } catch (error) {
@@ -114,10 +120,20 @@ export default function StudentsPage() {
           <h1 className="text-3xl font-bold">학생 관리</h1>
           <p className="text-gray-500 mt-1">등록된 학생을 관리하고 새 학생을 추가하세요</p>
         </div>
-        <Button onClick={() => router.push("/dashboard/students/add/")}>
-          <UserPlus className="w-4 h-4 mr-2" />
-          학생 추가
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setRefreshKey(prev => prev + 1)}
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            새로고침
+          </Button>
+          <Button onClick={() => router.push("/dashboard/students/add/")}>
+            <UserPlus className="w-4 h-4 mr-2" />
+            학생 추가
+          </Button>
+        </div>
       </div>
 
       {/* 검색 */}

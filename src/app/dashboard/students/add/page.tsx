@@ -103,7 +103,8 @@ export default function AddStudentPage() {
       console.log("✅ 학생 추가 성공:", result);
       
       alert("학생이 추가되었습니다");
-      router.push("/dashboard/students/");
+      // 학생 목록 페이지로 이동 + 강제 새로고침
+      router.push("/dashboard/students/?refresh=" + Date.now());
     } catch (error: any) {
       console.error("💥 Failed to create student:", error);
       alert(`학생 추가 실패: ${error.message}`);
