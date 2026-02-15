@@ -209,7 +209,10 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
                   <Menu className="w-6 h-6 text-gray-700" />
                 )}
               </button>
-              <div className="flex items-center gap-3">
+              <a 
+                href={roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN' ? '/dashboard/admin' : '/dashboard'}
+                className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
+              >
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getRoleGradient()} flex items-center justify-center shadow-lg`}>
                   <span className="text-white font-bold text-lg">S</span>
                 </div>
@@ -217,7 +220,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
                   <h1 className="text-xl font-bold text-gray-900">SUPLACE Study</h1>
                   <p className="text-xs text-gray-500">{getRoleText()} 대시보드</p>
                 </div>
-              </div>
+              </a>
             </div>
 
             {/* Right: Actions */}

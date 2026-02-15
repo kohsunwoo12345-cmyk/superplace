@@ -335,7 +335,7 @@ export default function StoreManagementPage() {
                           size="sm"
                           variant="ghost"
                           onClick={() =>
-                            router.push(`/dashboard/admin/store-management/edit/${product.id}`)
+                            router.push(`/dashboard/admin/store-management/edit?id=${product.id}`)
                           }
                         >
                           <Edit className="h-4 w-4" />
