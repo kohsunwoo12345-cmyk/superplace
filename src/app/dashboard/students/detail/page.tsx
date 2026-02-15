@@ -26,6 +26,8 @@ interface StudentDetail {
   school?: string;
   grade?: string;
   diagnostic_memo?: string;
+  className?: string;
+  classId?: number;
 }
 
 interface AttendanceCode {
@@ -615,11 +617,7 @@ function StudentDetailContent() {
                     <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-sm text-gray-500">이메일</p>
-                      <p className="font-medium">
-                        {student.email?.includes('@temp.student.local') 
-                          ? '미등록 (자동생성)' 
-                          : student.email}
-                      </p>
+                      <p className="font-medium">{student.email || '미등록'}</p>
                     </div>
                   </div>
 
@@ -646,6 +644,14 @@ function StudentDetailContent() {
                     <div className="flex-1">
                       <p className="text-sm text-gray-500">소속 학원</p>
                       <p className="font-medium">{student.academyName || '미등록'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500">소속 반</p>
+                      <p className="font-medium">{student.className || '미등록'}</p>
                     </div>
                   </div>
 

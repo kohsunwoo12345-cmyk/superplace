@@ -61,6 +61,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log("⚠️ Students table not found or error:", e);
     }
 
+    // 소속 반 정보 조회
+    let classInfo = null;
+    try {
+      classInfo = await DB.prepare(
+        `SELECT c.id, c.name as className
+         FROM classes c
+         INNER JOIN class_students cs ON c.id = cs.classId
+         WHERE cs.studentId = ? AND cs.status = 'ACTIVE'
+         LIMIT 1`
+      ).bind(userId).first();
+      console.log("✅ Class info query result:", JSON.stringify(classInfo));
+    } catch (e) {
+      console.log("⚠️ Classes table query error:", e);
+    }
+
     // 마지막 로그인 정보 조회
     let lastLogin = null;
     try {
@@ -84,7 +99,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       academyName: user.academyName,
       school: studentInfo?.school || null,
       grade: studentInfo?.grade || null,
-      diagnostic_memo: studentInfo?.diagnostic_memo || null
+      diagnostic_memo: studentInfo?.diagnostic_memo || null,
+      className: classInfo?.className || null,
+      classId: classInfo?.id || null
     });
 
     return new Response(
@@ -98,7 +115,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           // students 테이블의 정보 추가
           school: studentInfo?.school || null,
           grade: studentInfo?.grade || null,
-          diagnostic_memo: studentInfo?.diagnostic_memo || null
+          diagnostic_memo: studentInfo?.diagnostic_memo || null,
+          // 소속 반 정보 추가
+          className: classInfo?.className || null,
+          classId: classInfo?.id || null
         }
       }),
       {

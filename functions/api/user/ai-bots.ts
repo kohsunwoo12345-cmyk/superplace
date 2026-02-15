@@ -1,5 +1,5 @@
 // API: 사용자별 할당된 AI 봇 조회
-// GET /api/user/ai-bots?academyId=xxx
+// GET /api/user/ai-bots?academyId=xxx&userId=xxx&userRole=xxx
 
 interface Env {
   DB: D1Database;
@@ -16,9 +16,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // URL에서 academyId 가져오기
+    // URL에서 파라미터 가져오기
     const url = new URL(context.request.url);
     const academyId = url.searchParams.get("academyId");
+    const userId = url.searchParams.get("userId");
+    const userRole = url.searchParams.get("userRole");
 
     if (!academyId) {
       return new Response(
@@ -33,7 +35,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
-    console.log(`🔍 사용자 봇 조회 - academyId: ${academyId}`);
+    console.log(`🔍 사용자 봇 조회 - academyId: ${academyId}, userId: ${userId}, userRole: ${userRole}`);
 
     // bot_assignments 테이블 생성 (없으면)
     console.log("📋 테이블 생성 확인 중...");
@@ -92,7 +94,32 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log("📊 유효한 할당 목록:", assignments.results);
     }
 
-    if (!assignments.results || assignments.results.length === 0) {
+    // 학원장이 개별 사용자에게 할당한 봇도 조회 (userId와 userRole이 있는 경우)
+    let directorAssignments: any = { results: [] };
+    if (userId && userRole) {
+      try {
+        console.log(`🔍 학원장 개별 할당 조회 - userId: ${userId}, userRole: ${userRole}`);
+        directorAssignments = await db.prepare(`
+          SELECT botId as botId, expiresAt as expiresAt
+          FROM director_bot_assignments
+          WHERE user_id = ?
+            AND user_role = ?
+            AND (expires_at IS NULL OR datetime(expires_at) > datetime('now'))
+        `).bind(parseInt(userId), userRole.toUpperCase()).all();
+        
+        console.log(`📊 학원장 할당 ${directorAssignments.results?.length || 0}개`);
+      } catch (e) {
+        console.log("⚠️ director_bot_assignments 테이블이 없거나 오류:", e);
+      }
+    }
+
+    // 두 할당 결과 합치기
+    const allAssignmentResults = [
+      ...(assignments.results || []),
+      ...(directorAssignments.results || [])
+    ];
+
+    if (allAssignmentResults.length === 0) {
       console.log("⚠️ 할당된 봇이 없습니다");
       return new Response(
         JSON.stringify({
@@ -110,7 +137,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 각 봇 정보 조회
     const bots = [];
-    for (const assignment of assignments.results) {
+    const processedBotIds = new Set(); // 중복 방지
+    
+    for (const assignment of allAssignmentResults) {
+      const botIdStr = String(assignment.botId);
+      if (processedBotIds.has(botIdStr)) {
+        console.log(`⏭️ 이미 처리된 봇 건너뜀: ${botIdStr}`);
+        continue;
+      }
+      
       try {
         const bot = await db.prepare(`
           SELECT 
@@ -127,6 +162,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             ...bot,
             expiresAt: assignment.expiresAt,
           });
+          processedBotIds.add(botIdStr);
           console.log(`✅ 봇 정보 조회 성공: ${bot.name} (${bot.id})`);
         } else {
           console.warn(`⚠️ 봇을 찾을 수 없음: ${assignment.botId}`);

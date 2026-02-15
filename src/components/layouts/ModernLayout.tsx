@@ -113,6 +113,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'homework', href: '/dashboard/homework/teacher', icon: FileText, text: '숙제 관리' },
           { id: 'homework-results', href: '/dashboard/homework/results', icon: Award, text: '숙제 검사 결과' },
           { id: 'analytics', href: '/dashboard/analytics', icon: BarChart2, text: '통계' },
+          { id: 'ai-system', href: '/dashboard/director/ai-system', icon: Bot, text: 'AI 시스템' },
           { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, text: 'AI 도우미' },
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
         ];
