@@ -157,18 +157,31 @@ Student Information:
 
 ${formats.includes('multiple_choice') ? `
 **FOR 객관식 (MULTIPLE CHOICE) - MANDATORY FORMAT:**
-- MUST have "options": ["① 첫번째선택지", "② 두번째선택지", "③ 세번째선택지", "④ 네번째선택지"]
+- MUST have "options": ["1번: 첫번째선택지", "2번: 두번째선택지", "3번: 세번째선택지", "4번: 네번째선택지", "5번: 다섯번째선택지"]
+- MUST have EXACTLY 5 options (NOT 4, NOT 6, EXACTLY 5)
 - MUST have "answerSpace": false
-- MUST have "answer": ONE of "①" or "②" or "③" or "④" (NOT "1", "2", "3", "4")
-- Question MUST ask "다음 중 올바른 것은?" or "다음 중 옳은 것을 고르시오."
-- Example:
+- MUST have "answer": ONE of "1번" or "2번" or "3번" or "4번" or "5번"
+- For math problems, provide SPECIFIC NUMERIC answers in options (e.g., for "1+2=?", options should be "1번: 1", "2번: 2", "3번: 3", "4번: 13", "5번: 20")
+- Question MUST ask "다음 중 올바른 것은?" or "다음 중 옳은 것을 고르시오." or "계산 결과를 고르시오."
+- Example 1 (Math Calculation):
+  {
+    "concept": "덧셈",
+    "type": "concept",
+    "question": "1 + 2 = ?",
+    "options": ["1번: 1", "2번: 2", "3번: 3", "4번: 13", "5번: 20"],
+    "answerSpace": false,
+    "answer": "3번",
+    "explanation": "1 + 2 = 3입니다.",
+    "difficulty": "easy"
+  }
+- Example 2 (Concept):
   {
     "concept": "이차방정식",
     "type": "concept",
     "question": "다음 중 이차방정식의 근의 공식으로 옳은 것은?",
-    "options": ["① x = (-b ± √(b²-4ac)) / 2a", "② x = (-b ± √(b²+4ac)) / 2a", "③ x = (b ± √(b²-4ac)) / 2a", "④ x = (-b ± √(b²-ac)) / a"],
+    "options": ["1번: x = (-b ± √(b²-4ac)) / 2a", "2번: x = (-b ± √(b²+4ac)) / 2a", "3번: x = (b ± √(b²-4ac)) / 2a", "4번: x = (-b ± √(b²-ac)) / a", "5번: x = b / 2a"],
     "answerSpace": false,
-    "answer": "①",
+    "answer": "1번",
     "explanation": "이차방정식 ax²+bx+c=0의 근의 공식은 x = (-b ± √(b²-4ac)) / 2a 입니다.",
     "difficulty": "medium"
   }
@@ -235,26 +248,29 @@ Return this EXACT JSON structure:
 
 **🚨 ABSOLUTE REQUIREMENTS - FAILURE TO COMPLY WILL RESULT IN REJECTION 🚨**
 1. Generate EXACTLY ${problemCount} problems - count them before returning!
-2. ${formats.length === 1 && formats.includes('multiple_choice') ? `EVERY PROBLEM MUST BE 객관식 with 4 options ["①...", "②...", "③...", "④..."], answerSpace: false, answer: "①"/"②"/"③"/"④"` : ''}
+2. ${formats.length === 1 && formats.includes('multiple_choice') ? `EVERY PROBLEM MUST BE 객관식 with EXACTLY 5 options ["1번: ...", "2번: ...", "3번: ...", "4번: ...", "5번: ..."], answerSpace: false, answer: "1번"/"2번"/"3번"/"4번"/"5번"` : ''}
 3. ${formats.length === 1 && formats.includes('open_ended') ? `EVERY PROBLEM MUST BE 주관식 with options: null, answerSpace: true, answer: "text answer"` : ''}
-4. ${formats.length === 2 ? `Mix 객관식 (4 options, answerSpace: false, answer: "①") and 주관식 (options: null, answerSpace: true, answer: "text") approximately 50/50` : ''}
+4. ${formats.length === 2 ? `Mix 객관식 (5 options, answerSpace: false, answer: "1번") and 주관식 (options: null, answerSpace: true, answer: "text") approximately 50/50` : ''}
 5. ALL problems MUST be ${finalSubject} subject - verify each one!
 6. Use ONLY Korean for question, options, answer, explanation
 7. Provide 3-5 sentence explanations for each problem
 8. NO markdown, NO code blocks, ONLY pure JSON
 9. Difficulty: ${gradeLevel ? `adjust to grade ${gradeLevel}` : 'medium level'}
-10. For 객관식: answer is "①" or "②" or "③" or "④" (NOT 1, 2, 3, 4, NOT text)
-11. For 주관식: answer is actual text (NOT "①", NOT a number)
+10. For 객관식: answer is "1번" or "2번" or "3번" or "4번" or "5번" (NOT 1, 2, 3, 4, 5)
+11. For 주관식: answer is actual text (NOT "1번", NOT a number)
+12. **CRITICAL**: For math calculation problems, provide SPECIFIC NUMERIC answers (e.g., "1+2=?" → options: ["1번: 1", "2번: 2", "3번: 3", "4번: 13", "5번: 20"])
 
 **FINAL CHECK BEFORE RETURNING:**
 - Count problems array length = ${problemCount}? ✓
-- All 객관식 have 4 options? ✓
+- All 객관식 have EXACTLY 5 options? ✓
+- All 객관식 options start with "1번:", "2번:", "3번:", "4번:", "5번:"? ✓
 - All 객관식 have answerSpace: false? ✓
-- All 객관식 answers are "①"/"②"/"③"/"④"? ✓
+- All 객관식 answers are "1번"/"2번"/"3번"/"4번"/"5번"? ✓
 - All 주관식 have options: null? ✓
 - All 주관식 have answerSpace: true? ✓
 - All 주관식 answers are text? ✓
-- All subjects are ${finalSubject}? ✓`;
+- All subjects are ${finalSubject}? ✓
+- Math problems have SPECIFIC NUMERIC options? ✓`;
 
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
@@ -344,9 +360,9 @@ Return this EXACT JSON structure:
             concept: concepts[conceptIndex],
             type: problemTypes[i % problemTypes.length],
             question: `${concepts[conceptIndex]}에 대한 추가 문제 ${i + 1}`,
-            options: isMultipleChoice ? ["① 선택지 1", "② 선택지 2", "③ 선택지 3", "④ 선택지 4"] : null,
+            options: isMultipleChoice ? ["1번: 선택지 1", "2번: 선택지 2", "3번: 선택지 3", "4번: 선택지 4", "5번: 선택지 5"] : null,
             answerSpace: !isMultipleChoice,
-            answer: isMultipleChoice ? "①" : "답안 참조",
+            answer: isMultipleChoice ? "1번" : "답안 참조",
             explanation: "해당 개념을 복습하고 문제를 풀어보세요.",
             difficulty: "medium"
           });
@@ -375,19 +391,26 @@ Return this EXACT JSON structure:
         
         // 객관식 형식 보정
         if (isMultipleChoice) {
-          const validOptions = problem.options && Array.isArray(problem.options) && problem.options.length === 4
+          const validOptions = problem.options && Array.isArray(problem.options) && problem.options.length === 5
             ? problem.options
-            : ["① 선택지 1", "② 선택지 2", "③ 선택지 3", "④ 선택지 4"];
+            : ["1번: 선택지 1", "2번: 선택지 2", "3번: 선택지 3", "4번: 선택지 4", "5번: 선택지 5"];
           
-          // 답안이 ①②③④ 형식이 아니면 보정
+          // 답안이 "1번", "2번", "3번", "4번", "5번" 형식이 아니면 보정
           let validAnswer = problem.answer;
-          if (!['①', '②', '③', '④'].includes(validAnswer)) {
-            // 숫자면 변환 (1→①, 2→②, 3→③, 4→④)
-            if (validAnswer === '1' || validAnswer === 1) validAnswer = '①';
-            else if (validAnswer === '2' || validAnswer === 2) validAnswer = '②';
-            else if (validAnswer === '3' || validAnswer === 3) validAnswer = '③';
-            else if (validAnswer === '4' || validAnswer === 4) validAnswer = '④';
-            else validAnswer = '①'; // 기본값
+          if (!['1번', '2번', '3번', '4번', '5번'].includes(validAnswer)) {
+            // 숫자면 변환 (1→"1번", 2→"2번", 3→"3번", 4→"4번", 5→"5번")
+            if (validAnswer === '1' || validAnswer === 1) validAnswer = '1번';
+            else if (validAnswer === '2' || validAnswer === 2) validAnswer = '2번';
+            else if (validAnswer === '3' || validAnswer === 3) validAnswer = '3번';
+            else if (validAnswer === '4' || validAnswer === 4) validAnswer = '4번';
+            else if (validAnswer === '5' || validAnswer === 5) validAnswer = '5번';
+            // ①②③④⑤도 변환
+            else if (validAnswer === '①') validAnswer = '1번';
+            else if (validAnswer === '②') validAnswer = '2번';
+            else if (validAnswer === '③') validAnswer = '3번';
+            else if (validAnswer === '④') validAnswer = '4번';
+            else if (validAnswer === '⑤') validAnswer = '5번';
+            else validAnswer = '1번'; // 기본값
           }
           
           return {
@@ -433,9 +456,9 @@ Return this EXACT JSON structure:
           question: isMultipleChoice 
             ? `${concepts[conceptIndex]}에 대한 다음 중 올바른 것은?`
             : `${concepts[conceptIndex]}에 대한 문제 ${i + 1}: 이 개념을 설명하고 예시를 들어보세요.`,
-          options: isMultipleChoice ? ["① 선택지 1", "② 선택지 2", "③ 선택지 3", "④ 선택지 4"] : null,
+          options: isMultipleChoice ? ["1번: 선택지 1", "2번: 선택지 2", "3번: 선택지 3", "4번: 선택지 4", "5번: 선택지 5"] : null,
           answerSpace: !isMultipleChoice,
-          answer: isMultipleChoice ? '①' : '개념 설명 및 예시 참조',
+          answer: isMultipleChoice ? '1번' : '개념 설명 및 예시 참조',
           explanation: '해당 개념의 정의와 실생활 예시를 들어 설명해주세요.',
           difficulty: 'medium'
         });

@@ -367,7 +367,7 @@ function StudentDetailContent() {
       setConceptSummary(data.summary || "");
       setDetailedAnalysis(data.detailedAnalysis || "");
       setLearningDirection(data.learningDirection || "");
-      setCommonMistakes(data.commonMistakeTypes || []);
+      setCommonMistakes(Array.isArray(data.commonMistakeTypes) ? data.commonMistakeTypes : []);
       
       alert('✅ 분석이 완료되었습니다!');
     } catch (error: any) {
@@ -1424,7 +1424,7 @@ function StudentDetailContent() {
                             : 'border-gray-300 hover:border-gray-400'
                         }`}
                       >
-                        {selectedQuestionFormats.includes('multiple_choice') && '✓ '}객관식 (1~4번 선택)
+                        {selectedQuestionFormats.includes('multiple_choice') && '✓ '}객관식 (1~5번 선택)
                       </button>
                       <button
                         onClick={() => toggleQuestionFormat('open_ended')}
