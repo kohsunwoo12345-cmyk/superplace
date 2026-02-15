@@ -156,13 +156,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         console.log('⚠️ Could not check table structure:', e);
       }
       
-      // 테이블이 없으면 생성 (diagnostic_memo 포함, FOREIGN KEY 제거)
+      // 테이블이 없으면 생성 (name, diagnostic_memo 포함, FOREIGN KEY 제거)
       if (!tableExists) {
-        console.log('📋 Creating students table with diagnostic_memo (no FK constraints)...');
+        console.log('📋 Creating students table with name and diagnostic_memo (no FK constraints)...');
         await DB.prepare(`
           CREATE TABLE IF NOT EXISTS students (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
             academy_id INTEGER,
             school TEXT,
             grade TEXT,
@@ -173,7 +174,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           )
         `).run();
         hasDiagnosticMemo = true;
-        console.log('✅ Students table created with diagnostic_memo');
+        console.log('✅ Students table created with name and diagnostic_memo');
+      }
+      
+      // name 컬럼 확인 및 추가
+      if (tableExists) {
+        const hasName = columns.results?.some((col: any) => col.name === 'name') || false;
+        if (!hasName) {
+          console.log('📋 Adding name column...');
+          try {
+            await DB.prepare(`
+              ALTER TABLE students ADD COLUMN name TEXT
+            `).run();
+            console.log('✅ name column added');
+          } catch (e) {
+            console.log('⚠️ Could not add name column (may already exist):', e);
+          }
+        }
       }
       
       // diagnostic_memo 컬럼이 없으면 추가
@@ -191,6 +208,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
       
       console.log('📝 Inserting student record:', {
+        name,
         userId,
         academyId: finalAcademyId,
         school,
@@ -199,6 +217,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
       
       console.log('🔍 DEBUG - Raw values being bound:', {
+        name_type: typeof name,
+        name_value: name,
         userId_type: typeof userId,
         userId_value: userId,
         finalAcademyId_type: typeof finalAcademyId,
@@ -217,12 +237,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       // diagnostic_memo 컬럼 유무에 따라 다른 쿼리 사용
       let insertResult;
       if (hasDiagnosticMemo) {
-        console.log('🔍 Using INSERT with diagnostic_memo column');
+        console.log('🔍 Using INSERT with name and diagnostic_memo columns');
         insertResult = await DB.prepare(`
-          INSERT INTO students (user_id, academy_id, school, grade, diagnostic_memo, status, created_at)
-          VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)
+          INSERT INTO students (user_id, name, academy_id, school, grade, diagnostic_memo, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
         `).bind(
           userId,
+          name,
           finalAcademyId,
           school || null,
           grade || null,
@@ -230,13 +251,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           koreanTime
         ).run();
       } else {
-        console.log('🔍 Using INSERT without diagnostic_memo column');
+        console.log('🔍 Using INSERT with name but without diagnostic_memo column');
         // diagnostic_memo 컬럼이 없으면 제외하고 삽입
         insertResult = await DB.prepare(`
-          INSERT INTO students (user_id, academy_id, school, grade, status, created_at)
-          VALUES (?, ?, ?, ?, 'ACTIVE', ?)
+          INSERT INTO students (user_id, name, academy_id, school, grade, status, created_at)
+          VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)
         `).bind(
           userId,
+          name,
           finalAcademyId,
           school || null,
           grade || null,
