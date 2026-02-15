@@ -386,6 +386,11 @@ function StudentDetailContent() {
   };
 
   const generateSimilarProblems = async () => {
+    if (!selectedSubject) {
+      alert('과목을 선택해주세요.');
+      return;
+    }
+
     if (selectedConcepts.length === 0) {
       alert('최소 1개 이상의 개념을 선택해주세요.');
       return;
@@ -1440,22 +1445,23 @@ function StudentDetailContent() {
 
                   {/* 과목 선택 */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2">과목 선택</label>
+                    <label className="block text-sm font-semibold mb-2">
+                      과목 선택 <span className="text-red-500">*</span>
+                    </label>
                     <select
                       value={selectedSubject}
                       onChange={(e) => setSelectedSubject(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="">자동 (숙제 데이터 기반)</option>
+                      <option value="">선택하세요</option>
                       <option value="수학">수학</option>
                       <option value="영어">영어</option>
                       <option value="국어">국어</option>
-                      <option value="과학">과학</option>
-                      <option value="사회">사회</option>
-                      <option value="역사">역사</option>
                     </select>
                     <p className="text-xs text-gray-500 mt-1">
-                      {selectedSubject ? `${selectedSubject} 과목으로 문제 생성` : '학생의 숙제 데이터에서 자동으로 과목 추출'}
+                      {selectedSubject 
+                        ? `${selectedSubject} 과목의 부족한 개념으로 문제를 생성합니다` 
+                        : '과목을 선택하면 해당 과목의 약점 개념으로 문제가 생성됩니다'}
                     </p>
                   </div>
 
@@ -1513,7 +1519,7 @@ function StudentDetailContent() {
                     </Button>
                     <Button
                       onClick={generateSimilarProblems}
-                      disabled={generatingProblems || selectedConcepts.length === 0 || selectedProblemTypes.length === 0 || selectedQuestionFormats.length === 0}
+                      disabled={generatingProblems || !selectedSubject || selectedConcepts.length === 0 || selectedProblemTypes.length === 0 || selectedQuestionFormats.length === 0}
                     >
                       {generatingProblems ? (
                         <>

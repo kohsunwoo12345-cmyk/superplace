@@ -55,30 +55,22 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // 학생의 숙제 데이터에서 과목 추출 (subject가 없으면)
     const { DB } = env;
-    let finalSubject = subject || null; // 사용자 선택 과목 우선
+    let finalSubject = subject || null; // 사용자 선택 과목 우선 (필수)
     let gradeLevel = studentGrade || null;
+    
+    // 과목이 선택되지 않은 경우 에러 (프론트엔드에서 필수로 만들었지만 안전장치)
+    if (!finalSubject) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "과목을 선택해주세요. (수학/영어/국어 중 선택)" 
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
     
     if (DB) {
       try {
-        // 과목이 선택되지 않은 경우만 DB에서 추출
-        if (!finalSubject) {
-          const subjectQuery = `
-            SELECT hg.subject, COUNT(*) as count
-            FROM homework_submissions_v2 hs
-            LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
-            WHERE hs.userId = ? AND hg.subject IS NOT NULL
-            GROUP BY hg.subject
-            ORDER BY count DESC
-            LIMIT 1
-          `;
-          
-          const subjectResult = await DB.prepare(subjectQuery).bind(parseInt(studentId)).first();
-          if (subjectResult && subjectResult.subject) {
-            finalSubject = subjectResult.subject;
-            console.log('📘 Auto-detected subject:', finalSubject);
-          }
-        }
-        
         // 학생 테이블에서 학년 정보 조회 (프론트에서 전달되지 않은 경우)
         if (!gradeLevel) {
           const studentQuery = `
@@ -93,9 +85,11 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           }
         }
       } catch (dbError: any) {
-        console.warn('⚠️ Failed to fetch subject/grade info:', dbError.message);
+        console.warn('⚠️ Failed to fetch grade info:', dbError.message);
       }
     }
+    
+    console.log('✅ Final subject (REQUIRED):', finalSubject);
 
     // 문제 유형별 설명
     const typeDescriptions: { [key: string]: string } = {
@@ -133,18 +127,28 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       ? `Grade Level: ${gradeLevel} (adjust difficulty accordingly - higher grades need more complex problems)`
       : 'Grade Level: Not specified (use medium difficulty)';
 
-    // 과목별 문제 유형 설정
-    const subjectInfo = finalSubject
-      ? `Primary Subject: ${finalSubject} (ALL problems MUST be ${finalSubject} subject)`
-      : 'Subject: General (mixed subjects allowed)';
+    // 과목별 문제 유형 설정 - 과목은 필수!
+    const subjectInfo = `**MANDATORY Subject: ${finalSubject}**`;
+    const subjectInstruction = finalSubject === '수학' 
+      ? 'ALL problems MUST be mathematics (수식, 계산, 도형, 함수 등). NO other subjects.'
+      : finalSubject === '영어'
+      ? 'ALL problems MUST be English (문법, 어휘, 독해, 작문 등). NO other subjects.'
+      : finalSubject === '국어'
+      ? 'ALL problems MUST be Korean language (문법, 어휘, 독해, 작문, 문학 등). NO other subjects.'
+      : `ALL problems MUST be ${finalSubject} subject. NO other subjects.`;
 
     const prompt = `You are an educational content creator. Generate ${problemCount} practice problems for a student.
+
+**CRITICAL: SUBJECT RESTRICTION**
+${subjectInfo}
+${subjectInstruction}
+Every single problem MUST be related to ${finalSubject}. If you generate problems from other subjects, the system will REJECT them.
 
 Student Information:
 - Name: ${studentName}
 - ${gradeLevelInfo}
-- ${subjectInfo}
-- Weak Concepts: ${concepts.join(', ')}
+- **Subject (MANDATORY): ${finalSubject}** ← ALL PROBLEMS MUST BE THIS SUBJECT
+- Weak Concepts: ${concepts.join(', ')} (these are ${finalSubject} concepts)
 - Problem Types to Include: ${problemTypes.map((t: string) => typeDescriptions[t]).join(', ')}
 - Question Formats: ${formats.map((f: string) => formatDescriptions[f]).join(', ')}
 - Total Problems: ${problemCount}
@@ -210,14 +214,15 @@ Return this EXACT JSON structure:
 - Provide detailed explanations (3-5 sentences)
 - Balance problem types according to selected types
 - Adjust difficulty based on grade level: ${gradeLevel || 'medium'}
-- **Focus ALL content on subject: ${finalSubject || 'general'}**
+- **🚨 CRITICAL: ALL problems MUST be ${finalSubject} subject - NO exceptions, NO other subjects allowed**
 - Generate EXACTLY ${problemCount} problems, no more, no less
 ${formats.length === 1 && formats.includes('multiple_choice') ? '- **ALL problems MUST be multiple choice (객관식) with exactly 4 numbered options (①②③④)**' : ''}
 ${formats.length === 1 && formats.includes('open_ended') ? '- **ALL problems MUST be open-ended (주관식) with options: null and answerSpace: true**' : ''}
 ${formats.length === 2 ? '- **Mix multiple choice (객관식) and open-ended (주관식) questions approximately 50/50**' : ''}
 - NO markdown formatting, NO code blocks, ONLY the JSON object
 - For 객관식, answer MUST be one of: ①, ②, ③, ④ (NOT 1, 2, 3, 4)
-- For 주관식, answer MUST be the actual answer text (NOT a number)`;
+- For 주관식, answer MUST be the actual answer text (NOT a number)
+- **VERIFY: Every problem must be ${finalSubject} content before returning**`;
 
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
