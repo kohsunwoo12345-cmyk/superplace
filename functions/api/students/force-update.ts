@@ -11,10 +11,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const url = new URL(context.request.url);
     
     const studentId = url.searchParams.get('id');
-    const school = url.searchParams.get('school') || '';
-    const grade = url.searchParams.get('grade') || '';
-    const diagnosticMemo = url.searchParams.get('diagnosticMemo') || '';
-    const academyName = url.searchParams.get('academyName') || '';
+    const school = url.searchParams.get('school');
+    const grade = url.searchParams.get('grade');
+    const diagnosticMemo = url.searchParams.get('diagnosticMemo');
+    const academyName = url.searchParams.get('academyName');
 
     if (!DB) {
       return new Response(JSON.stringify({ error: "Database not configured" }), {
@@ -85,19 +85,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const updates: string[] = [];
     const values: any[] = [];
 
-    if (school) {
+    if (school !== null) {
       updates.push("school = ?");
       values.push(school);
     }
-    if (grade) {
+    if (grade !== null) {
       updates.push("grade = ?");
       values.push(grade);
     }
-    if (diagnosticMemo) {
+    if (diagnosticMemo !== null) {
       updates.push("diagnostic_memo = ?");
       values.push(diagnosticMemo);
     }
-    if (academyName) {
+    if (academyName !== null) {
       updates.push("academy_name = ?");
       values.push(academyName);
     }
