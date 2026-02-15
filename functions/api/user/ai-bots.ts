@@ -36,7 +36,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     console.log(`🔍 사용자 봇 조회 - academyId: ${academyId}`);
 
     // bot_assignments 테이블 생성 (없으면)
-    await db.exec(`
+    console.log("📋 테이블 생성 확인 중...");
+    await db.prepare(`
       CREATE TABLE IF NOT EXISTS bot_assignments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         academyId TEXT NOT NULL,
@@ -49,27 +50,69 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `);
+    `).run();
+    console.log("✅ 테이블 생성/확인 완료");
 
-    // 할당된 봇 조회
-    const { results } = await db.prepare(`
-      SELECT 
-        b.id, b.name, b.description, b.systemPrompt, b.welcomeMessage,
-        b.starterMessage1, b.starterMessage2, b.starterMessage3,
-        b.profileIcon, b.profileImage, b.model, b.temperature,
-        b.maxTokens, b.topK, b.topP, b.language, b.isActive,
-        ba.expiresAt
-      FROM bot_assignments ba
-      JOIN ai_bots b ON ba.botId = b.id
-      WHERE ba.academyId = ?
-        AND ba.isActive = 1
-        AND b.isActive = 1
-        AND (ba.expiresAt IS NULL OR datetime(ba.expiresAt) > datetime('now'))
-      ORDER BY ba.createdAt DESC
+    // 할당된 봇 ID 조회
+    console.log(`🔍 academyId ${academyId}에 할당된 봇 ID 조회 중...`);
+    const assignments = await db.prepare(`
+      SELECT botId, expiresAt
+      FROM bot_assignments
+      WHERE academyId = ?
+        AND isActive = 1
+        AND (expiresAt IS NULL OR datetime(expiresAt) > datetime('now'))
     `).bind(academyId).all();
 
-    const bots = results || [];
-    console.log(`✅ 할당된 봇 ${bots.length}개 찾음`);
+    console.log(`📊 할당된 봇 ${assignments.results?.length || 0}개 발견`);
+    if (assignments.results && assignments.results.length > 0) {
+      console.log("📊 할당 목록:", assignments.results);
+    }
+
+    if (!assignments.results || assignments.results.length === 0) {
+      console.log("⚠️ 할당된 봇이 없습니다");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          bots: [],
+          count: 0,
+          message: "할당된 봇이 없습니다",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // 각 봇 정보 조회
+    const bots = [];
+    for (const assignment of assignments.results) {
+      try {
+        const bot = await db.prepare(`
+          SELECT 
+            id, name, description, systemPrompt, welcomeMessage,
+            starterMessage1, starterMessage2, starterMessage3,
+            profileIcon, profileImage, model, temperature,
+            maxTokens, topK, topP, language, isActive
+          FROM ai_bots
+          WHERE id = ? AND isActive = 1
+        `).bind(assignment.botId).first();
+
+        if (bot) {
+          bots.push({
+            ...bot,
+            expiresAt: assignment.expiresAt,
+          });
+          console.log(`✅ 봇 정보 조회 성공: ${bot.name} (${bot.id})`);
+        } else {
+          console.warn(`⚠️ 봇을 찾을 수 없음: ${assignment.botId}`);
+        }
+      } catch (error) {
+        console.error(`❌ 봇 정보 조회 실패: ${assignment.botId}`, error);
+      }
+    }
+
+    console.log(`✅ 최종 반환할 봇 ${bots.length}개`);
 
     return new Response(
       JSON.stringify({
