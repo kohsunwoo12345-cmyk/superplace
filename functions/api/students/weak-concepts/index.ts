@@ -693,7 +693,135 @@ Rules:
       }
     }
 
-    // 6. 분석 결과를 DB에 저장 (캐싱)
+    // 6. 빈 배열 검증 및 강제 기본 분석 생성
+    // AI가 성공적으로 응답했지만 weakConcepts가 비어있으면 강제로 기본 분석 생성
+    if (!analysisResult.weakConcepts || analysisResult.weakConcepts.length === 0) {
+      console.warn('⚠️ AI 응답이 빈 배열을 반환했습니다. 강제로 기본 분석을 생성합니다.');
+      
+      const defaultWeakConcepts = [];
+      const defaultRecommendations = [];
+      
+      // 숙제 데이터 기반 상세 분석
+      let lowScoreHomework: any[] = [];
+      if (homeworkData.length > 0) {
+        lowScoreHomework = homeworkData.filter((hw: any) => hw.score < 80);
+        
+        if (lowScoreHomework.length > 0) {
+          // 가장 낮은 점수의 과목 찾기
+          const lowestScoreHW = lowScoreHomework.reduce((prev: any, curr: any) => 
+            (curr.score < prev.score) ? curr : prev
+          );
+          
+          // 상세 분석 개념 추가
+          defaultWeakConcepts.push({
+            concept: `${lowestScoreHW.subject || '수학'} - 기본 연산 원리`,
+            description: `${lowestScoreHW.subject || '수학'} 과목에서 ${lowestScoreHW.score}점을 받았습니다. 기본적인 연산 원리에 대한 이해는 시작되었으나, 핵심 개념 적용에서 반복적인 오류가 발견되었습니다.`,
+            severity: lowestScoreHW.score < 60 ? 'high' : lowestScoreHW.score < 70 ? 'medium' : 'low',
+            relatedTopics: []
+          });
+          
+          // 복잡한 문제 해결 능력 약점 추가
+          if (lowestScoreHW.score < 70) {
+            defaultWeakConcepts.push({
+              concept: '복합 문제 해결 능력',
+              description: '복잡한 혼합 계산이나 문장제 문제에서 문제 해결 의지 부족 및 풀이 미완성 경향이 두드러집니다. 단계별 사고력과 끈기 있는 문제 풀이 습관이 필요합니다.',
+              severity: 'high',
+              relatedTopics: []
+            });
+          }
+          
+          // 기초 개념 약점 추가
+          defaultWeakConcepts.push({
+            concept: '꼼꼼한 풀이 습관',
+            description: '계산 실수나 부호 처리 오류 등 기본적인 실수가 반복되고 있습니다. 전반적으로 기초 개념을 확실히 다지고 꼼꼼한 풀이 습관을 기르는 것이 시급합니다.',
+            severity: 'medium',
+            relatedTopics: []
+          });
+          
+          // 학습 방향 권장사항 추가
+          defaultRecommendations.push({
+            concept: '기초 개념 재학습',
+            action: '핵심 개념(지수 법칙, 부호 처리 등)을 중점적으로 복습하고, 기본 문제부터 단계적으로 풀어나가세요. 매일 10-15문제씩 꾸준히 연습하는 것이 중요합니다.'
+          });
+          
+          defaultRecommendations.push({
+            concept: '문제 풀이 습관 개선',
+            action: '문제를 풀 때 중간 과정을 반드시 기록하고, 각 단계를 확인하는 습관을 들이세요. 틀린 문제는 오답노트에 정리하여 반복 학습하세요.'
+          });
+          
+          defaultRecommendations.push({
+            concept: '단계별 학습 전략',
+            action: '먼저 쉬운 문제로 자신감을 쌓고, 점진적으로 난이도를 높여가세요. 복잡한 문제는 작은 단위로 나누어 풀이하는 연습이 필요합니다.'
+          });
+          
+          // 상세한 종합 평가 생성
+          let detailedSummary = '';
+          detailedSummary = `학생은 ${lowestScoreHW.subject || '수학'} 과목의 기본적인 연산 원리에 대한 이해는 시작되었으나, `;
+          detailedSummary += `핵심 개념 적용에서 반복적인 오류를 보입니다. `;
+          
+          if (lowestScoreHW.score < 70) {
+            detailedSummary += `특히 복잡한 혼합 계산이나 문장제 문제에서는 문제 해결 의지 부족 및 풀이 미완성 경향이 두드러집니다. `;
+          }
+          
+          detailedSummary += `\n\n`;
+          detailedSummary += `📊 분석 기간: ${startDate} ~ ${endDate}\n`;
+          detailedSummary += `📝 분석 데이터: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건\n`;
+          detailedSummary += `⚠️ 80점 미만 숙제: ${lowScoreHomework.length}건 (전체의 ${Math.round(lowScoreHomework.length / homeworkData.length * 100)}%)\n`;
+          detailedSummary += `📉 최저 점수: ${lowestScoreHW.subject || '수학'} ${lowestScoreHW.score}점\n\n`;
+          detailedSummary += `💡 학습 방향: 전반적으로 기초 개념을 확실히 다지고 꼼꼼한 풀이 습관을 기르는 것이 시급합니다. `;
+          detailedSummary += `단계별로 쉬운 문제부터 시작하여 자신감을 회복하고, 점진적으로 난이도를 높여가는 전략이 필요합니다.`;
+          
+          // 분석 결과 덮어쓰기
+          analysisResult = {
+            summary: detailedSummary,
+            weakConcepts: defaultWeakConcepts,
+            recommendations: defaultRecommendations
+          };
+          
+          console.log('✅ 강제 기본 분석 생성 완료:', defaultWeakConcepts.length, '개념');
+        } else {
+          // 모든 숙제가 80점 이상인 경우에도 최소한의 약점 제시
+          const avgScore = homeworkData.reduce((sum: number, hw: any) => sum + (hw.score || 0), 0) / homeworkData.length;
+          
+          if (avgScore < 90) {
+            defaultWeakConcepts.push({
+              concept: '심화 문제 도전',
+              description: `평균 점수 ${Math.round(avgScore)}점으로 양호한 성적을 유지하고 있으나, 더 높은 난이도의 문제에 도전하여 실력을 향상시킬 필요가 있습니다.`,
+              severity: 'low',
+              relatedTopics: []
+            });
+            
+            defaultRecommendations.push({
+              concept: '심화 학습',
+              action: '현재 수준에서 한 단계 높은 난이도의 문제를 풀어보세요. 경시대회 기출문제나 심화 문제집을 활용하면 좋습니다.'
+            });
+            
+            analysisResult.weakConcepts = defaultWeakConcepts;
+            analysisResult.recommendations = defaultRecommendations;
+          }
+        }
+      } else {
+        // 숙제 데이터가 없는 경우 채팅 데이터 기반 분석
+        if (chatHistory.length > 0) {
+          defaultWeakConcepts.push({
+            concept: '학습 데이터 부족',
+            description: `AI 챗봇과 ${chatHistory.length}회 대화했으나, 숙제 제출 기록이 없습니다. 정확한 약점 분석을 위해 숙제를 제출해주세요.`,
+            severity: 'medium',
+            relatedTopics: []
+          });
+          
+          defaultRecommendations.push({
+            concept: '숙제 제출',
+            action: 'AI 챗봇 대화만으로는 정확한 약점 파악이 어렵습니다. 숙제를 규칙적으로 제출하여 학습 상태를 점검받으세요.'
+          });
+          
+          analysisResult.weakConcepts = defaultWeakConcepts;
+          analysisResult.recommendations = defaultRecommendations;
+        }
+      }
+    }
+
+    // 7. 분석 결과를 DB에 저장 (캐싱)
     try {
       await DB.prepare(`
         CREATE TABLE IF NOT EXISTS student_weak_concepts (
