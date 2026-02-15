@@ -16,7 +16,9 @@ import {
   Edit,
   MoreVertical,
   Home,
-  ArrowLeft
+  ArrowLeft,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -579,6 +581,9 @@ export default function ModernAIChatPage() {
         };
         await saveChatSession(updatedSession);
         console.log('✅ 세션 업데이트 완료:', sessionId);
+        
+        // AI 응답을 음성으로 재생
+        speakText(assistantMessage.content);
       } else {
         const errorData = await response.json();
         console.error('❌ API 응답 오류:', {
@@ -644,6 +649,94 @@ export default function ModernAIChatPage() {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
+  };
+
+  // Text-to-Speech: AI 응답을 음성으로 재생
+  const speakText = (text: string) => {
+    // 이미 말하고 있으면 중지
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    // 브라우저가 Speech Synthesis API를 지원하는지 확인
+    if (!('speechSynthesis' in window)) {
+      console.warn('이 브라우저는 음성 합성을 지원하지 않습니다.');
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // 한국어로 설정
+    utterance.lang = 'ko-KR';
+    utterance.rate = 1.0; // 속도
+    utterance.pitch = 1.0; // 음높이
+    utterance.volume = 1.0; // 볼륨
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      console.log('🔊 음성 재생 시작');
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      console.log('🔇 음성 재생 종료');
+    };
+
+    utterance.onerror = (event) => {
+      setIsSpeaking(false);
+      console.error('음성 재생 오류:', event);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Speech-to-Text: 음성을 텍스트로 변환
+  const startVoiceRecognition = () => {
+    // 브라우저가 Speech Recognition API를 지원하는지 확인
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용해주세요.');
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.lang = 'ko-KR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      console.log('🎤 음성 인식 시작');
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      console.log('✅ 인식된 텍스트:', transcript);
+      
+      // 인식된 텍스트를 입력창에 추가
+      setInput(prev => prev ? `${prev} ${transcript}` : transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('음성 인식 오류:', event.error);
+      setIsRecording(false);
+      
+      if (event.error === 'no-speech') {
+        alert('음성이 감지되지 않았습니다. 다시 시도해주세요.');
+      } else if (event.error === 'not-allowed') {
+        alert('마이크 권한을 허용해주세요.');
+      }
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      console.log('🔇 음성 인식 종료');
+    };
+
+    recognition.start();
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -787,6 +880,9 @@ export default function ModernAIChatPage() {
         };
         await saveChatSession(updatedSession);
         console.log('✅ 세션 업데이트 완료:', sessionId);
+        
+        // AI 응답을 음성으로 재생
+        speakText(assistantMessage.content);
       } else {
         const errorData = await response.json();
         console.error('❌ API 응답 오류:', {
@@ -1072,21 +1168,37 @@ export default function ModernAIChatPage() {
                       message.role === "user" ? "flex justify-end" : ""
                     }`}
                   >
-                    <div
-                      className={`inline-block max-w-[80%] px-4 py-2 rounded-2xl ${
-                        message.role === "user"
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-900"
-                      }`}
-                    >
-                      {message.imageUrl && (
-                        <img
-                          src={message.imageUrl}
-                          alt="Uploaded"
-                          className="max-w-full rounded-lg mb-2"
-                        />
+                    <div className="flex items-start gap-2">
+                      <div
+                        className={`inline-block max-w-[80%] px-4 py-2 rounded-2xl ${
+                          message.role === "user"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 text-gray-900"
+                        }`}
+                      >
+                        {message.imageUrl && (
+                          <img
+                            src={message.imageUrl}
+                            alt="Uploaded"
+                            className="max-w-full rounded-lg mb-2"
+                          />
+                        )}
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      </div>
+                      {/* AI 메시지에 음성 재생 버튼 추가 */}
+                      {message.role === "assistant" && (
+                        <button
+                          onClick={() => speakText(message.content)}
+                          className="p-1.5 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
+                          title={isSpeaking ? "음성 중지" : "음성으로 듣기"}
+                        >
+                          {isSpeaking ? (
+                            <VolumeX className="w-4 h-4 text-gray-600" />
+                          ) : (
+                            <Volume2 className="w-4 h-4 text-gray-600" />
+                          )}
+                        </button>
                       )}
-                      <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
                   </div>
                 </div>
@@ -1123,6 +1235,36 @@ export default function ModernAIChatPage() {
               </div>
             ) : (
               <>
+                {/* 이미지 미리보기 */}
+                {imagePreview && (
+                  <div className="mb-3 p-3 bg-gray-50 rounded-lg border-2 border-blue-200">
+                    <div className="flex items-start gap-3">
+                      <div className="relative flex-shrink-0">
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="w-24 h-24 object-cover rounded-lg"
+                        />
+                        <button
+                          onClick={cancelImagePreview}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                          title="이미지 제거"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-700 mb-1">
+                          📷 이미지가 첨부되었습니다
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          메시지를 입력하고 전송 버튼을 눌러주세요. 메시지 없이 전송하면 "이 이미지에 대해 설명해주세요"로 전송됩니다.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex items-end gap-2 bg-gray-100 rounded-3xl p-2">
                   {/* 이미지 업로드 버튼 */}
                   <button
@@ -1154,26 +1296,34 @@ export default function ModernAIChatPage() {
 
                   {/* 음성 입력 버튼 */}
                   <button
-                    onClick={isRecording ? stopRecording : startRecording}
+                    onClick={startVoiceRecognition}
                     className={`p-2 rounded-full transition-colors ${
                       isRecording
                         ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
                         : "hover:bg-gray-200"
                     }`}
                     disabled={loading || !selectedBot}
+                    title="음성으로 입력하기"
                   >
                     <Mic className="w-5 h-5" />
                   </button>
 
                   {/* 전송 버튼 */}
                   <button
-                    onClick={handleSend}
-                    disabled={!input.trim() || loading || !selectedBot}
+                    onClick={() => {
+                      if (imagePreview) {
+                        sendWithPreviewedImage();
+                      } else {
+                        handleSend();
+                      }
+                    }}
+                    disabled={(!input.trim() && !imagePreview) || loading || !selectedBot}
                     className={`p-2 rounded-full transition-colors ${
-                      input.trim() && !loading && selectedBot
+                      (input.trim() || imagePreview) && !loading && selectedBot
                         ? "bg-blue-600 hover:bg-blue-700 text-white"
                         : "bg-gray-300 text-gray-500 cursor-not-allowed"
                     }`}
+                    title={imagePreview ? "이미지와 함께 전송" : "메시지 전송"}
                   >
                     <Send className="w-5 h-5" />
                   </button>
