@@ -455,7 +455,52 @@ Rules:
       console.log('✅ 분석 완료! 개념:', analysisResult.weakConcepts.length);
       
     } catch (parseError: any) {
-      console.error('❌ 파싱 실패:', parseError.message);
+      console.error('❌ 모든 파싱 실패:', parseError.message);
+      
+      // 최후의 수단: 정규식으로 데이터 추출
+      try {
+        const responseText = geminiData.candidates[0].content.parts[0].text;
+        console.warn('⚠️ 정규식 추출 시도');
+        
+        // summary 추출
+        const summaryMatch = responseText.match(/"summary"\s*:\s*"([^"]+)"/);
+        const summary = summaryMatch ? summaryMatch[1] : '분석 데이터가 있으나 형식 오류';
+        
+        // weakConcepts 배열 추출
+        const weakConcepts: any[] = [];
+        const conceptRegex = /"concept"\s*:\s*"([^"]+)"[^}]*"description"\s*:\s*"([^"]+)"[^}]*"severity"\s*:\s*"([^"]+)"/g;
+        let match;
+        while ((match = conceptRegex.exec(responseText)) !== null && weakConcepts.length < 5) {
+          weakConcepts.push({
+            concept: match[1],
+            description: match[2],
+            severity: match[3],
+            relatedTopics: []
+          });
+        }
+        
+        // recommendations 배열 추출
+        const recommendations: any[] = [];
+        const recRegex = /"concept"\s*:\s*"([^"]+)"[^}]*"action"\s*:\s*"([^"]+)"/g;
+        while ((match = recRegex.exec(responseText)) !== null && recommendations.length < 5) {
+          if (!weakConcepts.find(c => c.concept === match[1])) {
+            recommendations.push({
+              concept: match[1],
+              action: match[2]
+            });
+          }
+        }
+        
+        analysisResult = {
+          summary: summary,
+          weakConcepts: weakConcepts,
+          recommendations: recommendations
+        };
+        
+        console.log('✅ 정규식 추출 성공! 개념:', weakConcepts.length);
+        
+      } catch (regexError: any) {
+        console.error('❌ 정규식 추출도 실패:', regexError.message);
       
       // 파싱 실패 시 빈 결과 반환
       analysisResult = {
