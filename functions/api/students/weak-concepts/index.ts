@@ -283,37 +283,50 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       analysisContext += `\n📚 숙제 채점 데이터 (${homeworkData.length}건):\n${homeworkText}\n`;
     }
 
-    // Gemini 2.5 Flash용 JSON 전용 프롬프트
-    const prompt = `Analyze student learning data and return ONLY valid JSON. No explanations, no markdown, no text before or after JSON.
+    // Gemini 2.5 Flash: 숙제 데이터 기반 상세 분석 프롬프트
+    const prompt = `You are an educational AI analyzing student homework performance. Analyze the data and return ONLY valid JSON.
 
-Student Data:
+Student Homework Data (${homeworkData.length} submissions):
 ${analysisContext}
 
-Return this exact JSON structure (Korean text inside):
+Analysis Period: ${startDate} to ${endDate}
+
+CRITICAL: Return ONLY this JSON structure with NO extra text, markdown, or explanations:
+
 {
-  "summary": "학생 이해도 요약 2-3문장",
-  "weakConcepts": [
+  "overallAssessment": "종합평가 (학생의 전반적인 학습 상태를 2-3문장으로 요약)",
+  "detailedAnalysis": "상세 분석 (숙제 데이터를 바탕으로 한 구체적인 분석 내용)",
+  "weaknessPatterns": [
     {
-      "concept": "개념명",
-      "description": "부족한 이유",
-      "severity": "high",
-      "relatedTopics": ["주제1", "주제2"]
+      "pattern": "약점 유형명",
+      "description": "이 약점이 나타나는 이유와 패턴"
     }
   ],
-  "recommendations": [
+  "conceptsNeedingReview": [
     {
-      "concept": "개념명",
-      "action": "학습방법"
+      "concept": "복습이 필요한 개념명",
+      "reason": "왜 복습이 필요한지",
+      "priority": "high"
     }
-  ]
+  ],
+  "improvementSuggestions": [
+    {
+      "area": "개선이 필요한 영역",
+      "method": "구체적인 개선 방법"
+    }
+  ],
+  "learningDirection": "앞으로의 학습 방향 제시 (2-3문장)"
 }
 
 Rules:
-- Find weak concepts from homework scores below 80
-- Maximum 5 concepts
-- severity: "high", "medium", or "low"
-- All Korean text must use proper escaping
-- Return ONLY the JSON object`;
+1. Focus on homework scores below 80 points
+2. Identify recurring error patterns
+3. Use ONLY Korean text for all values
+4. Maximum 5 items per array
+5. priority can be "high", "medium", or "low"
+6. NO markdown, NO explanations, ONLY the JSON object
+7. Ensure all JSON syntax is perfect (proper commas, quotes, brackets)`;
+
 
     // 4. Gemini API 호출
     const geminiApiKey = GOOGLE_GEMINI_API_KEY;
@@ -391,16 +404,47 @@ Rules:
       jsonString = jsonString.substring(firstBrace, lastBrace + 1);
       console.log('🔍 추출된 JSON (300자):', jsonString.substring(0, 300));
       
-      // JSON 파싱
+      // JSON 파싱 (3단계)
       let parsedData;
       try {
+        // 1차 시도: 직접 파싱
         parsedData = JSON.parse(jsonString);
-        console.log('✅ 파싱 성공!');
+        console.log('✅ 1차 파싱 성공!');
       } catch (e1) {
-        console.warn('⚠️ 1차 실패, 정제 시도');
-        const cleaned = jsonString.replace(/[\x00-\x1F\x7F-\x9F]/g, '').replace(/\n/g, ' ').replace(/\r/g, '').replace(/\t/g, ' ').replace(/\s+/g, ' ').trim();
-        parsedData = JSON.parse(cleaned);
-        console.log('✅ 2차 파싱 성공!');
+        console.warn('⚠️ 1차 실패, 2차 시도 (정제)');
+        
+        try {
+          // 2차 시도: 제어문자 제거
+          const cleaned = jsonString
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+            .replace(/\n/g, ' ')
+            .replace(/\r/g, '')
+            .replace(/\t/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          
+          parsedData = JSON.parse(cleaned);
+          console.log('✅ 2차 파싱 성공!');
+        } catch (e2) {
+          console.warn('⚠️ 2차 실패, 3차 시도 (JSON 수정)');
+          
+          // 3차 시도: 잘못된 쉼표/따옴표 수정
+          const fixed = jsonString
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+            .replace(/\n/g, ' ')
+            .replace(/\r/g, '')
+            .replace(/\t/g, ' ')
+            .replace(/,\s*}/g, '}')  // 객체 끝의 쉼표 제거
+            .replace(/,\s*]/g, ']')  // 배열 끝의 쉼표 제거
+            .replace(/}\s*{/g, '},{')  // 연속된 객체 사이 쉼표 추가
+            .replace(/"\s*"\s*:/g, '":')  // 잘못된 따옴표 수정
+            .replace(/:\s*"\s*"/g, ':""')  // 빈 문자열 수정
+            .replace(/\s+/g, ' ')
+            .trim();
+          
+          parsedData = JSON.parse(fixed);
+          console.log('✅ 3차 파싱 성공 (JSON 수정)!');
+        }
       }
       
       analysisResult = parsedData;
