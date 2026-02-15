@@ -39,8 +39,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.name,
           u.phone,
           u.role,
-          u.academy_id as academyId,
-          a.name as academyName
+          u.academy_id,
+          a.name as academy_name
         FROM users u
         LEFT JOIN academy a ON u.academy_id = a.id
         WHERE UPPER(u.role) = 'STUDENT'
@@ -62,8 +62,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.name,
           u.phone,
           u.role,
-          u.academy_id as academyId,
-          a.name as academyName
+          u.academy_id,
+          a.name as academy_name
         FROM users u
         LEFT JOIN academy a ON u.academy_id = a.id
         WHERE UPPER(u.role) = 'STUDENT'
@@ -80,8 +80,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.name,
           u.phone,
           u.role,
-          u.academy_id as academyId,
-          a.name as academyName
+          u.academy_id,
+          a.name as academy_name
         FROM users u
         LEFT JOIN academy a ON u.academy_id = a.id
         WHERE UPPER(u.role) = 'STUDENT' AND u.academy_id = ?
