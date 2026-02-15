@@ -11,10 +11,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const url = new URL(context.request.url);
     
     const studentId = url.searchParams.get('id');
-    const school = url.searchParams.get('school');
-    const grade = url.searchParams.get('grade');
+    const school = url.searchParams.get('school') || '';
+    const grade = url.searchParams.get('grade') || '';
     const diagnosticMemo = url.searchParams.get('diagnosticMemo') || '';
-    const academyName = url.searchParams.get('academyName');
+    const academyName = url.searchParams.get('academyName') || '';
 
     if (!DB) {
       return new Response(JSON.stringify({ error: "Database not configured" }), {
