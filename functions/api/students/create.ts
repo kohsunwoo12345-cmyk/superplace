@@ -130,6 +130,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     console.log('✅ Student user created with ID:', userId);
 
     // 성공 응답 반환 (students 테이블 사용하지 않음)
+    // v3 - 2026-02-15 - students 테이블 의존성 완전 제거
     console.log('✅ Student created successfully without students table dependency');
     
     return new Response(
