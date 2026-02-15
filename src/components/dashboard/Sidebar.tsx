@@ -90,6 +90,7 @@ const navigationByRole = {
     { name: "성적 관리", href: "/dashboard/grades", icon: BarChart3 },
     { name: "학원 통계", href: "/dashboard/analytics", icon: TrendingUp },
     { name: "결제 신청", href: "/payment-request", icon: CreditCard },
+    { name: "결제 승인", href: "/dashboard/admin/payment-approvals", icon: CreditCard },
     { name: "매출 통계", href: "/dashboard/revenue", icon: DollarSign },
     { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "학원 설정", href: "/dashboard/academy-settings", icon: Building2 },

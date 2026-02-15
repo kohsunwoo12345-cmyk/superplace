@@ -150,6 +150,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     console.log('🔍 Analyzing weak concepts for student:', studentId);
     console.log('📅 Date range:', startDate, '~', endDate);
+    console.log('📅 Date filter active:', !!(startDate && endDate));
 
     // 1. 학생의 채팅 내역 가져오기
     let chatHistory: ChatMessage[] = [];
@@ -170,15 +171,26 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       const params: any[] = [parseInt(studentId)];
       
       if (startDate && endDate) {
+        // ISO 날짜를 YYYY-MM-DD 00:00:00 형식으로 변환
+        const startDateTime = `${startDate} 00:00:00`;
+        const endDateTime = `${endDate} 23:59:59`;
         query += ` AND created_at BETWEEN ? AND ?`;
-        params.push(startDate, endDate);
+        params.push(startDateTime, endDateTime);
+        console.log('📅 Chat date filter:', startDateTime, '~', endDateTime);
       }
       
       query += ` ORDER BY created_at DESC LIMIT 100`;
       
+      console.log('🔍 Chat query:', query);
+      console.log('🔍 Chat params:', params);
+      
       const result = await DB.prepare(query).bind(...params).all();
       chatHistory = result.results as any[] || [];
       console.log(`✅ Found ${chatHistory.length} chat messages for concept analysis`);
+      if (chatHistory.length > 0) {
+        console.log('📝 First chat date:', chatHistory[0].createdAt);
+        console.log('📝 Last chat date:', chatHistory[chatHistory.length - 1].createdAt);
+      }
     } catch (dbError: any) {
       console.warn('⚠️ chat_messages table may not exist:', dbError.message);
       chatHistory = [];
@@ -216,17 +228,26 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         
         // 기간 필터 추가
         if (startDate && endDate) {
+          // ISO 날짜를 YYYY-MM-DD 00:00:00 형식으로 변환
+          const startDateTime = `${startDate} 00:00:00`;
+          const endDateTime = `${endDate} 23:59:59`;
           homeworkQuery += ` AND hs.submittedAt BETWEEN ? AND ?`;
-          params.push(startDate, endDate);
+          params.push(startDateTime, endDateTime);
+          console.log('📅 Homework date filter:', startDateTime, '~', endDateTime);
         }
         
         homeworkQuery += ` ORDER BY hs.submittedAt DESC LIMIT 50`;
+        
+        console.log('🔍 Homework query:', homeworkQuery);
+        console.log('🔍 Homework params:', params);
         
         const homeworkResult = await DB.prepare(homeworkQuery).bind(...params).all();
         homeworkData = homeworkResult.results || [];
         
         if (homeworkData.length > 0) {
           console.log(`✅ Found ${homeworkData.length} homework records using tables: ${tables.submissions}, ${tables.gradings}`);
+          console.log('📝 First homework date:', homeworkData[0].submittedAt);
+          console.log('📝 Last homework date:', homeworkData[homeworkData.length - 1].submittedAt);
           break; // 성공하면 루프 종료
         }
       } catch (dbError: any) {
@@ -340,7 +361,7 @@ Rules:
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-    // Gemini 2.5 Flash 모델 사용 (정확한 모델명)
+    // Gemini 2.5 Flash 모델 사용
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
     console.log('🔄 Calling Gemini 2.5 Flash API...');
@@ -447,12 +468,45 @@ Rules:
         }
       }
       
-      analysisResult = parsedData;
-      if (!analysisResult.summary) analysisResult.summary = '분석 완료';
-      if (!Array.isArray(analysisResult.weakConcepts)) analysisResult.weakConcepts = [];
-      if (!Array.isArray(analysisResult.recommendations)) analysisResult.recommendations = [];
+      // Gemini 응답을 프론트엔드 형식으로 변환
+      analysisResult = {
+        summary: parsedData.overallAssessment || parsedData.summary || '분석 완료',
+        weakConcepts: [],
+        recommendations: []
+      };
       
-      console.log('✅ 분석 완료! 개념:', analysisResult.weakConcepts.length);
+      // conceptsNeedingReview → weakConcepts 변환
+      if (Array.isArray(parsedData.conceptsNeedingReview)) {
+        analysisResult.weakConcepts = parsedData.conceptsNeedingReview.map((item: any) => ({
+          concept: item.concept || '개념',
+          description: item.reason || item.description || '',
+          severity: item.priority || 'medium',
+          relatedTopics: item.relatedTopics || []
+        }));
+      }
+      
+      // weaknessPatterns를 weakConcepts에 추가
+      if (Array.isArray(parsedData.weaknessPatterns)) {
+        parsedData.weaknessPatterns.forEach((item: any) => {
+          analysisResult.weakConcepts.push({
+            concept: item.pattern || '약점 패턴',
+            description: item.description || '',
+            severity: 'medium',
+            relatedTopics: []
+          });
+        });
+      }
+      
+      // improvementSuggestions → recommendations 변환
+      if (Array.isArray(parsedData.improvementSuggestions)) {
+        analysisResult.recommendations = parsedData.improvementSuggestions.map((item: any) => ({
+          concept: item.area || '개선 영역',
+          action: item.method || item.action || ''
+        }));
+      }
+      
+      console.log('✅ 분석 완료! weakConcepts:', analysisResult.weakConcepts.length, 'recommendations:', analysisResult.recommendations.length);
+      console.log('📊 변환된 데이터:', JSON.stringify(analysisResult, null, 2));
       
     } catch (parseError: any) {
       console.error('❌ 모든 파싱 실패:', parseError.message);

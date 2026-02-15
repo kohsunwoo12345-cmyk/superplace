@@ -96,20 +96,18 @@ function StudentDetailContent() {
   const [loading, setLoading] = useState(true);
   const [analyzingLoading, setAnalyzingLoading] = useState(false);
   const [conceptAnalyzingLoading, setConceptAnalyzingLoading] = useState(false);
-  const [generatingProblems, setGeneratingProblems] = useState(false);
-  const [similarProblems, setSimilarProblems] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
   const [attendanceCodeCopied, setAttendanceCodeCopied] = useState(false);
   
-  // 기간 필터 상태
-  const [analysisStartDate, setAnalysisStartDate] = useState<string>('');
-  const [analysisEndDate, setAnalysisEndDate] = useState<string>('');
+  // 날짜 필터 상태 추가
+  const [analysisStartDate, setAnalysisStartDate] = useState<string>("");
+  const [analysisEndDate, setAnalysisEndDate] = useState<string>("");
 
-  // 기본 기간 설정 (최근 30일)
+  // 기본 날짜 설정 (최근 30일)
   useEffect(() => {
     const today = new Date();
-    const thirtyDaysAgo = new Date(today);
+    const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(today.getDate() - 30);
     
     setAnalysisEndDate(today.toISOString().split('T')[0]);
@@ -270,7 +268,6 @@ function StudentDetailContent() {
       const token = localStorage.getItem("token");
 
       console.log('🧠 부족한 개념 분석 시작...');
-      console.log('📅 분석 기간:', analysisStartDate, '~', analysisEndDate);
 
       // 타임아웃 설정 (30초)
       const controller = new AbortController();
@@ -295,35 +292,17 @@ function StudentDetailContent() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ API 오류:', response.status, errorData);
-        
-        // 상세 에러 메시지 표시
-        let errorMessage = '분석 중 오류가 발생했습니다.';
-        if (errorData.error) {
-          errorMessage = errorData.error;
-        } else if (errorData.message) {
-          errorMessage = errorData.message;
-        }
-        
-        console.error('❌ 전체 응답:', await response.text().catch(() => 'no text'));
-        throw new Error(`${errorMessage} (상태: ${response.status})`);
+        throw new Error(errorData.error || `API 오류: ${response.status}`);
       }
 
       const data = await response.json();
       console.log('✅ 분석 완료:', data);
-      console.log('📊 weakConcepts:', data.weakConcepts);
-      console.log('📊 weakConcepts 개수:', data.weakConcepts?.length);
-      console.log('📊 recommendations:', data.recommendations);
-      console.log('📊 summary:', data.summary);
       
       setWeakConcepts(data.weakConcepts || []);
       setConceptRecommendations(data.recommendations || []);
       setConceptSummary(data.summary || "");
       
-      if (data.weakConcepts && data.weakConcepts.length > 0) {
-        alert(`✅ 분석이 완료되었습니다!\n\n부족한 개념 ${data.weakConcepts.length}개를 발견했습니다.`);
-      } else {
-        alert('✅ 분석이 완료되었습니다!\n\n현재 부족한 개념이 발견되지 않았습니다.');
-      }
+      alert('✅ 분석이 완료되었습니다!');
     } catch (error: any) {
       console.error("Failed to analyze weak concepts:", error);
       
@@ -331,13 +310,8 @@ function StudentDetailContent() {
         alert('⏱️ 분석 시간이 초과되었습니다. 다시 시도해주세요.');
       } else if (error.message.includes('Failed to fetch')) {
         alert('🌐 네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
-      } else if (error.message.includes('GOOGLE_GEMINI_API_KEY')) {
-        alert('⚙️ AI 분석 설정이 완료되지 않았습니다. 관리자에게 문의하세요.');
       } else {
-        // 상세 에러 메시지 표시
-        alert('❌ AI 분석 중 오류가 발생했습니다.\n\n' + 
-              '상세 정보: ' + (error.message || "알 수 없는 오류") + '\n\n' +
-              '잠시 후 다시 시도해주세요. 문제가 계속되면 관리자에게 문의하세요.');
+        alert('❌ ' + (error.message || "부족한 개념 분석 중 오류가 발생했습니다."));
       }
     } finally {
       setConceptAnalyzingLoading(false);
@@ -367,45 +341,6 @@ function StudentDetailContent() {
     } catch (error: any) {
       console.error("Failed to generate student code:", error);
       alert(error.message || "학생 코드 생성 중 오류가 발생했습니다.");
-    }
-  };
-
-  const generateSimilarProblems = async (concept?: string) => {
-    try {
-      setGeneratingProblems(true);
-      const token = localStorage.getItem("token");
-
-      console.log('📝 유사문제 생성 시작:', concept || '전체');
-
-      const response = await fetch(`/api/students/generate-similar-problems`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ studentId, concept }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `API 오류: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('✅ 유사문제 생성 완료:', data);
-      
-      setSimilarProblems(data.problems || []);
-      
-      if (data.problems && data.problems.length > 0) {
-        alert(`✅ ${concept || '자주 틀리는 문제'}에 대한 유사문제 ${data.problems.length}개가 생성되었습니다!`);
-      } else {
-        alert('⚠️ ' + (data.message || '생성된 문제가 없습니다.'));
-      }
-    } catch (error: any) {
-      console.error("Failed to generate similar problems:", error);
-      alert('❌ 유사문제 생성 중 오류가 발생했습니다.\n\n' + (error.message || '알 수 없는 오류'));
-    } finally {
-      setGeneratingProblems(false);
     }
   };
 
@@ -988,83 +923,68 @@ function StudentDetailContent() {
           <TabsContent value="concepts" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-orange-600" />
-                        부족한 개념 분석
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        AI가 대화 내역과 숙제 채점 데이터를 분석하여 학생이 어려워하는 개념을 찾아냅니다
-                      </CardDescription>
-                    </div>
-                    <Button
-                      onClick={analyzeWeakConcepts}
-                      disabled={conceptAnalyzingLoading}
-                      className="w-full sm:w-auto whitespace-nowrap"
-                      size="sm"
-                    >
-                      {conceptAnalyzingLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          분석 중...
-                        </>
-                      ) : (
-                        <>
-                          <Brain className="w-4 h-4 mr-2" />
-                          개념 분석 실행
-                        </>
-                      )}
-                    </Button>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-orange-600" />
+                      부족한 개념 분석
+                    </CardTitle>
+                    <CardDescription className="mt-1">
+                      AI가 대화 내역과 숙제 채점 데이터를 분석하여 학생이 어려워하는 개념을 찾아냅니다
+                    </CardDescription>
                   </div>
-                  
-                  {/* 기간 선택 */}
-                  <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-blue-50 p-3 rounded-lg border border-blue-200">
-                    <span className="text-sm font-medium text-blue-900 whitespace-nowrap">분석 기간:</span>
-                    <div className="flex flex-wrap gap-2 items-center">
+                  <Button
+                    onClick={analyzeWeakConcepts}
+                    disabled={conceptAnalyzingLoading}
+                    className="w-full sm:w-auto whitespace-nowrap"
+                    size="sm"
+                  >
+                    {conceptAnalyzingLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        분석 중...
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="w-4 h-4 mr-2" />
+                        개념 분석 실행
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* 날짜 필터 UI */}
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    분석 기간 설정
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">시작일</label>
                       <input
                         type="date"
                         value={analysisStartDate}
                         onChange={(e) => setAnalysisStartDate(e.target.value)}
-                        className="px-3 py-1.5 text-sm border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
-                      <span className="text-sm text-blue-700">~</span>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">종료일</label>
                       <input
                         type="date"
                         value={analysisEndDate}
                         onChange={(e) => setAnalysisEndDate(e.target.value)}
-                        className="px-3 py-1.5 text-sm border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
-                      <button
-                        onClick={() => {
-                          const today = new Date();
-                          const thirtyDaysAgo = new Date(today);
-                          thirtyDaysAgo.setDate(today.getDate() - 30);
-                          setAnalysisStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
-                          setAnalysisEndDate(today.toISOString().split('T')[0]);
-                        }}
-                        className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                      >
-                        최근 30일
-                      </button>
-                      <button
-                        onClick={() => {
-                          const today = new Date();
-                          const ninetyDaysAgo = new Date(today);
-                          ninetyDaysAgo.setDate(today.getDate() - 90);
-                          setAnalysisStartDate(ninetyDaysAgo.toISOString().split('T')[0]);
-                          setAnalysisEndDate(today.toISOString().split('T')[0]);
-                        }}
-                        className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                      >
-                        최근 90일
-                      </button>
                     </div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 선택한 기간 내의 채팅 내역과 숙제 데이터를 분석합니다
+                  </p>
                 </div>
-              </CardHeader>
-              <CardContent>
+
                 {conceptAnalyzingLoading ? (
                   <div className="text-center py-12">
                     <Loader2 className="w-16 h-16 animate-spin text-blue-500 mx-auto mb-4" />
@@ -1089,103 +1009,26 @@ function StudentDetailContent() {
                     </p>
                   </div>
                 ) : conceptSummary.includes('오류') || conceptSummary.includes('없습니다') ? (
-                  <div className="space-y-6">
-                    {/* 분석 상태 헤더 */}
-                    <div className="bg-gradient-to-r from-orange-50 to-red-50 p-6 rounded-xl border-2 border-orange-200">
-                      <div className="flex items-start gap-4">
-                        <AlertTriangle className="w-12 h-12 text-orange-500 flex-shrink-0" />
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-orange-900 mb-2">
-                            데이터 분석 결과
-                          </h3>
-                          <p className="text-orange-700 leading-relaxed mb-4">
-                            {conceptSummary}
-                          </p>
-                          
-                          {/* 상세 안내 */}
-                          <div className="bg-white/80 backdrop-blur p-4 rounded-lg border border-orange-200">
-                            <h4 className="font-semibold text-orange-900 mb-3 flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
-                              분석을 위해 필요한 데이터
-                            </h4>
-                            <ul className="space-y-2 text-sm text-orange-800">
-                              <li className="flex items-start gap-2">
-                                <span className="text-orange-500 mt-0.5">▪</span>
-                                <span><strong>AI 챗봇 대화 기록:</strong> 학생의 질문과 AI 응답을 통해 이해도를 파악합니다</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span className="text-orange-500 mt-0.5">▪</span>
-                                <span><strong>숙제 제출 및 채점 결과:</strong> 80점 미만의 문제에서 반복되는 약점을 찾습니다</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span className="text-orange-500 mt-0.5">▪</span>
-                                <span><strong>오답 패턴 분석:</strong> 유사한 오류가 반복되는 개념을 도출합니다</span>
-                              </li>
-                            </ul>
-                          </div>
-
-                          {/* 액션 버튼 */}
-                          <div className="mt-4 flex flex-wrap gap-3">
-                            <Button
-                              onClick={analyzeWeakConcepts}
-                              variant="default"
-                              className="bg-orange-600 hover:bg-orange-700"
-                              size="default"
-                            >
-                              <Brain className="w-4 h-4 mr-2" />
-                              {conceptSummary.includes('오류') ? '다시 분석하기' : '분석 시작하기'}
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                window.open('/dashboard/gemini-chat', '_blank');
-                              }}
-                              variant="outline"
-                              size="default"
-                            >
-                              AI 챗봇 사용하기
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 도움말 카드 */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                            <span className="text-white font-bold">1</span>
-                          </div>
-                          <h5 className="font-semibold text-blue-900">AI 챗봇 대화</h5>
-                        </div>
-                        <p className="text-sm text-blue-700">
-                          학생이 AI 챗봇과 대화하면 자동으로 이해도가 분석됩니다.
-                        </p>
-                      </div>
-                      
-                      <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                            <span className="text-white font-bold">2</span>
-                          </div>
-                          <h5 className="font-semibold text-green-900">숙제 제출</h5>
-                        </div>
-                        <p className="text-sm text-green-700">
-                          숙제를 제출하고 채점을 받으면 약점이 자동으로 분석됩니다.
-                        </p>
-                      </div>
-                      
-                      <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                            <span className="text-white font-bold">3</span>
-                          </div>
-                          <h5 className="font-semibold text-purple-900">분석 실행</h5>
-                        </div>
-                        <p className="text-sm text-purple-700">
-                          충분한 데이터가 모이면 AI가 부족한 개념을 자동으로 찾아드립니다.
-                        </p>
-                      </div>
+                  <div className="text-center py-12">
+                    <div className="bg-orange-50 p-6 rounded-lg border-2 border-orange-200">
+                      <AlertTriangle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+                      <p className="text-orange-700 font-medium text-lg mb-2">
+                        {conceptSummary}
+                      </p>
+                      <p className="text-sm text-orange-600 mt-3">
+                        {conceptSummary.includes('오류') 
+                          ? '잠시 후 다시 시도해주세요. 문제가 계속되면 관리자에게 문의하세요.'
+                          : 'AI 챗봇과 대화를 하거나 숙제를 제출하여 부족한 개념을 파악하세요.'}
+                      </p>
+                      <Button
+                        onClick={analyzeWeakConcepts}
+                        variant="outline"
+                        className="mt-4"
+                        size="sm"
+                      >
+                        <Brain className="w-4 h-4 mr-2" />
+                        다시 분석하기
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -1239,17 +1082,12 @@ function StudentDetailContent() {
                               size="sm"
                               variant="outline"
                               className="w-full sm:w-auto text-xs sm:text-sm"
-                              onClick={() => generateSimilarProblems(concept.concept)}
-                              disabled={generatingProblems}
+                              onClick={() => {
+                                alert(`${concept.concept}에 대한 유사문제를 생성합니다.`);
+                                // TODO: 유사문제 생성 API 호출
+                              }}
                             >
-                              {generatingProblems ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  생성 중...
-                                </>
-                              ) : (
-                                '📝 유사문제 출제'
-                              )}
+                              📝 유사문제 출제
                             </Button>
                           </div>
                         ))}
@@ -1268,59 +1106,6 @@ function StudentDetailContent() {
                                 <p className="font-medium text-sm">{rec.concept}</p>
                                 <p className="text-sm text-gray-700">{rec.action}</p>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 생성된 유사문제 표시 */}
-                    {similarProblems.length > 0 && (
-                      <div className="mt-6">
-                        <h4 className="font-semibold mb-3 flex items-center gap-2">
-                          <FileText className="w-5 h-5 text-green-600" />
-                          생성된 유사문제 ({similarProblems.length}개)
-                        </h4>
-                        <div className="space-y-4">
-                          {similarProblems.map((problem, idx) => (
-                            <div key={idx} className="border-2 border-green-200 bg-green-50 p-4 rounded-lg">
-                              <div className="flex items-start justify-between mb-2">
-                                <h5 className="font-bold text-green-900">{problem.title}</h5>
-                                <Badge variant={
-                                  problem.difficulty === 'hard' ? 'destructive' : 
-                                  problem.difficulty === 'medium' ? 'default' : 'outline'
-                                }>
-                                  {problem.difficulty === 'hard' ? '어려움' : 
-                                   problem.difficulty === 'medium' ? '보통' : '쉬움'}
-                                </Badge>
-                              </div>
-                              
-                              {problem.concept && (
-                                <p className="text-sm text-green-700 mb-2">
-                                  <strong>관련 개념:</strong> {problem.concept}
-                                </p>
-                              )}
-                              
-                              <div className="bg-white p-3 rounded mb-3">
-                                <p className="text-sm font-medium mb-1">문제:</p>
-                                <p className="text-sm whitespace-pre-wrap">{problem.question}</p>
-                              </div>
-                              
-                              {problem.hint && (
-                                <div className="bg-yellow-50 p-3 rounded mb-3">
-                                  <p className="text-sm font-medium mb-1">💡 힌트:</p>
-                                  <p className="text-sm text-gray-700">{problem.hint}</p>
-                                </div>
-                              )}
-                              
-                              <details className="cursor-pointer">
-                                <summary className="text-sm font-medium text-blue-600 hover:text-blue-800">
-                                  정답 및 풀이 보기
-                                </summary>
-                                <div className="mt-2 p-3 bg-blue-50 rounded">
-                                  <p className="text-sm whitespace-pre-wrap">{problem.solution}</p>
-                                </div>
-                              </details>
                             </div>
                           ))}
                         </div>
