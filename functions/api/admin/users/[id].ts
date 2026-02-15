@@ -43,6 +43,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
+    // students 테이블에서 추가 정보 조회
+    let studentInfo = null;
+    try {
+      studentInfo = await DB.prepare(
+        `SELECT school, grade, diagnostic_memo
+         FROM students 
+         WHERE user_id = ?`
+      ).bind(userId).first();
+      console.log("✅ Student info found:", studentInfo);
+    } catch (e) {
+      console.log("⚠️ Students table not found or error:", e);
+    }
+
     // 마지막 로그인 정보 조회
     let lastLogin = null;
     try {
@@ -65,7 +78,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           // user 테이블의 lastLoginAt, lastLoginIp 사용
           // 로그 테이블에서 가져온 값은 참고용으로만 사용
           lastLoginAt: user.lastLoginAt || lastLogin?.loginAt || null,
-          lastLoginIp: user.lastLoginIp || lastLogin?.ip || null
+          lastLoginIp: user.lastLoginIp || lastLogin?.ip || null,
+          // students 테이블의 정보 추가
+          school: studentInfo?.school || null,
+          grade: studentInfo?.grade || null,
+          diagnostic_memo: studentInfo?.diagnostic_memo || null
         }
       }),
       {

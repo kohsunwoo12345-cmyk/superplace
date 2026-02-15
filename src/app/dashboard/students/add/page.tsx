@@ -53,18 +53,20 @@ export default function AddStudentPage() {
       return;
     }
 
+    if (!password.trim()) {
+      alert("비밀번호를 입력해주세요");
+      return;
+    }
+
+    if (password.trim().length < 4) {
+      alert("비밀번호는 최소 4자 이상이어야 합니다");
+      return;
+    }
+
     // 이메일이 없으면 전화번호 + 타임스탬프로 자동 생성 (중복 방지)
     const timestamp = Date.now();
     const phoneNumber = phone.replace(/[^0-9]/g, '');
     const finalEmail = email.trim() || `student_${phoneNumber}_${timestamp}@temp.student.local`;
-
-    // 비밀번호가 없으면 전화번호 뒷자리 4자리로 설정
-    const finalPassword = password.trim() || phoneNumber.slice(-4) || "1234";
-
-    if (finalPassword.length < 4) {
-      alert("비밀번호는 최소 4자 이상이어야 합니다");
-      return;
-    }
 
     setLoading(true);
 
@@ -72,7 +74,7 @@ export default function AddStudentPage() {
       const requestBody = {
         name: name.trim(),
         email: finalEmail,
-        password: finalPassword,
+        password: password.trim(),
         phone: phone.trim(),
         school: school.trim() || null,
         grade: grade.trim() || null,
@@ -216,10 +218,25 @@ export default function AddStudentPage() {
             {/* 선택 입력 영역 */}
             <div className="border-t pt-4 mt-4">
               <p className="text-sm font-medium text-gray-700 mb-3">
-                선택 입력 (자동 생성 가능)
+                로그인 정보
               </p>
               
               <div className="space-y-4">
+                <div>
+                  <Label htmlFor="password">비밀번호 *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="최소 4자 이상"
+                    required
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    학생이 로그인 시 사용할 비밀번호입니다
+                  </p>
+                </div>
+
                 <div>
                   <Label htmlFor="email">이메일 (선택)</Label>
                   <Input
@@ -227,24 +244,10 @@ export default function AddStudentPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="비워두면 연락처로 자동 생성"
+                    placeholder="비워두면 자동 생성"
                   />
                   <p className="text-sm text-gray-500 mt-1">
-                    미입력 시 연락처 기반으로 자동 생성됩니다
-                  </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="password">비밀번호 (선택)</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="비워두면 연락처 뒷자리로 자동 설정"
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    미입력 시 연락처 뒷자리 4자리로 설정됩니다
+                    미입력 시 자동 생성됩니다 (상세 페이지에서 확인 가능)
                   </p>
                 </div>
               </div>

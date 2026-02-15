@@ -23,6 +23,9 @@ interface StudentDetail {
   academyName?: string;
   created_at?: string;
   student_code?: string;
+  school?: string;
+  grade?: string;
+  diagnostic_memo?: string;
 }
 
 interface AttendanceCode {
@@ -588,32 +591,46 @@ function StudentDetailContent() {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div>
-                      <p className="text-sm text-gray-500">이메일</p>
-                      <p className="font-medium">{student.email}</p>
+                      <p className="text-sm text-gray-500">전화번호</p>
+                      <p className="font-medium">{student.phone || '미등록'}</p>
                     </div>
                   </div>
 
-                  {student.phone && (
+                  <div className="flex items-start gap-3">
+                    <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-500">이메일</p>
+                      <p className="font-medium">
+                        {student.email?.includes('@temp.student.local') 
+                          ? '미등록 (자동생성)' 
+                          : student.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  {student.school && (
                     <div className="flex items-start gap-3">
-                      <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
                       <div>
-                        <p className="text-sm text-gray-500">전화번호</p>
-                        <p className="font-medium">{student.phone}</p>
+                        <p className="text-sm text-gray-500">학교</p>
+                        <p className="font-medium">{student.school}</p>
                       </div>
                     </div>
                   )}
 
-                  <div className="flex items-start gap-3">
-                    <Badge variant="default" className="mt-0.5">
-                      {student.role}
-                    </Badge>
-                    <div>
-                      <p className="text-sm text-gray-500">역할</p>
-                      <p className="font-medium">학생</p>
+                  {student.grade && (
+                    <div className="flex items-start gap-3">
+                      <Badge variant="outline" className="mt-0.5">
+                        {student.grade}
+                      </Badge>
+                      <div>
+                        <p className="text-sm text-gray-500">학년</p>
+                        <p className="font-medium">{student.grade}</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {student.academyName && (
                     <div className="flex items-start gap-3">
@@ -637,6 +654,13 @@ function StudentDetailContent() {
                     </div>
                   )}
                 </div>
+
+                {student.diagnostic_memo && (
+                  <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm font-medium text-blue-900 mb-2">진단 메모</p>
+                    <p className="text-sm text-blue-800 whitespace-pre-wrap">{student.diagnostic_memo}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
