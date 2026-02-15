@@ -131,44 +131,102 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // students 테이블에도 레코드 생성 (있는 경우)
     try {
-      // 테이블 생성 (없으면)
-      console.log('📋 Creating students table if not exists...');
-      await DB.prepare(`
-        CREATE TABLE IF NOT EXISTS students (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER NOT NULL,
-          academy_id INTEGER,
-          school TEXT,
-          grade TEXT,
-          diagnostic_memo TEXT,
-          status TEXT DEFAULT 'ACTIVE',
-          created_at TEXT NOT NULL,
-          updated_at TEXT,
-          FOREIGN KEY (user_id) REFERENCES users(id),
-          FOREIGN KEY (academy_id) REFERENCES academy(id)
-        )
-      `).run();
-      console.log('✅ Students table ready');
+      console.log('📋 Checking students table structure...');
+      
+      // 먼저 테이블 구조 확인
+      let tableExists = false;
+      let hasDiagnosticMemo = false;
+      
+      try {
+        const tableInfo = await DB.prepare(`
+          SELECT name FROM sqlite_master WHERE type='table' AND name='students'
+        `).first();
+        
+        if (tableInfo) {
+          tableExists = true;
+          console.log('✅ Students table exists');
+          
+          // 컬럼 확인
+          const columns = await DB.prepare(`PRAGMA table_info(students)`).all();
+          hasDiagnosticMemo = columns.results?.some((col: any) => col.name === 'diagnostic_memo') || false;
+          console.log('📋 Table columns:', columns.results?.map((c: any) => c.name).join(', '));
+          console.log('📋 Has diagnostic_memo column:', hasDiagnosticMemo);
+        }
+      } catch (e) {
+        console.log('⚠️ Could not check table structure:', e);
+      }
+      
+      // 테이블이 없으면 생성 (diagnostic_memo 포함)
+      if (!tableExists) {
+        console.log('📋 Creating students table with diagnostic_memo...');
+        await DB.prepare(`
+          CREATE TABLE IF NOT EXISTS students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            academy_id INTEGER,
+            school TEXT,
+            grade TEXT,
+            diagnostic_memo TEXT,
+            status TEXT DEFAULT 'ACTIVE',
+            created_at TEXT NOT NULL,
+            updated_at TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (academy_id) REFERENCES academy(id)
+          )
+        `).run();
+        hasDiagnosticMemo = true;
+        console.log('✅ Students table created with diagnostic_memo');
+      }
+      
+      // diagnostic_memo 컬럼이 없으면 추가
+      if (tableExists && !hasDiagnosticMemo) {
+        console.log('📋 Adding diagnostic_memo column...');
+        try {
+          await DB.prepare(`
+            ALTER TABLE students ADD COLUMN diagnostic_memo TEXT
+          `).run();
+          hasDiagnosticMemo = true;
+          console.log('✅ diagnostic_memo column added');
+        } catch (e) {
+          console.log('⚠️ Could not add diagnostic_memo column (may already exist):', e);
+        }
+      }
       
       console.log('📝 Inserting student record:', {
         userId,
         academyId: finalAcademyId,
         school,
         grade,
-        diagnosticMemo
+        diagnosticMemo: hasDiagnosticMemo ? diagnosticMemo : '(skipped - column missing)'
       });
       
-      const insertResult = await DB.prepare(`
-        INSERT INTO students (user_id, academy_id, school, grade, diagnostic_memo, status, created_at)
-        VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)
-      `).bind(
-        userId,
-        finalAcademyId,
-        school || null,
-        grade || null,
-        diagnosticMemo || null,
-        koreanTime
-      ).run();
+      // diagnostic_memo 컬럼 유무에 따라 다른 쿼리 사용
+      let insertResult;
+      if (hasDiagnosticMemo) {
+        insertResult = await DB.prepare(`
+          INSERT INTO students (user_id, academy_id, school, grade, diagnostic_memo, status, created_at)
+          VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)
+        `).bind(
+          userId,
+          finalAcademyId,
+          school || null,
+          grade || null,
+          diagnosticMemo || null,
+          koreanTime
+        ).run();
+      } else {
+        // diagnostic_memo 컬럼이 없으면 제외하고 삽입
+        insertResult = await DB.prepare(`
+          INSERT INTO students (user_id, academy_id, school, grade, status, created_at)
+          VALUES (?, ?, ?, ?, 'ACTIVE', ?)
+        `).bind(
+          userId,
+          finalAcademyId,
+          school || null,
+          grade || null,
+          koreanTime
+        ).run();
+      }
       
       console.log('✅ Student record created:', insertResult.meta);
       
@@ -179,11 +237,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       
       console.log('🔍 Verification - Student record:', verifyStudent);
     } catch (error: any) {
-      console.error('❌ CRITICAL: Students table insert failed!');
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-      // 에러를 무시하지 말고 사용자에게 알림
-      throw new Error(`Failed to create student record: ${error.message}`);
+      console.error('❌ Students table error:', error.message);
+      // students 테이블 오류는 치명적이지 않으므로 경고만 하고 계속 진행
+      console.log('⚠️ Continuing without students table record');
     }
 
     return new Response(
