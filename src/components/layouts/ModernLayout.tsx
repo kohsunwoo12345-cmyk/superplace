@@ -74,7 +74,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
     if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
       console.log('✅ ModernLayout - Loading ADMIN menu (19 items)');
       return [
-        { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
+        { id: 'home', href: '/dashboard/admin', icon: Home, text: '대시보드' },
         // 관리자 전용 메뉴
         { id: 'admin-users', href: '/dashboard/admin/users', icon: Users, text: '사용자 관리' },
         { id: 'admin-academies', href: '/dashboard/admin/academies', icon: GraduationCap, text: '학원 관리' },

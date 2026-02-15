@@ -40,7 +40,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 // 역할별 네비게이션 정의
 const navigationByRole = {
   SUPER_ADMIN: [
-    { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+    { name: "대시보드", href: "/dashboard/admin", icon: LayoutDashboard },
     { name: "🛒 AI 봇 쇼핑몰", href: "/store", icon: ShoppingCart, featured: true },
     { name: "사용자 관리", href: "/dashboard/admin/users", icon: Users },
     { name: "학원 관리", href: "/dashboard/admin/academies", icon: Building2 },
@@ -61,7 +61,7 @@ const navigationByRole = {
     { name: "시스템 설정", href: "/dashboard/settings", icon: Settings },
   ],
   ADMIN: [
-    { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+    { name: "대시보드", href: "/dashboard/admin", icon: LayoutDashboard },
     { name: "🛒 AI 봇 쇼핑몰", href: "/store", icon: ShoppingCart, featured: true },
     { name: "사용자 관리", href: "/dashboard/admin/users", icon: Users },
     { name: "학원 관리", href: "/dashboard/admin/academies", icon: Building2 },

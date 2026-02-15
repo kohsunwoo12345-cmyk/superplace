@@ -42,8 +42,19 @@ export default function LoginPage() {
         localStorage.setItem('token', data.data.token);
         localStorage.setItem('user', JSON.stringify(data.data.user));
         
-        // Redirect to dashboard
-        router.push('/dashboard');
+        // Redirect based on user role
+        const userRole = data.data.user.role?.toUpperCase();
+        if (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') {
+          router.push('/dashboard/admin');
+        } else if (userRole === 'DIRECTOR') {
+          router.push('/dashboard');
+        } else if (userRole === 'TEACHER') {
+          router.push('/dashboard');
+        } else if (userRole === 'STUDENT') {
+          router.push('/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
         router.refresh();
       } else {
         console.error('❌ 로그인 실패:', data.message);
