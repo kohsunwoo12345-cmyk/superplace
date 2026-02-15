@@ -501,14 +501,15 @@ Rules:
         
       } catch (regexError: any) {
         console.error('❌ 정규식 추출도 실패:', regexError.message);
-      
-      // 파싱 실패 시 빈 결과 반환
-      analysisResult = {
-        summary: `AI 응답 파싱 실패\n\n오류: ${parseError.message}\n\nGemini 2.5 Flash API는 정상 응답했지만 JSON 파싱에 실패했습니다.\n\n**해결 방법:**\n1. Cloudflare Pages 대시보드 → Workers & Pages → superplacestudy → Logs에서 전체 응답 확인\n2. '📝 Gemini 2.5 Flash 원본 응답' 로그 확인\n3. API 키가 올바른지 확인\n\n분석 대상: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건`,
-        weakConcepts: [],
-        recommendations: []
-      };
-      console.error('❌ 파싱 실패로 오류 메시지와 함께 빈 결과 반환');
+        
+        // 파싱 실패 시 빈 결과 반환
+        analysisResult = {
+          summary: `AI 응답 파싱 실패\n\n오류: ${parseError.message}\n\nGemini 2.5 Flash API는 정상 응답했지만 JSON 파싱에 실패했습니다.\n\n**해결 방법:**\n1. Cloudflare Pages 대시보드 → Workers & Pages → superplacestudy → Logs에서 전체 응답 확인\n2. '📝 Gemini 2.5 Flash 원본 응답' 로그 확인\n3. API 키가 올바른지 확인\n\n분석 대상: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건`,
+          weakConcepts: [],
+          recommendations: []
+        };
+        console.error('❌ 파싱 실패로 오류 메시지와 함께 빈 결과 반환');
+      }
     }
 
     // 6. 분석 결과를 DB에 저장 (캐싱)
