@@ -865,12 +865,12 @@ export default function ModernAIChatPage() {
         </div>
 
         {/* 나의 봇 */}
-        <div className="px-3 py-3 border-b border-gray-200 bg-white">
+        <div className="px-3 py-3 border-b border-gray-200 bg-white flex-shrink-0">
           <h3 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-yellow-500" />
             나의 봇
           </h3>
-          <div className="space-y-1">
+          <div className="space-y-1 max-h-64 overflow-y-auto">
             {bots.length === 0 ? (
               <p className="text-xs text-gray-500 text-center py-4">할당된 봇이 없습니다</p>
             ) : (
@@ -907,7 +907,7 @@ export default function ModernAIChatPage() {
         <div className="border-b-2 border-gray-300 mx-3"></div>
 
         {/* 검색 창 */}
-        <div className="px-3 py-3">
+        <div className="px-3 py-3 flex-shrink-0">
           <div className="relative">
             <input
               type="text"
