@@ -243,29 +243,16 @@ export default function ModernAIChatPage() {
   };
 
   const loadChatSessions = async () => {
-    // user.id 또는 user.email을 userId로 사용
-    // 일관성을 위해 userId를 결정하는 로직
-    let userId = user?.id || user?.email;
-    
-    // userId를 localStorage에 캐시 (일관성 유지)
-    if (userId && user) {
-      const cachedUserId = localStorage.getItem('chatUserId');
-      if (!cachedUserId) {
-        localStorage.setItem('chatUserId', userId);
-        console.log('💾 userId 캐시 저장:', userId);
-      } else if (cachedUserId !== userId) {
-        // 기존 캐시와 다르면 기존 것을 우선 사용 (일관성)
-        console.log('⚠️ userId 불일치 감지:', { cached: cachedUserId, current: userId });
-        console.log('📌 기존 캐시된 userId 사용:', cachedUserId);
-        userId = cachedUserId;
-      }
-    }
+    // 🔥 현재 로그인한 사용자의 ID를 직접 사용 (캐시 사용 X)
+    const userId = user?.id || user?.email;
     
     if (!userId) {
       console.warn('⚠️ userId가 없어서 세션을 로드할 수 없습니다');
       console.warn('⚠️ user 객체:', user);
       return;
     }
+    
+    console.log('🔑 현재 사용자 ID:', userId);
     
     try {
       console.log(`📂 사용자(${userId})의 채팅 세션 로드 중...`);
@@ -325,20 +312,16 @@ export default function ModernAIChatPage() {
   };
 
   const saveChatSession = async (session: ChatSession) => {
-    // 캐시된 userId 사용 (일관성 보장)
-    let userId = localStorage.getItem('chatUserId') || user?.id || user?.email;
+    // 🔥 현재 로그인한 사용자의 ID를 직접 사용 (캐시 사용 X)
+    const userId = user?.id || user?.email;
     const academyId = user?.academyId || 'default-academy';
-    
-    // 캐시가 없으면 현재 userId를 캐시
-    if (userId && !localStorage.getItem('chatUserId')) {
-      localStorage.setItem('chatUserId', userId);
-      console.log('💾 세션 저장 시 userId 캐시:', userId);
-    }
     
     if (!userId || !academyId) {
       console.warn('⚠️ userId 또는 academyId가 없어 세션을 저장할 수 없습니다', { userId, academyId });
       return;
     }
+    
+    console.log('🔑 세션 저장 - 현재 사용자 ID:', userId);
     
     try {
       console.log(`💾 세션 저장 시작:`, session);
