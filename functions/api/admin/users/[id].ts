@@ -43,6 +43,32 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
+    // academy_name이 null이면 academy 또는 academies 테이블에서 조회
+    let finalAcademyName = user.academyName;
+    if (!finalAcademyName && user.academyId) {
+      try {
+        // academy 테이블 시도
+        let academy = await DB.prepare(`
+          SELECT name FROM academy WHERE id = ?
+        `).bind(user.academyId).first();
+        
+        if (academy) {
+          finalAcademyName = academy.name;
+        } else {
+          // academies 테이블 시도
+          academy = await DB.prepare(`
+            SELECT name FROM academies WHERE id = ?
+          `).bind(user.academyId).first();
+          if (academy) {
+            finalAcademyName = academy.name;
+          }
+        }
+        console.log(`✅ Academy name fetched: ${finalAcademyName}`);
+      } catch (e) {
+        console.log("⚠️ Failed to fetch academy name:", e);
+      }
+    }
+
     // students 테이블에서 추가 정보 조회
     let studentInfo = null;
     try {
@@ -96,7 +122,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       name: user.name,
       email: user.email,
       phone: user.phone,
-      academyName: user.academyName,
+      academyName: finalAcademyName,
       school: studentInfo?.school || null,
       grade: studentInfo?.grade || null,
       diagnostic_memo: studentInfo?.diagnostic_memo || null,
@@ -112,6 +138,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           // 로그 테이블에서 가져온 값은 참고용으로만 사용
           lastLoginAt: user.lastLoginAt || lastLogin?.loginAt || null,
           lastLoginIp: user.lastLoginIp || lastLogin?.ip || null,
+          // academy 이름 (테이블에서 조회한 값 사용)
+          academyName: finalAcademyName,
           // students 테이블의 정보 추가
           school: studentInfo?.school || null,
           grade: studentInfo?.grade || null,

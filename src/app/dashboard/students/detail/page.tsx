@@ -118,6 +118,32 @@ function StudentDetailContent() {
   const [generatingProblems, setGeneratingProblems] = useState(false);
   const [showAnswerSheet, setShowAnswerSheet] = useState(false);
 
+  // 전화번호 포맷팅 함수
+  const formatPhoneNumber = (phone: string | undefined) => {
+    if (!phone) return '미등록';
+    // 숫자만 추출
+    const numbers = phone.replace(/[^0-9]/g, '');
+    // 010-1234-5678 형식으로 변환
+    if (numbers.length === 11) {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7)}`;
+    } else if (numbers.length === 10) {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 6)}-${numbers.slice(6)}`;
+    }
+    return phone; // 원본 반환
+  };
+
+  // 이메일 표시 함수
+  const displayEmail = (email: string | undefined) => {
+    if (!email) return '미등록';
+    // 자동생성 이메일 패턴 체크
+    if (email.includes('@temp.student.local') || 
+        email.includes('@phone.generated') ||
+        email.startsWith('student_')) {
+      return '미등록';
+    }
+    return email;
+  };
+
   // 기본 날짜 설정 (최근 30일)
   useEffect(() => {
     const today = new Date();
@@ -609,7 +635,7 @@ function StudentDetailContent() {
                     <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-sm text-gray-500">전화번호</p>
-                      <p className="font-medium">{student.phone || '미등록'}</p>
+                      <p className="font-medium">{formatPhoneNumber(student.phone)}</p>
                     </div>
                   </div>
 
@@ -617,7 +643,7 @@ function StudentDetailContent() {
                     <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-sm text-gray-500">이메일</p>
-                      <p className="font-medium">{student.email || '미등록'}</p>
+                      <p className="font-medium">{displayEmail(student.email)}</p>
                     </div>
                   </div>
 
