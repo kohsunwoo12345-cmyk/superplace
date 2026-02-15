@@ -28,7 +28,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     console.log(`📋 Fetching bots for academy ${academyId}`);
 
-    // 학원에 할당된 활성 봇 목록 조회
+    // 🔥 학원에 할당된 봇 목록 조회 (academyId 기준)
+    // academy_assignments 테이블 또는 bot_assignments 테이블에서 조회
     const assignments = await DB.prepare(`
       SELECT DISTINCT ba.botId
       FROM bot_assignments ba
@@ -37,22 +38,45 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         AND (ba.expiresAt IS NULL OR datetime(ba.expiresAt) > datetime('now'))
     `).bind(academyId).all();
 
+    console.log(`🔍 Found ${assignments.results?.length || 0} bot assignments for academy ${academyId}`);
+
+    // 🔥 만약 할당이 없다면, academy_assignments 테이블 확인
+    let botIds: number[] = [];
+    
     if (!assignments.results || assignments.results.length === 0) {
-      console.log(`⚠️ No bot assignments found for academy ${academyId}`);
-      return new Response(
-        JSON.stringify({
-          success: true,
-          bots: []
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      console.log(`⚠️ No bot_assignments found, checking academy_assignments table...`);
+      
+      const academyAssignments = await DB.prepare(`
+        SELECT DISTINCT aa.botId
+        FROM academy_assignments aa
+        WHERE aa.academyId = ?
+          AND aa.isActive = 1
+          AND (aa.expiresAt IS NULL OR datetime(aa.expiresAt) > datetime('now'))
+      `).bind(academyId).all();
+      
+      console.log(`🔍 Found ${academyAssignments.results?.length || 0} academy_assignments for academy ${academyId}`);
+      
+      if (!academyAssignments.results || academyAssignments.results.length === 0) {
+        console.log(`⚠️ No bots assigned to academy ${academyId}`);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            bots: [],
+            message: "학원에 할당된 봇이 없습니다. 관리자에게 문의하세요."
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+      
+      botIds = academyAssignments.results.map((a: any) => a.botId);
+    } else {
+      botIds = assignments.results.map((a: any) => a.botId);
     }
 
     // 할당된 봇들의 상세 정보 조회
-    const botIds = assignments.results.map((a: any) => a.botId);
     const placeholders = botIds.map(() => '?').join(',');
     
     const bots = await DB.prepare(`
@@ -67,7 +91,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ORDER BY created_at DESC
     `).bind(...botIds).all();
 
-    console.log(`✅ Found ${bots.results?.length || 0} assigned bots`);
+    console.log(`✅ Found ${bots.results?.length || 0} active bots for assignment`);
 
     return new Response(
       JSON.stringify({
