@@ -1378,6 +1378,15 @@ function StudentDetailContent() {
                 }
                 @page {
                   margin: 2cm;
+                  size: A4;
+                }
+                .problem-item {
+                  page-break-inside: avoid;
+                  break-inside: avoid;
+                  page-break-after: auto;
+                }
+                .print-header {
+                  page-break-after: avoid;
                 }
               }
             `}</style>
@@ -1387,7 +1396,7 @@ function StudentDetailContent() {
               <div className="print-area">
                 <div className="max-w-4xl mx-auto p-8 bg-white">
                   {/* 시험지 헤더 */}
-                  <div className="border-b-2 border-black pb-4 mb-6">
+                  <div className="print-header border-b-2 border-black pb-4 mb-6">
                     <h1 className="text-3xl font-bold text-center mb-2">
                       학습 확인 문제
                     </h1>
@@ -1415,9 +1424,9 @@ function StudentDetailContent() {
                   </div>
 
                   {/* 문제 */}
-                  <div className="space-y-8">
+                  <div className="space-y-6">
                     {generatedProblems.map((problem, idx) => (
-                      <div key={idx} className="border border-gray-300 p-4 rounded">
+                      <div key={idx} className="problem-item border border-gray-300 p-4 rounded">
                         <div className="flex items-start gap-3">
                           <span className="font-bold text-lg">{idx + 1}.</span>
                           <div className="flex-1">
@@ -1467,7 +1476,7 @@ function StudentDetailContent() {
               <div className="print-area">
                 <div className="max-w-4xl mx-auto p-8 bg-white">
                   {/* 답지 헤더 */}
-                  <div className="border-b-2 border-black pb-4 mb-6">
+                  <div className="print-header border-b-2 border-black pb-4 mb-6">
                     <h1 className="text-3xl font-bold text-center mb-2">
                       정답 및 해설
                     </h1>
@@ -1485,9 +1494,9 @@ function StudentDetailContent() {
                   </div>
 
                   {/* 답안 */}
-                  <div className="space-y-6">
+                  <div className="space-y-5">
                     {generatedProblems.map((problem, idx) => (
-                      <div key={idx} className="border border-gray-300 p-4 rounded">
+                      <div key={idx} className="problem-item border border-gray-300 p-4 rounded">
                         <div className="flex items-start gap-3">
                           <span className="font-bold text-lg">{idx + 1}.</span>
                           <div className="flex-1">
