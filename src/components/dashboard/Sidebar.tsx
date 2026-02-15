@@ -134,6 +134,8 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   // 디버깅: 콘솔에 역할 출력
   console.log('🔍 Sidebar - User Role:', userRole);
   console.log('🔍 Sidebar - Session:', session?.user);
+  console.log('🔍 Sidebar - Base Navigation Length:', baseNavigation?.length);
+  console.log('🔍 Sidebar - Base Navigation First 3:', baseNavigation?.slice(0, 3));
 
   // 할당된 AI 봇 가져오기
   useEffect(() => {
@@ -176,6 +178,9 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   if (botMenuItems.length > 0 && userRole !== "SUPER_ADMIN" && userRole !== "ADMIN") {
     navigation.splice(1, 0, ...botMenuItems);
   }
+  
+  console.log('🔍 Sidebar - Final Navigation Length:', navigation?.length);
+  console.log('🔍 Sidebar - Final Navigation First 3:', navigation?.slice(0, 3));
 
   const getRoleBadge = (role: string) => {
     const badges: Record<string, { text: string; color: string }> = {
