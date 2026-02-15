@@ -410,7 +410,8 @@ function StudentDetailContent() {
           problemTypes: selectedProblemTypes,
           questionFormats: selectedQuestionFormats, // 문제 형식 추가
           problemCount,
-          studentName: student?.name || '학생'
+          studentName: student?.name || '학생',
+          studentGrade: student?.grade || null, // 학년 정보 추가
         }),
       });
 
@@ -1233,19 +1234,8 @@ function StudentDetailContent() {
 
                     <div>
                       <h4 className="font-semibold mb-3 text-sm sm:text-base">부족한 개념</h4>
-                      {weakConcepts.length === 0 ? (
-                        <div className="text-center py-8 bg-green-50 rounded-lg border-2 border-green-200">
-                          <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                          <p className="text-green-700 font-medium">
-                            분석 결과 부족한 개념이 발견되지 않았습니다!
-                          </p>
-                          <p className="text-sm text-green-600 mt-1">
-                            현재 수준을 잘 유지하고 있습니다. 계속해서 꾸준히 학습하세요.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {weakConcepts.map((concept, idx) => (
+                      <div className="space-y-3">
+                        {weakConcepts.map((concept, idx) => (
                           <div
                             key={idx}
                             className={`p-3 sm:p-4 border-2 rounded-lg ${getSeverityColor(concept.severity)}`}
@@ -1282,8 +1272,7 @@ function StudentDetailContent() {
                             </Button>
                           </div>
                         ))}
-                        </div>
-                      )}
+                      </div>
                     </div>
 
                     {conceptRecommendations.length > 0 && (

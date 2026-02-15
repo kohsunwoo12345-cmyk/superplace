@@ -24,7 +24,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
   try {
     const body = await request.json();
-    const { studentId, concepts, problemTypes, questionFormats, problemCount, studentName } = body;
+    const { studentId, concepts, problemTypes, questionFormats, problemCount, studentName, studentGrade } = body;
 
     if (!studentId || !concepts || concepts.length === 0) {
       return new Response(
@@ -50,6 +50,49 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     console.log('📚 Problem types:', problemTypes);
     console.log('📋 Question formats:', formats);
     console.log('🔢 Problem count:', problemCount);
+    console.log('🎓 Student grade:', studentGrade);
+
+    // 학생의 숙제 데이터에서 과목 추출
+    const { DB } = env;
+    let dominantSubject = null;
+    let gradeLevel = studentGrade || null;
+    
+    if (DB) {
+      try {
+        // 최근 숙제 과목 조회
+        const subjectQuery = `
+          SELECT hg.subject, COUNT(*) as count
+          FROM homework_submissions_v2 hs
+          LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
+          WHERE hs.userId = ? AND hg.subject IS NOT NULL
+          GROUP BY hg.subject
+          ORDER BY count DESC
+          LIMIT 1
+        `;
+        
+        const subjectResult = await DB.prepare(subjectQuery).bind(parseInt(studentId)).first();
+        if (subjectResult && subjectResult.subject) {
+          dominantSubject = subjectResult.subject;
+          console.log('📘 Dominant subject:', dominantSubject);
+        }
+        
+        // 학생 테이블에서 학년 정보 조회 (프론트에서 전달되지 않은 경우)
+        if (!gradeLevel) {
+          const studentQuery = `
+            SELECT grade
+            FROM users
+            WHERE id = ?
+          `;
+          const studentResult = await DB.prepare(studentQuery).bind(parseInt(studentId)).first();
+          if (studentResult && studentResult.grade) {
+            gradeLevel = studentResult.grade;
+            console.log('🎓 Grade from DB:', gradeLevel);
+          }
+        }
+      } catch (dbError: any) {
+        console.warn('⚠️ Failed to fetch subject/grade info:', dbError.message);
+      }
+    }
 
     // 문제 유형별 설명
     const typeDescriptions: { [key: string]: string } = {
@@ -70,41 +113,72 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       throw new Error('GOOGLE_GEMINI_API_KEY is not configured');
     }
 
-    // 형식별 설명
+    // 형식별 설명 - 명확하게 구분
     const formatDescriptions: { [key: string]: string } = {
-      multiple_choice: '객관식 (4지선다)',
-      open_ended: '서술형 (주관식)'
+      multiple_choice: '객관식 (4지선다 - 1번~4번 중 하나를 고르는 형식)',
+      open_ended: '주관식 (서술형 - 답을 직접 쓰는 형식)'
     };
 
     const formatInstructions = formats.length === 2
-      ? 'Mix both multiple choice (4 options) and open-ended questions evenly'
+      ? 'Mix both multiple choice (numbered options: ①, ②, ③, ④) and open-ended (write answer) questions evenly (~50/50)'
       : formats.includes('multiple_choice')
-      ? 'ALL problems should be multiple choice with 4 options'
-      : 'ALL problems should be open-ended (essay/short answer)';
+      ? 'ALL problems MUST be multiple choice with exactly 4 numbered options (①, ②, ③, ④) where student selects ONE correct answer'
+      : 'ALL problems MUST be open-ended (essay/short answer) where student writes the answer directly - NO options';
+
+    // 학년별 난이도 설정
+    const gradeLevelInfo = gradeLevel 
+      ? `Grade Level: ${gradeLevel} (adjust difficulty accordingly - higher grades need more complex problems)`
+      : 'Grade Level: Not specified (use medium difficulty)';
+
+    // 과목별 문제 유형 설정
+    const subjectInfo = dominantSubject
+      ? `Primary Subject: ${dominantSubject} (focus problems on this subject)`
+      : 'Subject: General (mixed subjects allowed)';
 
     const prompt = `You are an educational content creator. Generate ${problemCount} practice problems for a student.
 
 Student Information:
 - Name: ${studentName}
+- ${gradeLevelInfo}
+- ${subjectInfo}
 - Weak Concepts: ${concepts.join(', ')}
 - Problem Types to Include: ${problemTypes.map((t: string) => typeDescriptions[t]).join(', ')}
 - Question Formats: ${formats.map((f: string) => formatDescriptions[f]).join(', ')}
 - Total Problems: ${problemCount}
 
+CRITICAL FORMAT REQUIREMENTS:
+1. **객관식 (multiple_choice)**: Problems with 4 numbered options (①, ②, ③, ④) where student picks ONE correct answer
+   - Example: "다음 중 올바른 것은? ① 답1 ② 답2 ③ 답3 ④ 답4"
+   - Set "options" array with 4 items
+   - Set "answerSpace" to false
+   
+2. **주관식 (open_ended)**: Problems requiring written explanations or calculations
+   - Example: "다음 문제를 풀고 풀이 과정을 쓰시오: ..."
+   - Set "options" to null
+   - Set "answerSpace" to true
+
 Distribution:
 - Mix problems evenly across selected types: ${problemTypes.join(', ')}
 - Each problem should focus on one of the weak concepts
 - ${formatInstructions}
+- Grade-appropriate difficulty (${gradeLevel || 'medium level'})
+- Subject-focused content (${dominantSubject || 'general'})
 
 Requirements for EACH problem:
 1. Set "type" field to one of: ${problemTypes.map((t: string) => `"${t}"`).join(', ')}
 2. Set "concept" to the specific weak concept being tested
-3. Set "difficulty" to "easy", "medium", or "hard" based on type
-4. Provide clear "question" text
-5. For multiple choice: provide 4 options in "options" array, set "answerSpace" to false
-6. For open-ended: set "options" to null, set "answerSpace" to true
-7. ALWAYS provide "answer" with the correct answer
-8. ALWAYS provide "explanation" with detailed step-by-step solution
+3. Set "difficulty" to "easy", "medium", or "hard" based on type AND grade level
+4. Provide clear "question" text in Korean
+5. For multiple choice (객관식):
+   - Provide exactly 4 options in "options" array
+   - Use numbered format: ①, ②, ③, ④
+   - Set "answerSpace" to false
+   - Set "answer" to the option number (e.g., "①", "②", "③", or "④")
+6. For open-ended (주관식):
+   - Set "options" to null
+   - Set "answerSpace" to true
+   - Set "answer" to the correct written answer
+7. ALWAYS provide "explanation" with detailed step-by-step solution
 
 Return this EXACT JSON structure:
 {
@@ -113,9 +187,9 @@ Return this EXACT JSON structure:
       "concept": "개념명",
       "type": "${problemTypes[0]}" or "${problemTypes[1] || problemTypes[0]}" or "${problemTypes[2] || problemTypes[0]}",
       "question": "문제 내용 (명확하고 구체적으로)",
-      "options": ["선택지1", "선택지2", "선택지3", "선택지4"] or null,
+      "options": ["① 선택지1", "② 선택지2", "③ 선택지3", "④ 선택지4"] or null,
       "answerSpace": true or false,
-      "answer": "정답 (객관식은 번호, 주관식은 답)",
+      "answer": "① or ② or ③ or ④ (객관식)" or "정답 내용 (주관식)",
       "explanation": "상세한 풀이 과정 (단계별로 설명)",
       "difficulty": "easy/medium/hard"
     }
@@ -128,9 +202,12 @@ Rules:
 - Ensure answers are correct and complete
 - Provide detailed explanations (3-5 sentences)
 - Balance problem types according to selected types
-${formats.length === 1 && formats.includes('multiple_choice') ? '- ALL problems MUST be multiple choice with exactly 4 options' : ''}
-${formats.length === 1 && formats.includes('open_ended') ? '- ALL problems MUST be open-ended (options: null, answerSpace: true)' : ''}
-${formats.length === 2 ? '- Mix multiple choice and open-ended questions approximately 50/50' : ''}
+- Adjust difficulty based on grade level: ${gradeLevel || 'medium'}
+- Focus content on subject: ${dominantSubject || 'general'}
+${formats.length === 1 && formats.includes('multiple_choice') ? '- ALL problems MUST be multiple choice (객관식) with exactly 4 numbered options (①②③④)' : ''}
+${formats.length === 1 && formats.includes('open_ended') ? '- ALL problems MUST be open-ended (주관식) with options: null and answerSpace: true' : ''}
+${formats.length === 2 ? '- Mix multiple choice (객관식) and open-ended (주관식) questions approximately 50/50' : ''}
+- Generate EXACTLY ${problemCount} problems, no more, no less
 - NO markdown formatting, NO code blocks, ONLY the JSON object`;
 
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
@@ -206,20 +283,45 @@ ${formats.length === 2 ? '- Mix multiple choice and open-ended questions approxi
         throw new Error('문제 배열을 찾을 수 없습니다');
       }
 
-      // 문제 수 제한
-      if (problemsResult.problems.length > problemCount) {
+      // 문제 수 검증 및 조정
+      console.log(`📊 Generated ${problemsResult.problems.length} problems, requested ${problemCount}`);
+      
+      if (problemsResult.problems.length < problemCount) {
+        console.warn(`⚠️ Not enough problems generated (${problemsResult.problems.length}/${problemCount})`);
+        // 부족한 경우 기본 문제로 채움
+        const remaining = problemCount - problemsResult.problems.length;
+        for (let i = 0; i < remaining; i++) {
+          const conceptIndex = i % concepts.length;
+          const isMultipleChoice = formats.includes('multiple_choice') && (formats.length === 1 || i % 2 === 0);
+          
+          problemsResult.problems.push({
+            concept: concepts[conceptIndex],
+            type: problemTypes[i % problemTypes.length],
+            question: `${concepts[conceptIndex]}에 대한 추가 문제 ${i + 1}`,
+            options: isMultipleChoice ? ["① 선택지 1", "② 선택지 2", "③ 선택지 3", "④ 선택지 4"] : null,
+            answerSpace: !isMultipleChoice,
+            answer: isMultipleChoice ? "①" : "답안 참조",
+            explanation: "해당 개념을 복습하고 문제를 풀어보세요.",
+            difficulty: "medium"
+          });
+        }
+      } else if (problemsResult.problems.length > problemCount) {
+        // 초과된 경우 자름
+        console.warn(`⚠️ Too many problems generated (${problemsResult.problems.length}/${problemCount}), trimming...`);
         problemsResult.problems = problemsResult.problems.slice(0, problemCount);
       }
 
       // 답안과 해설 검증
-      problemsResult.problems = problemsResult.problems.map((problem: any) => ({
+      problemsResult.problems = problemsResult.problems.map((problem: any, idx: number) => ({
         ...problem,
-        answer: problem.answer || '답안 참조',
+        answer: problem.answer || (problem.options ? '①' : '답안 참조'),
         explanation: problem.explanation || '문제를 단계적으로 풀어보세요.',
-        type: problem.type || problemTypes[0]
+        type: problem.type || problemTypes[0],
+        options: problem.options || null,
+        answerSpace: problem.answerSpace !== undefined ? problem.answerSpace : !problem.options
       }));
 
-      console.log(`✅ Successfully parsed ${problemsResult.problems.length} problems with answers and explanations`);
+      console.log(`✅ Successfully prepared ${problemsResult.problems.length} problems with answers and explanations`);
 
     } catch (parseError: any) {
       console.error('❌ Failed to parse Gemini response:', parseError);
