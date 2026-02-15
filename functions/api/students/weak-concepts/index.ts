@@ -139,7 +139,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
   try {
     const body = await request.json();
-    const { studentId } = body;
+    const { studentId, startDate, endDate } = body;
 
     if (!studentId) {
       return new Response(
@@ -149,12 +149,14 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     }
 
     console.log('🔍 Analyzing weak concepts for student:', studentId);
+    console.log('📅 Date range:', startDate, '~', endDate);
 
     // 1. 학생의 채팅 내역 가져오기
     let chatHistory: ChatMessage[] = [];
     
     try {
-      const query = `
+      // 기간 필터 추가
+      let query = `
         SELECT 
           id,
           student_id as studentId,
@@ -163,11 +165,18 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           created_at as createdAt
         FROM chat_messages
         WHERE student_id = ?
-        ORDER BY created_at DESC
-        LIMIT 100
       `;
       
-      const result = await DB.prepare(query).bind(parseInt(studentId)).all();
+      const params: any[] = [parseInt(studentId)];
+      
+      if (startDate && endDate) {
+        query += ` AND created_at BETWEEN ? AND ?`;
+        params.push(startDate, endDate);
+      }
+      
+      query += ` ORDER BY created_at DESC LIMIT 100`;
+      
+      const result = await DB.prepare(query).bind(...params).all();
       chatHistory = result.results as any[] || [];
       console.log(`✅ Found ${chatHistory.length} chat messages for concept analysis`);
     } catch (dbError: any) {
@@ -175,35 +184,58 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       chatHistory = [];
     }
 
-    // 2. 학생의 숙제 채점 데이터 가져오기
+    // 2. 학생의 숙제 채점 데이터 가져오기 - 여러 테이블 시도
     let homeworkData: any[] = [];
     
-    try {
-      const homeworkQuery = `
-        SELECT 
-          hs.id,
-          hs.submittedAt,
-          hg.score,
-          hg.subject,
-          hg.feedback,
-          hg.weaknessTypes,
-          hg.detailedAnalysis,
-          hg.studyDirection,
-          hg.problemAnalysis
-        FROM homework_submissions_v2 hs
-        LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
-        WHERE hs.userId = ? AND hg.score IS NOT NULL
-        ORDER BY hs.submittedAt DESC
-        LIMIT 10
-      `;
-      
-      const homeworkResult = await DB.prepare(homeworkQuery).bind(parseInt(studentId)).all();
-      homeworkData = homeworkResult.results || [];
-      console.log(`✅ Found ${homeworkData.length} homework records for concept analysis`);
-    } catch (dbError: any) {
-      console.warn('⚠️ homework tables may not exist:', dbError.message);
-      homeworkData = [];
+    // 시도할 테이블명 조합들
+    const tableCombinations = [
+      { submissions: 'homework_submissions_v2', gradings: 'homework_gradings_v2' },
+      { submissions: 'homework_submissions', gradings: 'homework_gradings' },
+      { submissions: 'homeworkSubmissions', gradings: 'homeworkGradings' },
+    ];
+    
+    for (const tables of tableCombinations) {
+      try {
+        let homeworkQuery = `
+          SELECT 
+            hs.id,
+            hs.submittedAt,
+            hg.score,
+            hg.subject,
+            hg.feedback,
+            hg.weaknessTypes,
+            hg.detailedAnalysis,
+            hg.studyDirection,
+            hg.problemAnalysis
+          FROM ${tables.submissions} hs
+          LEFT JOIN ${tables.gradings} hg ON hg.submissionId = hs.id
+          WHERE hs.userId = ? AND hg.score IS NOT NULL
+        `;
+        
+        const params: any[] = [parseInt(studentId)];
+        
+        // 기간 필터 추가
+        if (startDate && endDate) {
+          homeworkQuery += ` AND hs.submittedAt BETWEEN ? AND ?`;
+          params.push(startDate, endDate);
+        }
+        
+        homeworkQuery += ` ORDER BY hs.submittedAt DESC LIMIT 50`;
+        
+        const homeworkResult = await DB.prepare(homeworkQuery).bind(...params).all();
+        homeworkData = homeworkResult.results || [];
+        
+        if (homeworkData.length > 0) {
+          console.log(`✅ Found ${homeworkData.length} homework records using tables: ${tables.submissions}, ${tables.gradings}`);
+          break; // 성공하면 루프 종료
+        }
+      } catch (dbError: any) {
+        console.warn(`⚠️ Failed with tables ${tables.submissions}, ${tables.gradings}:`, dbError.message);
+        continue; // 다음 조합 시도
+      }
     }
+    
+    console.log(`📊 Final homework data count: ${homeworkData.length}`);
 
     // 3. 채팅 내역과 숙제 데이터가 모두 없는 경우
     if (chatHistory.length === 0 && homeworkData.length === 0) {
@@ -251,39 +283,69 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       analysisContext += `\n📚 숙제 채점 데이터 (${homeworkData.length}건):\n${homeworkText}\n`;
     }
 
-    const prompt = `다음은 한 학생의 학습 데이터입니다. 이 데이터를 종합적으로 분석하여 학생이 이해하지 못하거나 부족한 개념들을 파악해주세요.
+    // Gemini 2.0 Flash Experimental: 숙제 데이터 기반 상세 분석 프롬프트
+    const prompt = `You are an educational AI analyzing student homework performance. Analyze the data and return ONLY valid JSON.
 
+Student Homework Data (${homeworkData.length} submissions):
 ${analysisContext}
 
-다음 형식으로 JSON 응답을 제공해주세요:
+Analysis Period: ${startDate} to ${endDate}
+
+CRITICAL: Return ONLY this JSON structure with NO extra text, markdown, or explanations:
+
 {
-  "summary": "학생의 전반적인 이해도와 학습 상태 요약 (2-3문장)",
-  "weakConcepts": [
+  "overallAssessment": "종합평가 (학생의 전반적인 학습 상태를 2-3문장으로 요약)",
+  "detailedAnalysis": "상세 분석 (숙제 데이터를 바탕으로 한 구체적인 분석 내용)",
+  "weaknessPatterns": [
     {
-      "concept": "개념명 (예: 나눗셈 나머지 처리)",
-      "description": "부족한 이유 설명",
-      "severity": "high/medium/low",
-      "relatedTopics": ["관련 주제1", "관련 주제2"]
+      "pattern": "약점 유형명",
+      "description": "이 약점이 나타나는 이유와 패턴"
     }
   ],
-  "recommendations": [
+  "conceptsNeedingReview": [
     {
-      "concept": "개념명",
-      "action": "구체적인 학습 방법"
+      "concept": "복습이 필요한 개념명",
+      "reason": "왜 복습이 필요한지",
+      "priority": "high"
     }
-  ]
+  ],
+  "improvementSuggestions": [
+    {
+      "area": "개선이 필요한 영역",
+      "method": "구체적인 개선 방법"
+    }
+  ],
+  "learningDirection": "앞으로의 학습 방향 제시 (2-3문장)"
 }
 
-한국어로 작성하고, 최대 5개의 부족한 개념을 찾아주세요. 숙제 채점 데이터의 약점 유형과 상세 분석을 우선적으로 고려하여 구체적이고 실용적인 분석을 제공해주세요.`;
+Rules:
+1. Focus on homework scores below 80 points
+2. Identify recurring error patterns
+3. Use ONLY Korean text for all values
+4. Maximum 5 items per array
+5. priority can be "high", "medium", or "low"
+6. NO markdown, NO explanations, ONLY the JSON object
+7. Ensure all JSON syntax is perfect (proper commas, quotes, brackets)`;
+
 
     // 4. Gemini API 호출
     const geminiApiKey = GOOGLE_GEMINI_API_KEY;
     if (!geminiApiKey) {
-      throw new Error('GOOGLE_GEMINI_API_KEY is not configured');
+      console.error('❌ GOOGLE_GEMINI_API_KEY is not configured');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'AI 분석 기능이 설정되지 않았습니다. GOOGLE_GEMINI_API_KEY 환경 변수를 설정해주세요.',
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
     }
+    // Gemini 2.0 Flash Experimental 모델 사용 (Gemini 2.5는 아직 존재하지 않음)
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`;
 
-    console.log('🔄 Calling Gemini API for weak concept analysis...');
+    console.log('🔄 Calling Gemini 2.0 Flash Experimental API...');
+    console.log('📊 분석 대상: 채팅', chatHistory.length, '건, 숙제', homeworkData.length, '건');
+    console.log('📅 분석 기간:', startDate, '~', endDate);
     
     const geminiResponse = await fetch(geminiEndpoint, {
       method: 'POST',
@@ -297,46 +359,157 @@ ${analysisContext}
           }]
         }],
         generationConfig: {
-          temperature: 0.7,
+          temperature: 0.4,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 3048,
+          maxOutputTokens: 4096,
         },
       }),
     });
 
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
-      console.error('❌ Gemini API error:', errorText);
-      throw new Error(`Gemini API failed: ${geminiResponse.status}`);
+      console.error('❌ Gemini API error:', geminiResponse.status, errorText);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Gemini AI 분석 실패 (상태: ${geminiResponse.status}). API 키를 확인해주세요.`,
+          details: errorText.substring(0, 200),
+        }),
+        { status: geminiResponse.status, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const geminiData = await geminiResponse.json();
     console.log('✅ Gemini API response received');
 
-    // 5. Gemini 응답 파싱
+    // 5. Gemini 응답 파싱 (강력한 JSON 추출)
     let analysisResult;
     try {
       const responseText = geminiData.candidates[0].content.parts[0].text;
+      console.log('📝 Gemini 2.0 Flash Experimental 원본 응답:', responseText);
+      console.log('📏 응답 길이:', responseText.length);
       
-      let jsonText = responseText.trim();
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/```json\s*/, '').replace(/```\s*$/, '');
-      } else if (jsonText.startsWith('```')) {
-        jsonText = jsonText.replace(/```\s*/, '').replace(/```\s*$/, '');
+      // JSON 추출: 첫 { 부터 마지막 } 까지
+      let jsonString = responseText.trim();
+      jsonString = jsonString.replace(/^```(?:json)?\s*/gm, '').replace(/\s*```\s*$/gm, '');
+      
+      const firstBrace = jsonString.indexOf('{');
+      const lastBrace = jsonString.lastIndexOf('}');
+      
+      if (firstBrace === -1 || lastBrace === -1) {
+        throw new Error('JSON 객체를 찾을 수 없습니다');
       }
       
-      analysisResult = JSON.parse(jsonText);
+      jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+      console.log('🔍 추출된 JSON (300자):', jsonString.substring(0, 300));
       
-      console.log('✅ Weak concept analysis completed successfully');
-    } catch (parseError) {
-      console.error('❌ Failed to parse Gemini response:', parseError);
+      // JSON 파싱 (3단계)
+      let parsedData;
+      try {
+        // 1차 시도: 직접 파싱
+        parsedData = JSON.parse(jsonString);
+        console.log('✅ 1차 파싱 성공!');
+      } catch (e1) {
+        console.warn('⚠️ 1차 실패, 2차 시도 (정제)');
+        
+        try {
+          // 2차 시도: 제어문자 제거
+          const cleaned = jsonString
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+            .replace(/\n/g, ' ')
+            .replace(/\r/g, '')
+            .replace(/\t/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          
+          parsedData = JSON.parse(cleaned);
+          console.log('✅ 2차 파싱 성공!');
+        } catch (e2) {
+          console.warn('⚠️ 2차 실패, 3차 시도 (JSON 수정)');
+          
+          // 3차 시도: 잘못된 쉼표/따옴표 수정
+          const fixed = jsonString
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+            .replace(/\n/g, ' ')
+            .replace(/\r/g, '')
+            .replace(/\t/g, ' ')
+            .replace(/,\s*}/g, '}')  // 객체 끝의 쉼표 제거
+            .replace(/,\s*]/g, ']')  // 배열 끝의 쉼표 제거
+            .replace(/}\s*{/g, '},{')  // 연속된 객체 사이 쉼표 추가
+            .replace(/"\s*"\s*:/g, '":')  // 잘못된 따옴표 수정
+            .replace(/:\s*"\s*"/g, ':""')  // 빈 문자열 수정
+            .replace(/\s+/g, ' ')
+            .trim();
+          
+          parsedData = JSON.parse(fixed);
+          console.log('✅ 3차 파싱 성공 (JSON 수정)!');
+        }
+      }
       
-      analysisResult = {
-        summary: "AI 분석 중 오류가 발생했습니다.",
-        weakConcepts: [],
-        recommendations: [],
-      };
+      analysisResult = parsedData;
+      if (!analysisResult.summary) analysisResult.summary = '분석 완료';
+      if (!Array.isArray(analysisResult.weakConcepts)) analysisResult.weakConcepts = [];
+      if (!Array.isArray(analysisResult.recommendations)) analysisResult.recommendations = [];
+      
+      console.log('✅ 분석 완료! 개념:', analysisResult.weakConcepts.length);
+      
+    } catch (parseError: any) {
+      console.error('❌ 모든 파싱 실패:', parseError.message);
+      
+      // 최후의 수단: 정규식으로 데이터 추출
+      try {
+        const responseText = geminiData.candidates[0].content.parts[0].text;
+        console.warn('⚠️ 정규식 추출 시도');
+        
+        // summary 추출
+        const summaryMatch = responseText.match(/"summary"\s*:\s*"([^"]+)"/);
+        const summary = summaryMatch ? summaryMatch[1] : '분석 데이터가 있으나 형식 오류';
+        
+        // weakConcepts 배열 추출
+        const weakConcepts: any[] = [];
+        const conceptRegex = /"concept"\s*:\s*"([^"]+)"[^}]*"description"\s*:\s*"([^"]+)"[^}]*"severity"\s*:\s*"([^"]+)"/g;
+        let match;
+        while ((match = conceptRegex.exec(responseText)) !== null && weakConcepts.length < 5) {
+          weakConcepts.push({
+            concept: match[1],
+            description: match[2],
+            severity: match[3],
+            relatedTopics: []
+          });
+        }
+        
+        // recommendations 배열 추출
+        const recommendations: any[] = [];
+        const recRegex = /"concept"\s*:\s*"([^"]+)"[^}]*"action"\s*:\s*"([^"]+)"/g;
+        while ((match = recRegex.exec(responseText)) !== null && recommendations.length < 5) {
+          if (!weakConcepts.find(c => c.concept === match[1])) {
+            recommendations.push({
+              concept: match[1],
+              action: match[2]
+            });
+          }
+        }
+        
+        analysisResult = {
+          summary: summary,
+          weakConcepts: weakConcepts,
+          recommendations: recommendations
+        };
+        
+        console.log('✅ 정규식 추출 성공! 개념:', weakConcepts.length);
+        
+      } catch (regexError: any) {
+        console.error('❌ 정규식 추출도 실패:', regexError.message);
+        
+        // 파싱 실패 시 빈 결과 반환
+        analysisResult = {
+          summary: `AI 응답 파싱 실패\n\n오류: ${parseError.message}\n\nGemini 2.0 Flash Experimental API는 정상 응답했지만 JSON 파싱에 실패했습니다.\n\n**해결 방법:**\n1. Cloudflare Pages 대시보드 → Workers & Pages → superplacestudy → Logs에서 전체 응답 확인\n2. '📝 Gemini 2.0 Flash Experimental 원본 응답' 로그 확인\n3. API 키가 올바른지 확인\n\n분석 대상: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건`,
+          weakConcepts: [],
+          recommendations: []
+        };
+        console.error('❌ 파싱 실패로 오류 메시지와 함께 빈 결과 반환');
+      }
     }
 
     // 6. 분석 결과를 DB에 저장 (캐싱)
@@ -397,3 +570,4 @@ ${analysisContext}
     );
   }
 };
+// Updated: Sat Feb 14 23:48:33 UTC 2026
