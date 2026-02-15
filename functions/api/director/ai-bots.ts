@@ -75,7 +75,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     console.log(`📌 botIds to query:`, botIds);
 
-    // 🔥 3단계: 할당된 봇들의 상세 정보 조회 (status 조건 제거하여 모든 봇 조회)
+    // 🔥 3단계: 할당된 봇들의 상세 정보 조회
     const placeholders = botIds.map(() => '?').join(',');
     
     const bots = await DB.prepare(`
@@ -84,7 +84,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         name,
         description,
         profileIcon,
-        status,
         isActive
       FROM ai_bots
       WHERE id IN (${placeholders})
@@ -92,18 +91,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     `).bind(...botIds).all();
 
     console.log(`✅ Found ${bots.results?.length || 0} bots (before filtering):`, 
-      bots.results?.map((b: any) => ({ id: b.id, name: b.name, status: b.status, isActive: b.isActive }))
+      bots.results?.map((b: any) => ({ id: b.id, name: b.name, isActive: b.isActive }))
     );
 
-    // 🔥 4단계: ACTIVE 상태이거나 is_active=1인 봇만 필터링
+    // 🔥 4단계: isActive=1인 봇만 필터링
     const activeBots = (bots.results || []).filter((bot: any) => {
-      const isActiveStatus = bot.status === 'ACTIVE' || bot.status === 'active';
-      const isActiveFlag = bot.isActive === 1 || bot.isActive === true;
-      return isActiveStatus || isActiveFlag;
+      return bot.isActive === 1 || bot.isActive === true;
     });
 
     console.log(`✅ Filtered to ${activeBots.length} active bots:`,
-      activeBots.map((b: any) => ({ id: b.id, name: b.name, status: b.status, isActive: b.isActive }))
+      activeBots.map((b: any) => ({ id: b.id, name: b.name, isActive: b.isActive }))
     );
 
     return new Response(

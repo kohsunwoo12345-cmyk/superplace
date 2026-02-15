@@ -32,7 +32,6 @@ interface Bot {
   name: string;
   description: string;
   profileIcon: string;
-  status: string;
 }
 
 interface User {
@@ -328,7 +327,7 @@ export default function DirectorAISystemPage() {
                   ) : (
                     bots.map(bot => (
                       <option key={bot.id} value={bot.id}>
-                        {bot.profileIcon} {bot.name} [{bot.status}]
+                        {bot.profileIcon} {bot.name}
                       </option>
                     ))
                   )}
@@ -340,7 +339,7 @@ export default function DirectorAISystemPage() {
                 )}
                 {bots.length > 0 && (
                   <p className="text-xs text-green-600 mt-1">
-                    ✅ {bots.length}개의 봇이 로드되었습니다. (콘솔 로그 확인: F12)
+                    ✅ {bots.length}개의 봇이 로드되었습니다.
                   </p>
                 )}
               </div>
