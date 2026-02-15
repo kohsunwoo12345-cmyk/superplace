@@ -35,14 +35,32 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 };
 
-// AI 봇 수정 (활성화/비활성화, 음성 설정 등)
+// AI 봇 수정 (모든 필드 업데이트 가능)
 export const onRequestPatch: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
     const botId = context.params.id as string;
     const body = await context.request.json() as any;
 
-    const { isActive, voiceIndex, name, description } = body;
+    const { 
+      isActive, 
+      voiceIndex, 
+      name, 
+      description,
+      systemPrompt,
+      welcomeMessage,
+      starterMessage1,
+      starterMessage2,
+      starterMessage3,
+      profileIcon,
+      profileImage,
+      model,
+      temperature,
+      maxTokens,
+      topK,
+      topP,
+      language
+    } = body;
 
     // 동적으로 UPDATE 쿼리 생성
     const updates: string[] = [];
@@ -66,6 +84,71 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
     if (description !== undefined) {
       updates.push("description = ?");
       values.push(description);
+    }
+
+    if (systemPrompt !== undefined) {
+      updates.push("systemPrompt = ?");
+      values.push(systemPrompt);
+    }
+
+    if (welcomeMessage !== undefined) {
+      updates.push("welcomeMessage = ?");
+      values.push(welcomeMessage);
+    }
+
+    if (starterMessage1 !== undefined) {
+      updates.push("starterMessage1 = ?");
+      values.push(starterMessage1);
+    }
+
+    if (starterMessage2 !== undefined) {
+      updates.push("starterMessage2 = ?");
+      values.push(starterMessage2);
+    }
+
+    if (starterMessage3 !== undefined) {
+      updates.push("starterMessage3 = ?");
+      values.push(starterMessage3);
+    }
+
+    if (profileIcon !== undefined) {
+      updates.push("profileIcon = ?");
+      values.push(profileIcon);
+    }
+
+    if (profileImage !== undefined) {
+      updates.push("profileImage = ?");
+      values.push(profileImage);
+    }
+
+    if (model !== undefined) {
+      updates.push("model = ?");
+      values.push(model);
+    }
+
+    if (temperature !== undefined) {
+      updates.push("temperature = ?");
+      values.push(temperature);
+    }
+
+    if (maxTokens !== undefined) {
+      updates.push("maxTokens = ?");
+      values.push(maxTokens);
+    }
+
+    if (topK !== undefined) {
+      updates.push("topK = ?");
+      values.push(topK);
+    }
+
+    if (topP !== undefined) {
+      updates.push("topP = ?");
+      values.push(topP);
+    }
+
+    if (language !== undefined) {
+      updates.push("language = ?");
+      values.push(language);
     }
 
     if (updates.length === 0) {

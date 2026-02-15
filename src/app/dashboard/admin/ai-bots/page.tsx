@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Bot,
@@ -15,7 +17,21 @@ import {
   Calendar,
   Settings,
   Trash2,
+  X,
+  Edit,
 } from "lucide-react";
+
+const GEMINI_MODELS = [
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (추천)", description: "균형잡힌 속도와 품질, 안정 버전", recommended: true },
+  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "고급 추론 능력, 복잡한 작업에 최적", recommended: false },
+  { value: "gemini-3.0-preview", label: "Gemini 3.0 Preview", description: "차세대 모델, 테스트 중", recommended: false },
+  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", description: "초고속, 비용 효율적", recommended: false },
+];
+
+const PROFILE_EMOJIS = [
+  "🤖", "💻", "📚", "🎓", "🧠", "💡", "🔬", "🎨", "🎯", "🚀",
+  "⭐", "✨", "🌟", "💫", "🔥", "🎪", "🎭", "🎬", "🎤", "🎧"
+];
 
 interface AIBot {
   id: string;
@@ -44,6 +60,8 @@ export default function AdminAIBotsPage() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [botVoiceSettings, setBotVoiceSettings] = useState<{[key: string]: number}>({});
   const [editingBotId, setEditingBotId] = useState<string | null>(null);
+  const [editingBot, setEditingBot] = useState<AIBot | null>(null);
+  const [editFormData, setEditFormData] = useState<any>({});
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -132,6 +150,80 @@ export default function AdminAIBotsPage() {
       ...botVoiceSettings,
       [botId]: voiceIndex
     });
+  };
+
+  const handleEditClick = async (bot: AIBot) => {
+    try {
+      // Fetch full bot details
+      const response = await fetch(`/api/admin/ai-bots/${bot.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setEditingBot(data.bot);
+        setEditFormData({
+          name: data.bot.name || "",
+          description: data.bot.description || "",
+          systemPrompt: data.bot.systemPrompt || "",
+          welcomeMessage: data.bot.welcomeMessage || "",
+          starterMessage1: data.bot.starterMessage1 || "",
+          starterMessage2: data.bot.starterMessage2 || "",
+          starterMessage3: data.bot.starterMessage3 || "",
+          profileIcon: data.bot.profileIcon || "🤖",
+          profileImage: data.bot.profileImage || "",
+          model: data.bot.model || "gemini-2.5-flash",
+          temperature: String(data.bot.temperature || 0.7),
+          maxTokens: String(data.bot.maxTokens || 2000),
+          topK: String(data.bot.topK || 40),
+          topP: String(data.bot.topP || 0.95),
+          language: data.bot.language || "ko",
+          voiceIndex: String(data.bot.voiceIndex || 0),
+        });
+      }
+    } catch (error) {
+      console.error("봇 정보 로드 실패:", error);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingBot) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/admin/ai-bots/${editingBot.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editFormData.name,
+          description: editFormData.description,
+          systemPrompt: editFormData.systemPrompt,
+          welcomeMessage: editFormData.welcomeMessage,
+          starterMessage1: editFormData.starterMessage1,
+          starterMessage2: editFormData.starterMessage2,
+          starterMessage3: editFormData.starterMessage3,
+          profileIcon: editFormData.profileIcon,
+          profileImage: editFormData.profileImage,
+          model: editFormData.model,
+          temperature: parseFloat(editFormData.temperature),
+          maxTokens: parseInt(editFormData.maxTokens),
+          topK: parseInt(editFormData.topK),
+          topP: parseFloat(editFormData.topP),
+          language: editFormData.language,
+          voiceIndex: parseInt(editFormData.voiceIndex),
+        }),
+      });
+
+      if (response.ok) {
+        alert("✅ 수정되었습니다.");
+        setEditingBot(null);
+        fetchBots();
+      } else {
+        alert("❌ 수정 실패");
+      }
+    } catch (error) {
+      console.error("수정 실패:", error);
+      alert("❌ 수정 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveVoice = async (botId: string) => {
@@ -405,6 +497,13 @@ export default function AdminAIBotsPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => handleEditClick(bot)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleToggleActive(bot.id, bot.isActive)}
                         >
                           {bot.isActive ? "비활성" : "활성"}
@@ -506,6 +605,244 @@ export default function AdminAIBotsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* 전체 필드 편집 모달 */}
+      {editingBot && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8">
+            <CardHeader className="bg-blue-50 sticky top-0 z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Edit className="w-5 h-5 text-blue-600" />
+                    AI 봇 편집: {editingBot.name}
+                  </CardTitle>
+                  <CardDescription>
+                    봇의 모든 설정을 수정할 수 있습니다
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingBot(null)}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              {/* 기본 정보 */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">기본 정보</h3>
+                
+                <div>
+                  <Label htmlFor="edit-name">봇 이름 *</Label>
+                  <Input
+                    id="edit-name"
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    placeholder="봇 이름"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-description">봇 설명</Label>
+                  <Textarea
+                    id="edit-description"
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    placeholder="봇에 대한 간단한 설명"
+                    rows={2}
+                  />
+                </div>
+
+                {/* 프로필 아이콘 */}
+                <div>
+                  <Label>프로필 아이콘</Label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="text-4xl">{editFormData.profileIcon}</div>
+                    <select
+                      value={editFormData.profileIcon}
+                      onChange={(e) => setEditFormData({ ...editFormData, profileIcon: e.target.value })}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      {PROFILE_EMOJIS.map((emoji) => (
+                        <option key={emoji} value={emoji}>
+                          {emoji}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* 환영 메시지 및 스타터 */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">환영 메시지 & 스타터</h3>
+                
+                <div>
+                  <Label htmlFor="edit-welcome">환영 메시지</Label>
+                  <Textarea
+                    id="edit-welcome"
+                    value={editFormData.welcomeMessage}
+                    onChange={(e) => setEditFormData({ ...editFormData, welcomeMessage: e.target.value })}
+                    placeholder="대화를 시작할 때 표시할 첫 인사말"
+                    rows={2}
+                  />
+                </div>
+
+                <div>
+                  <Label>스타터 메시지 (추천 질문)</Label>
+                  <div className="space-y-2 mt-2">
+                    <Input
+                      value={editFormData.starterMessage1}
+                      onChange={(e) => setEditFormData({ ...editFormData, starterMessage1: e.target.value })}
+                      placeholder="예: 수학 문제 풀이 도와줘"
+                    />
+                    <Input
+                      value={editFormData.starterMessage2}
+                      onChange={(e) => setEditFormData({ ...editFormData, starterMessage2: e.target.value })}
+                      placeholder="예: 영어 문법 설명해줘"
+                    />
+                    <Input
+                      value={editFormData.starterMessage3}
+                      onChange={(e) => setEditFormData({ ...editFormData, starterMessage3: e.target.value })}
+                      placeholder="예: 과학 개념 알려줘"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 시스템 프롬프트 */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">시스템 프롬프트 (지침) *</h3>
+                <Textarea
+                  value={editFormData.systemPrompt}
+                  onChange={(e) => setEditFormData({ ...editFormData, systemPrompt: e.target.value })}
+                  placeholder="봇이 어떻게 행동하고 응답해야 하는지 상세히 설명하세요"
+                  rows={10}
+                  className="font-mono text-sm"
+                />
+              </div>
+
+              {/* Gemini 설정 */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Gemini 모델 설정</h3>
+                
+                <div>
+                  <Label>모델 선택</Label>
+                  <select
+                    value={editFormData.model}
+                    onChange={(e) => setEditFormData({ ...editFormData, model: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg mt-2"
+                  >
+                    {GEMINI_MODELS.map((model) => (
+                      <option key={model.value} value={model.value}>
+                        {model.label} - {model.description}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Temperature: {editFormData.temperature}</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="2"
+                      value={editFormData.temperature}
+                      onChange={(e) => setEditFormData({ ...editFormData, temperature: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Max Tokens: {editFormData.maxTokens}</Label>
+                    <Input
+                      type="number"
+                      step="100"
+                      value={editFormData.maxTokens}
+                      onChange={(e) => setEditFormData({ ...editFormData, maxTokens: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Top K: {editFormData.topK}</Label>
+                    <Input
+                      type="number"
+                      value={editFormData.topK}
+                      onChange={(e) => setEditFormData({ ...editFormData, topK: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Top P: {editFormData.topP}</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="1"
+                      value={editFormData.topP}
+                      onChange={(e) => setEditFormData({ ...editFormData, topP: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 음성 설정 */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">🎤 TTS 음성 설정</h3>
+                <div className="flex gap-2">
+                  <select
+                    value={editFormData.voiceIndex}
+                    onChange={(e) => setEditFormData({ ...editFormData, voiceIndex: e.target.value })}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                  >
+                    {voices.map((voice, index) => (
+                      <option key={index} value={index}>
+                        {voice.name} ({voice.lang})
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const voiceIndex = parseInt(editFormData.voiceIndex);
+                      if (voiceIndex >= 0 && voiceIndex < voices.length) {
+                        const utterance = new SpeechSynthesisUtterance("안녕하세요! 이 목소리로 응답합니다.");
+                        utterance.voice = voices[voiceIndex];
+                        utterance.lang = "ko-KR";
+                        utterance.rate = 1.0;
+                        utterance.pitch = 1.0;
+                        window.speechSynthesis.speak(utterance);
+                      }
+                    }}
+                  >
+                    테스트
+                  </Button>
+                </div>
+              </div>
+
+              {/* 저장 버튼 */}
+              <div className="flex gap-2 pt-4 border-t sticky bottom-0 bg-white">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingBot(null)}
+                  className="flex-1"
+                  disabled={loading}
+                >
+                  취소
+                </Button>
+                <Button
+                  onClick={handleSaveEdit}
+                  className="flex-1"
+                  disabled={loading}
+                >
+                  {loading ? "저장 중..." : "저장"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
-  );
-}
+  );\n}
