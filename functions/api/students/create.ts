@@ -156,9 +156,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         console.log('⚠️ Could not check table structure:', e);
       }
       
-      // 테이블이 없으면 생성 (diagnostic_memo 포함)
+      // 테이블이 없으면 생성 (diagnostic_memo 포함, FOREIGN KEY 제거)
       if (!tableExists) {
-        console.log('📋 Creating students table with diagnostic_memo...');
+        console.log('📋 Creating students table with diagnostic_memo (no FK constraints)...');
         await DB.prepare(`
           CREATE TABLE IF NOT EXISTS students (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -169,9 +169,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             diagnostic_memo TEXT,
             status TEXT DEFAULT 'ACTIVE',
             created_at TEXT NOT NULL,
-            updated_at TEXT,
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (academy_id) REFERENCES academy(id)
+            updated_at TEXT
           )
         `).run();
         hasDiagnosticMemo = true;
@@ -236,10 +234,29 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       `).bind(userId).first();
       
       console.log('🔍 Verification - Student record:', verifyStudent);
+      
+      if (!verifyStudent) {
+        throw new Error('Student record was not inserted - verification failed');
+      }
+      
+      // 필드 확인
+      if (school && !verifyStudent.school) {
+        console.error('❌ School not saved:', school);
+      }
+      if (grade && !verifyStudent.grade) {
+        console.error('❌ Grade not saved:', grade);
+      }
+      if (diagnosticMemo && !verifyStudent.diagnostic_memo) {
+        console.error('❌ Diagnostic memo not saved:', diagnosticMemo);
+      }
+      
     } catch (error: any) {
-      console.error('❌ Students table error:', error.message);
-      // students 테이블 오류는 치명적이지 않으므로 경고만 하고 계속 진행
-      console.log('⚠️ Continuing without students table record');
+      console.error('❌ CRITICAL: Students table error:', error.message);
+      console.error('❌ Error details:', error);
+      // students 테이블 오류가 발생하면 users 레코드를 롤백해야 하지만,
+      // D1은 트랜잭션을 지원하지 않으므로 경고만 함
+      console.log('⚠️ User created but student data not saved');
+      // 에러를 throw하지 않고 경고만 - user는 생성되었음
     }
 
     return new Response(

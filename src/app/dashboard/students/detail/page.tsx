@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, MessageSquare,
   TrendingUp, Brain, Loader2, RefreshCw, CheckCircle, XCircle,
-  ClipboardCheck, AlertTriangle, QrCode, Copy, Check
+  ClipboardCheck, AlertTriangle, QrCode, Copy, Check, Key
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -19,6 +19,7 @@ interface StudentDetail {
   name: string;
   phone?: string;
   role: string;
+  password?: string;
   academy_id?: number;
   academyName?: string;
   created_at?: string;
@@ -685,6 +686,18 @@ function StudentDetailContent() {
                       <p className="font-medium">{student.className || '미등록'}</p>
                     </div>
                   </div>
+
+                  {student.password && (
+                    <div className="flex items-start gap-3">
+                      <Key className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-500">비밀번호</p>
+                        <p className="font-medium font-mono bg-gray-50 px-2 py-1 rounded">
+                          {student.password}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {student.created_at && (
                     <div className="flex items-start gap-3">
