@@ -31,6 +31,8 @@ import {
   Activity,
   DollarSign,
   Cloud,
+  ShoppingCart,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -39,6 +41,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 const navigationByRole = {
   SUPER_ADMIN: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+    { name: "🛒 AI 봇 쇼핑몰", href: "/store", icon: ShoppingCart, featured: true },
     { name: "사용자 관리", href: "/dashboard/admin/users", icon: Users },
     { name: "학원 관리", href: "/dashboard/admin/academies", icon: Building2 },
     { name: "학생 관리", href: "/dashboard/students", icon: GraduationCap },
@@ -59,6 +62,7 @@ const navigationByRole = {
   ],
   ADMIN: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+    { name: "🛒 AI 봇 쇼핑몰", href: "/store", icon: ShoppingCart, featured: true },
     { name: "사용자 관리", href: "/dashboard/admin/users", icon: Users },
     { name: "학원 관리", href: "/dashboard/admin/academies", icon: Building2 },
     { name: "학생 관리", href: "/dashboard/students", icon: GraduationCap },
@@ -79,6 +83,7 @@ const navigationByRole = {
   ],
   DIRECTOR: [
     { name: "대시보드", href: "/dashboard", icon: LayoutDashboard },
+    { name: "🛒 AI 봇 쇼핑몰", href: "/store", icon: ShoppingCart, featured: true },
     { name: "사용자 관리", href: "/dashboard/manage-users", icon: Users },
     { name: "선생님 관리", href: "/dashboard/teachers-management", icon: UserCheck },
     { name: "학생 관리", href: "/dashboard/students", icon: Users },
@@ -221,23 +226,35 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 
       {/* 네비게이션 메뉴 */}
       <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
-        {navigation.map((item) => {
+        {navigation.map((item: any) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
+          const isFeatured = item.featured === true;
+          
           return (
             <Link
               key={item.name}
               href={item.href}
               onClick={onLinkClick}
               className={cn(
-                "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-gray-700 hover:bg-gray-100"
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all",
+                isFeatured && !isActive && "bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-md hover:shadow-lg",
+                !isFeatured && isActive && "bg-primary text-primary-foreground",
+                !isFeatured && !isActive && "text-gray-700 hover:bg-gray-100",
+                isActive && isFeatured && "bg-gradient-to-r from-blue-600 to-purple-700 text-white shadow-lg ring-2 ring-blue-300"
               )}
             >
-              <Icon className={cn("mr-3 h-5 w-5 flex-shrink-0")} />
-              <span className="truncate">{item.name}</span>
+              <Icon className={cn(
+                "mr-3 h-5 w-5 flex-shrink-0",
+                isFeatured && "animate-pulse"
+              )} />
+              <span className={cn(
+                "truncate",
+                isFeatured && "font-bold"
+              )}>{item.name}</span>
+              {isFeatured && (
+                <Zap className="ml-auto h-4 w-4 animate-bounce" />
+              )}
             </Link>
           );
         })}
