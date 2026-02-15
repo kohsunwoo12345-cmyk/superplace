@@ -318,7 +318,11 @@ export default function DirectorAISystemPage() {
                   id="bot-select"
                   className="w-full mt-1 p-2 border rounded-md"
                   value={selectedBot || ""}
-                  onChange={(e) => setSelectedBot(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    const botId = parseInt(e.target.value);
+                    console.log('🤖 봇 선택:', { raw: e.target.value, parsed: botId, isValid: !isNaN(botId) });
+                    setSelectedBot(isNaN(botId) ? null : botId);
+                  }}
                   required
                 >
                   <option value="">봇을 선택하세요</option>
@@ -353,7 +357,11 @@ export default function DirectorAISystemPage() {
                   id="user-select"
                   className="w-full mt-1 p-2 border rounded-md"
                   value={selectedUser || ""}
-                  onChange={(e) => setSelectedUser(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    const userId = parseInt(e.target.value);
+                    console.log('👤 사용자 선택:', { raw: e.target.value, parsed: userId, isValid: !isNaN(userId) });
+                    setSelectedUser(isNaN(userId) ? null : userId);
+                  }}
                   required
                 >
                   <option value="">
@@ -393,7 +401,10 @@ export default function DirectorAISystemPage() {
               {/* 할당 버튼 */}
               <div>
                 <Button
-                  onClick={handleAssignBot}
+                  onClick={() => {
+                    console.log('🔘 할당 버튼 클릭:', { selectedBot, selectedUser, assigning });
+                    handleAssignBot();
+                  }}
                   disabled={assigning || !selectedBot || !selectedUser}
                   className="w-full"
                 >
@@ -411,15 +422,22 @@ export default function DirectorAISystemPage() {
                 </Button>
                 
                 {/* 디버깅 정보 */}
-                <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
-                  <p>🔍 디버깅 정보:</p>
-                  <p>• 로딩 중: {loading ? 'Yes' : 'No'}</p>
-                  <p>• 할당 중: {assigning ? 'Yes' : 'No'}</p>
-                  <p>• 봇 개수: {bots.length}개</p>
-                  <p>• 선택된 봇: {selectedBot || 'None'}</p>
-                  <p>• 사용자 개수: {userList.length}명</p>
-                  <p>• 선택된 사용자: {selectedUser || 'None'}</p>
-                  <p>• 버튼 활성화: {(!assigning && selectedBot && selectedUser) ? 'Yes ✅' : 'No ❌'}</p>
+                <div className="mt-2 p-2 bg-gray-100 rounded text-xs space-y-1">
+                  <p className="font-bold">🔍 디버깅 정보:</p>
+                  <p>• 로딩 중: <span className={loading ? 'text-orange-600' : 'text-green-600'}>{loading ? 'Yes' : 'No'}</span></p>
+                  <p>• 할당 중: <span className={assigning ? 'text-orange-600' : 'text-green-600'}>{assigning ? 'Yes' : 'No'}</span></p>
+                  <p>• 봇 개수: <span className={bots.length === 0 ? 'text-red-600 font-bold' : 'text-green-600'}>{bots.length}개</span></p>
+                  <p>• 선택된 봇: <span className={!selectedBot ? 'text-red-600 font-bold' : 'text-green-600'}>{selectedBot ? `ID ${selectedBot}` : 'None ❌'}</span></p>
+                  <p>• 사용자 개수: <span className={userList.length === 0 ? 'text-red-600 font-bold' : 'text-green-600'}>{userList.length}명</span></p>
+                  <p>• 선택된 사용자: <span className={!selectedUser ? 'text-red-600 font-bold' : 'text-green-600'}>{selectedUser ? `ID ${selectedUser}` : 'None ❌'}</span></p>
+                  <p className="pt-2 border-t">
+                    • 버튼 활성화: <span className={(!assigning && selectedBot && selectedUser) ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
+                      {(!assigning && selectedBot && selectedUser) ? 'Yes ✅' : 'No ❌'}
+                    </span>
+                  </p>
+                  <p className="text-xs text-gray-500 pt-1">
+                    활성화 조건: !assigning({String(!assigning)}) && selectedBot({String(!!selectedBot)}) && selectedUser({String(!!selectedUser)})
+                  </p>
                 </div>
               </div>
             </CardContent>
