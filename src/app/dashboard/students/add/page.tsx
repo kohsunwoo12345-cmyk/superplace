@@ -53,11 +53,13 @@ export default function AddStudentPage() {
       return;
     }
 
-    // 이메일이 없으면 전화번호로 자동 생성
-    const finalEmail = email.trim() || `${phone.replace(/[^0-9]/g, '')}@temp.student.local`;
+    // 이메일이 없으면 전화번호 + 타임스탬프로 자동 생성 (중복 방지)
+    const timestamp = Date.now();
+    const phoneNumber = phone.replace(/[^0-9]/g, '');
+    const finalEmail = email.trim() || `student_${phoneNumber}_${timestamp}@temp.student.local`;
 
     // 비밀번호가 없으면 전화번호 뒷자리 4자리로 설정
-    const finalPassword = password.trim() || phone.replace(/[^0-9]/g, '').slice(-4) || "1234";
+    const finalPassword = password.trim() || phoneNumber.slice(-4) || "1234";
 
     if (finalPassword.length < 4) {
       alert("비밀번호는 최소 4자 이상이어야 합니다");
@@ -169,12 +171,32 @@ export default function AddStudentPage() {
 
             <div>
               <Label htmlFor="grade">학년</Label>
-              <Input
+              <select
                 id="grade"
                 value={grade}
                 onChange={(e) => setGrade(e.target.value)}
-                placeholder="예: 고1, 중3"
-              />
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">학년 선택</option>
+                <optgroup label="초등학교">
+                  <option value="초1">초등학교 1학년</option>
+                  <option value="초2">초등학교 2학년</option>
+                  <option value="초3">초등학교 3학년</option>
+                  <option value="초4">초등학교 4학년</option>
+                  <option value="초5">초등학교 5학년</option>
+                  <option value="초6">초등학교 6학년</option>
+                </optgroup>
+                <optgroup label="중학교">
+                  <option value="중1">중학교 1학년</option>
+                  <option value="중2">중학교 2학년</option>
+                  <option value="중3">중학교 3학년</option>
+                </optgroup>
+                <optgroup label="고등학교">
+                  <option value="고1">고등학교 1학년</option>
+                  <option value="고2">고등학교 2학년</option>
+                  <option value="고3">고등학교 3학년</option>
+                </optgroup>
+              </select>
             </div>
 
             <div>
