@@ -53,35 +53,77 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log("📊 첫 번째 데이터:", allData.results[0]);
     }
     
-    // 학원명과 봇 정보를 포함한 조인 쿼리
-    const result = await db.prepare(`
+    // 기본 쿼리 (JOIN 없이)
+    const basicResult = await db.prepare(`
       SELECT 
-        ba.id,
-        ba.academyId,
-        COALESCE(a.name, ba.academyId) as academyName,
-        ba.botId,
-        COALESCE(b.name, '알 수 없는 봇') as botName,
-        COALESCE(b.profileIcon, '🤖') as botIcon,
-        ba.assignedAt,
-        ba.expiresAt,
-        ba.isActive,
-        ba.notes
-      FROM bot_assignments ba
-      LEFT JOIN academies a ON ba.academyId = a.id
-      LEFT JOIN ai_bots b ON ba.botId = b.id
-      ORDER BY ba.createdAt DESC
+        id,
+        academyId,
+        botId,
+        assignedAt,
+        expiresAt,
+        isActive,
+        notes
+      FROM bot_assignments
+      ORDER BY createdAt DESC
     `).all();
 
-    console.log(`✅ JOIN 쿼리 결과: ${result.results?.length || 0}개`);
-    if (result.results && result.results.length > 0) {
-      console.log("✅ 첫 번째 JOIN 결과:", result.results[0]);
-    }
+    console.log(`✅ 기본 쿼리 결과: ${basicResult.results?.length || 0}개`);
+
+    // 각 할당에 대해 학원명과 봇 정보를 추가
+    const assignments = await Promise.all(
+      (basicResult.results || []).map(async (assignment: any) => {
+        // 학원명 조회 (academy 또는 academies 테이블)
+        let academyName = assignment.academyId;
+        try {
+          const academy = await db
+            .prepare("SELECT name FROM academy WHERE id = ?")
+            .bind(assignment.academyId)
+            .first();
+          if (academy) academyName = academy.name as string;
+        } catch (e) {
+          try {
+            const academy = await db
+              .prepare("SELECT name FROM academies WHERE id = ?")
+              .bind(assignment.academyId)
+              .first();
+            if (academy) academyName = academy.name as string;
+          } catch (e2) {
+            console.log("⚠️ 학원 정보 조회 실패:", assignment.academyId);
+          }
+        }
+
+        // 봇 정보 조회
+        let botName = "알 수 없는 봇";
+        let botIcon = "🤖";
+        try {
+          const bot = await db
+            .prepare("SELECT name, profileIcon FROM ai_bots WHERE id = ?")
+            .bind(assignment.botId)
+            .first();
+          if (bot) {
+            botName = bot.name as string;
+            botIcon = bot.profileIcon as string;
+          }
+        } catch (e) {
+          console.log("⚠️ 봇 정보 조회 실패:", assignment.botId);
+        }
+
+        return {
+          ...assignment,
+          academyName,
+          botName,
+          botIcon,
+        };
+      })
+    );
+
+    console.log(`✅ 최종 할당 목록: ${assignments.length}개`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        assignments: result.results || [],
-        count: result.results?.length || 0,
+        assignments: assignments,
+        count: assignments.length,
       }),
       {
         status: 200,
