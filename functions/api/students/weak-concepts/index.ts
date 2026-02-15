@@ -150,6 +150,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     console.log('🔍 Analyzing weak concepts for student:', studentId);
     console.log('📅 Date range:', startDate, '~', endDate);
+    console.log('📅 Date filter active:', !!(startDate && endDate));
 
     // 1. 학생의 채팅 내역 가져오기
     let chatHistory: ChatMessage[] = [];
@@ -170,15 +171,26 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       const params: any[] = [parseInt(studentId)];
       
       if (startDate && endDate) {
+        // ISO 날짜를 YYYY-MM-DD 00:00:00 형식으로 변환
+        const startDateTime = `${startDate} 00:00:00`;
+        const endDateTime = `${endDate} 23:59:59`;
         query += ` AND created_at BETWEEN ? AND ?`;
-        params.push(startDate, endDate);
+        params.push(startDateTime, endDateTime);
+        console.log('📅 Chat date filter:', startDateTime, '~', endDateTime);
       }
       
       query += ` ORDER BY created_at DESC LIMIT 100`;
       
+      console.log('🔍 Chat query:', query);
+      console.log('🔍 Chat params:', params);
+      
       const result = await DB.prepare(query).bind(...params).all();
       chatHistory = result.results as any[] || [];
       console.log(`✅ Found ${chatHistory.length} chat messages for concept analysis`);
+      if (chatHistory.length > 0) {
+        console.log('📝 First chat date:', chatHistory[0].createdAt);
+        console.log('📝 Last chat date:', chatHistory[chatHistory.length - 1].createdAt);
+      }
     } catch (dbError: any) {
       console.warn('⚠️ chat_messages table may not exist:', dbError.message);
       chatHistory = [];
@@ -216,17 +228,26 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         
         // 기간 필터 추가
         if (startDate && endDate) {
+          // ISO 날짜를 YYYY-MM-DD 00:00:00 형식으로 변환
+          const startDateTime = `${startDate} 00:00:00`;
+          const endDateTime = `${endDate} 23:59:59`;
           homeworkQuery += ` AND hs.submittedAt BETWEEN ? AND ?`;
-          params.push(startDate, endDate);
+          params.push(startDateTime, endDateTime);
+          console.log('📅 Homework date filter:', startDateTime, '~', endDateTime);
         }
         
         homeworkQuery += ` ORDER BY hs.submittedAt DESC LIMIT 50`;
+        
+        console.log('🔍 Homework query:', homeworkQuery);
+        console.log('🔍 Homework params:', params);
         
         const homeworkResult = await DB.prepare(homeworkQuery).bind(...params).all();
         homeworkData = homeworkResult.results || [];
         
         if (homeworkData.length > 0) {
           console.log(`✅ Found ${homeworkData.length} homework records using tables: ${tables.submissions}, ${tables.gradings}`);
+          console.log('📝 First homework date:', homeworkData[0].submittedAt);
+          console.log('📝 Last homework date:', homeworkData[homeworkData.length - 1].submittedAt);
           break; // 성공하면 루프 종료
         }
       } catch (dbError: any) {
@@ -283,7 +304,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       analysisContext += `\n📚 숙제 채점 데이터 (${homeworkData.length}건):\n${homeworkText}\n`;
     }
 
-    // Gemini 2.0 Flash Experimental: 숙제 데이터 기반 상세 분석 프롬프트
+    // Gemini 2.5 Flash: 숙제 데이터 기반 상세 분석 프롬프트
     const prompt = `You are an educational AI analyzing student homework performance. Analyze the data and return ONLY valid JSON.
 
 Student Homework Data (${homeworkData.length} submissions):
@@ -340,10 +361,10 @@ Rules:
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-    // Gemini 2.0 Flash Experimental 모델 사용 (Gemini 2.5는 아직 존재하지 않음)
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`;
+    // Gemini 2.5 Flash 모델 사용
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
-    console.log('🔄 Calling Gemini 2.0 Flash Experimental API...');
+    console.log('🔄 Calling Gemini 2.5 Flash API...');
     console.log('📊 분석 대상: 채팅', chatHistory.length, '건, 숙제', homeworkData.length, '건');
     console.log('📅 분석 기간:', startDate, '~', endDate);
     
@@ -387,7 +408,7 @@ Rules:
     let analysisResult;
     try {
       const responseText = geminiData.candidates[0].content.parts[0].text;
-      console.log('📝 Gemini 2.0 Flash Experimental 원본 응답:', responseText);
+      console.log('📝 Gemini 2.5 Flash 원본 응답:', responseText);
       console.log('📏 응답 길이:', responseText.length);
       
       // JSON 추출: 첫 { 부터 마지막 } 까지
@@ -504,7 +525,7 @@ Rules:
         
         // 파싱 실패 시 빈 결과 반환
         analysisResult = {
-          summary: `AI 응답 파싱 실패\n\n오류: ${parseError.message}\n\nGemini 2.0 Flash Experimental API는 정상 응답했지만 JSON 파싱에 실패했습니다.\n\n**해결 방법:**\n1. Cloudflare Pages 대시보드 → Workers & Pages → superplacestudy → Logs에서 전체 응답 확인\n2. '📝 Gemini 2.0 Flash Experimental 원본 응답' 로그 확인\n3. API 키가 올바른지 확인\n\n분석 대상: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건`,
+          summary: `AI 응답 파싱 실패\n\n오류: ${parseError.message}\n\nGemini 2.5 Flash API는 정상 응답했지만 JSON 파싱에 실패했습니다.\n\n**해결 방법:**\n1. Cloudflare Pages 대시보드 → Workers & Pages → superplacestudy → Logs에서 전체 응답 확인\n2. '📝 Gemini 2.5 Flash 원본 응답' 로그 확인\n3. API 키가 올바른지 확인\n\n분석 대상: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건`,
           weakConcepts: [],
           recommendations: []
         };

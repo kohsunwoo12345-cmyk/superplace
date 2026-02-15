@@ -99,6 +99,20 @@ function StudentDetailContent() {
   const [error, setError] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
   const [attendanceCodeCopied, setAttendanceCodeCopied] = useState(false);
+  
+  // 날짜 필터 상태 추가
+  const [analysisStartDate, setAnalysisStartDate] = useState<string>("");
+  const [analysisEndDate, setAnalysisEndDate] = useState<string>("");
+
+  // 기본 날짜 설정 (최근 30일)
+  useEffect(() => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    setAnalysisEndDate(today.toISOString().split('T')[0]);
+    setAnalysisStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
+  }, []);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -265,7 +279,11 @@ function StudentDetailContent() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ studentId }),
+        body: JSON.stringify({ 
+          studentId,
+          startDate: analysisStartDate,
+          endDate: analysisEndDate
+        }),
         signal: controller.signal,
       });
 
@@ -936,6 +954,37 @@ function StudentDetailContent() {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* 날짜 필터 UI */}
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    분석 기간 설정
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">시작일</label>
+                      <input
+                        type="date"
+                        value={analysisStartDate}
+                        onChange={(e) => setAnalysisStartDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">종료일</label>
+                      <input
+                        type="date"
+                        value={analysisEndDate}
+                        onChange={(e) => setAnalysisEndDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 선택한 기간 내의 채팅 내역과 숙제 데이터를 분석합니다
+                  </p>
+                </div>
+
                 {conceptAnalyzingLoading ? (
                   <div className="text-center py-12">
                     <Loader2 className="w-16 h-16 animate-spin text-blue-500 mx-auto mb-4" />
