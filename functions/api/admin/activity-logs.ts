@@ -123,7 +123,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     logs.sort((a, b) => {
       const timeA = new Date(a.timestamp).getTime();
       const timeB = new Date(b.timestamp).getTime();
-      return timeB - timeA; // 최신순
+      return timeB - timeA;
     });
 
     // 페이지네이션
