@@ -73,6 +73,11 @@ export default function ModernAIChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  // 이미지 미리보기
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
