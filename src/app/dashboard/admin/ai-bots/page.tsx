@@ -43,6 +43,7 @@ export default function AdminAIBotsPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [botVoiceSettings, setBotVoiceSettings] = useState<{[key: string]: number}>({});
+  const [editingBotId, setEditingBotId] = useState<string | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -131,6 +132,25 @@ export default function AdminAIBotsPage() {
       ...botVoiceSettings,
       [botId]: voiceIndex
     });
+  };
+
+  const handleSaveVoice = async (botId: string) => {
+    try {
+      const response = await fetch(`/api/admin/ai-bots/${botId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voiceIndex: botVoiceSettings[botId] }),
+      });
+
+      if (response.ok) {
+        alert("✅ 음성 설정이 저장되었습니다!");
+        setEditingBotId(null);
+        fetchBots();
+      }
+    } catch (error) {
+      console.error("음성 설정 저장 실패:", error);
+      alert("❌ 저장 중 오류가 발생했습니다.");
+    }
   };
 
   const handleSaveAllVoices = async () => {
@@ -289,71 +309,120 @@ export default function AdminAIBotsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredBots.map((bot) => (
-              <Card
-                key={bot.id}
-                className="hover:shadow-lg transition-shadow"
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <Bot className="w-5 h-5 text-green-600" />
-                      <CardTitle className="text-lg">{bot.name}</CardTitle>
-                    </div>
-                    <Badge variant={bot.isActive ? "default" : "secondary"}>
-                      {bot.isActive ? "활성" : "비활성"}
-                    </Badge>
-                  </div>
-                  {bot.description && (
-                    <CardDescription className="mt-2">
-                      {bot.description}
-                    </CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MessageSquare className="w-4 h-4" />
-                    <span>대화 {bot.conversationCount}건</span>
-                  </div>
-
-                  {bot.lastUsedAt && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Activity className="w-4 h-4" />
-                      <span>
-                        최근 사용: {new Date(bot.lastUsedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2 text-xs text-gray-500 pt-2 border-t">
-                    <Calendar className="w-3 h-3" />
-                    <span>
-                      생성일: {new Date(bot.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-
-                  <div className="flex gap-2 pt-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleToggleActive(bot.id, bot.isActive)}
-                    >
-                      {bot.isActive ? "비활성화" : "활성화"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(bot.id, bot.name)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-3 px-4 font-semibold">봇 이름</th>
+                  <th className="text-left py-3 px-4 font-semibold">설명</th>
+                  <th className="text-center py-3 px-4 font-semibold">상태</th>
+                  <th className="text-center py-3 px-4 font-semibold">대화 수</th>
+                  <th className="text-center py-3 px-4 font-semibold">최근 사용</th>
+                  <th className="text-center py-3 px-4 font-semibold">음성 설정</th>
+                  <th className="text-center py-3 px-4 font-semibold">작업</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredBots.map((bot) => (
+                  <tr key={bot.id} className="border-b hover:bg-gray-50">
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{bot.profileIcon || "🤖"}</span>
+                        <span className="font-medium">{bot.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-sm text-gray-600 max-w-xs truncate">
+                      {bot.description || "-"}
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <Badge variant={bot.isActive ? "default" : "secondary"}>
+                        {bot.isActive ? "활성" : "비활성"}
+                      </Badge>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <MessageSquare className="w-4 h-4 text-gray-500" />
+                        <span>{bot.conversationCount}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center text-sm text-gray-600">
+                      {bot.lastUsedAt
+                        ? new Date(bot.lastUsedAt).toLocaleDateString()
+                        : "-"}
+                    </td>
+                    <td className="py-4 px-4">
+                      {editingBotId === bot.id ? (
+                        <div className="flex gap-1 items-center">
+                          <select
+                            value={botVoiceSettings[bot.id] || 0}
+                            onChange={(e) => handleVoiceChange(bot.id, parseInt(e.target.value))}
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            {voices.map((voice, index) => (
+                              <option key={index} value={index}>
+                                {voice.name}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => testVoice(botVoiceSettings[bot.id] || 0)}
+                            className="px-2"
+                          >
+                            🔊
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleSaveVoice(bot.id)}
+                            className="px-2"
+                          >
+                            ✓
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingBotId(null)}
+                            className="px-2"
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingBotId(bot.id)}
+                          className="w-full"
+                        >
+                          <Settings className="w-4 h-4 mr-1" />
+                          설정
+                        </Button>
+                      )}
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex gap-1 justify-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleActive(bot.id, bot.isActive)}
+                        >
+                          {bot.isActive ? "비활성" : "활성"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(bot.id, bot.name)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {filteredBots.length === 0 && (
