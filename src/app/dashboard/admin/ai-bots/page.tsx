@@ -845,4 +845,5 @@ export default function AdminAIBotsPage() {
         </div>
       )}
     </div>
-  );\n}
+  );
+}
