@@ -271,10 +271,28 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     } catch (error: any) {
       console.error('❌ CRITICAL: Students table error:', error.message);
       console.error('❌ Error details:', error);
+      console.error('❌ Error stack:', error.stack);
+      
       // students 테이블 오류가 발생하면 users 레코드를 롤백해야 하지만,
       // D1은 트랜잭션을 지원하지 않으므로 경고만 함
       console.log('⚠️ User created but student data not saved');
-      // 에러를 throw하지 않고 경고만 - user는 생성되었음
+      
+      // 에러 정보를 응답에 포함 (디버깅용)
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Student record creation failed",
+          message: error.message,
+          studentTableError: true,
+          userId: userId,
+          details: {
+            school: school,
+            grade: grade,
+            diagnosticMemo: diagnosticMemo
+          }
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     return new Response(
