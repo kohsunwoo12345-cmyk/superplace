@@ -28,7 +28,7 @@ interface BotAssignment {
 }
 
 interface Bot {
-  id: number;
+  id: string;  // number → string (봇 ID는 문자열)
   name: string;
   description: string;
   profileIcon: string;
@@ -53,7 +53,7 @@ export default function DirectorAISystemPage() {
   const [teachers, setTeachers] = useState<User[]>([]);
   
   // 할당 폼
-  const [selectedBot, setSelectedBot] = useState<number | null>(null);
+  const [selectedBot, setSelectedBot] = useState<string | null>(null);  // 봇 ID는 문자열
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [selectedUserType, setSelectedUserType] = useState<'STUDENT' | 'TEACHER'>('STUDENT');
   const [expiryDate, setExpiryDate] = useState<string>("");
@@ -319,9 +319,9 @@ export default function DirectorAISystemPage() {
                   className="w-full mt-1 p-2 border rounded-md"
                   value={selectedBot || ""}
                   onChange={(e) => {
-                    const botId = parseInt(e.target.value);
-                    console.log('🤖 봇 선택:', { raw: e.target.value, parsed: botId, isValid: !isNaN(botId) });
-                    setSelectedBot(isNaN(botId) ? null : botId);
+                    const botId = e.target.value;
+                    console.log('🤖 봇 선택:', { raw: botId, isValid: !!botId });
+                    setSelectedBot(botId || null);
                   }}
                   required
                 >
@@ -399,47 +399,26 @@ export default function DirectorAISystemPage() {
               </div>
 
               {/* 할당 버튼 */}
-              <div>
-                <Button
-                  onClick={() => {
-                    console.log('🔘 할당 버튼 클릭:', { selectedBot, selectedUser, assigning });
-                    handleAssignBot();
-                  }}
-                  disabled={assigning || !selectedBot || !selectedUser}
-                  className="w-full"
-                >
-                  {assigning ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      할당 중...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4 mr-2" />
-                      봇 할당하기
-                    </>
-                  )}
-                </Button>
-                
-                {/* 디버깅 정보 */}
-                <div className="mt-2 p-2 bg-gray-100 rounded text-xs space-y-1">
-                  <p className="font-bold">🔍 디버깅 정보:</p>
-                  <p>• 로딩 중: <span className={loading ? 'text-orange-600' : 'text-green-600'}>{loading ? 'Yes' : 'No'}</span></p>
-                  <p>• 할당 중: <span className={assigning ? 'text-orange-600' : 'text-green-600'}>{assigning ? 'Yes' : 'No'}</span></p>
-                  <p>• 봇 개수: <span className={bots.length === 0 ? 'text-red-600 font-bold' : 'text-green-600'}>{bots.length}개</span></p>
-                  <p>• 선택된 봇: <span className={!selectedBot ? 'text-red-600 font-bold' : 'text-green-600'}>{selectedBot ? `ID ${selectedBot}` : 'None ❌'}</span></p>
-                  <p>• 사용자 개수: <span className={userList.length === 0 ? 'text-red-600 font-bold' : 'text-green-600'}>{userList.length}명</span></p>
-                  <p>• 선택된 사용자: <span className={!selectedUser ? 'text-red-600 font-bold' : 'text-green-600'}>{selectedUser ? `ID ${selectedUser}` : 'None ❌'}</span></p>
-                  <p className="pt-2 border-t">
-                    • 버튼 활성화: <span className={(!assigning && selectedBot && selectedUser) ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
-                      {(!assigning && selectedBot && selectedUser) ? 'Yes ✅' : 'No ❌'}
-                    </span>
-                  </p>
-                  <p className="text-xs text-gray-500 pt-1">
-                    활성화 조건: !assigning({String(!assigning)}) && selectedBot({String(!!selectedBot)}) && selectedUser({String(!!selectedUser)})
-                  </p>
-                </div>
-              </div>
+              <Button
+                onClick={() => {
+                  console.log('🔘 할당 버튼 클릭:', { selectedBot, selectedUser, assigning });
+                  handleAssignBot();
+                }}
+                disabled={assigning || !selectedBot || !selectedUser}
+                className="w-full"
+              >
+                {assigning ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    할당 중...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    봇 할당하기
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
