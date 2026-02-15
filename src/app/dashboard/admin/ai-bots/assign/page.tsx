@@ -149,18 +149,25 @@ export default function AIBotAssignPage() {
     try {
       setSubmitting(true);
 
+      const requestBody = {
+        botId: selectedBot,
+        userId: parseInt(selectedUser),
+        duration: durationNumber,
+        durationUnit,
+      };
+
+      console.log("📤 요청 전송:", requestBody);
+
       const response = await fetch("/api/admin/ai-bots/assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          botId: selectedBot,
-          userId: parseInt(selectedUser),
-          duration: durationNumber,
-          durationUnit,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log("📥 응답 상태:", response.status);
+
       const data = await response.json();
+      console.log("📥 응답 데이터:", data);
 
       if (response.ok && data.success) {
         alert(`✅ AI 봇이 성공적으로 할당되었습니다!\n\n사용자: ${data.assignment.userName}\n봇: ${data.assignment.botName}\n기간: ${data.assignment.duration}${data.assignment.durationUnit === 'day' ? '일' : '개월'}\n종료일: ${data.assignment.endDate}`);
@@ -174,11 +181,12 @@ export default function AIBotAssignPage() {
         // 할당 목록 새로고침
         fetchData();
       } else {
-        alert(`❌ 할당 실패: ${data.error || "알 수 없는 오류"}`);
+        console.error("❌ 할당 실패:", data);
+        alert(`❌ 할당 실패\n\n상태 코드: ${response.status}\n오류: ${data.error || "알 수 없는 오류"}\n\n받은 데이터: ${JSON.stringify(data.receivedData || {})}`);
       }
     } catch (error) {
-      console.error("할당 오류:", error);
-      alert("할당 중 오류가 발생했습니다.");
+      console.error("💥 할당 오류:", error);
+      alert(`💥 할당 중 오류가 발생했습니다.\n\n${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setSubmitting(false);
     }

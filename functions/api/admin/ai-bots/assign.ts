@@ -21,9 +21,23 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     const body = await request.json();
     const { botId, userId, duration, durationUnit } = body;
 
+    console.log("📥 받은 요청 body:", JSON.stringify(body));
+    console.log("🔍 파싱된 값:", { botId, userId, duration, durationUnit });
+
     if (!botId || !userId || !duration || !durationUnit) {
+      const missingFields = [];
+      if (!botId) missingFields.push("botId");
+      if (!userId) missingFields.push("userId");
+      if (!duration) missingFields.push("duration");
+      if (!durationUnit) missingFields.push("durationUnit");
+      
+      console.error("❌ 필수 필드 누락:", missingFields);
       return new Response(
-        JSON.stringify({ success: false, error: "필수 필드가 누락되었습니다" }),
+        JSON.stringify({ 
+          success: false, 
+          error: `필수 필드가 누락되었습니다: ${missingFields.join(", ")}`,
+          receivedData: body 
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -31,25 +45,31 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     console.log("🤖 AI 봇 할당 요청:", { botId, userId, duration, durationUnit });
 
     // 사용자 확인
+    console.log("👤 사용자 조회 중:", userId);
     const user = await DB.prepare("SELECT * FROM users WHERE id = ?")
       .bind(userId)
       .first();
 
+    console.log("👤 사용자 조회 결과:", user ? `찾음 (${user.name})` : "없음");
+
     if (!user) {
       return new Response(
-        JSON.stringify({ success: false, error: "사용자를 찾을 수 없습니다" }),
+        JSON.stringify({ success: false, error: "사용자를 찾을 수 없습니다", userId }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
 
     // AI 봇 확인
+    console.log("🤖 AI 봇 조회 중:", botId);
     const bot = await DB.prepare("SELECT * FROM ai_bots WHERE id = ?")
       .bind(botId)
       .first();
 
+    console.log("🤖 AI 봇 조회 결과:", bot ? `찾음 (${bot.name})` : "없음");
+
     if (!bot) {
       return new Response(
-        JSON.stringify({ success: false, error: "AI 봇을 찾을 수 없습니다" }),
+        JSON.stringify({ success: false, error: "AI 봇을 찾을 수 없습니다", botId }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -76,6 +96,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     const endDateStr = endDate.toISOString().split('T')[0];
 
     // 할당 테이블 생성 (없으면)
+    console.log("📋 테이블 생성 확인 중...");
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS ai_bot_assignments (
         id TEXT PRIMARY KEY,
@@ -94,12 +115,15 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         FOREIGN KEY (userId) REFERENCES users(id)
       )
     `).run();
+    console.log("✅ 테이블 생성/확인 완료");
 
     // 할당 ID 생성
     const assignmentId = `assignment-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    console.log("🆔 할당 ID 생성:", assignmentId);
 
     // 할당 저장
-    await DB.prepare(`
+    console.log("💾 할당 저장 중...");
+    const insertResult = await DB.prepare(`
       INSERT INTO ai_bot_assignments 
       (id, botId, botName, userId, userName, userEmail, startDate, endDate, duration, durationUnit, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
@@ -116,6 +140,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       durationUnit
     ).run();
 
+    console.log("💾 INSERT 결과:", insertResult);
     console.log("✅ AI 봇 할당 완료:", assignmentId);
 
     return new Response(
