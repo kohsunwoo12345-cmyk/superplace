@@ -45,8 +45,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     console.log("✅ 테이블 생성/확인 완료");
 
     console.log("🔍 할당 목록 조회 중...");
+    
+    // 먼저 전체 데이터 확인
+    const allData = await db.prepare("SELECT * FROM bot_assignments").all();
+    console.log("📊 bot_assignments 테이블 전체 데이터:", allData.results?.length, "개");
+    if (allData.results && allData.results.length > 0) {
+      console.log("📊 첫 번째 데이터:", allData.results[0]);
+    }
+    
     // 학원명과 봇 정보를 포함한 조인 쿼리
-    // academy 대신 academies 테이블명 사용 시도
     const result = await db.prepare(`
       SELECT 
         ba.id,
@@ -65,7 +72,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ORDER BY ba.createdAt DESC
     `).all();
 
-    console.log(`✅ ${result.results?.length || 0}개의 할당 조회 완료`);
+    console.log(`✅ JOIN 쿼리 결과: ${result.results?.length || 0}개`);
+    if (result.results && result.results.length > 0) {
+      console.log("✅ 첫 번째 JOIN 결과:", result.results[0]);
+    }
 
     return new Response(
       JSON.stringify({
@@ -181,12 +191,42 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .run();
 
     console.log("✅ 할당 생성 완료:", result.meta.last_row_id);
+    console.log("📊 INSERT 결과 메타:", result.meta);
+
+    // 생성된 데이터 확인
+    const inserted = await db
+      .prepare("SELECT * FROM bot_assignments WHERE id = ?")
+      .bind(result.meta.last_row_id)
+      .first();
+    
+    console.log("🔍 삽입 확인:", inserted);
+
+    if (!inserted) {
+      console.error("❌ 삽입된 데이터를 찾을 수 없음!");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "데이터 삽입 확인 실패",
+          error: "INSERT는 성공했으나 데이터를 찾을 수 없습니다",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // 전체 할당 목록 조회 (디버깅)
+    const allAssignments = await db.prepare("SELECT * FROM bot_assignments").all();
+    console.log("📋 전체 할당 목록 수:", allAssignments.results?.length);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: "봇이 할당되었습니다",
         assignmentId: result.meta.last_row_id,
+        inserted: inserted,
+        totalAssignments: allAssignments.results?.length || 0,
       }),
       {
         status: 201,

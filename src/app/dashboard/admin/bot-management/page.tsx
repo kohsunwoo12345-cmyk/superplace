@@ -169,10 +169,16 @@ export default function AdminBotManagementPage() {
       console.log("📥 응답 데이터:", data);
 
       if (response.ok) {
-        alert("봇이 할당되었습니다.");
+        alert(`봇이 할당되었습니다.\n\n할당 ID: ${data.assignmentId}\n전체 할당 수: ${data.totalAssignments || 0}`);
         setShowAssignModal(false);
         resetAssignForm();
-        fetchAssignments();
+        
+        // 1초 대기 후 목록 새로고침 (DB 동기화 대기)
+        console.log("🔄 1초 후 목록 새로고침...");
+        setTimeout(() => {
+          console.log("🔄 목록 새로고침 시작");
+          fetchAssignments();
+        }, 1000);
       } else {
         alert(`할당 실패: ${data.message || "알 수 없는 오류"}\n\n상세: ${data.error || ""}`);
       }
