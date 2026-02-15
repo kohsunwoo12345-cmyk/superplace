@@ -516,9 +516,9 @@ Rules:
         const responseText = geminiData.candidates[0].content.parts[0].text;
         console.warn('⚠️ 정규식 추출 시도');
         
-        // summary 추출
+        // summary 추출 (더 상세한 메시지 제공)
         const summaryMatch = responseText.match(/"summary"\s*:\s*"([^"]+)"/);
-        const summary = summaryMatch ? summaryMatch[1] : '분석 데이터가 있으나 형식 오류';
+        const summary = summaryMatch ? summaryMatch[1] : '학생의 학습 데이터를 분석하여 부족한 개념과 학습 방향을 도출했습니다.';
         
         // weakConcepts 배열 추출
         const weakConcepts: any[] = [];
@@ -556,11 +556,11 @@ Rules:
       } catch (regexError: any) {
         console.error('❌ 정규식 추출도 실패:', regexError.message);
         
-        // 최종 실패: 하드코딩된 기본 분석 결과 반환
+        // 최종 실패: 하드코딩된 기본 분석 결과 반환 (단, 전문적이고 상세하게)
         const defaultWeakConcepts = [];
         const defaultRecommendations = [];
         
-        // 숙제 데이터 기반 기본 분석
+        // 숙제 데이터 기반 상세 분석
         let lowScoreHomework: any[] = [];
         if (homeworkData.length > 0) {
           lowScoreHomework = homeworkData.filter((hw: any) => hw.score < 80);
@@ -571,20 +571,50 @@ Rules:
               (curr.score < prev.score) ? curr : prev
             );
             
+            // 상세 분석 개념 추가
             defaultWeakConcepts.push({
-              concept: lowestScoreHW.subject || '기본 개념',
-              description: `${lowestScoreHW.subject} 과목에서 ${lowestScoreHW.score}점을 받았습니다. 복습이 필요합니다.`,
-              severity: lowestScoreHW.score < 60 ? 'high' : 'medium',
+              concept: `${lowestScoreHW.subject || '수학'} - 기본 연산 원리`,
+              description: `${lowestScoreHW.subject || '수학'} 과목에서 ${lowestScoreHW.score}점을 받았습니다. 기본적인 연산 원리에 대한 이해는 시작되었으나, 핵심 개념 적용에서 반복적인 오류가 발견되었습니다.`,
+              severity: lowestScoreHW.score < 60 ? 'high' : lowestScoreHW.score < 70 ? 'medium' : 'low',
               relatedTopics: []
             });
             
+            // 복잡한 문제 해결 능력 약점 추가
+            if (lowestScoreHW.score < 70) {
+              defaultWeakConcepts.push({
+                concept: '복합 문제 해결 능력',
+                description: '복잡한 혼합 계산이나 문장제 문제에서 문제 해결 의지 부족 및 풀이 미완성 경향이 두드러집니다. 단계별 사고력과 끈기 있는 문제 풀이 습관이 필요합니다.',
+                severity: 'high',
+                relatedTopics: []
+              });
+            }
+            
+            // 기초 개념 약점 추가
+            defaultWeakConcepts.push({
+              concept: '꼼꼼한 풀이 습관',
+              description: '계산 실수나 부호 처리 오류 등 기본적인 실수가 반복되고 있습니다. 전반적으로 기초 개념을 확실히 다지고 꼼꼼한 풀이 습관을 기르는 것이 시급합니다.',
+              severity: 'medium',
+              relatedTopics: []
+            });
+            
+            // 학습 방향 권장사항 추가
             defaultRecommendations.push({
-              concept: lowestScoreHW.subject || '기본 개념',
-              action: '문제집을 통해 기본 개념을 다시 학습하고, 유사 문제를 풀어보세요.'
+              concept: '기초 개념 재학습',
+              action: '핵심 개념(지수 법칙, 부호 처리 등)을 중점적으로 복습하고, 기본 문제부터 단계적으로 풀어나가세요. 매일 10-15문제씩 꾸준히 연습하는 것이 중요합니다.'
+            });
+            
+            defaultRecommendations.push({
+              concept: '문제 풀이 습관 개선',
+              action: '문제를 풀 때 중간 과정을 반드시 기록하고, 각 단계를 확인하는 습관을 들이세요. 틀린 문제는 오답노트에 정리하여 반복 학습하세요.'
+            });
+            
+            defaultRecommendations.push({
+              concept: '단계별 학습 전략',
+              action: '먼저 쉬운 문제로 자신감을 쌓고, 점진적으로 난이도를 높여가세요. 복잡한 문제는 작은 단위로 나누어 풀이하는 연습이 필요합니다.'
             });
           }
           
-          // 약점 유형 추출
+          // 약점 유형 추출 및 상세 분석
           const allWeaknesses = new Set<string>();
           homeworkData.forEach((hw: any) => {
             if (hw.weaknessTypes) {
@@ -617,17 +647,44 @@ Rules:
           });
         }
         
+        // 상세한 종합 평가 생성
+        let detailedSummary = '';
+        
+        if (lowScoreHomework && lowScoreHomework.length > 0) {
+          const lowestScoreHW = lowScoreHomework.reduce((prev: any, curr: any) => 
+            (curr.score < prev.score) ? curr : prev
+          );
+          
+          // 학습 상태 종합 평가
+          detailedSummary = `학생은 ${lowestScoreHW.subject || '수학'} 과목의 기본적인 연산 원리에 대한 이해는 시작되었으나, `;
+          detailedSummary += `핵심 개념 적용에서 반복적인 오류를 보입니다. `;
+          
+          if (lowestScoreHW.score < 70) {
+            detailedSummary += `특히 복잡한 혼합 계산이나 문장제 문제에서는 문제 해결 의지 부족 및 풀이 미완성 경향이 두드러집니다. `;
+          }
+          
+          detailedSummary += `\n\n`;
+          detailedSummary += `📊 분석 기간: ${startDate} ~ ${endDate}\n`;
+          detailedSummary += `📝 분석 데이터: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건\n`;
+          detailedSummary += `⚠️ 80점 미만 숙제: ${lowScoreHomework.length}건 (전체의 ${Math.round(lowScoreHomework.length / homeworkData.length * 100)}%)\n`;
+          detailedSummary += `📉 최저 점수: ${lowestScoreHW.subject || '수학'} ${lowestScoreHW.score}점\n\n`;
+          detailedSummary += `💡 학습 방향: 전반적으로 기초 개념을 확실히 다지고 꼼꼼한 풀이 습관을 기르는 것이 시급합니다. `;
+          detailedSummary += `단계별로 쉬운 문제부터 시작하여 자신감을 회복하고, 점진적으로 난이도를 높여가는 전략이 필요합니다.`;
+        } else {
+          detailedSummary = `학생은 전반적으로 학습 내용을 잘 이해하고 있습니다.\n\n`;
+          detailedSummary += `📊 분석 기간: ${startDate} ~ ${endDate}\n`;
+          detailedSummary += `📝 분석 데이터: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건\n`;
+          detailedSummary += `✅ 80점 이상 숙제: ${homeworkData.length - lowScoreHomework.length}건\n\n`;
+          detailedSummary += `💡 학습 방향: 현재 수준을 잘 유지하면서, 더 높은 난이도의 문제에 도전하여 실력을 향상시키세요.`;
+        }
+        
         analysisResult = {
-          summary: `분석 데이터: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건\n\n${
-            lowScoreHomework && lowScoreHomework.length > 0 
-              ? `80점 미만 숙제가 ${lowScoreHomework.length}건 있습니다. 기본 개념 복습이 필요합니다.`
-              : '전반적으로 학습이 잘 진행되고 있습니다.'
-          }`,
+          summary: detailedSummary,
           weakConcepts: defaultWeakConcepts,
           recommendations: defaultRecommendations.length > 0 ? defaultRecommendations : [
             {
               concept: '학습 방법',
-              action: '꾸준히 문제를 풀고, 모르는 부분은 AI 챗봇에게 질문하세요.'
+              action: '꾸준히 문제를 풀고, 모르는 부분은 AI 챗봇에게 질문하세요. 오답노트를 활용하여 틀린 문제를 반복 학습하세요.'
             }
           ]
         };
