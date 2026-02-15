@@ -40,7 +40,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log('➕ Create student request received');
     console.log('📦 Request body:', JSON.stringify(body, null, 2));
-    console.log('🔍 Parsed fields:', { name, email, phone, school, grade, hasPassword: !!password, academyId, role });
+    console.log('🔍 Parsed fields:', { 
+      name, 
+      email, 
+      phone, 
+      school, 
+      grade, 
+      diagnosticMemo,
+      hasPassword: !!password, 
+      academyId, 
+      role 
+    });
 
     // 필수 필드 검증
     if (!name || !phone) {
@@ -122,6 +132,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // students 테이블에도 레코드 생성 (있는 경우)
     try {
       // 테이블 생성 (없으면)
+      console.log('📋 Creating students table if not exists...');
       await DB.prepare(`
         CREATE TABLE IF NOT EXISTS students (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -137,8 +148,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           FOREIGN KEY (academy_id) REFERENCES academy(id)
         )
       `).run();
+      console.log('✅ Students table ready');
       
-      await DB.prepare(`
+      console.log('📝 Inserting student record:', {
+        userId,
+        academyId: finalAcademyId,
+        school,
+        grade,
+        diagnosticMemo
+      });
+      
+      const insertResult = await DB.prepare(`
         INSERT INTO students (user_id, academy_id, school, grade, diagnostic_memo, status, created_at)
         VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)
       `).bind(
@@ -149,10 +169,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         diagnosticMemo || null,
         koreanTime
       ).run();
-      console.log('✅ Student record created with additional info');
+      
+      console.log('✅ Student record created:', insertResult.meta);
+      
+      // 삽입 확인
+      const verifyStudent = await DB.prepare(`
+        SELECT * FROM students WHERE user_id = ?
+      `).bind(userId).first();
+      
+      console.log('🔍 Verification - Student record:', verifyStudent);
     } catch (error: any) {
-      // students 테이블이 없을 수 있으므로 에러 무시
-      console.log('⚠️ students table insert failed (may not exist):', error.message);
+      console.error('❌ CRITICAL: Students table insert failed!');
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      // 에러를 무시하지 말고 사용자에게 알림
+      throw new Error(`Failed to create student record: ${error.message}`);
     }
 
     return new Response(
