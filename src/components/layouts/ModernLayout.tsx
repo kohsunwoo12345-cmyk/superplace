@@ -155,6 +155,9 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
   console.log('📋 ModernLayout - Total menu items:', menuItems.length);
   console.log('📋 ModernLayout - Menu items:', menuItems.map(m => m.text).join(', '));
 
+  // roleUpper 변수를 상단에 정의
+  const roleUpper = role.toUpperCase();
+
   // 역할별 배경 그라데이션
   const getRoleGradient = () => {
     const roleUpper = role.toUpperCase();
