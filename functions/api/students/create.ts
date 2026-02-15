@@ -211,6 +211,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
       }
       
+      // parent_name 컬럼 확인 및 추가
+      const hasParentName = columns?.results?.some((col: any) => col.name === 'parent_name') || false;
+      console.log('📋 Has parent_name column:', hasParentName);
+      
+      if (tableExists && !hasParentName) {
+        console.log('📋 Adding parent_name column...');
+        try {
+          await DB.prepare(`
+            ALTER TABLE students ADD COLUMN parent_name TEXT
+          `).run();
+          console.log('✅ parent_name column added');
+        } catch (e) {
+          console.log('⚠️ Could not add parent_name column (may already exist):', e);
+        }
+      }
+      
       console.log('📝 Inserting student record:', {
         name,
         userId,
@@ -240,7 +256,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       
       // diagnostic_memo 컬럼 유무에 따라 다른 쿼리 사용
       let insertResult;
-      if (hasDiagnosticMemo) {
+      const hasParentNameInTable = columns?.results?.some((col: any) => col.name === 'parent_name') || false;
+      
+      if (hasDiagnosticMemo && hasParentNameInTable) {
+        console.log('🔍 Using INSERT with name, parent_name, and diagnostic_memo columns');
+        insertResult = await DB.prepare(`
+          INSERT INTO students (user_id, name, parent_name, academy_id, school, grade, diagnostic_memo, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
+        `).bind(
+          userId,
+          name,
+          null, // parent_name - 나중에 추가될 기능
+          finalAcademyId,
+          school || null,
+          grade || null,
+          diagnosticMemo || null,
+          koreanTime
+        ).run();
+      } else if (hasDiagnosticMemo) {
         console.log('🔍 Using INSERT with name and diagnostic_memo columns');
         insertResult = await DB.prepare(`
           INSERT INTO students (user_id, name, academy_id, school, grade, diagnostic_memo, status, created_at)
@@ -254,8 +287,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           diagnosticMemo || null,
           koreanTime
         ).run();
+      } else if (hasParentNameInTable) {
+        console.log('🔍 Using INSERT with name and parent_name but without diagnostic_memo column');
+        insertResult = await DB.prepare(`
+          INSERT INTO students (user_id, name, parent_name, academy_id, school, grade, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
+        `).bind(
+          userId,
+          name,
+          null, // parent_name
+          finalAcademyId,
+          school || null,
+          grade || null,
+          koreanTime
+        ).run();
       } else {
-        console.log('🔍 Using INSERT with name but without diagnostic_memo column');
+        console.log('🔍 Using INSERT with name but without parent_name or diagnostic_memo column');
         // diagnostic_memo 컬럼이 없으면 제외하고 삽입
         insertResult = await DB.prepare(`
           INSERT INTO students (user_id, name, academy_id, school, grade, status, created_at)
