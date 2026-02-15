@@ -36,16 +36,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const body: any = await context.request.json();
-    const { name, email, password, phone, academyId, role } = body;
+    const { name, email, password, phone, school, grade, diagnosticMemo, academyId, role } = body;
 
-    console.log('➕ Create student request:', { name, email, academyId, role });
+    console.log('➕ Create student request:', { name, email, phone, school, grade, academyId, role });
 
     // 필수 필드 검증
-    if (!name || !email || !password) {
+    if (!name || !phone) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Missing required fields: name, email, password" 
+          error: "Missing required fields: name, phone" 
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // 이메일과 비밀번호가 제공되었는지 확인
+    if (!email || !password) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Email and password are required (should be auto-generated on client)" 
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
@@ -104,15 +115,35 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // students 테이블에도 레코드 생성 (있는 경우)
     try {
+      // 테이블 생성 (없으면)
       await DB.prepare(`
-        INSERT INTO students (user_id, academy_id, status, created_at)
-        VALUES (?, ?, 'ACTIVE', ?)
+        CREATE TABLE IF NOT EXISTS students (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          academy_id INTEGER,
+          school TEXT,
+          grade TEXT,
+          diagnostic_memo TEXT,
+          status TEXT DEFAULT 'ACTIVE',
+          created_at TEXT NOT NULL,
+          updated_at TEXT,
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          FOREIGN KEY (academy_id) REFERENCES academy(id)
+        )
+      `).run();
+      
+      await DB.prepare(`
+        INSERT INTO students (user_id, academy_id, school, grade, diagnostic_memo, status, created_at)
+        VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)
       `).bind(
         userId,
         finalAcademyId,
+        school || null,
+        grade || null,
+        diagnosticMemo || null,
         koreanTime
       ).run();
-      console.log('✅ Student record created');
+      console.log('✅ Student record created with additional info');
     } catch (error: any) {
       // students 테이블이 없을 수 있으므로 에러 무시
       console.log('⚠️ students table insert failed (may not exist):', error.message);

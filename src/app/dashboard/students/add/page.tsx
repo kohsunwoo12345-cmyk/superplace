@@ -18,6 +18,9 @@ export default function AddStudentPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [school, setSchool] = useState("");
+  const [grade, setGrade] = useState("");
+  const [diagnosticMemo, setDiagnosticMemo] = useState("");
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -45,18 +48,19 @@ export default function AddStudentPage() {
       return;
     }
 
-    if (!email.trim()) {
-      alert("이메일을 입력해주세요");
+    if (!phone.trim()) {
+      alert("연락처를 입력해주세요");
       return;
     }
 
-    if (!password.trim()) {
-      alert("비밀번호를 입력해주세요");
-      return;
-    }
+    // 이메일이 없으면 전화번호로 자동 생성
+    const finalEmail = email.trim() || `${phone.replace(/[^0-9]/g, '')}@temp.student.local`;
 
-    if (password.length < 6) {
-      alert("비밀번호는 최소 6자 이상이어야 합니다");
+    // 비밀번호가 없으면 전화번호 뒷자리 4자리로 설정
+    const finalPassword = password.trim() || phone.replace(/[^0-9]/g, '').slice(-4) || "1234";
+
+    if (finalPassword.length < 4) {
+      alert("비밀번호는 최소 4자 이상이어야 합니다");
       return;
     }
 
@@ -68,9 +72,12 @@ export default function AddStudentPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          email: email.trim(),
-          password: password,
-          phone: phone.trim() || null,
+          email: finalEmail,
+          password: finalPassword,
+          phone: phone.trim(),
+          school: school.trim() || null,
+          grade: grade.trim() || null,
+          diagnosticMemo: diagnosticMemo.trim() || null,
           academyId: user.academyId,
           role: user.role
         })
@@ -126,45 +133,89 @@ export default function AddStudentPage() {
             </div>
 
             <div>
-              <Label htmlFor="email">이메일 *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="student@example.com"
-                required
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                로그인 시 사용할 이메일 주소입니다
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="password">비밀번호 *</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="최소 6자 이상"
-                required
-                minLength={6}
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                최소 6자 이상의 비밀번호를 입력하세요
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="phone">연락처</Label>
+              <Label htmlFor="phone">연락처 *</Label>
               <Input
                 id="phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="010-1234-5678"
+                required
               />
+              <p className="text-sm text-gray-500 mt-1">
+                필수 입력 항목입니다
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="school">학교</Label>
+              <Input
+                id="school"
+                value={school}
+                onChange={(e) => setSchool(e.target.value)}
+                placeholder="예: 서울고등학교"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="grade">학년</Label>
+              <Input
+                id="grade"
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+                placeholder="예: 고1, 중3"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="diagnosticMemo">진단 메모</Label>
+              <textarea
+                id="diagnosticMemo"
+                value={diagnosticMemo}
+                onChange={(e) => setDiagnosticMemo(e.target.value)}
+                placeholder="학생의 현재 학습 상태, 특이사항 등을 기록하세요"
+                className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                초기 진단 내용이나 특이사항을 자유롭게 기록하세요
+              </p>
+            </div>
+
+            {/* 선택 입력 영역 */}
+            <div className="border-t pt-4 mt-4">
+              <p className="text-sm font-medium text-gray-700 mb-3">
+                선택 입력 (자동 생성 가능)
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="email">이메일 (선택)</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="비워두면 연락처로 자동 생성"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    미입력 시 연락처 기반으로 자동 생성됩니다
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="password">비밀번호 (선택)</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="비워두면 연락처 뒷자리로 자동 설정"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    미입력 시 연락처 뒷자리 4자리로 설정됩니다
+                  </p>
+                </div>
+              </div>
             </div>
 
             {user && (
