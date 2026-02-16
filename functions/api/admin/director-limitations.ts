@@ -142,13 +142,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         competency_monthly_used: 0,
       };
       
-      return new Response(JSON.stringify({ limitation: defaultLimitation }), {
+      return new Response(JSON.stringify({ success: true, limitation: defaultLimitation }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ limitation }), {
+    return new Response(JSON.stringify({ success: true, limitation }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

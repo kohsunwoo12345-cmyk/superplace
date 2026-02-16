@@ -307,31 +307,41 @@ function StudentDetailContent() {
       }
 
       // 6. 학원장 제한 설정 조회 (학생의 academy_id 기반)
-      const userResponse2 = await fetch(`/api/admin/users/${studentId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (userResponse2.ok) {
-        const userData2 = await userResponse2.json();
-        const academyId = userData2.user?.academy_id || userData2.academy_id;
+      if (studentData && studentData.academy_id) {
+        const academyId = studentData.academy_id;
+        console.log('🔍 Fetching limitations for academy:', academyId);
         
-        if (academyId) {
-          console.log('🔍 Fetching limitations for academy:', academyId);
+        try {
           const limitationsResponse = await fetch(`/api/admin/director-limitations?academyId=${academyId}`, {
             headers: { 'Authorization': `Bearer ${token}` },
           });
           
+          console.log('📊 Limitations response status:', limitationsResponse.status);
+          
           if (limitationsResponse.ok) {
             const limitationsData = await limitationsResponse.json();
+            console.log('📥 Limitations data received:', limitationsData);
+            
             if (limitationsData.success && limitationsData.limitation) {
-              console.log('✅ Loaded limitations:', limitationsData.limitation);
+              console.log('✅ Setting limitations:', limitationsData.limitation);
               setLimitations(limitationsData.limitation);
+              
+              // 각 제한 값 출력
+              console.log('🎛️ Limitation details:');
+              console.log('  - similar_problem_enabled:', limitationsData.limitation.similar_problem_enabled);
+              console.log('  - weak_concept_analysis_enabled:', limitationsData.limitation.weak_concept_analysis_enabled);
+              console.log('  - competency_analysis_enabled:', limitationsData.limitation.competency_analysis_enabled);
+            } else {
+              console.warn('⚠️ Limitations data structure unexpected:', limitationsData);
             }
+          } else {
+            console.error('❌ Failed to fetch limitations, status:', limitationsResponse.status);
           }
+        } catch (limitError) {
+          console.error('❌ Error fetching limitations:', limitError);
         }
+      } else {
+        console.warn('⚠️ No academy_id found for student');
       }
 
     } catch (error: any) {
@@ -343,6 +353,9 @@ function StudentDetailContent() {
   };
 
   const analyzeCompetency = async () => {
+    console.log('🧠 AI 역량 분석 시작');
+    console.log('📊 Current limitations:', limitations);
+    
     try {
       setAnalyzingLoading(true);
       const token = localStorage.getItem("token");
@@ -486,6 +499,9 @@ function StudentDetailContent() {
   };
 
   const analyzeWeakConcepts = async () => {
+    console.log('🧠 부족한 개념 분석 시작');
+    console.log('📊 Current limitations:', limitations);
+    
     try {
       setConceptAnalyzingLoading(true);
       const token = localStorage.getItem("token");
@@ -545,6 +561,9 @@ function StudentDetailContent() {
   };
 
   const generateSimilarProblems = async () => {
+    console.log('📝 유사문제 생성 시작');
+    console.log('📊 Current limitations:', limitations);
+    
     if (!selectedSubject) {
       alert('과목을 선택해주세요.');
       return;
