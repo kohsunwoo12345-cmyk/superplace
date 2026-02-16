@@ -303,9 +303,9 @@ export default function CreateAIBotPage() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       
-      // 파일 크기 체크 (10MB 제한)
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`${file.name}은(는) 10MB를 초과합니다.`);
+      // 파일 크기 체크 (50MB 제한)
+      if (file.size > 50 * 1024 * 1024) {
+        alert(`${file.name}은(는) 50MB를 초과합니다.`);
         continue;
       }
 
@@ -393,6 +393,7 @@ export default function CreateAIBotPage() {
         body: JSON.stringify({
           message: messageToSend,
           systemPrompt: formData.systemPrompt,
+          knowledgeFiles: formData.knowledgeFiles,
           model: formData.model,
           temperature: parseFloat(formData.temperature),
           maxTokens: parseInt(formData.maxTokens),
@@ -789,7 +790,7 @@ export default function CreateAIBotPage() {
                       파일 선택
                     </Button>
                     <p className="text-sm text-gray-500">
-                      PDF, DOCX, TXT, MD (최대 10MB)
+                      PDF, DOCX, TXT, MD (최대 50MB)
                     </p>
                   </div>
 

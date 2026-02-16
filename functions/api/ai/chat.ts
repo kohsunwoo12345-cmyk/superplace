@@ -20,6 +20,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const {
       message,
       systemPrompt,
+      knowledgeFiles = [],
       model = "gemini-2.5-flash",
       temperature = 0.7,
       maxTokens = 2000,
@@ -37,17 +38,52 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
+    // 지식 파일 내용 추출 및 컨텍스트 생성
+    let knowledgeContext = "";
+    if (knowledgeFiles && knowledgeFiles.length > 0) {
+      knowledgeContext = "\n\n=== 참고 자료 ===\n";
+      for (const file of knowledgeFiles) {
+        if (file.content && file.name) {
+          // Base64 디코딩 및 텍스트 추출 시도
+          try {
+            // data:..;base64, 부분 제거
+            const base64Content = file.content.split(',')[1] || file.content;
+            const decodedContent = atob(base64Content);
+            
+            // 텍스트 파일인 경우 직접 사용
+            if (file.type.includes('text/') || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+              knowledgeContext += `\n[파일: ${file.name}]\n${decodedContent}\n`;
+            } else {
+              // PDF, DOCX 등은 파일명과 메타데이터만 포함
+              knowledgeContext += `\n[파일: ${file.name}]\n(파일 형식: ${file.type}, 크기: ${Math.round(file.size / 1024)}KB)\n`;
+              knowledgeContext += `주의: 이 파일의 전체 내용은 현재 텍스트 추출이 필요합니다.\n`;
+            }
+          } catch (e) {
+            // 디코딩 실패 시 파일 정보만 포함
+            knowledgeContext += `\n[파일: ${file.name}]\n(읽기 오류 발생)\n`;
+          }
+        }
+      }
+      knowledgeContext += "\n=== 참고 자료 끝 ===\n\n";
+    }
+
     // Gemini API 호출
     const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
+
+    // 시스템 프롬프트와 지식 베이스 결합
+    const fullPrompt = [
+      systemPrompt || "",
+      knowledgeContext,
+      "위 참고 자료를 바탕으로 사용자의 질문에 정확하고 상세하게 답변해주세요.",
+      `\n사용자 질문: ${message}`
+    ].filter(p => p.trim()).join("\n\n");
 
     const requestBody = {
       contents: [
         {
           parts: [
             {
-              text: systemPrompt
-                ? `${systemPrompt}\n\n사용자: ${message}`
-                : message,
+              text: fullPrompt,
             },
           ],
         },
