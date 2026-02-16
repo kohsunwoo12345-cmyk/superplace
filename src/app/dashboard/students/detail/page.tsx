@@ -29,6 +29,7 @@ interface StudentDetail {
   diagnostic_memo?: string;
   className?: string;
   classId?: number;
+  classes?: Array<{classId: number; className: string}>; // 다중 반 소속
 }
 
 interface AttendanceCode {
@@ -114,6 +115,11 @@ function StudentDetailContent() {
   const [editedStudent, setEditedStudent] = useState<StudentDetail | null>(null);
   const [saving, setSaving] = useState(false);
   
+  // 학원 및 반 목록
+  const [academies, setAcademies] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [selectedClassIds, setSelectedClassIds] = useState<number[]>([]);
+  
   // 날짜 필터 상태 추가
   const [analysisStartDate, setAnalysisStartDate] = useState<string>("");
   const [analysisEndDate, setAnalysisEndDate] = useState<string>("");
@@ -174,6 +180,8 @@ function StudentDetailContent() {
 
     if (studentId) {
       fetchStudentData();
+      fetchAcademies();
+      fetchClasses();
     }
   }, [studentId, router]);
 
@@ -303,6 +311,38 @@ function StudentDetailContent() {
     }
   };
 
+  // 학원 목록 가져오기
+  const fetchAcademies = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch('/api/admin/academies', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAcademies(data.academies || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch academies:', error);
+    }
+  };
+
+  // 반 목록 가져오기
+  const fetchClasses = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch('/api/admin/classes', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClasses(data.classes || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch classes:', error);
+    }
+  };
+
   const analyzeCompetency = async () => {
     try {
       setAnalyzingLoading(true);
@@ -331,10 +371,67 @@ function StudentDetailContent() {
     }
   };
 
+  // 학원 목록 불러오기
+  const fetchAcademies = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch('/api/admin/academies', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAcademies(data.academies || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch academies:', error);
+    }
+  };
+
+  // 반 목록 불러오기 (학원별)
+  const fetchClasses = async (academyId: number) => {
+    if (!academyId) {
+      setClasses([]);
+      return;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/classes?academyId=${academyId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClasses(data.classes || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch classes:', error);
+      setClasses([]);
+    }
+  };
+
   // 편집 모드 시작
-  const startEditing = () => {
+  const startEditing = async () => {
     setIsEditing(true);
     setEditedStudent({ ...student! });
+    
+    // 학원과 반 목록 불러오기
+    await fetchAcademies();
+    if (student!.academy_id) {
+      await fetchClasses(student!.academy_id);
+    }
+    
+    // 현재 학생의 다중 반 ID 로드
+    const classIds: number[] = [];
+    if (student!.classes && Array.isArray(student!.classes)) {
+      student!.classes.forEach((cls: any) => {
+        if (cls.classId) classIds.push(cls.classId);
+      });
+    } else if (student!.classId) {
+      // 하위 호환성: 단일 반만 있는 경우
+      classIds.push(student!.classId);
+    }
+    setSelectedClassIds(classIds);
+    
+    console.log('📝 Editing started with class IDs:', classIds);
   };
 
   // 편집 취소
@@ -364,6 +461,9 @@ function StudentDetailContent() {
           school: editedStudent.school,
           grade: editedStudent.grade,
           diagnostic_memo: editedStudent.diagnostic_memo,
+          academy_id: editedStudent.academy_id,
+          password: editedStudent.password,
+          classIds: selectedClassIds, // 최대 3개의 반 ID
         }),
       });
 
@@ -863,30 +963,120 @@ function StudentDetailContent() {
                     <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-sm text-gray-500">소속 학원</p>
-                      <p className="font-medium">{student.academyName || '미등록'}</p>
+                      {isEditing ? (
+                        <select
+                          value={editedStudent?.academy_id || ''}
+                          onChange={async (e) => {
+                            const academyId = Number(e.target.value);
+                            setEditedStudent({ ...editedStudent!, academy_id: academyId });
+                            await fetchClasses(academyId);
+                            setSelectedClassIds([]); // 학원 변경 시 반 선택 초기화
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">선택하세요</option>
+                          {academies.map((academy: any) => (
+                            <option key={academy.id} value={academy.id}>
+                              {academy.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="font-medium">{student.academyName || '미등록'}</p>
+                      )}
                     </div>
                   </div>
 
-                  {/* 소속 반 */}
-                  <div className="flex items-start gap-3">
+                  {/* 소속 반 (다중 선택, 최대 3개) */}
+                  <div className="flex items-start gap-3 col-span-2">
                     <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm text-gray-500">소속 반</p>
-                      <p className="font-medium">{student.className || '미등록'}</p>
+                      <p className="text-sm text-gray-500 mb-2">소속 반 (최대 3개)</p>
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          {/* 선택된 반 표시 */}
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {selectedClassIds.map((classId, index) => {
+                              const className = classes.find((c: any) => c.id === classId)?.name || `반 ${classId}`;
+                              return (
+                                <Badge key={classId} variant="secondary" className="flex items-center gap-1">
+                                  {className}
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedClassIds(selectedClassIds.filter((id) => id !== classId))}
+                                    className="ml-1 hover:text-red-600"
+                                  >
+                                    ×
+                                  </button>
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                          {/* 반 추가 드롭다운 */}
+                          {selectedClassIds.length < 3 && (
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                const classId = Number(e.target.value);
+                                if (classId && !selectedClassIds.includes(classId)) {
+                                  setSelectedClassIds([...selectedClassIds, classId]);
+                                }
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              disabled={classes.length === 0}
+                            >
+                              <option value="">반 추가하기...</option>
+                              {classes
+                                .filter((cls: any) => !selectedClassIds.includes(cls.id))
+                                .map((cls: any) => (
+                                  <option key={cls.id} value={cls.id}>
+                                    {cls.name}
+                                  </option>
+                                ))}
+                            </select>
+                          )}
+                          {selectedClassIds.length >= 3 && (
+                            <p className="text-xs text-gray-500">최대 3개 반까지 선택 가능합니다.</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {student.classes && student.classes.length > 0 ? (
+                            student.classes.map((cls: any) => (
+                              <Badge key={cls.classId} variant="outline">
+                                {cls.className}
+                              </Badge>
+                            ))
+                          ) : student.className ? (
+                            <Badge variant="outline">{student.className}</Badge>
+                          ) : (
+                            <p className="font-medium">미등록</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {student.password && (
-                    <div className="flex items-start gap-3">
-                      <Key className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-500">비밀번호</p>
+                  {/* 비밀번호 */}
+                  <div className="flex items-start gap-3">
+                    <Key className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500">비밀번호</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editedStudent?.password || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, password: e.target.value })}
+                          placeholder="비밀번호 입력 (빈 칸으로 두면 변경 안 함)"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                        />
+                      ) : (
                         <p className="font-medium font-mono bg-gray-50 px-2 py-1 rounded">
-                          {student.password}
+                          {student.password || '미설정'}
                         </p>
-                      </div>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {student.created_at && (
                     <div className="flex items-start gap-3">

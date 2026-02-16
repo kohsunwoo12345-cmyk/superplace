@@ -159,3 +159,65 @@ CREATE INDEX IF NOT EXISTS idx_purchase_request_product ON PurchaseRequest(produ
 CREATE INDEX IF NOT EXISTS idx_purchase_request_director ON PurchaseRequest(directorUserId);
 CREATE INDEX IF NOT EXISTS idx_purchase_request_status ON PurchaseRequest(status);
 CREATE INDEX IF NOT EXISTS idx_purchase_request_approved ON PurchaseRequest(approvedById);
+
+-- Student Classes (Many-to-Many relationship)
+-- 학생은 최대 3개의 반에 소속 가능
+CREATE TABLE IF NOT EXISTS StudentClasses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id INTEGER NOT NULL,
+  class_id INTEGER NOT NULL,
+  academy_id INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(student_id, class_id)
+);
+
+-- Indexes for StudentClasses
+CREATE INDEX IF NOT EXISTS idx_student_classes_student ON StudentClasses(student_id);
+CREATE INDEX IF NOT EXISTS idx_student_classes_class ON StudentClasses(class_id);
+CREATE INDEX IF NOT EXISTS idx_student_classes_academy ON StudentClasses(academy_id);
+
+-- Director Limitations (학원장별 기능 제한 설정)
+CREATE TABLE IF NOT EXISTS DirectorLimitations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  director_id INTEGER NOT NULL UNIQUE,
+  academy_id INTEGER NOT NULL,
+  
+  -- 숙제 채점 제한
+  homework_grading_daily_limit INTEGER DEFAULT 0,  -- 0 = 무제한
+  homework_grading_monthly_limit INTEGER DEFAULT 0, -- 0 = 무제한
+  homework_grading_daily_used INTEGER DEFAULT 0,
+  homework_grading_monthly_used INTEGER DEFAULT 0,
+  homework_grading_daily_reset_date TEXT,
+  homework_grading_monthly_reset_date TEXT,
+  
+  -- 학생 수 제한
+  max_students INTEGER DEFAULT 0, -- 0 = 무제한
+  
+  -- 유사문제 출제 기능
+  similar_problem_enabled INTEGER DEFAULT 0, -- 0 = OFF, 1 = ON
+  similar_problem_daily_limit INTEGER DEFAULT 0, -- 0 = 무제한
+  similar_problem_monthly_limit INTEGER DEFAULT 0,
+  similar_problem_daily_used INTEGER DEFAULT 0,
+  similar_problem_monthly_used INTEGER DEFAULT 0,
+  
+  -- 부족한 개념 분석 기능
+  weak_concept_analysis_enabled INTEGER DEFAULT 1, -- 0 = OFF, 1 = ON (기본 활성화)
+  weak_concept_daily_limit INTEGER DEFAULT 0,
+  weak_concept_monthly_limit INTEGER DEFAULT 0,
+  weak_concept_daily_used INTEGER DEFAULT 0,
+  weak_concept_monthly_used INTEGER DEFAULT 0,
+  
+  -- AI 기반 역량 분석 기능
+  competency_analysis_enabled INTEGER DEFAULT 1, -- 0 = OFF, 1 = ON (기본 활성화)
+  competency_daily_limit INTEGER DEFAULT 0,
+  competency_monthly_limit INTEGER DEFAULT 0,
+  competency_daily_used INTEGER DEFAULT 0,
+  competency_monthly_used INTEGER DEFAULT 0,
+  
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Indexes for DirectorLimitations
+CREATE INDEX IF NOT EXISTS idx_director_limitations_director ON DirectorLimitations(director_id);
+CREATE INDEX IF NOT EXISTS idx_director_limitations_academy ON DirectorLimitations(academy_id);

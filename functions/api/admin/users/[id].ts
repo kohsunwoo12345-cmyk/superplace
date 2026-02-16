@@ -119,6 +119,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       grade: user.grade
     });
 
+    // 다중 반 소속 조회 (최대 3개)
+    let classesInfo = [];
+    try {
+      classesInfo = await DB.prepare(
+        `SELECT sc.class_id as classId, c.name as className
+         FROM student_classes sc
+         LEFT JOIN classes c ON sc.class_id = c.id
+         WHERE sc.student_id = ?
+         ORDER BY sc.created_at DESC
+         LIMIT 3`
+      ).bind(userId).all();
+      console.log("✅ Student classes query result:", JSON.stringify(classesInfo));
+    } catch (e) {
+      console.log("⚠️ Student classes query error (table may not exist yet):", e);
+    }
+
     return new Response(
       JSON.stringify({ 
         user: {
@@ -131,9 +147,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           // users 테이블에서 직접 가져온 정보
           school: user.school || null,
           grade: user.grade || null,
-          // 소속 반 정보 추가
+          // 소속 반 정보 추가 (하위 호환성 유지)
           className: classInfo?.className || null,
-          classId: classInfo?.id || null
+          classId: classInfo?.id || null,
+          // 다중 반 소속 정보 추가
+          classes: classesInfo.results || []
         }
       }),
       {
@@ -146,6 +164,164 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return new Response(
       JSON.stringify({
         error: "Failed to fetch user detail",
+        message: error.message,
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+};
+
+// 사용자 정보 수정 (다중 반 소속 포함)
+export const onRequestPut: PagesFunction<Env> = async (context) => {
+  try {
+    const { DB } = context.env;
+    const userId = context.params.id as string;
+    
+    if (!DB) {
+      return new Response(JSON.stringify({ error: "Database not configured" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const body = await context.request.json() as any;
+    const {
+      name,
+      phone,
+      email,
+      school,
+      grade,
+      diagnostic_memo,
+      academy_id,
+      password,
+      classIds // 다중 반 ID 배열 (최대 3개)
+    } = body;
+
+    console.log("📝 Update request for user:", userId);
+    console.log("📝 Request body:", JSON.stringify(body, null, 2));
+
+    // 1. users 테이블 업데이트
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
+
+    if (name !== undefined) {
+      updateFields.push('name = ?');
+      updateValues.push(name);
+    }
+    if (phone !== undefined) {
+      updateFields.push('phone = ?');
+      updateValues.push(phone);
+    }
+    if (email !== undefined) {
+      updateFields.push('email = ?');
+      updateValues.push(email);
+    }
+    if (school !== undefined) {
+      updateFields.push('school = ?');
+      updateValues.push(school);
+    }
+    if (grade !== undefined) {
+      updateFields.push('grade = ?');
+      updateValues.push(grade);
+    }
+    if (diagnostic_memo !== undefined) {
+      updateFields.push('diagnostic_memo = ?');
+      updateValues.push(diagnostic_memo);
+    }
+    if (academy_id !== undefined) {
+      updateFields.push('academy_id = ?');
+      updateValues.push(academy_id);
+    }
+    if (password !== undefined && password !== '') {
+      updateFields.push('password = ?');
+      updateValues.push(password);
+    }
+
+    if (updateFields.length > 0) {
+      updateValues.push(userId);
+      const updateSql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+      
+      console.log("📝 Update SQL:", updateSql);
+      console.log("📝 Update values:", updateValues);
+
+      await DB.prepare(updateSql).bind(...updateValues).run();
+      console.log("✅ User updated successfully");
+    }
+
+    // 2. 반 소속 업데이트 (다중 반, 최대 3개)
+    if (Array.isArray(classIds)) {
+      console.log("📝 Updating class assignments:", classIds);
+
+      // 제한: 최대 3개 반
+      const limitedClassIds = classIds.slice(0, 3);
+
+      try {
+        // 먼저 student_classes 테이블이 존재하는지 확인
+        await DB.prepare(`
+          CREATE TABLE IF NOT EXISTS student_classes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            class_id INTEGER NOT NULL,
+            academy_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(student_id, class_id)
+          )
+        `).run();
+
+        // 기존 소속 반 모두 삭제
+        await DB.prepare(`
+          DELETE FROM student_classes WHERE student_id = ?
+        `).bind(userId).run();
+
+        console.log("✅ Existing class assignments deleted");
+
+        // 새로운 반 소속 추가
+        for (const classId of limitedClassIds) {
+          if (classId) {
+            // academy_id 조회
+            let academyId = academy_id;
+            if (!academyId) {
+              const user = await DB.prepare(`
+                SELECT academy_id FROM users WHERE id = ?
+              `).bind(userId).first();
+              academyId = user?.academy_id || 0;
+            }
+
+            await DB.prepare(`
+              INSERT INTO student_classes (student_id, class_id, academy_id)
+              VALUES (?, ?, ?)
+            `).bind(userId, classId, academyId).run();
+
+            console.log(`✅ Added class assignment: classId=${classId}`);
+          }
+        }
+
+        console.log(`✅ ${limitedClassIds.length} class assignments added`);
+      } catch (error) {
+        console.error("❌ Class assignment error:", error);
+        // 에러가 있어도 계속 진행 (student_classes 테이블이 없을 수 있음)
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        message: "User updated successfully"
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+  } catch (error: any) {
+    console.error("❌ User update error:", error);
+    return new Response(
+      JSON.stringify({
+        error: "Failed to update user",
         message: error.message,
       }),
       {
