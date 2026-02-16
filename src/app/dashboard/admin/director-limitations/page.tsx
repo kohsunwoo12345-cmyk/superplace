@@ -562,29 +562,6 @@ export default function DirectorLimitationsPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-2">AI 역량 분석 (월간)</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={limitation.competency_monthly_limit}
-                        onChange={(e) => setLimitation({
-                          ...limitation,
-                          competency_monthly_limit: Number(e.target.value)
-                        })}
-                        disabled={limitation.competency_analysis_enabled === 0}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        현재 사용: {limitation.competency_monthly_used || 0}회
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
 
             {/* Student Limit */}
             <TabsContent value="students" className="space-y-4">
