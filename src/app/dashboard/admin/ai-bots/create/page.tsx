@@ -23,6 +23,11 @@ import {
   Send,
   Smile,
   ImageIcon,
+  FileText,
+  Upload,
+  X,
+  File,
+  FileCheck,
 } from "lucide-react";
 
 const GEMINI_MODELS = [
@@ -242,6 +247,7 @@ export default function CreateAIBotPage() {
     topP: "0.95",
     language: "ko",
     voiceIndex: "0", // TTS 음성 인덱스
+    knowledgeFiles: [] as Array<{name: string, size: number, type: string, content: string}>, // 지식 파일들
   });
 
   useEffect(() => {
@@ -286,6 +292,81 @@ export default function CreateAIBotPage() {
       profileIcon: preset.icon,
     });
     setShowPresets(false);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const newFiles: Array<{name: string, size: number, type: string, content: string}> = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // 파일 크기 체크 (10MB 제한)
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`${file.name}은(는) 10MB를 초과합니다.`);
+        continue;
+      }
+
+      // 지원하는 파일 형식 체크
+      const supportedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+        'application/msword', // .doc
+        'text/plain',
+        'text/markdown',
+      ];
+
+      if (!supportedTypes.includes(file.type)) {
+        alert(`${file.name}은(는) 지원하지 않는 파일 형식입니다. (PDF, DOCX, TXT, MD만 가능)`);
+        continue;
+      }
+
+      try {
+        const reader = new FileReader();
+        const fileContent = await new Promise<string>((resolve, reject) => {
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        newFiles.push({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          content: fileContent
+        });
+      } catch (error) {
+        console.error(`Failed to read ${file.name}:`, error);
+        alert(`${file.name} 읽기 실패`);
+      }
+    }
+
+    if (newFiles.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        knowledgeFiles: [...prev.knowledgeFiles, ...newFiles]
+      }));
+    }
+
+    // 입력 초기화
+    e.target.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      knowledgeFiles: prev.knowledgeFiles.filter((_, i) => i !== index)
+    }));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
   const handleTest = async (message?: string) => {
@@ -671,6 +752,97 @@ export default function CreateAIBotPage() {
                   <p className="text-xs text-gray-500 mt-2">
                     💡 한국어 음성: Google 한국어, Microsoft Heami (여성), Microsoft InJoon (남성) 추천
                   </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 지식 파일 업로드 섹션 */}
+            <Card className="border-2 border-dashed border-green-200 hover:border-green-400 transition-colors">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-green-600" />
+                  지식 첨부 파일 (Knowledge Base)
+                </CardTitle>
+                <CardDescription>
+                  PDF, DOCX, TXT 파일을 업로드하여 봇이 참고할 수 있는 지식을 제공하세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  {/* 파일 업로드 버튼 */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      id="knowledgeFiles"
+                      multiple
+                      accept=".pdf,.docx,.doc,.txt,.md"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('knowledgeFiles')?.click()}
+                      className="flex items-center gap-2"
+                    >
+                      <Upload className="h-4 w-4" />
+                      파일 선택
+                    </Button>
+                    <p className="text-sm text-gray-500">
+                      PDF, DOCX, TXT, MD (최대 10MB)
+                    </p>
+                  </div>
+
+                  {/* 업로드된 파일 목록 */}
+                  {formData.knowledgeFiles.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-gray-700">
+                        업로드된 파일 ({formData.knowledgeFiles.length}개)
+                      </p>
+                      <div className="space-y-2">
+                        {formData.knowledgeFiles.map((file, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg"
+                          >
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <FileCheck className="h-5 w-5 text-green-600 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {file.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {formatFileSize(file.size)}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFile(index)}
+                              className="flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 안내 메시지 */}
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <p className="text-sm font-semibold text-green-900 mb-2">
+                      📚 지식 파일 활용 방법:
+                    </p>
+                    <ul className="text-sm text-green-800 space-y-1">
+                      <li>• 업로드한 파일의 내용을 봇이 참고하여 답변합니다</li>
+                      <li>• 교재, 강의 자료, 매뉴얼 등을 업로드하세요</li>
+                      <li>• 여러 파일을 동시에 업로드할 수 있습니다</li>
+                      <li>• 파일 내용은 시스템 프롬프트와 함께 활용됩니다</li>
+                    </ul>
+                  </div>
                 </div>
               </CardContent>
             </Card>
