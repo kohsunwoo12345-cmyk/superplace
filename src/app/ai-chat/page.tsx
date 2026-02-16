@@ -50,6 +50,12 @@ interface AIBot {
   model: string;
   isActive: boolean;
   voiceIndex?: number;
+  knowledgeFiles?: Array<{
+    name: string;
+    size: number;
+    type: string;
+    content: string;
+  }>;
 }
 
 export default function ModernAIChatPage() {
@@ -583,9 +589,11 @@ export default function ModernAIChatPage() {
         })),
         userId: user?.id,
         sessionId: sessionId,
+        knowledgeFiles: selectedBot.knowledgeFiles || [], // ✅ 봇의 지식 파일 포함
       };
       
       console.log('📡 API 호출: POST /api/ai-chat');
+      console.log('📚 지식 파일 포함:', selectedBot.knowledgeFiles?.length || 0, '개');
       
       const response = await fetch("/api/ai-chat", {
         method: "POST",
@@ -889,9 +897,11 @@ export default function ModernAIChatPage() {
         userId: user?.id,
         sessionId: sessionId,
         imageUrl: imageUrl, // ✅ 이미지 URL 포함
+        knowledgeFiles: selectedBot.knowledgeFiles || [], // ✅ 봇의 지식 파일 포함
       };
       
       console.log('📡 API 호출: POST /api/ai-chat (이미지 포함)');
+      console.log('📚 지식 파일 포함:', selectedBot.knowledgeFiles?.length || 0, '개');
       
       const response = await fetch("/api/ai-chat", {
         method: "POST",
