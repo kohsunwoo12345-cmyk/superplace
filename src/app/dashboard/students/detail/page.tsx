@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, MessageSquare,
   TrendingUp, Brain, Loader2, RefreshCw, CheckCircle, XCircle,
-  ClipboardCheck, AlertTriangle, QrCode, Copy, Check, Key
+  ClipboardCheck, AlertTriangle, QrCode, Copy, Check, Key, Edit, Save, X as XIcon
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -108,6 +108,11 @@ function StudentDetailContent() {
   const [error, setError] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
   const [attendanceCodeCopied, setAttendanceCodeCopied] = useState(false);
+  
+  // 편집 모드 상태
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedStudent, setEditedStudent] = useState<StudentDetail | null>(null);
+  const [saving, setSaving] = useState(false);
   
   // 날짜 필터 상태 추가
   const [analysisStartDate, setAnalysisStartDate] = useState<string>("");
@@ -323,6 +328,61 @@ function StudentDetailContent() {
       alert(error.message || "역량 분석 중 오류가 발생했습니다.");
     } finally {
       setAnalyzingLoading(false);
+    }
+  };
+
+  // 편집 모드 시작
+  const startEditing = () => {
+    setIsEditing(true);
+    setEditedStudent({ ...student! });
+  };
+
+  // 편집 취소
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditedStudent(null);
+  };
+
+  // 학생 정보 저장
+  const saveStudentInfo = async () => {
+    if (!editedStudent) return;
+
+    try {
+      setSaving(true);
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(`/api/admin/users/${studentId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editedStudent.name,
+          phone: editedStudent.phone,
+          email: editedStudent.email,
+          school: editedStudent.school,
+          grade: editedStudent.grade,
+          diagnostic_memo: editedStudent.diagnostic_memo,
+        }),
+      });
+
+      if (response.ok) {
+        alert('✅ 학생 정보가 수정되었습니다.');
+        setStudent(editedStudent);
+        setIsEditing(false);
+        setEditedStudent(null);
+        // 데이터 다시 로드
+        fetchStudentData();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '정보 수정에 실패했습니다.');
+      }
+    } catch (error: any) {
+      console.error('❌ 학생 정보 수정 실패:', error);
+      alert(error.message || '학생 정보 수정 중 오류가 발생했습니다.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -653,53 +713,152 @@ function StudentDetailContent() {
           <TabsContent value="info" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>기본 정보</CardTitle>
-                <CardDescription>학생의 기본 정보를 확인할 수 있습니다</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>기본 정보</CardTitle>
+                    <CardDescription>학생의 기본 정보를 확인하고 수정할 수 있습니다</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    {!isEditing ? (
+                      <Button onClick={startEditing} variant="outline" size="sm">
+                        <Edit className="w-4 h-4 mr-2" />
+                        수정
+                      </Button>
+                    ) : (
+                      <>
+                        <Button onClick={saveStudentInfo} disabled={saving} size="sm">
+                          {saving ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              저장 중...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4 mr-2" />
+                              저장
+                            </>
+                          )}
+                        </Button>
+                        <Button onClick={cancelEditing} variant="outline" size="sm" disabled={saving}>
+                          <XIcon className="w-4 h-4 mr-2" />
+                          취소
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 이름 */}
                   <div className="flex items-start gap-3">
                     <User className="w-5 h-5 text-gray-400 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm text-gray-500">이름</p>
-                      <p className="font-medium">{student.name}</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editedStudent?.name || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, name: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="font-medium">{student.name}</p>
+                      )}
                     </div>
                   </div>
 
+                  {/* 전화번호 */}
                   <div className="flex items-start gap-3">
                     <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-sm text-gray-500">전화번호</p>
-                      <p className="font-medium">{formatPhoneNumber(student.phone)}</p>
+                      {isEditing ? (
+                        <input
+                          type="tel"
+                          value={editedStudent?.phone || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, phone: e.target.value })}
+                          placeholder="010-1234-5678"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="font-medium">{formatPhoneNumber(student.phone)}</p>
+                      )}
                     </div>
                   </div>
 
+                  {/* 이메일 */}
                   <div className="flex items-start gap-3">
                     <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-sm text-gray-500">이메일</p>
-                      <p className="font-medium">{displayEmail(student.email)}</p>
+                      {isEditing ? (
+                        <input
+                          type="email"
+                          value={editedStudent?.email || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, email: e.target.value })}
+                          placeholder="example@email.com"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="font-medium">{displayEmail(student.email)}</p>
+                      )}
                     </div>
                   </div>
 
+                  {/* 소속 학교 */}
                   <div className="flex items-start gap-3">
                     <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-sm text-gray-500">소속 학교</p>
-                      <p className="font-medium">{student.school || '미등록'}</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editedStudent?.school || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, school: e.target.value })}
+                          placeholder="학교명"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="font-medium">{student.school || '미등록'}</p>
+                      )}
                     </div>
                   </div>
 
+                  {/* 학년 */}
                   <div className="flex items-start gap-3">
                     <Badge variant="outline" className="mt-0.5">
                       학년
                     </Badge>
                     <div className="flex-1">
                       <p className="text-sm text-gray-500">학년</p>
-                      <p className="font-medium">{student.grade || '미등록'}</p>
+                      {isEditing ? (
+                        <select
+                          value={editedStudent?.grade || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, grade: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">선택하세요</option>
+                          <option value="초1">초등 1학년</option>
+                          <option value="초2">초등 2학년</option>
+                          <option value="초3">초등 3학년</option>
+                          <option value="초4">초등 4학년</option>
+                          <option value="초5">초등 5학년</option>
+                          <option value="초6">초등 6학년</option>
+                          <option value="중1">중학 1학년</option>
+                          <option value="중2">중학 2학년</option>
+                          <option value="중3">중학 3학년</option>
+                          <option value="고1">고등 1학년</option>
+                          <option value="고2">고등 2학년</option>
+                          <option value="고3">고등 3학년</option>
+                        </select>
+                      ) : (
+                        <p className="font-medium">{student.grade || '미등록'}</p>
+                      )}
                     </div>
                   </div>
 
+                  {/* 소속 학원 */}
                   <div className="flex items-start gap-3">
                     <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div className="flex-1">
@@ -708,6 +867,7 @@ function StudentDetailContent() {
                     </div>
                   </div>
 
+                  {/* 소속 반 */}
                   <div className="flex items-start gap-3">
                     <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div className="flex-1">
@@ -740,12 +900,22 @@ function StudentDetailContent() {
                 </div>
 
                 {/* 진단 메모 */}
-                {student.diagnostic_memo && (
-                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h3 className="text-sm font-medium text-blue-900 mb-2">진단 메모</h3>
-                    <p className="text-sm text-blue-700">{student.diagnostic_memo}</p>
-                  </div>
-                )}
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h3 className="text-sm font-medium text-blue-900 mb-2">진단 메모</h3>
+                  {isEditing ? (
+                    <textarea
+                      value={editedStudent?.diagnostic_memo || ''}
+                      onChange={(e) => setEditedStudent({ ...editedStudent!, diagnostic_memo: e.target.value })}
+                      placeholder="학생에 대한 진단 메모를 입력하세요..."
+                      rows={4}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                  ) : (
+                    <p className="text-sm text-blue-700">
+                      {student.diagnostic_memo || '진단 메모가 없습니다.'}
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
