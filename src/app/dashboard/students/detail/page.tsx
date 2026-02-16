@@ -311,38 +311,6 @@ function StudentDetailContent() {
     }
   };
 
-  // 학원 목록 가져오기
-  const fetchAcademies = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch('/api/admin/academies', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setAcademies(data.academies || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch academies:', error);
-    }
-  };
-
-  // 반 목록 가져오기
-  const fetchClasses = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch('/api/admin/classes', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setClasses(data.classes || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch classes:', error);
-    }
-  };
-
   const analyzeCompetency = async () => {
     try {
       setAnalyzingLoading(true);
