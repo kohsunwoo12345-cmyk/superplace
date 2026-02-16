@@ -134,6 +134,9 @@ function StudentDetailContent() {
   const [generatedProblems, setGeneratedProblems] = useState<any[]>([]);
   const [generatingProblems, setGeneratingProblems] = useState(false);
   const [showAnswerSheet, setShowAnswerSheet] = useState(false);
+  
+  // 학원장 제한 설정
+  const [limitations, setLimitations] = useState<any>(null);
 
   // 전화번호 포맷팅 함수
   const formatPhoneNumber = (phone: string | undefined) => {
@@ -300,6 +303,34 @@ function StudentDetailContent() {
           setWeakConcepts(weakConceptsData.weakConcepts || []);
           setConceptRecommendations(weakConceptsData.recommendations || []);
           setConceptSummary(weakConceptsData.summary || "");
+        }
+      }
+
+      // 6. 학원장 제한 설정 조회 (학생의 academy_id 기반)
+      const userResponse2 = await fetch(`/api/admin/users/${studentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (userResponse2.ok) {
+        const userData2 = await userResponse2.json();
+        const academyId = userData2.user?.academy_id || userData2.academy_id;
+        
+        if (academyId) {
+          console.log('🔍 Fetching limitations for academy:', academyId);
+          const limitationsResponse = await fetch(`/api/admin/director-limitations?academyId=${academyId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          
+          if (limitationsResponse.ok) {
+            const limitationsData = await limitationsResponse.json();
+            if (limitationsData.success && limitationsData.limitation) {
+              console.log('✅ Loaded limitations:', limitationsData.limitation);
+              setLimitations(limitationsData.limitation);
+            }
+          }
         }
       }
 
@@ -1092,7 +1123,7 @@ function StudentDetailContent() {
                   </div>
                   <Button
                     onClick={analyzeCompetency}
-                    disabled={analyzingLoading || chatHistory.length === 0}
+                    disabled={analyzingLoading || chatHistory.length === 0 || (limitations && limitations.competency_analysis_enabled === 0)}
                   >
                     {analyzingLoading ? (
                       <>
@@ -1102,7 +1133,7 @@ function StudentDetailContent() {
                     ) : (
                       <>
                         <TrendingUp className="w-4 h-4 mr-2" />
-                        역량 분석 실행
+                        {limitations && limitations.competency_analysis_enabled === 0 ? 'AI 역량 분석 비활성화됨' : '역량 분석 실행'}
                       </>
                     )}
                   </Button>
@@ -1468,7 +1499,7 @@ function StudentDetailContent() {
                   </div>
                   <Button
                     onClick={analyzeWeakConcepts}
-                    disabled={conceptAnalyzingLoading}
+                    disabled={conceptAnalyzingLoading || (limitations && limitations.weak_concept_analysis_enabled === 0)}
                     className="w-full sm:w-auto whitespace-nowrap"
                     size="sm"
                   >
@@ -1480,7 +1511,7 @@ function StudentDetailContent() {
                     ) : (
                       <>
                         <Brain className="w-4 h-4 mr-2" />
-                        개념 분석 실행
+                        {limitations && limitations.weak_concept_analysis_enabled === 0 ? '개념 분석 비활성화됨' : '개념 분석 실행'}
                       </>
                     )}
                   </Button>
@@ -1556,9 +1587,10 @@ function StudentDetailContent() {
                         variant="outline"
                         className="mt-4"
                         size="sm"
+                        disabled={limitations && limitations.weak_concept_analysis_enabled === 0}
                       >
                         <Brain className="w-4 h-4 mr-2" />
-                        다시 분석하기
+                        {limitations && limitations.weak_concept_analysis_enabled === 0 ? '개념 분석 비활성화됨' : '다시 분석하기'}
                       </Button>
                     </div>
                   </div>
@@ -1649,12 +1681,17 @@ function StudentDetailContent() {
                               size="sm"
                               variant="outline"
                               className="w-full sm:w-auto text-xs sm:text-sm"
+                              disabled={limitations && limitations.similar_problem_enabled === 0}
                               onClick={() => {
+                                if (limitations && limitations.similar_problem_enabled === 0) {
+                                  alert('유사문제 출제 기능이 비활성화되어 있습니다.');
+                                  return;
+                                }
                                 alert(`${concept.concept}에 대한 유사문제를 생성합니다.`);
                                 // TODO: 유사문제 생성 API 호출
                               }}
                             >
-                              📝 유사문제 출제
+                              {limitations && limitations.similar_problem_enabled === 0 ? '📝 유사문제 출제 비활성화됨' : '📝 유사문제 출제'}
                             </Button>
                           </div>
                         ))}
@@ -1847,7 +1884,7 @@ function StudentDetailContent() {
                     </Button>
                     <Button
                       onClick={generateSimilarProblems}
-                      disabled={generatingProblems || !selectedSubject || selectedConcepts.length === 0 || selectedProblemTypes.length === 0 || selectedQuestionFormats.length === 0}
+                      disabled={generatingProblems || !selectedSubject || selectedConcepts.length === 0 || selectedProblemTypes.length === 0 || selectedQuestionFormats.length === 0 || (limitations && limitations.similar_problem_enabled === 0)}
                     >
                       {generatingProblems ? (
                         <>
@@ -1857,7 +1894,7 @@ function StudentDetailContent() {
                       ) : (
                         <>
                           <ClipboardCheck className="w-4 h-4 mr-2" />
-                          문제 생성 및 인쇄
+                          {limitations && limitations.similar_problem_enabled === 0 ? '기능 비활성화됨' : '문제 생성 및 인쇄'}
                         </>
                       )}
                     </Button>
