@@ -92,13 +92,45 @@ export default function DirectorLimitationsPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
+      
+      // 먼저 학원장 정보 조회
+      const directorResponse = await fetch(`/api/admin/users?academyId=${academyId}&role=DIRECTOR`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      let directorId = null;
+      if (directorResponse.ok) {
+        const directorData = await directorResponse.json();
+        if (directorData.users && directorData.users.length > 0) {
+          directorId = directorData.users[0].id;
+        }
+      }
+      
+      if (!directorId) {
+        alert('이 학원의 학원장을 찾을 수 없습니다.');
+        setLimitation(null);
+        return;
+      }
+      
+      // 제한 정보 조회
       const response = await fetch(`/api/admin/director-limitations?academyId=${academyId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (response.ok) {
         const data = await response.json();
-        setLimitation(data.limitation);
+        const limitationData = data.limitation;
+        
+        // director_id와 academy_id가 없으면 추가
+        if (!limitationData.director_id) {
+          limitationData.director_id = directorId;
+        }
+        if (!limitationData.academy_id) {
+          limitationData.academy_id = academyId;
+        }
+        
+        setLimitation(limitationData);
+        console.log('✅ Limitation loaded:', limitationData);
       }
     } catch (error) {
       console.error('Failed to fetch limitation:', error);
@@ -283,12 +315,22 @@ export default function DirectorLimitationsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>일일 사용 제한</CardTitle>
-                  <CardDescription>하루에 사용할 수 있는 횟수를 설정합니다 (0 = 무제한)</CardDescription>
+                  <CardDescription>
+                    <div className="space-y-1">
+                      <p>하루에 사용할 수 있는 횟수를 설정합니다</p>
+                      <p className="text-blue-600 font-medium">💡 0으로 설정하면 무제한으로 사용 가능합니다</p>
+                    </div>
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">숙제 채점 (일일)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        숙제 채점 (일일)
+                        {limitation.homework_grading_daily_limit === 0 && (
+                          <span className="ml-2 text-xs text-blue-600 font-semibold">무제한</span>
+                        )}
+                      </label>
                       <Input
                         type="number"
                         min="0"
@@ -297,14 +339,23 @@ export default function DirectorLimitationsPage() {
                           ...limitation,
                           homework_grading_daily_limit: Number(e.target.value)
                         })}
+                        placeholder="0 = 무제한"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        현재 사용: {limitation.homework_grading_daily_used || 0}회
+                        {limitation.homework_grading_daily_limit === 0 
+                          ? '무제한 사용 가능' 
+                          : `현재 사용: ${limitation.homework_grading_daily_used || 0}회`
+                        }
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">유사문제 출제 (일일)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        유사문제 출제 (일일)
+                        {limitation.similar_problem_daily_limit === 0 && limitation.similar_problem_enabled === 1 && (
+                          <span className="ml-2 text-xs text-blue-600 font-semibold">무제한</span>
+                        )}
+                      </label>
                       <Input
                         type="number"
                         min="0"
@@ -314,14 +365,25 @@ export default function DirectorLimitationsPage() {
                           similar_problem_daily_limit: Number(e.target.value)
                         })}
                         disabled={limitation.similar_problem_enabled === 0}
+                        placeholder="0 = 무제한"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        현재 사용: {limitation.similar_problem_daily_used || 0}회
+                        {limitation.similar_problem_enabled === 0 
+                          ? '기능 비활성화됨' 
+                          : limitation.similar_problem_daily_limit === 0 
+                            ? '무제한 사용 가능'
+                            : `현재 사용: ${limitation.similar_problem_daily_used || 0}회`
+                        }
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">부족한 개념 분석 (일일)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        부족한 개념 분석 (일일)
+                        {limitation.weak_concept_daily_limit === 0 && limitation.weak_concept_analysis_enabled === 1 && (
+                          <span className="ml-2 text-xs text-blue-600 font-semibold">무제한</span>
+                        )}
+                      </label>
                       <Input
                         type="number"
                         min="0"
@@ -331,14 +393,25 @@ export default function DirectorLimitationsPage() {
                           weak_concept_daily_limit: Number(e.target.value)
                         })}
                         disabled={limitation.weak_concept_analysis_enabled === 0}
+                        placeholder="0 = 무제한"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        현재 사용: {limitation.weak_concept_daily_used || 0}회
+                        {limitation.weak_concept_analysis_enabled === 0 
+                          ? '기능 비활성화됨' 
+                          : limitation.weak_concept_daily_limit === 0 
+                            ? '무제한 사용 가능'
+                            : `현재 사용: ${limitation.weak_concept_daily_used || 0}회`
+                        }
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">AI 역량 분석 (일일)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        AI 역량 분석 (일일)
+                        {limitation.competency_daily_limit === 0 && limitation.competency_analysis_enabled === 1 && (
+                          <span className="ml-2 text-xs text-blue-600 font-semibold">무제한</span>
+                        )}
+                      </label>
                       <Input
                         type="number"
                         min="0"
@@ -350,7 +423,12 @@ export default function DirectorLimitationsPage() {
                         disabled={limitation.competency_analysis_enabled === 0}
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        현재 사용: {limitation.competency_daily_used || 0}회
+                        {limitation.competency_analysis_enabled === 0 
+                          ? '기능 비활성화됨' 
+                          : limitation.competency_daily_limit === 0 
+                            ? '무제한 사용 가능'
+                            : `현재 사용: ${limitation.competency_daily_used || 0}회`
+                        }
                       </p>
                     </div>
                   </div>
@@ -363,12 +441,22 @@ export default function DirectorLimitationsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>월간 사용 제한</CardTitle>
-                  <CardDescription>한 달에 사용할 수 있는 횟수를 설정합니다 (0 = 무제한)</CardDescription>
+                  <CardDescription>
+                    <div className="space-y-1">
+                      <p>한 달에 사용할 수 있는 횟수를 설정합니다</p>
+                      <p className="text-blue-600 font-medium">💡 0으로 설정하면 무제한으로 사용 가능합니다</p>
+                    </div>
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">숙제 채점 (월간)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        숙제 채점 (월간)
+                        {limitation.homework_grading_monthly_limit === 0 && (
+                          <span className="ml-2 text-xs text-blue-600 font-semibold">무제한</span>
+                        )}
+                      </label>
                       <Input
                         type="number"
                         min="0"
@@ -377,14 +465,23 @@ export default function DirectorLimitationsPage() {
                           ...limitation,
                           homework_grading_monthly_limit: Number(e.target.value)
                         })}
+                        placeholder="0 = 무제한"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        현재 사용: {limitation.homework_grading_monthly_used || 0}회
+                        {limitation.homework_grading_monthly_limit === 0 
+                          ? '무제한 사용 가능' 
+                          : `현재 사용: ${limitation.homework_grading_monthly_used || 0}회`
+                        }
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">유사문제 출제 (월간)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        유사문제 출제 (월간)
+                        {limitation.similar_problem_monthly_limit === 0 && limitation.similar_problem_enabled === 1 && (
+                          <span className="ml-2 text-xs text-blue-600 font-semibold">무제한</span>
+                        )}
+                      </label>
                       <Input
                         type="number"
                         min="0"
@@ -394,14 +491,25 @@ export default function DirectorLimitationsPage() {
                           similar_problem_monthly_limit: Number(e.target.value)
                         })}
                         disabled={limitation.similar_problem_enabled === 0}
+                        placeholder="0 = 무제한"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        현재 사용: {limitation.similar_problem_monthly_used || 0}회
+                        {limitation.similar_problem_enabled === 0 
+                          ? '기능 비활성화됨' 
+                          : limitation.similar_problem_monthly_limit === 0 
+                            ? '무제한 사용 가능'
+                            : `현재 사용: ${limitation.similar_problem_monthly_used || 0}회`
+                        }
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">부족한 개념 분석 (월간)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        부족한 개념 분석 (월간)
+                        {limitation.weak_concept_monthly_limit === 0 && limitation.weak_concept_analysis_enabled === 1 && (
+                          <span className="ml-2 text-xs text-blue-600 font-semibold">무제한</span>
+                        )}
+                      </label>
                       <Input
                         type="number"
                         min="0"
@@ -411,9 +519,49 @@ export default function DirectorLimitationsPage() {
                           weak_concept_monthly_limit: Number(e.target.value)
                         })}
                         disabled={limitation.weak_concept_analysis_enabled === 0}
+                        placeholder="0 = 무제한"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        현재 사용: {limitation.weak_concept_monthly_used || 0}회
+                        {limitation.weak_concept_analysis_enabled === 0 
+                          ? '기능 비활성화됨' 
+                          : limitation.weak_concept_monthly_limit === 0 
+                            ? '무제한 사용 가능'
+                            : `현재 사용: ${limitation.weak_concept_monthly_used || 0}회`
+                        }
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        AI 역량 분석 (월간)
+                        {limitation.competency_monthly_limit === 0 && limitation.competency_analysis_enabled === 1 && (
+                          <span className="ml-2 text-xs text-blue-600 font-semibold">무제한</span>
+                        )}
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={limitation.competency_monthly_limit}
+                        onChange={(e) => setLimitation({
+                          ...limitation,
+                          competency_monthly_limit: Number(e.target.value)
+                        })}
+                        disabled={limitation.competency_analysis_enabled === 0}
+                        placeholder="0 = 무제한"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {limitation.competency_analysis_enabled === 0 
+                          ? '기능 비활성화됨' 
+                          : limitation.competency_monthly_limit === 0 
+                            ? '무제한 사용 가능'
+                            : `현재 사용: ${limitation.competency_monthly_used || 0}회`
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
                       </p>
                     </div>
 
@@ -446,11 +594,21 @@ export default function DirectorLimitationsPage() {
                     <Users className="w-5 h-5" />
                     학생 수 제한
                   </CardTitle>
-                  <CardDescription>학원에 등록할 수 있는 최대 학생 수를 설정합니다 (0 = 무제한)</CardDescription>
+                  <CardDescription>
+                    <div className="space-y-1">
+                      <p>학원에 등록할 수 있는 최대 학생 수를 설정합니다</p>
+                      <p className="text-blue-600 font-medium">💡 0으로 설정하면 무제한으로 등록 가능합니다</p>
+                    </div>
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="max-w-md">
-                    <label className="block text-sm font-medium mb-2">최대 학생 수</label>
+                    <label className="block text-sm font-medium mb-2">
+                      최대 학생 수
+                      {limitation.max_students === 0 && (
+                        <span className="ml-2 text-xs text-blue-600 font-semibold">무제한</span>
+                      )}
+                    </label>
                     <Input
                       type="number"
                       min="0"
@@ -459,7 +617,14 @@ export default function DirectorLimitationsPage() {
                         ...limitation,
                         max_students: Number(e.target.value)
                       })}
+                      placeholder="0 = 무제한"
                     />
+                    <p className="text-xs text-gray-500 mt-2">
+                      {limitation.max_students === 0 
+                        ? '무제한 등록 가능' 
+                        : `설정된 제한: ${limitation.max_students}명`
+                      }
+                    </p>
                     <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <div className="flex items-start gap-2">
                         <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
