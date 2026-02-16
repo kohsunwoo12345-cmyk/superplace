@@ -194,6 +194,7 @@ function StudentDetailContent() {
       setError(null);
 
       const token = localStorage.getItem("token");
+      let studentData = null; // 스코프 확장
 
       // 1. 학생 기본 정보
       const userResponse = await fetch(`/api/admin/users/${studentId}`, {
@@ -205,7 +206,7 @@ function StudentDetailContent() {
 
       if (userResponse.ok) {
         const userData = await userResponse.json();
-        const studentData = userData.user || userData;
+        studentData = userData.user || userData;
         
         console.log("📥 Received student data:", studentData);
         console.log("📋 Student fields:", {
