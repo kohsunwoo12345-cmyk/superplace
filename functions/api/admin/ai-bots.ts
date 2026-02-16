@@ -34,6 +34,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         topP REAL DEFAULT 0.95,
         language TEXT DEFAULT 'ko',
         voiceIndex INTEGER DEFAULT 0,
+        knowledgeFiles TEXT,
         isActive INTEGER DEFAULT 1,
         conversationCount INTEGER DEFAULT 0,
         lastUsedAt TEXT,
@@ -51,12 +52,25 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       // 컬럼이 이미 존재하면 무시
     }
 
+    // knowledgeFiles 컬럼 추가 (이미 존재하면 무시)
+    try {
+      await DB.prepare(`
+        ALTER TABLE ai_bots ADD COLUMN knowledgeFiles TEXT
+      `).run();
+    } catch (e) {
+      // 컬럼이 이미 존재하면 무시
+    }
+
     // 모든 AI 봇 조회
     const botsResult = await DB.prepare(
       `SELECT * FROM ai_bots ORDER BY datetime(createdAt) DESC`
     ).all();
 
-    const bots = botsResult?.results || [];
+    const bots = (botsResult?.results || []).map((bot: any) => ({
+      ...bot,
+      // knowledgeFiles JSON 파싱
+      knowledgeFiles: bot.knowledgeFiles ? JSON.parse(bot.knowledgeFiles) : []
+    }));
 
     return new Response(JSON.stringify({ bots }), {
       status: 200,
@@ -100,6 +114,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topP = 0.95,
       language = "ko",
       voiceIndex = 0,
+      knowledgeFiles = [],
     } = body;
 
     if (!name || !systemPrompt) {
@@ -111,13 +126,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const botId = `bot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+    // knowledgeFiles를 JSON 문자열로 변환
+    const knowledgeFilesJSON = knowledgeFiles && knowledgeFiles.length > 0 
+      ? JSON.stringify(knowledgeFiles) 
+      : null;
+
     await DB.prepare(`
       INSERT INTO ai_bots (
         id, name, description, systemPrompt, welcomeMessage, 
         starterMessage1, starterMessage2, starterMessage3, profileIcon, profileImage,
-        model, temperature, maxTokens, topK, topP, language, voiceIndex,
+        model, temperature, maxTokens, topK, topP, language, voiceIndex, knowledgeFiles,
         isActive, conversationCount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
     `).bind(
       botId,
       name,
@@ -135,7 +155,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topK,
       topP,
       language,
-      voiceIndex
+      voiceIndex,
+      knowledgeFilesJSON
     ).run();
 
     return new Response(
