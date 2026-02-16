@@ -325,13 +325,19 @@ function StudentDetailContent() {
             
             if (limitationsData.success && limitationsData.limitation) {
               console.log('✅ Setting limitations:', limitationsData.limitation);
+              console.log('🔍 BEFORE setLimitations - current limitations:', limitations);
               setLimitations(limitationsData.limitation);
+              console.log('🔍 AFTER setLimitations called');
               
               // 각 제한 값 출력
               console.log('🎛️ Limitation details:');
               console.log('  - similar_problem_enabled:', limitationsData.limitation.similar_problem_enabled);
               console.log('  - weak_concept_analysis_enabled:', limitationsData.limitation.weak_concept_analysis_enabled);
               console.log('  - competency_analysis_enabled:', limitationsData.limitation.competency_analysis_enabled);
+              console.log('🎛️ Limitation data type check:');
+              console.log('  - similar_problem_enabled type:', typeof limitationsData.limitation.similar_problem_enabled);
+              console.log('  - weak_concept_analysis_enabled type:', typeof limitationsData.limitation.weak_concept_analysis_enabled);
+              console.log('  - competency_analysis_enabled type:', typeof limitationsData.limitation.competency_analysis_enabled);
             } else {
               console.warn('⚠️ Limitations data structure unexpected:', limitationsData);
             }
@@ -791,6 +797,12 @@ function StudentDetailContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-2 sm:p-4 md:p-6">
+      {/* 디버깅: 렌더링 시 limitations 상태 출력 */}
+      {console.log('🎨 Rendering with limitations:', limitations)}
+      {console.log('🎨 competency_analysis_enabled:', limitations?.competency_analysis_enabled)}
+      {console.log('🎨 weak_concept_analysis_enabled:', limitations?.weak_concept_analysis_enabled)}
+      {console.log('🎨 similar_problem_enabled:', limitations?.similar_problem_enabled)}
+      
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* 헤더 */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1131,7 +1143,17 @@ function StudentDetailContent() {
             </Card>
 
             {/* 역량 분석 카드 - 기능이 활성화된 경우에만 표시 */}
-            {(!limitations || limitations.competency_analysis_enabled === 1) && (
+            {(() => {
+              const shouldShow = !limitations || limitations.competency_analysis_enabled === 1;
+              console.log('🎨 AI 역량 분석 카드 렌더링 체크:', {
+                limitations,
+                competency_analysis_enabled: limitations?.competency_analysis_enabled,
+                shouldShow,
+                condition1: !limitations,
+                condition2: limitations?.competency_analysis_enabled === 1
+              });
+              return shouldShow;
+            })() && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -1508,7 +1530,17 @@ function StudentDetailContent() {
           </TabsContent>
 
           {/* 부족한 개념 탭 - 기능이 활성화된 경우에만 표시 */}
-          {(!limitations || limitations.weak_concept_analysis_enabled === 1) && (
+          {(() => {
+            const shouldShow = !limitations || limitations.weak_concept_analysis_enabled === 1;
+            console.log('🎨 부족한 개념 탭 렌더링 체크:', {
+              limitations,
+              weak_concept_analysis_enabled: limitations?.weak_concept_analysis_enabled,
+              shouldShow,
+              condition1: !limitations,
+              condition2: limitations?.weak_concept_analysis_enabled === 1
+            });
+            return shouldShow;
+          })() && (
           <TabsContent value="concepts" className="space-y-4">
             <Card>
               <CardHeader>
