@@ -37,6 +37,69 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
+    // 🔒 학원장 제한 체크
+    const student = await DB.prepare(`
+      SELECT academy_id FROM users WHERE id = ?
+    `).bind(studentId).first();
+
+    if (student && student.academy_id) {
+      // 학원장 찾기
+      const director = await DB.prepare(`
+        SELECT id FROM users WHERE academy_id = ? AND role = 'DIRECTOR' LIMIT 1
+      `).bind(student.academy_id).first();
+
+      if (director) {
+        // 제한 정보 조회
+        const limitation = await DB.prepare(`
+          SELECT 
+            competency_analysis_enabled,
+            competency_daily_limit,
+            competency_monthly_limit,
+            competency_daily_used,
+            competency_monthly_used
+          FROM director_limitations 
+          WHERE director_id = ?
+        `).bind(director.id).first();
+
+        if (limitation) {
+          // 기능 활성화 체크
+          if (limitation.competency_analysis_enabled === 0) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: "AI 역량 분석 기능이 비활성화되어 있습니다. 학원장에게 문의하세요." 
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          // 일일 제한 체크
+          if (limitation.competency_daily_limit > 0 && 
+              limitation.competency_daily_used >= limitation.competency_daily_limit) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: `일일 역량 분석 횟수를 초과했습니다. (${limitation.competency_daily_limit}회 제한)` 
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          // 월간 제한 체크
+          if (limitation.competency_monthly_limit > 0 && 
+              limitation.competency_monthly_used >= limitation.competency_monthly_limit) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: `월간 역량 분석 횟수를 초과했습니다. (${limitation.competency_monthly_limit}회 제한)` 
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+        }
+      }
+    }
+
     console.log('🧠 Analyzing student competency for:', studentId);
 
     // 1. 학생의 채팅 내역 가져오기
@@ -166,6 +229,29 @@ ${conversationText}
         recommendations: ["잠시 후 다시 시도해주세요."],
         chatCount: chatHistory.length,
       };
+    }
+
+    // 🔒 사용량 증가
+    if (student && student.academy_id) {
+      try {
+        const director = await DB.prepare(`
+          SELECT id FROM users WHERE academy_id = ? AND role = 'DIRECTOR' LIMIT 1
+        `).bind(student.academy_id).first();
+
+        if (director) {
+          await DB.prepare(`
+            UPDATE director_limitations 
+            SET 
+              competency_daily_used = competency_daily_used + 1,
+              competency_monthly_used = competency_monthly_used + 1,
+              updated_at = datetime('now')
+            WHERE director_id = ?
+          `).bind(director.id).run();
+          console.log('✅ Competency analysis usage incremented');
+        }
+      } catch (err) {
+        console.error('⚠️ Failed to increment usage:', err);
+      }
     }
 
     return new Response(

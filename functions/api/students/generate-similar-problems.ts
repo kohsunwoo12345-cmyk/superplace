@@ -29,6 +29,69 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
+    // 🔒 학원장 제한 체크
+    const student = await DB.prepare(`
+      SELECT academy_id FROM users WHERE id = ?
+    `).bind(studentId).first();
+
+    if (student && student.academy_id) {
+      // 학원장 찾기
+      const director = await DB.prepare(`
+        SELECT id FROM users WHERE academy_id = ? AND role = 'DIRECTOR' LIMIT 1
+      `).bind(student.academy_id).first();
+
+      if (director) {
+        // 제한 정보 조회
+        const limitation = await DB.prepare(`
+          SELECT 
+            similar_problem_enabled,
+            similar_problem_daily_limit,
+            similar_problem_monthly_limit,
+            similar_problem_daily_used,
+            similar_problem_monthly_used
+          FROM director_limitations 
+          WHERE director_id = ?
+        `).bind(director.id).first();
+
+        if (limitation) {
+          // 기능 활성화 체크
+          if (limitation.similar_problem_enabled === 0) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: "유사문제 출제 기능이 비활성화되어 있습니다. 학원장에게 문의하세요." 
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          // 일일 제한 체크
+          if (limitation.similar_problem_daily_limit > 0 && 
+              limitation.similar_problem_daily_used >= limitation.similar_problem_daily_limit) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: `일일 유사문제 출제 횟수를 초과했습니다. (${limitation.similar_problem_daily_limit}회 제한)` 
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          // 월간 제한 체크
+          if (limitation.similar_problem_monthly_limit > 0 && 
+              limitation.similar_problem_monthly_used >= limitation.similar_problem_monthly_limit) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: `월간 유사문제 출제 횟수를 초과했습니다. (${limitation.similar_problem_monthly_limit}회 제한)` 
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+        }
+      }
+    }
+
     console.log('📝 유사문제 생성 시작 - Student:', studentId, 'Concept:', concept);
 
     // 1. 학생의 숙제 제출 데이터 가져오기 (틀린 문제 위주)
@@ -217,6 +280,29 @@ ${weaknessContext}
         }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
+    }
+
+    // 🔒 사용량 증가
+    if (student && student.academy_id) {
+      try {
+        const director = await DB.prepare(`
+          SELECT id FROM users WHERE academy_id = ? AND role = 'DIRECTOR' LIMIT 1
+        `).bind(student.academy_id).first();
+
+        if (director) {
+          await DB.prepare(`
+            UPDATE director_limitations 
+            SET 
+              similar_problem_daily_used = similar_problem_daily_used + 1,
+              similar_problem_monthly_used = similar_problem_monthly_used + 1,
+              updated_at = datetime('now')
+            WHERE director_id = ?
+          `).bind(director.id).run();
+          console.log('✅ Similar problem usage incremented');
+        }
+      } catch (err) {
+        console.error('⚠️ Failed to increment usage:', err);
+      }
     }
 
     return new Response(

@@ -148,6 +148,69 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
+    // 🔒 학원장 제한 체크
+    const student = await DB.prepare(`
+      SELECT academy_id FROM users WHERE id = ?
+    `).bind(studentId).first();
+
+    if (student && student.academy_id) {
+      // 학원장 찾기
+      const director = await DB.prepare(`
+        SELECT id FROM users WHERE academy_id = ? AND role = 'DIRECTOR' LIMIT 1
+      `).bind(student.academy_id).first();
+
+      if (director) {
+        // 제한 정보 조회
+        const limitation = await DB.prepare(`
+          SELECT 
+            weak_concept_analysis_enabled,
+            weak_concept_daily_limit,
+            weak_concept_monthly_limit,
+            weak_concept_daily_used,
+            weak_concept_monthly_used
+          FROM director_limitations 
+          WHERE director_id = ?
+        `).bind(director.id).first();
+
+        if (limitation) {
+          // 기능 활성화 체크
+          if (limitation.weak_concept_analysis_enabled === 0) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: "부족한 개념 분석 기능이 비활성화되어 있습니다. 학원장에게 문의하세요." 
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          // 일일 제한 체크
+          if (limitation.weak_concept_daily_limit > 0 && 
+              limitation.weak_concept_daily_used >= limitation.weak_concept_daily_limit) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: `일일 개념 분석 횟수를 초과했습니다. (${limitation.weak_concept_daily_limit}회 제한)` 
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          // 월간 제한 체크
+          if (limitation.weak_concept_monthly_limit > 0 && 
+              limitation.weak_concept_monthly_used >= limitation.weak_concept_monthly_limit) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: `월간 개념 분석 횟수를 초과했습니다. (${limitation.weak_concept_monthly_limit}회 제한)` 
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+        }
+      }
+    }
+
     console.log('🔍 Analyzing weak concepts for student:', studentId);
     console.log('📅 Date range:', startDate, '~', endDate);
     console.log('📅 Date filter active:', !!(startDate && endDate));
@@ -956,6 +1019,29 @@ Rules:
       console.log('✅ Weak concepts analysis cached successfully');
     } catch (cacheError) {
       console.warn('⚠️ Failed to cache analysis result:', cacheError);
+    }
+
+    // 🔒 사용량 증가
+    if (student && student.academy_id) {
+      try {
+        const director = await DB.prepare(`
+          SELECT id FROM users WHERE academy_id = ? AND role = 'DIRECTOR' LIMIT 1
+        `).bind(student.academy_id).first();
+
+        if (director) {
+          await DB.prepare(`
+            UPDATE director_limitations 
+            SET 
+              weak_concept_daily_used = weak_concept_daily_used + 1,
+              weak_concept_monthly_used = weak_concept_monthly_used + 1,
+              updated_at = datetime('now')
+            WHERE director_id = ?
+          `).bind(director.id).run();
+          console.log('✅ Weak concept usage incremented');
+        }
+      } catch (err) {
+        console.error('⚠️ Failed to increment usage:', err);
+      }
     }
 
     return new Response(

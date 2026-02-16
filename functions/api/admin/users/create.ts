@@ -11,6 +11,49 @@ function generateAttendanceCode(): string {
   return code;
 }
 
+// 학생 수 제한 체크
+async function checkMaxStudentsLimit(db: D1Database, academyId: number): Promise<{ allowed: boolean; message?: string }> {
+  try {
+    // academy_id로 학원장 찾기
+    const director = await db.prepare(`
+      SELECT id FROM users WHERE academy_id = ? AND role = 'DIRECTOR' LIMIT 1
+    `).bind(academyId).first();
+
+    if (!director) {
+      return { allowed: true }; // 학원장이 없으면 제한 없음
+    }
+
+    // 제한 정보 조회
+    const limitation = await db.prepare(`
+      SELECT max_students FROM director_limitations WHERE director_id = ?
+    `).bind(director.id).first();
+
+    if (!limitation || limitation.max_students === 0) {
+      return { allowed: true }; // 제한 없음
+    }
+
+    // 현재 학생 수 조회
+    const result = await db.prepare(`
+      SELECT COUNT(*) as count FROM users 
+      WHERE academy_id = ? AND role = 'STUDENT'
+    `).bind(academyId).first();
+
+    const currentStudents = (result as any)?.count || 0;
+
+    if (currentStudents >= limitation.max_students) {
+      return {
+        allowed: false,
+        message: `학생 수 제한을 초과했습니다. (최대 ${limitation.max_students}명, 현재 ${currentStudents}명)`
+      };
+    }
+
+    return { allowed: true };
+  } catch (error) {
+    console.error('Failed to check student limit:', error);
+    return { allowed: true }; // 에러 시 제한 없이 진행
+  }
+}
+
 // POST: 사용자 추가 시 자동으로 출석 코드 생성
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
@@ -32,6 +75,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
+    // 학생 등록 시 학생 수 제한 체크
+    const userRole = role || 'STUDENT';
+    if (userRole.toUpperCase() === 'STUDENT' && academyId) {
+      const limitCheck = await checkMaxStudentsLimit(DB, academyId);
+      if (!limitCheck.allowed) {
+        return new Response(
+          JSON.stringify({ error: limitCheck.message }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // 이메일 중복 체크
     const existing = await DB.prepare(
       "SELECT id FROM users WHERE email = ?"
@@ -45,7 +100,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 사용자 생성
-    const userRole = role || 'STUDENT';
     const result = await DB.prepare(
       `INSERT INTO users (name, email, password, role, phone, academy_id)
        VALUES (?, ?, ?, ?, ?, ?)`
