@@ -817,8 +817,9 @@ export default function ModernAIChatPage() {
     reader.onload = async (event) => {
       const base64Image = event.target?.result as string;
       
-      // 입력창에 이미지 업로드 메시지 설정
-      setInput("이 이미지에 대해 설명해주세요.");
+      // 미리보기 설정
+      setImagePreview(base64Image);
+      setImageFile(file);
       
       // 파일 입력 초기화
       if (e.target) {
@@ -826,9 +827,6 @@ export default function ModernAIChatPage() {
       }
       
       console.log(`✅ 이미지 base64 변환 완료 (길이: ${base64Image.length})`);
-      
-      // 이미지와 함께 메시지 전송
-      await handleSendWithImage(base64Image);
     };
     
     reader.onerror = (error) => {
@@ -837,6 +835,22 @@ export default function ModernAIChatPage() {
     };
     
     reader.readAsDataURL(file);
+  };
+
+  const cancelImagePreview = () => {
+    setImagePreview(null);
+    setImageFile(null);
+    console.log('🗑️ 이미지 미리보기 취소');
+  };
+
+  const sendWithPreviewedImage = async () => {
+    if (!imagePreview) return;
+    
+    await handleSendWithImage(imagePreview);
+    
+    // 전송 후 미리보기 초기화
+    setImagePreview(null);
+    setImageFile(null);
   };
 
   const handleSendWithImage = async (imageUrl: string) => {
