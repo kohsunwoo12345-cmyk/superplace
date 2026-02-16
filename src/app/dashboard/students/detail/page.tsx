@@ -819,12 +819,14 @@ function StudentDetailContent() {
 
         {/* Tabs */}
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1">
+          <TabsList className="grid w-full gap-1" style={{gridTemplateColumns: `repeat(${(!limitations || limitations.weak_concept_analysis_enabled === 1) ? '5' : '4'}, minmax(0, 1fr))`}}>
             <TabsTrigger value="info" className="text-xs sm:text-sm">개인 정보</TabsTrigger>
             <TabsTrigger value="code" className="text-xs sm:text-sm">학생 코드</TabsTrigger>
             <TabsTrigger value="attendance" className="text-xs sm:text-sm">출결</TabsTrigger>
             <TabsTrigger value="chat" className="text-xs sm:text-sm">AI 대화</TabsTrigger>
-            <TabsTrigger value="concepts" className="text-xs sm:text-sm">부족한 개념</TabsTrigger>
+            {(!limitations || limitations.weak_concept_analysis_enabled === 1) && (
+              <TabsTrigger value="concepts" className="text-xs sm:text-sm">부족한 개념</TabsTrigger>
+            )}
           </TabsList>
 
           {/* 개인 정보 탭 */}
@@ -1127,7 +1129,8 @@ function StudentDetailContent() {
               </CardContent>
             </Card>
 
-            {/* 역량 분석 카드 */}
+            {/* 역량 분석 카드 - 기능이 활성화된 경우에만 표시 */}
+            {(!limitations || limitations.competency_analysis_enabled === 1) && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -1142,7 +1145,7 @@ function StudentDetailContent() {
                   </div>
                   <Button
                     onClick={analyzeCompetency}
-                    disabled={analyzingLoading || chatHistory.length === 0 || (limitations && limitations.competency_analysis_enabled === 0)}
+                    disabled={analyzingLoading || chatHistory.length === 0}
                   >
                     {analyzingLoading ? (
                       <>
@@ -1152,7 +1155,7 @@ function StudentDetailContent() {
                     ) : (
                       <>
                         <TrendingUp className="w-4 h-4 mr-2" />
-                        {limitations && limitations.competency_analysis_enabled === 0 ? 'AI 역량 분석 비활성화됨' : '역량 분석 실행'}
+                        역량 분석 실행
                       </>
                     )}
                   </Button>
@@ -1214,6 +1217,7 @@ function StudentDetailContent() {
                 )}
               </CardContent>
             </Card>
+            )}
           </TabsContent>
 
           {/* 학생 코드 탭 */}
@@ -1502,7 +1506,8 @@ function StudentDetailContent() {
             </Card>
           </TabsContent>
 
-          {/* 부족한 개념 탭 */}
+          {/* 부족한 개념 탭 - 기능이 활성화된 경우에만 표시 */}
+          {(!limitations || limitations.weak_concept_analysis_enabled === 1) && (
           <TabsContent value="concepts" className="space-y-4">
             <Card>
               <CardHeader>
@@ -1518,7 +1523,7 @@ function StudentDetailContent() {
                   </div>
                   <Button
                     onClick={analyzeWeakConcepts}
-                    disabled={conceptAnalyzingLoading || (limitations && limitations.weak_concept_analysis_enabled === 0)}
+                    disabled={conceptAnalyzingLoading}
                     className="w-full sm:w-auto whitespace-nowrap"
                     size="sm"
                   >
@@ -1530,7 +1535,7 @@ function StudentDetailContent() {
                     ) : (
                       <>
                         <Brain className="w-4 h-4 mr-2" />
-                        {limitations && limitations.weak_concept_analysis_enabled === 0 ? '개념 분석 비활성화됨' : '개념 분석 실행'}
+                        개념 분석 실행
                       </>
                     )}
                   </Button>
@@ -1696,22 +1701,19 @@ function StudentDetailContent() {
                                 ))}
                               </div>
                             )}
+                            {(!limitations || limitations.similar_problem_enabled === 1) && (
                             <Button
                               size="sm"
                               variant="outline"
                               className="w-full sm:w-auto text-xs sm:text-sm"
-                              disabled={limitations && limitations.similar_problem_enabled === 0}
                               onClick={() => {
-                                if (limitations && limitations.similar_problem_enabled === 0) {
-                                  alert('유사문제 출제 기능이 비활성화되어 있습니다.');
-                                  return;
-                                }
                                 alert(`${concept.concept}에 대한 유사문제를 생성합니다.`);
                                 // TODO: 유사문제 생성 API 호출
                               }}
                             >
-                              {limitations && limitations.similar_problem_enabled === 0 ? '📝 유사문제 출제 비활성화됨' : '📝 유사문제 출제'}
+                              📝 유사문제 출제
                             </Button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1738,6 +1740,7 @@ function StudentDetailContent() {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
         </Tabs>
 
         {/* 유사문제 출제 모달 */}
