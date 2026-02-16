@@ -105,17 +105,33 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     `).run();
 
     let limitation;
+    console.log('🔍 Querying limitation with:', { directorId, academyId });
+    
     if (directorId) {
       limitation = await DB.prepare(`
         SELECT * FROM director_limitations WHERE director_id = ?
       `).bind(directorId).first();
+      console.log('📊 Query by director_id result:', limitation);
     } else if (academyId) {
       limitation = await DB.prepare(`
         SELECT * FROM director_limitations WHERE academy_id = ?
       `).bind(academyId).first();
+      console.log('📊 Query by academy_id result:', limitation);
+    }
+    
+    // 데이터가 있는 경우 값 확인
+    if (limitation) {
+      console.log('✅ Found limitation record:', {
+        id: limitation.id,
+        director_id: limitation.director_id,
+        academy_id: limitation.academy_id,
+        similar_problem_enabled: limitation.similar_problem_enabled,
+        weak_concept_analysis_enabled: limitation.weak_concept_analysis_enabled,
+        competency_analysis_enabled: limitation.competency_analysis_enabled
+      });
     }
 
-    // 제한이 없으면 기본값 반환
+    // 제한이 없으면 기본값 반환 (모든 기능 비활성화)
     if (!limitation) {
       const defaultLimitation: Partial<DirectorLimitation> = {
         director_id: Number(directorId) || 0,
@@ -130,17 +146,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         similar_problem_monthly_limit: 0,
         similar_problem_daily_used: 0,
         similar_problem_monthly_used: 0,
-        weak_concept_analysis_enabled: 1,
+        weak_concept_analysis_enabled: 0,  // 기본값 0으로 변경 (비활성화)
         weak_concept_daily_limit: 0,
         weak_concept_monthly_limit: 0,
         weak_concept_daily_used: 0,
         weak_concept_monthly_used: 0,
-        competency_analysis_enabled: 1,
+        competency_analysis_enabled: 0,  // 기본값 0으로 변경 (비활성화)
         competency_daily_limit: 0,
         competency_monthly_limit: 0,
         competency_daily_used: 0,
         competency_monthly_used: 0,
       };
+      
+      console.log('⚠️ No limitation record found, returning default (all disabled):', { directorId, academyId });
       
       return new Response(JSON.stringify({ success: true, limitation: defaultLimitation }), {
         status: 200,
