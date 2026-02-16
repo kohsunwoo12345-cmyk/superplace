@@ -804,9 +804,9 @@ export default function ModernAIChatPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 이미지 크기 확인 (5MB 제한)
-    if (file.size > 5 * 1024 * 1024) {
-      alert("이미지 크기는 5MB 이하여야 합니다.");
+    // 이미지 크기 확인 (50MB 제한)
+    if (file.size > 50 * 1024 * 1024) {
+      alert("이미지 크기는 50MB 이하여야 합니다.");
       return;
     }
 
