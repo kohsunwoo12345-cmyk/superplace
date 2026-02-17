@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server";
 
 // 메모리 저장소 (실제로는 데이터베이스 사용)

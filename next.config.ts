@@ -1,7 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // output: 'export', // 개발 서버 테스트를 위해 임시 비활성화
+  // Cloudflare Pages에서 API 라우트를 사용하기 위해 export 모드 비활성화
+  // output: 'export',
   trailingSlash: true,
   images: {
     unoptimized: true,

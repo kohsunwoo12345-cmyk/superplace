@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server";
 
 // 실제로는 외부 모듈에서 가져옴
