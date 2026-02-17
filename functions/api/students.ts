@@ -99,7 +99,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       userId, 
       userEmail, 
       role, 
-      academyId: tokenAcademyId 
+      academyId: tokenAcademyId,
+      academyIdType: typeof tokenAcademyId,
+      academyIdIsNull: tokenAcademyId === null,
+      academyIdIsUndefined: tokenAcademyId === undefined,
+      tokenPayloadFull: userPayload
     });
 
     // admin@superplace.co.kr 특수 처리 - 모든 학생 조회
@@ -113,13 +117,27 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     
     if (role === 'DIRECTOR') {
       // 🔒 원장: 자신의 학원 학생만 조회 (토큰의 academyId 사용)
+      console.log('📋 DIRECTOR check - academyId:', { 
+        tokenAcademyId, 
+        isNull: tokenAcademyId === null,
+        isUndefined: tokenAcademyId === undefined,
+        isFalsy: !tokenAcademyId,
+        type: typeof tokenAcademyId
+      });
+      
       if (!tokenAcademyId) {
-        console.error('❌ DIRECTOR without academyId');
+        console.error('❌ DIRECTOR without academyId - BLOCKING ACCESS');
         return new Response(
           JSON.stringify({
             success: false,
             error: "Academy ID not found",
-            message: "학원 정보가 없습니다",
+            message: "학원 정보가 없습니다. 관리자에게 문의하세요.",
+            debug: {
+              role,
+              userEmail,
+              academyId: tokenAcademyId,
+              hint: "사용자의 academy_id가 설정되지 않았습니다"
+            }
           }),
           { status: 403, headers: { "Content-Type": "application/json" } }
         );
@@ -141,7 +159,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         LIMIT 100
       `;
       params.push(tokenAcademyId);
-      console.log('🏫 DIRECTOR filtering by token academyId:', tokenAcademyId);
+      console.log('🏫 DIRECTOR filtering by token academyId:', tokenAcademyId, 'Query params:', params);
 
     } else if (isGlobalAdmin) {
       // ✅ 관리자: 모든 학원의 모든 학생
@@ -211,6 +229,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     const result = await DB.prepare(query).bind(...params).all();
+
+    console.log('📊 Query result:', {
+      count: result.results?.length || 0,
+      role,
+      academyId: tokenAcademyId,
+      queryHadParams: params.length > 0,
+      params: params
+    });
 
     return new Response(
       JSON.stringify({
