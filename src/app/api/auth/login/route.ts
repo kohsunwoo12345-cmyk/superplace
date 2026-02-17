@@ -71,14 +71,16 @@ export async function POST(request: NextRequest) {
     }
 
     // JWT 토큰 생성 (Edge Runtime 호환 버전)
-    // Buffer 대신 btoa() 사용 (Web API)
-    const tokenData = JSON.stringify({
+    // btoa()는 한글을 처리할 수 없으므로 간단한 토큰 생성
+    const tokenData = {
       userId: user.id,
       email: user.email,
       role: user.role,
       exp: Date.now() + 24 * 60 * 60 * 1000, // 24시간
-    });
-    const token = btoa(tokenData);
+    };
+    
+    // 간단한 토큰 생성 (영문/숫자만 포함)
+    const token = `${user.id}.${user.email}.${user.role}.${Date.now()}`;
 
     console.log('✅ Login successful:', { userId: user.id, role: user.role });
 
