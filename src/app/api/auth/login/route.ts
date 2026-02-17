@@ -70,15 +70,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // JWT 토큰 생성 (간단한 버전, 실제로는 jsonwebtoken 사용)
-    const token = Buffer.from(
-      JSON.stringify({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-        exp: Date.now() + 24 * 60 * 60 * 1000, // 24시간
-      })
-    ).toString("base64");
+    // JWT 토큰 생성 (Edge Runtime 호환 버전)
+    // Buffer 대신 btoa() 사용 (Web API)
+    const tokenData = JSON.stringify({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      exp: Date.now() + 24 * 60 * 60 * 1000, // 24시간
+    });
+    const token = btoa(tokenData);
 
     console.log('✅ Login successful:', { userId: user.id, role: user.role });
 
