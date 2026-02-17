@@ -1,10 +1,12 @@
+import { getUserFromAuth } from '../../_lib/auth';
+
 interface Env {
   DB: D1Database;
 }
 
 /**
  * GET /api/students/manage
- * 역할별 학생 목록 조회 (RBAC 적용)
+ * 역할별 학생 목록 조회 (RBAC 적용 - JWT 토큰 기반)
  * - ADMIN/SUPER_ADMIN: 모든 학생 조회
  * - DIRECTOR: 자신의 학원 학생만 조회
  */
@@ -19,25 +21,30 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
-    const url = new URL(context.request.url);
-    const userId = url.searchParams.get("userId");
-    const role = url.searchParams.get("role");
-    const academyId = url.searchParams.get("academyId");
-
-    console.log('👥 Get students manage API:', { userId, role, academyId });
-
-    if (!userId || !role) {
+    // 🔒 보안 강화: Authorization 헤더에서 사용자 정보 추출
+    const userPayload = getUserFromAuth(context.request);
+    
+    if (!userPayload) {
+      console.error('❌ manage: Missing or invalid Authorization header');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "userId and role are required",
+          error: "Unauthorized",
+          message: "인증이 필요합니다",
           students: []
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const upperRole = role.toUpperCase();
+    const role = userPayload.role?.toUpperCase();
+    const tokenAcademyId = userPayload.academyId;
+    const userId = userPayload.id;
+    const userEmail = userPayload.email;
+
+    console.log('👥 manage API - Authenticated user:', { userId, role, academyId: tokenAcademyId, email: userEmail });
+
+    const upperRole = role;
     let students: any[] = [];
 
     // ADMIN/SUPER_ADMIN: 모든 학생 조회
@@ -77,22 +84,23 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       students = result.results || [];
       console.log('✅ Admin students found:', students.length);
     }
-    // DIRECTOR: 자신의 학원 학생만 조회
+    // DIRECTOR: 자신의 학원 학생만 조회 (토큰의 academyId 사용)
     else if (upperRole === 'DIRECTOR') {
-      console.log('🏫 Director access - fetching academy students');
+      console.log('🏫 Director access - fetching academy students from token');
       
-      if (!academyId) {
+      if (!tokenAcademyId) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: "academyId is required for directors",
+            error: "Academy ID not found in token",
+            message: "학원 정보가 없습니다",
             students: []
           }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
+          { status: 403, headers: { "Content-Type": "application/json" } }
         );
       }
 
-      const academyIdNum = Math.floor(parseFloat(academyId));
+      const academyIdNum = Math.floor(parseFloat(tokenAcademyId));
       
       const query = `
         SELECT 

@@ -1,50 +1,7 @@
+import { getUserFromAuth } from '../_lib/auth';
+
 interface Env {
   DB: D1Database;
-}
-
-// JWT 토큰 디코딩 함수 (Unicode 안전)
-function decodeToken(token: string): any {
-  try {
-    const base64UrlDecode = (str: string): string => {
-      // URL-safe base64를 일반 base64로 변환
-      let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-      
-      // padding 추가
-      while (base64.length % 4 !== 0) {
-        base64 += '=';
-      }
-      
-      // Base64 디코딩
-      const binary = atob(base64);
-      
-      // 바이너리 문자열을 Uint8Array로 변환
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      
-      // UTF-8 디코딩
-      const decoder = new TextDecoder();
-      return decoder.decode(bytes);
-    };
-    
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      throw new Error('Invalid token format');
-    }
-    
-    const payload = JSON.parse(base64UrlDecode(parts[1]));
-    
-    // 만료 시간 확인
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      throw new Error('Token expired');
-    }
-    
-    return payload;
-  } catch (error) {
-    console.error('Token decode error:', error);
-    return null;
-  }
 }
 
 // 학생 목록 조회 (역할 및 권한 기반 필터링)
@@ -60,30 +17,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 🔒 보안 강화: Authorization 헤더에서 토큰 추출 및 검증
-    const authHeader = context.request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const userPayload = getUserFromAuth(context.request);
+    
+    if (!userPayload) {
       console.error('❌ Missing or invalid Authorization header');
       return new Response(
         JSON.stringify({ 
           success: false, 
           error: "Unauthorized",
           message: "인증이 필요합니다" 
-        }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // 토큰에서 사용자 정보 추출
-    const token = authHeader.substring(7); // "Bearer " 제거
-    const userPayload = decodeToken(token);
-    
-    if (!userPayload) {
-      console.error('❌ Invalid token');
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Invalid token",
-          message: "유효하지 않은 인증 정보입니다" 
         }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
