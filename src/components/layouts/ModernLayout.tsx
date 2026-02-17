@@ -6,7 +6,8 @@ import {
   Menu, X, LogOut, User, Bell, Search, Home, BookOpen, 
   Users, Calendar, MessageCircle, BarChart2, Settings,
   GraduationCap, Award, FileText, Clock, ExternalLink,
-  DollarSign, CreditCard, Presentation, ClipboardList, Sparkles, Bot
+  DollarSign, CreditCard, Presentation, ClipboardList, Sparkles, Bot,
+  Globe, Send
 } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
 
@@ -70,12 +71,14 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
     
     // 관리자 메뉴 (ADMIN, SUPER_ADMIN) - 관리자 전용 + 일반 메뉴
     if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
-      console.log('✅ ModernLayout - Loading ADMIN menu (19 items)');
+      console.log('✅ ModernLayout - Loading ADMIN menu (21 items)');
       return [
         { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
         // 관리자 전용 메뉴
         { id: 'admin-users', href: '/dashboard/admin/users', icon: Users, text: '사용자 관리' },
         { id: 'admin-academies', href: '/dashboard/admin/academies', icon: GraduationCap, text: '학원 관리' },
+        { id: 'admin-landing-pages', href: '/dashboard/admin/landing-pages', icon: Globe, text: '랜딩페이지' },
+        { id: 'admin-sms', href: '/dashboard/admin/sms', icon: Send, text: 'SMS 발송' },
         { id: 'admin-notifications', href: '/dashboard/admin/notifications', icon: Bell, text: '알림 관리' },
         { id: 'admin-revenue', href: '/dashboard/admin/revenue', icon: DollarSign, text: '매출 관리' },
         { id: 'admin-pricing', href: '/dashboard/admin/pricing', icon: CreditCard, text: '요금제 관리' },
