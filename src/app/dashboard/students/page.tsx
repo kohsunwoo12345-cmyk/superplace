@@ -43,42 +43,39 @@ export default function StudentsPage() {
     try {
       setLoading(true);
       
-      // Build query parameters
-      const params = new URLSearchParams();
+      // 🔒 보안 강화: Authorization 헤더에 토큰 포함
+      // 서버에서 토큰을 검증하여 역할과 학원 정보를 추출하므로
+      // 클라이언트에서 role, academyId 등의 파라미터를 전송하지 않음
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const token = user?.token || localStorage.getItem("token");
       
-      // Role-based access control
-      const userRole = userData.role?.toUpperCase() || userData.role;
-      
-      if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
-        // Admin: fetch all students
-        params.append('role', userRole);
-        console.log('👑 Admin access - fetching all students');
-      } else if (userRole === 'DIRECTOR') {
-        // Director: fetch academy students
-        params.append('role', userRole);
-        const academyId = userData.academy_id || userData.academyId;
-        if (academyId) {
-          params.append('academyId', academyId.toString());
-        }
-        console.log('🏫 Director access - fetching academy students:', academyId);
-      } else if (userRole === 'TEACHER') {
-        // Teacher: fetch academy students
-        params.append('role', userRole);
-        const academyId = userData.academy_id || userData.academyId;
-        if (academyId) {
-          params.append('academyId', academyId.toString());
-        }
-        console.log('👨‍🏫 Teacher access - fetching academy students:', academyId);
-      } else {
-        console.warn('⚠️ Unknown role:', userRole);
-        params.append('role', userRole);
+      if (!token) {
+        console.error('❌ No authentication token found');
+        router.push('/login');
+        return;
       }
       
-      const response = await fetch(`/api/students?${params.toString()}`);
+      const response = await fetch('/api/students', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.status === 401) {
+        console.error('❌ Unauthorized - invalid token');
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        router.push('/login');
+        return;
+      }
       
       if (!response.ok) {
         console.error('❌ Failed to load students:', response.status);
-        throw new Error("Failed to load students");
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error details:', errorData);
+        throw new Error(errorData.message || "Failed to load students");
       }
       
       const data = await response.json();
