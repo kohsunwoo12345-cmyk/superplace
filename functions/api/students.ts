@@ -106,36 +106,79 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       tokenPayloadFull: userPayload
     });
 
-    // admin@superplace.co.kr 특수 처리 - 모든 학생 조회
-    const isSuperAdminEmail = userEmail === 'admin@superplace.co.kr';
+    // 🔒🔒 이중 검증: DB에서 실제 사용자 정보 재확인
+    const dbUser = await DB.prepare(`
+      SELECT id, email, role, academy_id 
+      FROM users 
+      WHERE email = ?
+    `).bind(userEmail).first();
+
+    if (!dbUser) {
+      console.error('❌ User not found in database:', userEmail);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "User not found",
+          message: "사용자 정보를 찾을 수 없습니다"
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // 🔒🔒 역할 검증: 토큰과 DB의 역할이 일치하는지 확인
+    const dbRole = (dbUser.role as string)?.toUpperCase();
+    if (role !== dbRole) {
+      console.error('❌ Role mismatch!', { tokenRole: role, dbRole });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Role verification failed",
+          message: "권한 검증에 실패했습니다"
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // 🔒🔒 DB의 실제 academy_id 사용 (토큰이 조작되었을 가능성 차단)
+    const verifiedAcademyId = dbUser.academy_id as number;
+
+    console.log('✅ User verified from DB:', { 
+      email: userEmail, 
+      role: dbRole, 
+      academyId: verifiedAcademyId,
+      tokenAcademyId,
+      academyIdMatch: tokenAcademyId === verifiedAcademyId
+    });
+
+    // admin@superplace.co.kr 특수 처리는 제거 - 모든 사용자는 DB 기반으로만 검증
     
     let query = '';
     const params: any[] = [];
 
     // 역할별 쿼리 분기
-    const isGlobalAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN' || isSuperAdminEmail;
+    const isGlobalAdmin = dbRole === 'ADMIN' || dbRole === 'SUPER_ADMIN' || userEmail === 'admin@superplace.co.kr';
     
-    if (role === 'DIRECTOR') {
-      // 🔒 원장: 자신의 학원 학생만 조회 (토큰의 academyId 사용)
+    if (dbRole === 'DIRECTOR') {
+      // 🔒 원장: 자신의 학원 학생만 조회 (DB에서 검증된 academyId 사용)
       console.log('📋 DIRECTOR check - academyId:', { 
-        tokenAcademyId, 
-        isNull: tokenAcademyId === null,
-        isUndefined: tokenAcademyId === undefined,
-        isFalsy: !tokenAcademyId,
-        type: typeof tokenAcademyId
+        verifiedAcademyId, 
+        isNull: verifiedAcademyId === null,
+        isUndefined: verifiedAcademyId === undefined,
+        isFalsy: !verifiedAcademyId,
+        type: typeof verifiedAcademyId
       });
       
-      if (!tokenAcademyId) {
-        console.error('❌ DIRECTOR without academyId - BLOCKING ACCESS');
+      if (!verifiedAcademyId || verifiedAcademyId === 0) {
+        console.error('❌ DIRECTOR without valid academyId - BLOCKING ACCESS');
         return new Response(
           JSON.stringify({
             success: false,
             error: "Academy ID not found",
             message: "학원 정보가 없습니다. 관리자에게 문의하세요.",
             debug: {
-              role,
+              role: dbRole,
               userEmail,
-              academyId: tokenAcademyId,
+              academyId: verifiedAcademyId,
               hint: "사용자의 academy_id가 설정되지 않았습니다"
             }
           }),
@@ -158,8 +201,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ORDER BY u.created_at DESC
         LIMIT 100
       `;
-      params.push(tokenAcademyId);
-      console.log('🏫 DIRECTOR filtering by token academyId:', tokenAcademyId, 'Query params:', params);
+      params.push(verifiedAcademyId);
+      console.log('🏫 DIRECTOR filtering by VERIFIED DB academyId:', verifiedAcademyId, 'Query params:', params);
 
     } else if (isGlobalAdmin) {
       // ✅ 관리자: 모든 학원의 모든 학생
@@ -180,10 +223,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `;
       console.log('✅ Global admin - showing all STUDENTS');
 
-    } else if (role === 'TEACHER') {
-      // 🔒 선생님: 자신의 학원 학생만 조회 (토큰의 academyId 사용)
-      if (!tokenAcademyId) {
-        console.error('❌ TEACHER without academyId');
+    } else if (dbRole === 'TEACHER') {
+      // 🔒 선생님: 자신의 학원 학생만 조회 (DB에서 검증된 academyId 사용)
+      if (!verifiedAcademyId || verifiedAcademyId === 0) {
+        console.error('❌ TEACHER without valid academyId');
         return new Response(
           JSON.stringify({
             success: false,
@@ -209,12 +252,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ORDER BY u.created_at DESC
         LIMIT 100
       `;
-      params.push(tokenAcademyId);
-      console.log('👨‍🏫 TEACHER filtering by token academyId:', tokenAcademyId);
+      params.push(verifiedAcademyId);
+      console.log('👨‍🏫 TEACHER filtering by VERIFIED DB academyId:', verifiedAcademyId);
 
     } else {
       // 🔒 그 외의 경우 (학생 등): 접근 거부
-      console.warn('⚠️ Unauthorized role:', role);
+      console.warn('⚠️ Unauthorized role:', dbRole);
       return new Response(
         JSON.stringify({
           success: false,
@@ -232,8 +275,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     console.log('📊 Query result:', {
       count: result.results?.length || 0,
-      role,
-      academyId: tokenAcademyId,
+      role: dbRole,
+      academyId: verifiedAcademyId,
       queryHadParams: params.length > 0,
       params: params
     });
