@@ -184,23 +184,32 @@ export default function ClassEditPage() {
   // 배정 가능한 학생 목록 로드
   const loadAvailableStudents = async (userData: any) => {
     try {
-      const params = new URLSearchParams({
-        role: userData.role || '',
-      });
-
-      // ADMIN/SUPER_ADMIN이 아닌 경우에만 academyId 필터 추가
-      const upperRole = userData.role?.toUpperCase();
-      if (upperRole !== 'ADMIN' && upperRole !== 'SUPER_ADMIN') {
-        if (userData.academyId) {
-          params.append('academyId', userData.academyId.toString());
-        }
+      // 🔒 보안 강화: Authorization 헤더로 인증, role/academyId 파라미터 제거
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const token = user?.token || localStorage.getItem("token");
+      
+      if (!token) {
+        console.error('❌ No authentication token found');
+        return;
       }
 
-      console.log('👥 Loading available students for role:', upperRole, 'params:', params.toString());
+      console.log('👥 Loading available students with token authentication');
       
-      const response = await fetch(
-        `/api/students/by-academy?${params.toString()}`
-      );
+      const response = await fetch(`/api/students/by-academy`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.status === 401) {
+        console.error('❌ Unauthorized - redirecting to login');
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        router.push('/login');
+        return;
+      }
       
       if (response.ok) {
         const data = await response.json();
