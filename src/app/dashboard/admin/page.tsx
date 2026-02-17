@@ -307,6 +307,22 @@ export default function AdminDashboardPage() {
               <Button className="w-full" variant="outline">설정</Button>
             </CardContent>
           </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-indigo-200"
+                onClick={() => router.push("/dashboard/admin/landing-pages")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-indigo-600" />
+                📄 학습 리포트 랜딩페이지
+              </CardTitle>
+              <CardDescription>
+                학생의 학습 데이터를 학부모에게 공유할 랜딩페이지를 제작합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">제작하기</Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
