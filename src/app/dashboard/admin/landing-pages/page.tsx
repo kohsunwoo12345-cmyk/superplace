@@ -122,6 +122,23 @@ export default function LandingPagesPage() {
           </Button>
         </div>
 
+        {/* 탭 메뉴 추가 */}
+        <div className="flex gap-2">
+          <Button
+            onClick={() => router.push("/dashboard/admin/landing-pages/create")}
+            variant="outline"
+          >
+            기존 방식으로 만들기
+          </Button>
+          <Button
+            onClick={() => router.push("/dashboard/admin/landing-pages/builder")}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            빌더로 만들기 (템플릿 편집)
+          </Button>
+        </div>
+
         {/* 통계 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>

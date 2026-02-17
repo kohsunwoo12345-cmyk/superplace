@@ -34,6 +34,12 @@ interface DataOptions {
   showHomework: boolean;
 }
 
+interface Folder {
+  id: number;
+  name: string;
+  pagesCount: number;
+}
+
 export default function CreateLandingPagePage() {
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
@@ -59,18 +65,27 @@ export default function CreateLandingPagePage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/admin/users?role=STUDENT", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      
+      const [studentsRes, foldersRes] = await Promise.all([
+        fetch("/api/admin/users?role=STUDENT", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("/api/landing/folders", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
+      if (studentsRes.ok) {
+        const data = await studentsRes.json();
         setStudents(data.users || []);
       }
+
+      if (foldersRes.ok) {
+        const data = await foldersRes.json();
+        setFolders(data.folders || []);
+      }
     } catch (error) {
-      console.error("학생 목록 조회 실패:", error);
+      console.error("데이터 조회 실패:", error);
     } finally {
       setLoading(false);
     }

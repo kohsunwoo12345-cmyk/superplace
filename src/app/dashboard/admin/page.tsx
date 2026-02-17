@@ -18,6 +18,7 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
+  Send,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
@@ -321,6 +322,22 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">제작하기</Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-teal-200"
+                onClick={() => router.push("/dashboard/admin/sms")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Send className="h-5 w-5 text-teal-600" />
+                📱 문자 발송
+              </CardTitle>
+              <CardDescription>
+                학부모에게 학습 리포트 및 공지사항을 문자로 발송합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-teal-600 hover:bg-teal-700 text-white">발송하기</Button>
             </CardContent>
           </Card>
         </div>
