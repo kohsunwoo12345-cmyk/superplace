@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     
     console.log('🔄 Proxying signup request to Cloudflare Functions:', cloudflareUrl);
     
-    const response = await fetch(`${cloudflareUrl}/api/signup`, {
+    const response = await fetch(`${cloudflareUrl}/api/auth/signup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
