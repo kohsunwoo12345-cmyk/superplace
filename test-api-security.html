@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Students API Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #0f0;
+        }
+        .test-result {
+            background: #000;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #0f0;
+            border-radius: 5px;
+        }
+        .error { color: #f00; }
+        .success { color: #0f0; }
+        .warning { color: #ff0; }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #0a0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Students API Security Test</h1>
+    <p>Testing: https://superplace-academy.pages.dev/api/students</p>
+    
+    <div>
+        <button onclick="testWithoutAuth()">Test 1: No Authorization (Should FAIL)</button>
+        <button onclick="testWithFakeToken()">Test 2: Fake Token (Should FAIL)</button>
+        <button onclick="testWithQueryParams()">Test 3: With Role Params (Should FAIL)</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        const API_URL = 'https://superplace-academy.pages.dev/api/students';
+        const resultsDiv = document.getElementById('results');
+        
+        function addResult(title, data, isError = false) {
+            const div = document.createElement('div');
+            div.className = 'test-result ' + (isError ? 'error' : 'success');
+            div.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            resultsDiv.appendChild(div);
+        }
+        
+        async function testWithoutAuth() {
+            try {
+                addResult('🔄 Testing: No Authorization Header...', { status: 'pending' });
+                
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                if (response.status === 401) {
+                    addResult('✅ Test 1 PASSED: Returns 401 Unauthorized', {
+                        status: response.status,
+                        data: data,
+                        expected: 'Should reject without auth',
+                        result: 'CORRECT - Request blocked'
+                    });
+                } else {
+                    addResult('❌ Test 1 FAILED: Should reject but got ' + response.status, {
+                        status: response.status,
+                        data: data,
+                        expected: '401 Unauthorized',
+                        result: 'SECURITY ISSUE - No auth required!'
+                    }, true);
+                }
+            } catch (error) {
+                addResult('❌ Test 1 ERROR', { error: error.message }, true);
+            }
+        }
+        
+        async function testWithFakeToken() {
+            try {
+                addResult('🔄 Testing: Fake JWT Token...', { status: 'pending' });
+                
+                // Create fake token with ADMIN role and no academyId
+                const fakePayload = {
+                    id: 999,
+                    email: 'hacker@evil.com',
+                    role: 'ADMIN',
+                    academyId: null,
+                    exp: Math.floor(Date.now() / 1000) + 3600
+                };
+                
+                const fakeToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + 
+                                btoa(JSON.stringify(fakePayload)) + 
+                                '.fake-signature';
+                
+                const response = await fetch(API_URL, {
+                    headers: {
+                        'Authorization': `Bearer ${fakeToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.status === 401) {
+                    addResult('✅ Test 2 PASSED: Rejects fake token', {
+                        status: response.status,
+                        data: data,
+                        result: 'CORRECT - Invalid token rejected'
+                    });
+                } else if (response.status === 200 && data.students) {
+                    addResult('❌ Test 2 FAILED: Fake token accepted!', {
+                        status: response.status,
+                        studentCount: data.students.length,
+                        students: data.students.slice(0, 3),
+                        result: 'CRITICAL SECURITY ISSUE!'
+                    }, true);
+                }
+            } catch (error) {
+                addResult('❌ Test 2 ERROR', { error: error.message }, true);
+            }
+        }
+        
+        async function testWithQueryParams() {
+            try {
+                addResult('🔄 Testing: Query params (old vulnerable method)...', { status: 'pending' });
+                
+                // Try the old vulnerable way - sending role and academyId as query params
+                const url = `${API_URL}?role=ADMIN&academyId=1&email=hacker@evil.com`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (response.status === 401) {
+                    addResult('✅ Test 3 PASSED: Query params rejected without auth', {
+                        status: response.status,
+                        data: data,
+                        result: 'CORRECT - Must have Authorization header'
+                    });
+                } else if (response.status === 200 && data.students) {
+                    addResult('❌ Test 3 FAILED: Query params still work!', {
+                        status: response.status,
+                        studentCount: data.students.length,
+                        students: data.students.slice(0, 3),
+                        result: 'SECURITY ISSUE - Old vulnerable code still running!'
+                    }, true);
+                }
+            } catch (error) {
+                addResult('❌ Test 3 ERROR', { error: error.message }, true);
+            }
+        }
+        
+        // Run all tests on load
+        window.onload = () => {
+            addResult('📝 Test Suite Started', {
+                timestamp: new Date().toISOString(),
+                api: API_URL,
+                purpose: 'Verify student data is properly filtered by academyId'
+            });
+        };
+    </script>
+</body>
+</html>
