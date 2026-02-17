@@ -16,17 +16,27 @@ import {
   Loader2,
   GraduationCap,
   Check,
+  Users,
+  QrCode,
+  RefreshCw,
+  Download,
+  FolderOpen,
 } from "lucide-react";
 
 interface LandingPage {
   id: string;
-  studentId: number;
-  studentName: string;
+  slug: string;
+  studentId?: number;
+  studentName?: string;
   title: string;
+  subtitle?: string;
   url: string;
   createdAt: string;
   viewCount: number;
+  submissions?: number;
   isActive: boolean;
+  qr_code_url?: string;
+  folder_id?: string;
 }
 
 export default function LandingPagesPage() {
@@ -65,6 +75,26 @@ export default function LandingPagesPage() {
     navigator.clipboard.writeText(fullUrl);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const downloadQRCode = (qr_code_url: string, title: string) => {
+    if (!qr_code_url) {
+      alert("QR 코드 URL이 없습니다.");
+      return;
+    }
+    // QR 코드 다운로드
+    const link = document.createElement("a");
+    link.href = qr_code_url;
+    link.download = `qr_${title}_${Date.now()}.png`;
+    link.click();
+  };
+
+  const clearCache = () => {
+    if (confirm("모든 캐시를 초기화하시겠습니까?")) {
+      localStorage.removeItem("landing_pages_cache");
+      alert("캐시가 초기화되었습니다.");
+      fetchLandingPages();
+    }
   };
 
   const deleteLandingPage = async (id: string) => {
@@ -107,40 +137,42 @@ export default function LandingPagesPage() {
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <GraduationCap className="h-8 w-8 text-indigo-600" />
-              학습 리포트 랜딩페이지 관리
+              랜딩페이지 관리
             </h1>
             <p className="text-gray-600 mt-1">
-              학생의 학습 데이터를 학부모에게 공유할 수 있는 랜딩페이지를 제작하고 관리합니다
+              학생의 학습 데이터를 학부모에게 공유하거나 이벤트/세미나 신청을 받을 수 있습니다
             </p>
           </div>
-          <Button
-            onClick={() => router.push("/dashboard/admin/landing-pages/create")}
-            className="bg-indigo-600 hover:bg-indigo-700"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            새 랜딩페이지 만들기
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearCache}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              캐시 초기화
+            </Button>
+            <Button
+              onClick={() => router.push("/dashboard/admin/landing-pages/folders")}
+              variant="outline"
+            >
+              <FolderOpen className="w-4 h-4 mr-2" />
+              폴더 관리
+            </Button>
+            <Button
+              onClick={() => router.push("/dashboard/admin/landing-pages/builder")}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              새 랜딩페이지 만들기
+            </Button>
+          </div>
         </div>
 
-        {/* 탭 메뉴 추가 */}
-        <div className="flex gap-2">
-          <Button
-            onClick={() => router.push("/dashboard/admin/landing-pages/create")}
-            variant="outline"
-          >
-            기존 방식으로 만들기
-          </Button>
-          <Button
-            onClick={() => router.push("/dashboard/admin/landing-pages/builder")}
-            className="bg-purple-600 hover:bg-purple-700"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            빌더로 만들기 (템플릿 편집)
-          </Button>
-        </div>
+        {/* 탭 메뉴 제거 - 헤더 버튼으로 통합 */}
 
         {/* 통계 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-gray-600">
@@ -179,6 +211,19 @@ export default function LandingPagesPage() {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                총 신청자
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-purple-600">
+                {landingPages.reduce((sum, lp) => sum + (lp.submissions || 0), 0)}명
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* 랜딩페이지 목록 */}
@@ -209,11 +254,13 @@ export default function LandingPagesPage() {
                           {page.isActive ? "활성" : "비활성"}
                         </Badge>
                       </div>
-                      <CardDescription className="flex items-center gap-4 text-sm">
-                        <span className="flex items-center gap-1">
-                          <User className="w-4 h-4" />
-                          {page.studentName}
-                        </span>
+                      <CardDescription className="flex items-center gap-4 text-sm flex-wrap">
+                        {page.studentName && (
+                          <span className="flex items-center gap-1">
+                            <User className="w-4 h-4" />
+                            {page.studentName}
+                          </span>
+                        )}
                         <span className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
                           {new Date(page.createdAt).toLocaleDateString("ko-KR")}
@@ -222,41 +269,74 @@ export default function LandingPagesPage() {
                           <FileText className="w-4 h-4" />
                           조회 {page.viewCount}회
                         </span>
+                        {page.submissions !== undefined && (
+                          <span className="flex items-center gap-1">
+                            <Users className="w-4 h-4" />
+                            신청 {page.submissions}명
+                          </span>
+                        )}
                       </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-100 rounded-lg px-4 py-2 font-mono text-sm overflow-x-auto">
-                      {window.location.origin}{page.url}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-gray-100 rounded-lg px-4 py-2 font-mono text-sm overflow-x-auto">
+                        {window.location.origin}{page.url}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyUrl(page.url, page.id)}
+                      >
+                        {copiedId === page.id ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(page.url, "_blank")}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyUrl(page.url, page.id)}
-                    >
-                      {copiedId === page.id ? (
-                        <Check className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
+                    
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/admin/landing-pages/submissions?slug=${page.slug}`
+                          )
+                        }
+                      >
+                        <Users className="w-4 h-4 mr-1" />
+                        신청자 보기
+                      </Button>
+                      {page.qr_code_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadQRCode(page.qr_code_url!, page.title)}
+                        >
+                          <QrCode className="w-4 h-4 mr-1" />
+                          QR 다운로드
+                        </Button>
                       )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(page.url, "_blank")}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteLandingPage(page.id)}
-                      className="text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteLandingPage(page.id)}
+                        className="text-red-600 hover:bg-red-50 ml-auto"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
