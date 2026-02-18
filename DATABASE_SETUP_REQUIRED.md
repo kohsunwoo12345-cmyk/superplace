@@ -48,9 +48,9 @@
    );
 
    CREATE INDEX IF NOT EXISTS idx_store_products_category ON store_products(category);
-   CREATE INDEX IF NOT EXISTS idx_store_products_isActive ON store_products(isActive);
-   CREATE INDEX IF NOT EXISTS idx_store_products_isFeatured ON store_products(isFeatured);
-   CREATE INDEX IF NOT EXISTS idx_store_products_displayOrder ON store_products(displayOrder);
+   CREATE INDEX IF NOT EXISTS idx_store_products_active ON store_products(isActive);
+   CREATE INDEX IF NOT EXISTS idx_store_products_featured ON store_products(isFeatured);
+   CREATE INDEX IF NOT EXISTS idx_store_products_order ON store_products(displayOrder);
    ```
 
 4. **"Execute" 버튼 클릭**
@@ -127,7 +127,7 @@ curl -X POST https://superplacestudy.pages.dev/api/admin/database/populate
 - ✅ `/src/app/api/store/products/route.ts` - 공개 상품 조회
 
 ### Database
-- ✅ `/migrations/005_store_products_table.sql` - 테이블 스키마
+- ✅ `/migrations/store_products_table.sql` - 테이블 스키마
 
 ### Updated Pages
 - ✅ `/src/app/store/page.tsx` - API 기반으로 전환
