@@ -31,6 +31,7 @@ export default function RegisterPage() {
       phone: formData.get("phone") as string,
       role: role,
       academyName: role === 'DIRECTOR' ? formData.get("academyName") as string : undefined,
+      academyAddress: role === 'DIRECTOR' ? formData.get("academyAddress") as string : undefined,
       academyCode: (role === 'TEACHER' || role === 'STUDENT') ? academyCode : undefined,
     };
 
@@ -177,18 +178,31 @@ export default function RegisterPage() {
               </div>
 
               {role === 'DIRECTOR' && (
-                <div className="space-y-2">
-                  <Label htmlFor="academyName">학원 이름</Label>
-                  <Input
-                    id="academyName"
-                    name="academyName"
-                    type="text"
-                    placeholder="예: 명문 학원"
-                    required
-                    disabled={isLoading}
-                  />
-                  <p className="text-xs text-gray-500">학원을 생성하고 선생님과 학생을 초대할 수 있습니다.</p>
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="academyName">학원 이름</Label>
+                    <Input
+                      id="academyName"
+                      name="academyName"
+                      type="text"
+                      placeholder="예: 명문 학원"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="academyAddress">학원 위치</Label>
+                    <Input
+                      id="academyAddress"
+                      name="academyAddress"
+                      type="text"
+                      placeholder="예: 서울시 강남구 테헤란로 123"
+                      required
+                      disabled={isLoading}
+                    />
+                    <p className="text-xs text-gray-500">학원을 생성하고 선생님과 학생을 초대할 수 있습니다.</p>
+                  </div>
+                </>
               )}
 
               {(role === 'TEACHER' || role === 'STUDENT') && (
