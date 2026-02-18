@@ -1,8 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'export', // Cloudflare Pages 정적 빌드
-  trailingSlash: true, // Cloudflare Pages 권장
+  // Cloudflare Pages에서 API 라우트를 사용하기 위해 export 모드 비활성화
+  // output: 'export',
+  trailingSlash: true,
   images: {
     unoptimized: true,
   },

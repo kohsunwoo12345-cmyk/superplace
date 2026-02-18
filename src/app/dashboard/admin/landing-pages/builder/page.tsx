@@ -7,6 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowLeft,
   Save,
@@ -20,7 +28,13 @@ import {
   Mail,
   Phone,
   CheckSquare,
+  QrCode,
+  FolderOpen,
+  Upload,
+  Code,
+  RefreshCw,
 } from "lucide-react";
+import QRCodeReact from "qrcode.react";
 
 interface CustomField {
   id: string;
@@ -31,29 +45,55 @@ interface CustomField {
   order: number;
 }
 
+interface Folder {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
 interface LandingPageData {
   title: string;
+  subtitle: string;
   description: string;
+  template_type: string;
   template_html: string;
-  custom_fields: CustomField[];
+  input_data: CustomField[];
   og_title: string;
   og_description: string;
-  thumbnail_url: string;
+  thumbnail: string;
+  folder_id: string;
+  show_qr_code: boolean;
+  qr_code_position: "top" | "bottom" | "sidebar";
 }
 
 export default function LandingPageBuilderPage() {
   const router = useRouter();
   const [data, setData] = useState<LandingPageData>({
     title: "",
+    subtitle: "",
     description: "",
+    template_type: "basic",
     template_html: "",
-    custom_fields: [],
+    input_data: [],
     og_title: "",
     og_description: "",
-    thumbnail_url: "",
+    thumbnail: "",
+    folder_id: "",
+    show_qr_code: true,
+    qr_code_position: "bottom",
   });
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [thumbnailPreview, setThumbnailPreview] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generatedSlug, setGeneratedSlug] = useState("");
+
+  const templateTypes = [
+    { value: "basic", label: "기본 템플릿", description: "간단한 폼 입력" },
+    { value: "student_report", label: "학생 리포트", description: "학습 데이터 전달" },
+    { value: "event", label: "이벤트 페이지", description: "세미나/행사 안내" },
+    { value: "custom", label: "커스텀 HTML", description: "자유 편집" },
+  ];
 
   const fieldTypes = [
     { type: "text", label: "텍스트 입력", icon: Type },
@@ -63,6 +103,25 @@ export default function LandingPageBuilderPage() {
     { type: "checkbox", label: "체크박스", icon: CheckSquare },
   ];
 
+  // 폴더 목록 불러오기
+  useEffect(() => {
+    const fetchFolders = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("/api/landing/folders", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const result = await response.json();
+          setFolders(result.folders || []);
+        }
+      } catch (error) {
+        console.error("폴더 목록 조회 실패:", error);
+      }
+    };
+    fetchFolders();
+  }, []);
+
   const addCustomField = (type: CustomField["type"]) => {
     const newField: CustomField = {
       id: `field_${Date.now()}`,
@@ -70,18 +129,18 @@ export default function LandingPageBuilderPage() {
       label: "",
       placeholder: "",
       required: false,
-      order: data.custom_fields.length,
+      order: data.input_data.length,
     };
     setData({
       ...data,
-      custom_fields: [...data.custom_fields, newField],
+      input_data: [...data.input_data, newField],
     });
   };
 
   const updateField = (id: string, updates: Partial<CustomField>) => {
     setData({
       ...data,
-      custom_fields: data.custom_fields.map((field) =>
+      input_data: data.input_data.map((field) =>
         field.id === id ? { ...field, ...updates } : field
       ),
     });
@@ -90,8 +149,28 @@ export default function LandingPageBuilderPage() {
   const removeField = (id: string) => {
     setData({
       ...data,
-      custom_fields: data.custom_fields.filter((field) => field.id !== id),
+      input_data: data.input_data.filter((field) => field.id !== id),
     });
+  };
+
+  const handleThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setThumbnailPreview(base64);
+        setData({ ...data, thumbnail: base64 });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearCache = () => {
+    if (confirm("캐시를 초기화하시겠습니까?")) {
+      localStorage.removeItem("landing_page_draft");
+      alert("캐시가 초기화되었습니다.");
+    }
   };
 
   const handleSave = async () => {
@@ -99,6 +178,12 @@ export default function LandingPageBuilderPage() {
       alert("제목을 입력해주세요.");
       return;
     }
+
+    // 자동 slug 생성
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    const slug = `lp_${timestamp}_${random}`;
+    setGeneratedSlug(slug);
 
     try {
       setSaving(true);
@@ -109,12 +194,16 @@ export default function LandingPageBuilderPage() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          slug,
+        }),
       });
 
       if (response.ok) {
         const result = await response.json();
-        alert("랜딩페이지가 생성되었습니다!");
+        alert(`랜딩페이지가 생성되었습니다!\n\nURL: ${result.url}`);
+        localStorage.removeItem("landing_page_draft");
         router.push("/dashboard/admin/landing-pages");
       } else {
         const error = await response.json();
@@ -132,6 +221,17 @@ export default function LandingPageBuilderPage() {
     // 미리보기 창 열기
     const previewWindow = window.open("", "_blank");
     if (previewWindow) {
+      const qrCodeHtml = data.show_qr_code
+        ? `<div style="text-align: center; margin: 20px 0;">
+             <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/landing/preview")}" alt="QR Code" />
+             <p style="font-size: 12px; color: #666;">스캔하여 접속하세요</p>
+           </div>`
+        : "";
+
+      const thumbnailHtml = data.thumbnail
+        ? `<img src="${data.thumbnail}" alt="Thumbnail" style="max-width: 100%; height: auto; margin-bottom: 20px;" />`
+        : "";
+
       previewWindow.document.write(`
         <!DOCTYPE html>
         <html>
@@ -139,38 +239,53 @@ export default function LandingPageBuilderPage() {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>${data.title}</title>
+          <meta property="og:title" content="${data.og_title || data.title}" />
+          <meta property="og:description" content="${data.og_description || data.description}" />
+          <meta property="og:image" content="${data.thumbnail}" />
           <style>
-            body { font-family: system-ui; max-width: 800px; margin: 0 auto; padding: 20px; }
-            h1 { color: #333; }
-            .field { margin-bottom: 15px; }
-            label { display: block; font-weight: 600; margin-bottom: 5px; }
-            input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-            textarea { min-height: 100px; }
-            button { background: #3b82f6; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; }
+            body { font-family: system-ui; max-width: 800px; margin: 0 auto; padding: 20px; background: #f9fafb; }
+            .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            h1 { color: #111827; font-size: 32px; margin-bottom: 8px; }
+            .subtitle { color: #6b7280; font-size: 18px; margin-bottom: 20px; }
+            .description { color: #374151; margin-bottom: 30px; line-height: 1.6; }
+            .field { margin-bottom: 20px; }
+            label { display: block; font-weight: 600; margin-bottom: 8px; color: #374151; }
+            input, textarea { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+            input:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+            textarea { min-height: 100px; resize: vertical; }
+            button { background: #3b82f6; color: white; padding: 12px 32px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; width: 100%; }
+            button:hover { background: #2563eb; }
+            .required { color: #ef4444; }
           </style>
         </head>
         <body>
-          <h1>${data.title}</h1>
-          <p>${data.description}</p>
-          <form>
-            ${data.custom_fields
-              .map(
-                (field) => `
-              <div class="field">
-                <label>${field.label}${field.required ? "*" : ""}</label>
-                ${
-                  field.type === "textarea"
-                    ? `<textarea placeholder="${field.placeholder || ""}" ${field.required ? "required" : ""}></textarea>`
-                    : field.type === "checkbox"
-                    ? `<input type="checkbox" ${field.required ? "required" : ""}>`
-                    : `<input type="${field.type}" placeholder="${field.placeholder || ""}" ${field.required ? "required" : ""}>`
-                }
-              </div>
-            `
-              )
-              .join("")}
-            <button type="submit">제출하기</button>
-          </form>
+          <div class="container">
+            ${data.qr_code_position === "top" ? qrCodeHtml : ""}
+            ${thumbnailHtml}
+            <h1>${data.title}</h1>
+            ${data.subtitle ? `<div class="subtitle">${data.subtitle}</div>` : ""}
+            <div class="description">${data.description}</div>
+            <form>
+              ${data.input_data
+                .map(
+                  (field) => `
+                <div class="field">
+                  <label>${field.label}${field.required ? '<span class="required">*</span>' : ""}</label>
+                  ${
+                    field.type === "textarea"
+                      ? `<textarea placeholder="${field.placeholder || ""}" ${field.required ? "required" : ""}></textarea>`
+                      : field.type === "checkbox"
+                      ? `<input type="checkbox" ${field.required ? "required" : ""}>`
+                      : `<input type="${field.type}" placeholder="${field.placeholder || ""}" ${field.required ? "required" : ""}>`
+                  }
+                </div>
+              `
+                )
+                .join("")}
+              <button type="submit">제출하기</button>
+            </form>
+            ${data.qr_code_position === "bottom" ? qrCodeHtml : ""}
+          </div>
         </body>
         </html>
       `);
@@ -193,6 +308,10 @@ export default function LandingPageBuilderPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={clearCache}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              캐시 초기화
+            </Button>
             <Button variant="outline" onClick={handlePreview}>
               <Eye className="w-4 h-4 mr-2" />
               미리보기
@@ -216,17 +335,51 @@ export default function LandingPageBuilderPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 왼쪽: 편집 */}
           <div className="space-y-6">
+            {/* 템플릿 타입 선택 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>템플릿 선택</CardTitle>
+                <CardDescription>용도에 맞는 템플릿을 선택하세요</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  {templateTypes.map((template) => (
+                    <button
+                      key={template.value}
+                      onClick={() => setData({ ...data, template_type: template.value })}
+                      className={`p-4 border-2 rounded-lg text-left transition-all hover:border-indigo-400 ${
+                        data.template_type === template.value
+                          ? "border-indigo-600 bg-indigo-50"
+                          : "border-gray-200"
+                      }`}
+                    >
+                      <div className="font-semibold text-sm mb-1">{template.label}</div>
+                      <div className="text-xs text-gray-600">{template.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>기본 정보</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>제목</Label>
+                  <Label>제목 *</Label>
                   <Input
                     value={data.title}
                     onChange={(e) => setData({ ...data, title: e.target.value })}
                     placeholder="랜딩페이지 제목"
+                  />
+                </div>
+                <div>
+                  <Label>부제목</Label>
+                  <Input
+                    value={data.subtitle}
+                    onChange={(e) => setData({ ...data, subtitle: e.target.value })}
+                    placeholder="짧은 부제목 (선택사항)"
                   />
                 </div>
                 <div>
@@ -238,28 +391,149 @@ export default function LandingPageBuilderPage() {
                     rows={3}
                   />
                 </div>
+                <div>
+                  <Label>폴더 선택</Label>
+                  <Select
+                    value={data.folder_id}
+                    onValueChange={(value) => setData({ ...data, folder_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="폴더를 선택하세요 (선택사항)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">미분류</SelectItem>
+                      {folders.map((folder) => (
+                        <SelectItem key={folder.id} value={folder.id}>
+                          <FolderOpen className="inline w-4 h-4 mr-2" />
+                          {folder.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardContent>
             </Card>
 
+            {/* 썸네일 업로드 */}
             <Card>
               <CardHeader>
-                <CardTitle>템플릿 HTML</CardTitle>
-                <CardDescription>HTML 코드를 직접 편집할 수 있습니다</CardDescription>
+                <CardTitle>썸네일 이미지</CardTitle>
+                <CardDescription>대표 이미지를 업로드하세요</CardDescription>
               </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={data.template_html}
-                  onChange={(e) => setData({ ...data, template_html: e.target.value })}
-                  placeholder="<div>...</div>"
-                  rows={15}
-                  className="font-mono text-sm"
-                />
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="thumbnail">이미지 업로드</Label>
+                  <div className="mt-2">
+                    <label
+                      htmlFor="thumbnail"
+                      className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 transition-colors"
+                    >
+                      {thumbnailPreview ? (
+                        <img
+                          src={thumbnailPreview}
+                          alt="Thumbnail Preview"
+                          className="h-full object-contain rounded"
+                        />
+                      ) : (
+                        <div className="text-center">
+                          <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600">클릭하여 이미지 업로드</p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG 권장</p>
+                        </div>
+                      )}
+                    </label>
+                    <input
+                      id="thumbnail"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleThumbnailUpload}
+                    />
+                  </div>
+                  {thumbnailPreview && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setThumbnailPreview("");
+                        setData({ ...data, thumbnail: "" });
+                      }}
+                      className="mt-2 w-full"
+                    >
+                      이미지 제거
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
+            {/* QR 코드 설정 */}
             <Card>
               <CardHeader>
-                <CardTitle>SEO 설정</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <QrCode className="w-5 h-5" />
+                  QR 코드 설정
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label>QR 코드 표시</Label>
+                  <input
+                    type="checkbox"
+                    checked={data.show_qr_code}
+                    onChange={(e) => setData({ ...data, show_qr_code: e.target.checked })}
+                    className="rounded"
+                  />
+                </div>
+                {data.show_qr_code && (
+                  <div>
+                    <Label>QR 코드 위치</Label>
+                    <Select
+                      value={data.qr_code_position}
+                      onValueChange={(value: any) => setData({ ...data, qr_code_position: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="top">상단</SelectItem>
+                        <SelectItem value="bottom">하단</SelectItem>
+                        <SelectItem value="sidebar">사이드바</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {data.template_type === "custom" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Code className="w-5 h-5" />
+                    커스텀 HTML 편집
+                  </CardTitle>
+                  <CardDescription>HTML 코드를 직접 편집할 수 있습니다</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    value={data.template_html}
+                    onChange={(e) => setData({ ...data, template_html: e.target.value })}
+                    placeholder="<div>...</div>"
+                    rows={20}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 팁: 폼 필드를 추가하려면 오른쪽 "커스텀 필드" 섹션을 사용하세요
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle>SEO & 소셜 미디어</CardTitle>
+                <CardDescription>검색 엔진 최적화 및 소셜 공유 설정</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -267,25 +541,23 @@ export default function LandingPageBuilderPage() {
                   <Input
                     value={data.og_title}
                     onChange={(e) => setData({ ...data, og_title: e.target.value })}
-                    placeholder="소셜 미디어 공유 시 표시될 제목"
+                    placeholder={data.title || "소셜 미디어 공유 시 표시될 제목"}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    비워두면 페이지 제목이 사용됩니다
+                  </p>
                 </div>
                 <div>
                   <Label>OG 설명</Label>
                   <Textarea
                     value={data.og_description}
                     onChange={(e) => setData({ ...data, og_description: e.target.value })}
-                    placeholder="소셜 미디어 공유 시 표시될 설명"
+                    placeholder={data.description || "소셜 미디어 공유 시 표시될 설명"}
                     rows={2}
                   />
-                </div>
-                <div>
-                  <Label>썸네일 URL</Label>
-                  <Input
-                    value={data.thumbnail_url}
-                    onChange={(e) => setData({ ...data, thumbnail_url: e.target.value })}
-                    placeholder="https://..."
-                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    비워두면 페이지 설명이 사용됩니다
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -296,8 +568,13 @@ export default function LandingPageBuilderPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>커스텀 필드</CardTitle>
-                  <CardDescription>{data.custom_fields.length}개 필드</CardDescription>
+                  <div>
+                    <CardTitle>입력 폼 필드</CardTitle>
+                    <CardDescription className="mt-1">
+                      신청자가 입력할 폼 항목을 추가하세요
+                    </CardDescription>
+                  </div>
+                  <Badge variant="secondary">{data.input_data.length}개 필드</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -322,49 +599,141 @@ export default function LandingPageBuilderPage() {
 
                 {/* 필드 목록 */}
                 <div className="space-y-3 mt-6">
-                  {data.custom_fields.length === 0 ? (
-                    <p className="text-center text-gray-500 py-8 text-sm">
-                      필드를 추가하여 폼을 구성하세요
-                    </p>
+                  {data.input_data.length === 0 ? (
+                    <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-lg">
+                      <Plus className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                      <p className="text-gray-500 text-sm">
+                        필드를 추가하여 폼을 구성하세요
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        위의 버튼을 클릭하여 시작하세요
+                      </p>
+                    </div>
                   ) : (
-                    data.custom_fields.map((field) => (
-                      <Card key={field.id} className="p-4">
+                    data.input_data.map((field, index) => (
+                      <Card key={field.id} className="p-4 border-l-4 border-l-indigo-500">
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <Badge variant="outline">{field.type}</Badge>
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="w-4 h-4 text-gray-400" />
+                              <Badge variant="outline" className="capitalize">
+                                {field.type}
+                              </Badge>
+                              <span className="text-xs text-gray-500">
+                                필드 #{index + 1}
+                              </span>
+                            </div>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => removeField(field.id)}
-                              className="text-red-600"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
-                          <Input
-                            placeholder="필드 라벨"
-                            value={field.label}
-                            onChange={(e) => updateField(field.id, { label: e.target.value })}
-                          />
-                          <Input
-                            placeholder="플레이스홀더"
-                            value={field.placeholder}
-                            onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
-                          />
-                          <div className="flex items-center gap-2">
+                          <div>
+                            <Label className="text-xs">필드 라벨 *</Label>
+                            <Input
+                              placeholder="예: 학생 이름, 연락처 등"
+                              value={field.label}
+                              onChange={(e) => updateField(field.id, { label: e.target.value })}
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">플레이스홀더</Label>
+                            <Input
+                              placeholder="예: 홍길동, 010-1234-5678"
+                              value={field.placeholder}
+                              onChange={(e) =>
+                                updateField(field.id, { placeholder: e.target.value })
+                              }
+                              className="mt-1"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 pt-2 border-t">
                             <input
                               type="checkbox"
                               checked={field.required}
-                              onChange={(e) => updateField(field.id, { required: e.target.checked })}
+                              onChange={(e) =>
+                                updateField(field.id, { required: e.target.checked })
+                              }
                               className="rounded"
+                              id={`required-${field.id}`}
                             />
-                            <label className="text-sm">필수 입력</label>
+                            <label
+                              htmlFor={`required-${field.id}`}
+                              className="text-sm cursor-pointer"
+                            >
+                              필수 입력 항목
+                            </label>
                           </div>
                         </div>
                       </Card>
                     ))
                   )}
                 </div>
+
+                {data.input_data.length > 0 && (
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-800">
+                      💡 <strong>팁:</strong> 필드는 신청자에게 표시되는 순서대로 정렬됩니다.
+                      드래그하여 순서를 변경할 수 있습니다 (향후 업데이트 예정).
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 미리보기 카드 */}
+            <Card className="bg-gradient-to-br from-indigo-50 to-purple-50">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Eye className="w-5 h-5" />
+                  빠른 미리보기
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">템플릿:</span>
+                    <Badge>
+                      {templateTypes.find((t) => t.value === data.template_type)?.label ||
+                        "기본"}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">입력 필드:</span>
+                    <span className="font-semibold">{data.input_data.length}개</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">QR 코드:</span>
+                    <span className={data.show_qr_code ? "text-green-600" : "text-gray-400"}>
+                      {data.show_qr_code ? "표시" : "숨김"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">썸네일:</span>
+                    <span className={data.thumbnail ? "text-green-600" : "text-gray-400"}>
+                      {data.thumbnail ? "업로드됨" : "없음"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">폴더:</span>
+                    <span className="text-gray-800">
+                      {folders.find((f) => f.id === data.folder_id)?.name || "미분류"}
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full mt-4"
+                  onClick={handlePreview}
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  전체 미리보기 열기
+                </Button>
               </CardContent>
             </Card>
           </div>

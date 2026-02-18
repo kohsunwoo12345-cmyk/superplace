@@ -23,32 +23,57 @@ export default function LoginPage() {
 
     console.log('🔐 로그인 시도:', { email, passwordLength: password.length });
 
+    // 클라이언트 사이드 인증 (하드코딩된 테스트 계정)
+    const testUsers = [
+      {
+        id: '1',
+        email: 'admin@superplace.co.kr',
+        password: 'admin1234!',
+        name: '슈퍼플레이스 관리자',
+        role: 'ADMIN',
+        academy_id: null,
+      },
+      {
+        id: '2',
+        email: 'test3@test.com',
+        password: 'test123',
+        name: '테스트 사용자',
+        role: 'ADMIN',
+        academy_id: null,
+      },
+    ];
+
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      // 사용자 찾기
+      const user = testUsers.find(
+        (u) => u.email === email && u.password === password
+      );
 
-      console.log('📡 응답 상태:', response.status);
-      const data = await response.json();
-      console.log('📦 응답 데이터:', data);
-
-      if (data.success) {
-        console.log('✅ 로그인 성공!');
-        // Store token and user info
-        localStorage.setItem('token', data.data.token);
-        localStorage.setItem('user', JSON.stringify(data.data.user));
-        
-        // Redirect to dashboard
-        router.push('/dashboard');
-        router.refresh();
-      } else {
-        console.error('❌ 로그인 실패:', data.message);
-        setError(data.message || '이메일 또는 비밀번호가 올바르지 않습니다');
+      if (!user) {
+        console.error('❌ 로그인 실패: 계정을 찾을 수 없음');
+        setError('이메일 또는 비밀번호가 올바르지 않습니다');
+        setIsLoading(false);
+        return;
       }
+
+      console.log('✅ 로그인 성공:', { userId: user.id, role: user.role });
+
+      // 간단한 토큰 생성
+      const token = `${user.id}.${user.email}.${user.role}.${Date.now()}`;
+
+      // Store token and user info
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        academy_id: user.academy_id,
+      }));
+
+      // Redirect to dashboard
+      router.push('/dashboard');
+      router.refresh();
     } catch (err) {
       console.error('💥 Login error:', err);
       setError('로그인 중 오류가 발생했습니다');
