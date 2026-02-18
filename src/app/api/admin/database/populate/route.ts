@@ -207,12 +207,127 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 8. Create sample store products
+    const products = [
+      {
+        id: 'product-001',
+        name: '학교/학년 별 내신 대비 봇',
+        category: 'academy_operation',
+        section: 'education',
+        description: '학년별로 맞춤화된 내신 대비 학습 지원을 제공하는 AI 봇입니다.',
+        shortDescription: '학년별 맞춤 내신 대비',
+        monthlyPrice: 150000,
+        yearlyPrice: 1500000,
+        features: JSON.stringify(['학년별 맞춤 학습', '내신 시험 대비', '24시간 학습 지원', '진도 관리']),
+        keywords: '내신,학교,학년,시험,맞춤학습',
+        isActive: 1,
+        isFeatured: 0,
+        displayOrder: 1,
+      },
+      {
+        id: 'product-002',
+        name: '영어 내신 클리닉 마스터 봇',
+        category: 'academy_operation',
+        section: 'education',
+        description: '학년별 영어내신 클리닉 마스터 - 24시간 AI 숙제 도우미 & 음성 튜터',
+        shortDescription: '24시간 영어 AI 튜터',
+        monthlyPrice: 200000,
+        yearlyPrice: 2000000,
+        features: JSON.stringify(['음성 튜터링', '24시간 숙제 도움', '영어 내신 대비', '발음 교정']),
+        keywords: '영어,내신,클리닉,숙제,튜터,음성',
+        isActive: 1,
+        isFeatured: 1,
+        displayOrder: 2,
+      },
+      {
+        id: 'product-003',
+        name: '블로그 봇 V.1',
+        category: 'marketing_blog',
+        section: 'marketing',
+        description: '기본형 AI 블로그 자동 작성 봇 - 학원 홍보를 위한 블로그 콘텐츠를 자동으로 생성합니다.',
+        shortDescription: '기본형 블로그 자동 작성',
+        monthlyPrice: 100000,
+        yearlyPrice: 1000000,
+        features: JSON.stringify(['자동 콘텐츠 생성', 'SEO 최적화', '월 10개 포스팅', '키워드 분석']),
+        keywords: '블로그,마케팅,작성,기본,자동화',
+        isActive: 1,
+        isFeatured: 0,
+        displayOrder: 3,
+      },
+      {
+        id: 'product-004',
+        name: '블로그 SEO 사진 제작 봇',
+        category: 'marketing_blog',
+        section: 'marketing',
+        description: '네이버 블로그 상위노출을 위한 AI 사진 생성 - SEO에 최적화된 이미지를 자동으로 생성합니다.',
+        shortDescription: 'SEO 최적화 이미지 생성',
+        monthlyPrice: 80000,
+        yearlyPrice: 800000,
+        features: JSON.stringify(['AI 이미지 생성', 'SEO 최적화', '네이버 블로그 최적화', '무제한 생성']),
+        keywords: '블로그,SEO,사진,네이버,상위노출,이미지',
+        isActive: 1,
+        isFeatured: 1,
+        displayOrder: 4,
+      },
+      {
+        id: 'product-005',
+        name: '맞춤형 전문가 봇',
+        category: 'expert',
+        section: 'custom',
+        description: '귀하의 비즈니스에 최적화된 AI 솔루션 - 학원의 특성에 맞춘 맞춤형 AI 봇을 제작합니다.',
+        shortDescription: '비즈니스 맞춤형 AI',
+        monthlyPrice: 0,
+        yearlyPrice: 0,
+        features: JSON.stringify(['맞춤 설계', '전문 컨설팅', '무제한 수정', '우선 지원']),
+        keywords: '전문가,맞춤,비즈니스,솔루션,컨설팅',
+        isActive: 1,
+        isFeatured: 0,
+        displayOrder: 5,
+      },
+    ];
+
+    for (const product of products) {
+      try {
+        await db.prepare(`
+          INSERT OR REPLACE INTO store_products (
+            id, name, category, section, description, shortDescription, 
+            monthlyPrice, yearlyPrice, features, keywords, isActive, isFeatured, 
+            displayOrder, createdAt, updatedAt
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `).bind(
+          product.id,
+          product.name,
+          product.category,
+          product.section,
+          product.description,
+          product.shortDescription,
+          product.monthlyPrice,
+          product.yearlyPrice,
+          product.features,
+          product.keywords,
+          product.isActive,
+          product.isFeatured,
+          product.displayOrder
+        ).run();
+        results.push(`✅ Store product created: ${product.name}`);
+      } catch (e: any) {
+        results.push(`⚠️ Store product ${product.name}: ${e.message}`);
+      }
+    }
+
     // Verify data
     const userCount = await db.prepare('SELECT COUNT(*) as count FROM users').first();
     const botCount = await db.prepare('SELECT COUNT(*) as count FROM ai_bots').first();
     const academyCount = await db.prepare('SELECT COUNT(*) as count FROM academy').first();
     const classCount = await db.prepare('SELECT COUNT(*) as count FROM classes').first();
     const parentCount = await db.prepare('SELECT COUNT(*) as count FROM Parent').first();
+    let productCount = { count: 0 };
+    try {
+      productCount = await db.prepare('SELECT COUNT(*) as count FROM store_products').first();
+    } catch (e) {
+      results.push('⚠️ store_products table may not exist');
+    }
 
     return NextResponse.json({
       success: true,
@@ -224,6 +339,7 @@ export async function POST(request: NextRequest) {
         academies: academyCount?.count || 0,
         classes: classCount?.count || 0,
         parents: parentCount?.count || 0,
+        products: productCount?.count || 0,
       },
     });
 

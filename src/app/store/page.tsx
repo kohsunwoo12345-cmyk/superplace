@@ -31,35 +31,39 @@ const AIStorePage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // localStorage에서 제품 로드
+  // API에서 제품 로드 (D1 database)
   useEffect(() => {
-    const loadProducts = () => {
+    const loadProducts = async () => {
       try {
-        const storedProducts = localStorage.getItem('storeProducts');
-        if (storedProducts) {
-          const parsedProducts = JSON.parse(storedProducts);
-          // 활성화된 제품만 필터링
-          const activeProducts = parsedProducts
-            .filter((p: any) => p.isActive === 1)
-            .map((p: any) => ({
-              id: p.id,
-              name: p.name,
-              description: p.shortDescription || p.description,
-              price: p.monthlyPrice 
-                ? `₩${p.monthlyPrice.toLocaleString()}/월` 
-                : p.yearlyPrice 
+        console.log('🛒 Loading products from API...');
+        const response = await fetch('/api/admin/store-products?activeOnly=true');
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Products loaded:', data.products?.length || 0);
+          
+          // Transform products to match display format
+          const transformedProducts = (data.products || []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            description: p.shortDescription || p.description,
+            price: p.monthlyPrice 
+              ? `₩${p.monthlyPrice.toLocaleString()}/월` 
+              : p.yearlyPrice 
                 ? `₩${p.yearlyPrice.toLocaleString()}/년`
                 : '문의',
-              category: p.category === 'academy_operation' ? '학원 운영' 
-                       : p.category === 'marketing_blog' ? '마케팅 & 블로그'
-                       : p.category === 'expert' ? '전문가용' : p.category,
-              imageUrl: p.imageUrl || '/api/placeholder/400/480',
-              keywords: p.keywords ? p.keywords.split(',').map((k: string) => k.trim()) : [],
-              featured: p.isFeatured === 1,
-            }));
-          setProducts(activeProducts);
+            category: p.category === 'academy_operation' ? '학원 운영' 
+                     : p.category === 'marketing_blog' ? '마케팅 & 블로그'
+                     : p.category === 'expert' ? '전문가용' : p.category,
+            imageUrl: p.imageUrl || '/api/placeholder/400/480',
+            keywords: p.keywords ? p.keywords.split(',').map((k: string) => k.trim()) : [],
+            featured: p.isFeatured === 1,
+          }));
+          
+          setProducts(transformedProducts);
         } else {
-          // 기본 제품 데이터 (하드코딩된 fallback)
+          console.warn('⚠️ Failed to load products from API, using fallback');
+          // Fallback to default products
           setProducts([
             {
               id: '1',
@@ -82,17 +86,30 @@ const AIStorePage = () => {
             },
             {
               id: '3',
-              name: '블로그 봇 V.1',
-              description: '기본형 AI 블로그 자동 작성',
+              name: '블로그 SEO 사진 제작 봇',
+              description: '네이버 블로그 상위노출을 위한 AI 사진 생성',
               price: '문의',
               category: '마케팅 & 블로그',
               imageUrl: '/api/placeholder/400/480',
-              keywords: ['블로그', '마케팅', '작성', '기본'],
+              keywords: ['블로그', 'SEO', '사진', '네이버', '상위노출'],
+              featured: true,
             },
           ]);
         }
       } catch (error) {
-        console.error('Failed to load products:', error);
+        console.error('❌ Error loading products:', error);
+        // Load minimal fallback products on error
+        setProducts([
+          {
+            id: '1',
+            name: '학교/학년 별 내신 대비 봇',
+            description: '학년별로 맞춤화된 내신 대비 학습 지원',
+            price: '문의',
+            category: '학원 운영',
+            imageUrl: '/api/placeholder/400/480',
+            keywords: ['내신', '학교', '학년', '시험'],
+          },
+        ]);
       } finally {
         setLoading(false);
       }
