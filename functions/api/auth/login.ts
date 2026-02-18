@@ -79,8 +79,8 @@ export async function onRequestPost(context: { request: Request }) {
       );
     }
 
-    // 간단한 토큰 생성
-    const token = `${user.id}.${user.email}.${user.role}.${Date.now()}`;
+    // 간단한 토큰 생성 (구분자를 |로 변경하여 이메일의 .과 충돌 방지)
+    const token = `${user.id}|${user.email}|${user.role}|${Date.now()}`;
 
     console.log('✅ 로그인 성공:', { userId: user.id, role: user.role });
 

@@ -1,11 +1,13 @@
 // 토큰 디코딩 함수 (현재 시스템의 토큰 형식 지원)
 export function decodeToken(token: string): any {
   try {
-    // 현재 시스템 토큰 형식: "userId.email.role.timestamp"
-    // 예: "1.admin@superplace.com.SUPER_ADMIN.1709878987654"
-    const parts = token.split('.');
+    // 현재 시스템 토큰 형식: "userId|email|role|timestamp"
+    // 예: "1|admin@superplace.com|SUPER_ADMIN|1709878987654"
     
-    // 현재 시스템의 단순 토큰 형식 (4개 파트)
+    // 먼저 | 구분자로 파싱 시도 (새 형식)
+    let parts = token.split('|');
+    
+    // 현재 시스템의 단순 토큰 형식 (4개 파트, | 구분자)
     if (parts.length === 4) {
       const [userId, email, role, timestamp] = parts;
       
@@ -20,15 +22,19 @@ export function decodeToken(token: string): any {
         throw new Error('Token expired');
       }
       
-      console.log('Simple token decoded:', { userId, email, role });
+      console.log('Simple token decoded (| separator):', { userId, email, role });
       
       return {
         userId,
+        id: userId,  // 호환성을 위해 id도 제공
         email,
         role,
         timestamp: tokenTime,
       };
     }
+    
+    // . 구분자로 파싱 시도 (구 형식 또는 JWT)
+    parts = token.split('.');
     
     // JWT 형식 (3개 파트: header.payload.signature)
     if (parts.length === 3) {
