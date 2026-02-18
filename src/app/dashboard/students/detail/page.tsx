@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, MessageSquare,
   TrendingUp, Brain, Loader2, RefreshCw, CheckCircle, XCircle,
-  ClipboardCheck, AlertTriangle, QrCode, Copy, Check
+  ClipboardCheck, AlertTriangle, QrCode, Copy, Check, Key, Edit, Save, X as XIcon
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -19,10 +19,17 @@ interface StudentDetail {
   name: string;
   phone?: string;
   role: string;
+  password?: string;
   academy_id?: number;
   academyName?: string;
   created_at?: string;
   student_code?: string;
+  school?: string;
+  grade?: string;
+  diagnostic_memo?: string;
+  className?: string;
+  classId?: number;
+  classes?: Array<{classId: number; className: string}>; // 다중 반 소속
 }
 
 interface AttendanceCode {
@@ -90,6 +97,9 @@ function StudentDetailContent() {
   const [weakConcepts, setWeakConcepts] = useState<WeakConcept[]>([]);
   const [conceptRecommendations, setConceptRecommendations] = useState<ConceptRecommendation[]>([]);
   const [conceptSummary, setConceptSummary] = useState<string>("");
+  const [detailedAnalysis, setDetailedAnalysis] = useState<string>("");
+  const [learningDirection, setLearningDirection] = useState<string>("");
+  const [commonMistakes, setCommonMistakes] = useState<any[]>([]);
   const [studentCode, setStudentCode] = useState<string>("");
   const [attendanceCode, setAttendanceCode] = useState<AttendanceCode | null>(null);
   
@@ -100,9 +110,59 @@ function StudentDetailContent() {
   const [codeCopied, setCodeCopied] = useState(false);
   const [attendanceCodeCopied, setAttendanceCodeCopied] = useState(false);
   
+  // 편집 모드 상태
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedStudent, setEditedStudent] = useState<StudentDetail | null>(null);
+  const [saving, setSaving] = useState(false);
+  
+  // 학원 및 반 목록
+  const [academies, setAcademies] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [selectedClassIds, setSelectedClassIds] = useState<number[]>([]);
+  
   // 날짜 필터 상태 추가
   const [analysisStartDate, setAnalysisStartDate] = useState<string>("");
   const [analysisEndDate, setAnalysisEndDate] = useState<string>("");
+  
+  // 유사문제 출제 상태
+  const [showProblemModal, setShowProblemModal] = useState(false);
+  const [selectedConcepts, setSelectedConcepts] = useState<string[]>([]);
+  const [selectedProblemTypes, setSelectedProblemTypes] = useState<string[]>(['concept']);
+  const [selectedQuestionFormats, setSelectedQuestionFormats] = useState<string[]>(['multiple_choice', 'open_ended']); // 문제 형식
+  const [selectedSubject, setSelectedSubject] = useState<string>(''); // 과목 선택
+  const [problemCount, setProblemCount] = useState<number>(5);
+  const [generatedProblems, setGeneratedProblems] = useState<any[]>([]);
+  const [generatingProblems, setGeneratingProblems] = useState(false);
+  const [showAnswerSheet, setShowAnswerSheet] = useState(false);
+  
+  // 학원장 제한 설정
+  const [limitations, setLimitations] = useState<any>(null);
+
+  // 전화번호 포맷팅 함수
+  const formatPhoneNumber = (phone: string | undefined) => {
+    if (!phone) return '미등록';
+    // 숫자만 추출
+    const numbers = phone.replace(/[^0-9]/g, '');
+    // 010-1234-5678 형식으로 변환
+    if (numbers.length === 11) {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7)}`;
+    } else if (numbers.length === 10) {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 6)}-${numbers.slice(6)}`;
+    }
+    return phone; // 원본 반환
+  };
+
+  // 이메일 표시 함수
+  const displayEmail = (email: string | undefined) => {
+    if (!email) return '미등록';
+    // 자동생성 이메일 패턴 체크
+    if (email.includes('@temp.student.local') || 
+        email.includes('@phone.generated') ||
+        email.startsWith('student_')) {
+      return '미등록';
+    }
+    return email;
+  };
 
   // 기본 날짜 설정 (최근 30일)
   useEffect(() => {
@@ -123,6 +183,8 @@ function StudentDetailContent() {
 
     if (studentId) {
       fetchStudentData();
+      fetchAcademies();
+      fetchClasses();
     }
   }, [studentId, router]);
 
@@ -144,6 +206,24 @@ function StudentDetailContent() {
       if (userResponse.ok) {
         const userData = await userResponse.json();
         const studentData = userData.user || userData;
+        
+        console.log("📥 Received student data:", studentData);
+        console.log("📋 Student fields:", {
+          id: studentData.id,
+          name: studentData.name,
+          phone: studentData.phone,
+          email: studentData.email,
+          academyName: studentData.academyName,
+          school: studentData.school,
+          grade: studentData.grade,
+          diagnostic_memo: studentData.diagnostic_memo,
+          className: studentData.className
+        });
+        
+        console.log("🔄 After formatting:");
+        console.log("  - phone:", studentData.phone, "→", formatPhoneNumber(studentData.phone));
+        console.log("  - email:", studentData.email, "→", displayEmail(studentData.email));
+        
         setStudent(studentData);
         
         // student_code가 없으면 자동 생성
@@ -226,6 +306,44 @@ function StudentDetailContent() {
         }
       }
 
+      // 6. 학원장 제한 설정 조회 (학생의 academy_id 기반)
+      if (studentData && studentData.academy_id) {
+        const academyId = studentData.academy_id;
+        console.log('🔍 Fetching limitations for academy:', academyId);
+        
+        try {
+          const limitationsResponse = await fetch(`/api/admin/director-limitations?academyId=${academyId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          
+          console.log('📊 Limitations response status:', limitationsResponse.status);
+          
+          if (limitationsResponse.ok) {
+            const limitationsData = await limitationsResponse.json();
+            console.log('📥 Limitations data received:', limitationsData);
+            
+            if (limitationsData.success && limitationsData.limitation) {
+              console.log('✅ Setting limitations:', limitationsData.limitation);
+              setLimitations(limitationsData.limitation);
+              
+              // 각 제한 값 출력
+              console.log('🎛️ Limitation details:');
+              console.log('  - similar_problem_enabled:', limitationsData.limitation.similar_problem_enabled);
+              console.log('  - weak_concept_analysis_enabled:', limitationsData.limitation.weak_concept_analysis_enabled);
+              console.log('  - competency_analysis_enabled:', limitationsData.limitation.competency_analysis_enabled);
+            } else {
+              console.warn('⚠️ Limitations data structure unexpected:', limitationsData);
+            }
+          } else {
+            console.error('❌ Failed to fetch limitations, status:', limitationsResponse.status);
+          }
+        } catch (limitError) {
+          console.error('❌ Error fetching limitations:', limitError);
+        }
+      } else {
+        console.warn('⚠️ No academy_id found for student');
+      }
+
     } catch (error: any) {
       console.error("Failed to fetch student data:", error);
       setError(error.message || "오류가 발생했습니다.");
@@ -235,6 +353,9 @@ function StudentDetailContent() {
   };
 
   const analyzeCompetency = async () => {
+    console.log('🧠 AI 역량 분석 시작');
+    console.log('📊 Current limitations:', limitations);
+    
     try {
       setAnalyzingLoading(true);
       const token = localStorage.getItem("token");
@@ -262,7 +383,125 @@ function StudentDetailContent() {
     }
   };
 
+  // 학원 목록 불러오기
+  const fetchAcademies = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch('/api/admin/academies', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAcademies(data.academies || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch academies:', error);
+    }
+  };
+
+  // 반 목록 불러오기 (학원별)
+  const fetchClasses = async (academyId: number) => {
+    if (!academyId) {
+      setClasses([]);
+      return;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/classes?academyId=${academyId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClasses(data.classes || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch classes:', error);
+      setClasses([]);
+    }
+  };
+
+  // 편집 모드 시작
+  const startEditing = async () => {
+    setIsEditing(true);
+    setEditedStudent({ ...student! });
+    
+    // 학원과 반 목록 불러오기
+    await fetchAcademies();
+    if (student!.academy_id) {
+      await fetchClasses(student!.academy_id);
+    }
+    
+    // 현재 학생의 다중 반 ID 로드
+    const classIds: number[] = [];
+    if (student!.classes && Array.isArray(student!.classes)) {
+      student!.classes.forEach((cls: any) => {
+        if (cls.classId) classIds.push(cls.classId);
+      });
+    } else if (student!.classId) {
+      // 하위 호환성: 단일 반만 있는 경우
+      classIds.push(student!.classId);
+    }
+    setSelectedClassIds(classIds);
+    
+    console.log('📝 Editing started with class IDs:', classIds);
+  };
+
+  // 편집 취소
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditedStudent(null);
+  };
+
+  // 학생 정보 저장
+  const saveStudentInfo = async () => {
+    if (!editedStudent) return;
+
+    try {
+      setSaving(true);
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(`/api/admin/users/${studentId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editedStudent.name,
+          phone: editedStudent.phone,
+          email: editedStudent.email,
+          school: editedStudent.school,
+          grade: editedStudent.grade,
+          diagnostic_memo: editedStudent.diagnostic_memo,
+          academy_id: editedStudent.academy_id,
+          password: editedStudent.password,
+          classIds: selectedClassIds, // 최대 3개의 반 ID
+        }),
+      });
+
+      if (response.ok) {
+        alert('✅ 학생 정보가 수정되었습니다.');
+        setStudent(editedStudent);
+        setIsEditing(false);
+        setEditedStudent(null);
+        // 데이터 다시 로드
+        fetchStudentData();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '정보 수정에 실패했습니다.');
+      }
+    } catch (error: any) {
+      console.error('❌ 학생 정보 수정 실패:', error);
+      alert(error.message || '학생 정보 수정 중 오류가 발생했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const analyzeWeakConcepts = async () => {
+    console.log('🧠 부족한 개념 분석 시작');
+    console.log('📊 Current limitations:', limitations);
+    
     try {
       setConceptAnalyzingLoading(true);
       const token = localStorage.getItem("token");
@@ -301,6 +540,9 @@ function StudentDetailContent() {
       setWeakConcepts(data.weakConcepts || []);
       setConceptRecommendations(data.recommendations || []);
       setConceptSummary(data.summary || "");
+      setDetailedAnalysis(data.detailedAnalysis || "");
+      setLearningDirection(data.learningDirection || "");
+      setCommonMistakes(Array.isArray(data.commonMistakeTypes) ? data.commonMistakeTypes : []);
       
       alert('✅ 분석이 완료되었습니다!');
     } catch (error: any) {
@@ -316,6 +558,108 @@ function StudentDetailContent() {
     } finally {
       setConceptAnalyzingLoading(false);
     }
+  };
+
+  const generateSimilarProblems = async () => {
+    console.log('📝 유사문제 생성 시작');
+    console.log('📊 Current limitations:', limitations);
+    
+    if (!selectedSubject) {
+      alert('과목을 선택해주세요.');
+      return;
+    }
+
+    if (selectedConcepts.length === 0) {
+      alert('최소 1개 이상의 개념을 선택해주세요.');
+      return;
+    }
+
+    if (selectedProblemTypes.length === 0) {
+      alert('최소 1개 이상의 문제 유형을 선택해주세요.');
+      return;
+    }
+
+    if (selectedQuestionFormats.length === 0) {
+      alert('최소 1개 이상의 문제 형식을 선택해주세요.');
+      return;
+    }
+
+    try {
+      setGeneratingProblems(true);
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(`/api/students/generate-problems`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentId,
+          concepts: selectedConcepts,
+          problemTypes: selectedProblemTypes,
+          questionFormats: selectedQuestionFormats, // 문제 형식 추가
+          problemCount,
+          studentName: student?.name || '학생',
+          studentGrade: student?.grade || null, // 학년 정보 추가
+          subject: selectedSubject || null, // 과목 정보 추가
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '문제 생성에 실패했습니다.');
+      }
+
+      const data = await response.json();
+      setGeneratedProblems(data.problems || []);
+      setShowProblemModal(false);
+      
+      // 시험지 출력 모드로 전환
+      setTimeout(() => {
+        window.print();
+      }, 500);
+      
+    } catch (error: any) {
+      console.error("Failed to generate problems:", error);
+      alert('❌ ' + (error.message || "문제 생성 중 오류가 발생했습니다."));
+    } finally {
+      setGeneratingProblems(false);
+    }
+  };
+
+  const toggleConceptSelection = (concept: string) => {
+    setSelectedConcepts(prev => 
+      prev.includes(concept) 
+        ? prev.filter(c => c !== concept)
+        : [...prev, concept]
+    );
+  };
+
+  const toggleProblemType = (type: string) => {
+    setSelectedProblemTypes(prev =>
+      prev.includes(type)
+        ? prev.filter(t => t !== type)
+        : [...prev, type]
+    );
+  };
+
+  const toggleQuestionFormat = (format: string) => {
+    setSelectedQuestionFormats(prev =>
+      prev.includes(format)
+        ? prev.filter(f => f !== format)
+        : [...prev, format]
+    );
+  };
+
+  const printProblems = () => {
+    setShowAnswerSheet(false);
+    setTimeout(() => window.print(), 100);
+  };
+
+  const printAnswers = () => {
+    setShowAnswerSheet(true);
+    setTimeout(() => window.print(), 100);
   };
 
   const generateStudentCode = async () => {
@@ -462,89 +806,331 @@ function StudentDetailContent() {
               <p className="text-sm sm:text-base text-gray-600 mt-1 truncate">{student.email}</p>
             </div>
           </div>
+          <Button
+            onClick={() => setShowProblemModal(true)}
+            disabled={weakConcepts.length === 0}
+            className="whitespace-nowrap"
+            size="sm"
+          >
+            <ClipboardCheck className="w-4 h-4 mr-2" />
+            유사문제 출제
+          </Button>
         </div>
 
         {/* Tabs */}
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1">
+          <TabsList className="grid w-full gap-1" style={{gridTemplateColumns: `repeat(${(!limitations || limitations.weak_concept_analysis_enabled === 1) ? '5' : '4'}, minmax(0, 1fr))`}}>
             <TabsTrigger value="info" className="text-xs sm:text-sm">개인 정보</TabsTrigger>
             <TabsTrigger value="code" className="text-xs sm:text-sm">학생 코드</TabsTrigger>
             <TabsTrigger value="attendance" className="text-xs sm:text-sm">출결</TabsTrigger>
             <TabsTrigger value="chat" className="text-xs sm:text-sm">AI 대화</TabsTrigger>
-            <TabsTrigger value="concepts" className="text-xs sm:text-sm">부족한 개념</TabsTrigger>
+            {(!limitations || limitations.weak_concept_analysis_enabled === 1) && (
+              <TabsTrigger value="concepts" className="text-xs sm:text-sm">부족한 개념</TabsTrigger>
+            )}
           </TabsList>
 
           {/* 개인 정보 탭 */}
           <TabsContent value="info" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>기본 정보</CardTitle>
-                <CardDescription>학생의 기본 정보를 확인할 수 있습니다</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>기본 정보</CardTitle>
+                    <CardDescription>학생의 기본 정보를 확인하고 수정할 수 있습니다</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    {!isEditing ? (
+                      <Button onClick={startEditing} variant="outline" size="sm">
+                        <Edit className="w-4 h-4 mr-2" />
+                        수정
+                      </Button>
+                    ) : (
+                      <>
+                        <Button onClick={saveStudentInfo} disabled={saving} size="sm">
+                          {saving ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              저장 중...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4 mr-2" />
+                              저장
+                            </>
+                          )}
+                        </Button>
+                        <Button onClick={cancelEditing} variant="outline" size="sm" disabled={saving}>
+                          <XIcon className="w-4 h-4 mr-2" />
+                          취소
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 이름 */}
                   <div className="flex items-start gap-3">
                     <User className="w-5 h-5 text-gray-400 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm text-gray-500">이름</p>
-                      <p className="font-medium">{student.name}</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editedStudent?.name || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, name: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="font-medium">{student.name}</p>
+                      )}
                     </div>
                   </div>
 
+                  {/* 전화번호 */}
+                  <div className="flex items-start gap-3">
+                    <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500">전화번호</p>
+                      {isEditing ? (
+                        <input
+                          type="tel"
+                          value={editedStudent?.phone || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, phone: e.target.value })}
+                          placeholder="010-1234-5678"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="font-medium">{formatPhoneNumber(student.phone)}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 이메일 */}
                   <div className="flex items-start gap-3">
                     <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm text-gray-500">이메일</p>
-                      <p className="font-medium">{student.email}</p>
+                      {isEditing ? (
+                        <input
+                          type="email"
+                          value={editedStudent?.email || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, email: e.target.value })}
+                          placeholder="example@email.com"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="font-medium">{displayEmail(student.email)}</p>
+                      )}
                     </div>
                   </div>
 
-                  {student.phone && (
-                    <div className="flex items-start gap-3">
-                      <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div>
-                        <p className="text-sm text-gray-500">전화번호</p>
-                        <p className="font-medium">{student.phone}</p>
-                      </div>
-                    </div>
-                  )}
-
+                  {/* 소속 학교 */}
                   <div className="flex items-start gap-3">
-                    <Badge variant="default" className="mt-0.5">
-                      {student.role}
-                    </Badge>
-                    <div>
-                      <p className="text-sm text-gray-500">역할</p>
-                      <p className="font-medium">학생</p>
+                    <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500">소속 학교</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editedStudent?.school || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, school: e.target.value })}
+                          placeholder="학교명"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="font-medium">{student.school || '미등록'}</p>
+                      )}
                     </div>
                   </div>
 
-                  {student.academyName && (
-                    <div className="flex items-start gap-3">
-                      <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div>
-                        <p className="text-sm text-gray-500">소속 학원</p>
-                        <p className="font-medium">{student.academyName}</p>
-                      </div>
+                  {/* 학년 */}
+                  <div className="flex items-start gap-3">
+                    <Badge variant="outline" className="mt-0.5">
+                      학년
+                    </Badge>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500">학년</p>
+                      {isEditing ? (
+                        <select
+                          value={editedStudent?.grade || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, grade: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">선택하세요</option>
+                          <option value="초1">초등 1학년</option>
+                          <option value="초2">초등 2학년</option>
+                          <option value="초3">초등 3학년</option>
+                          <option value="초4">초등 4학년</option>
+                          <option value="초5">초등 5학년</option>
+                          <option value="초6">초등 6학년</option>
+                          <option value="중1">중학 1학년</option>
+                          <option value="중2">중학 2학년</option>
+                          <option value="중3">중학 3학년</option>
+                          <option value="고1">고등 1학년</option>
+                          <option value="고2">고등 2학년</option>
+                          <option value="고3">고등 3학년</option>
+                        </select>
+                      ) : (
+                        <p className="font-medium">{student.grade || '미등록'}</p>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  {/* 소속 학원 */}
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500">소속 학원</p>
+                      {isEditing ? (
+                        <select
+                          value={editedStudent?.academy_id || ''}
+                          onChange={async (e) => {
+                            const academyId = Number(e.target.value);
+                            setEditedStudent({ ...editedStudent!, academy_id: academyId });
+                            await fetchClasses(academyId);
+                            setSelectedClassIds([]); // 학원 변경 시 반 선택 초기화
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">선택하세요</option>
+                          {academies.map((academy: any) => (
+                            <option key={academy.id} value={academy.id}>
+                              {academy.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="font-medium">{student.academyName || '미등록'}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 소속 반 (다중 선택, 최대 3개) */}
+                  <div className="flex items-start gap-3 col-span-2">
+                    <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500 mb-2">소속 반 (최대 3개)</p>
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          {/* 선택된 반 표시 */}
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {selectedClassIds.map((classId, index) => {
+                              const className = classes.find((c: any) => c.id === classId)?.name || `반 ${classId}`;
+                              return (
+                                <Badge key={classId} variant="secondary" className="flex items-center gap-1">
+                                  {className}
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedClassIds(selectedClassIds.filter((id) => id !== classId))}
+                                    className="ml-1 hover:text-red-600"
+                                  >
+                                    ×
+                                  </button>
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                          {/* 반 추가 드롭다운 */}
+                          {selectedClassIds.length < 3 && (
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                const classId = Number(e.target.value);
+                                if (classId && !selectedClassIds.includes(classId)) {
+                                  setSelectedClassIds([...selectedClassIds, classId]);
+                                }
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              disabled={classes.length === 0}
+                            >
+                              <option value="">반 추가하기...</option>
+                              {classes
+                                .filter((cls: any) => !selectedClassIds.includes(cls.id))
+                                .map((cls: any) => (
+                                  <option key={cls.id} value={cls.id}>
+                                    {cls.name}
+                                  </option>
+                                ))}
+                            </select>
+                          )}
+                          {selectedClassIds.length >= 3 && (
+                            <p className="text-xs text-gray-500">최대 3개 반까지 선택 가능합니다.</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {student.classes && student.classes.length > 0 ? (
+                            student.classes.map((cls: any) => (
+                              <Badge key={cls.classId} variant="outline">
+                                {cls.className}
+                              </Badge>
+                            ))
+                          ) : student.className ? (
+                            <Badge variant="outline">{student.className}</Badge>
+                          ) : (
+                            <p className="font-medium">미등록</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 비밀번호 */}
+                  <div className="flex items-start gap-3">
+                    <Key className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500">비밀번호</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editedStudent?.password || ''}
+                          onChange={(e) => setEditedStudent({ ...editedStudent!, password: e.target.value })}
+                          placeholder="비밀번호 입력 (빈 칸으로 두면 변경 안 함)"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                        />
+                      ) : (
+                        <p className="font-medium font-mono bg-gray-50 px-2 py-1 rounded">
+                          {student.password || '미설정'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
                   {student.created_at && (
                     <div className="flex items-start gap-3">
                       <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm text-gray-500">가입일</p>
-                        <p className="font-medium">
-                          {new Date(student.created_at).toLocaleDateString('ko-KR')}
-                        </p>
+                        <p className="font-medium">{new Date(student.created_at).toLocaleDateString('ko-KR')}</p>
                       </div>
                     </div>
+                  )}
+                </div>
+
+                {/* 진단 메모 */}
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h3 className="text-sm font-medium text-blue-900 mb-2">진단 메모</h3>
+                  {isEditing ? (
+                    <textarea
+                      value={editedStudent?.diagnostic_memo || ''}
+                      onChange={(e) => setEditedStudent({ ...editedStudent!, diagnostic_memo: e.target.value })}
+                      placeholder="학생에 대한 진단 메모를 입력하세요..."
+                      rows={4}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                  ) : (
+                    <p className="text-sm text-blue-700">
+                      {student.diagnostic_memo || '진단 메모가 없습니다.'}
+                    </p>
                   )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* 역량 분석 카드 */}
+            {/* 역량 분석 카드 - 기능이 활성화된 경우에만 표시 */}
+            {(!limitations || limitations.competency_analysis_enabled === 1) && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -554,7 +1140,7 @@ function StudentDetailContent() {
                       AI 기반 역량 분석
                     </CardTitle>
                     <CardDescription>
-                      Gemini AI가 학생의 대화를 분석하여 역량을 평가합니다
+                      AI가 학생의 대화를 분석하여 역량을 평가합니다
                     </CardDescription>
                   </div>
                   <Button
@@ -631,6 +1217,7 @@ function StudentDetailContent() {
                 )}
               </CardContent>
             </Card>
+            )}
           </TabsContent>
 
           {/* 학생 코드 탭 */}
@@ -716,7 +1303,7 @@ function StudentDetailContent() {
               </CardContent>
             </Card>
 
-            {/* 학생 식별 코드 (기존) */}
+            {/* 학생 식별 코드 - QR 코드 제거 버전 */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -919,7 +1506,8 @@ function StudentDetailContent() {
             </Card>
           </TabsContent>
 
-          {/* 부족한 개념 탭 */}
+          {/* 부족한 개념 탭 - 기능이 활성화된 경우에만 표시 */}
+          {(!limitations || limitations.weak_concept_analysis_enabled === 1) && (
           <TabsContent value="concepts" className="space-y-4">
             <Card>
               <CardHeader>
@@ -1008,7 +1596,7 @@ function StudentDetailContent() {
                       대화 내역과 숙제 데이터를 종합하여 분석합니다.
                     </p>
                   </div>
-                ) : conceptSummary.includes('오류') || conceptSummary.includes('없습니다') ? (
+                ) : conceptSummary.includes('분석할 데이터가 없습니다') ? (
                   <div className="text-center py-12">
                     <div className="bg-orange-50 p-6 rounded-lg border-2 border-orange-200">
                       <AlertTriangle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
@@ -1016,18 +1604,17 @@ function StudentDetailContent() {
                         {conceptSummary}
                       </p>
                       <p className="text-sm text-orange-600 mt-3">
-                        {conceptSummary.includes('오류') 
-                          ? '잠시 후 다시 시도해주세요. 문제가 계속되면 관리자에게 문의하세요.'
-                          : 'AI 챗봇과 대화를 하거나 숙제를 제출하여 부족한 개념을 파악하세요.'}
+                        AI 챗봇과 대화를 하거나 숙제를 제출하여 부족한 개념을 파악하세요.
                       </p>
                       <Button
                         onClick={analyzeWeakConcepts}
                         variant="outline"
                         className="mt-4"
                         size="sm"
+                        disabled={limitations && limitations.weak_concept_analysis_enabled === 0}
                       >
                         <Brain className="w-4 h-4 mr-2" />
-                        다시 분석하기
+                        {limitations && limitations.weak_concept_analysis_enabled === 0 ? '개념 분석 비활성화됨' : '다시 분석하기'}
                       </Button>
                     </div>
                   </div>
@@ -1036,25 +1623,61 @@ function StudentDetailContent() {
                     {conceptSummary && (
                       <div className="bg-blue-50 p-4 rounded-lg">
                         <h4 className="font-semibold mb-2">전반적인 이해도</h4>
-                        <p className="text-sm text-gray-700">{conceptSummary}</p>
+                        <p className="text-sm text-gray-700 whitespace-pre-line">{conceptSummary}</p>
+                      </div>
+                    )}
+
+                    {detailedAnalysis && (
+                      <div className="bg-indigo-50 p-4 rounded-lg border-2 border-indigo-200">
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <FileText className="w-5 h-5 text-indigo-600" />
+                          상세 분석
+                        </h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-line">{detailedAnalysis}</p>
+                      </div>
+                    )}
+
+                    {commonMistakes && commonMistakes.length > 0 && (
+                      <div className="bg-red-50 p-4 rounded-lg border-2 border-red-200">
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5 text-red-600" />
+                          자주 틀리는 유형
+                        </h4>
+                        <div className="space-y-3">
+                          {commonMistakes.map((mistake, idx) => (
+                            <div key={idx} className="bg-white p-3 rounded-lg">
+                              <div className="flex items-start justify-between mb-2">
+                                <h5 className="font-medium text-sm text-red-700">{mistake.type}</h5>
+                                <Badge variant={mistake.frequency === 'high' ? 'destructive' : 'outline'} className="text-xs">
+                                  {mistake.frequency === 'high' ? '높음' : mistake.frequency === 'medium' ? '중간' : '낮음'}
+                                </Badge>
+                              </div>
+                              {mistake.example && (
+                                <p className="text-xs text-gray-600 mb-1">예시: {mistake.example}</p>
+                              )}
+                              {mistake.solution && (
+                                <p className="text-xs text-blue-700 font-medium">해결: {mistake.solution}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {learningDirection && (
+                      <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-green-600" />
+                          앞으로의 학습 방향
+                        </h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-line">{learningDirection}</p>
                       </div>
                     )}
 
                     <div>
                       <h4 className="font-semibold mb-3 text-sm sm:text-base">부족한 개념</h4>
-                      {weakConcepts.length === 0 ? (
-                        <div className="text-center py-8 bg-green-50 rounded-lg border-2 border-green-200">
-                          <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                          <p className="text-green-700 font-medium">
-                            분석 결과 부족한 개념이 발견되지 않았습니다!
-                          </p>
-                          <p className="text-sm text-green-600 mt-1">
-                            현재 수준을 잘 유지하고 있습니다. 계속해서 꾸준히 학습하세요.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {weakConcepts.map((concept, idx) => (
+                      <div className="space-y-3">
+                        {weakConcepts.map((concept, idx) => (
                           <div
                             key={idx}
                             className={`p-3 sm:p-4 border-2 rounded-lg ${getSeverityColor(concept.severity)}`}
@@ -1078,6 +1701,7 @@ function StudentDetailContent() {
                                 ))}
                               </div>
                             )}
+                            {(!limitations || limitations.similar_problem_enabled === 1) && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -1089,10 +1713,10 @@ function StudentDetailContent() {
                             >
                               📝 유사문제 출제
                             </Button>
+                            )}
                           </div>
                         ))}
-                        </div>
-                      )}
+                      </div>
                     </div>
 
                     {conceptRecommendations.length > 0 && (
@@ -1116,7 +1740,387 @@ function StudentDetailContent() {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
         </Tabs>
+
+        {/* 유사문제 출제 모달 */}
+        {showProblemModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">유사문제 출제</h2>
+                  <button
+                    onClick={() => setShowProblemModal(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <XCircle className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* 문제 유형 선택 (다중 선택) */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">문제 유형 (여러 개 선택 가능)</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => toggleProblemType('concept')}
+                        className={`p-3 border-2 rounded-lg text-sm font-medium transition-colors ${
+                          selectedProblemTypes.includes('concept')
+                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        {selectedProblemTypes.includes('concept') && '✓ '}개념 문제
+                      </button>
+                      <button
+                        onClick={() => toggleProblemType('pattern')}
+                        className={`p-3 border-2 rounded-lg text-sm font-medium transition-colors ${
+                          selectedProblemTypes.includes('pattern')
+                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        {selectedProblemTypes.includes('pattern') && '✓ '}유형 문제
+                      </button>
+                      <button
+                        onClick={() => toggleProblemType('advanced')}
+                        className={`p-3 border-2 rounded-lg text-sm font-medium transition-colors ${
+                          selectedProblemTypes.includes('advanced')
+                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        {selectedProblemTypes.includes('advanced') && '✓ '}심화 문제
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {selectedProblemTypes.length}개 유형 선택됨
+                    </p>
+                  </div>
+
+                  {/* 문제 형식 선택 (객관식/서술형) */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">문제 형식 (여러 개 선택 가능)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => toggleQuestionFormat('multiple_choice')}
+                        className={`p-3 border-2 rounded-lg text-sm font-medium transition-colors ${
+                          selectedQuestionFormats.includes('multiple_choice')
+                            ? 'border-green-600 bg-green-50 text-green-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        {selectedQuestionFormats.includes('multiple_choice') && '✓ '}객관식 (1~5번 선택)
+                      </button>
+                      <button
+                        onClick={() => toggleQuestionFormat('open_ended')}
+                        className={`p-3 border-2 rounded-lg text-sm font-medium transition-colors ${
+                          selectedQuestionFormats.includes('open_ended')
+                            ? 'border-green-600 bg-green-50 text-green-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        {selectedQuestionFormats.includes('open_ended') && '✓ '}주관식 (서술형)
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {selectedQuestionFormats.length}개 형식 선택됨
+                      {selectedQuestionFormats.length === 2 && ' · 객관식과 주관식 혼합 출제'}
+                    </p>
+                  </div>
+
+                  {/* 과목 선택 */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">
+                      과목 선택 <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedSubject}
+                      onChange={(e) => setSelectedSubject(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">선택하세요</option>
+                      <option value="수학">수학</option>
+                      <option value="영어">영어</option>
+                      <option value="국어">국어</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {selectedSubject 
+                        ? `${selectedSubject} 과목의 부족한 개념으로 문제를 생성합니다` 
+                        : '과목을 선택하면 해당 과목의 약점 개념으로 문제가 생성됩니다'}
+                    </p>
+                  </div>
+
+                  {/* 문제 수 설정 */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">문제 수</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={problemCount}
+                      onChange={(e) => setProblemCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      1~20개 사이로 설정 가능합니다
+                    </p>
+                  </div>
+
+                  {/* 개념 선택 */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">출제할 개념 선택</label>
+                    <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-3">
+                      {weakConcepts.map((concept, idx) => (
+                        <label
+                          key={idx}
+                          className="flex items-start gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedConcepts.includes(concept.concept)}
+                            onChange={() => toggleConceptSelection(concept.concept)}
+                            className="mt-1"
+                          />
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{concept.concept}</p>
+                            <p className="text-xs text-gray-600">{concept.description}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {selectedConcepts.length}개 선택됨
+                    </p>
+                  </div>
+
+                  {/* 버튼 */}
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowProblemModal(false)}
+                      disabled={generatingProblems}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      onClick={generateSimilarProblems}
+                      disabled={generatingProblems || !selectedSubject || selectedConcepts.length === 0 || selectedProblemTypes.length === 0 || selectedQuestionFormats.length === 0 || (limitations && limitations.similar_problem_enabled === 0)}
+                    >
+                      {generatingProblems ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          생성 중...
+                        </>
+                      ) : (
+                        <>
+                          <ClipboardCheck className="w-4 h-4 mr-2" />
+                          {limitations && limitations.similar_problem_enabled === 0 ? '기능 비활성화됨' : '문제 생성 및 인쇄'}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 문제 생성 완료 후 버튼 */}
+        {generatedProblems.length > 0 && (
+          <div className="fixed bottom-4 right-4 flex gap-2 z-50 print:hidden">
+            <Button onClick={printProblems} size="lg" className="shadow-lg">
+              <ClipboardCheck className="w-5 h-5 mr-2" />
+              시험지 인쇄
+            </Button>
+            <Button onClick={printAnswers} size="lg" variant="outline" className="shadow-lg">
+              <CheckCircle className="w-5 h-5 mr-2" />
+              답지 인쇄
+            </Button>
+          </div>
+        )}
+
+        {/* 시험지 및 답지 출력 영역 (인쇄 전용) */}
+        {generatedProblems.length > 0 && (
+          <div className="print:block hidden">
+            <style jsx global>{`
+              @media print {
+                body * {
+                  visibility: hidden;
+                }
+                .print-area, .print-area * {
+                  visibility: visible;
+                }
+                .print-area {
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  width: 100%;
+                }
+                @page {
+                  margin: 2cm;
+                  size: A4;
+                }
+                .problem-item {
+                  page-break-inside: avoid;
+                  break-inside: avoid;
+                  page-break-after: auto;
+                }
+                .print-header {
+                  page-break-after: avoid;
+                }
+              }
+            `}</style>
+            
+            {/* 시험지 */}
+            {!showAnswerSheet && (
+              <div className="print-area">
+                <div className="max-w-4xl mx-auto p-8 bg-white">
+                  {/* 시험지 헤더 */}
+                  <div className="print-header border-b-2 border-black pb-4 mb-6">
+                    <h1 className="text-3xl font-bold text-center mb-2">
+                      학습 확인 문제
+                    </h1>
+                    <div className="flex justify-between text-sm mt-4">
+                      <div>
+                        <span className="font-semibold">학생명:</span> {student?.name}
+                      </div>
+                      <div>
+                        <span className="font-semibold">출제일:</span> {new Date().toLocaleDateString('ko-KR')}
+                      </div>
+                    </div>
+                    <div className="text-sm mt-2">
+                      <span className="font-semibold">출제 개념:</span> {selectedConcepts.join(', ')}
+                    </div>
+                    <div className="text-sm mt-1">
+                      <span className="font-semibold">문제 유형:</span> {
+                        selectedProblemTypes.map(type => 
+                          type === 'concept' ? '개념' : type === 'pattern' ? '유형' : '심화'
+                        ).join(', ')
+                      }
+                    </div>
+                    <div className="text-sm mt-1">
+                      <span className="font-semibold">총 문제 수:</span> {generatedProblems.length}문제
+                    </div>
+                  </div>
+
+                  {/* 문제 */}
+                  <div className="space-y-6">
+                    {generatedProblems.map((problem, idx) => (
+                      <div key={idx} className="problem-item border border-gray-300 p-4 rounded">
+                        <div className="flex items-start gap-3">
+                          <span className="font-bold text-lg">{idx + 1}.</span>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs px-2 py-1 border border-gray-400 rounded">
+                                {problem.type === 'concept' ? '개념' : problem.type === 'pattern' ? '유형' : '심화'}
+                              </span>
+                              <span className="text-xs text-gray-600">
+                                [{problem.concept}]
+                              </span>
+                            </div>
+                            <p className="text-base whitespace-pre-wrap mb-4">{problem.question}</p>
+                            
+                            {problem.options && problem.options.length > 0 && (
+                              <div className="space-y-2 ml-4">
+                                {problem.options.map((option: string, optIdx: number) => (
+                                  <div key={optIdx} className="flex items-start gap-2">
+                                    <span className="font-medium">({optIdx + 1})</span>
+                                    <span>{option}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {problem.answerSpace && (
+                              <div className="mt-4 pt-4 border-t border-gray-200">
+                                <p className="text-sm text-gray-600 mb-2">풀이:</p>
+                                <div className="min-h-[120px] border border-gray-300 rounded"></div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 시험지 푸터 */}
+                  <div className="mt-12 pt-4 border-t border-gray-300 text-sm text-gray-600">
+                    <p>※ 문제를 풀고 선생님께 제출해주세요.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 답지 */}
+            {showAnswerSheet && (
+              <div className="print-area">
+                <div className="max-w-4xl mx-auto p-8 bg-white">
+                  {/* 답지 헤더 */}
+                  <div className="print-header border-b-2 border-black pb-4 mb-6">
+                    <h1 className="text-3xl font-bold text-center mb-2">
+                      정답 및 해설
+                    </h1>
+                    <div className="flex justify-between text-sm mt-4">
+                      <div>
+                        <span className="font-semibold">학생명:</span> {student?.name}
+                      </div>
+                      <div>
+                        <span className="font-semibold">출제일:</span> {new Date().toLocaleDateString('ko-KR')}
+                      </div>
+                    </div>
+                    <div className="text-sm mt-2">
+                      <span className="font-semibold">출제 개념:</span> {selectedConcepts.join(', ')}
+                    </div>
+                  </div>
+
+                  {/* 답안 */}
+                  <div className="space-y-5">
+                    {generatedProblems.map((problem, idx) => (
+                      <div key={idx} className="problem-item border border-gray-300 p-4 rounded">
+                        <div className="flex items-start gap-3">
+                          <span className="font-bold text-lg">{idx + 1}.</span>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs px-2 py-1 border border-gray-400 rounded">
+                                {problem.type === 'concept' ? '개념' : problem.type === 'pattern' ? '유형' : '심화'}
+                              </span>
+                              <span className="text-xs text-gray-600">
+                                [{problem.concept}]
+                              </span>
+                            </div>
+                            
+                            {/* 정답 */}
+                            <div className="bg-gray-50 p-3 rounded mb-3">
+                              <p className="font-semibold text-sm mb-1">정답:</p>
+                              <p className="text-base">{problem.answer || '답안 참조'}</p>
+                            </div>
+
+                            {/* 해설 */}
+                            {problem.explanation && (
+                              <div className="border-t pt-3">
+                                <p className="font-semibold text-sm mb-2">해설:</p>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                  {problem.explanation}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 답지 푸터 */}
+                  <div className="mt-12 pt-4 border-t border-gray-300 text-sm text-gray-600">
+                    <p>※ 이 답지는 교사용입니다.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
