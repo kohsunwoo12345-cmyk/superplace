@@ -7,7 +7,7 @@ import {
   Users, Calendar, MessageCircle, BarChart2, Settings,
   GraduationCap, Award, FileText, Clock, ExternalLink,
   DollarSign, CreditCard, Presentation, ClipboardList, Sparkles, Bot,
-  ShoppingCart, Zap, Shield, Globe, Send
+  ShoppingCart, Zap
 } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
 
@@ -77,9 +77,6 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         // 관리자 전용 메뉴
         { id: 'admin-users', href: '/dashboard/admin/users', icon: Users, text: '사용자 관리' },
         { id: 'admin-academies', href: '/dashboard/admin/academies', icon: GraduationCap, text: '학원 관리' },
-        { id: 'admin-director-limitations', href: '/dashboard/admin/director-limitations', icon: Shield, text: '학원장 제한 설정' },
-        { id: 'admin-landing-pages', href: '/dashboard/admin/landing-pages', icon: Globe, text: '랜딩페이지' },
-        { id: 'admin-sms', href: '/dashboard/admin/sms', icon: Send, text: 'SMS 발송' },
         { id: 'admin-notifications', href: '/dashboard/admin/notifications', icon: Bell, text: '알림 관리' },
         { id: 'admin-revenue', href: '/dashboard/admin/revenue', icon: DollarSign, text: '매출 관리' },
         { id: 'admin-pricing', href: '/dashboard/admin/pricing', icon: CreditCard, text: '요금제 관리' },
@@ -198,8 +195,8 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
       <header className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Left: Logo, Mobile Menu, Quick Actions */}
-            <div className="flex items-center gap-3 flex-1">
+            {/* Left: Logo & Mobile Menu */}
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -210,71 +207,61 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
                   <Menu className="w-6 h-6 text-gray-700" />
                 )}
               </button>
-              
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getRoleGradient()} flex items-center justify-center shadow-lg`}>
                   <span className="text-white font-bold text-lg">S</span>
                 </div>
-                <div className="hidden md:block">
+                <div className="hidden sm:block">
                   <h1 className="text-xl font-bold text-gray-900">SUPLACE Study</h1>
                   <p className="text-xs text-gray-500">{getRoleText()} 대시보드</p>
                 </div>
               </div>
-
-              {/* AI 쇼핑몰 & 홈페이지 버튼 (왼쪽) */}
-              <div className="hidden lg:flex items-center gap-2 ml-4">
-                {/* AI 쇼핑몰 버튼 - 관리자/학원장만 */}
-                {(role.toUpperCase() === 'ADMIN' || 
-                  role.toUpperCase() === 'SUPER_ADMIN' || 
-                  role.toUpperCase() === 'DIRECTOR') && (
-                  <a
-                    href="/store"
-                    className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    <span className="text-sm font-semibold">AI 쇼핑몰</span>
-                    <Zap className="w-3 h-3 animate-bounce" />
-                  </a>
-                )}
-
-                {/* Homepage Button - 학원장, 선생님, 관리자만 */}
-                {(role.toUpperCase() === 'ADMIN' || 
-                  role.toUpperCase() === 'SUPER_ADMIN' || 
-                  role.toUpperCase() === 'DIRECTOR' || 
-                  role.toUpperCase() === 'TEACHER') && (
-                  <a
-                    href="/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-lg hover:from-green-600 hover:to-teal-700 transition-all shadow-md"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    <span className="text-sm font-medium">홈페이지</span>
-                  </a>
-                )}
-              </div>
-
-              {/* Search Bar (넓게 확장) */}
-              <div className="hidden xl:flex items-center flex-1 max-w-2xl mx-4">
-                <div className="relative w-full">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="학생, 교사, 수업 검색..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-0 rounded-lg focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                  />
-                </div>
-              </div>
             </div>
 
-            {/* Right: Notifications & User Menu */}
-            <div className="flex items-center gap-3">
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2 sm:gap-4">
+              {/* AI 쇼핑몰 버튼 - 관리자/학원장만 */}
+              {(role.toUpperCase() === 'ADMIN' || 
+                role.toUpperCase() === 'SUPER_ADMIN' || 
+                role.toUpperCase() === 'DIRECTOR') && (
+                <a
+                  href="/store"
+                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
+                >
+                  <ShoppingCart className="w-4 h-4 animate-pulse" />
+                  <span className="hidden sm:inline text-sm font-semibold">AI 쇼핑몰</span>
+                  <Zap className="w-3 h-3 hidden md:inline animate-bounce" />
+                </a>
+              )}
+
+              {/* Homepage Button - 학원장, 선생님, 관리자만 */}
+              {(role.toUpperCase() === 'ADMIN' || 
+                role.toUpperCase() === 'SUPER_ADMIN' || 
+                role.toUpperCase() === 'DIRECTOR' || 
+                role.toUpperCase() === 'TEACHER') && (
+                <a
+                  href="/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span className="text-sm font-medium">홈페이지</span>
+                </a>
+              )}
+
+              {/* Search */}
+              <button className="hidden md:flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                <Search className="w-4 h-4 text-gray-600" />
+                <span className="text-sm text-gray-600">검색...</span>
+              </button>
+
               {/* Notifications */}
               <NotificationCenter />
 
               {/* User Menu */}
-              <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-                <div className="hidden lg:block text-right">
+              <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-gray-200">
+                <div className="hidden sm:block text-right">
                   <p className="text-sm font-medium text-gray-900">{user?.name || 'Loading...'}</p>
                   <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
