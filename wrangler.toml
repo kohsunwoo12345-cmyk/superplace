@@ -3,7 +3,8 @@ compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 # Cloudflare Pages configuration
-# @cloudflare/next-on-pages outputs to .vercel/output/static
+# Using @cloudflare/next-on-pages adapter for Next.js
+# (The .vercel path is just the adapter's output format, not related to Vercel platform)
 pages_build_output_dir = ".vercel/output/static"
 
 # D1 Database (superplace-academy.pages.dev와 동일한 DB 공유)
