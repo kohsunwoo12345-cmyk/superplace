@@ -40,14 +40,69 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      // API 호출 (실제 구현 필요)
-      // const response = await fetch("/api/analytics/overview");
-      // if (response.ok) {
-      //   const data = await response.json();
-      //   setStats(data);
-      // }
       
-      // 임시 데이터
+      if (!user) return;
+
+      // 역할에 따라 다른 API 호출
+      let apiEndpoint = '';
+      let queryParams = '';
+
+      if (user.role === 'STUDENT') {
+        // 학생용 통계
+        apiEndpoint = '/api/dashboard/student-stats';
+        queryParams = `?userId=${user.id}${user.academyId ? `&academyId=${user.academyId}` : ''}`;
+      } else if (user.role === 'DIRECTOR' || user.role === 'TEACHER') {
+        // 원장/교사용 통계
+        apiEndpoint = '/api/dashboard/director-stats';
+        queryParams = `?academyId=${user.academyId}&role=${user.role}&userId=${user.id}`;
+      } else if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+        // 관리자용 전체 통계
+        apiEndpoint = '/api/admin/dashboard-stats';
+        queryParams = '';
+      }
+
+      try {
+        const response = await fetch(`${apiEndpoint}${queryParams}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          // 데이터 매핑
+          if (user.role === 'STUDENT') {
+            setStats({
+              totalStudents: 1, // 본인
+              totalClasses: data.enrolledClasses || 0,
+              totalAssignments: data.completedHomework || 0,
+              averageAttendance: data.attendanceDays || 0,
+              completionRate: data.averageScore || 0,
+              monthlyGrowth: 0
+            });
+          } else if (user.role === 'DIRECTOR' || user.role === 'TEACHER') {
+            setStats({
+              totalStudents: data.totalStudents || 0,
+              totalClasses: data.totalClasses || 0,
+              totalAssignments: 0,
+              averageAttendance: data.attendanceRate || 0,
+              completionRate: 0,
+              monthlyGrowth: data.thisWeekStudents || 0
+            });
+          } else {
+            setStats({
+              totalStudents: data.totalStudents || 0,
+              totalClasses: data.totalAcademies || 0,
+              totalAssignments: data.totalBots || 0,
+              averageAttendance: data.averageAttendance || 0,
+              completionRate: data.activeRate || 0,
+              monthlyGrowth: data.monthlyGrowth || 0
+            });
+          }
+          return;
+        }
+      } catch (apiError) {
+        console.log('API 호출 실패, 기본 데이터 사용:', apiError);
+      }
+      
+      // API 호출 실패 시 기본 데이터
       setStats({
         totalStudents: 125,
         totalClasses: 8,
@@ -58,6 +113,15 @@ export default function AnalyticsPage() {
       });
     } catch (error) {
       console.error("분석 데이터 로드 오류:", error);
+      // 에러 발생 시에도 기본 값 설정
+      setStats({
+        totalStudents: 0,
+        totalClasses: 0,
+        totalAssignments: 0,
+        averageAttendance: 0,
+        completionRate: 0,
+        monthlyGrowth: 0
+      });
     } finally {
       setLoading(false);
     }

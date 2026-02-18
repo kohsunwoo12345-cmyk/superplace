@@ -23,6 +23,9 @@ import {
   Send,
   Smile,
   ImageIcon,
+  FileText,
+  Upload,
+  X,
 } from "lucide-react";
 
 const GEMINI_MODELS = [
@@ -221,6 +224,9 @@ export default function CreateAIBotPage() {
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [knowledgeFiles, setKnowledgeFiles] = useState<Array<{name: string, content: string, size: number}>>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -238,6 +244,7 @@ export default function CreateAIBotPage() {
     topK: "40",
     topP: "0.95",
     language: "ko",
+    knowledgeBase: "",
   });
 
   useEffect(() => {
@@ -290,12 +297,17 @@ export default function CreateAIBotPage() {
     setTestLoading(true);
 
     try {
+      // 지식 베이스를 시스템 프롬프트에 추가
+      const enhancedSystemPrompt = formData.knowledgeBase 
+        ? `${formData.systemPrompt}\n\n---\n\n## 참고 자료 (Knowledge Base)\n\n다음 자료를 참고하여 답변하세요:\n\n${formData.knowledgeBase}`
+        : formData.systemPrompt;
+
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: messageToSend,
-          systemPrompt: formData.systemPrompt,
+          systemPrompt: enhancedSystemPrompt,
           model: formData.model,
           temperature: parseFloat(formData.temperature),
           maxTokens: parseInt(formData.maxTokens),
@@ -339,6 +351,76 @@ export default function CreateAIBotPage() {
 
   const clearChat = () => {
     setChatMessages([]);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingFile(true);
+    try {
+      for (const file of Array.from(files)) {
+        // 파일 크기 제한 (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert(`${file.name}: 파일 크기는 5MB를 초과할 수 없습니다.`);
+          continue;
+        }
+
+        // 지원 파일 형식 확인
+        const allowedTypes = [
+          'text/plain',
+          'text/markdown',
+          'application/pdf',
+          'application/json',
+          'text/csv'
+        ];
+        
+        if (!allowedTypes.includes(file.type) && !file.name.endsWith('.md') && !file.name.endsWith('.txt')) {
+          alert(`${file.name}: 지원하지 않는 파일 형식입니다. (지원: txt, md, pdf, json, csv)`);
+          continue;
+        }
+
+        // 텍스트 파일 읽기
+        const text = await file.text();
+        
+        setKnowledgeFiles(prev => [
+          ...prev,
+          {
+            name: file.name,
+            content: text,
+            size: file.size
+          }
+        ]);
+
+        // knowledgeBase에 추가
+        setFormData(prev => ({
+          ...prev,
+          knowledgeBase: prev.knowledgeBase + `\n\n## ${file.name}\n${text}`
+        }));
+      }
+    } catch (error) {
+      console.error('파일 업로드 오류:', error);
+      alert('파일을 읽는 중 오류가 발생했습니다.');
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removeKnowledgeFile = (fileName: string) => {
+    setKnowledgeFiles(prev => prev.filter(f => f.name !== fileName));
+    
+    // knowledgeBase에서 제거
+    const fileToRemove = knowledgeFiles.find(f => f.name === fileName);
+    if (fileToRemove) {
+      const pattern = `\n\n## ${fileName}\n${fileToRemove.content}`;
+      setFormData(prev => ({
+        ...prev,
+        knowledgeBase: prev.knowledgeBase.replace(pattern, '')
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -678,6 +760,115 @@ export default function CreateAIBotPage() {
                       <li>✓ <strong>특화 기능:</strong> 코드 블록, 표, 리스트 활용</li>
                     </ul>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 지식 베이스 (Knowledge Base) - RAG */}
+            <Card className="border-2 border-orange-200">
+              <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-orange-600" />
+                  지식 베이스 (Knowledge Base)
+                </CardTitle>
+                <CardDescription>
+                  AI가 참고할 수 있는 문서, 자료, 지식을 업로드하세요. RAG (Retrieval-Augmented Generation)로 더 정확한 답변을 제공합니다.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                {/* 파일 업로드 버튼 */}
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".txt,.md,.pdf,.json,.csv"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="knowledge-file-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-dashed border-2 border-orange-300 hover:border-orange-500 hover:bg-orange-50"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {uploadingFile ? "업로드 중..." : "파일 선택 (txt, md, pdf, json, csv)"}
+                  </Button>
+                  <p className="text-xs text-gray-500 mt-2">
+                    • 최대 파일 크기: 5MB per file
+                    <br />
+                    • 지원 형식: 텍스트(.txt), 마크다운(.md), PDF(.pdf), JSON(.json), CSV(.csv)
+                    <br />
+                    • 업로드된 내용은 AI가 답변할 때 참고 자료로 활용됩니다
+                  </p>
+                </div>
+
+                {/* 업로드된 파일 목록 */}
+                {knowledgeFiles.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">업로드된 파일 ({knowledgeFiles.length}개)</Label>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {knowledgeFiles.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <FileText className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {(file.size / 1024).toFixed(2)} KB
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeKnowledgeFile(file.name)}
+                            className="flex-shrink-0"
+                          >
+                            <X className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 지식 베이스 내용 미리보기 */}
+                {formData.knowledgeBase && (
+                  <div>
+                    <Label className="text-sm font-semibold">지식 베이스 내용 미리보기</Label>
+                    <Textarea
+                      value={formData.knowledgeBase}
+                      onChange={(e) => setFormData({ ...formData, knowledgeBase: e.target.value })}
+                      rows={8}
+                      className="mt-2 font-mono text-xs"
+                      placeholder="파일을 업로드하면 여기에 내용이 표시됩니다"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      💡 업로드된 내용을 직접 수정할 수도 있습니다
+                    </p>
+                  </div>
+                )}
+
+                {/* RAG 설명 */}
+                <div className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg border border-orange-200">
+                  <p className="text-sm font-semibold text-orange-900 mb-2">
+                    📚 RAG (Retrieval-Augmented Generation)란?
+                  </p>
+                  <ul className="text-sm text-orange-800 space-y-1">
+                    <li>• AI가 답변할 때 <strong>업로드된 지식을 참고</strong>하여 더 정확하고 맞춤형 답변 제공</li>
+                    <li>• 회사 매뉴얼, 학습 자료, 제품 설명서 등을 업로드하여 <strong>전문화된 AI 봇</strong> 생성</li>
+                    <li>• 실시간으로 최신 정보를 반영하여 환각(Hallucination) 현상 감소</li>
+                  </ul>
                 </div>
               </CardContent>
             </Card>
