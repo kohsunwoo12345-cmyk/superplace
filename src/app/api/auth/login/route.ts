@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 // 테스트 계정 (하드코딩)
 const testUsers = [
   {
