@@ -6,10 +6,10 @@ compatibility_flags = ["nodejs_compat"]
 # Build output is copied to 'out' directory for Cloudflare Pages
 pages_build_output_dir = "out"
 
-# D1 Database (superplace-academy.pages.dev와 동일한 DB 공유)
+# D1 Database (webapp-production)
 [[d1_databases]]
 binding = "DB"
-database_name = "superplace-db"
+database_name = "webapp-production"
 database_id = "8c106540-21b4-4fa9-8879-c4956e459ca1"
 
 # Environment Variables
