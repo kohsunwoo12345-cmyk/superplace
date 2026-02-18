@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Download,
   FolderOpen,
+  FileCode,
 } from "lucide-react";
 
 interface LandingPage {
@@ -164,6 +165,15 @@ export default function LandingPagesPage() {
                 📁 폴더 관리
               </Button>
               <Button
+                onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
+                variant="outline"
+                size="lg"
+                className="border-2 border-purple-300 hover:border-purple-500 hover:bg-purple-50"
+              >
+                <FileCode className="w-5 h-5 mr-2" />
+                📄 HTML 템플릿 관리
+              </Button>
+              <Button
                 onClick={() => router.push("/dashboard/admin/landing-pages/builder")}
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg"
                 size="lg"
@@ -178,22 +188,26 @@ export default function LandingPagesPage() {
         {/* 빠른 가이드 배너 */}
         <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg p-6 shadow-lg">
           <h2 className="text-2xl font-bold mb-3">🚀 빠른 시작 가이드</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="bg-white/10 rounded p-3">
-              <p className="font-semibold mb-1">1️⃣ 랜딩페이지 생성</p>
-              <p className="text-sm">"✨ 새 랜딩페이지 만들기" 버튼 클릭</p>
+              <p className="font-semibold mb-1">1️⃣ HTML 템플릿</p>
+              <p className="text-sm">"📄 HTML 템플릿 관리"에서 템플릿 제작</p>
             </div>
             <div className="bg-white/10 rounded p-3">
-              <p className="font-semibold mb-1">2️⃣ 폼 & 썸네일 설정</p>
-              <p className="text-sm">제목, 이미지, 입력 필드 추가</p>
+              <p className="font-semibold mb-1">2️⃣ 랜딩페이지 생성</p>
+              <p className="text-sm">학생 선택, 기간 설정, 템플릿 선택</p>
             </div>
             <div className="bg-white/10 rounded p-3">
-              <p className="font-semibold mb-1">3️⃣ URL 공유</p>
-              <p className="text-sm">생성된 링크를 복사하여 공유</p>
+              <p className="font-semibold mb-1">3️⃣ 데이터 자동 삽입</p>
+              <p className="text-sm">선택 기간의 학습 데이터 표시</p>
             </div>
             <div className="bg-white/10 rounded p-3">
-              <p className="font-semibold mb-1">4️⃣ 신청자 확인</p>
-              <p className="text-sm">"신청자 보기" 버튼으로 데이터 확인</p>
+              <p className="font-semibold mb-1">4️⃣ URL 공유</p>
+              <p className="text-sm">생성된 링크 복사 및 공유</p>
+            </div>
+            <div className="bg-white/10 rounded p-3">
+              <p className="font-semibold mb-1">5️⃣ 데이터 확인</p>
+              <p className="text-sm">조회수 및 신청자 보기</p>
             </div>
           </div>
         </div>
