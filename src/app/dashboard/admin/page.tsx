@@ -19,6 +19,9 @@ import {
   CheckCircle,
   Clock,
   Send,
+  ShoppingCart,
+  Package,
+  FileText,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
@@ -181,6 +184,54 @@ export default function AdminDashboardPage() {
       <div>
         <h2 className="text-xl font-bold mb-4">빠른 액세스</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-blue-200"
+                onClick={() => router.push("/dashboard/admin/store-management")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-blue-600" />
+                🛒 AI 쇼핑몰 관리
+              </CardTitle>
+              <CardDescription>
+                AI 쇼핑몰 제품을 관리합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">바로가기</Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-purple-200"
+                onClick={() => router.push("/dashboard/admin/store-management/create")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-purple-600" />
+                ➕ AI 쇼핑몰 제품 추가
+              </CardTitle>
+              <CardDescription>
+                새로운 AI 봇 제품을 쇼핑몰에 등록합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">제품 추가</Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-amber-200"
+                onClick={() => router.push("/dashboard/admin/logs")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-amber-600" />
+                📋 상세 기록
+              </CardTitle>
+              <CardDescription>
+                시스템 로그 및 사용자 활동을 확인합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white">기록 보기</Button>
+            </CardContent>
+          </Card>
+
           <Card className="hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => router.push("/dashboard/admin/users")}>
             <CardHeader>
