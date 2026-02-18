@@ -120,12 +120,21 @@ export default function CreateLandingPagePage() {
 
       if (templatesRes.ok) {
         const data = await templatesRes.json();
+        console.log("📋 Templates API Response:", data);
+        console.log("📋 Templates count:", data.templates?.length || 0);
         setTemplates(data.templates || []);
         // 기본 템플릿 자동 선택
         const defaultTemplate = data.templates.find((t: Template) => t.isDefault);
         if (defaultTemplate) {
+          console.log("✅ Default template selected:", defaultTemplate);
           setSelectedTemplate(defaultTemplate.id);
+        } else {
+          console.warn("⚠️ No default template found");
         }
+      } else {
+        console.error("❌ Templates API failed:", templatesRes.status, templatesRes.statusText);
+        const errorData = await templatesRes.json().catch(() => ({}));
+        console.error("❌ Error details:", errorData);
       }
     } catch (error) {
       console.error("데이터 조회 실패:", error);

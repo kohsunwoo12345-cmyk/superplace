@@ -79,17 +79,21 @@ export default function TemplatesPage() {
       });
 
       const data = await response.json();
-      console.log("템플릿 목록 조회 응답:", data);
+      console.log("📋 Templates API Response:", data);
+      console.log("📋 Response status:", response.status, response.ok);
+      console.log("📋 Templates count:", data.templates?.length || 0);
 
       if (response.ok && data.success) {
         setTemplates(data.templates || []);
+        console.log("✅ Templates loaded successfully:", data.templates);
         
         // 메시지가 있으면 표시
         if (data.message) {
+          console.log("ℹ️ API Message:", data.message);
           alert(data.message);
         }
       } else {
-        console.error("템플릿 목록 조회 실패:", data);
+        console.error("❌ 템플릿 목록 조회 실패:", data);
         alert(`템플릿 목록을 불러오지 못했습니다.\n\n오류: ${data.error || data.message || "Unknown error"}`);
       }
     } catch (error) {
