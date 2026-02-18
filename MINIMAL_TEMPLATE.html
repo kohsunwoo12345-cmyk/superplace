@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{studentName}} 학생 리포트</title>
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px;
+      text-align: center;
+      border-radius: 10px;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 32px;
+    }
+    .header p {
+      margin: 10px 0 0 0;
+      opacity: 0.9;
+    }
+    .content {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .info {
+      margin: 20px 0;
+    }
+    .info-item {
+      padding: 15px;
+      background: #f9f9f9;
+      margin: 10px 0;
+      border-radius: 5px;
+      border-left: 4px solid #667eea;
+    }
+    .label {
+      font-weight: bold;
+      color: #667eea;
+      margin-right: 10px;
+    }
+    .value {
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🌟 {{studentName}} 학생의 학습 리포트</h1>
+    <p>📅 기간: {{period}}</p>
+  </div>
+  
+  <div class="content">
+    <h2>📊 학습 현황</h2>
+    
+    <div class="info">
+      <div class="info-item">
+        <span class="label">출석률:</span>
+        <span class="value">{{attendanceRate}}</span>
+      </div>
+      
+      <div class="info-item">
+        <span class="label">AI 대화 횟수:</span>
+        <span class="value">{{aiChatCount}}회</span>
+      </div>
+      
+      <div class="info-item">
+        <span class="label">숙제 완료율:</span>
+        <span class="value">{{homeworkRate}}</span>
+      </div>
+    </div>
+    
+    <h2>💬 선생님 코멘트</h2>
+    <p>{{studentName}} 학생은 이번 {{period}} 기간 동안 성실하게 학습에 참여했습니다.</p>
+  </div>
+</body>
+</html>
