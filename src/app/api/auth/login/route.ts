@@ -3,18 +3,18 @@ import { getRequestContext } from '@cloudflare/next-on-pages';
 
 export const runtime = 'edge';
 
-// Password hashing function (same as signup)
+// Password hashing function (MUST match signup - with salt)
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password);
+  const data = encoder.encode(password + 'superplace-salt-2024'); // Add salt
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Simple JWT-like token generation
+// Simple JWT-like token generation (using | separator)
 function generateToken(userId: string, email: string, role: string): string {
-  return `${userId}.${email}.${role}.${Date.now()}`;
+  return `${userId}|${email}|${role}|${Date.now()}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -81,14 +81,11 @@ export async function POST(request: NextRequest) {
           u.role,
           u.phone,
           u.academyId,
-          u.studentCode,
-          u.className,
-          u.loginAttempts,
-          u.lastLoginAttempt,
+          u.approved,
           a.name as academyName,
           a.code as academyCode
-        FROM users u
-        LEFT JOIN academy a ON u.academyId = a.id
+        FROM User u
+        LEFT JOIN Academy a ON u.academyId = a.id
         WHERE u.email = ?
       `).bind(email).first();
 
@@ -100,23 +97,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.log('✅ User found:', { id: user.id, email: user.email, role: user.role });
+      console.log('✅ User found:', { id: user.id, email: user.email, role: user.role, approved: user.approved });
 
       // Check password
       if (user.password !== hashedPassword) {
         console.error('❌ Invalid password for:', email);
-        
-        // Update login attempts
-        try {
-          await db.prepare(`
-            UPDATE users 
-            SET loginAttempts = loginAttempts + 1,
-                lastLoginAttempt = datetime('now')
-            WHERE id = ?
-          `).bind(user.id).run();
-        } catch (err) {
-          console.warn('⚠️ Failed to update login attempts');
-        }
 
         return NextResponse.json(
           { success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다' },
@@ -124,16 +109,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Successful login - reset login attempts
+      // Check if user is approved (except DIRECTOR who are auto-approved)
+      if (user.approved === 0 && user.role !== 'DIRECTOR') {
+        console.error('❌ User not approved:', email);
+        return NextResponse.json(
+          { success: false, message: '아직 학원장의 승인이 완료되지 않았습니다. 학원장에게 문의해주세요.' },
+          { status: 403 }
+        );
+      }
+
+      // Update last login time
       try {
         await db.prepare(`
-          UPDATE users 
-          SET loginAttempts = 0,
-              lastLoginAttempt = datetime('now')
+          UPDATE User 
+          SET lastLoginAt = datetime('now')
           WHERE id = ?
         `).bind(user.id).run();
       } catch (err) {
-        console.warn('⚠️ Failed to reset login attempts');
+        console.warn('⚠️ Failed to update last login time');
       }
 
       // Generate token
@@ -145,18 +138,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: '로그인 성공',
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          phone: user.phone,
-          academyId: user.academyId,
-          academyName: user.academyName,
-          academyCode: user.academyCode,
-          studentCode: user.studentCode,
-          className: user.className
+        data: {
+          token,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            phone: user.phone,
+            academyId: user.academyId,
+            academyName: user.academyName,
+            academyCode: user.academyCode
+          }
         }
       });
 

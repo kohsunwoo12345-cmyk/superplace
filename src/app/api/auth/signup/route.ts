@@ -3,10 +3,10 @@ import { getRequestContext } from '@cloudflare/next-on-pages';
 
 export const runtime = 'edge';
 
-// Simple password hashing (bcrypt alternative for edge)
+// Simple password hashing (bcrypt alternative for edge) - MUST match login
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password);
+  const data = encoder.encode(password + 'superplace-salt-2024'); // Add salt
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -18,78 +18,6 @@ function generateId(prefix: string): string {
 
 function generateAcademyCode(): string {
   return Math.random().toString(36).substr(2, 8).toUpperCase();
-}
-
-// Ensure tables exist
-async function ensureTables(db: any) {
-  try {
-    // Create users table
-    await db.prepare(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        name TEXT NOT NULL,
-        role TEXT NOT NULL,
-        phone TEXT,
-        academyId TEXT,
-        studentCode TEXT,
-        className TEXT,
-        loginAttempts INTEGER DEFAULT 0,
-        lastLoginAttempt TEXT,
-        createdAt TEXT DEFAULT (datetime('now')),
-        updatedAt TEXT DEFAULT (datetime('now'))
-      )
-    `).run();
-
-    await db.prepare(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`).run();
-    await db.prepare(`CREATE INDEX IF NOT EXISTS idx_users_academyId ON users(academyId)`).run();
-    await db.prepare(`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`).run();
-
-    // Create academy table
-    await db.prepare(`
-      CREATE TABLE IF NOT EXISTS academy (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        code TEXT UNIQUE NOT NULL,
-        description TEXT,
-        address TEXT,
-        phone TEXT,
-        email TEXT,
-        logoUrl TEXT,
-        subscriptionPlan TEXT DEFAULT 'FREE',
-        maxStudents INTEGER DEFAULT 10,
-        maxTeachers INTEGER DEFAULT 2,
-        isActive INTEGER DEFAULT 1,
-        createdAt TEXT DEFAULT (datetime('now')),
-        updatedAt TEXT DEFAULT (datetime('now'))
-      )
-    `).run();
-
-    await db.prepare(`CREATE INDEX IF NOT EXISTS idx_academy_code ON academy(code)`).run();
-
-    // Create students table
-    await db.prepare(`
-      CREATE TABLE IF NOT EXISTS students (
-        id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL,
-        academyId TEXT NOT NULL,
-        grade TEXT,
-        parentPhone TEXT,
-        status TEXT DEFAULT 'ACTIVE',
-        attendanceCode TEXT,
-        createdAt TEXT DEFAULT (datetime('now')),
-        updatedAt TEXT DEFAULT (datetime('now'))
-      )
-    `).run();
-
-    await db.prepare(`CREATE INDEX IF NOT EXISTS idx_students_academyId ON students(academyId)`).run();
-
-    console.log('✅ Tables ensured');
-  } catch (error: any) {
-    console.error('❌ Failed to ensure tables:', error.message);
-    throw error;
-  }
 }
 
 export async function POST(request: NextRequest) {
@@ -126,8 +54,8 @@ export async function POST(request: NextRequest) {
 
     console.log('📝 Signup request received');
 
-    // Ensure tables exist
-    await ensureTables(db);
+    // Note: Tables should already exist in D1 database
+    // No need to create tables on every signup request
 
     const body = await request.json();
     const { 
@@ -156,7 +84,7 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Checking if user exists:', email);
     try {
       const existingUser = await db.prepare(
-        'SELECT id FROM users WHERE email = ?'
+        'SELECT id FROM User WHERE email = ?'
       ).bind(email).first();
 
       if (existingUser) {
@@ -204,7 +132,7 @@ export async function POST(request: NextRequest) {
 
       try {
         await db.prepare(`
-          INSERT INTO academy (id, name, code, address, phone, email, subscriptionPlan, maxStudents, maxTeachers, isActive, createdAt, updatedAt)
+          INSERT INTO Academy (id, name, code, address, phone, email, subscriptionPlan, maxStudents, maxTeachers, isActive, createdAt, updatedAt)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `).bind(
           academyId,
@@ -242,7 +170,7 @@ export async function POST(request: NextRequest) {
       console.log('🔍 Looking up academy by code:', academyCode);
       try {
         const academy = await db.prepare(
-          'SELECT id FROM academy WHERE code = ?'
+          'SELECT id FROM Academy WHERE code = ?'
         ).bind(academyCode).first();
 
         if (!academy) {
@@ -271,8 +199,8 @@ export async function POST(request: NextRequest) {
 
     try {
       await db.prepare(`
-        INSERT INTO users (id, email, password, name, role, phone, academyId, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        INSERT INTO User (id, email, password, name, role, phone, academyId, approved, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       `).bind(
         userId,
         email,
@@ -280,7 +208,8 @@ export async function POST(request: NextRequest) {
         name,
         role,
         phone || '',
-        academyId || null
+        academyId || null,
+        role === 'DIRECTOR' ? 1 : 0  // Directors are auto-approved
       ).run();
 
       console.log(`✅ User created: ${name} (${role})`);
@@ -290,29 +219,6 @@ export async function POST(request: NextRequest) {
         { success: false, message: '사용자 생성 중 오류가 발생했습니다', info: error.message },
         { status: 500 }
       );
-    }
-
-    // If STUDENT, create student record
-    if (role === 'STUDENT' && academyId) {
-      const studentId = generateId('student');
-      console.log('👨‍🎓 Creating student record:', studentId);
-      
-      try {
-        await db.prepare(`
-          INSERT INTO students (id, userId, academyId, status, createdAt, updatedAt)
-          VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-        `).bind(
-          studentId,
-          userId,
-          academyId,
-          'ACTIVE'
-        ).run();
-        
-        console.log('✅ Student record created');
-      } catch (error: any) {
-        console.error('⚠️ Failed to create student record (non-fatal):', error.message);
-        // Don't fail the whole signup, just log it
-      }
     }
 
     console.log('🎉 Signup completed successfully');
