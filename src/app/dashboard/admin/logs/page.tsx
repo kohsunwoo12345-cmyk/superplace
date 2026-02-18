@@ -3,80 +3,126 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Search, Filter, Download, AlertCircle, CheckCircle, Info, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ClipboardList, Search, Filter, Download, AlertCircle, CheckCircle, Info, XCircle, UserPlus, LogIn, Bot, Users, CreditCard, Package } from "lucide-react";
 
 export default function LogsPage() {
-  const [filter, setFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState("all");
   const [search, setSearch] = useState("");
 
   const logs = [
     {
       id: 1,
-      timestamp: "2026-02-05 14:32:15",
-      level: "info",
-      category: "인증",
-      user: "admin@superplace.co.kr",
-      action: "로그인 성공",
+      timestamp: "2026-02-18 14:32:15",
+      level: "success",
+      category: "회원가입",
+      user: "newuser@academy.co.kr",
+      userName: "김영희",
+      action: "신규 회원 가입",
       ip: "123.45.67.89",
-      details: "관리자 대시보드 접근",
+      details: "이메일 인증 완료, 학원장 권한",
     },
     {
       id: 2,
-      timestamp: "2026-02-05 14:28:42",
-      level: "success",
-      category: "사용자",
-      user: "system",
-      action: "신규 학원 등록",
+      timestamp: "2026-02-18 14:28:42",
+      level: "info",
+      category: "로그인",
+      user: "admin@superplace.co.kr",
+      userName: "관리자",
+      action: "로그인 성공",
       ip: "123.45.67.90",
-      details: "학원명: 테스트학원",
+      details: "관리자 대시보드 접근",
     },
     {
       id: 3,
-      timestamp: "2026-02-05 14:15:33",
-      level: "warning",
-      category: "결제",
+      timestamp: "2026-02-18 14:25:33",
+      level: "success",
+      category: "봇 할당",
       user: "director@academy.co.kr",
-      action: "결제 실패",
+      userName: "이학원",
+      action: "AI 봇 할당",
       ip: "123.45.67.91",
-      details: "카드 한도 초과",
+      details: "수학 학습 봇 → 서울학원",
     },
     {
       id: 4,
-      timestamp: "2026-02-05 14:05:12",
-      level: "error",
-      category: "API",
-      user: "system",
-      action: "API 호출 실패",
-      ip: "10.0.0.1",
-      details: "Gemini API 타임아웃",
+      timestamp: "2026-02-18 14:20:12",
+      level: "success",
+      category: "학생 추가",
+      user: "teacher@academy.co.kr",
+      userName: "박선생",
+      action: "학생 등록",
+      ip: "123.45.67.92",
+      details: "학생명: 최학생 (중2반)",
     },
     {
       id: 5,
-      timestamp: "2026-02-05 13:58:45",
-      level: "info",
-      category: "데이터",
-      user: "teacher@academy.co.kr",
-      action: "출석 데이터 조회",
-      ip: "123.45.67.92",
-      details: "2026년 2월 데이터",
+      timestamp: "2026-02-18 14:15:45",
+      level: "success",
+      category: "결제",
+      user: "director@academy.co.kr",
+      userName: "이학원",
+      action: "결제 성공",
+      ip: "123.45.67.93",
+      details: "금액: 150,000원 (카드결제)",
     },
     {
       id: 6,
-      timestamp: "2026-02-05 13:45:20",
+      timestamp: "2026-02-18 14:10:20",
       level: "success",
-      category: "숙제",
+      category: "요금제 결제",
+      user: "director2@academy.co.kr",
+      userName: "강원장",
+      action: "프리미엄 요금제 구독",
+      ip: "123.45.67.94",
+      details: "월 300,000원 / 12개월 결제",
+    },
+    {
+      id: 7,
+      timestamp: "2026-02-18 14:05:30",
+      level: "warning",
+      category: "결제",
+      user: "director3@academy.co.kr",
+      userName: "송학원",
+      action: "결제 실패",
+      ip: "123.45.67.95",
+      details: "카드 한도 초과",
+    },
+    {
+      id: 8,
+      timestamp: "2026-02-18 14:00:15",
+      level: "info",
+      category: "로그인",
       user: "student@academy.co.kr",
-      action: "숙제 제출",
-      ip: "123.45.67.93",
-      details: "AI 채점 완료 (85점)",
+      userName: "정학생",
+      action: "학생 로그인",
+      ip: "123.45.67.96",
+      details: "모바일 앱 접근",
     },
   ];
 
   const filteredLogs = logs.filter((log) => {
-    if (filter !== "all" && log.level !== filter) return false;
+    if (categoryFilter !== "all" && log.category !== categoryFilter) return false;
+    if (levelFilter !== "all" && log.level !== levelFilter) return false;
     if (search && !JSON.stringify(log).toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  const categories = [
+    { id: "all", label: "전체", icon: ClipboardList },
+    { id: "회원가입", label: "회원가입", icon: UserPlus },
+    { id: "로그인", label: "로그인", icon: LogIn },
+    { id: "봇 할당", label: "봇 할당", icon: Bot },
+    { id: "학생 추가", label: "학생 추가", icon: Users },
+    { id: "결제", label: "결제", icon: CreditCard },
+    { id: "요금제 결제", label: "요금제 결제", icon: Package },
+  ];
+
+  const getCategoryStats = (category: string) => {
+    if (category === "all") return logs.length;
+    return logs.filter(l => l.category === category).length;
+  };
 
   const getLevelIcon = (level: string) => {
     switch (level) {
@@ -120,6 +166,44 @@ export default function LogsPage() {
           내보내기
         </Button>
       </div>
+
+      {/* Category Filter */}
+      <Card>
+        <CardHeader>
+          <CardTitle>카테고리 필터</CardTitle>
+          <CardDescription>활동 유형별로 로그 필터링</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            {categories.map((cat) => {
+              const Icon = cat.icon;
+              const count = getCategoryStats(cat.id);
+              const isActive = categoryFilter === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all hover:scale-105 ${
+                    isActive
+                      ? "border-blue-500 bg-blue-50 shadow-md"
+                      : "border-gray-200 hover:border-blue-300"
+                  }`}
+                >
+                  <Icon className={`w-6 h-6 ${isActive ? "text-blue-600" : "text-gray-600"}`} />
+                  <div className="text-center">
+                    <div className={`text-sm font-medium ${isActive ? "text-blue-700" : "text-gray-700"}`}>
+                      {cat.label}
+                    </div>
+                    <div className={`text-xl font-bold mt-1 ${isActive ? "text-blue-600" : "text-gray-900"}`}>
+                      {count}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -190,9 +274,9 @@ export default function LogsPage() {
                 {["all", "info", "success", "warning", "error"].map((level) => (
                   <Button
                     key={level}
-                    variant={filter === level ? "default" : "outline"}
+                    variant={levelFilter === level ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setFilter(level)}
+                    onClick={() => setLevelFilter(level)}
                   >
                     {level === "all" && "전체"}
                     {level === "info" && "정보"}
@@ -225,8 +309,11 @@ export default function LogsPage() {
                   </div>
                   <p className="font-medium text-sm">{log.action}</p>
                   <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
-                    <span>사용자: {log.user}</span>
-                    <span>IP: {log.ip}</span>
+                    <span className="font-medium">사용자: {log.userName || log.user}</span>
+                    <span className="text-gray-400">({log.user})</span>
+                    <Badge variant="outline" className="text-xs">
+                      IP: {log.ip}
+                    </Badge>
                   </div>
                   <p className="text-sm text-gray-600 mt-1">{log.details}</p>
                 </div>
