@@ -20,35 +20,53 @@ function generateAcademyCode(): string {
 
 export async function POST(request: NextRequest) {
   try {
-    // Get DB from request context
+    console.log('📝 Signup API called');
+    
+    // Get DB from request context with better error handling
     let db;
+    let context;
+    
     try {
-      const { env } = getRequestContext();
-      db = env.DB;
+      // Try to get context
+      context = getRequestContext();
+      if (!context || !context.env) {
+        throw new Error('Context or env is undefined');
+      }
+      db = context.env.DB;
+      console.log('✅ Got DB from context');
     } catch (contextError: any) {
-      console.error('❌ Failed to get request context:', contextError.message);
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: '데이터베이스 연결 실패',
-          info: 'Request context not available. Make sure D1 binding is configured in Cloudflare Pages.',
-          error: contextError.message
-        },
-        { status: 500 }
-      );
+      console.error('❌ getRequestContext failed:', contextError);
+      
+      // Fallback: try to get from request directly (Cloudflare Workers style)
+      try {
+        // @ts-ignore - Cloudflare Workers binding
+        db = request.env?.DB;
+        if (db) {
+          console.log('✅ Got DB from request.env (fallback)');
+        }
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError);
+      }
+      
+      if (!db) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: '서버 설정 오류입니다. Cloudflare Pages 대시보드에서 D1 바인딩을 확인해주세요.',
+            info: 'D1 binding not accessible',
+            debug: {
+              contextError: contextError.message,
+              hasRequest: !!request,
+              requestKeys: request ? Object.keys(request) : []
+            }
+          },
+          { status: 500 }
+        );
+      }
     }
 
-    if (!db) {
-      console.error('❌ DB binding not found');
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: '데이터베이스가 연결되지 않았습니다',
-          info: 'DB binding is not configured. Check wrangler.toml and Cloudflare Pages settings.'
-        },
-        { status: 500 }
-      );
-    }
+    const body = await request.json();
+    console.log('📋 Request body:', { ...body, password: '***' });
 
     console.log('📝 Signup request received');
 
