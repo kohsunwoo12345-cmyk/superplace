@@ -71,7 +71,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
     
     // 관리자 메뉴 (ADMIN, SUPER_ADMIN) - 관리자 전용 + 일반 메뉴
     if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
-      console.log('✅ ModernLayout - Loading ADMIN menu (20 items)');
+      console.log('✅ ModernLayout - Loading ADMIN menu (21 items)');
       return [
         { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
         // 관리자 전용 메뉴
@@ -79,6 +79,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         { id: 'admin-academies', href: '/dashboard/admin/academies', icon: GraduationCap, text: '학원 관리' },
         { id: 'admin-director-limitations', href: '/dashboard/admin/director-limitations', icon: Shield, text: '학원장 제한 설정' },
         { id: 'admin-notifications', href: '/dashboard/admin/notifications', icon: Bell, text: '알림 관리' },
+        { id: 'admin-sms', href: '/dashboard/admin/sms', icon: MessageCircle, text: '문자 발송' },
         { id: 'admin-revenue', href: '/dashboard/admin/revenue', icon: DollarSign, text: '매출 관리' },
         { id: 'admin-pricing', href: '/dashboard/admin/pricing', icon: CreditCard, text: '요금제 관리' },
         { id: 'admin-seminars', href: '/dashboard/admin/seminars', icon: Presentation, text: '교육 세미나' },
