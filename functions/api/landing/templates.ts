@@ -4,6 +4,8 @@
 // PUT /api/landing/templates - Update a template
 // DELETE /api/landing/templates?id=xxx - Delete a template
 
+import { getUserFromAuth } from '../../_lib/auth';
+
 export async function onRequestGet(context) {
   const { env, request } = context;
   const authHeader = request.headers.get("Authorization");
@@ -80,11 +82,28 @@ export async function onRequestPost(context) {
   }
 
   try {
+    // Get user from token
+    const user = getUserFromAuth(request);
+    if (!user || !user.userId) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: "유효하지 않은 토큰입니다.",
+        message: "사용자 인증 실패"
+      }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const body = await request.json();
     const { name, description, html } = body;
 
     if (!name || !html) {
-      return new Response(JSON.stringify({ error: "Name and HTML are required" }), {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: "Name and HTML are required",
+        message: "템플릿 이름과 HTML이 필요합니다."
+      }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
@@ -103,8 +122,7 @@ export async function onRequestPost(context) {
     const templateId = `template_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
     const now = new Date().toISOString();
 
-    // TODO: Get user ID from token
-    const createdById = "admin"; // Replace with actual user ID from token
+    console.log("Creating template with userId:", user.userId);
 
     const insertResult = await env.DB.prepare(`
       INSERT INTO LandingPageTemplate (
@@ -116,14 +134,17 @@ export async function onRequestPost(context) {
       description || null,
       html,
       JSON.stringify(variables),
-      createdById,
+      user.userId,  // Use actual user ID from token
       now,
       now
     ).run();
 
     if (!insertResult.success) {
+      console.error("Database insert failed:", insertResult);
       throw new Error("Database insert failed");
     }
+
+    console.log("Template created successfully:", templateId);
 
     return new Response(JSON.stringify({
       success: true,
