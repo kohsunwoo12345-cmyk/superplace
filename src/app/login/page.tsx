@@ -23,52 +23,41 @@ export default function LoginPage() {
 
     console.log('🔐 로그인 시도:', { email, passwordLength: password.length });
 
-    // 클라이언트 사이드 인증 (하드코딩된 테스트 계정)
-    const testUsers = [
-      {
-        id: '1',
-        email: 'admin@superplace.co.kr',
-        password: 'admin1234!',
-        name: '슈퍼플레이스 관리자',
-        role: 'ADMIN',
-        academy_id: null,
-      },
-      {
-        id: '2',
-        email: 'test3@test.com',
-        password: 'test123',
-        name: '테스트 사용자',
-        role: 'ADMIN',
-        academy_id: null,
-      },
-    ];
-
     try {
-      // 사용자 찾기
-      const user = testUsers.find(
-        (u) => u.email === email && u.password === password
-      );
+      // Call login API
+      const response = await fetch('/api/auth/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      if (!user) {
-        console.error('❌ 로그인 실패: 계정을 찾을 수 없음');
-        setError('이메일 또는 비밀번호가 올바르지 않습니다');
+      const data = await response.json();
+
+      console.log('📡 Login API response:', { status: response.status, data });
+
+      if (!response.ok || !data.success) {
+        console.error('❌ 로그인 실패:', data.message);
+        setError(data.message || '이메일 또는 비밀번호가 올바르지 않습니다');
         setIsLoading(false);
         return;
       }
 
-      console.log('✅ 로그인 성공:', { userId: user.id, role: user.role });
-
-      // 간단한 토큰 생성
-      const token = `${user.id}.${user.email}.${user.role}.${Date.now()}`;
+      console.log('✅ 로그인 성공:', { userId: data.user.id, role: data.user.role });
 
       // Store token and user info
-      localStorage.setItem('token', token);
+      localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        academy_id: user.academy_id,
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        role: data.user.role,
+        academy_id: data.user.academyId,
+        academyName: data.user.academyName,
+        academyCode: data.user.academyCode,
+        studentCode: data.user.studentCode,
+        className: data.user.className,
       }));
 
       // Redirect to dashboard
