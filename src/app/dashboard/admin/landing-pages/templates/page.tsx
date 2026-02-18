@@ -64,16 +64,29 @@ export default function TemplatesPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
+      
+      if (!token) {
+        console.error("토큰이 없습니다");
+        alert("로그인이 필요합니다.");
+        return;
+      }
+
       const response = await fetch("/api/landing/templates", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      const data = await response.json();
+      console.log("템플릿 목록 조회 응답:", data);
+
+      if (response.ok && data.success) {
         setTemplates(data.templates || []);
+      } else {
+        console.error("템플릿 목록 조회 실패:", data);
+        alert(`템플릿 목록을 불러오지 못했습니다.\n\n오류: ${data.error || data.message || "Unknown error"}`);
       }
     } catch (error) {
       console.error("템플릿 목록 조회 실패:", error);
+      alert(`템플릿 목록을 불러오지 못했습니다.\n\n상세: ${error.message || error}`);
     } finally {
       setLoading(false);
     }
@@ -118,6 +131,8 @@ export default function TemplatesPage() {
         ? { ...formData, id: editingTemplate.id }
         : formData;
 
+      console.log("템플릿 저장 요청:", { method, body });
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -127,16 +142,23 @@ export default function TemplatesPage() {
         body: JSON.stringify(body),
       });
 
-      if (response.ok) {
-        alert(editingTemplate ? "템플릿이 수정되었습니다." : "템플릿이 생성되었습니다.");
+      const result = await response.json();
+      console.log("템플릿 저장 응답:", result);
+
+      if (response.ok && result.success) {
+        alert(editingTemplate ? "템플릿이 수정되었습니다. ✅" : "템플릿이 생성되었습니다. ✅");
         setDialogOpen(false);
-        fetchTemplates();
+        setFormData({ name: "", description: "", html: "" });
+        setEditingTemplate(null);
+        await fetchTemplates();
       } else {
-        throw new Error("저장 실패");
+        const errorMsg = result.error || result.message || "저장 실패";
+        console.error("저장 실패 상세:", result);
+        alert(`저장 중 오류가 발생했습니다.\n\n오류: ${errorMsg}`);
       }
     } catch (error) {
       console.error("템플릿 저장 실패:", error);
-      alert("저장 중 오류가 발생했습니다.");
+      alert(`저장 중 오류가 발생했습니다.\n\n상세: ${error.message || error}`);
     } finally {
       setSaving(false);
     }
@@ -157,15 +179,19 @@ export default function TemplatesPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.ok) {
-        alert("템플릿이 삭제되었습니다.");
-        fetchTemplates();
+      const result = await response.json();
+      console.log("템플릿 삭제 응답:", result);
+
+      if (response.ok && result.success) {
+        alert("템플릿이 삭제되었습니다. ✅");
+        await fetchTemplates();
       } else {
-        throw new Error("삭제 실패");
+        const errorMsg = result.error || result.message || "삭제 실패";
+        alert(`삭제 중 오류가 발생했습니다.\n\n오류: ${errorMsg}`);
       }
     } catch (error) {
       console.error("템플릿 삭제 실패:", error);
-      alert("삭제 중 오류가 발생했습니다.");
+      alert(`삭제 중 오류가 발생했습니다.\n\n상세: ${error.message || error}`);
     }
   };
 

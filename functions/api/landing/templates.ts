@@ -16,9 +16,16 @@ export async function onRequestGet(context) {
   }
 
   try {
-    const templates = await env.DB.prepare(`
+    const templatesResult = await env.DB.prepare(`
       SELECT 
-        t.*,
+        t.id,
+        t.name,
+        t.description,
+        t.html,
+        t.variables,
+        t.isDefault,
+        t.createdAt,
+        t.updatedAt,
         u.name as creatorName,
         (SELECT COUNT(*) FROM LandingPage WHERE templateId = t.id) as actualUsageCount
       FROM LandingPageTemplate t
@@ -26,16 +33,35 @@ export async function onRequestGet(context) {
       ORDER BY t.isDefault DESC, t.createdAt DESC
     `).all();
 
+    // Convert database result to proper format
+    const templates = (templatesResult.results || []).map(t => ({
+      id: t.id,
+      name: t.name,
+      description: t.description || "",
+      html: t.html,
+      variables: JSON.parse(t.variables || "[]"),
+      isDefault: Boolean(t.isDefault),
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+      usageCount: t.actualUsageCount || 0,
+      creatorName: t.creatorName || "",
+    }));
+
     return new Response(JSON.stringify({
-      templates: templates.results || [],
-      total: templates.results?.length || 0,
+      success: true,
+      templates: templates,
+      total: templates.length,
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Failed to fetch templates:", error);
-    return new Response(JSON.stringify({ error: "Failed to fetch templates" }), {
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: "Failed to fetch templates",
+      message: error.message || "Unknown error"
+    }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
@@ -80,7 +106,7 @@ export async function onRequestPost(context) {
     // TODO: Get user ID from token
     const createdById = "admin"; // Replace with actual user ID from token
 
-    await env.DB.prepare(`
+    const insertResult = await env.DB.prepare(`
       INSERT INTO LandingPageTemplate (
         id, name, description, html, variables, isDefault, usageCount, createdById, createdAt, updatedAt
       ) VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?)
@@ -95,16 +121,37 @@ export async function onRequestPost(context) {
       now
     ).run();
 
+    if (!insertResult.success) {
+      throw new Error("Database insert failed");
+    }
+
     return new Response(JSON.stringify({
+      success: true,
       id: templateId,
-      message: "Template created successfully",
+      message: "템플릿이 생성되었습니다.",
+      template: {
+        id: templateId,
+        name,
+        description: description || "",
+        html,
+        variables,
+        isDefault: false,
+        usageCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      }
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Failed to create template:", error);
-    return new Response(JSON.stringify({ error: "Failed to create template" }), {
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: "템플릿 저장에 실패했습니다.",
+      message: error.message || "Unknown error",
+      details: error.toString(),
+    }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
@@ -145,7 +192,7 @@ export async function onRequestPut(context) {
 
     const now = new Date().toISOString();
 
-    await env.DB.prepare(`
+    const updateResult = await env.DB.prepare(`
       UPDATE LandingPageTemplate
       SET name = ?, description = ?, html = ?, variables = ?, updatedAt = ?
       WHERE id = ?
@@ -158,15 +205,24 @@ export async function onRequestPut(context) {
       id
     ).run();
 
+    if (!updateResult.success) {
+      throw new Error("Database update failed");
+    }
+
     return new Response(JSON.stringify({
-      message: "Template updated successfully",
+      success: true,
+      message: "템플릿이 수정되었습니다.",
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Failed to update template:", error);
-    return new Response(JSON.stringify({ error: "Failed to update template" }), {
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: "템플릿 수정에 실패했습니다.",
+      message: error.message || "Unknown error"
+    }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
@@ -202,26 +258,36 @@ export async function onRequestDelete(context) {
 
     if (usageCount && usageCount.count > 0) {
       return new Response(JSON.stringify({
-        error: `Template is being used by ${usageCount.count} landing pages`,
+        success: false,
+        error: `템플릿이 ${usageCount.count}개의 랜딩페이지에서 사용 중입니다.`,
       }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    await env.DB.prepare(`
+    const deleteResult = await env.DB.prepare(`
       DELETE FROM LandingPageTemplate WHERE id = ?
     `).bind(id).run();
 
+    if (!deleteResult.success) {
+      throw new Error("Database delete failed");
+    }
+
     return new Response(JSON.stringify({
-      message: "Template deleted successfully",
+      success: true,
+      message: "템플릿이 삭제되었습니다.",
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Failed to delete template:", error);
-    return new Response(JSON.stringify({ error: "Failed to delete template" }), {
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: "템플릿 삭제에 실패했습니다.",
+      message: error.message || "Unknown error"
+    }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
