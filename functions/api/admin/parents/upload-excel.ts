@@ -1,4 +1,4 @@
-import { verifyToken } from '@/lib/auth';
+import { decodeToken as verifyToken } from '../../_lib/auth';
 import { nanoid } from 'nanoid';
 
 interface Env {

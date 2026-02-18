@@ -22,12 +22,3 @@ database_id = "8c106540-21b4-4fa9-8879-c4956e459ca1"
 # Get your API key from: https://makersuite.google.com/app/apikey
 [vars]
 # Add other non-sensitive variables here if needed
-
-# Exclude Prisma from Functions build (Cloudflare D1 is used instead)
-[build]
-command = ""
-
-[build.upload]
-rules = [
-  { type = "Text", globs = ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"], fallthrough = true }
-]

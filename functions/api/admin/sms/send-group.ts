@@ -1,4 +1,4 @@
-import { verifyToken } from '@/lib/auth';
+import { decodeToken as verifyToken } from '../../../_lib/auth';
 import { sendSMS } from '@/lib/solapi';
 import { nanoid } from 'nanoid';
 

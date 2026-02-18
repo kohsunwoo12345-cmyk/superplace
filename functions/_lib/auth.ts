@@ -71,6 +71,9 @@ export function decodeToken(token: string): any {
   }
 }
 
+// verifyToken alias for compatibility
+export const verifyToken = decodeToken;
+
 // Authorization 헤더에서 사용자 정보 추출
 export function getUserFromAuth(request: Request): any {
   const authHeader = request.headers.get("Authorization");
