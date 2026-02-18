@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>템플릿 디버깅</title>
+  <style>
+    body {
+      font-family: system-ui;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f3f4f6;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1f2937;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 8px;
+      border-left: 4px solid #3b82f6;
+    }
+    .section h2 {
+      margin-top: 0;
+      color: #3b82f6;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    pre {
+      background: #1f2937;
+      color: #10b981;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .success {
+      color: #10b981;
+      font-weight: bold;
+    }
+    .error {
+      color: #ef4444;
+      font-weight: bold;
+    }
+    .info {
+      color: #3b82f6;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 랜딩페이지 템플릿 디버깅</h1>
+    
+    <div class="section">
+      <h2>1단계: 테이블 존재 확인</h2>
+      <button onclick="checkTable()">테이블 확인</button>
+      <div id="tableResult"></div>
+    </div>
+
+    <div class="section">
+      <h2>2단계: 템플릿 개수 확인</h2>
+      <button onclick="checkCount()">템플릿 개수 조회</button>
+      <div id="countResult"></div>
+    </div>
+
+    <div class="section">
+      <h2>3단계: API 엔드포인트 테스트</h2>
+      <button onclick="testAPI()">API 호출</button>
+      <div id="apiResult"></div>
+    </div>
+
+    <div class="section">
+      <h2>4단계: 토큰 확인</h2>
+      <button onclick="checkToken()">토큰 확인</button>
+      <div id="tokenResult"></div>
+    </div>
+
+    <div class="section">
+      <h2>5단계: 직접 템플릿 삽입 (Wrangler 명령어)</h2>
+      <p>터미널에서 아래 명령어를 실행하세요:</p>
+      <pre>npx wrangler d1 execute superplace-study-db --command="SELECT COUNT(*) FROM LandingPageTemplate"</pre>
+      <p>만약 0이 나오면:</p>
+      <pre>npx wrangler d1 execute superplace-study-db --file=insert_templates.sql</pre>
+    </div>
+  </div>
+
+  <script>
+    // 1. 테이블 확인
+    async function checkTable() {
+      const resultDiv = document.getElementById('tableResult');
+      resultDiv.innerHTML = '<p class="info">확인 중...</p>';
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          resultDiv.innerHTML = '<p class="error">❌ 토큰이 없습니다. 먼저 로그인하세요.</p>';
+          return;
+        }
+
+        // Cloudflare Pages Function을 통한 확인은 불가능하므로 API를 통해 간접 확인
+        const response = await fetch('/api/landing/templates', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        
+        if (data.message && data.message.includes('생성되지 않았습니다')) {
+          resultDiv.innerHTML = `
+            <p class="error">❌ LandingPageTemplate 테이블이 없습니다!</p>
+            <p>해결 방법: 터미널에서 다음 명령어 실행</p>
+            <pre>npx wrangler d1 execute superplace-study-db --file=cloudflare-worker/schema.sql</pre>
+          `;
+        } else if (response.ok) {
+          resultDiv.innerHTML = `
+            <p class="success">✅ LandingPageTemplate 테이블이 존재합니다</p>
+            <p>템플릿 개수: ${data.templates?.length || 0}개</p>
+          `;
+        } else {
+          resultDiv.innerHTML = `<p class="error">❌ 오류: ${data.error || '알 수 없는 오류'}</p>`;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `<p class="error">❌ 오류: ${error.message}</p>`;
+      }
+    }
+
+    // 2. 템플릿 개수 확인
+    async function checkCount() {
+      const resultDiv = document.getElementById('countResult');
+      resultDiv.innerHTML = '<p class="info">확인 중...</p>';
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          resultDiv.innerHTML = '<p class="error">❌ 토큰이 없습니다.</p>';
+          return;
+        }
+
+        const response = await fetch('/api/landing/templates', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          const count = data.templates?.length || 0;
+          
+          if (count === 0) {
+            resultDiv.innerHTML = `
+              <p class="error">❌ 템플릿이 0개입니다!</p>
+              <p>해결 방법: 터미널에서 다음 명령어 실행</p>
+              <pre>npx wrangler d1 execute superplace-study-db --file=insert_templates.sql</pre>
+            `;
+          } else {
+            resultDiv.innerHTML = `
+              <p class="success">✅ 템플릿 ${count}개 발견</p>
+              <pre>${JSON.stringify(data.templates.map(t => ({id: t.id, name: t.name})), null, 2)}</pre>
+            `;
+          }
+        } else {
+          resultDiv.innerHTML = `<p class="error">❌ 오류: ${data.error || data.message}</p>`;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `<p class="error">❌ 오류: ${error.message}</p>`;
+      }
+    }
+
+    // 3. API 테스트
+    async function testAPI() {
+      const resultDiv = document.getElementById('apiResult');
+      resultDiv.innerHTML = '<p class="info">API 호출 중...</p>';
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          resultDiv.innerHTML = '<p class="error">❌ 토큰이 없습니다.</p>';
+          return;
+        }
+
+        console.log('🔑 Token:', token.substring(0, 20) + '...');
+
+        const response = await fetch('/api/landing/templates', {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('📡 Response status:', response.status);
+        
+        const data = await response.json();
+        console.log('📦 Response data:', data);
+        
+        resultDiv.innerHTML = `
+          <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+          <p><strong>Success:</strong> ${data.success ? '✅ Yes' : '❌ No'}</p>
+          <p><strong>템플릿 개수:</strong> ${data.templates?.length || 0}</p>
+          <p><strong>전체 응답:</strong></p>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <p class="error">❌ API 호출 실패</p>
+          <pre>${error.message}\n${error.stack}</pre>
+        `;
+      }
+    }
+
+    // 4. 토큰 확인
+    function checkToken() {
+      const resultDiv = document.getElementById('tokenResult');
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        resultDiv.innerHTML = '<p class="error">❌ 토큰이 localStorage에 없습니다. 로그인이 필요합니다.</p>';
+        return;
+      }
+
+      const parts = token.split('.');
+      
+      resultDiv.innerHTML = `
+        <p class="success">✅ 토큰이 존재합니다</p>
+        <p><strong>토큰 길이:</strong> ${token.length} 문자</p>
+        <p><strong>형식:</strong> ${parts.length === 3 ? 'JWT 형식' : '일반 토큰'}</p>
+        <p><strong>첫 20자:</strong> <code>${token.substring(0, 20)}...</code></p>
+        ${parts.length === 3 ? `
+          <p><strong>JWT Payload (디코딩):</strong></p>
+          <pre>${JSON.stringify(JSON.parse(atob(parts[1])), null, 2)}</pre>
+        ` : ''}
+      `;
+    }
+
+    // 페이지 로드 시 자동 실행
+    window.addEventListener('load', () => {
+      console.log('🚀 디버깅 페이지 로드됨');
+      checkToken();
+    });
+  </script>
+</body>
+</html>
