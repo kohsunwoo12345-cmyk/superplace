@@ -226,20 +226,23 @@ export default function LandingPageBuilderPage() {
     try {
       setSaving(true);
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/landing/create", {
+      const response = await fetch("/api/admin/landing-pages", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...data,
           slug,
-          inputData: data.input_data,
+          title: data.title,
+          subtitle: data.subtitle,
+          description: data.description,
           templateType: data.template_type,
           templateHtml: data.template_html,
+          inputData: data.input_data,
           ogTitle: data.og_title,
           ogDescription: data.og_description,
+          thumbnail: data.thumbnail,
           folderId: data.folder_id,
           showQrCode: data.show_qr_code,
           qrCodePosition: data.qr_code_position,
@@ -249,7 +252,8 @@ export default function LandingPageBuilderPage() {
 
       if (response.ok) {
         const result = await response.json();
-        alert(`랜딩페이지가 생성되었습니다!\n\nURL: ${result.url}`);
+        const pageUrl = result.landingPage?.url || result.url || `/lp/${slug}`;
+        alert(`랜딩페이지가 생성되었습니다!\n\nURL: ${window.location.origin}${pageUrl}`);
         localStorage.removeItem("landing_page_draft");
         router.push("/dashboard/admin/landing-pages");
       } else {
