@@ -1,36 +1,28 @@
 #!/bin/bash
-# Cloudflare Pages Build Script - Final Version
-# This script must be used as the Build command in Cloudflare Pages dashboard
 
-set -e
+# Cloudflare Pages Build Script for Super Place
+# This script builds the Next.js application for Cloudflare Pages deployment
 
-echo "🚀 Step 1: Building with @cloudflare/next-on-pages..."
-npx @cloudflare/next-on-pages
+set -e  # Exit on error
 
-echo ""
-echo "📦 Step 2: Copying .vercel/output/static to out/ directory..."
-rm -rf out
-cp -r .vercel/output/static out
+echo "🚀 Starting Cloudflare Pages build..."
 
-echo ""
-echo "✅ Step 3: Verifying build output..."
-if [ -d "out" ]; then
-  echo "✅ out/ directory exists"
-  ls -la out/ | head -10
-else
-  echo "❌ ERROR: out/ directory not found!"
-  exit 1
-fi
+# Check Node.js version
+echo "📦 Node.js version: $(node -v)"
+echo "📦 npm version: $(npm -v)"
 
-echo ""
-echo "📂 Step 4: Checking _worker.js..."
-if [ -d "out/_worker.js" ]; then
-  echo "✅ _worker.js directory exists"
-  ls -la out/_worker.js/ | head -5
-else
-  echo "❌ ERROR: _worker.js directory not found!"
-  exit 1
-fi
+# Install dependencies (should already be done by Cloudflare)
+echo "📥 Dependencies already installed by Cloudflare"
 
-echo ""
-echo "🎉 Build complete! Ready for deployment."
+# Build Next.js application
+echo "🔨 Building Next.js application..."
+npm run build
+
+# Verify build output
+echo "✅ Build completed successfully!"
+echo "📁 Build output directory: out/"
+
+# List output directory contents
+ls -la out/ || echo "Warning: out directory not found"
+
+echo "🎉 Cloudflare Pages build complete!"
