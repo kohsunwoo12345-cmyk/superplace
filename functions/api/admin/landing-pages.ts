@@ -7,13 +7,27 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
   try {
     const authHeader = context.request.headers.get("authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: "유효하지 않은 토큰입니다." }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
       });
     }
 
+    // Verify token
+    const token = authHeader.replace("Bearer ", "");
     const db = context.env.DB;
+    
+    const user = await db
+      .prepare(`SELECT id, role FROM User WHERE token = ?`)
+      .bind(token)
+      .first();
+
+    if (!user || (user.role !== "admin" && user.role !== "director")) {
+      return new Response(JSON.stringify({ error: "유효하지 않은 토큰입니다." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     // Get all landing pages with additional info
     const landingPages = await db
@@ -69,7 +83,23 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
   try {
     const authHeader = context.request.headers.get("authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: "유효하지 않은 토큰입니다." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify token
+    const token = authHeader.replace("Bearer ", "");
+    const db = context.env.DB;
+    
+    const user = await db
+      .prepare(`SELECT id, role FROM User WHERE token = ?`)
+      .bind(token)
+      .first();
+
+    if (!user || (user.role !== "admin" && user.role !== "director")) {
+      return new Response(JSON.stringify({ error: "유효하지 않은 토큰입니다." }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
       });

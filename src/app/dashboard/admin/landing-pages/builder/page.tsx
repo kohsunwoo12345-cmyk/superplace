@@ -33,6 +33,7 @@ import {
   Upload,
   Code,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import QRCodeReact from "qrcode.react";
 
@@ -112,7 +113,7 @@ export default function LandingPageBuilderPage() {
     { type: "checkbox", label: "체크박스", icon: CheckSquare },
   ];
 
-  // 폴더 목록 불러오기
+  // 폴더 목록 불러오기 및 템플릿 데이터 로드
   useEffect(() => {
     const fetchFolders = async () => {
       try {
@@ -129,6 +130,22 @@ export default function LandingPageBuilderPage() {
       }
     };
     fetchFolders();
+
+    // 템플릿 데이터 로드
+    const savedDraft = localStorage.getItem("landing_page_draft");
+    if (savedDraft) {
+      try {
+        const draftData = JSON.parse(savedDraft);
+        setData({ ...data, ...draftData });
+        if (draftData.thumbnail) {
+          setThumbnailPreview(draftData.thumbnail);
+        }
+        // 로드 후 삭제 (선택사항)
+        // localStorage.removeItem("landing_page_draft");
+      } catch (error) {
+        console.error("템플릿 데이터 로드 실패:", error);
+      }
+    }
   }, []);
 
   const addCustomField = (type: CustomField["type"]) => {
@@ -359,6 +376,15 @@ export default function LandingPageBuilderPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
+              className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 hover:from-purple-100 hover:to-pink-100"
+            >
+              <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
+              <span className="text-purple-700">템플릿</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={clearCache}>
               <RefreshCw className="w-4 h-4 mr-2" />
               캐시 초기화

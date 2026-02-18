@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Download,
   FolderOpen,
+  Sparkles,
 } from "lucide-react";
 
 interface LandingPage {
@@ -158,6 +159,14 @@ export default function LandingPagesPage() {
             >
               <FolderOpen className="w-4 h-4 mr-2" />
               폴더 관리
+            </Button>
+            <Button
+              onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
+              variant="outline"
+              className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 hover:from-purple-100 hover:to-pink-100"
+            >
+              <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
+              <span className="text-purple-700">템플릿 갤러리</span>
             </Button>
             <Button
               onClick={() => router.push("/dashboard/admin/landing-pages/builder")}
