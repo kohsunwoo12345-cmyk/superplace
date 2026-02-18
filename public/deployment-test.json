@@ -1,0 +1,20 @@
+{
+  "deployment_test": true,
+  "commit": "f6bfb18",
+  "timestamp": "2024-02-18T14:45:00Z",
+  "branch": "main",
+  "landing_pages_deployed": true,
+  "files": [
+    "/dashboard/admin/landing-pages/index.html",
+    "/dashboard/admin/landing-pages/builder/index.html",
+    "/dashboard/admin/landing-pages/folders/index.html",
+    "/dashboard/admin/landing-pages/submissions/index.html"
+  ],
+  "test_urls": [
+    "https://superplace-study.pages.dev/dashboard/admin/landing-pages",
+    "https://superplace-study.pages.dev/dashboard/admin/landing-pages/builder",
+    "https://superplace-study.pages.dev/dashboard/admin/landing-pages/folders",
+    "https://superplace-study.pages.dev/dashboard/admin/landing-pages/submissions"
+  ],
+  "instructions": "이 파일이 보인다면 최신 배포가 완료된 것입니다. 위 test_urls를 브라우저에서 직접 테스트하세요."
+}

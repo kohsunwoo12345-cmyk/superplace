@@ -33,9 +33,7 @@ import {
   Upload,
   Code,
   RefreshCw,
-  Sparkles,
 } from "lucide-react";
-import QRCodeReact from "qrcode.react";
 
 interface CustomField {
   id: string;
@@ -113,7 +111,7 @@ export default function LandingPageBuilderPage() {
     { type: "checkbox", label: "체크박스", icon: CheckSquare },
   ];
 
-  // 폴더 목록 불러오기 및 템플릿 데이터 로드
+  // 폴더 목록 불러오기
   useEffect(() => {
     const fetchFolders = async () => {
       try {
@@ -130,22 +128,6 @@ export default function LandingPageBuilderPage() {
       }
     };
     fetchFolders();
-
-    // 템플릿 데이터 로드
-    const savedDraft = localStorage.getItem("landing_page_draft");
-    if (savedDraft) {
-      try {
-        const draftData = JSON.parse(savedDraft);
-        setData({ ...data, ...draftData });
-        if (draftData.thumbnail) {
-          setThumbnailPreview(draftData.thumbnail);
-        }
-        // 로드 후 삭제 (선택사항)
-        // localStorage.removeItem("landing_page_draft");
-      } catch (error) {
-        console.error("템플릿 데이터 로드 실패:", error);
-      }
-    }
   }, []);
 
   const addCustomField = (type: CustomField["type"]) => {
@@ -361,51 +343,65 @@ export default function LandingPageBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 헤더 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => router.back()}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              뒤로가기
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">랜딩페이지 빌더</h1>
-              <p className="text-gray-600 mt-1">템플릿을 자유롭게 편집하고 커스텀 필드를 추가하세요</p>
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="outline" onClick={() => router.back()}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                뒤로가기
+              </Button>
+              <div>
+                <h1 className="text-4xl font-bold text-indigo-700">🎨 랜딩페이지 빌더</h1>
+                <p className="text-gray-600 mt-2 text-lg">
+                  썸네일, 폼양식, HTML 템플릿을 자유롭게 편집하세요
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={clearCache}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                캐시 초기화
+              </Button>
+              <Button variant="outline" onClick={handlePreview} size="lg">
+                <Eye className="w-4 h-4 mr-2" />
+                미리보기
+              </Button>
+              <Button onClick={handleSave} disabled={saving} className="bg-indigo-600 hover:bg-indigo-700" size="lg">
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    저장 중...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    저장하기
+                  </>
+                )}
+              </Button>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
-              className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 hover:from-purple-100 hover:to-pink-100"
-            >
-              <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
-              <span className="text-purple-700">템플릿</span>
-            </Button>
-            <Button variant="outline" size="sm" onClick={clearCache}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              캐시 초기화
-            </Button>
-            <Button variant="outline" onClick={handlePreview}>
-              <Eye className="w-4 h-4 mr-2" />
-              미리보기
-            </Button>
-            <Button onClick={handleSave} disabled={saving} className="bg-indigo-600 hover:bg-indigo-700">
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  저장 중...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  저장하기
-                </>
-              )}
-            </Button>
+        </div>
+
+        {/* 안내 배너 */}
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg p-6 shadow-lg">
+          <h2 className="text-2xl font-bold mb-3">✨ 랜딩페이지 제작 가이드</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white/10 rounded p-3">
+              <p className="font-semibold mb-1">1️⃣ 썸네일 & 제목 설정</p>
+              <p className="text-sm">이미지 업로드 + 제목/부제목 입력</p>
+            </div>
+            <div className="bg-white/10 rounded p-3">
+              <p className="font-semibold mb-1">2️⃣ 폼 양식 추가</p>
+              <p className="text-sm">오른쪽에서 필드 추가 버튼 클릭</p>
+            </div>
+            <div className="bg-white/10 rounded p-3">
+              <p className="font-semibold mb-1">3️⃣ HTML 템플릿 편집</p>
+              <p className="text-sm">커스텀 템플릿 선택 시 코드 편집 가능</p>
+            </div>
           </div>
         </div>
 
@@ -413,25 +409,38 @@ export default function LandingPageBuilderPage() {
           {/* 왼쪽: 편집 */}
           <div className="space-y-6">
             {/* 템플릿 타입 선택 */}
-            <Card>
-              <CardHeader>
-                <CardTitle>템플릿 선택</CardTitle>
-                <CardDescription>용도에 맞는 템플릿을 선택하세요</CardDescription>
+            <Card className="border-2 border-indigo-200 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50">
+                <CardTitle className="text-2xl flex items-center gap-2">
+                  <Code className="w-6 h-6 text-indigo-600" />
+                  템플릿 선택
+                </CardTitle>
+                <CardDescription className="text-base">
+                  용도에 맞는 템플릿을 선택하세요. <strong>커스텀 선택 시 HTML 편집 가능!</strong>
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3">
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-2 gap-4">
                   {templateTypes.map((template) => (
                     <button
                       key={template.value}
                       onClick={() => setData({ ...data, template_type: template.value })}
-                      className={`p-4 border-2 rounded-lg text-left transition-all hover:border-indigo-400 ${
+                      className={`p-6 border-3 rounded-xl text-left transition-all hover:border-indigo-400 hover:shadow-lg ${
                         data.template_type === template.value
-                          ? "border-indigo-600 bg-indigo-50"
-                          : "border-gray-200"
+                          ? "border-indigo-600 bg-indigo-50 shadow-lg scale-105"
+                          : "border-gray-300"
                       }`}
                     >
-                      <div className="font-semibold text-sm mb-1">{template.label}</div>
-                      <div className="text-xs text-gray-600">{template.description}</div>
+                      <div className="font-bold text-base mb-2 flex items-center gap-2">
+                        {template.value === "custom" && <Code className="w-5 h-5 text-purple-600" />}
+                        {template.label}
+                      </div>
+                      <div className="text-sm text-gray-600">{template.description}</div>
+                      {template.value === "custom" && (
+                        <div className="mt-2 text-xs text-purple-600 font-semibold">
+                          ⚡ HTML 코드 직접 편집 가능
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -492,30 +501,47 @@ export default function LandingPageBuilderPage() {
             </Card>
 
             {/* 썸네일 업로드 */}
-            <Card>
-              <CardHeader>
-                <CardTitle>썸네일 이미지</CardTitle>
-                <CardDescription>대표 이미지를 업로드하세요</CardDescription>
+            <Card className="border-2 border-green-200 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                <CardTitle className="text-2xl flex items-center gap-2">
+                  <ImageIcon className="w-6 h-6 text-green-600" />
+                  썸네일 이미지 (제목 이미지)
+                </CardTitle>
+                <CardDescription className="text-base">
+                  <strong>대표 이미지를 업로드하세요</strong> - 랜딩페이지 상단에 표시됩니다
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 pt-6">
                 <div>
-                  <Label htmlFor="thumbnail">이미지 업로드</Label>
-                  <div className="mt-2">
+                  <Label htmlFor="thumbnail" className="text-lg font-semibold">이미지 업로드</Label>
+                  <div className="mt-3">
                     <label
                       htmlFor="thumbnail"
-                      className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 transition-colors"
+                      className={`flex items-center justify-center w-full h-48 border-4 border-dashed rounded-2xl cursor-pointer transition-all ${
+                        thumbnailPreview 
+                          ? "border-green-400 bg-green-50" 
+                          : "border-gray-300 hover:border-green-400 hover:bg-green-50"
+                      }`}
                     >
                       {thumbnailPreview ? (
-                        <img
-                          src={thumbnailPreview}
-                          alt="Thumbnail Preview"
-                          className="h-full object-contain rounded"
-                        />
+                        <div className="relative w-full h-full p-2">
+                          <img
+                            src={thumbnailPreview}
+                            alt="Thumbnail Preview"
+                            className="w-full h-full object-contain rounded"
+                          />
+                          <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                            ✓ 업로드됨
+                          </div>
+                        </div>
                       ) : (
                         <div className="text-center">
-                          <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-                          <p className="text-sm text-gray-600">클릭하여 이미지 업로드</p>
-                          <p className="text-xs text-gray-400 mt-1">JPG, PNG 권장</p>
+                          <Upload className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                          <p className="text-lg font-semibold text-gray-700">클릭하여 썸네일 업로드</p>
+                          <p className="text-sm text-gray-500 mt-2">JPG, PNG 권장 (최대 5MB)</p>
+                          <p className="text-xs text-indigo-600 mt-3 font-semibold">
+                            💡 랜딩페이지 상단에 큰 이미지로 표시됩니다
+                          </p>
                         </div>
                       )}
                     </label>
@@ -535,11 +561,47 @@ export default function LandingPageBuilderPage() {
                         setThumbnailPreview("");
                         setData({ ...data, thumbnail: "" });
                       }}
-                      className="mt-2 w-full"
+                      className="mt-3 w-full border-red-300 text-red-600 hover:bg-red-50"
                     >
+                      <Trash2 className="w-4 h-4 mr-2" />
                       이미지 제거
                     </Button>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* HTML 템플릿 편집 - 항상 표시 */}
+            <Card className="border-2 border-purple-200 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50">
+                <CardTitle className="text-2xl flex items-center gap-2">
+                  <Code className="w-6 h-6 text-purple-600" />
+                  🎨 HTML 템플릿 편집
+                </CardTitle>
+                <CardDescription className="text-base">
+                  <strong>커스텀 HTML 코드를 직접 편집하세요</strong>
+                  {data.template_type !== "custom" && (
+                    <span className="block mt-2 text-amber-600 font-semibold">
+                      ⚠️ 현재는 "{templateTypes.find(t => t.value === data.template_type)?.label}" 템플릿이 적용됩니다.
+                      HTML 편집을 활성화하려면 위에서 "커스텀 HTML" 템플릿을 선택하세요.
+                    </span>
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <Textarea
+                  value={data.template_html}
+                  onChange={(e) => setData({ ...data, template_html: e.target.value })}
+                  placeholder="<div>...</div>"
+                  rows={20}
+                  className="font-mono text-sm"
+                  disabled={data.template_type !== "custom"}
+                />
+                <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <p className="text-xs text-purple-800">
+                    💡 <strong>팁:</strong> HTML 편집을 활성화하려면 상단에서 <strong>"커스텀 HTML" 템플릿</strong>을 선택하세요.
+                    폼 필드는 오른쪽 "입력 폼 필드" 섹션에서 추가할 수 있습니다.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -583,30 +645,6 @@ export default function LandingPageBuilderPage() {
               </CardContent>
             </Card>
 
-            {data.template_type === "custom" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Code className="w-5 h-5" />
-                    커스텀 HTML 편집
-                  </CardTitle>
-                  <CardDescription>HTML 코드를 직접 편집할 수 있습니다</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={data.template_html}
-                    onChange={(e) => setData({ ...data, template_html: e.target.value })}
-                    placeholder="<div>...</div>"
-                    rows={20}
-                    className="font-mono text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    💡 팁: 폼 필드를 추가하려면 오른쪽 "커스텀 필드" 섹션을 사용하세요
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
             <Card>
               <CardHeader>
                 <CardTitle>SEO & 소셜 미디어</CardTitle>
@@ -642,32 +680,32 @@ export default function LandingPageBuilderPage() {
 
           {/* 오른쪽: 커스텀 필드 */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
+            <Card className="border-2 border-blue-200 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>입력 폼 필드</CardTitle>
-                    <CardDescription className="mt-1">
-                      신청자가 입력할 폼 항목을 추가하세요
+                    <CardTitle className="text-2xl">📝 입력 폼 필드</CardTitle>
+                    <CardDescription className="mt-1 text-base">
+                      <strong>신청자가 입력할 폼 항목을 추가하세요</strong>
                     </CardDescription>
                   </div>
-                  <Badge variant="secondary">{data.input_data.length}개 필드</Badge>
+                  <Badge variant="secondary" className="text-lg px-3 py-1">{data.input_data.length}개 필드</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* 필드 타입 선택 */}
+                {/* 필드 타입 선택 - 더 큰 버튼 */}
                 <div>
-                  <Label className="mb-2 block">필드 추가</Label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <Label className="mb-3 block text-lg font-semibold">🔽 필드 추가하기</Label>
+                  <div className="grid grid-cols-2 gap-3">
                     {fieldTypes.map(({ type, label, icon: Icon }) => (
                       <Button
                         key={type}
                         variant="outline"
-                        size="sm"
+                        size="lg"
                         onClick={() => addCustomField(type as CustomField["type"])}
-                        className="justify-start"
+                        className="justify-start h-14 border-2 hover:border-blue-400 hover:bg-blue-50 font-semibold"
                       >
-                        <Icon className="w-4 h-4 mr-2" />
+                        <Icon className="w-5 h-5 mr-2" />
                         {label}
                       </Button>
                     ))}

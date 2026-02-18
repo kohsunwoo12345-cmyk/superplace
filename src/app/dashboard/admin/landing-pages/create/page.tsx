@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,6 +17,10 @@ import {
   CheckCircle,
   Eye,
   Save,
+  Upload,
+  Plus,
+  Trash2,
+  ImageIcon,
 } from "lucide-react";
 
 interface Student {
@@ -35,19 +40,44 @@ interface DataOptions {
 }
 
 interface Folder {
-  id: number;
+  id: string;
   name: string;
   pagesCount: number;
+}
+
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  isDefault: boolean;
+}
+
+interface CustomFormField {
+  id: string;
+  type: "text" | "textarea" | "email" | "phone" | "checkbox";
+  label: string;
+  placeholder?: string;
+  required: boolean;
 }
 
 export default function CreateLandingPagePage() {
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [title, setTitle] = useState("");
+  const [subtitle, setSubtitle] = useState("");
+  const [thumbnail, setThumbnail] = useState("");
+  const [thumbnailPreview, setThumbnailPreview] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [customFormFields, setCustomFormFields] = useState<CustomFormField[]>([]);
 
   const [dataOptions, setDataOptions] = useState<DataOptions>({
     showBasicInfo: true,
@@ -66,11 +96,14 @@ export default function CreateLandingPagePage() {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      const [studentsRes, foldersRes] = await Promise.all([
+      const [studentsRes, foldersRes, templatesRes] = await Promise.all([
         fetch("/api/admin/users?role=STUDENT", {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch("/api/landing/folders", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("/api/landing/templates", {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -84,11 +117,66 @@ export default function CreateLandingPagePage() {
         const data = await foldersRes.json();
         setFolders(data.folders || []);
       }
+
+      if (templatesRes.ok) {
+        const data = await templatesRes.json();
+        console.log("📋 Templates API Response:", data);
+        console.log("📋 Templates count:", data.templates?.length || 0);
+        setTemplates(data.templates || []);
+        // 기본 템플릿 자동 선택
+        const defaultTemplate = data.templates.find((t: Template) => t.isDefault);
+        if (defaultTemplate) {
+          console.log("✅ Default template selected:", defaultTemplate);
+          setSelectedTemplate(defaultTemplate.id);
+        } else {
+          console.warn("⚠️ No default template found");
+        }
+      } else {
+        console.error("❌ Templates API failed:", templatesRes.status, templatesRes.statusText);
+        const errorData = await templatesRes.json().catch(() => ({}));
+        console.error("❌ Error details:", errorData);
+      }
     } catch (error) {
       console.error("데이터 조회 실패:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setThumbnail(base64);
+        setThumbnailPreview(base64);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const addFormField = (type: CustomFormField["type"]) => {
+    const newField: CustomFormField = {
+      id: `field_${Date.now()}`,
+      type,
+      label: "",
+      placeholder: "",
+      required: false,
+    };
+    setCustomFormFields([...customFormFields, newField]);
+  };
+
+  const updateFormField = (id: string, updates: Partial<CustomFormField>) => {
+    setCustomFormFields(
+      customFormFields.map((field) =>
+        field.id === id ? { ...field, ...updates } : field
+      )
+    );
+  };
+
+  const removeFormField = (id: string) => {
+    setCustomFormFields(customFormFields.filter((field) => field.id !== id));
   };
 
   const handleCreateLandingPage = async () => {
@@ -102,9 +190,22 @@ export default function CreateLandingPagePage() {
       return;
     }
 
+    if (!startDate || !endDate) {
+      alert("기간을 선택해주세요.");
+      return;
+    }
+
+    if (!selectedTemplate) {
+      alert("템플릿을 선택해주세요.");
+      return;
+    }
+
     try {
       setCreating(true);
       const token = localStorage.getItem("token");
+      
+      const slug = `lp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      
       const response = await fetch("/api/admin/landing-pages", {
         method: "POST",
         headers: {
@@ -112,22 +213,34 @@ export default function CreateLandingPagePage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          slug,
           studentId: selectedStudent,
-          title,
+          title: title.trim(),
+          subtitle: subtitle.trim(),
+          thumbnail,
+          templateId: selectedTemplate,
+          startDate,
+          endDate,
           dataOptions,
+          customFormFields,
+          folderId: selectedFolder || null,
+          isActive: true,
         }),
       });
 
       if (response.ok) {
-        const data = await response.json();
-        alert("랜딩페이지가 생성되었습니다!");
+        const result = await response.json();
+        const pageUrl = result.landingPage?.url || result.url || `/lp/${slug}`;
+        alert(`랜딩페이지가 생성되었습니다!\n\nURL: ${window.location.origin}${pageUrl}`);
         router.push("/dashboard/admin/landing-pages");
       } else {
-        throw new Error("생성 실패");
+        const error = await response.json();
+        console.error("생성 실패:", error);
+        alert(error.error || error.message || "생성 중 오류가 발생했습니다.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("랜딩페이지 생성 실패:", error);
-      alert("생성 중 오류가 발생했습니다.");
+      alert(error.message || "생성 중 오류가 발생했습니다.");
     } finally {
       setCreating(false);
     }
@@ -138,8 +251,7 @@ export default function CreateLandingPagePage() {
       alert("학생을 선택해주세요.");
       return;
     }
-    // 미리보기 모달이나 새 탭에서 프리뷰 표시
-    alert("미리보기 기능은 곧 추가됩니다.");
+    alert("미리보기 기능은 저장 후 생성된 URL에서 확인하실 수 있습니다.");
   };
 
   const filteredStudents = students.filter(
@@ -159,25 +271,28 @@ export default function CreateLandingPagePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* 헤더 */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => router.push("/dashboard/admin/landing-pages")}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            뒤로가기
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <GraduationCap className="h-8 w-8 text-indigo-600" />
-              새 학습 리포트 랜딩페이지 만들기
-            </h1>
-            <p className="text-gray-600 mt-1">
-              학생을 선택하고 표시할 데이터를 설정하세요
-            </p>
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/dashboard/admin/landing-pages")}
+              size="lg"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              뒤로가기
+            </Button>
+            <div>
+              <h1 className="text-4xl font-bold flex items-center gap-2 text-indigo-700">
+                <GraduationCap className="h-10 w-10" />
+                ✨ 새 학습 리포트 랜딩페이지 만들기
+              </h1>
+              <p className="text-gray-600 mt-2 text-lg">
+                학생을 선택하고 기간, 템플릿, 썸네일, 폼 양식을 설정하세요
+              </p>
+            </div>
           </div>
         </div>
 
@@ -186,7 +301,7 @@ export default function CreateLandingPagePage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>1. 학생 선택</CardTitle>
+                <CardTitle>1️⃣ 학생 선택</CardTitle>
                 <CardDescription>
                   랜딩페이지를 생성할 학생을 선택하세요
                 </CardDescription>
@@ -247,25 +362,337 @@ export default function CreateLandingPagePage() {
 
           {/* 오른쪽: 설정 */}
           <div className="space-y-6">
+            {/* 제목 & 부제목 */}
             <Card>
               <CardHeader>
-                <CardTitle>2. 랜딩페이지 제목</CardTitle>
+                <CardTitle>2️⃣ 제목 & 부제목</CardTitle>
                 <CardDescription>
-                  학부모에게 표시될 제목을 입력하세요
+                  학부모에게 표시될 제목과 부제목을 입력하세요
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Input
-                  placeholder="예: 김철수 학생의 학습 리포트"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>제목 *</Label>
+                  <Input
+                    placeholder="예: 김철수 학생의 학습 리포트"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>부제목 (선택)</Label>
+                  <Input
+                    placeholder="예: 2024년 1월 학습 성과"
+                    value={subtitle}
+                    onChange={(e) => setSubtitle(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    공유 시 미리보기에 표시됩니다
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
+            {/* 썸네일 이미지 */}
+            <Card className="border-2 border-green-300 bg-green-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-green-800">
+                  <ImageIcon className="w-6 h-6" />
+                  3️⃣ 썸네일 이미지
+                </CardTitle>
+                <CardDescription className="text-green-700">
+                  공유 시 미리보기로 표시될 이미지를 업로드하세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="border-4 border-dashed border-green-300 rounded-lg p-6 text-center bg-white">
+                  {thumbnailPreview ? (
+                    <div className="space-y-4">
+                      <img
+                        src={thumbnailPreview}
+                        alt="Thumbnail"
+                        className="max-w-full h-auto max-h-64 mx-auto rounded-lg shadow-lg"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setThumbnail("");
+                          setThumbnailPreview("");
+                        }}
+                        className="border-red-300 text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        이미지 제거
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleThumbnailUpload}
+                        className="hidden"
+                      />
+                      <div className="flex flex-col items-center gap-3">
+                        <Upload className="w-12 h-12 text-green-500" />
+                        <div>
+                          <p className="font-semibold text-green-700">
+                            클릭하여 이미지 업로드
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            PNG, JPG, GIF (최대 5MB)
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 데이터 기간 선택 */}
             <Card>
               <CardHeader>
-                <CardTitle>3. 표시할 데이터 선택</CardTitle>
+                <CardTitle>4️⃣ 데이터 기간 선택</CardTitle>
+                <CardDescription>
+                  표시할 학습 데이터의 기간을 선택하세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>시작일 *</Label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>종료일 *</Label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={startDate}
+                  />
+                </div>
+                {startDate && endDate && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      📅 선택된 기간: <strong>{startDate}</strong> ~ <strong>{endDate}</strong>
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 폴더 선택 */}
+            {folders.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>5️⃣ 폴더 선택 (선택)</CardTitle>
+                  <CardDescription>
+                    랜딩페이지를 분류할 폴더를 선택하세요
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <select
+                    value={selectedFolder}
+                    onChange={(e) => setSelectedFolder(e.target.value)}
+                    className="w-full p-2 border rounded-lg"
+                  >
+                    <option value="">폴더 없음</option>
+                    {folders.map((folder) => (
+                      <option key={folder.id} value={folder.id}>
+                        {folder.name} ({folder.pagesCount}개)
+                      </option>
+                    ))}
+                  </select>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* HTML 템플릿 선택 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>6️⃣ HTML 템플릿 선택</CardTitle>
+                    <CardDescription>
+                      랜딩페이지 레이아웃 템플릿을 선택하세요
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
+                  >
+                    템플릿 관리
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {templates.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>템플릿이 없습니다.</p>
+                    <Button
+                      variant="link"
+                      onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
+                      className="mt-2"
+                    >
+                      템플릿 만들기 →
+                    </Button>
+                  </div>
+                ) : (
+                  templates.map((template) => (
+                    <div
+                      key={template.id}
+                      onClick={() => setSelectedTemplate(template.id)}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedTemplate === template.id
+                          ? "border-purple-500 bg-purple-50"
+                          : "border-gray-200 hover:border-purple-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold">{template.name}</p>
+                          {template.description && (
+                            <p className="text-sm text-gray-600">{template.description}</p>
+                          )}
+                          {template.isDefault && (
+                            <Badge variant="default" className="mt-1">
+                              기본 템플릿
+                            </Badge>
+                          )}
+                        </div>
+                        {selectedTemplate === template.id && (
+                          <CheckCircle className="w-6 h-6 text-purple-600" />
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 폼 양식 필드 */}
+            <Card className="border-2 border-blue-300 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-800">
+                  📝 7️⃣ 폼 양식 추가 (선택)
+                </CardTitle>
+                <CardDescription className="text-blue-700">
+                  학부모가 입력할 수 있는 폼 필드를 추가하세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* 폼 필드 추가 버튼들 */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => addFormField("text")}
+                    className="border-2 border-blue-300 hover:bg-blue-100"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    텍스트
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => addFormField("textarea")}
+                    className="border-2 border-blue-300 hover:bg-blue-100"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    긴 텍스트
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => addFormField("email")}
+                    className="border-2 border-blue-300 hover:bg-blue-100"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    이메일
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => addFormField("phone")}
+                    className="border-2 border-blue-300 hover:bg-blue-100"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    전화번호
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => addFormField("checkbox")}
+                    className="border-2 border-blue-300 hover:bg-blue-100 col-span-2"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    체크박스
+                  </Button>
+                </div>
+
+                {/* 추가된 폼 필드 목록 */}
+                {customFormFields.length > 0 && (
+                  <div className="space-y-3 mt-4">
+                    <p className="font-semibold text-blue-800">추가된 필드:</p>
+                    {customFormFields.map((field) => (
+                      <div key={field.id} className="p-4 bg-white border-2 border-blue-200 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Badge variant="outline" className="text-blue-700">
+                            {field.type}
+                          </Badge>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFormField(field.id)}
+                            className="text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          <Input
+                            placeholder="필드 라벨 (예: 이름, 연락처 등)"
+                            value={field.label}
+                            onChange={(e) =>
+                              updateFormField(field.id, { label: e.target.value })
+                            }
+                          />
+                          <Input
+                            placeholder="플레이스홀더 (선택)"
+                            value={field.placeholder || ""}
+                            onChange={(e) =>
+                              updateFormField(field.id, { placeholder: e.target.value })
+                            }
+                          />
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={field.required}
+                              onChange={(e) =>
+                                updateFormField(field.id, { required: e.target.checked })
+                              }
+                            />
+                            <span className="text-sm">필수 입력</span>
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 표시할 데이터 선택 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>8️⃣ 표시할 데이터 선택</CardTitle>
                 <CardDescription>
                   랜딩페이지에 표시할 학습 데이터를 선택하세요
                 </CardDescription>
@@ -357,7 +784,7 @@ export default function CreateLandingPagePage() {
             {selectedStudentData && (
               <Card className="border-2 border-indigo-200 bg-indigo-50">
                 <CardHeader>
-                  <CardTitle className="text-indigo-900">선택된 학생</CardTitle>
+                  <CardTitle className="text-indigo-900">✅ 선택된 학생</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
@@ -393,7 +820,7 @@ export default function CreateLandingPagePage() {
               </Button>
               <Button
                 onClick={handleCreateLandingPage}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                 disabled={!selectedStudent || !title.trim() || creating}
               >
                 {creating ? (

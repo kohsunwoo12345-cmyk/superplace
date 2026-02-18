@@ -101,6 +101,25 @@ CREATE INDEX IF NOT EXISTS idx_ai_bot_id ON AIBot(botId);
 CREATE INDEX IF NOT EXISTS idx_ai_bot_active ON AIBot(isActive);
 CREATE INDEX IF NOT EXISTS idx_ai_bot_creator ON AIBot(createdById);
 
+-- Landing Page Template Table
+CREATE TABLE IF NOT EXISTS LandingPageTemplate (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  html TEXT NOT NULL, -- HTML template with variables like {{studentName}}, {{period}}, etc.
+  variables TEXT, -- JSON array of variable names used in the template
+  isDefault INTEGER DEFAULT 0, -- 1 if this is the default template
+  usageCount INTEGER DEFAULT 0, -- Number of times this template has been used
+  createdById TEXT NOT NULL,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (createdById) REFERENCES User(id)
+);
+
+-- Indexes for LandingPageTemplate
+CREATE INDEX IF NOT EXISTS idx_landing_template_creator ON LandingPageTemplate(createdById);
+CREATE INDEX IF NOT EXISTS idx_landing_template_default ON LandingPageTemplate(isDefault);
+
 -- Landing Page Folder Table
 CREATE TABLE IF NOT EXISTS LandingPageFolder (
   id TEXT PRIMARY KEY,
@@ -123,7 +142,10 @@ CREATE TABLE IF NOT EXISTS LandingPage (
   subtitle TEXT,
   description TEXT,
   templateType TEXT NOT NULL DEFAULT 'basic', -- basic, student_report, event, custom
-  templateHtml TEXT, -- Custom HTML template
+  templateId TEXT, -- Reference to LandingPageTemplate
+  templateHtml TEXT, -- Custom HTML template (if templateType is 'custom')
+  startDate TEXT, -- Start date for student data period
+  endDate TEXT, -- End date for student data period
   inputData TEXT, -- JSON array of custom fields
   ogTitle TEXT, -- Open Graph title
   ogDescription TEXT, -- Open Graph description
@@ -140,6 +162,7 @@ CREATE TABLE IF NOT EXISTS LandingPage (
   createdAt TEXT NOT NULL DEFAULT (datetime('now')),
   updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (folderId) REFERENCES LandingPageFolder(id),
+  FOREIGN KEY (templateId) REFERENCES LandingPageTemplate(id),
   FOREIGN KEY (studentId) REFERENCES User(id),
   FOREIGN KEY (createdById) REFERENCES User(id)
 );
@@ -147,6 +170,7 @@ CREATE TABLE IF NOT EXISTS LandingPage (
 -- Indexes for LandingPage
 CREATE INDEX IF NOT EXISTS idx_landing_slug ON LandingPage(slug);
 CREATE INDEX IF NOT EXISTS idx_landing_folder ON LandingPage(folderId);
+CREATE INDEX IF NOT EXISTS idx_landing_template ON LandingPage(templateId);
 CREATE INDEX IF NOT EXISTS idx_landing_student ON LandingPage(studentId);
 CREATE INDEX IF NOT EXISTS idx_landing_creator ON LandingPage(createdById);
 CREATE INDEX IF NOT EXISTS idx_landing_active ON LandingPage(isActive);

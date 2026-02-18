@@ -114,32 +114,38 @@ export default function SubmissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 헤더 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => router.back()}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              뒤로가기
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">신청자 관리</h1>
-              <p className="text-gray-600 mt-1">
-                {slug
-                  ? `${slug} 페이지의 신청자 목록`
-                  : "전체 랜딩페이지 신청자 목록"}
-              </p>
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="lg" onClick={() => router.back()}>
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                뒤로가기
+              </Button>
+              <div>
+                <h1 className="text-4xl font-bold flex items-center gap-3 text-purple-700">
+                  <Users className="h-10 w-10" />
+                  📊 신청자 관리
+                </h1>
+                <p className="text-gray-600 mt-3 text-lg">
+                  {slug
+                    ? `${slug} 페이지의 신청자 목록`
+                    : "전체 랜딩페이지 신청자 목록"}
+                </p>
+              </div>
             </div>
+            <Button
+              onClick={downloadCSV}
+              disabled={submissions.length === 0}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg"
+              size="lg"
+            >
+              <Download className="w-5 h-5 mr-2" />
+              📥 CSV/Excel 다운로드
+            </Button>
           </div>
-          <Button
-            onClick={downloadCSV}
-            disabled={submissions.length === 0}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            CSV 다운로드
-          </Button>
         </div>
 
         {/* 통계 카드 */}
