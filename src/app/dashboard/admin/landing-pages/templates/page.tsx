@@ -70,6 +70,24 @@ export default function TemplatesPage() {
         alert("로그인이 필요합니다.");
         return;
       }
+      
+      // 토큰 형식 확인
+      console.log("📍 Current token:", token);
+      console.log("📍 Token separator check:", {
+        hasPipe: token.includes('|'),
+        hasDot: token.includes('.'),
+        pipeCount: (token.match(/\|/g) || []).length,
+        dotCount: (token.match(/\./g) || []).length
+      });
+      
+      // 구 토큰(. 구분자)이면 경고
+      if (!token.includes('|') && token.includes('.')) {
+        console.warn("⚠️ Old token format detected (dot separator). Please re-login!");
+        alert("토큰 형식이 업데이트되었습니다.\n다시 로그인해주세요.");
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+        return;
+      }
 
       const response = await fetch("/api/landing/templates", {
         headers: { Authorization: `Bearer ${token}` },
@@ -80,6 +98,11 @@ export default function TemplatesPage() {
 
       if (response.ok && data.success) {
         setTemplates(data.templates || []);
+        
+        // 메시지가 있으면 표시
+        if (data.message) {
+          alert(data.message);
+        }
       } else {
         console.error("템플릿 목록 조회 실패:", data);
         alert(`템플릿 목록을 불러오지 못했습니다.\n\n오류: ${data.error || data.message || "Unknown error"}`);

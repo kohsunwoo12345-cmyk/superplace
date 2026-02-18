@@ -26,22 +26,44 @@ export async function onRequestGet(context) {
   try {
     console.log('GET - Attempting to fetch templates from DB...');
     
-    const templatesResult = await env.DB.prepare(`
-      SELECT 
-        t.id,
-        t.name,
-        t.description,
-        t.html,
-        t.variables,
-        t.isDefault,
-        t.createdAt,
-        t.updatedAt,
-        u.name as creatorName,
-        (SELECT COUNT(*) FROM LandingPage WHERE templateId = t.id) as actualUsageCount
-      FROM LandingPageTemplate t
-      LEFT JOIN User u ON t.createdById = u.id
-      ORDER BY t.isDefault DESC, t.createdAt DESC
-    `).all();
+    // 테이블이 없을 경우를 대비한 try-catch
+    let templatesResult;
+    try {
+      templatesResult = await env.DB.prepare(`
+        SELECT 
+          t.id,
+          t.name,
+          t.description,
+          t.html,
+          t.variables,
+          t.isDefault,
+          t.createdAt,
+          t.updatedAt,
+          u.name as creatorName,
+          (SELECT COUNT(*) FROM LandingPage WHERE templateId = t.id) as actualUsageCount
+        FROM LandingPageTemplate t
+        LEFT JOIN User u ON t.createdById = u.id
+        ORDER BY t.isDefault DESC, t.createdAt DESC
+      `).all();
+    } catch (dbError) {
+      console.error('GET - DB query failed:', dbError.message);
+      
+      // 테이블이 없으면 빈 배열 반환
+      if (dbError.message && dbError.message.includes('no such table')) {
+        console.log('GET - LandingPageTemplate table does not exist, returning empty array');
+        return new Response(JSON.stringify({
+          success: true,
+          templates: [],
+          total: 0,
+          message: 'LandingPageTemplate 테이블이 아직 생성되지 않았습니다. 관리자에게 문의하세요.'
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      
+      throw dbError;
+    }
     
     console.log('GET - DB query result:', templatesResult);
 
