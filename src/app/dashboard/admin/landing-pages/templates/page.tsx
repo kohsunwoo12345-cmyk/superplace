@@ -72,17 +72,12 @@ export default function TemplatesPage() {
       }
       
       // 토큰 형식 확인
-      console.log("📍 Current token:", token);
-      console.log("📍 Token separator check:", {
-        hasPipe: token.includes('|'),
-        hasDot: token.includes('.'),
-        pipeCount: (token.match(/\|/g) || []).length,
-        dotCount: (token.match(/\./g) || []).length
-      });
+      const tokenParts = token.split('|');
+      console.log("📍 Current token parts:", tokenParts.length);
       
-      // 구 토큰(. 구분자)이면 경고
-      if (!token.includes('|') && token.includes('.')) {
-        console.warn("⚠️ Old token format detected (dot separator). Please re-login!");
+      // 구 토큰 (파이프 없이 4개 이상으로 분리되는 토큰)을 감지
+      if (tokenParts.length < 4) {
+        console.warn("⚠️ Invalid or old token format detected. Parts:", tokenParts.length);
         alert("토큰 형식이 업데이트되었습니다.\n다시 로그인해주세요.");
         localStorage.removeItem("token");
         window.location.href = "/login";
