@@ -40,11 +40,23 @@ interface Folder {
   pagesCount: number;
 }
 
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  isDefault: boolean;
+}
+
 export default function CreateLandingPagePage() {
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [title, setTitle] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,11 +78,14 @@ export default function CreateLandingPagePage() {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      const [studentsRes, foldersRes] = await Promise.all([
+      const [studentsRes, foldersRes, templatesRes] = await Promise.all([
         fetch("/api/admin/users?role=STUDENT", {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch("/api/landing/folders", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("/api/landing/templates", {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -83,6 +98,16 @@ export default function CreateLandingPagePage() {
       if (foldersRes.ok) {
         const data = await foldersRes.json();
         setFolders(data.folders || []);
+      }
+
+      if (templatesRes.ok) {
+        const data = await templatesRes.json();
+        setTemplates(data.templates || []);
+        // 기본 템플릿 자동 선택
+        const defaultTemplate = data.templates.find((t: Template) => t.isDefault);
+        if (defaultTemplate) {
+          setSelectedTemplate(defaultTemplate.id);
+        }
       }
     } catch (error) {
       console.error("데이터 조회 실패:", error);
@@ -102,6 +127,16 @@ export default function CreateLandingPagePage() {
       return;
     }
 
+    if (!startDate || !endDate) {
+      alert("기간을 선택해주세요.");
+      return;
+    }
+
+    if (!selectedTemplate) {
+      alert("템플릿을 선택해주세요.");
+      return;
+    }
+
     try {
       setCreating(true);
       const token = localStorage.getItem("token");
@@ -114,6 +149,9 @@ export default function CreateLandingPagePage() {
         body: JSON.stringify({
           studentId: selectedStudent,
           title,
+          templateId: selectedTemplate,
+          startDate,
+          endDate,
           dataOptions,
         }),
       });
@@ -265,7 +303,105 @@ export default function CreateLandingPagePage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>3. 표시할 데이터 선택</CardTitle>
+                <CardTitle>3. 데이터 기간 선택</CardTitle>
+                <CardDescription>
+                  표시할 학습 데이터의 기간을 선택하세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>시작일</Label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>종료일</Label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={startDate}
+                  />
+                </div>
+                {startDate && endDate && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      📅 선택된 기간: <strong>{startDate}</strong> ~ <strong>{endDate}</strong>
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>4. HTML 템플릿 선택</CardTitle>
+                    <CardDescription>
+                      랜딩페이지 레이아웃 템플릿을 선택하세요
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
+                  >
+                    템플릿 관리
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {templates.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>템플릿이 없습니다.</p>
+                    <Button
+                      variant="link"
+                      onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
+                      className="mt-2"
+                    >
+                      템플릿 만들기 →
+                    </Button>
+                  </div>
+                ) : (
+                  templates.map((template) => (
+                    <div
+                      key={template.id}
+                      onClick={() => setSelectedTemplate(template.id)}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedTemplate === template.id
+                          ? "border-purple-500 bg-purple-50"
+                          : "border-gray-200 hover:border-purple-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold">{template.name}</p>
+                          {template.description && (
+                            <p className="text-sm text-gray-600">{template.description}</p>
+                          )}
+                          {template.isDefault && (
+                            <Badge variant="default" className="mt-1">
+                              기본 템플릿
+                            </Badge>
+                          )}
+                        </div>
+                        {selectedTemplate === template.id && (
+                          <CheckCircle className="w-6 h-6 text-purple-600" />
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>5. 표시할 데이터 선택</CardTitle>
                 <CardDescription>
                   랜딩페이지에 표시할 학습 데이터를 선택하세요
                 </CardDescription>
