@@ -95,6 +95,7 @@ const navigationByRole = {
     { name: "결제 신청", href: "/payment-request", icon: CreditCard },
     { name: "결제 승인", href: "/dashboard/admin/payment-approvals", icon: CreditCard },
     { name: "매출 통계", href: "/dashboard/revenue", icon: DollarSign },
+    { name: "문자 발송", href: "/dashboard/admin/sms", icon: MessageCircle },
     { name: "문의 관리", href: "/dashboard/contacts", icon: MessageSquare },
     { name: "학원 설정", href: "/dashboard/academy-settings", icon: Building2 },
     { name: "내 설정", href: "/dashboard/settings", icon: Settings },
