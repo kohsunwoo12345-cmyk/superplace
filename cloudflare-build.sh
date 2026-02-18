@@ -14,15 +14,26 @@ echo "📦 npm version: $(npm -v)"
 # Install dependencies (should already be done by Cloudflare)
 echo "📥 Dependencies already installed by Cloudflare"
 
-# Build Next.js application
-echo "🔨 Building Next.js application..."
-npm run build
+# Build with @cloudflare/next-on-pages
+echo "🔨 Building with @cloudflare/next-on-pages..."
+npx @cloudflare/next-on-pages
+
+# Create out directory from .vercel/output/static
+echo "📦 Creating out directory..."
+rm -rf out
+cp -r .vercel/output/static out
 
 # Verify build output
 echo "✅ Build completed successfully!"
 echo "📁 Build output directory: out/"
 
 # List output directory contents
-ls -la out/ || echo "Warning: out directory not found"
+if [ -d "out" ]; then
+  echo "✅ out directory created successfully"
+  ls -la out/ | head -20
+else
+  echo "❌ ERROR: out directory not found!"
+  exit 1
+fi
 
 echo "🎉 Cloudflare Pages build complete!"
