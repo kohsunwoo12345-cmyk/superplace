@@ -6,7 +6,8 @@ import {
   Menu, X, LogOut, User, Bell, Search, Home, BookOpen, 
   Users, Calendar, MessageCircle, BarChart2, Settings,
   GraduationCap, Award, FileText, Clock, ExternalLink,
-  DollarSign, CreditCard, Presentation, ClipboardList, Sparkles, Bot
+  DollarSign, CreditCard, Presentation, ClipboardList, Sparkles, Bot,
+  ShoppingCart, Zap
 } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
 
@@ -219,6 +220,20 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2 sm:gap-4">
+              {/* AI 쇼핑몰 버튼 - 관리자/학원장만 */}
+              {(role.toUpperCase() === 'ADMIN' || 
+                role.toUpperCase() === 'SUPER_ADMIN' || 
+                role.toUpperCase() === 'DIRECTOR') && (
+                <a
+                  href="/store"
+                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
+                >
+                  <ShoppingCart className="w-4 h-4 animate-pulse" />
+                  <span className="hidden sm:inline text-sm font-semibold">AI 쇼핑몰</span>
+                  <Zap className="w-3 h-3 hidden md:inline animate-bounce" />
+                </a>
+              )}
+
               {/* Homepage Button - 학원장, 선생님, 관리자만 */}
               {(role.toUpperCase() === 'ADMIN' || 
                 role.toUpperCase() === 'SUPER_ADMIN' || 
