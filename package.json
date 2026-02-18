@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && npx @cloudflare/next-on-pages && rm -rf out && cp -r .vercel/output/static out && cp -r functions out/functions",
+    "build": "next build",
     "postbuild": "echo 'Next.js build complete'",
-    "pages:build": "npx @cloudflare/next-on-pages && rm -rf out && cp -r .vercel/output/static out && cp -r functions out/functions",
+    "pages:build": "next build && npx @cloudflare/next-on-pages && rm -rf out && cp -r .vercel/output/static out && cp -r functions out/functions",
     "preview": "npm run pages:build && wrangler pages dev out",
     "deploy": "npm run pages:build && wrangler pages deploy out --project-name=superplacestudy",
     "start": "next start",
