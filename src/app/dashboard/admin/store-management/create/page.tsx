@@ -1,4 +1,5 @@
 "use client";
+// AI 쇼핑몰 제품 추가 페이지 (Cloudflare Pages Deployment: 2026-02-18)
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";

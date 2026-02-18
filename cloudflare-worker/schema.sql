@@ -100,3 +100,87 @@ CREATE TABLE IF NOT EXISTS AIBot (
 CREATE INDEX IF NOT EXISTS idx_ai_bot_id ON AIBot(botId);
 CREATE INDEX IF NOT EXISTS idx_ai_bot_active ON AIBot(isActive);
 CREATE INDEX IF NOT EXISTS idx_ai_bot_creator ON AIBot(createdById);
+
+-- Landing Page Folder Table
+CREATE TABLE IF NOT EXISTS LandingPageFolder (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  createdById TEXT NOT NULL,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (createdById) REFERENCES User(id)
+);
+
+-- Indexes for LandingPageFolder
+CREATE INDEX IF NOT EXISTS idx_landing_folder_creator ON LandingPageFolder(createdById);
+
+-- Landing Page Table
+CREATE TABLE IF NOT EXISTS LandingPage (
+  id TEXT PRIMARY KEY,
+  slug TEXT UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  subtitle TEXT,
+  description TEXT,
+  templateType TEXT NOT NULL DEFAULT 'basic', -- basic, student_report, event, custom
+  templateHtml TEXT, -- Custom HTML template
+  inputData TEXT, -- JSON array of custom fields
+  ogTitle TEXT, -- Open Graph title
+  ogDescription TEXT, -- Open Graph description
+  thumbnail TEXT, -- Base64 or URL
+  folderId TEXT,
+  showQrCode INTEGER DEFAULT 1,
+  qrCodePosition TEXT DEFAULT 'bottom', -- top, bottom, sidebar
+  qrCodeUrl TEXT,
+  pixelScripts TEXT, -- JSON array of tracking pixel scripts
+  studentId TEXT, -- If linked to student report
+  viewCount INTEGER DEFAULT 0,
+  isActive INTEGER DEFAULT 1,
+  createdById TEXT NOT NULL,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (folderId) REFERENCES LandingPageFolder(id),
+  FOREIGN KEY (studentId) REFERENCES User(id),
+  FOREIGN KEY (createdById) REFERENCES User(id)
+);
+
+-- Indexes for LandingPage
+CREATE INDEX IF NOT EXISTS idx_landing_slug ON LandingPage(slug);
+CREATE INDEX IF NOT EXISTS idx_landing_folder ON LandingPage(folderId);
+CREATE INDEX IF NOT EXISTS idx_landing_student ON LandingPage(studentId);
+CREATE INDEX IF NOT EXISTS idx_landing_creator ON LandingPage(createdById);
+CREATE INDEX IF NOT EXISTS idx_landing_active ON LandingPage(isActive);
+
+-- Landing Page Submission Table
+CREATE TABLE IF NOT EXISTS LandingPageSubmission (
+  id TEXT PRIMARY KEY,
+  landingPageId TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  data TEXT NOT NULL, -- JSON data submitted by user
+  ipAddress TEXT,
+  userAgent TEXT,
+  submittedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (landingPageId) REFERENCES LandingPage(id) ON DELETE CASCADE
+);
+
+-- Indexes for LandingPageSubmission
+CREATE INDEX IF NOT EXISTS idx_submission_landing ON LandingPageSubmission(landingPageId);
+CREATE INDEX IF NOT EXISTS idx_submission_slug ON LandingPageSubmission(slug);
+CREATE INDEX IF NOT EXISTS idx_submission_date ON LandingPageSubmission(submittedAt);
+
+-- Landing Page Pixel Script Table
+CREATE TABLE IF NOT EXISTS LandingPagePixelScript (
+  id TEXT PRIMARY KEY,
+  landingPageId TEXT NOT NULL,
+  name TEXT NOT NULL, -- e.g., "당근 비즈니스 픽셀", "Facebook Pixel"
+  scriptType TEXT NOT NULL, -- header, body, footer
+  scriptCode TEXT NOT NULL, -- The actual script code
+  isActive INTEGER DEFAULT 1,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (landingPageId) REFERENCES LandingPage(id) ON DELETE CASCADE
+);
+
+-- Indexes for LandingPagePixelScript
+CREATE INDEX IF NOT EXISTS idx_pixel_landing ON LandingPagePixelScript(landingPageId);
+CREATE INDEX IF NOT EXISTS idx_pixel_active ON LandingPagePixelScript(isActive);
