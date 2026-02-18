@@ -174,12 +174,12 @@ export default function LandingPagesPage() {
                 📄 HTML 템플릿 관리
               </Button>
               <Button
-                onClick={() => router.push("/dashboard/admin/landing-pages/builder")}
+                onClick={() => router.push("/dashboard/admin/landing-pages/create")}
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg"
                 size="lg"
               >
                 <Plus className="w-5 h-5 mr-2" />
-                ✨ 새 랜딩페이지 만들기
+                ✨ 새 학습 리포트 만들기
               </Button>
             </div>
           </div>
