@@ -102,3 +102,55 @@ CREATE INDEX IF NOT EXISTS idx_sms_transaction_log ON SMSBalanceTransaction(rela
 -- Initialize SMS Balance (Create one default record)
 INSERT OR IGNORE INTO SMSBalance (id, balance, total_charged, total_used)
 VALUES ('default', 0, 0, 0);
+
+-- Parent (학부모 관리)
+CREATE TABLE IF NOT EXISTS Parent (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  phone TEXT UNIQUE NOT NULL,
+  email TEXT,
+  relationship TEXT, -- father, mother, guardian
+  address TEXT,
+  notes TEXT,
+  createdById TEXT NOT NULL,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (createdById) REFERENCES User(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_parent_phone ON Parent(phone);
+CREATE INDEX IF NOT EXISTS idx_parent_creator ON Parent(createdById);
+CREATE INDEX IF NOT EXISTS idx_parent_name ON Parent(name);
+
+-- StudentParent (학생-학부모 관계)
+CREATE TABLE IF NOT EXISTS StudentParent (
+  id TEXT PRIMARY KEY,
+  studentId TEXT NOT NULL,
+  parentId TEXT NOT NULL,
+  isPrimary INTEGER DEFAULT 0, -- 주 연락처 여부
+  createdById TEXT NOT NULL,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(studentId, parentId),
+  FOREIGN KEY (studentId) REFERENCES User(id) ON DELETE CASCADE,
+  FOREIGN KEY (parentId) REFERENCES Parent(id) ON DELETE CASCADE,
+  FOREIGN KEY (createdById) REFERENCES User(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_student_parent_student ON StudentParent(studentId);
+CREATE INDEX IF NOT EXISTS idx_student_parent_parent ON StudentParent(parentId);
+CREATE INDEX IF NOT EXISTS idx_student_parent_primary ON StudentParent(isPrimary);
+
+-- Solapi API Configuration
+CREATE TABLE IF NOT EXISTS SolapiConfig (
+  id TEXT PRIMARY KEY,
+  api_key TEXT NOT NULL,
+  api_secret TEXT NOT NULL,
+  sender_phone TEXT NOT NULL, -- 기본 발신번호
+  isActive INTEGER DEFAULT 1,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Initialize Solapi Config (Create one default record)
+INSERT OR IGNORE INTO SolapiConfig (id, api_key, api_secret, sender_phone, isActive)
+VALUES ('default', '', '', '', 0);

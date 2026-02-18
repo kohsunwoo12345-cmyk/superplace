@@ -1,9 +1,55 @@
-// SMS 발송 API
+// SMS 발송 API with Solapi Integration
 // POST /api/admin/sms/send
 
 import { getRequestContext } from '@cloudflare/next-on-pages';
 
 export const runtime = 'edge';
+
+// Solapi SMS 발송 함수 (인라인)
+async function sendViaSolapi(apiKey: string, apiSecret: string, from: string, to: string, text: string) {
+  const url = 'https://api.solapi.com/messages/v4/send';
+  const timestamp = new Date().toISOString();
+  const salt = Math.random().toString(36).substring(2, 15);
+  
+  // HMAC-SHA256 서명 생성
+  const message = timestamp + salt;
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(apiSecret);
+  const messageData = encoder.encode(message);
+  
+  const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signatureBuffer = await crypto.subtle.sign('HMAC', key, messageData);
+  const signature = Array.from(new Uint8Array(signatureBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  
+  const byteLength = new Blob([text]).size;
+  const type = byteLength > 90 ? 'LMS' : 'SMS';
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${timestamp}, salt=${salt}, signature=${signature}`,
+    },
+    body: JSON.stringify({
+      messages: [{
+        to: to.replace(/-/g, ''),
+        from: from.replace(/-/g, ''),
+        text,
+        type,
+      }],
+    }),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.errorMessage || 'SMS 발송 실패');
+  }
+  
+  return { success: true, messageId: data.groupId };
+}
 
 export async function POST(request: Request) {
   try {
@@ -169,8 +215,10 @@ export async function POST(request: Request) {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `${receivers.length}건의 문자가 발송되었습니다`,
-        sent: receivers.length,
+        message: `${successCount}건의 문자가 발송되었습니다${failedReceivers.length > 0 ? ` (${failedReceivers.length}건 실패)` : ''}`,
+        sent: successCount,
+        failed: failedReceivers.length,
+        failedReceivers,
         cost: totalCost,
         balance: newBalance,
         logIds,
