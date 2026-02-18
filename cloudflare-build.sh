@@ -12,4 +12,12 @@ rm -rf out
 cp -r .vercel/output/static out
 
 echo "✅ Build complete! Output is in 'out' directory"
-ls -la out/
+ls -la out/ | head -20
+
+echo "📂 Checking _worker.js..."
+if [ -d "out/_worker.js" ]; then
+  echo "✅ _worker.js directory exists"
+  ls -la out/_worker.js/
+else
+  echo "❌ _worker.js directory not found"
+fi
