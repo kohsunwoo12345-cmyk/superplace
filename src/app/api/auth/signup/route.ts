@@ -65,15 +65,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const body = await request.json();
-    console.log('📋 Request body:', { ...body, password: '***' });
-
     console.log('📝 Signup request received');
 
     // Note: Tables should already exist in D1 database
     // No need to create tables on every signup request
 
     const body = await request.json();
+    console.log('📋 Request body:', { ...body, password: '***' });
+    
     const { 
       email, 
       password, 
