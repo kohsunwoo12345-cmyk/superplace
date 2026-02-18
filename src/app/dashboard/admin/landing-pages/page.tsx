@@ -130,42 +130,71 @@ export default function LandingPagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 헤더 */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <GraduationCap className="h-8 w-8 text-indigo-600" />
-              랜딩페이지 관리
-            </h1>
-            <p className="text-gray-600 mt-1">
-              학생의 학습 데이터를 학부모에게 공유하거나 이벤트/세미나 신청을 받을 수 있습니다
-            </p>
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-4xl font-bold flex items-center gap-3 text-indigo-700">
+                <GraduationCap className="h-10 w-10" />
+                📋 랜딩페이지 관리
+              </h1>
+              <p className="text-gray-600 mt-3 text-lg">
+                학생의 학습 데이터를 학부모에게 공유하거나 이벤트/세미나 신청을 받을 수 있습니다
+              </p>
+            </div>
+            <div className="flex gap-3 flex-wrap">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={clearCache}
+                className="border-2 hover:border-indigo-400"
+              >
+                <RefreshCw className="w-5 h-5 mr-2" />
+                캐시 초기화
+              </Button>
+              <Button
+                onClick={() => router.push("/dashboard/admin/landing-pages/folders")}
+                variant="outline"
+                size="lg"
+                className="border-2 border-green-300 hover:border-green-500 hover:bg-green-50"
+              >
+                <FolderOpen className="w-5 h-5 mr-2" />
+                📁 폴더 관리
+              </Button>
+              <Button
+                onClick={() => router.push("/dashboard/admin/landing-pages/builder")}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg"
+                size="lg"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                ✨ 새 랜딩페이지 만들기
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearCache}
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              캐시 초기화
-            </Button>
-            <Button
-              onClick={() => router.push("/dashboard/admin/landing-pages/folders")}
-              variant="outline"
-            >
-              <FolderOpen className="w-4 h-4 mr-2" />
-              폴더 관리
-            </Button>
-            <Button
-              onClick={() => router.push("/dashboard/admin/landing-pages/builder")}
-              className="bg-indigo-600 hover:bg-indigo-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              새 랜딩페이지 만들기
-            </Button>
+        </div>
+
+        {/* 빠른 가이드 배너 */}
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg p-6 shadow-lg">
+          <h2 className="text-2xl font-bold mb-3">🚀 빠른 시작 가이드</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white/10 rounded p-3">
+              <p className="font-semibold mb-1">1️⃣ 랜딩페이지 생성</p>
+              <p className="text-sm">"✨ 새 랜딩페이지 만들기" 버튼 클릭</p>
+            </div>
+            <div className="bg-white/10 rounded p-3">
+              <p className="font-semibold mb-1">2️⃣ 폼 & 썸네일 설정</p>
+              <p className="text-sm">제목, 이미지, 입력 필드 추가</p>
+            </div>
+            <div className="bg-white/10 rounded p-3">
+              <p className="font-semibold mb-1">3️⃣ URL 공유</p>
+              <p className="text-sm">생성된 링크를 복사하여 공유</p>
+            </div>
+            <div className="bg-white/10 rounded p-3">
+              <p className="font-semibold mb-1">4️⃣ 신청자 확인</p>
+              <p className="text-sm">"신청자 보기" 버튼으로 데이터 확인</p>
+            </div>
           </div>
         </div>
 
@@ -281,60 +310,73 @@ export default function LandingPagesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-gray-100 rounded-lg px-4 py-2 font-mono text-sm overflow-x-auto">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg px-4 py-3 font-mono text-sm overflow-x-auto">
+                        <span className="text-gray-500 mr-2">🔗</span>
                         {window.location.origin}{page.url}
                       </div>
                       <Button
                         variant="outline"
-                        size="sm"
+                        size="lg"
                         onClick={() => copyUrl(page.url, page.id)}
+                        className="border-2 hover:border-blue-400 hover:bg-blue-50"
                       >
                         {copiedId === page.id ? (
-                          <Check className="w-4 h-4 text-green-600" />
+                          <>
+                            <Check className="w-5 h-5 mr-2 text-green-600" />
+                            복사됨!
+                          </>
                         ) : (
-                          <Copy className="w-4 h-4" />
+                          <>
+                            <Copy className="w-5 h-5 mr-2" />
+                            URL 복사
+                          </>
                         )}
                       </Button>
                       <Button
                         variant="outline"
-                        size="sm"
+                        size="lg"
                         onClick={() => window.open(page.url, "_blank")}
+                        className="border-2 border-green-300 hover:border-green-500 hover:bg-green-50"
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        <ExternalLink className="w-5 h-5 mr-2" />
+                        새 탭에서 열기
                       </Button>
                     </div>
                     
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <Button
-                        variant="outline"
-                        size="sm"
+                        variant="default"
+                        size="lg"
                         onClick={() =>
                           router.push(
                             `/dashboard/admin/landing-pages/submissions?slug=${page.slug}`
                           )
                         }
+                        className="bg-blue-600 hover:bg-blue-700"
                       >
-                        <Users className="w-4 h-4 mr-1" />
-                        신청자 보기
+                        <Users className="w-5 h-5 mr-2" />
+                        📊 신청자 보기 ({page.submissions || 0}명)
                       </Button>
                       {page.qr_code_url && (
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="lg"
                           onClick={() => downloadQRCode(page.qr_code_url!, page.title)}
+                          className="border-2 border-green-300 hover:border-green-500 hover:bg-green-50"
                         >
-                          <QrCode className="w-4 h-4 mr-1" />
-                          QR 다운로드
+                          <Download className="w-5 h-5 mr-2" />
+                          QR 코드 다운로드
                         </Button>
                       )}
                       <Button
                         variant="outline"
-                        size="sm"
+                        size="lg"
                         onClick={() => deleteLandingPage(page.id)}
-                        className="text-red-600 hover:bg-red-50 ml-auto"
+                        className="text-red-600 hover:bg-red-50 border-2 border-red-300 hover:border-red-500 ml-auto"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5 mr-2" />
+                        삭제
                       </Button>
                     </div>
                   </div>
