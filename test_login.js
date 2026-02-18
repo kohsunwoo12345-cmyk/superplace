@@ -1,34 +1,35 @@
-const fetch = require('node-fetch');
+// D1 로그인 테스트 스크립트
 
-async function testLogin() {
-  console.log('🔐 Testing login...\n');
-  
-  try {
-    const response = await fetch('https://superplacestudy.pages.dev/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: 'admin@superplace.com',
-        password: 'admin1234'
-      })
-    });
-    
-    console.log('📡 Response Status:', response.status);
-    console.log('📡 Response Headers:', response.headers.raw());
-    
-    const data = await response.json();
-    console.log('📦 Response Data:', JSON.stringify(data, null, 2));
-    
-    if (data.success) {
-      console.log('\n✅ 로그인 성공!');
-    } else {
-      console.log('\n❌ 로그인 실패:', data.message);
-    }
-  } catch (error) {
-    console.error('💥 Error:', error.message);
-  }
+// Simple password hashing using Node.js crypto
+const crypto = require('crypto');
+
+function hashPassword(password) {
+  const hash = crypto.createHash('sha256');
+  hash.update(password + 'superplace-salt-2024');
+  return hash.digest('hex');
 }
 
-testLogin();
+// 테스트할 계정 정보
+const testAccounts = [
+  { email: 'admin@superplace.com', password: 'admin1234' },
+  { email: 'director@superplace.com', password: 'director1234' },
+  { email: 'teacher@superplace.com', password: 'teacher1234' },
+  { email: 'test@test.com', password: 'test1234' },
+];
+
+console.log('=== D1 로그인 테스트 - 비밀번호 해시 ===\n');
+
+testAccounts.forEach(account => {
+  const hashed = hashPassword(account.password);
+  console.log(`이메일: ${account.email}`);
+  console.log(`원본 비밀번호: ${account.password}`);
+  console.log(`해시된 비밀번호: ${hashed}`);
+  console.log('---');
+});
+
+console.log('\n=== D1에서 실행할 SQL ===');
+console.log('-- 사용자 확인 쿼리:');
+testAccounts.forEach(account => {
+  const hashed = hashPassword(account.password);
+  console.log(`SELECT * FROM User WHERE email = '${account.email}' AND password = '${hashed}';`);
+});
