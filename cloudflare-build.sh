@@ -23,6 +23,16 @@ echo "📦 Creating out directory..."
 rm -rf out
 cp -r .vercel/output/static out
 
+# 🔧 CRITICAL: Copy Cloudflare Pages Functions
+echo "🔧 Copying Cloudflare Pages Functions..."
+if [ -d "functions" ]; then
+  cp -r functions out/functions
+  echo "✅ Functions copied to out/functions/"
+  ls -la out/functions/ | head -10
+else
+  echo "⚠️  WARNING: functions directory not found!"
+fi
+
 # Verify build output
 echo "✅ Build completed successfully!"
 echo "📁 Build output directory: out/"
@@ -34,6 +44,15 @@ if [ -d "out" ]; then
 else
   echo "❌ ERROR: out directory not found!"
   exit 1
+fi
+
+# Verify functions directory in output
+if [ -d "out/functions" ]; then
+  echo "✅ out/functions directory exists"
+  echo "📁 Functions structure:"
+  find out/functions -type f | head -10
+else
+  echo "⚠️  WARNING: out/functions directory not found!"
 fi
 
 echo "🎉 Cloudflare Pages build complete!"

@@ -10,7 +10,8 @@
     "preview": "npm run pages:build && wrangler pages dev out",
     "deploy": "npm run pages:build && wrangler pages deploy out --project-name=superplacestudy",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "echo 'Dependencies installed'"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
