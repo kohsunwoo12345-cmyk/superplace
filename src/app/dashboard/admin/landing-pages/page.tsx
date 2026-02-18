@@ -38,16 +38,26 @@ interface LandingPage {
   isActive: boolean;
   qr_code_url?: string;
   folder_id?: string;
+  folderName?: string;
+}
+
+interface Folder {
+  id: string;
+  name: string;
+  pagesCount: number;
 }
 
 export default function LandingPagesPage() {
   const router = useRouter();
   const [landingPages, setLandingPages] = useState<LandingPage[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [selectedFolder, setSelectedFolder] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLandingPages();
+    fetchFolders();
   }, []);
 
   const fetchLandingPages = async () => {
@@ -68,6 +78,24 @@ export default function LandingPagesPage() {
       console.error("랜딩페이지 목록 조회 실패:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFolders = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/landing/folders", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFolders(data.folders || []);
+      }
+    } catch (error) {
+      console.error("폴더 목록 조회 실패:", error);
     }
   };
 
@@ -121,6 +149,13 @@ export default function LandingPagesPage() {
       alert("삭제 중 오류가 발생했습니다.");
     }
   };
+
+  // 폴더별 필터링
+  const filteredPages = selectedFolder === "all"
+    ? landingPages
+    : selectedFolder === "no-folder"
+    ? landingPages.filter((page) => !page.folder_id)
+    : landingPages.filter((page) => page.folder_id === selectedFolder);
 
   if (loading) {
     return (
@@ -212,7 +247,48 @@ export default function LandingPagesPage() {
           </div>
         </div>
 
-        {/* 탭 메뉴 제거 - 헤더 버튼으로 통합 */}
+        {/* 폴더 필터 */}
+        {folders.length > 0 && (
+          <Card className="border-2 border-green-300 bg-green-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-green-800">
+                <FolderOpen className="w-5 h-5" />
+                📁 폴더별 필터
+              </CardTitle>
+              <CardDescription className="text-green-700">
+                각 사용자가 제작한 랜딩페이지를 폴더별로 분류하여 확인하세요
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={selectedFolder === "all" ? "default" : "outline"}
+                  onClick={() => setSelectedFolder("all")}
+                  className={selectedFolder === "all" ? "bg-green-600 hover:bg-green-700" : "border-green-300 hover:bg-green-100"}
+                >
+                  전체 ({landingPages.length})
+                </Button>
+                <Button
+                  variant={selectedFolder === "no-folder" ? "default" : "outline"}
+                  onClick={() => setSelectedFolder("no-folder")}
+                  className={selectedFolder === "no-folder" ? "bg-gray-600 hover:bg-gray-700" : "border-gray-300 hover:bg-gray-100"}
+                >
+                  미분류 ({landingPages.filter((p) => !p.folder_id).length})
+                </Button>
+                {folders.map((folder) => (
+                  <Button
+                    key={folder.id}
+                    variant={selectedFolder === folder.id ? "default" : "outline"}
+                    onClick={() => setSelectedFolder(folder.id)}
+                    className={selectedFolder === folder.id ? "bg-indigo-600 hover:bg-indigo-700" : "border-indigo-300 hover:bg-indigo-100"}
+                  >
+                    📂 {folder.name} ({landingPages.filter((p) => p.folder_id === folder.id).length})
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 통계 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -271,11 +347,15 @@ export default function LandingPagesPage() {
 
         {/* 랜딩페이지 목록 */}
         <div className="space-y-4">
-          {landingPages.length === 0 ? (
+          {filteredPages.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-16">
                 <FileText className="w-16 h-16 text-gray-300 mb-4" />
-                <p className="text-gray-500 mb-4">아직 생성된 랜딩페이지가 없습니다.</p>
+                <p className="text-gray-500 mb-4">
+                  {selectedFolder === "all"
+                    ? "아직 생성된 랜딩페이지가 없습니다."
+                    : "이 폴더에 랜딩페이지가 없습니다."}
+                </p>
                 <Button
                   onClick={() => router.push("/dashboard/admin/landing-pages/create")}
                   className="bg-indigo-600 hover:bg-indigo-700"
@@ -286,7 +366,22 @@ export default function LandingPagesPage() {
               </CardContent>
             </Card>
           ) : (
-            landingPages.map((page) => (
+            <>
+              {/* 필터 결과 표시 */}
+              <div className="flex items-center justify-between bg-white rounded-lg shadow-sm p-4">
+                <p className="text-gray-700 font-semibold">
+                  {selectedFolder === "all"
+                    ? `전체 ${filteredPages.length}개`
+                    : selectedFolder === "no-folder"
+                    ? `미분류 ${filteredPages.length}개`
+                    : `${folders.find((f) => f.id === selectedFolder)?.name || ""} 폴더 ${filteredPages.length}개`}
+                </p>
+                <p className="text-sm text-gray-500">
+                  총 조회수: <strong className="text-blue-600">{filteredPages.reduce((sum, p) => sum + p.viewCount, 0)}회</strong>
+                </p>
+              </div>
+
+              {filteredPages.map((page) => (
               <Card key={page.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -308,14 +403,20 @@ export default function LandingPagesPage() {
                           <Calendar className="w-4 h-4" />
                           {new Date(page.createdAt).toLocaleDateString("ko-KR")}
                         </span>
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 px-3 py-1 bg-blue-100 border-2 border-blue-300 rounded-full text-blue-800 font-semibold">
                           <FileText className="w-4 h-4" />
-                          조회 {page.viewCount}회
+                          👁️ 조회 {page.viewCount}회
                         </span>
                         {page.submissions !== undefined && (
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 px-3 py-1 bg-purple-100 border-2 border-purple-300 rounded-full text-purple-800 font-semibold">
                             <Users className="w-4 h-4" />
-                            신청 {page.submissions}명
+                            📝 신청 {page.submissions}명
+                          </span>
+                        )}
+                        {page.folderName && (
+                          <span className="flex items-center gap-1 px-3 py-1 bg-green-100 border-2 border-green-300 rounded-full text-green-800 font-semibold">
+                            <FolderOpen className="w-4 h-4" />
+                            📁 {page.folderName}
                           </span>
                         )}
                       </CardDescription>
@@ -396,7 +497,8 @@ export default function LandingPagesPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))
+            ))}
+            </>
           )}
         </div>
       </div>
