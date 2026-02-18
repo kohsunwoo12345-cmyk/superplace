@@ -10,14 +10,22 @@ export async function onRequestGet(context) {
   const { env, request } = context;
   const authHeader = request.headers.get("Authorization");
   
+  console.log('GET /api/landing/templates - Auth header:', authHeader ? 'Present' : 'Missing');
+  
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    console.error('GET - Unauthorized: No valid auth header');
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: "Unauthorized" 
+    }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
   }
 
   try {
+    console.log('GET - Attempting to fetch templates from DB...');
+    
     const templatesResult = await env.DB.prepare(`
       SELECT 
         t.id,
@@ -34,6 +42,8 @@ export async function onRequestGet(context) {
       LEFT JOIN User u ON t.createdById = u.id
       ORDER BY t.isDefault DESC, t.createdAt DESC
     `).all();
+    
+    console.log('GET - DB query result:', templatesResult);
 
     // Convert database result to proper format
     const templates = (templatesResult.results || []).map(t => ({
@@ -48,6 +58,8 @@ export async function onRequestGet(context) {
       usageCount: t.actualUsageCount || 0,
       creatorName: t.creatorName || "",
     }));
+    
+    console.log('GET - Successfully parsed templates:', templates.length);
 
     return new Response(JSON.stringify({
       success: true,
@@ -58,11 +70,19 @@ export async function onRequestGet(context) {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Failed to fetch templates:", error);
+    console.error("GET - Failed to fetch templates:", error);
+    console.error("GET - Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
     return new Response(JSON.stringify({ 
       success: false,
       error: "Failed to fetch templates",
-      message: error.message || "Unknown error"
+      message: error.message || "Unknown error",
+      details: error.toString(),
+      stack: error.stack
     }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
@@ -74,8 +94,14 @@ export async function onRequestPost(context) {
   const { env, request } = context;
   const authHeader = request.headers.get("Authorization");
   
+  console.log('POST /api/landing/templates - Auth header:', authHeader ? 'Present' : 'Missing');
+  
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    console.error('POST - Unauthorized: No valid auth header');
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: "Unauthorized" 
+    }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
@@ -83,12 +109,17 @@ export async function onRequestPost(context) {
 
   try {
     // Get user from token
+    console.log('POST - Attempting to decode token...');
     const user = getUserFromAuth(request);
+    console.log('POST - User from token:', user);
+    
     if (!user || !user.userId) {
+      console.error('POST - Invalid token: user or userId is null');
       return new Response(JSON.stringify({ 
         success: false,
         error: "유효하지 않은 토큰입니다.",
-        message: "사용자 인증 실패"
+        message: "사용자 인증 실패",
+        debug: { user }
       }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
@@ -97,8 +128,11 @@ export async function onRequestPost(context) {
 
     const body = await request.json();
     const { name, description, html } = body;
+    
+    console.log('POST - Request body:', { name, descriptionLength: description?.length, htmlLength: html?.length });
 
     if (!name || !html) {
+      console.error('POST - Missing required fields:', { name: !!name, html: !!html });
       return new Response(JSON.stringify({ 
         success: false,
         error: "Name and HTML are required",
@@ -166,12 +200,19 @@ export async function onRequestPost(context) {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Failed to create template:", error);
+    console.error("POST - Failed to create template:", error);
+    console.error("POST - Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
     return new Response(JSON.stringify({ 
       success: false,
       error: "템플릿 저장에 실패했습니다.",
       message: error.message || "Unknown error",
       details: error.toString(),
+      stack: error.stack
     }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
