@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import { compare } from 'bcrypt-ts';
 
 export const runtime = 'edge';
 
-// Password hashing function (MUST match signup - with salt)
-async function hashPassword(password: string): Promise<string> {
+// Check if password matches - supports both bcrypt and SHA-256 hashes
+async function verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
+  // Check if it's a bcrypt hash (starts with $2a$, $2b$, or $2y$)
+  if (hashedPassword.startsWith('$2a$') || hashedPassword.startsWith('$2b$') || hashedPassword.startsWith('$2y$')) {
+    // Use bcrypt-ts for bcrypt hashes (compatible with edge runtime)
+    return await compare(plainPassword, hashedPassword);
+  }
+  
+  // For SHA-256 hashes (new format), verify directly
   const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'superplace-salt-2024'); // Add salt
+  const data = encoder.encode(plainPassword + 'superplace-salt-2024');
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const computedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  return computedHash === hashedPassword;
 }
 
 // Simple JWT-like token generation (using | separator)
@@ -97,12 +107,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.log('✅ User found:', { id: user.id, email: user.email, role: user.role, approved: user.approved });
+      console.log('✅ User found:', { id: user.id, email: user.email, role: user.role, approved: user.approved, passwordType: user.password?.substring(0, 4) });
 
-      // Check password
-      if (user.password !== hashedPassword) {
+      // Check password - handle both bcrypt and SHA-256 hashes
+      const isPasswordValid = await verifyPassword(password, user.password as string);
+
+      if (!isPasswordValid) {
         console.error('❌ Invalid password for:', email);
-
         return NextResponse.json(
           { success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다' },
           { status: 401 }

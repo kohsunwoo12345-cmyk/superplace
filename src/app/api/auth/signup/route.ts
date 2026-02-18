@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import { hash } from 'bcrypt-ts';
 
 export const runtime = 'edge';
 
-// Simple password hashing (bcrypt alternative for edge) - MUST match login
+// Simple password hashing using bcrypt (compatible with existing users)
 async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'superplace-salt-2024'); // Add salt
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  // Use bcrypt with cost factor 10 (same as bcryptjs default)
+  return await hash(password, 10);
 }
 
 function generateId(prefix: string): string {
