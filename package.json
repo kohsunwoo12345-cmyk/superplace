@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && npx @cloudflare/next-on-pages && rm -rf out && cp -r .vercel/output/static out && cp -r functions out/functions",
     "postbuild": "echo 'Next.js build complete'",
     "pages:build": "npx @cloudflare/next-on-pages && rm -rf out && cp -r .vercel/output/static out && cp -r functions out/functions",
     "preview": "npm run pages:build && wrangler pages dev out",
