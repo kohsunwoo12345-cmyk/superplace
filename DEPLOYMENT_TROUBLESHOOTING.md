@@ -1,198 +1,162 @@
-# Vercel 배포 문제 해결 가이드
+# 🚨 AI 쇼핑몰 제품 추가 페이지 404 문제 해결 가이드
 
-## 현재 배포 상태
+## 📊 현재 상태 (2026-02-18 05:15 UTC)
 
-### 최근 배포
-- **날짜**: 2026-02-01
-- **커밋**: a071589 (chore: force Vercel redeployment)
-- **변경사항**: 관리자 대시보드 사용자 관리 기능 개선
+### ✅ 완료된 작업
+1. **로컬 빌드 성공** ✅
+   - `out/dashboard/admin/store-management/create/index.html` 존재
+   - 빌드 크기: 4.23 kB / 117 kB
+   - Next.js 빌드 출력에 정상 표시
 
-## 배포 확인 방법
+2. **Git 커밋 & 푸시 완료** ✅
+   - 커밋 43ac30a: main 브랜치 머지 및 충돌 해결
+   - 커밋 249060d: 소스 파일 직접 수정으로 재배포 트리거
+   - PR #11 main 브랜치로 머지 완료
+   - https://github.com/kohsunwoo12345-cmyk/superplace/pull/11
 
-### 1. Vercel 대시보드에서 확인
-1. https://vercel.com/dashboard 접속
-2. superplace 프로젝트 선택
-3. Deployments 탭에서 최신 배포 상태 확인
+3. **페이지 파일 복구** ✅
+   - `src/app/dashboard/admin/store-management/create/page.tsx` (24 KB)
+   - `src/app/dashboard/admin/store-management/edit/page.tsx` (25 KB)
+   - `src/app/dashboard/admin/store-management/page.tsx` (14 KB)
 
-### 2. 명령줄에서 확인
+### 🔴 배포 실패 - Cloudflare Pages
+- **메인 사이트**: https://superplacestudy.pages.dev/ - HTTP 200 ✅
+- **ETag**: `84db67b6d2ddb36a0153de439c860483` (변경 없음 ❌)
+- **제품 추가 페이지**: https://superplacestudy.pages.dev/dashboard/admin/store-management/create/ - **HTTP 404** ❌
+- **x-matched-path**: `/404` (페이지 없음)
+
+## 🔍 문제 원인
+
+### 1. Cloudflare Pages 자동 빌드 미작동
+Cloudflare Pages가 GitHub push를 감지하지 못하거나, `main` 브랜치 자동 빌드가 비활성화되어 있을 가능성이 높습니다.
+
+**확인 사항**:
+- Cloudflare Pages 빌드 설정에서 `main` 브랜치가 자동 빌드 대상인지 확인
+- GitHub Webhook이 Cloudflare에 제대로 연결되어 있는지 확인
+- 최근 배포 로그에서 빌드 실패 여부 확인
+
+### 2. 빌드 설정 문제
+- **빌드 명령어**: `npm run build`
+- **출력 디렉토리**: `out`
+- **Node.js 버전**: 18 이상 권장
+
+## 🛠️ 해결 방법
+
+### 방법 1: Cloudflare Dashboard에서 수동 배포 (권장)
+
+1. **Cloudflare Dashboard 접속**
+   - https://dash.cloudflare.com
+   - Workers & Pages → `superplace` 프로젝트 선택
+
+2. **Deployments 탭 이동**
+   - 최근 배포 목록 확인
+   - 마지막 배포 시각과 현재 시각 비교
+
+3. **수동 배포 트리거**
+   - 우측 상단 "Create deployment" 또는 "Retry deployment" 클릭
+   - 브랜치: `main` 선택
+   - "Deploy" 버튼 클릭
+
+4. **빌드 로그 모니터링**
+   - 빌드 진행 상황 실시간 확인
+   - 오류 발생 시 로그 복사하여 보고
+
+### 방법 2: GitHub Webhook 재연결
+
+1. **Cloudflare Pages 설정**
+   - Settings → Builds & deployments
+   - "Build configuration" 확인
+     - Build command: `npm run build`
+     - Build output directory: `out`
+   - "Production branch" 확인
+     - `main` 브랜치가 설정되어 있는지 확인
+
+2. **GitHub Webhook 확인**
+   - GitHub 저장소 → Settings → Webhooks
+   - Cloudflare Pages webhook 상태 확인
+   - 최근 delivery 확인 (성공/실패)
+
+3. **Webhook 재생성** (필요 시)
+   - Cloudflare Pages Settings → Git integration
+   - "Reconnect repository" 클릭
+
+### 방법 3: Wrangler CLI로 배포 (고급)
+
+로컬에서 직접 배포:
+
 ```bash
-# 사이트 응답 확인
-curl -I https://superplace-study.vercel.app
+cd /home/user/superplacestudy
 
-# 최근 커밋 확인
-git log --oneline -5
-
-# GitHub PR 체크 상태 확인
-gh pr checks [PR번호]
-```
-
-## 일반적인 배포 문제 및 해결
-
-### 문제 1: 빌드 실패
-**증상**: Vercel에서 빌드가 실패함
-
-**해결 방법**:
-```bash
-# 로컬에서 빌드 테스트
+# 빌드
 npm run build
 
-# TypeScript 오류 확인
-npx tsc --noEmit
+# Wrangler로 배포
+npx wrangler pages deploy out --project-name=superplace
 
-# ESLint 오류 확인
-npm run lint
+# 배포 확인
+curl -I https://superplacestudy.pages.dev/dashboard/admin/store-management/create/
 ```
 
-### 문제 2: 환경 변수 누락
-**증상**: 배포는 성공했지만 기능이 작동하지 않음
+## 🧪 배포 성공 확인 방법
 
-**해결 방법**:
-1. Vercel Dashboard → Settings → Environment Variables
-2. 필수 환경 변수 확인:
-   - `DATABASE_URL`
-   - `NEXTAUTH_URL`
-   - `NEXTAUTH_SECRET`
-   - `GOOGLE_GEMINI_API_KEY`
-
-### 문제 3: 캐시 문제
-**증상**: 코드 변경이 반영되지 않음
-
-**해결 방법**:
+### 1. ETag 변경 확인
 ```bash
-# 강제 재배포 트리거
-date > .vercel-force-deploy
-git add .vercel-force-deploy
-git commit -m "chore: force Vercel redeployment"
-git push origin main
+curl -I https://superplacestudy.pages.dev/ | grep etag
 ```
+- 현재: `"84db67b6d2ddb36a0153de439c860483"`
+- 배포 후: **새로운 해시**로 변경되어야 함
 
-### 문제 4: 데이터베이스 연결 실패
-**증상**: 500 에러 또는 데이터베이스 관련 오류
-
-**해결 방법**:
-1. DATABASE_URL 형식 확인:
-   ```
-   postgresql://user:password@host:port/database?sslmode=require
-   ```
-2. Prisma 스키마 동기화:
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   ```
-
-## 배포 프로세스
-
-### 정상적인 배포 흐름
-1. 코드 변경 및 커밋
-   ```bash
-   git add .
-   git commit -m "feat: 새로운 기능 추가"
-   ```
-
-2. PR 생성 (선택사항)
-   ```bash
-   git push origin feature-branch
-   gh pr create --base main --head feature-branch
-   ```
-
-3. Main 브랜치에 병합
-   ```bash
-   git checkout main
-   git merge feature-branch
-   git push origin main
-   ```
-
-4. Vercel 자동 배포 대기 (2-5분)
-
-5. 배포 확인
-   ```bash
-   curl https://superplace-study.vercel.app
-   ```
-
-## 긴급 배포 (Emergency Deployment)
-
-배포가 계속 실패할 경우:
-
-### 옵션 1: Vercel CLI 사용
+### 2. 제품 추가 페이지 확인
 ```bash
-# Vercel CLI 설치
-npm i -g vercel
-
-# 로그인
-vercel login
-
-# 수동 배포
-vercel --prod
+curl -I https://superplacestudy.pages.dev/dashboard/admin/store-management/create/
 ```
+- 현재: `HTTP/2 404`
+- 배포 후: `HTTP/2 200` 또는 `HTTP/2 308` (리다이렉트)
 
-### 옵션 2: GitHub Actions 설정
-1. `.github/workflows/deploy.yml` 생성
-2. Vercel 배포 워크플로우 추가
-3. 자동 배포 설정
+### 3. 브라우저 확인
+1. **Hard Refresh**: `Ctrl + Shift + R` (Windows/Linux) 또는 `Cmd + Shift + R` (Mac)
+2. **URL 접속**: https://superplacestudy.pages.dev/dashboard/admin/store-management/create/
+3. **관리자 로그인**: admin@superplace.co.kr / admin123456
+4. **제품 추가 페이지 확인**: "AI 봇 쇼핑몰 제품 추가" 폼이 표시되어야 함
 
-### 옵션 3: Vercel Git Integration 재연결
-1. Vercel Dashboard → Settings → Git
-2. Disconnect 후 다시 Connect
-3. main 브랜치 재설정
+## 📋 체크리스트
 
-## 배포 후 확인 사항
+배포 전:
+- [ ] GitHub에 최신 커밋 푸시 완료 (43ac30a)
+- [ ] PR #11 main으로 머지 완료
+- [ ] 로컬 `npm run build` 성공
+- [ ] `out/dashboard/admin/store-management/create/index.html` 존재
 
-### 체크리스트
-- [ ] 사이트 접속 가능 (https://superplace-study.vercel.app)
-- [ ] 로그인 기능 작동
-- [ ] 관리자 대시보드 접근 가능
-- [ ] 새로운 기능 정상 작동
-- [ ] API 엔드포인트 응답 확인
-- [ ] 데이터베이스 연결 확인
+Cloudflare 설정:
+- [ ] Production branch가 `main`으로 설정
+- [ ] Build command가 `npm run build`
+- [ ] Build output directory가 `out`
+- [ ] GitHub Webhook 활성화 확인
 
-### 기능별 테스트
-```bash
-# 관리자 대시보드 - 최근 가입 사용자
-curl -X GET https://superplace-study.vercel.app/api/admin/stats \
-  -H "Cookie: your-session-cookie"
+배포 후:
+- [ ] Cloudflare 빌드 로그 확인
+- [ ] ETag 변경 확인
+- [ ] 제품 추가 페이지 HTTP 200 확인
+- [ ] 브라우저에서 페이지 정상 표시 확인
 
-# 사용자 목록 API
-curl -X GET https://superplace-study.vercel.app/api/admin/users \
-  -H "Cookie: your-session-cookie"
-```
+## 🔗 중요 링크
 
-## 모니터링
+- **사이트**: https://superplacestudy.pages.dev
+- **제품 추가**: https://superplacestudy.pages.dev/dashboard/admin/store-management/create/
+- **제품 수정**: https://superplacestudy.pages.dev/dashboard/admin/store-management/edit?id=1
+- **Cloudflare Dashboard**: https://dash.cloudflare.com
+- **GitHub PR**: https://github.com/kohsunwoo12345-cmyk/superplace/pull/11
+- **GitHub 저장소**: https://github.com/kohsunwoo12345-cmyk/superplace
 
-### Vercel 로그 확인
-1. Vercel Dashboard → Deployments
-2. 특정 배포 클릭
-3. Runtime Logs 확인
+## 📞 다음 단계
 
-### 에러 추적
-- Vercel Analytics 활성화
-- Sentry 연동 (선택사항)
-- Custom 에러 로깅
-
-## 롤백 방법
-
-### 이전 배포로 롤백
-1. Vercel Dashboard → Deployments
-2. 이전 성공한 배포 선택
-3. "Promote to Production" 클릭
-
-### Git 롤백
-```bash
-# 이전 커밋으로 되돌리기
-git revert HEAD
-git push origin main
-
-# 또는 특정 커밋으로 되돌리기
-git reset --hard <commit-hash>
-git push -f origin main
-```
-
-## 연락처
-
-배포 문제가 지속될 경우:
-- GitHub Issues: https://github.com/kohsunwoo12345-cmyk/superplace/issues
-- Vercel Support: https://vercel.com/support
+1. **즉시**: Cloudflare Dashboard에서 수동 배포 트리거
+2. **빌드 완료 후**: ETag 및 페이지 상태 확인
+3. **성공 시**: 브라우저에서 제품 추가 페이지 테스트
+4. **실패 시**: 빌드 로그 복사하여 추가 지원 요청
 
 ---
 
-**최종 업데이트**: 2026-02-01
+**문서 작성**: 2026-02-18 05:15 UTC
 **작성자**: GenSpark AI Developer
+**상태**: 배포 대기 중

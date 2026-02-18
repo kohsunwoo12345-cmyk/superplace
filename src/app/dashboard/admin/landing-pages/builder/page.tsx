@@ -45,6 +45,13 @@ interface CustomField {
   order: number;
 }
 
+interface PixelScript {
+  id: string;
+  name: string;
+  scriptType: "header" | "body" | "footer";
+  scriptCode: string;
+}
+
 interface Folder {
   id: string;
   name: string;
@@ -64,6 +71,7 @@ interface LandingPageData {
   folder_id: string;
   show_qr_code: boolean;
   qr_code_position: "top" | "bottom" | "sidebar";
+  pixel_scripts: PixelScript[];
 }
 
 export default function LandingPageBuilderPage() {
@@ -81,6 +89,7 @@ export default function LandingPageBuilderPage() {
     folder_id: "",
     show_qr_code: true,
     qr_code_position: "bottom",
+    pixel_scripts: [],
   });
   const [folders, setFolders] = useState<Folder[]>([]);
   const [thumbnailPreview, setThumbnailPreview] = useState("");
@@ -153,6 +162,35 @@ export default function LandingPageBuilderPage() {
     });
   };
 
+  const addPixelScript = () => {
+    const newScript: PixelScript = {
+      id: `script_${Date.now()}`,
+      name: "",
+      scriptType: "header",
+      scriptCode: "",
+    };
+    setData({
+      ...data,
+      pixel_scripts: [...data.pixel_scripts, newScript],
+    });
+  };
+
+  const updatePixelScript = (id: string, updates: Partial<PixelScript>) => {
+    setData({
+      ...data,
+      pixel_scripts: data.pixel_scripts.map((script) =>
+        script.id === id ? { ...script, ...updates } : script
+      ),
+    });
+  };
+
+  const removePixelScript = (id: string) => {
+    setData({
+      ...data,
+      pixel_scripts: data.pixel_scripts.filter((script) => script.id !== id),
+    });
+  };
+
   const handleThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -188,21 +226,34 @@ export default function LandingPageBuilderPage() {
     try {
       setSaving(true);
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/landing/create", {
+      const response = await fetch("/api/admin/landing-pages", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...data,
           slug,
+          title: data.title,
+          subtitle: data.subtitle,
+          description: data.description,
+          templateType: data.template_type,
+          templateHtml: data.template_html,
+          inputData: data.input_data,
+          ogTitle: data.og_title,
+          ogDescription: data.og_description,
+          thumbnail: data.thumbnail,
+          folderId: data.folder_id,
+          showQrCode: data.show_qr_code,
+          qrCodePosition: data.qr_code_position,
+          pixelScripts: data.pixel_scripts,
         }),
       });
 
       if (response.ok) {
         const result = await response.json();
-        alert(`랜딩페이지가 생성되었습니다!\n\nURL: ${result.url}`);
+        const pageUrl = result.landingPage?.url || result.url || `/lp/${slug}`;
+        alert(`랜딩페이지가 생성되었습니다!\n\nURL: ${window.location.origin}${pageUrl}`);
         localStorage.removeItem("landing_page_draft");
         router.push("/dashboard/admin/landing-pages");
       } else {
@@ -725,6 +776,12 @@ export default function LandingPageBuilderPage() {
                       {folders.find((f) => f.id === data.folder_id)?.name || "미분류"}
                     </span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">픽셀 스크립트:</span>
+                    <span className={data.pixel_scripts.length > 0 ? "text-green-600" : "text-gray-400"}>
+                      {data.pixel_scripts.length}개
+                    </span>
+                  </div>
                 </div>
                 <Button
                   variant="outline"
@@ -734,6 +791,121 @@ export default function LandingPageBuilderPage() {
                   <Eye className="w-4 h-4 mr-2" />
                   전체 미리보기 열기
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* 픽셀 스크립트 관리 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>추적 픽셀 스크립트</CardTitle>
+                    <CardDescription className="mt-1">
+                      당근 비즈니스, Facebook 픽셀 등 추적 스크립트 추가
+                    </CardDescription>
+                  </div>
+                  <Badge variant="secondary">{data.pixel_scripts.length}개</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addPixelScript}
+                  className="w-full"
+                >
+                  <Code className="w-4 h-4 mr-2" />
+                  픽셀 스크립트 추가
+                </Button>
+
+                {data.pixel_scripts.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                    <Code className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                    <p className="text-gray-500 text-sm">
+                      추적 스크립트를 추가하세요
+                    </p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      예: 당근 비즈니스 픽셀, Facebook Pixel
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {data.pixel_scripts.map((script, index) => (
+                      <Card key={script.id} className="p-4 border-l-4 border-l-purple-500">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Badge variant="outline" className="capitalize">
+                              스크립트 #{index + 1}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removePixelScript(script.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <div>
+                            <Label className="text-xs">스크립트 이름 *</Label>
+                            <Input
+                              placeholder="예: 당근 비즈니스 픽셀, Facebook Pixel"
+                              value={script.name}
+                              onChange={(e) =>
+                                updatePixelScript(script.id, { name: e.target.value })
+                              }
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">위치 *</Label>
+                            <Select
+                              value={script.scriptType}
+                              onValueChange={(value: any) =>
+                                updatePixelScript(script.id, { scriptType: value })
+                              }
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="header">&lt;head&gt; 영역</SelectItem>
+                                <SelectItem value="body">&lt;body&gt; 시작</SelectItem>
+                                <SelectItem value="footer">&lt;body&gt; 끝</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-xs">스크립트 코드 *</Label>
+                            <Textarea
+                              placeholder="<script>...</script>"
+                              value={script.scriptCode}
+                              onChange={(e) =>
+                                updatePixelScript(script.id, {
+                                  scriptCode: e.target.value,
+                                })
+                              }
+                              rows={6}
+                              className="mt-1 font-mono text-xs"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              💡 팁: 플랫폼에서 제공하는 전체 스크립트 코드를 붙여넣으세요
+                            </p>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {data.pixel_scripts.length > 0 && (
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-xs text-yellow-800">
+                      ⚠️ <strong>주의:</strong> 스크립트 코드는 신중하게 입력하세요.
+                      잘못된 코드는 페이지 작동에 영향을 줄 수 있습니다.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
