@@ -86,6 +86,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         { id: 'admin-logs', href: '/dashboard/admin/logs', icon: ClipboardList, text: '상세 기록' },
         { id: 'admin-ai-bots', href: '/dashboard/admin/ai-bots', icon: MessageCircle, text: 'AI 봇 생성' },
         { id: 'admin-bot-management', href: '/dashboard/admin/bot-management', icon: Bot, text: 'AI 봇 할당' },
+        { id: 'admin-store', href: '/dashboard/admin/store-management', icon: ShoppingCart, text: 'AI쇼핑몰 제품 추가' },
         { id: 'admin-landing-pages', href: '/dashboard/admin/landing-pages', icon: Layout, text: '랜딩페이지' },
         { id: 'admin-inquiries', href: '/dashboard/admin/inquiries', icon: FileText, text: '문의 관리' },
         { id: 'admin-system', href: '/dashboard/admin/system', icon: Settings, text: '시스템 설정' },
