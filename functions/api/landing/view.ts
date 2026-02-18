@@ -1,34 +1,21 @@
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-import { NextRequest, NextResponse } from "next/server";
-
-// Cloudflare D1 database binding type
+// Cloudflare Pages Function
 interface Env {
   DB: D1Database;
 }
 
-// GET: 랜딩페이지 조회 (slug 기반)
-export async function GET(request: NextRequest) {
+export async function onRequestGet(context: { request: Request; env: Env }) {
   try {
-    const { searchParams } = new URL(request.url);
-    const slug = searchParams.get("slug");
+    const url = new URL(context.request.url);
+    const slug = url.searchParams.get("slug");
 
     if (!slug) {
-      return NextResponse.json(
-        { error: "slug가 필요합니다." },
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: "slug가 필요합니다." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    const env = process.env as unknown as Env;
-    const db = env.DB;
-
-    if (!db) {
-      return NextResponse.json(
-        { error: "데이터베이스 연결 실패" },
-        { status: 500 }
-      );
-    }
+    const db = context.env.DB;
 
     // Get landing page
     const landingPage = await db
@@ -46,9 +33,9 @@ export async function GET(request: NextRequest) {
       .first();
 
     if (!landingPage) {
-      return NextResponse.json(
-        { error: "랜딩페이지를 찾을 수 없습니다." },
-        { status: 404 }
+      return new Response(
+        JSON.stringify({ error: "랜딩페이지를 찾을 수 없습니다." }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -77,15 +64,26 @@ export async function GET(request: NextRequest) {
       isActive: landingPage.isActive === 1,
     };
 
-    return NextResponse.json({
-      success: true,
-      landingPage: result,
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        landingPage: result,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } catch (error: any) {
     console.error("랜딩페이지 조회 오류:", error);
-    return NextResponse.json(
-      { error: error.message || "랜딩페이지 조회 중 오류가 발생했습니다." },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({
+        error: error.message || "랜딩페이지 조회 중 오류가 발생했습니다.",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
 }

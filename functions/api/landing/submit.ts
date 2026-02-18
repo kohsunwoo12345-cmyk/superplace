@@ -1,144 +1,140 @@
+// Cloudflare Pages Function
 interface Env {
   DB: D1Database;
 }
 
-// POST: 랜딩페이지 폼 제출
-
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export async function onRequestPost(context: { request: Request; env: Env }) {
   try {
-    const { DB } = context.env;
+    const body = await context.request.json();
+    const { slug, data } = body;
 
-    if (!DB) {
-      return new Response(JSON.stringify({ error: "Database not configured" }), {
-        status: 500,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
-      });
+    if (!slug || !data) {
+      return new Response(
+        JSON.stringify({ error: "필수 데이터가 누락되었습니다." }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
-    const body = await context.request.json() as {
-      landingPageId: number | string;
-      name: string;
-      email: string;
-      phone?: string;
-      message?: string;
-      [key: string]: any; // 추가 필드 허용
-    };
+    const db = context.env.DB;
 
-    const landingPageId = typeof body.landingPageId === 'string' 
-      ? parseInt(body.landingPageId) 
-      : body.landingPageId;
-
-    if (!landingPageId || !body.name || !body.email) {
-      return new Response(JSON.stringify({ 
-        error: "landingPageId, name, and email are required" 
-      }), {
-        status: 400,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
-      });
-    }
-
-    // 이메일 형식 검증
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(body.email)) {
-      return new Response(JSON.stringify({ error: "Invalid email format" }), {
-        status: 400,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
-      });
-    }
-
-    // 랜딩페이지 존재 확인
-    const landingPage = await DB.prepare(`
-      SELECT id, is_active FROM landing_pages WHERE id = ?
-    `).bind(landingPageId).first();
+    // Get landing page ID
+    const landingPage = await db
+      .prepare(`SELECT id FROM LandingPage WHERE slug = ? AND isActive = 1`)
+      .bind(slug)
+      .first();
 
     if (!landingPage) {
-      return new Response(JSON.stringify({ error: "Landing page not found" }), {
-        status: 404,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
-      });
+      return new Response(
+        JSON.stringify({ error: "랜딩페이지를 찾을 수 없습니다." }),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
-    if (!landingPage.is_active) {
-      return new Response(JSON.stringify({ error: "Landing page is inactive" }), {
-        status: 400,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
-      });
-    }
+    const id = `sub_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const ipAddress = context.request.headers.get("cf-connecting-ip") || "unknown";
+    const userAgent = context.request.headers.get("user-agent") || "unknown";
 
-    // 추가 데이터 수집 (기본 필드 제외)
-    const additionalData: Record<string, any> = {};
-    const basicFields = ['landingPageId', 'name', 'email', 'phone', 'message'];
-    
-    for (const [key, value] of Object.entries(body)) {
-      if (!basicFields.includes(key)) {
-        additionalData[key] = value;
+    // Insert submission
+    await db
+      .prepare(
+        `INSERT INTO LandingPageSubmission 
+        (id, landingPageId, slug, data, ipAddress, userAgent, submittedAt)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+      )
+      .bind(id, landingPage.id, slug, JSON.stringify(data), ipAddress, userAgent)
+      .run();
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "신청이 완료되었습니다.",
+        submission_id: id,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
       }
+    );
+  } catch (error: any) {
+    console.error("폼 제출 오류:", error);
+    return new Response(
+      JSON.stringify({
+        error: error.message || "폼 제출 중 오류가 발생했습니다.",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+}
+
+export async function onRequestGet(context: { request: Request; env: Env }) {
+  try {
+    const authHeader = context.request.headers.get("authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    // 제출 저장
-    const result = await DB.prepare(`
-      INSERT INTO landing_page_submissions (
-        landing_page_id, name, email, phone, message, 
-        additional_data, submitted_at
-      ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-    `).bind(
-      landingPageId,
-      body.name,
-      body.email,
-      body.phone || '',
-      body.message || '',
-      Object.keys(additionalData).length > 0 ? JSON.stringify(additionalData) : ''
-    ).run();
+    const url = new URL(context.request.url);
+    const slug = url.searchParams.get("slug");
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      id: result.meta.last_row_id,
-      message: "제출이 완료되었습니다."
-    }), {
-      status: 201,
-      headers: { 
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
-    });
+    const db = context.env.DB;
+
+    let query = `
+      SELECT 
+        s.id, s.slug, s.data, s.ipAddress, s.userAgent, s.submittedAt,
+        lp.title as landingPageTitle
+      FROM LandingPageSubmission s
+      LEFT JOIN LandingPage lp ON s.landingPageId = lp.id
+    `;
+
+    if (slug) {
+      query += ` WHERE s.slug = ?`;
+    }
+
+    query += ` ORDER BY s.submittedAt DESC`;
+
+    const result = slug
+      ? await db.prepare(query).bind(slug).all()
+      : await db.prepare(query).all();
+
+    // Parse JSON data
+    const submissions = (result.results || []).map((sub: any) => ({
+      ...sub,
+      data: JSON.parse(sub.data),
+    }));
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        submissions,
+        total: submissions.length,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } catch (error: any) {
-    console.error("Form submission error:", error);
-    return new Response(JSON.stringify({ 
-      error: "제출 중 오류가 발생했습니다.",
-      details: error.message 
-    }), {
-      status: 500,
-      headers: { 
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
-    });
+    console.error("신청자 목록 조회 오류:", error);
+    return new Response(
+      JSON.stringify({
+        error: error.message || "신청자 목록 조회 중 오류가 발생했습니다.",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
-};
-
-// OPTIONS: CORS preflight
-export const onRequestOptions: PagesFunction = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
-  });
-};
+}
