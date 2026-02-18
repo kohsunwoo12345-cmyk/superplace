@@ -94,8 +94,35 @@ async function ensureTables(db: any) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { env } = getRequestContext();
-    const db = env.DB;
+    // Get DB from request context
+    let db;
+    try {
+      const { env } = getRequestContext();
+      db = env.DB;
+    } catch (contextError: any) {
+      console.error('❌ Failed to get request context:', contextError.message);
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: '데이터베이스 연결 실패',
+          info: 'Request context not available. Make sure D1 binding is configured in Cloudflare Pages.',
+          error: contextError.message
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!db) {
+      console.error('❌ DB binding not found');
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: '데이터베이스가 연결되지 않았습니다',
+          info: 'DB binding is not configured. Check wrangler.toml and Cloudflare Pages settings.'
+        },
+        { status: 500 }
+      );
+    }
 
     console.log('📝 Signup request received');
 
