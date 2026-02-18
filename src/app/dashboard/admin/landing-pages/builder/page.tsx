@@ -34,7 +34,6 @@ import {
   Code,
   RefreshCw,
 } from "lucide-react";
-import QRCodeReact from "qrcode.react";
 
 interface CustomField {
   id: string;
