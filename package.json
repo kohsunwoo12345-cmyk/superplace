@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "pages:build": "npx @cloudflare/next-on-pages",
-    "preview": "npm run pages:build && wrangler pages dev .vercel/output/static",
-    "deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static --project-name=superplacestudy",
+    "postbuild": "test -d .vercel/output/static && (rm -rf out && cp -r .vercel/output/static out) || true",
+    "pages:build": "npx @cloudflare/next-on-pages && npm run postbuild",
+    "preview": "npm run pages:build && wrangler pages dev out",
+    "deploy": "npm run pages:build && wrangler pages deploy out --project-name=superplacestudy",
     "start": "next start",
     "lint": "next lint"
   },
