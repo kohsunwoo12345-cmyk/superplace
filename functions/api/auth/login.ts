@@ -55,15 +55,15 @@ const testUsers = [
   },
 ];
 
-export async function onRequestPost(context: { 
-  request: Request;
-  env: Env;
-}) {
+export async function onRequestPost(context: any) {
   try {
     const data: LoginRequest = await context.request.json();
-    const db = context.env.DB;
 
-    console.log('🔐 로그인 시도:', { email: data.email });
+    console.log('🔐 로그인 시도:', { 
+      email: data.email,
+      hasDB: !!context.env?.DB,
+      envKeys: context.env ? Object.keys(context.env) : []
+    });
 
     // 입력 검증
     if (!data.email || !data.password) {
@@ -80,6 +80,8 @@ export async function onRequestPost(context: {
     }
 
     // 1. 데이터베이스에서 사용자 찾기 (우선)
+    const db = context.env?.DB;
+    
     if (db) {
       try {
         const hashedPassword = await hashPassword(data.password);

@@ -39,20 +39,36 @@ async function hashPassword(password: string): Promise<string> {
   return hashHex;
 }
 
-export async function onRequestPost(context: { 
-  request: Request; 
-  env: Env;
-}) {
+export async function onRequestPost(context: any) {
   try {
     const data: SignupRequest = await context.request.json();
-    const db = context.env.DB;
-
+    
     console.log('📝 회원가입 시도:', { 
       email: data.email, 
       role: data.role,
       academyCode: data.academyCode,
-      academyName: data.academyName 
+      academyName: data.academyName,
+      hasDB: !!context.env?.DB,
+      envKeys: context.env ? Object.keys(context.env) : []
     });
+
+    // D1 바인딩 확인
+    if (!context.env?.DB) {
+      console.error('❌ D1 데이터베이스 바인딩이 설정되지 않았습니다');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: '데이터베이스 연결 오류입니다. 관리자에게 문의해주세요.',
+          info: 'D1 binding not configured'
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const db = context.env.DB;
 
     // 입력 검증
     if (!data.email || !data.password || !data.name || !data.role) {
