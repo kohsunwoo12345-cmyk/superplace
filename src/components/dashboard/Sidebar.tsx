@@ -31,6 +31,7 @@ import {
   Activity,
   DollarSign,
   Cloud,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -49,6 +50,7 @@ const navigationByRole = {
     { name: "요금제 관리", href: "/dashboard/admin/pricing", icon: CreditCard },
     { name: "결제 승인", href: "/dashboard/admin/payment-approvals", icon: CreditCard },
     { name: "매출 관리", href: "/dashboard/admin/revenue", icon: DollarSign },
+    { name: "문자 발송", href: "/dashboard/admin/sms", icon: MessageCircle },
     { name: "통합 AI 봇 관리", href: "/dashboard/admin/bots-unified", icon: Bot },
     { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
     { name: "꾸메땅 AI 봇", href: "/dashboard/ai-bot-ggumettang", icon: BookOpen },
@@ -69,6 +71,7 @@ const navigationByRole = {
     { name: "요금제 관리", href: "/dashboard/admin/pricing", icon: CreditCard },
     { name: "결제 승인", href: "/dashboard/admin/payment-approvals", icon: CreditCard },
     { name: "매출 관리", href: "/dashboard/admin/revenue", icon: DollarSign },
+    { name: "문자 발송", href: "/dashboard/admin/sms", icon: MessageCircle },
     { name: "통합 AI 봇 관리", href: "/dashboard/admin/bots-unified", icon: Bot },
     { name: "AI 봇", href: "/dashboard/ai-gems", icon: Sparkles },
     { name: "꾸메땅 AI 봇", href: "/dashboard/ai-bot-ggumettang", icon: BookOpen },
