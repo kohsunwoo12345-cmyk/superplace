@@ -71,18 +71,8 @@ export default function TemplatesPage() {
         return;
       }
       
-      // 토큰 형식 확인
-      const tokenParts = token.split('|');
-      console.log("📍 Current token parts:", tokenParts.length);
-      
-      // 구 토큰 (파이프 없이 4개 이상으로 분리되는 토큰)을 감지
-      if (tokenParts.length < 4) {
-        console.warn("⚠️ Invalid or old token format detected. Parts:", tokenParts.length);
-        alert("토큰 형식이 업데이트되었습니다.\n다시 로그인해주세요.");
-        localStorage.removeItem("token");
-        window.location.href = "/login";
-        return;
-      }
+      // 토큰 형식 확인 - 로깅만 (검증 제거)
+      console.log("📍 Token exists:", !!token);
 
       const response = await fetch("/api/landing/templates", {
         headers: { Authorization: `Bearer ${token}` },
