@@ -63,10 +63,13 @@ export async function onRequestPost(context) {
     }
 
     // Get user from database
+    console.log('🔍 Looking up user:', tokenData.email);
     const user = await db
       .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
+
+    console.log('👤 User query result:', JSON.stringify(user));
 
     if (!user) {
       console.error('❌ User not found');
@@ -81,6 +84,8 @@ export async function onRequestPost(context) {
 
     const role = user.role ? user.role.toUpperCase() : '';
     const userAcademyId = user.academyId;
+    
+    console.log('🔑 User details:', { id: user.id, role, userAcademyId });
 
     // Check permissions
     if (role !== 'DIRECTOR' && role !== 'TEACHER' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
