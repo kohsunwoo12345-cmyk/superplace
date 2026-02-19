@@ -204,11 +204,54 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `)
       .all();
 
+    // 각 학원에 대해 추가 정보 조회
+    const academiesWithDetails = await Promise.all(
+      (result.results || []).map(async (academy: any) => {
+        // 학원장 이름 조회
+        const director = await db
+          .prepare(`
+            SELECT name
+            FROM users
+            WHERE academyId = ? AND role = 'DIRECTOR'
+            LIMIT 1
+          `)
+          .bind(academy.id)
+          .first();
+
+        // 학생 수 조회
+        const studentCountResult = await db
+          .prepare(`
+            SELECT COUNT(*) as count
+            FROM users
+            WHERE academyId = ? AND role = 'STUDENT'
+          `)
+          .bind(academy.id)
+          .first();
+
+        // 선생님 수 조회
+        const teacherCountResult = await db
+          .prepare(`
+            SELECT COUNT(*) as count
+            FROM users
+            WHERE academyId = ? AND role = 'TEACHER'
+          `)
+          .bind(academy.id)
+          .first();
+
+        return {
+          ...academy,
+          directorName: director?.name || null,
+          studentCount: studentCountResult?.count || 0,
+          teacherCount: teacherCountResult?.count || 0,
+        };
+      })
+    );
+
     return new Response(
       JSON.stringify({
         success: true,
-        academies: result.results || [],
-        count: result.results?.length || 0,
+        academies: academiesWithDetails,
+        count: academiesWithDetails.length,
       }),
       {
         status: 200,
