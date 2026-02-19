@@ -135,7 +135,13 @@ function UserDetailPage() {
 
   const fetchUserDetail = async () => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}`);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
@@ -148,6 +154,76 @@ function UserDetailPage() {
   };
 
   const fetchLoginLogs = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${userId}/login-logs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setLoginLogs(data.logs || []);
+      }
+    } catch (error) {
+      console.error("로그인 기록 로드 실패:", error);
+    }
+  };
+
+  const fetchActivityLogs = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${userId}/activity-logs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setActivityLogs(data.logs || []);
+      }
+    } catch (error) {
+      console.error("활동 기록 로드 실패:", error);
+    }
+  };
+
+  const fetchBotAssignments = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${userId}/bot-assignments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setBotAssignments(data.assignments || []);
+      }
+    } catch (error) {
+      console.error("봇 할당 정보 로드 실패:", error);
+    }
+  };
+
+  const fetchPayments = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${userId}/payments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPayments(data.payments || []);
+      }
+    } catch (error) {
+      console.error("결제 정보 로드 실패:", error);
+    }
+  };
     try {
       const response = await fetch(`/api/admin/users/${userId}/login-logs`);
       if (response.ok) {
