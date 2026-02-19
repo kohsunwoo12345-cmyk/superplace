@@ -88,15 +88,22 @@ export async function onRequestPost(context: {
       );
     }
 
-    console.log('✅ User found:', { id: user.id, role: user.role });
+    console.log('✅ User found:', { id: user.id, role: user.role, passwordLength: (user.password as string).length });
 
     // Verify password (supports both bcrypt and SHA-256)
     let isValid = false;
+    let method = '';
     
     try {
       // Try bcrypt first
+      console.log('🔐 Trying bcrypt verification...');
       isValid = await compare(password, user.password as string);
+      if (isValid) {
+        method = 'bcrypt';
+        console.log('✅ Password verified with bcrypt');
+      }
     } catch (e) {
+      console.log('⚠️ Bcrypt failed, trying SHA-256...');
       // If bcrypt fails, try SHA-256 (legacy)
       const encoder = new TextEncoder();
       const data = encoder.encode(password + 'superplace-salt-2024');
@@ -104,6 +111,14 @@ export async function onRequestPost(context: {
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
       isValid = hashHex === user.password;
+      if (isValid) {
+        method = 'SHA-256';
+        console.log('✅ Password verified with SHA-256');
+      } else {
+        console.log('❌ SHA-256 hash mismatch');
+        console.log('Expected:', user.password);
+        console.log('Got:', hashHex);
+      }
     }
 
     if (!isValid) {
