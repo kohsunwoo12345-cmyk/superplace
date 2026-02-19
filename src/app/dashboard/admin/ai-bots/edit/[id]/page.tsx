@@ -513,18 +513,6 @@ export default function EditAIBotPage({ params }: { params: { id: string } }) {
       setLoading(false);
     }
   };
-        router.push("/dashboard/admin/ai-bots");
-      } else {
-        const error = await response.json();
-        alert(error.message || "봇 생성에 실패했습니다.");
-      }
-    } catch (error) {
-      console.error("봇 생성 실패:", error);
-      alert("오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (initialLoading) {
     return (
