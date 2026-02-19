@@ -119,111 +119,34 @@ function UserDetailPage() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      await Promise.all([
-        fetchUserDetail(),
-        fetchLoginLogs(),
-        fetchActivityLogs(),
-        fetchBotAssignments(),
-        fetchPayments()
-      ]);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${userId}/detail`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        setLoginLogs(data.loginLogs || []);
+        setActivityLogs(data.activityLogs || []);
+        setBotAssignments(data.botAssignments || []);
+        setPayments(data.payments || []);
+      } else {
+        console.error("데이터 로드 실패:", response.status);
+        alert("데이터를 불러오는데 실패했습니다.");
+      }
     } catch (error) {
       console.error("데이터 로드 실패:", error);
+      alert("데이터를 불러오는데 실패했습니다.");
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchUserDetail = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      } else {
-        console.error("사용자 정보 로드 실패:", response.status);
-      }
-    } catch (error) {
-      console.error("사용자 정보 로드 실패:", error);
-    }
-  };
 
-  const fetchLoginLogs = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/admin/users/${userId}/login-logs`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setLoginLogs(data.logs || []);
-      }
-    } catch (error) {
-      console.error("로그인 기록 로드 실패:", error);
-    }
-  };
-
-  const fetchActivityLogs = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/admin/users/${userId}/activity-logs`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setActivityLogs(data.logs || []);
-      }
-    } catch (error) {
-      console.error("활동 기록 로드 실패:", error);
-    }
-  };
-
-  const fetchBotAssignments = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/admin/users/${userId}/bot-assignments`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setBotAssignments(data.assignments || []);
-      }
-    } catch (error) {
-      console.error("봇 할당 정보 로드 실패:", error);
-    }
-  };
-
-  const fetchPayments = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/admin/users/${userId}/payments`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setPayments(data.payments || []);
-      }
-    } catch (error) {
-      console.error("결제 정보 로드 실패:", error);
-    }
-  };
 
   const handleResetPassword = async () => {
     if (!newPassword) {
@@ -249,7 +172,7 @@ function UserDetailPage() {
       if (response.ok) {
         alert("비밀번호가 재설정되었습니다.");
         setNewPassword("");
-        await fetchUserDetail();
+        await loadAllData(); // Reload all data including updated password hash
       } else {
         const data = await response.json();
         alert(`비밀번호 재설정 실패: ${data.error || '알 수 없는 오류'}`);
@@ -517,16 +440,31 @@ function UserDetailPage() {
               <CardContent className="space-y-4">
                 <div>
                   <Label>현재 비밀번호</Label>
-                  <div className="mt-2 p-3 bg-gray-100 rounded-lg border">
-                    <p className="text-sm text-gray-600">
-                      🔒 비밀번호는 SHA-256으로 암호화되어 저장됩니다
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      해시값: {user.password.substring(0, 32)}...
-                    </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      ℹ️ 보안상 실제 비밀번호는 표시되지 않습니다. 비밀번호 재설정을 통해 변경할 수 있습니다.
-                    </p>
+                  <div className="mt-2 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border-2 border-blue-200">
+                    <div className="flex items-start gap-3">
+                      <Key className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-800 mb-2">
+                          🔒 비밀번호 보안 정보
+                        </p>
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-700">
+                            • 비밀번호는 <span className="font-semibold text-blue-600">SHA-256 단방향 암호화</span>로 저장됩니다
+                          </p>
+                          <p className="text-xs text-gray-700">
+                            • 보안상 <span className="font-semibold text-red-600">원본 비밀번호는 복호화가 불가능</span>합니다
+                          </p>
+                          <p className="text-xs text-gray-700">
+                            • 비밀번호 확인이 필요한 경우 <span className="font-semibold text-green-600">재설정</span>을 이용해주세요
+                          </p>
+                        </div>
+                        <div className="mt-3 p-2 bg-white rounded border border-gray-200">
+                          <p className="text-xs text-gray-500 font-mono break-all">
+                            해시값: {user.password}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
