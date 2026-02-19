@@ -189,6 +189,7 @@ function StudentDetailContent() {
   }, [studentId, router]);
 
   const fetchStudentData = async () => {
+    let userData = null;
     try {
       setLoading(true);
       setError(null);
@@ -204,7 +205,7 @@ function StudentDetailContent() {
       });
 
       if (userResponse.ok) {
-        const userData = await userResponse.json();
+        userData = await userResponse.json();
         const studentData = userData.student || userData;
         
         console.log("📥 Received student data:", studentData);
@@ -302,9 +303,10 @@ function StudentDetailContent() {
       }
 
       // 6. 학원장 제한 설정 조회 (학생의 academy_id 기반)
-      const currentStudent = userData.student || userData;
-      if (currentStudent && currentStudent.academy_id) {
-        const academyId = currentStudent.academy_id;
+      if (userData) {
+        const currentStudent = userData.student || userData;
+        if (currentStudent && currentStudent.academyId) {
+          const academyId = currentStudent.academyId;
         console.log('🔍 Fetching limitations for academy:', academyId);
         
         try {
@@ -333,11 +335,12 @@ function StudentDetailContent() {
           } else {
             console.error('❌ Failed to fetch limitations, status:', limitationsResponse.status);
           }
-        } catch (limitError) {
-          console.error('❌ Error fetching limitations:', limitError);
+          } catch (limitError) {
+            console.error('❌ Error fetching limitations:', limitError);
+          }
+        } else {
+          console.warn('⚠️ No academyId found for student');
         }
-      } else {
-        console.warn('⚠️ No academy_id found for student');
       }
 
     } catch (error: any) {
