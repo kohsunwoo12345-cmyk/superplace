@@ -29,11 +29,10 @@ import {
 } from "lucide-react";
 
 const GEMINI_MODELS = [
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (추천)", description: "균형잡힌 속도와 품질, 안정 버전", recommended: true },
-  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "고급 추론 능력, 복잡한 작업에 최적", recommended: false },
-  { value: "gemini-3-flash-preview", label: "Gemini 3 Flash (프리뷰)", description: "차세대 모델, 최신 기능", recommended: false },
-  { value: "gemini-3-pro-preview", label: "Gemini 3 Pro (프리뷰)", description: "최고 성능, 가장 강력한 모델", recommended: false },
-  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", description: "초고속, 비용 효율적", recommended: false },
+  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (추천)", description: "최신 실험 모델, 빠른 응답", recommended: true },
+  { value: "gemini-1.5-flash-latest", label: "Gemini 1.5 Flash", description: "안정적인 빠른 모델", recommended: false },
+  { value: "gemini-1.5-pro-latest", label: "Gemini 1.5 Pro", description: "고급 추론 능력, 복잡한 작업에 최적", recommended: false },
+  { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash-8B", description: "초고속, 비용 효율적", recommended: false },
 ];
 
 const PRESET_PROMPTS = [
@@ -238,7 +237,7 @@ export default function CreateAIBotPage() {
     starterMessage3: "",
     profileIcon: "🤖",
     profileImage: "", // 이미지 URL 추가
-    model: "gemini-2.5-flash",
+    model: "gemini-2.0-flash-exp",
     temperature: "0.7",
     maxTokens: "2000",
     topK: "40",
