@@ -58,6 +58,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         b.starterMessage1, b.starterMessage2, b.starterMessage3,
         b.profileIcon, b.profileImage, b.model, b.temperature,
         b.maxTokens, b.topK, b.topP, b.language, b.isActive,
+        b.enableProblemGeneration,
         ba.expiresAt
       FROM bot_assignments ba
       JOIN ai_bots b ON ba.botId = b.id
@@ -68,8 +69,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ORDER BY ba.createdAt DESC
     `).bind(academyId).all();
 
-    const bots = results || [];
+    // enableProblemGeneration을 명시적으로 숫자로 변환
+    const bots = (results || []).map((bot: any) => ({
+      ...bot,
+      enableProblemGeneration: bot.enableProblemGeneration ? Number(bot.enableProblemGeneration) : 0,
+      isActive: bot.isActive ? Number(bot.isActive) : 0,
+      temperature: bot.temperature ? Number(bot.temperature) : 0.7,
+      maxTokens: bot.maxTokens ? Number(bot.maxTokens) : 2000,
+      topK: bot.topK ? Number(bot.topK) : 40,
+      topP: bot.topP ? Number(bot.topP) : 0.95
+    }));
     console.log(`✅ 할당된 봇 ${bots.length}개 찾음`);
+    console.log(`🔍 봇 enableProblemGeneration 값:`, bots.map(b => ({ id: b.id, name: b.name, enableProblemGeneration: b.enableProblemGeneration })));
 
     return new Response(
       JSON.stringify({

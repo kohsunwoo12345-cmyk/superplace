@@ -47,7 +47,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `SELECT * FROM ai_bots ORDER BY datetime(createdAt) DESC`
     ).all();
 
-    const bots = botsResult?.results || [];
+    // enableProblemGeneration을 명시적으로 숫자로 변환
+    const bots = (botsResult?.results || []).map((bot: any) => ({
+      ...bot,
+      enableProblemGeneration: bot.enableProblemGeneration ? Number(bot.enableProblemGeneration) : 0,
+      isActive: bot.isActive ? Number(bot.isActive) : 0,
+      temperature: bot.temperature ? Number(bot.temperature) : 0.7,
+      maxTokens: bot.maxTokens ? Number(bot.maxTokens) : 2000,
+      topK: bot.topK ? Number(bot.topK) : 40,
+      topP: bot.topP ? Number(bot.topP) : 0.95
+    }));
 
     return new Response(JSON.stringify({ bots }), {
       status: 200,

@@ -682,22 +682,73 @@ export default function ModernAIChatPage() {
       return;
     }
 
-    // Extract problems from messages
-    const problems = messages
-      .filter(m => m.role === 'assistant' && (
-        m.content.includes('문제') || 
-        m.content.includes('?') ||
-        m.content.includes('풀이')
-      ))
-      .map((m, index) => ({
-        number: index + 1,
-        content: m.content
-      }));
+    console.log('🖨️ 문제지 출력 시작...');
+    console.log('📝 전체 메시지 개수:', messages.length);
 
-    if (problems.length === 0) {
-      alert('출력할 문제를 찾을 수 없습니다.');
+    // Extract problems from AI assistant messages
+    // 더 정교한 문제 추출 로직: 번호가 있는 문제, 질문 형태, 또는 "문제" 키워드가 있는 응답
+    const assistantMessages = messages.filter(m => m.role === 'assistant');
+    console.log('🤖 AI 응답 메시지 개수:', assistantMessages.length);
+
+    const extractedProblems: { number: number; content: string; hasAnswer: boolean }[] = [];
+
+    assistantMessages.forEach((msg, index) => {
+      const content = msg.content;
+      
+      // 문제 출제와 관련된 응답만 필터링
+      const isProblemRelated = 
+        content.includes('문제') || 
+        content.includes('?') || 
+        content.includes('풀이') ||
+        content.includes('답') ||
+        /\d+\.\s/.test(content) || // "1. " 형태의 번호
+        /\d+\)\s/.test(content) || // "1) " 형태의 번호
+        content.includes('계산') ||
+        content.includes('구하') ||
+        content.includes('식') ||
+        content.includes('해결');
+
+      if (isProblemRelated) {
+        // 문제와 풀이 분리 시도
+        let problemText = content;
+        let hasAnswer = false;
+
+        // "풀이", "답", "해설" 등의 키워드 이후를 분리
+        const answerKeywords = ['[풀이]', '[답]', '[해설]', '풀이:', '답:', '해설:', '정답:', '\n답:'];
+        for (const keyword of answerKeywords) {
+          if (content.includes(keyword)) {
+            hasAnswer = true;
+            const parts = content.split(keyword);
+            problemText = parts[0].trim();
+            break;
+          }
+        }
+
+        // 내용이 너무 짧으면 제외 (최소 10자)
+        if (problemText.length > 10) {
+          extractedProblems.push({
+            number: extractedProblems.length + 1,
+            content: problemText,
+            hasAnswer: hasAnswer
+          });
+        }
+      }
+    });
+
+    console.log('📋 추출된 문제 개수:', extractedProblems.length);
+    console.log('📋 문제 상세:', extractedProblems.map(p => ({ 
+      number: p.number, 
+      length: p.content.length, 
+      hasAnswer: p.hasAnswer,
+      preview: p.content.substring(0, 50) + '...'
+    })));
+
+    if (extractedProblems.length === 0) {
+      alert('출력할 문제를 찾을 수 없습니다.\n\nAI에게 "수학 문제 3개 출제해줘" 같은 요청을 먼저 해보세요.');
       return;
     }
+
+    const problems = extractedProblems;
 
     // Get academy name
     let academyName = '학원';
@@ -729,85 +780,178 @@ export default function ModernAIChatPage() {
         <title>문제지 - ${academyName}</title>
         <style>
           @media print {
-            @page { margin: 2cm; }
+            @page { 
+              margin: 1.5cm;
+              size: A4;
+            }
+            .no-print { display: none !important; }
+            button { display: none !important; }
+          }
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
           }
           body {
-            font-family: 'Malgun Gothic', sans-serif;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
             max-width: 21cm;
             margin: 0 auto;
-            padding: 2cm;
+            padding: 1.5cm;
             background: white;
+            color: #1a1a1a;
           }
           .header {
             text-align: center;
-            border-bottom: 3px solid #333;
+            border-bottom: 3px solid #1a1a1a;
             padding-bottom: 20px;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
           }
           .academy-name {
-            font-size: 28px;
-            font-weight: bold;
+            font-size: 32px;
+            font-weight: 900;
             color: #2563eb;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
           }
           .title {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 10px;
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+          }
+          .subtitle {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
           }
           .date {
-            font-size: 14px;
-            color: #666;
+            font-size: 13px;
+            color: #888;
           }
           .student-info {
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             padding: 15px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
+            border: 2px solid #333;
+            border-radius: 6px;
+            background: #f8f9fa;
           }
           .student-info table {
             width: 100%;
           }
           .student-info td {
-            padding: 8px;
-            border-bottom: 1px solid #eee;
+            padding: 10px 12px;
           }
           .student-info td:first-child {
             width: 80px;
-            font-weight: bold;
+            font-weight: 700;
+            color: #333;
+          }
+          .student-info td:nth-child(2) {
+            border-bottom: 1px solid #333;
+          }
+          .student-info td:nth-child(3) {
+            width: 80px;
+            font-weight: 700;
+            color: #333;
+            padding-left: 20px;
+          }
+          .student-info td:nth-child(4) {
+            border-bottom: 1px solid #333;
+          }
+          .instructions {
+            margin-bottom: 25px;
+            padding: 12px 15px;
+            background: #fff8dc;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+          }
+          .instructions p {
+            font-size: 13px;
+            line-height: 1.6;
             color: #555;
           }
           .problem {
-            margin-bottom: 30px;
-            padding: 20px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background: #fafafa;
+            margin-bottom: 35px;
+            padding: 0;
             page-break-inside: avoid;
           }
+          .problem-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #2563eb;
+          }
           .problem-number {
-            font-size: 18px;
-            font-weight: bold;
+            font-size: 20px;
+            font-weight: 800;
             color: #2563eb;
-            margin-bottom: 15px;
+            min-width: 60px;
+          }
+          .problem-score {
+            font-size: 14px;
+            color: #666;
+            margin-left: auto;
           }
           .problem-content {
-            font-size: 16px;
-            line-height: 1.8;
+            font-size: 15px;
+            line-height: 2.0;
             white-space: pre-wrap;
-            color: #333;
+            color: #1a1a1a;
+            padding: 15px;
+            background: #fafafa;
+            border-radius: 6px;
+            margin-bottom: 15px;
+          }
+          .answer-space {
+            margin-top: 15px;
+            padding: 15px;
+            border: 1px dashed #ccc;
+            border-radius: 6px;
+            min-height: 100px;
+            background: white;
+          }
+          .answer-space-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 10px;
+          }
+          .answer-lines {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+          }
+          .answer-line {
+            border-bottom: 1px solid #ddd;
+            height: 25px;
           }
           .footer {
-            margin-top: 50px;
-            padding-top: 20px;
-            border-top: 2px solid #ddd;
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 2px solid #e0e0e0;
             text-align: center;
-            color: #666;
-            font-size: 12px;
           }
-          @media print {
-            .no-print { display: none; }
-            button { display: none; }
+          .footer p {
+            font-size: 11px;
+            color: #888;
+            line-height: 1.6;
+          }
+          .summary {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 12px 15px;
+            background: #f0f0f0;
+            border-radius: 6px;
+          }
+          .summary-item {
+            font-size: 14px;
+            color: #333;
+          }
+          .summary-item strong {
+            color: #2563eb;
+            font-weight: 700;
           }
         </style>
       </head>
@@ -815,38 +959,73 @@ export default function ModernAIChatPage() {
         <div class="header">
           <div class="academy-name">${academyName}</div>
           <div class="title">AI 생성 문제지</div>
-          <div class="date">${new Date().toLocaleDateString('ko-KR')}</div>
+          <div class="subtitle">AI Assistant: ${selectedBot?.name || 'AI 튜터'}</div>
+          <div class="date">${new Date().toLocaleDateString('ko-KR', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}</div>
         </div>
 
         <div class="student-info">
           <table>
             <tr>
-              <td>이름:</td>
-              <td>_____________________</td>
-              <td>학년:</td>
-              <td>_____________________</td>
+              <td>학생 이름</td>
+              <td style="width: 35%;">____________________________</td>
+              <td>학년/반</td>
+              <td>____________________________</td>
             </tr>
           </table>
         </div>
 
-        ${problems.map(p => `
+        <div class="summary">
+          <div class="summary-item">총 <strong>${problems.length}개</strong> 문제</div>
+          <div class="summary-item">제한 시간: <strong>______분</strong></div>
+          <div class="summary-item">배점: <strong>총 ______점</strong></div>
+        </div>
+
+        <div class="instructions">
+          <p>📌 <strong>답안 작성 시 유의사항</strong></p>
+          <p>• 문제를 꼼꼼히 읽고 풀이 과정을 명확히 작성하세요.</p>
+          <p>• 답안은 깨끗하고 정돈된 글씨로 작성하세요.</p>
+          <p>• 계산 과정이나 풀이는 답안 공간에 상세히 기록하세요.</p>
+        </div>
+
+        ${problems.map((p, index) => `
           <div class="problem">
-            <div class="problem-number">문제 ${p.number}</div>
-            <div class="problem-content">${p.content}</div>
+            <div class="problem-header">
+              <div class="problem-number">문제 ${p.number}</div>
+              <div class="problem-score">( _____ 점 )</div>
+            </div>
+            <div class="problem-content">${p.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            <div class="answer-space">
+              <div class="answer-space-label">✍️ 답안 작성</div>
+              <div class="answer-lines">
+                <div class="answer-line"></div>
+                <div class="answer-line"></div>
+                <div class="answer-line"></div>
+              </div>
+            </div>
           </div>
         `).join('')}
 
         <div class="footer">
           <p>본 문제지는 AI를 활용하여 자동 생성되었습니다.</p>
-          <p>생성 일시: ${new Date().toLocaleString('ko-KR')}</p>
+          <p>생성 일시: ${new Date().toLocaleString('ko-KR', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })} | ${academyName}</p>
         </div>
 
-        <div class="no-print" style="text-align: center; margin-top: 30px;">
-          <button onclick="window.print()" style="padding: 12px 30px; font-size: 16px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer;">
+        <div class="no-print" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 1000;">
+          <button onclick="window.print()" style="padding: 14px 35px; font-size: 16px; font-weight: 600; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; margin-right: 10px; transition: all 0.2s;">
             🖨️ 인쇄하기
           </button>
-          <button onclick="window.close()" style="padding: 12px 30px; font-size: 16px; background: #6b7280; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
-            닫기
+          <button onclick="window.close()" style="padding: 14px 35px; font-size: 16px; font-weight: 600; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+            ✖️ 닫기
           </button>
         </div>
       </body>
