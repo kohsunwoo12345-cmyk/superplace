@@ -1093,17 +1093,19 @@ export default function EditAIBotPage() {
                       <Input
                         id="maxTokens"
                         type="number"
-                        step="100"
+                        step="500"
                         min="100"
-                        max="8000"
+                        max="20000"
                         value={formData.maxTokens}
                         onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
                         className="mt-2"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        {parseInt(formData.maxTokens) < 1000 ? "짧은 답변 (~500자)" :
-                         parseInt(formData.maxTokens) < 3000 ? "중간 길이 (~1500자)" :
-                         "긴 답변 (~4000자)"} · 기본: 2000
+                        {parseInt(formData.maxTokens) < 1000 ? "매우 짧은 답변 (~500자)" :
+                         parseInt(formData.maxTokens) < 3000 ? "짧은 답변 (~1500자)" :
+                         parseInt(formData.maxTokens) < 8000 ? "중간 길이 (~4000자)" :
+                         parseInt(formData.maxTokens) < 15000 ? "긴 답변 (~7500자)" :
+                         "매우 긴 답변 (~10000자)"} · 기본: 2000 · 최대: 20000
                       </p>
                     </div>
                   </div>
