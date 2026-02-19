@@ -102,32 +102,81 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const botId = `bot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    await DB.prepare(`
-      INSERT INTO ai_bots (
-        id, name, description, systemPrompt, welcomeMessage, 
-        starterMessage1, starterMessage2, starterMessage3, profileIcon, profileImage,
-        model, temperature, maxTokens, topK, topP, language,
-        enableProblemGeneration, isActive, conversationCount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
-    `).bind(
-      botId,
-      name,
-      description || null,
-      systemPrompt,
-      welcomeMessage || null,
-      starterMessage1 || null,
-      starterMessage2 || null,
-      starterMessage3 || null,
-      profileIcon,
-      profileImage || null,
-      model,
-      temperature,
-      maxTokens,
-      topK,
-      topP,
-      language,
-      enableProblemGeneration ? 1 : 0
-    ).run();
+    // Try to add enableProblemGeneration column if it doesn't exist
+    try {
+      await DB.prepare(`
+        ALTER TABLE ai_bots ADD COLUMN enableProblemGeneration INTEGER DEFAULT 0
+      `).run();
+      console.log('✅ enableProblemGeneration column added successfully');
+    } catch (alterError: any) {
+      // Column already exists or other error - continue anyway
+      console.log('ℹ️ Column add attempt:', alterError.message);
+    }
+
+    // Try with enableProblemGeneration first
+    try {
+      await DB.prepare(`
+        INSERT INTO ai_bots (
+          id, name, description, systemPrompt, welcomeMessage, 
+          starterMessage1, starterMessage2, starterMessage3, profileIcon, profileImage,
+          model, temperature, maxTokens, topK, topP, language,
+          enableProblemGeneration, isActive, conversationCount
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+      `).bind(
+        botId,
+        name,
+        description || null,
+        systemPrompt,
+        welcomeMessage || null,
+        starterMessage1 || null,
+        starterMessage2 || null,
+        starterMessage3 || null,
+        profileIcon,
+        profileImage || null,
+        model,
+        temperature,
+        maxTokens,
+        topK,
+        topP,
+        language,
+        enableProblemGeneration ? 1 : 0
+      ).run();
+
+      console.log('✅ AI bot created with enableProblemGeneration');
+    } catch (insertError: any) {
+      // If enableProblemGeneration column doesn't exist, try without it
+      if (insertError.message?.includes('enableProblemGeneration')) {
+        console.log('⚠️ Retrying without enableProblemGeneration column');
+        await DB.prepare(`
+          INSERT INTO ai_bots (
+            id, name, description, systemPrompt, welcomeMessage, 
+            starterMessage1, starterMessage2, starterMessage3, profileIcon, profileImage,
+            model, temperature, maxTokens, topK, topP, language,
+            isActive, conversationCount
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+        `).bind(
+          botId,
+          name,
+          description || null,
+          systemPrompt,
+          welcomeMessage || null,
+          starterMessage1 || null,
+          starterMessage2 || null,
+          starterMessage3 || null,
+          profileIcon,
+          profileImage || null,
+          model,
+          temperature,
+          maxTokens,
+          topK,
+          topP,
+          language
+        ).run();
+        console.log('✅ AI bot created without enableProblemGeneration (feature disabled)');
+      } else {
+        throw insertError;
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true, botId, message: "AI bot created successfully" }),
