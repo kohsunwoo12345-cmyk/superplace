@@ -35,3 +35,4 @@ next-env.d.ts
 # Wrangler
 .wrangler/
 wrangler.log
+backup_auth_pages/
