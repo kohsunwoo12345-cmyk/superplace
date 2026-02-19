@@ -81,6 +81,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topP: bot.topP || 0.95,
       maxOutputTokens: bot.maxTokens || 2000
     });
+    
+    // 지식 베이스 확인
+    if (bot.knowledgeBase) {
+      console.log(`📚 Knowledge Base: ${bot.knowledgeBase.substring(0, 200)}... (${bot.knowledgeBase.length} chars)`);
+    }
 
     // 대화 히스토리 구성
     const history = data.conversationHistory || [];
@@ -92,15 +97,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 시스템 프롬프트 + 대화 히스토리 + 현재 메시지
     const contents: any[] = [];
     
-    // 시스템 프롬프트를 첫 메시지로
-    if (bot.systemPrompt) {
+    // 시스템 프롬프트를 첫 메시지로 (지식 베이스 포함)
+    if (bot.systemPrompt || bot.knowledgeBase) {
+      let systemMessage = "";
+      
+      if (bot.systemPrompt) {
+        systemMessage += `시스템 지침:\n${bot.systemPrompt}`;
+      }
+      
+      if (bot.knowledgeBase) {
+        systemMessage += `\n\n--- 지식 베이스 (Knowledge Base) ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식 베이스의 정보를 참고하여 질문에 답변하세요.`;
+      }
+      
       contents.push({
         role: "user",
-        parts: [{ text: `시스템 지침: ${bot.systemPrompt}` }]
+        parts: [{ text: systemMessage }]
       });
       contents.push({
         role: "model",
-        parts: [{ text: "알겠습니다. 지침을 따르겠습니다." }]
+        parts: [{ text: "알겠습니다. 지침과 지식 베이스를 참고하여 답변하겠습니다." }]
       });
     }
     

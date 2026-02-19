@@ -58,7 +58,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         b.starterMessage1, b.starterMessage2, b.starterMessage3,
         b.profileIcon, b.profileImage, b.model, b.temperature,
         b.maxTokens, b.topK, b.topP, b.language, b.isActive,
-        b.enableProblemGeneration, b.voiceEnabled, b.voiceName,
+        b.enableProblemGeneration, b.voiceEnabled, b.voiceName, b.knowledgeBase,
         ba.expiresAt
       FROM bot_assignments ba
       JOIN ai_bots b ON ba.botId = b.id

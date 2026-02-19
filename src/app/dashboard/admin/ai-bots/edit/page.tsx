@@ -414,28 +414,37 @@ export default function EditAIBotPage() {
     setUploadingFile(true);
     try {
       for (const file of Array.from(files)) {
-        // 파일 크기 제한 (5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          alert(`${file.name}: 파일 크기는 5MB를 초과할 수 없습니다.`);
+        // 파일 크기 제한 (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`${file.name}: 파일 크기는 10MB를 초과할 수 없습니다.`);
           continue;
         }
 
-        // 지원 파일 형식 확인
+        // 지원 파일 형식 확인 (텍스트 기반만)
         const allowedTypes = [
           'text/plain',
           'text/markdown',
-          'application/pdf',
           'application/json',
-          'text/csv'
+          'text/csv',
+          'text/html',
+          'application/xml',
+          'text/xml'
         ];
         
-        if (!allowedTypes.includes(file.type) && !file.name.endsWith('.md') && !file.name.endsWith('.txt')) {
-          alert(`${file.name}: 지원하지 않는 파일 형식입니다. (지원: txt, md, pdf, json, csv)`);
+        const fileExtension = file.name.toLowerCase().split('.').pop();
+        const supportedExtensions = ['txt', 'md', 'json', 'csv', 'html', 'xml'];
+        
+        if (!allowedTypes.includes(file.type) && !supportedExtensions.includes(fileExtension || '')) {
+          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD (Markdown), JSON, CSV, HTML, XML\n\n참고: PDF 파일은 텍스트를 복사하여 직접 붙여넣기 하거나, 텍스트로 변환 후 업로드해주세요.`);
           continue;
         }
 
+        console.log(`📁 파일 업로드 시작: ${file.name} (${file.size} bytes, type: ${file.type})`);
+
         // 텍스트 파일 읽기
         const text = await file.text();
+        
+        console.log(`✅ 파일 읽기 완료: ${file.name} (${text.length} chars)`);
         
         setKnowledgeFiles(prev => [
           ...prev,
@@ -449,12 +458,16 @@ export default function EditAIBotPage() {
         // knowledgeBase에 추가
         setFormData(prev => ({
           ...prev,
-          knowledgeBase: prev.knowledgeBase + `\n\n## ${file.name}\n${text}`
+          knowledgeBase: prev.knowledgeBase + `\n\n## 📄 ${file.name}\n\n${text}\n\n---\n`
         }));
+        
+        console.log(`💾 Knowledge Base 업데이트 완료`);
       }
+      
+      alert(`${files.length}개 파일이 성공적으로 업로드되었습니다.`);
     } catch (error) {
-      console.error('파일 업로드 오류:', error);
-      alert('파일을 읽는 중 오류가 발생했습니다.');
+      console.error('❌ 파일 업로드 오류:', error);
+      alert('파일을 읽는 중 오류가 발생했습니다.\n\n' + (error as Error).message);
     } finally {
       setUploadingFile(false);
       if (fileInputRef.current) {
