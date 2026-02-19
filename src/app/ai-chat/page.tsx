@@ -786,11 +786,10 @@ export default function ModernAIChatPage() {
         <style>
           @media print {
             @page { 
-              margin: 1.5cm;
+              margin: 2cm;
               size: A4;
             }
             .no-print { display: none !important; }
-            button { display: none !important; }
           }
           * {
             margin: 0;
@@ -801,236 +800,100 @@ export default function ModernAIChatPage() {
             font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
             max-width: 21cm;
             margin: 0 auto;
-            padding: 1.5cm;
+            padding: 2cm;
             background: white;
-            color: #1a1a1a;
+            color: #000;
+            line-height: 1.6;
           }
           .header {
             text-align: center;
-            border-bottom: 3px solid #1a1a1a;
+            margin-bottom: 40px;
             padding-bottom: 20px;
-            margin-bottom: 25px;
+            border-bottom: 2px solid #000;
           }
           .academy-name {
-            font-size: 32px;
-            font-weight: 900;
-            color: #2563eb;
-            margin-bottom: 8px;
-            letter-spacing: -0.5px;
-          }
-          .title {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 700;
-            margin-bottom: 8px;
-            color: #1a1a1a;
-          }
-          .subtitle {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 5px;
-          }
-          .date {
-            font-size: 13px;
-            color: #888;
+            margin-bottom: 15px;
           }
           .student-info {
-            margin-bottom: 25px;
-            padding: 15px;
-            border: 2px solid #333;
-            border-radius: 6px;
-            background: #f8f9fa;
+            margin-bottom: 30px;
+            font-size: 14px;
           }
-          .student-info table {
-            width: 100%;
-          }
-          .student-info td {
-            padding: 10px 12px;
-          }
-          .student-info td:first-child {
-            width: 80px;
-            font-weight: 700;
-            color: #333;
-          }
-          .student-info td:nth-child(2) {
-            border-bottom: 1px solid #333;
-          }
-          .student-info td:nth-child(3) {
-            width: 80px;
-            font-weight: 700;
-            color: #333;
-            padding-left: 20px;
-          }
-          .student-info td:nth-child(4) {
-            border-bottom: 1px solid #333;
-          }
-          .instructions {
-            margin-bottom: 25px;
-            padding: 12px 15px;
-            background: #fff8dc;
-            border-left: 4px solid #ffc107;
-            border-radius: 4px;
-          }
-          .instructions p {
-            font-size: 13px;
-            line-height: 1.6;
-            color: #555;
-          }
-          .problem {
-            margin-bottom: 35px;
-            padding: 0;
-            page-break-inside: avoid;
-          }
-          .problem-header {
+          .student-info-line {
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #2563eb;
+          }
+          .student-info-label {
+            font-weight: 600;
+            min-width: 80px;
+          }
+          .student-info-input {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            min-height: 20px;
+          }
+          .problem {
+            margin-bottom: 40px;
+            page-break-inside: avoid;
           }
           .problem-number {
-            font-size: 20px;
-            font-weight: 800;
-            color: #2563eb;
-            min-width: 60px;
-          }
-          .problem-score {
-            font-size: 14px;
-            color: #666;
-            margin-left: auto;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 10px;
           }
           .problem-content {
-            font-size: 15px;
+            font-size: 14px;
             line-height: 2.0;
             white-space: pre-wrap;
-            color: #1a1a1a;
-            padding: 15px;
-            background: #fafafa;
-            border-radius: 6px;
             margin-bottom: 15px;
           }
           .answer-space {
-            margin-top: 15px;
-            padding: 15px;
-            border: 1px dashed #ccc;
-            border-radius: 6px;
-            min-height: 100px;
-            background: white;
-          }
-          .answer-space-label {
-            font-size: 13px;
-            font-weight: 600;
-            color: #666;
-            margin-bottom: 10px;
-          }
-          .answer-lines {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            margin-top: 20px;
+            min-height: 80px;
           }
           .answer-line {
-            border-bottom: 1px solid #ddd;
-            height: 25px;
-          }
-          .footer {
-            margin-top: 40px;
-            padding-top: 15px;
-            border-top: 2px solid #e0e0e0;
-            text-align: center;
-          }
-          .footer p {
-            font-size: 11px;
-            color: #888;
-            line-height: 1.6;
-          }
-          .summary {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            padding: 12px 15px;
-            background: #f0f0f0;
-            border-radius: 6px;
-          }
-          .summary-item {
-            font-size: 14px;
-            color: #333;
-          }
-          .summary-item strong {
-            color: #2563eb;
-            font-weight: 700;
+            border-bottom: 1px solid #ccc;
+            height: 30px;
+            margin-bottom: 5px;
           }
         </style>
       </head>
       <body>
         <div class="header">
           <div class="academy-name">${academyName}</div>
-          <div class="title">AI 생성 문제지</div>
-          <div class="subtitle">AI Assistant: ${selectedBot?.name || 'AI 튜터'}</div>
-          <div class="date">${new Date().toLocaleDateString('ko-KR', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}</div>
         </div>
 
         <div class="student-info">
-          <table>
-            <tr>
-              <td>학생 이름</td>
-              <td style="width: 35%;">____________________________</td>
-              <td>학년/반</td>
-              <td>____________________________</td>
-            </tr>
-          </table>
-        </div>
-
-        <div class="summary">
-          <div class="summary-item">총 <strong>${problems.length}개</strong> 문제</div>
-          <div class="summary-item">제한 시간: <strong>______분</strong></div>
-          <div class="summary-item">배점: <strong>총 ______점</strong></div>
-        </div>
-
-        <div class="instructions">
-          <p>📌 <strong>답안 작성 시 유의사항</strong></p>
-          <p>• 문제를 꼼꼼히 읽고 풀이 과정을 명확히 작성하세요.</p>
-          <p>• 답안은 깨끗하고 정돈된 글씨로 작성하세요.</p>
-          <p>• 계산 과정이나 풀이는 답안 공간에 상세히 기록하세요.</p>
+          <div class="student-info-line">
+            <span class="student-info-label">이름:</span>
+            <span class="student-info-input"></span>
+          </div>
+          <div class="student-info-line">
+            <span class="student-info-label">날짜:</span>
+            <span class="student-info-input">${new Date().toLocaleDateString('ko-KR')}</span>
+          </div>
         </div>
 
         ${problems.map((p, index) => `
           <div class="problem">
-            <div class="problem-header">
-              <div class="problem-number">문제 ${p.number}</div>
-              <div class="problem-score">( _____ 점 )</div>
-            </div>
+            <div class="problem-number">${p.number}. </div>
             <div class="problem-content">${p.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
             <div class="answer-space">
-              <div class="answer-space-label">✍️ 답안 작성</div>
-              <div class="answer-lines">
-                <div class="answer-line"></div>
-                <div class="answer-line"></div>
-                <div class="answer-line"></div>
-              </div>
+              <div class="answer-line"></div>
+              <div class="answer-line"></div>
+              <div class="answer-line"></div>
             </div>
           </div>
         `).join('')}
 
-        <div class="footer">
-          <p>본 문제지는 AI를 활용하여 자동 생성되었습니다.</p>
-          <p>생성 일시: ${new Date().toLocaleString('ko-KR', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric', 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })} | ${academyName}</p>
-        </div>
-
-        <div class="no-print" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 1000;">
-          <button onclick="window.print()" style="padding: 14px 35px; font-size: 16px; font-weight: 600; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; margin-right: 10px; transition: all 0.2s;">
-            🖨️ 인쇄하기
+        <div class="no-print" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <button onclick="window.print()" style="padding: 10px 25px; font-size: 14px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
+            인쇄
           </button>
-          <button onclick="window.close()" style="padding: 14px 35px; font-size: 16px; font-weight: 600; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
-            ✖️ 닫기
+          <button onclick="window.close()" style="padding: 10px 25px; font-size: 14px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
+            닫기
           </button>
         </div>
       </body>
@@ -1411,14 +1274,14 @@ export default function ModernAIChatPage() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            {/* 🔥 항상 문제지 출력 버튼 표시 (메시지가 1개 이상이면) */}
-            {selectedBot && messages.length > 0 && (
+            {/* 유사문제 출제 기능이 활성화된 경우에만 버튼 표시 */}
+            {selectedBot && messages.length > 0 && selectedBot.enableProblemGeneration === 1 && (
               <Button
                 onClick={handlePrintProblems}
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-2 bg-green-50 hover:bg-green-100 border-green-300 text-green-700 font-medium"
-                title={`${selectedBot.name}의 문제를 인쇄합니다`}
+                className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-700 font-medium"
+                title="문제지를 출력합니다"
               >
                 <Printer className="w-4 h-4" />
                 문제지 출력
