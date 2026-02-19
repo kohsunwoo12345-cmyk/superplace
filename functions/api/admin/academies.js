@@ -28,7 +28,27 @@ export async function onRequestGet(context) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const [userId, userEmail, userRole] = token.split('|');
+    
+    // JWT 토큰 디코딩
+    let userEmail = null;
+    let userRole = null;
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        userEmail = payload.email;
+        userRole = payload.role;
+      }
+    } catch (e) {
+      console.error('토큰 파싱 오류:', e);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "유효하지 않은 토큰입니다" 
+      }), { 
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     // 관리자 권한 확인
     if (!['SUPER_ADMIN', 'ADMIN'].includes(userRole)) {

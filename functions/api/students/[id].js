@@ -28,10 +28,31 @@ export async function onRequestGet(context) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const [userId, userEmail, userRole] = token.split('|');
+    
+    // JWT 토큰 디코딩 (간단 버전 - Cloudflare Workers에서 사용)
+    let userEmail = null;
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        userEmail = payload.email;
+      }
+    } catch (e) {
+      console.error('토큰 파싱 오류:', e);
+    }
 
     const studentId = params.id;
-    console.log('👨‍🎓 학생 상세 정보 조회:', { studentId, requestUser: userEmail });
+    console.log('👨‍🎓 학생 상세 정보 조회:', { studentId, token: token.substring(0, 20) + '...', userEmail });
+
+    if (!userEmail) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "유효하지 않은 토큰입니다" 
+      }), { 
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     // DB에서 요청자 정보 조회
     const requester = await env.DB.prepare(`

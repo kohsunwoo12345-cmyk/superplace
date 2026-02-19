@@ -28,9 +28,27 @@ export async function onRequestGet(context) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const [userId, userEmail, userRole] = token.split('|');
+    
+    // JWT 토큰 디코딩
+    let userEmail = null;
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        userEmail = payload.email;
+      }
+    } catch (e) {
+      console.error('토큰 파싱 오류:', e);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "유효하지 않은 토큰입니다" 
+      }), { 
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
-    console.log('👨‍🏫 교사 목록 조회 요청:', { userId, userRole });
+    console.log('👨‍🏫 교사 목록 조회 요청:', { userEmail });
 
     // DB에서 사용자 정보 조회
     const user = await env.DB.prepare(`
