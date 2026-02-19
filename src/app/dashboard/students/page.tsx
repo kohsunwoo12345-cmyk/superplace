@@ -85,7 +85,13 @@ export default function StudentsPage() {
             userAcademy: data.userAcademy,
             sampleStudents: data.students?.slice(0, 3)
           });
-          setStudents(data.students || []);
+          
+          if (data.students && data.students.length > 0) {
+            setStudents(data.students);
+          } else {
+            console.warn('⚠️ No students returned from API');
+            setStudents([]);
+          }
           setLoading(false);
           return;
         }
@@ -93,6 +99,7 @@ export default function StudentsPage() {
         console.error('❌ Failed to load students:', response.status);
         const errorData = await response.json().catch(() => ({}));
         console.error('Error details:', errorData);
+        alert(`학생 목록 로드 실패: ${response.status}\n${errorData.message || errorData.error || '알 수 없는 오류'}`);
         setStudents([]);
       } catch (apiError) {
         console.error('API call failed:', apiError);

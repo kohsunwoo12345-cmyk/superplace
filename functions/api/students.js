@@ -181,14 +181,50 @@ export async function onRequestGet(context) {
         academyId: s.academyId
       })));
     } else {
-      console.log('⚠️ No students found - checking total users with STUDENT role');
+      console.log('⚠️ No students found - running diagnostics...');
+      
+      // Check 1: Total users with STUDENT role (case insensitive)
       const totalCheck = await db.prepare(`
         SELECT COUNT(*) as count, 
                GROUP_CONCAT(DISTINCT role) as roles
         FROM User 
         WHERE UPPER(role) = 'STUDENT'
       `).first();
-      console.log('📊 Total students in DB:', totalCheck);
+      console.log('📊 Total STUDENT users in DB:', totalCheck);
+      
+      // Check 2: All distinct roles in User table
+      const allRoles = await db.prepare(`
+        SELECT DISTINCT role, COUNT(*) as count
+        FROM User
+        GROUP BY role
+      `).all();
+      console.log('📊 All roles in DB:', allRoles.results);
+      
+      // Check 3: Sample of all users (first 5)
+      const sampleUsers = await db.prepare(`
+        SELECT id, name, role, academyId
+        FROM User
+        ORDER BY createdAt DESC
+        LIMIT 5
+      `).all();
+      console.log('📊 Sample of all users:', sampleUsers.results);
+      
+      // Check 4: If admin, show why students weren't returned
+      if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+        const testQuery = await db.prepare(`
+          SELECT COUNT(*) as count
+          FROM User u
+          WHERE u.role = 'STUDENT'
+        `).first();
+        console.log('📊 Students with exact match "STUDENT":', testQuery);
+        
+        const testQueryLower = await db.prepare(`
+          SELECT COUNT(*) as count
+          FROM User u
+          WHERE u.role = 'student'
+        `).first();
+        console.log('📊 Students with lowercase "student":', testQueryLower);
+      }
     }
 
     return new Response(JSON.stringify({
