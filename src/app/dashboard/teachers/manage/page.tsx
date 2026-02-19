@@ -130,22 +130,24 @@ export default function TeacherManagementPage() {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      const params = new URLSearchParams();
-      // role 추가 (관리자 여부 확인용)
-      const userRole = role || currentUser?.role;
-      if (userRole) {
-        params.append("role", userRole);
-      }
-      // academyId 추가 (학원장용)
-      if (academyId) {
-        params.append("academyId", academyId.toString());
-      }
+      console.log('👨‍🏫 교사 목록 조회 시작');
 
-      console.log('👨‍🏫 Fetching teachers with params:', { role: userRole, academyId });
-
-      const response = await fetch(`/api/teachers?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await fetch(`/api/teachers/manage`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
       });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.clear();
+          router.push('/login');
+          return;
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
       const data = await response.json();
 
       if (data.success) {
