@@ -166,7 +166,15 @@ export async function onRequestPost(context) {
     // For teachers and directors, use their academyId
     const academyId = (role === 'DIRECTOR' || role === 'TEACHER') ? userAcademyId : body.academyId;
 
+    console.log('🔍 Academy assignment:', { 
+      userRole: role, 
+      userAcademyId, 
+      bodyAcademyId: body.academyId,
+      finalAcademyId: academyId 
+    });
+
     if (!academyId) {
+      console.error('❌ No academy ID available');
       return new Response(JSON.stringify({
         success: false,
         error: 'No academy assigned',
@@ -177,31 +185,52 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Create student
-    await db
-      .prepare(`
-        INSERT INTO User (
-          id, email, phone, password, name, role, 
-          school, grade, academyId, approved, 
-          createdAt, updatedAt
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-      `)
-      .bind(
-        studentId,
-        email || null,
-        phone,
-        hashedPassword,
-        name || null,
-        'STUDENT',
-        school || null,
-        grade || null,
-        academyId,
-        1  // Auto-approve students
-      )
-      .run();
+    console.log('🔐 Hashing password...');
+    const hashedPassword = await hashPassword(password);
+    const studentId = `student-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    console.log('✅ Student created:', { studentId, phone, school, academyId });
+    console.log('💾 Inserting student into database...');
+    console.log('📋 Student data:', {
+      studentId,
+      email: email || null,
+      phone,
+      name: name || null,
+      school: school || null,
+      grade: grade || null,
+      academyId,
+      role: 'STUDENT'
+    });
+
+    try {
+      // Create student
+      await db
+        .prepare(`
+          INSERT INTO User (
+            id, email, phone, password, name, role, 
+            school, grade, academyId, approved, 
+            createdAt, updatedAt
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `)
+        .bind(
+          studentId,
+          email || null,
+          phone,
+          hashedPassword,
+          name || null,
+          'STUDENT',
+          school || null,
+          grade || null,
+          academyId,
+          1  // Auto-approve students
+        )
+        .run();
+
+      console.log('✅ Student created successfully:', { studentId, phone, school, academyId });
+    } catch (dbError) {
+      console.error('❌ Database insert failed:', dbError);
+      throw new Error(`데이터베이스 저장 실패: ${dbError.message}`);
+    }
 
     // Assign to classes if classIds provided
     if (classIds && Array.isArray(classIds) && classIds.length > 0) {

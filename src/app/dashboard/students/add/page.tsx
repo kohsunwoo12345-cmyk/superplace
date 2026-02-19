@@ -43,6 +43,13 @@ export default function AddStudentPage() {
     const userData = JSON.parse(storedUser);
     setUser(userData);
 
+    console.log('👤 Current user:', {
+      id: userData.id,
+      role: userData.role,
+      academyId: userData.academyId,
+      academy_id: userData.academy_id
+    });
+
     // 권한 확인
     const upperRole = userData.role?.toUpperCase();
     if (upperRole !== 'ADMIN' && upperRole !== 'SUPER_ADMIN' && upperRole !== 'DIRECTOR' && upperRole !== 'TEACHER') {
@@ -117,6 +124,9 @@ export default function AddStudentPage() {
     try {
       const token = localStorage.getItem("token");
       
+      // Support both academyId and academy_id formats
+      const academyId = user.academyId || user.academy_id;
+      
       console.log('📤 Creating student with data:', {
         name: name.trim() || null,
         email: email.trim() || null,
@@ -124,9 +134,13 @@ export default function AddStudentPage() {
         school: school.trim() || null,
         grade: grade || null,
         classIds: selectedClasses,
-        academyId: user.academyId,
+        academyId: academyId,
         role: user.role
       });
+      
+      if (!academyId) {
+        throw new Error('학원 정보가 없습니다. 다시 로그인해주세요.');
+      }
       
       const response = await fetch("/api/students/create", {
         method: "POST",
@@ -142,7 +156,7 @@ export default function AddStudentPage() {
           school: school.trim() || null,
           grade: grade || null,
           classIds: selectedClasses,
-          academyId: user.academyId,
+          academyId: academyId,
           role: user.role
         })
       });
