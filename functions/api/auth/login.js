@@ -77,20 +77,46 @@ export async function onRequestPost(context) {
 
     console.log('✅ User found:', { id: user.id, role: user.role, passwordLength: user.password.length });
 
-    // Verify password using SHA-256
-    console.log('🔐 Verifying password with SHA-256...');
-    const encoder = new TextEncoder();
-    const data2 = encoder.encode(password + 'superplace-salt-2024');
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data2);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    let isValid = false;
+
+    // Check if password is bcrypt (starts with $2a$ or $2b$ and length 60)
+    if (user.password && (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) && user.password.length === 60) {
+      console.log('🔐 Verifying password with bcrypt...');
+      try {
+        // Import bcrypt dynamically
+        const bcrypt = await import('bcryptjs');
+        isValid = await bcrypt.compare(password, user.password);
+        if (isValid) {
+          console.log('✅ Password verified with bcrypt');
+        } else {
+          console.error('❌ Bcrypt verification failed');
+        }
+      } catch (e) {
+        console.error('❌ Bcrypt error:', e.message);
+      }
+    }
     
-    const isValid = hashHex === user.password;
+    // If not valid yet, try SHA-256
+    if (!isValid) {
+      console.log('🔐 Verifying password with SHA-256...');
+      const encoder = new TextEncoder();
+      const data2 = encoder.encode(password + 'superplace-salt-2024');
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data2);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      isValid = hashHex === user.password;
+      
+      if (isValid) {
+        console.log('✅ Password verified with SHA-256');
+      } else {
+        console.error('❌ SHA-256 verification failed');
+        console.log('Expected:', user.password);
+        console.log('Got:', hashHex);
+      }
+    }
 
     if (!isValid) {
-      console.error('❌ Invalid password');
-      console.log('Expected:', user.password);
-      console.log('Got:', hashHex);
       return new Response(
         JSON.stringify({
           success: false,
@@ -102,8 +128,6 @@ export async function onRequestPost(context) {
         }
       );
     }
-
-    console.log('✅ Password verified with SHA-256');
 
     // Check approval status (except DIRECTOR)
     if (user.approved === 0 && user.role !== 'DIRECTOR') {
