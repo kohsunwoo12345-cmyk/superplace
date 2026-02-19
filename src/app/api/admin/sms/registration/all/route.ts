@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+
 // 전체 등록 신청 조회 (관리자만)
 export async function GET(request: NextRequest) {
   try {

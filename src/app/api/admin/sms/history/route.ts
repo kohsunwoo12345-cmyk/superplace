@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+
 // SMS 발송 이력 조회
 export async function GET(request: NextRequest) {
   try {

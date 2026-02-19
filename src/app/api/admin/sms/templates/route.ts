@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+
 function generateId() {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }

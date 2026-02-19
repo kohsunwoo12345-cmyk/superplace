@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+
 // 승인된 발신번호 목록 조회
 export async function GET(request: NextRequest) {
   try {

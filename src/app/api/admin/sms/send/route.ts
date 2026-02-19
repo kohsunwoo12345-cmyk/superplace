@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+
 // SOLAPI API 설정
 const SOLAPI_API_URL = "https://api.solapi.com";
 
