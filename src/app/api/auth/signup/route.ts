@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 
 // Edge Runtime 필수 설정
 export const runtime = 'edge';
 
-// SHA-256 해시 함수 (기존 비밀번호 호환)
-function hashPassword(password: string): string {
+// SHA-256 해시 함수 (Web Crypto API 사용)
+async function hashPassword(password: string): Promise<string> {
   const salt = 'superplace-salt-2024';
-  return crypto
-    .createHash('sha256')
-    .update(password + salt)
-    .digest('hex');
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + salt);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function generateId(prefix: string): string {
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 비밀번호 해시
-    const hashedPassword = hashPassword(password);
+    const hashedPassword = await hashPassword(password);
     let academyId: string | null = null;
 
     // Role별 처리
