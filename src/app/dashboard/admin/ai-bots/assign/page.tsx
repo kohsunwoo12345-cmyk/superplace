@@ -76,49 +76,114 @@ export default function AIBotAssignPage() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
-      alert("DEBUG: localStorage에 user 없음 - 로그인 페이지로 이동");
       router.push("/login");
       return;
     }
 
     const userData = JSON.parse(storedUser);
     setCurrentUser(userData);
-
-    alert(`DEBUG: 접근 허용!\n이메일: ${userData.email}\nRole: ${userData.role}\n\n페이지 로딩을 시작합니다.`);
     
-    console.log("📋 localStorage에서 읽은 사용자 데이터:", userData);
-    console.log("✅ AI 봇 할당 페이지 접근 허용 - 로그인한 모든 사용자");
+    console.log("📋 User data:", userData);
+    console.log("✅ AI Bot Assign page access granted");
 
-    // 로그인한 모든 사용자에게 접근 허용
+    // 권한 체크
+    const role = userData.role?.toUpperCase();
+    if (!['ADMIN', 'SUPER_ADMIN', 'DIRECTOR', 'TEACHER'].includes(role)) {
+      alert('AI 봇 할당 권한이 없습니다.');
+      router.push('/dashboard');
+      return;
+    }
+
     fetchData();
   }, [router]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
+      const token = localStorage.getItem("token");
+      
+      console.log('🔍 Current user:', currentUser);
+      console.log('🔍 Academy ID:', currentUser?.academyId);
+      
+      // 학원장/선생님은 자신의 학원에 할당된 봇만 조회
+      const role = currentUser?.role?.toUpperCase();
+      let botsEndpoint = "/api/admin/ai-bots";
+      
+      if (role === 'DIRECTOR' || role === 'TEACHER') {
+        // 학원장/선생님: 자신의 학원에 할당된 봇만
+        const academyId = currentUser?.academyId;
+        if (!academyId) {
+          alert('학원 정보가 없습니다. 관리자에게 문의하세요.');
+          setLoading(false);
+          return;
+        }
+        botsEndpoint = `/api/user/ai-bots?academyId=${academyId}`;
+        console.log('🔒 DIRECTOR/TEACHER: Using assigned bots only from', botsEndpoint);
+      } else if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+        // 관리자: 모든 봇
+        console.log('🔓 ADMIN: Using all bots from', botsEndpoint);
+      } else {
+        alert('AI 봇 할당 권한이 없습니다.');
+        router.push('/dashboard');
+        return;
+      }
       
       // AI 봇 목록 조회
-      const botsResponse = await fetch("/api/admin/ai-bots");
+      const botsResponse = await fetch(botsEndpoint, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (botsResponse.ok) {
         const botsData = await botsResponse.json();
+        console.log('✅ Bots loaded:', botsData);
         setBots(botsData.bots || []);
+        
+        if ((botsData.bots || []).length === 0) {
+          alert('할당된 AI 봇이 없습니다.\n관리자에게 봇 할당을 요청하세요.');
+        }
+      } else {
+        const errorData = await botsResponse.json().catch(() => ({}));
+        console.error('❌ Failed to load bots:', errorData);
+        alert(`봇 목록 로드 실패: ${errorData.error || errorData.message || '알 수 없는 오류'}`);
       }
 
-      // 사용자 목록 조회
-      const usersResponse = await fetch("/api/admin/users");
+      // 사용자 목록 조회 (자신의 학원 사용자만)
+      const usersResponse = await fetch("/api/admin/users", {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (usersResponse.ok) {
         const usersData = await usersResponse.json();
+        console.log('✅ Users loaded:', usersData);
         setUsers(usersData.users || []);
+      } else {
+        console.error('❌ Failed to load users');
       }
 
       // 기존 할당 목록 조회
-      const assignmentsResponse = await fetch("/api/admin/ai-bots/assignments");
+      const assignmentsResponse = await fetch("/api/admin/ai-bots/assignments", {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (assignmentsResponse.ok) {
         const assignmentsData = await assignmentsResponse.json();
+        console.log('✅ Assignments loaded:', assignmentsData);
         setAssignments(assignmentsData.assignments || []);
+      } else {
+        console.error('❌ Failed to load assignments');
       }
     } catch (error) {
       console.error("데이터 로드 실패:", error);
+      alert(`데이터 로드 실패: ${error}`);
     } finally {
       setLoading(false);
     }
