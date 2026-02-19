@@ -127,23 +127,54 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const classId = createClassResult.meta.last_row_id;
     console.log('✅ Class created with ID:', classId);
 
-    // 2. 학생 배정 (teacher_classes 테이블 사용)
+    // 2. 학생 배정 (class_students 테이블과 students 테이블 모두 업데이트)
     if (studentIds && Array.isArray(studentIds) && studentIds.length > 0) {
       console.log('👥 Enrolling students:', studentIds.length);
       
-      // teacher_classes 테이블이 있는지 확인하고 사용
       for (const studentId of studentIds) {
         try {
           const studentIdInt = parseInt(String(studentId).split('.')[0]);
           
-          // students 테이블에 class_id 업데이트 시도
-          await DB.prepare(`
-            UPDATE students 
-            SET class_id = ? 
-            WHERE user_id = ?
-          `).bind(classId, studentIdInt).run();
+          // 2-1. students 테이블에 class_id 업데이트 (있다면)
+          try {
+            await DB.prepare(`
+              UPDATE students 
+              SET class_id = ? 
+              WHERE user_id = ?
+            `).bind(classId, studentIdInt).run();
+            console.log(`✅ Student ${studentIdInt} assigned to class ${classId} in students table`);
+          } catch (error: any) {
+            console.log('⚠️ students table update skipped:', error.message);
+          }
           
-          console.log(`✅ Student ${studentIdInt} assigned to class ${classId}`);
+          // 2-2. class_students 테이블에 관계 생성 (학생 대시보드에서 보이도록)
+          try {
+            // 이미 등록되어 있는지 확인
+            const existing = await DB.prepare(`
+              SELECT id FROM class_students 
+              WHERE classId = ? AND studentId = ?
+            `).bind(classId, studentIdInt).first();
+
+            if (existing) {
+              // 이미 존재하면 상태만 active로 변경
+              await DB.prepare(`
+                UPDATE class_students 
+                SET status = 'active', enrolledAt = ?
+                WHERE classId = ? AND studentId = ?
+              `).bind(koreanTime, classId, studentIdInt).run();
+              console.log(`✅ Student ${studentIdInt} reactivated in class_students`);
+            } else {
+              // 새로 추가
+              await DB.prepare(`
+                INSERT INTO class_students (classId, studentId, enrolledAt, status)
+                VALUES (?, ?, ?, ?)
+              `).bind(classId, studentIdInt, koreanTime, 'active').run();
+              console.log(`✅ Student ${studentIdInt} added to class_students`);
+            }
+          } catch (error: any) {
+            console.log('⚠️ class_students table update skipped:', error.message);
+          }
+          
         } catch (error: any) {
           console.error('⚠️ Failed to assign student:', studentId, error.message);
           // 에러가 나도 계속 진행
