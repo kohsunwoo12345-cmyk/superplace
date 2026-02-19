@@ -1,33 +1,25 @@
 // Cloudflare Pages Function - Signup API
-import { hash } from 'bcrypt-ts';
+// Converted to JavaScript for Cloudflare Pages compatibility
 
-interface Env {
-  DB: D1Database;
-}
-
-interface SignupRequest {
-  email: string;
-  password: string;
-  name: string;
-  phone?: string;
-  role: 'DIRECTOR' | 'TEACHER' | 'STUDENT';
-  academyName?: string;
-  academyAddress?: string;
-  academyCode?: string;
-}
-
-function generateId(prefix: string): string {
+function generateId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-function generateAcademyCode(): string {
+function generateAcademyCode() {
   return Math.random().toString(36).substr(2, 8).toUpperCase();
 }
 
-export async function onRequestPost(context: { 
-  request: Request; 
-  env: Env;
-}) {
+async function hashPassword(password) {
+  // Use SHA-256 with salt for password hashing
+  const salt = 'superplace-salt-2024';
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + salt);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function onRequestPost(context) {
   try {
     const { request, env } = context;
     const db = env.DB;
@@ -48,7 +40,7 @@ export async function onRequestPost(context: {
       );
     }
 
-    const data: SignupRequest = await request.json();
+    const data = await request.json();
     const { email, password, name, phone, role, academyName, academyAddress, academyCode } = data;
 
     console.log('📋 Signup request:', { email, name, role });
@@ -115,11 +107,11 @@ export async function onRequestPost(context: {
       );
     }
 
-    // Hash password
-    const hashedPassword = await hash(password, 10);
+    // Hash password using SHA-256
+    const hashedPassword = await hashPassword(password);
     const userId = generateId('user');
-    let academyId: string | undefined;
-    let newAcademyCode: string | undefined;
+    let academyId;
+    let newAcademyCode;
 
     // DIRECTOR: Create academy
     if (role === 'DIRECTOR') {
@@ -209,7 +201,7 @@ export async function onRequestPost(context: {
         );
       }
 
-      academyId = academy.id as string;
+      academyId = academy.id;
       console.log('✅ Academy found:', academyId);
     }
 
@@ -233,27 +225,30 @@ export async function onRequestPost(context: {
 
     console.log('✅ User created:', { userId, email, role });
 
+    const responseData = {
+      success: true,
+      message: '회원가입이 완료되었습니다',
+      user: {
+        id: userId,
+        email,
+        name,
+        role,
+        academyId,
+      }
+    };
+
+    if (role === 'DIRECTOR' && newAcademyCode) {
+      responseData.academyCode = newAcademyCode;
+    }
+
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: '회원가입이 완료되었습니다',
-        user: {
-          id: userId,
-          email,
-          name,
-          role,
-          academyId,
-        },
-        ...(role === 'DIRECTOR' && newAcademyCode
-          ? { academyCode: newAcademyCode }
-          : {}),
-      }),
+      JSON.stringify(responseData),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ Signup error:', error);
     return new Response(
       JSON.stringify({

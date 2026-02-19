@@ -62,19 +62,30 @@ export default function AdminUsersPage() {
     try {
       setLoading(true);
       
-      const params = new URLSearchParams();
-      // role 추가 (관리자는 모든 사용자 조회)
-      if (currentUser?.role) {
-        params.append('role', currentUser.role);
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        console.error('토큰 없음');
+        router.push('/login');
+        return;
       }
       
-      console.log('👥 Fetching all users with role:', currentUser?.role);
+      console.log('👥 Fetching all users...');
       
-      const response = await fetch(`/api/admin/users?${params.toString()}`);
+      const response = await fetch('/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Users data received:', data);
         setUsers(data.users || []);
+      } else if (response.status === 401) {
+        console.error('❌ 인증 실패');
+        router.push('/login');
       } else {
         console.error('❌ Failed to fetch users:', response.status);
       }

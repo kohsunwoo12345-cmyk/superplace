@@ -189,14 +189,15 @@ function StudentDetailContent() {
   }, [studentId, router]);
 
   const fetchStudentData = async () => {
+    let userData = null;
     try {
       setLoading(true);
       setError(null);
 
       const token = localStorage.getItem("token");
 
-      // 1. 학생 기본 정보
-      const userResponse = await fetch(`/api/admin/users/${studentId}`, {
+      // 1. 학생 기본 정보 (새로운 API 사용)
+      const userResponse = await fetch(`/api/students/${studentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -204,27 +205,17 @@ function StudentDetailContent() {
       });
 
       if (userResponse.ok) {
-        const userData = await userResponse.json();
-        const studentData = userData.user || userData;
+        userData = await userResponse.json();
+        const studentData = userData.student || userData;
         
         console.log("📥 Received student data:", studentData);
-        console.log("📋 Student fields:", {
-          id: studentData.id,
-          name: studentData.name,
-          phone: studentData.phone,
-          email: studentData.email,
-          academyName: studentData.academyName,
-          school: studentData.school,
-          grade: studentData.grade,
-          diagnostic_memo: studentData.diagnostic_memo,
-          className: studentData.className
-        });
-        
-        console.log("🔄 After formatting:");
-        console.log("  - phone:", studentData.phone, "→", formatPhoneNumber(studentData.phone));
-        console.log("  - email:", studentData.email, "→", displayEmail(studentData.email));
         
         setStudent(studentData);
+        
+        // 출석 통계도 이미 포함되어 있음
+        if (studentData.attendanceStats) {
+          setAttendanceStats(studentData.attendanceStats);
+        }
         
         // student_code가 없으면 자동 생성
         if (!studentData.student_code) {
@@ -254,6 +245,11 @@ function StudentDetailContent() {
           setStudentCode(studentData.student_code);
         }
       } else {
+        if (userResponse.status === 401) {
+          localStorage.clear();
+          router.push('/login');
+          return;
+        }
         throw new Error("학생 정보를 불러올 수 없습니다.");
       }
 
@@ -307,8 +303,10 @@ function StudentDetailContent() {
       }
 
       // 6. 학원장 제한 설정 조회 (학생의 academy_id 기반)
-      if (studentData && studentData.academy_id) {
-        const academyId = studentData.academy_id;
+      if (userData) {
+        const currentStudent = userData.student || userData;
+        if (currentStudent && currentStudent.academyId) {
+          const academyId = currentStudent.academyId;
         console.log('🔍 Fetching limitations for academy:', academyId);
         
         try {
@@ -337,11 +335,12 @@ function StudentDetailContent() {
           } else {
             console.error('❌ Failed to fetch limitations, status:', limitationsResponse.status);
           }
-        } catch (limitError) {
-          console.error('❌ Error fetching limitations:', limitError);
+          } catch (limitError) {
+            console.error('❌ Error fetching limitations:', limitError);
+          }
+        } else {
+          console.warn('⚠️ No academyId found for student');
         }
-      } else {
-        console.warn('⚠️ No academy_id found for student');
       }
 
     } catch (error: any) {

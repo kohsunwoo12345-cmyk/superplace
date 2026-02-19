@@ -31,21 +31,13 @@ fi
 # Copy Cloudflare Pages Functions to output
 echo "🔧 Copying Cloudflare Pages Functions..."
 if [ -d "functions" ]; then
-  cp -r functions out/functions
-  echo "✅ Functions copied to out/functions/"
-  ls -la out/functions/ | head -10
+  # Cloudflare Pages looks for functions in the root, not in out/
+  # So we keep functions at the root level
+  echo "✅ Functions directory exists at root level"
+  echo "📁 Functions structure:"
+  find functions -type f -name "*.ts" | head -10
 else
   echo "⚠️  WARNING: functions directory not found!"
-fi
-
-# Verify functions directory in output
-if [ -d "out/functions" ]; then
-  echo "✅ out/functions directory exists"
-  echo "📁 Functions structure:"
-  find out/functions -type f | head -10
-else
-  echo "❌ ERROR: out/functions directory not found!"
-  exit 1
 fi
 
 echo "🎉 Cloudflare Pages build complete!"

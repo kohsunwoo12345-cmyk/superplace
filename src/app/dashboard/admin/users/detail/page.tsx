@@ -135,7 +135,13 @@ function UserDetailPage() {
 
   const fetchUserDetail = async () => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}`);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
@@ -149,57 +155,73 @@ function UserDetailPage() {
 
   const fetchLoginLogs = async () => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/login-logs`);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${userId}/login-logs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setLoginLogs(data.logs || []);
       }
     } catch (error) {
       console.error("로그인 기록 로드 실패:", error);
-      // API가 없으면 빈 배열로 설정
-      setLoginLogs([]);
     }
   };
 
   const fetchActivityLogs = async () => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/activity-logs`);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${userId}/activity-logs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setActivityLogs(data.logs || []);
       }
     } catch (error) {
       console.error("활동 기록 로드 실패:", error);
-      // API가 없으면 빈 배열로 설정
-      setActivityLogs([]);
     }
   };
 
   const fetchBotAssignments = async () => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/bot-assignments`);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${userId}/bot-assignments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setBotAssignments(data.assignments || []);
       }
     } catch (error) {
       console.error("봇 할당 정보 로드 실패:", error);
-      // API가 없으면 빈 배열로 설정
-      setBotAssignments([]);
     }
   };
 
   const fetchPayments = async () => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/payments`);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users/${userId}/payments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setPayments(data.payments || []);
       }
     } catch (error) {
       console.error("결제 정보 로드 실패:", error);
-      // API가 없으면 빈 배열로 설정
-      setPayments([]);
     }
   };
 
@@ -214,9 +236,13 @@ function UserDetailPage() {
     }
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`/api/admin/users/${userId}/reset-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ newPassword }),
       });
 
@@ -225,7 +251,8 @@ function UserDetailPage() {
         setNewPassword("");
         await fetchUserDetail();
       } else {
-        alert("비밀번호 재설정에 실패했습니다.");
+        const data = await response.json();
+        alert(`비밀번호 재설정 실패: ${data.error || '알 수 없는 오류'}`);
       }
     } catch (error) {
       console.error("비밀번호 재설정 실패:", error);
@@ -239,8 +266,12 @@ function UserDetailPage() {
     }
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`/api/admin/users/${userId}/impersonate`, {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
       });
 
       if (response.ok) {
@@ -257,7 +288,8 @@ function UserDetailPage() {
           }, 500);
         }
       } else {
-        alert("대행 로그인에 실패했습니다.");
+        const data = await response.json();
+        alert(`대행 로그인 실패: ${data.error || '알 수 없는 오류'}`);
       }
     } catch (error) {
       console.error("대행 로그인 실패:", error);
@@ -284,9 +316,13 @@ function UserDetailPage() {
     }
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`/api/admin/users/${userId}/points`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ 
           amount, 
           reason: pointsReason,

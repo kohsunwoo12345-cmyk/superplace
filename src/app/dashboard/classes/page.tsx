@@ -146,35 +146,30 @@ export default function ClassesPage() {
     try {
       setLoading(true);
       
-      const storedUser = localStorage.getItem("user");
-      if (!storedUser) {
-        console.error('사용자 정보 없음');
-        setLoading(false);
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        console.error('토큰 없음');
+        router.push('/login');
         return;
       }
 
-      const userData = JSON.parse(storedUser);
-      const userId = userData.id || '';
-      const role = userData.role || '';
-      const academyId = userData.academyId || '';
+      console.log('📚 클래스 목록 로드 중...');
 
-      console.log('📚 클래스 목록 로드:', { userId, role, academyId });
-
-      const params = new URLSearchParams({
-        userId: userId.toString(),
-        role: role,
+      const response = await fetch('/api/classes', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
-
-      if (academyId) {
-        params.append('academyId', academyId.toString());
-      }
-
-      const response = await fetch(`/api/classes/manage?${params.toString()}`);
       
       if (response.ok) {
         const data = await response.json();
         console.log('✅ 클래스 데이터:', data);
         setClasses(data.classes || []);
+      } else if (response.status === 401) {
+        console.error('❌ 인증 실패');
+        router.push('/login');
       } else {
         console.error('❌ 클래스 조회 실패:', response.status);
         const errorData = await response.json();

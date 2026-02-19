@@ -32,22 +32,28 @@ export default function StudentLoginPage() {
 
       const result = await response.json();
 
-      if (result.success && result.data) {
+      console.log('📡 Student login API response:', result);
+
+      if (result.success && result.token && result.user) {
         // 학생 역할 확인
-        if (result.data.user.role !== 'STUDENT') {
+        if (result.user.role !== 'STUDENT') {
           setError("학생 계정이 아닙니다. 일반 로그인 페이지를 이용해주세요.");
           setIsLoading(false);
           return;
         }
 
+        console.log('✅ Role verified:', result.user.role);
+
         // 토큰과 사용자 정보 저장
-        localStorage.setItem("token", result.data.token);
-        localStorage.setItem("user", JSON.stringify(result.data.user));
+        localStorage.setItem("token", result.token);
+        localStorage.setItem("user", JSON.stringify(result.user));
+        
+        console.log('✅ Redirecting to dashboard...');
         
         // 대시보드로 이동
         router.push("/dashboard");
-        router.refresh();
       } else {
+        console.error('❌ Login failed:', result);
         setError(result.message || "로그인에 실패했습니다");
       }
     } catch (err) {
