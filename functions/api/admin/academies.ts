@@ -32,44 +32,95 @@ export async function onRequestGet(context) {
 
     console.log('📊 Fetching academies for user:', user.userId || user.id);
 
-    // 먼저 테이블명 확인 (Academy vs academies)
-    let academyTable = 'Academy';
-    let userTable = 'User';
-    
+    // 모든 테이블 목록 먼저 확인
+    let allTables = [];
     try {
-      // Academy 테이블 존재 여부 확인
-      const checkAcademy = await env.DB.prepare(`
-        SELECT name FROM sqlite_master WHERE type='table' AND name='Academy'
-      `).first();
-      
-      if (!checkAcademy) {
-        // 소문자 테이블명 시도
-        const checkAcademies = await env.DB.prepare(`
-          SELECT name FROM sqlite_master WHERE type='table' AND name='academies'
-        `).first();
-        if (checkAcademies) {
-          academyTable = 'academies';
-        }
-      }
-      
-      // User 테이블 존재 여부 확인
-      const checkUser = await env.DB.prepare(`
-        SELECT name FROM sqlite_master WHERE type='table' AND name='User'
-      `).first();
-      
-      if (!checkUser) {
-        // 소문자 테이블명 시도
-        const checkUsers = await env.DB.prepare(`
-          SELECT name FROM sqlite_master WHERE type='table' AND name='users'
-        `).first();
-        if (checkUsers) {
-          userTable = 'users';
-        }
-      }
-      
-      console.log('📋 Using table names:', { academyTable, userTable });
+      const tablesResult = await env.DB.prepare(`
+        SELECT name FROM sqlite_master WHERE type='table' ORDER BY name
+      `).all();
+      allTables = (tablesResult.results || []).map(t => t.name);
+      console.log('📋 All tables in database:', allTables);
     } catch (error) {
-      console.warn('⚠️ Table check failed, using default names:', error);
+      console.error('❌ Failed to list tables:', error);
+    }
+
+    // Academy 테이블명 찾기
+    let academyTable = null;
+    const possibleAcademyNames = ['Academy', 'academies', 'ACADEMY', 'academy', 'Academies'];
+    for (const name of possibleAcademyNames) {
+      if (allTables.includes(name)) {
+        academyTable = name;
+        break;
+      }
+    }
+    
+    if (!academyTable) {
+      // 부분 매칭 시도
+      academyTable = allTables.find(t => t.toLowerCase().includes('academy'));
+    }
+    
+    if (!academyTable) {
+      console.error('❌ No Academy table found. Available tables:', allTables);
+      return new Response(JSON.stringify({
+        success: true,
+        academies: [],
+        total: 0,
+        error: 'Academy table not found',
+        message: `학원 테이블을 찾을 수 없습니다. 사용 가능한 테이블: ${allTables.join(', ')}`,
+        availableTables: allTables
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // User 테이블명 찾기
+    let userTable = null;
+    const possibleUserNames = ['User', 'users', 'USER', 'user', 'Users'];
+    for (const name of possibleUserNames) {
+      if (allTables.includes(name)) {
+        userTable = name;
+        break;
+      }
+    }
+    
+    if (!userTable) {
+      // 부분 매칭 시도
+      userTable = allTables.find(t => t.toLowerCase().includes('user'));
+    }
+    
+    if (!userTable) {
+      console.error('❌ No User table found. Available tables:', allTables);
+      return new Response(JSON.stringify({
+        success: true,
+        academies: [],
+        total: 0,
+        error: 'User table not found',
+        message: `사용자 테이블을 찾을 수 없습니다. 사용 가능한 테이블: ${allTables.join(', ')}`,
+        availableTables: allTables
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    
+    console.log('✅ Using table names:', { academyTable, userTable });
+
+    // 테이블 스키마 확인
+    try {
+      const academySchema = await env.DB.prepare(`
+        SELECT name FROM pragma_table_info('${academyTable}')
+      `).all();
+      const academyColumns = (academySchema.results || []).map(c => c.name);
+      console.log('📋 Academy columns:', academyColumns);
+      
+      const userSchema = await env.DB.prepare(`
+        SELECT name FROM pragma_table_info('${userTable}')
+      `).all();
+      const userColumns = (userSchema.results || []).map(c => c.name);
+      console.log('📋 User columns:', userColumns);
+    } catch (error) {
+      console.warn('⚠️ Schema check failed:', error);
     }
 
     // Academy 테이블에서 모든 학원 조회
