@@ -94,12 +94,11 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
-          a.name as academyName,
-          u.createdAt
+          a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
         WHERE u.role = 'STUDENT'
-        ORDER BY u.createdAt DESC
+        ORDER BY u.id DESC
       `;
     } else if (role === 'DIRECTOR' || role === 'TEACHER') {
       // Directors and teachers can only see students in their academy
@@ -124,12 +123,11 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
-          a.name as academyName,
-          u.createdAt
+          a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
         WHERE u.role = 'STUDENT' AND u.academyId = ?
-        ORDER BY u.createdAt DESC
+        ORDER BY u.id DESC
       `;
       params.push(academyId);
     } else if (role === 'STUDENT') {
@@ -143,8 +141,7 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
-          a.name as academyName,
-          u.createdAt
+          a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
         WHERE u.id = ?
