@@ -17,7 +17,8 @@ import {
   MoreVertical,
   Home,
   ArrowLeft,
-  Printer
+  Printer,
+  Volume2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,6 +50,8 @@ interface AIBot {
   model: string;
   isActive: boolean;
   enableProblemGeneration?: number;
+  voiceEnabled?: number | boolean;
+  voiceName?: string;
 }
 
 export default function ModernAIChatPage() {
@@ -669,6 +672,64 @@ export default function ModernAIChatPage() {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
+  };
+
+  const playTTS = async (text: string, messageId: string) => {
+    try {
+      if (!selectedBot || !selectedBot.voiceEnabled) {
+        console.log('🔇 TTS not enabled for this bot');
+        return;
+      }
+
+      console.log('🔊 Playing TTS for message:', messageId);
+      
+      const response = await fetch('/api/ai/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text,
+          voiceName: selectedBot.voiceName || 'ko-KR-Wavenet-A',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('TTS API failed');
+      }
+
+      const data = await response.json();
+      
+      if (!data.audioContent) {
+        throw new Error('No audio content received');
+      }
+
+      // Convert base64 audio to blob and play
+      const audioBlob = base64ToBlob(data.audioContent, 'audio/mp3');
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+      };
+      
+      await audio.play();
+      console.log('✅ TTS playback started');
+      
+    } catch (error) {
+      console.error('❌ TTS playback error:', error);
+      alert('음성 재생에 실패했습니다.');
+    }
+  };
+
+  const base64ToBlob = (base64: string, mimeType: string): Blob => {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
   };
 
   const handlePrintProblems = async () => {
@@ -1359,6 +1420,15 @@ export default function ModernAIChatPage() {
                       )}
                       <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
+                    {message.role === "assistant" && selectedBot?.voiceEnabled && (
+                      <button
+                        onClick={() => playTTS(message.content, message.id)}
+                        className="ml-2 p-2 rounded-full hover:bg-gray-200 transition-colors"
+                        title="음성으로 듣기"
+                      >
+                        <Volume2 className="w-4 h-4 text-gray-600" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))

@@ -58,7 +58,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         b.starterMessage1, b.starterMessage2, b.starterMessage3,
         b.profileIcon, b.profileImage, b.model, b.temperature,
         b.maxTokens, b.topK, b.topP, b.language, b.isActive,
-        b.enableProblemGeneration,
+        b.enableProblemGeneration, b.voiceEnabled, b.voiceName,
         ba.expiresAt
       FROM bot_assignments ba
       JOIN ai_bots b ON ba.botId = b.id
@@ -73,6 +73,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const bots = (results || []).map((bot: any) => ({
       ...bot,
       enableProblemGeneration: bot.enableProblemGeneration ? Number(bot.enableProblemGeneration) : 0,
+      voiceEnabled: bot.voiceEnabled ? Number(bot.voiceEnabled) : 0,
       isActive: bot.isActive ? Number(bot.isActive) : 0,
       temperature: bot.temperature ? Number(bot.temperature) : 0.7,
       maxTokens: bot.maxTokens ? Number(bot.maxTokens) : 2000,

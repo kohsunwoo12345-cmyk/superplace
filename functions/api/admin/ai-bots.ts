@@ -100,6 +100,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topP = 0.95,
       language = "ko",
       enableProblemGeneration = false,
+      voiceEnabled = false,
+      voiceName = "ko-KR-Wavenet-A",
     } = body;
 
     if (!name || !systemPrompt) {
@@ -118,8 +120,26 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       `).run();
       console.log('✅ enableProblemGeneration column added successfully');
     } catch (alterError: any) {
-      // Column already exists or other error - continue anyway
-      console.log('ℹ️ Column add attempt:', alterError.message);
+      console.log('ℹ️ enableProblemGeneration column add attempt:', alterError.message);
+    }
+
+    // Try to add TTS voice columns if they don't exist
+    try {
+      await DB.prepare(`
+        ALTER TABLE ai_bots ADD COLUMN voiceEnabled INTEGER DEFAULT 0
+      `).run();
+      console.log('✅ voiceEnabled column added successfully');
+    } catch (alterError: any) {
+      console.log('ℹ️ voiceEnabled column add attempt:', alterError.message);
+    }
+
+    try {
+      await DB.prepare(`
+        ALTER TABLE ai_bots ADD COLUMN voiceName TEXT DEFAULT 'ko-KR-Wavenet-A'
+      `).run();
+      console.log('✅ voiceName column added successfully');
+    } catch (alterError: any) {
+      console.log('ℹ️ voiceName column add attempt:', alterError.message);
     }
 
     // Try with enableProblemGeneration first
@@ -129,8 +149,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           id, name, description, systemPrompt, welcomeMessage, 
           starterMessage1, starterMessage2, starterMessage3, profileIcon, profileImage,
           model, temperature, maxTokens, topK, topP, language,
-          enableProblemGeneration, isActive, conversationCount
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+          enableProblemGeneration, voiceEnabled, voiceName, isActive, conversationCount
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
       `).bind(
         botId,
         name,
@@ -148,7 +168,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         topK,
         topP,
         language,
-        enableProblemGeneration ? 1 : 0
+        enableProblemGeneration ? 1 : 0,
+        voiceEnabled ? 1 : 0,
+        voiceName
       ).run();
 
       console.log('✅ AI bot created with enableProblemGeneration');

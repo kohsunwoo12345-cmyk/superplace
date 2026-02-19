@@ -246,6 +246,8 @@ export default function CreateAIBotPage() {
     language: "ko",
     knowledgeBase: "",
     enableProblemGeneration: false,
+    voiceEnabled: false, // TTS 활성화 여부
+    voiceName: "ko-KR", // 음성 이름
   });
 
   useEffect(() => {
@@ -1077,6 +1079,63 @@ export default function CreateAIBotPage() {
                       <p className="text-sm text-gray-600 mt-1">
                         AI와 대화 중 나온 문제를 학원 이름이 들어간 문제지로 프린트할 수 있습니다.
                       </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TTS 음성 출력 설정 */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="voiceEnabled"
+                      checked={formData.voiceEnabled}
+                      onChange={(e) => setFormData({ ...formData, voiceEnabled: e.target.checked })}
+                      className="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="voiceEnabled" className="text-base font-semibold cursor-pointer">
+                        🔊 음성 출력 (TTS)
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1">
+                        AI 응답을 음성으로 들을 수 있습니다. 채팅 화면에서 스피커 버튼을 눌러 재생하세요.
+                      </p>
+                      
+                      {formData.voiceEnabled && (
+                        <div className="mt-3">
+                          <Label htmlFor="voiceName" className="text-sm font-medium">
+                            음성 선택
+                          </Label>
+                          <select
+                            id="voiceName"
+                            value={formData.voiceName}
+                            onChange={(e) => setFormData({ ...formData, voiceName: e.target.value })}
+                            className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          >
+                            <optgroup label="한국어">
+                              <option value="ko-KR">한국어 (기본)</option>
+                              <option value="ko-KR-Wavenet-A">한국어 여성 (A)</option>
+                              <option value="ko-KR-Wavenet-B">한국어 남성 (B)</option>
+                              <option value="ko-KR-Wavenet-C">한국어 여성 (C)</option>
+                              <option value="ko-KR-Wavenet-D">한국어 남성 (D)</option>
+                            </optgroup>
+                            <optgroup label="영어">
+                              <option value="en-US">영어 (기본)</option>
+                              <option value="en-US-Wavenet-A">영어 여성 (A)</option>
+                              <option value="en-US-Wavenet-B">영어 남성 (B)</option>
+                              <option value="en-US-Wavenet-C">영어 여성 (C)</option>
+                              <option value="en-US-Wavenet-D">영어 남성 (D)</option>
+                            </optgroup>
+                            <optgroup label="일본어">
+                              <option value="ja-JP">일본어 (기본)</option>
+                              <option value="ja-JP-Wavenet-A">일본어 여성 (A)</option>
+                              <option value="ja-JP-Wavenet-B">일본어 여성 (B)</option>
+                              <option value="ja-JP-Wavenet-C">일본어 남성 (C)</option>
+                              <option value="ja-JP-Wavenet-D">일본어 남성 (D)</option>
+                            </optgroup>
+                          </select>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

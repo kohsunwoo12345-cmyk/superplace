@@ -60,6 +60,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       language = "ko",
       knowledgeBase = "",
       enableProblemGeneration = false,
+      voiceEnabled = false,
+      voiceName = "ko-KR-Wavenet-A",
     } = body;
 
     if (!name || !systemPrompt) {
@@ -88,6 +90,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           language = ?,
           knowledgeBase = ?,
           enableProblemGeneration = ?,
+          voiceEnabled = ?,
+          voiceName = ?,
           updatedAt = datetime('now')
       WHERE id = ?
     `).bind(
@@ -108,6 +112,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       language,
       knowledgeBase || null,
       enableProblemGeneration ? 1 : 0,
+      voiceEnabled ? 1 : 0,
+      voiceName,
       botId
     ).run();
 
