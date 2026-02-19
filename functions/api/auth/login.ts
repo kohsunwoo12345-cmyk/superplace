@@ -90,8 +90,21 @@ export async function onRequestPost(context: {
 
     console.log('✅ User found:', { id: user.id, role: user.role });
 
-    // Verify password (supports bcrypt)
-    const isValid = await compare(password, user.password as string);
+    // Verify password (supports both bcrypt and SHA-256)
+    let isValid = false;
+    
+    try {
+      // Try bcrypt first
+      isValid = await compare(password, user.password as string);
+    } catch (e) {
+      // If bcrypt fails, try SHA-256 (legacy)
+      const encoder = new TextEncoder();
+      const data = encoder.encode(password + 'superplace-salt-2024');
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      isValid = hashHex === user.password;
+    }
 
     if (!isValid) {
       console.error('❌ Invalid password');
