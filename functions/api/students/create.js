@@ -226,8 +226,8 @@ export async function onRequestPost(context) {
       
       await db
         .prepare(`
-          INSERT INTO User (id, email, phone, password, name, role, academyId, school, grade)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO User (id, email, phone, password, name, role, academyId)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `)
         .bind(
           studentId,
@@ -236,9 +236,7 @@ export async function onRequestPost(context) {
           hashedPassword,
           finalName,   // Use generated name if none provided
           'STUDENT',
-          academyId,
-          school || null,
-          grade || null
+          academyId
         )
         .run();
 

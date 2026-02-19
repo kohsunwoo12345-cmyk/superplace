@@ -94,8 +94,6 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
-          u.school,
-          u.grade,
           a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
@@ -125,8 +123,6 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
-          u.school,
-          u.grade,
           a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
