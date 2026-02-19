@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Plus, UserPlus, Trash2, User, GraduationCap } from 'lucide-react';
 
+// Generate empty static params to satisfy static export
+export async function generateStaticParams() {
+  return [];
+}
+
 interface GroupMember {
   memberId: string;
   parentId: string;
