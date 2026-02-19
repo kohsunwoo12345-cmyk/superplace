@@ -245,6 +245,7 @@ export default function CreateAIBotPage() {
     topP: "0.95",
     language: "ko",
     knowledgeBase: "",
+    enableProblemGeneration: false,
   });
 
   useEffect(() => {
@@ -1058,6 +1059,26 @@ export default function CreateAIBotPage() {
                     <option value="ja">日本語</option>
                     <option value="zh">中文</option>
                   </select>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="enableProblemGeneration"
+                      checked={formData.enableProblemGeneration}
+                      onChange={(e) => setFormData({ ...formData, enableProblemGeneration: e.target.checked })}
+                      className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="enableProblemGeneration" className="text-base font-semibold cursor-pointer">
+                        📝 유사문제 출제 기능
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1">
+                        AI와 대화 중 나온 문제를 학원 이름이 들어간 문제지로 프린트할 수 있습니다.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

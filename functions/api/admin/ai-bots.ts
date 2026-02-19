@@ -33,6 +33,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         topK INTEGER DEFAULT 40,
         topP REAL DEFAULT 0.95,
         language TEXT DEFAULT 'ko',
+        enableProblemGeneration INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1,
         conversationCount INTEGER DEFAULT 0,
         lastUsedAt TEXT,
@@ -89,6 +90,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topK = 40,
       topP = 0.95,
       language = "ko",
+      enableProblemGeneration = false,
     } = body;
 
     if (!name || !systemPrompt) {
@@ -105,8 +107,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         id, name, description, systemPrompt, welcomeMessage, 
         starterMessage1, starterMessage2, starterMessage3, profileIcon, profileImage,
         model, temperature, maxTokens, topK, topP, language,
-        isActive, conversationCount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+        enableProblemGeneration, isActive, conversationCount
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
     `).bind(
       botId,
       name,
@@ -123,7 +125,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       maxTokens,
       topK,
       topP,
-      language
+      language,
+      enableProblemGeneration ? 1 : 0
     ).run();
 
     return new Response(
