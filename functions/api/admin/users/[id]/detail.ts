@@ -94,24 +94,33 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     console.log('✅ Auth passed:', { email: tokenData.email, role });
 
     // 사용자 정보 조회
-    const user = await DB.prepare(`
+    const userResult = await DB.prepare(`
       SELECT 
         u.id, u.email, u.name, u.phone, u.role,
-        u.password, u.points, u.balance,
+        u.password,
         u.academyId, a.name as academyName,
         u.createdAt, u.lastLoginAt, u.lastLoginIP as lastLoginIp,
-        u.approved
+        u.approved, u.grade, u.updatedAt
       FROM User u
       LEFT JOIN Academy a ON u.academyId = a.id
       WHERE u.id = ?
     `).bind(userId).first();
 
-    if (!user) {
+    if (!userResult) {
       return new Response(JSON.stringify({ error: "User not found" }), {
         status: 404,
         headers: { "Content-Type": "application/json" },
       });
     }
+
+    // Add default values for optional fields
+    const user = {
+      ...userResult,
+      points: 0,
+      balance: 0,
+      lastLoginAt: userResult.lastLoginAt || null,
+      lastLoginIp: userResult.lastLoginIp || null
+    };
 
     console.log('✅ User found:', { id: user.id, email: user.email });
 
