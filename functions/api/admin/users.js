@@ -72,7 +72,12 @@ export async function onRequestGet(context) {
     const role = user.role ? user.role.toUpperCase() : '';
     const userAcademyId = user.academyId;
 
-    console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId });
+    console.log('✅ User verified:', { 
+      email: user.email, 
+      role, 
+      academyId: userAcademyId,
+      userId: user.id 
+    });
 
     // Allow SUPER_ADMIN, ADMIN, DIRECTOR, and TEACHER
     if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && role !== 'DIRECTOR' && role !== 'TEACHER') {
@@ -149,6 +154,15 @@ export async function onRequestGet(context) {
     const users = result.results || [];
 
     console.log(`✅ Users fetched: ${users.length} users`);
+    
+    // Log role breakdown
+    const roleStats = {
+      students: users.filter(u => u.role?.toUpperCase() === 'STUDENT').length,
+      teachers: users.filter(u => u.role?.toUpperCase() === 'TEACHER').length,
+      directors: users.filter(u => u.role?.toUpperCase() === 'DIRECTOR').length,
+      admins: users.filter(u => ['ADMIN', 'SUPER_ADMIN'].includes(u.role?.toUpperCase())).length
+    };
+    console.log('📊 Role breakdown:', roleStats);
 
     return new Response(JSON.stringify({ 
       success: true, 
