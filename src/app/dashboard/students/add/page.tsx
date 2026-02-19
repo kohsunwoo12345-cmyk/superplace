@@ -29,6 +29,7 @@ export default function AddStudentPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [school, setSchool] = useState("");
   const [grade, setGrade] = useState("");
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
 
@@ -41,6 +42,13 @@ export default function AddStudentPage() {
 
     const userData = JSON.parse(storedUser);
     setUser(userData);
+
+    console.log('👤 Current user:', {
+      id: userData.id,
+      role: userData.role,
+      academyId: userData.academyId,
+      academy_id: userData.academy_id
+    });
 
     // 권한 확인
     const upperRole = userData.role?.toUpperCase();
@@ -116,6 +124,24 @@ export default function AddStudentPage() {
     try {
       const token = localStorage.getItem("token");
       
+      // Support both academyId and academy_id formats
+      const academyId = user.academyId || user.academy_id;
+      
+      console.log('📤 Creating student with data:', {
+        name: name.trim() || null,
+        email: email.trim() || null,
+        phone: phone.trim(),
+        school: school.trim() || null,
+        grade: grade || null,
+        classIds: selectedClasses,
+        academyId: academyId,
+        role: user.role
+      });
+      
+      if (!academyId) {
+        throw new Error('학원 정보가 없습니다. 다시 로그인해주세요.');
+      }
+      
       const response = await fetch("/api/students/create", {
         method: "POST",
         headers: { 
@@ -127,22 +153,29 @@ export default function AddStudentPage() {
           email: email.trim() || null,
           password: password,
           phone: phone.trim(),
+          school: school.trim() || null,
           grade: grade || null,
           classIds: selectedClasses,
-          academyId: user.academyId,
+          academyId: academyId,
           role: user.role
         })
       });
 
+      console.log('📥 Response status:', response.status);
+
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Failed to create student");
+        console.error('❌ Error response:', error);
+        throw new Error(error.message || error.error || "Failed to create student");
       }
 
+      const result = await response.json();
+      console.log('✅ Student created successfully:', result);
+      
       alert("학생이 추가되었습니다");
       router.push("/dashboard/students/");
     } catch (error: any) {
-      console.error("Failed to create student:", error);
+      console.error("❌ Failed to create student:", error);
       alert(`학생 추가 실패: ${error.message}`);
     } finally {
       setLoading(false);
@@ -222,10 +255,20 @@ export default function AddStudentPage() {
             </div>
 
             <div>
+              <Label htmlFor="school">학교</Label>
+              <Input
+                id="school"
+                value={school}
+                onChange={(e) => setSchool(e.target.value)}
+                placeholder="예: 서울중학교, 강남고등학교"
+              />
+            </div>
+
+            <div>
               <Label htmlFor="grade">학년</Label>
               <Select value={grade} onValueChange={setGrade}>
                 <SelectTrigger>
-                  <SelectValue placeholder="학년 선택" />
+                  <SelectValue placeholder="학년 선택 (선택사항)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="초1">초등 1학년</SelectItem>
@@ -248,9 +291,9 @@ export default function AddStudentPage() {
 
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>반 배정</CardTitle>
+            <CardTitle>반 배정 (선택사항)</CardTitle>
             <CardDescription>
-              학생이 속할 반을 선택하세요 (최대 4개)
+              학생이 속할 반을 선택하세요 (최대 4개). 반 배정을 하지 않아도 학생을 추가할 수 있습니다.
             </CardDescription>
           </CardHeader>
           <CardContent>

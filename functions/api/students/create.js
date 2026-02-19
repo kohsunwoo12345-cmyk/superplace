@@ -63,10 +63,13 @@ export async function onRequestPost(context) {
     }
 
     // Get user from database
+    console.log('🔍 Looking up user:', tokenData.email);
     const user = await db
-      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
+
+    console.log('👤 User query result:', JSON.stringify(user));
 
     if (!user) {
       console.error('❌ User not found');
@@ -81,6 +84,8 @@ export async function onRequestPost(context) {
 
     const role = user.role ? user.role.toUpperCase() : '';
     const userAcademyId = user.academyId;
+    
+    console.log('🔑 User details:', { id: user.id, role, userAcademyId });
 
     // Check permissions
     if (role !== 'DIRECTOR' && role !== 'TEACHER' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
@@ -96,7 +101,9 @@ export async function onRequestPost(context) {
     }
 
     const body = await request.json();
-    const { name, email, phone, password, grade, classIds } = body;
+    const { name, email, phone, password, school, grade, classIds } = body;
+
+    console.log('📥 Received data:', { name, email, phone, school, grade, classIds: classIds?.length || 0 });
 
     // Validation: phone and password are required
     if (!phone || !password) {
@@ -164,7 +171,15 @@ export async function onRequestPost(context) {
     // For teachers and directors, use their academyId
     const academyId = (role === 'DIRECTOR' || role === 'TEACHER') ? userAcademyId : body.academyId;
 
+    console.log('🔍 Academy assignment:', { 
+      userRole: role, 
+      userAcademyId, 
+      bodyAcademyId: body.academyId,
+      finalAcademyId: academyId 
+    });
+
     if (!academyId) {
+      console.error('❌ No academy ID available');
       return new Response(JSON.stringify({
         success: false,
         error: 'No academy assigned',
@@ -175,30 +190,66 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Create student
-    await db
-      .prepare(`
-        INSERT INTO User (
-          id, email, phone, password, name, role, 
-          grade, academyId, approved, 
-          createdAt, updatedAt
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-      `)
-      .bind(
-        studentId,
-        email || null,
-        phone,
-        hashedPassword,
-        name || null,
-        'STUDENT',
-        grade || null,
-        academyId,
-        1  // Auto-approve students
-      )
-      .run();
+    console.log('💾 Inserting student into database...');
+    console.log('📋 Student data:', {
+      studentId,
+      email: email || null,
+      phone,
+      name: name || null,
+      school: school || null,
+      grade: grade || null,
+      academyId,
+      role: 'STUDENT'
+    });
 
-    console.log('✅ Student created:', { studentId, phone, academyId });
+    try {
+      // Step 1: Create user account
+      await db
+        .prepare(`
+          INSERT INTO users (
+            id, email, phone, password, name, role, 
+            academyId, isActive, 
+            createdAt, updatedAt
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `)
+        .bind(
+          studentId,
+          email || null,
+          phone,
+          hashedPassword,
+          name || null,
+          'STUDENT',
+          academyId,
+          1  // isActive
+        )
+        .run();
+
+      console.log('✅ User account created:', { studentId, phone, academyId });
+
+      // Step 2: Create student record
+      await db
+        .prepare(`
+          INSERT INTO students (
+            id, userId, academyId, grade, status,
+            createdAt, updatedAt
+          )
+          VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `)
+        .bind(
+          studentId,  // Same ID as user
+          studentId,  // Link to user
+          academyId,
+          grade || null,
+          'ACTIVE'
+        )
+        .run();
+
+      console.log('✅ Student record created:', { studentId, grade });
+    } catch (dbError) {
+      console.error('❌ Database insert failed:', dbError);
+      throw new Error(`데이터베이스 저장 실패: ${dbError.message}`);
+    }
 
     // Assign to classes if classIds provided
     if (classIds && Array.isArray(classIds) && classIds.length > 0) {
@@ -209,8 +260,8 @@ export async function onRequestPost(context) {
         try {
           await db
             .prepare(`
-              INSERT INTO ClassStudent (id, classId, studentId, createdAt, updatedAt)
-              VALUES (?, ?, ?, datetime('now'), datetime('now'))
+              INSERT INTO class_students (id, classId, studentId, joinedAt)
+              VALUES (?, ?, ?, datetime('now'))
             `)
             .bind(
               `cs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,

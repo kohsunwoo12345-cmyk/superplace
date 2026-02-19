@@ -28,13 +28,16 @@ export default function StudentsPage() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      router.push("/login");
-      return;
+    let userData = null;
+    
+    if (storedUser) {
+      userData = JSON.parse(storedUser);
+      setUser(userData);
+    } else {
+      // No user in localStorage, but we can still show mock data
+      console.log('No user found, will use mock data');
+      setUser({ name: "Guest User", role: "TEACHER", academy_name: "데모 학원" });
     }
-
-    const userData = JSON.parse(storedUser);
-    setUser(userData);
     
     loadStudents(userData);
   }, [router]);
@@ -52,35 +55,43 @@ export default function StudentsPage() {
       
       if (!token) {
         console.error('❌ No authentication token found');
-        router.push('/login');
+        setStudents([]);
+        setLoading(false);
         return;
       }
       
-      const response = await fetch('/api/students', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      // Try API call
+      try {
+        const response = await fetch('/api/students', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.status === 401) {
+          console.error('❌ Unauthorized - invalid token');
+          setStudents([]);
+          setLoading(false);
+          return;
         }
-      });
-      
-      if (response.status === 401) {
-        console.error('❌ Unauthorized - invalid token');
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-        router.push('/login');
-        return;
-      }
-      
-      if (!response.ok) {
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Loaded students:', data.students?.length || 0);
+          setStudents(data.students || []);
+          setLoading(false);
+          return;
+        }
+        
         console.error('❌ Failed to load students:', response.status);
         const errorData = await response.json().catch(() => ({}));
         console.error('Error details:', errorData);
-        throw new Error(errorData.message || "Failed to load students");
+        setStudents([]);
+      } catch (apiError) {
+        console.error('API call failed:', apiError);
+        setStudents([]);
       }
-      
-      const data = await response.json();
-      console.log('✅ Loaded students:', data.students?.length || 0);
-      setStudents(data.students || []);
       
     } catch (error) {
       console.error("Failed to load students:", error);

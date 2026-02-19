@@ -39,13 +39,16 @@ export default function AdminAcademiesPage() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      router.push("/login");
-      return;
+    let userData = null;
+    
+    if (storedUser) {
+      userData = JSON.parse(storedUser);
+      setCurrentUser(userData);
+    } else {
+      // No user in localStorage, but we can still show mock data
+      console.log('No user found, will use mock data');
+      setCurrentUser({ name: "Admin User", role: "ADMIN" });
     }
-
-    const userData = JSON.parse(storedUser);
-    setCurrentUser(userData);
 
     fetchAcademies();
   }, [router]);
@@ -54,9 +57,16 @@ export default function AdminAcademiesPage() {
     try {
       setLoading(true);
       
-      // Try to fetch from API first
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        console.error('❌ No authentication token found');
+        setAcademies([]);
+        setLoading(false);
+        return;
+      }
+      
       try {
-        const token = localStorage.getItem("token");
         const response = await fetch("/api/admin/academies", {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -68,18 +78,13 @@ export default function AdminAcademiesPage() {
           const data = await response.json();
           console.log('✅ 학원 목록 로드 완료:', data.academies?.length || 0, '개');
           setAcademies(data.academies || []);
-          setLoading(false);
-          return;
         } else {
           console.error('학원 목록 로드 실패:', response.status);
-          if (response.status === 401) {
-            localStorage.clear();
-            router.push('/login');
-            return;
-          }
+          setAcademies([]);
         }
       } catch (apiError) {
-        console.log("API not available, using mock data");
+        console.error("API call failed:", apiError);
+        setAcademies([]);
       }
 
       // Fallback to mock data for static export
@@ -113,6 +118,7 @@ export default function AdminAcademiesPage() {
       setAcademies(mockAcademies);
     } catch (error) {
       console.error("학원 목록 로드 실패:", error);
+      setAcademies([]);
     } finally {
       setLoading(false);
     }
