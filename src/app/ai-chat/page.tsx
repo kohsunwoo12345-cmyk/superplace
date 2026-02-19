@@ -1411,28 +1411,14 @@ export default function ModernAIChatPage() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            {/* 메시지가 있으면 항상 문제지 출력 버튼 표시 */}
-            {messages.length > 0 && selectedBot && (
+            {/* 🔥 항상 문제지 출력 버튼 표시 (메시지가 1개 이상이면) */}
+            {selectedBot && messages.length > 0 && (
               <Button
                 onClick={handlePrintProblems}
                 variant="outline"
                 size="sm"
-                className={`flex items-center gap-2 ${
-                  (() => {
-                    const enableFlag = selectedBot?.enableProblemGeneration;
-                    const isProblemGenerationEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
-                    console.log('🖨️ 문제지 출력 버튼 상태:', {
-                      enableProblemGeneration: selectedBot?.enableProblemGeneration,
-                      enableProblemGenerationType: typeof selectedBot?.enableProblemGeneration,
-                      isProblemGenerationEnabled,
-                      messagesLength: messages.length,
-                      selectedBotName: selectedBot?.name
-                    });
-                    return isProblemGenerationEnabled 
-                      ? 'bg-green-50 hover:bg-green-100 border-green-300 text-green-700' 
-                      : 'bg-gray-50 hover:bg-gray-100 border-gray-300 text-gray-500';
-                  })()
-                }`}
+                className="flex items-center gap-2 bg-green-50 hover:bg-green-100 border-green-300 text-green-700 font-medium"
+                title={`${selectedBot.name}의 문제를 인쇄합니다`}
               >
                 <Printer className="w-4 h-4" />
                 문제지 출력
