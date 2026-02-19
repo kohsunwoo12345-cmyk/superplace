@@ -214,9 +214,19 @@ export async function onRequestPost(context) {
     try {
       // Step 1: Create user account (minimal fields only)
       console.log('💾 Inserting into users table...');
+      console.log('📋 Values to insert:', {
+        id: studentId,
+        email: finalEmail,
+        phone: phone,
+        passwordLength: hashedPassword.length,
+        name: finalName,
+        role: 'STUDENT',
+        academyId: academyId
+      });
+      
       await db
         .prepare(`
-          INSERT INTO users (id, email, phone, password, name, role, academyId)
+          INSERT INTO User (id, email, phone, password, name, role, academyId)
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `)
         .bind(
