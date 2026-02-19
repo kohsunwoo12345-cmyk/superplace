@@ -134,18 +134,16 @@ export async function onRequestPost(context) {
       JSON.stringify({
         success: true,
         message: '로그인 성공',
-        data: {
-          token,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            phone: user.phone,
-            academyId: user.academyId,
-            academyName: user.academyName,
-            academyCode: user.academyCode,
-          },
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          phone: user.phone,
+          academyId: user.academyId,
+          academyName: user.academyName,
+          academyCode: user.academyCode,
         },
       }),
       {
