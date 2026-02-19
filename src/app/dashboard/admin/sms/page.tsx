@@ -15,6 +15,8 @@ import {
   Users,
   Loader2,
   TrendingUp,
+  Phone,
+  CheckCircle,
 } from "lucide-react";
 
 interface SMSStats {
@@ -64,6 +66,66 @@ export default function SMSManagementPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      {/* 상단 메뉴 바 */}
+      <div className="bg-white border-b shadow-sm mb-6 -mx-6 -mt-6 px-6 py-3">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms")}
+            className="whitespace-nowrap bg-teal-50 text-teal-700"
+          >
+            <Send className="w-4 h-4 mr-1" />
+            대시보드
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms/registration")}
+            className="whitespace-nowrap"
+          >
+            <Phone className="w-4 h-4 mr-1" />
+            발신번호 등록
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms/registration-approval")}
+            className="whitespace-nowrap"
+          >
+            <CheckCircle className="w-4 h-4 mr-1" />
+            등록 승인
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms/send")}
+            className="whitespace-nowrap"
+          >
+            <Send className="w-4 h-4 mr-1" />
+            문자 발송
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms/templates")}
+            className="whitespace-nowrap"
+          >
+            <FileText className="w-4 h-4 mr-1" />
+            템플릿
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms/history")}
+            className="whitespace-nowrap"
+          >
+            <History className="w-4 h-4 mr-1" />
+            발송이력
+          </Button>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 헤더 */}
         <div className="flex items-center justify-between">
@@ -258,18 +320,35 @@ export default function SMSManagementPage() {
         </div>
 
         {/* 중요 안내 */}
-        <Card className="bg-red-50 border-red-300 border-2">
+        <Card className="bg-green-50 border-green-300 border-2">
           <CardHeader>
-            <CardTitle className="text-red-900 flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              ⚠️ 발송 전 먼저 신청해주세요!
+            <CardTitle className="text-green-900 flex items-center gap-2">
+              <Phone className="h-5 w-5" />
+              📱 발신번호 등록하기
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-red-800 space-y-2">
-            <p className="font-semibold text-base">SMS 발송 서비스 이용을 위해 먼저 신청이 필요합니다.</p>
-            <p>• 발신번호 등록 및 인증이 필요합니다</p>
-            <p>• 발송 서비스 신청 후 승인까지 1-2 영업일 소요됩니다</p>
-            <p>• 신청 문의: 고객센터 또는 관리자에게 문의해주세요</p>
+          <CardContent className="text-sm text-green-800 space-y-3">
+            <p className="font-semibold text-base">SMS 발송을 시작하려면 먼저 발신번호를 등록해주세요!</p>
+            <p>• 전기통신사업법에 따라 발신번호 사전등록이 필수입니다</p>
+            <p>• 등록 신청 후 관리자 승인까지 1-2 영업일이 소요됩니다</p>
+            <p>• 필요한 서류를 다운로드하여 작성 후 제출해주세요</p>
+            <div className="flex gap-2 mt-4">
+              <Button
+                onClick={() => router.push("/dashboard/admin/sms/registration")}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Phone className="w-4 h-4 mr-2" />
+                발신번호 등록하기
+              </Button>
+              <Button
+                onClick={() => router.push("/dashboard/admin/sms/registration-approval")}
+                variant="outline"
+                className="border-green-600 text-green-700 hover:bg-green-50"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                등록 승인 관리
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
