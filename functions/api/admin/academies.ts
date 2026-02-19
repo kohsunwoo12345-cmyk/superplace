@@ -123,25 +123,25 @@ export async function onRequestGet(context) {
       console.warn('⚠️ Schema check failed:', error);
     }
 
-    // Academy 테이블에서 모든 학원 조회
+    // Academy 테이블에서 모든 학원 조회 (snake_case 컬럼명 사용)
     const query = `
       SELECT 
         a.id,
-        a.name,
+        a.academy_name as name,
         a.address,
         a.phone,
         a.email,
-        a.isActive,
-        a.createdAt,
+        a.is_active as isActive,
+        a.created_at as createdAt,
         u.name as directorName,
         u.email as directorEmail,
-        u.phoneNumber as directorPhone,
-        (SELECT COUNT(*) FROM ${userTable} WHERE academyId = a.id AND role = 'STUDENT') as studentCount,
-        (SELECT COUNT(*) FROM ${userTable} WHERE academyId = a.id AND role = 'TEACHER') as teacherCount,
-        (SELECT COUNT(*) FROM ${userTable} WHERE academyId = a.id AND role = 'DIRECTOR') as directorCount
+        u.phone as directorPhone,
+        (SELECT COUNT(*) FROM ${userTable} WHERE academy_id = a.id AND role = 'STUDENT') as studentCount,
+        (SELECT COUNT(*) FROM ${userTable} WHERE academy_id = a.id AND role = 'TEACHER') as teacherCount,
+        (SELECT COUNT(*) FROM ${userTable} WHERE academy_id = a.id AND role = 'DIRECTOR') as directorCount
       FROM ${academyTable} a
-      LEFT JOIN ${userTable} u ON a.directorId = u.id
-      ORDER BY a.createdAt DESC
+      LEFT JOIN ${userTable} u ON a.director_id = u.id
+      ORDER BY a.created_at DESC
     `;
     
     console.log('🔍 Executing query:', query);
