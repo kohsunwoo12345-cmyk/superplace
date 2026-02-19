@@ -34,7 +34,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 이메일 중복 체크
     const existing = await DB.prepare(
-      "SELECT id FROM users WHERE email = ?"
+      "SELECT id FROM User WHERE email = ?"
     ).bind(email).first();
 
     if (existing) {
@@ -44,14 +44,26 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
+    // 비밀번호 해시 생성 (SHA-256)
+    const salt = 'superplace-salt-2024';
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password + salt);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashedPassword = hashArray.map((b: number) => b.toString(16).padStart(2, '0')).join('');
+
+    console.log('🔐 Password hashed for user:', { email, originalLength: password.length, hashLength: hashedPassword.length });
+
+    // 사용자 ID 생성
+    const userId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+
     // 사용자 생성
     const userRole = role || 'STUDENT';
-    const result = await DB.prepare(
-      `INSERT INTO users (name, email, password, role, phone, academy_id)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    ).bind(name, email, password, userRole, phone || null, academyId || null).run();
-
-    const userId = result.meta.last_row_id;
+    await DB.prepare(
+      `INSERT INTO User (id, name, email, password, role, phone, academyId, approved, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
+    ).bind(userId, name, email, hashedPassword, userRole, phone || null, academyId || null, now, now).run();
 
     // 학생인 경우 자동으로 출석 코드 생성
     let attendanceCode = null;
@@ -109,9 +121,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           email,
           role: userRole,
           phone,
-          academyId
+          academyId,
+          password: password // 생성 응답에만 원본 비밀번호 포함 (한 번만 표시)
         },
-        attendanceCode
+        attendanceCode,
+        passwordInfo: `⚠️ 비밀번호를 안전하게 보관하세요: ${password}`
       }),
       { status: 201, headers: { "Content-Type": "application/json" } }
     );
