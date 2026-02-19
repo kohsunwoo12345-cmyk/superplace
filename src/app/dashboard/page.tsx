@@ -465,10 +465,10 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-purple-600">
-                {stats?.todayStats?.homeworkSubmitted || 0}개
+                {stats?.submittedHomework || 0}개
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                오늘 제출됨
+                전체 {stats?.totalHomework || 0}개 중 제출됨
               </p>
             </CardContent>
           </Card>
@@ -476,16 +476,16 @@ export default function DashboardPage() {
           <Card className="border-2 border-orange-100 hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                미제출
+                AI 봇 사용
               </CardTitle>
               <AlertCircle className="h-5 w-5 text-orange-600" />
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-orange-600">
-                {stats?.todayStats?.missingHomework || 0}명
+                {stats?.totalAIConversations || 0}회
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                숙제 미제출
+                활성 봇 {stats?.activeAIBots || 0}개
               </p>
             </CardContent>
           </Card>
@@ -497,107 +497,125 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                오늘 출석 알림
+                <Users className="h-5 w-5 text-green-600" />
+                최근 등록 학생
               </CardTitle>
-              <CardDescription>실시간 출석 현황</CardDescription>
+              <CardDescription>신규 학생 현황 (이번 주 {stats?.thisWeekStudents || 0}명)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {(stats?.attendanceAlerts || []).slice(0, 5).map((alert: any, index: number) => (
+                {(stats?.recentStudents || []).slice(0, 5).map((student: any, index: number) => (
                   <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-green-50 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="font-semibold text-green-600 text-sm">
+                          {student.name?.[0] || '?'}
+                        </span>
                       </div>
                       <div>
-                        <p className="font-medium text-sm">{alert.studentName}</p>
+                        <p className="font-medium text-sm">{student.name}</p>
                         <p className="text-xs text-gray-600">
-                          {new Date(alert.time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(student.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                         </p>
                       </div>
                     </div>
-                    {alert.homeworkSubmitted ? (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                        숙제 ✓
-                      </span>
-                    ) : (
-                      <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
-                        미제출
-                      </span>
-                    )}
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      학생
+                    </span>
                   </div>
                 ))}
-                {(!stats?.attendanceAlerts || stats.attendanceAlerts.length === 0) && (
-                  <p className="text-center text-gray-500 py-4 text-sm">오늘 출석 기록이 없습니다</p>
+                {(!stats?.recentStudents || stats.recentStudents.length === 0) && (
+                  <p className="text-center text-gray-500 py-4 text-sm">최근 등록 학생이 없습니다</p>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          {/* 숙제 검사 결과 */}
+          {/* 숙제 통계 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-blue-600" />
-                숙제 검사 결과
+                숙제 현황
               </CardTitle>
-              <CardDescription>AI 채점 완료</CardDescription>
+              <CardDescription>숙제 제출 및 채점 상태</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {(stats?.homeworkResults || []).slice(0, 5).map((result: any, index: number) => (
-                  <div key={index} className="p-3 border rounded-lg hover:bg-blue-50 transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-medium text-sm">{result.studentName}</p>
-                      <span className="text-lg font-bold text-blue-600">{result.score}점</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <span className="bg-gray-100 px-2 py-1 rounded">{result.subject}</span>
-                      <span>완성도: {result.completion}</span>
-                      <span>노력도: {result.effort}</span>
-                    </div>
+                <div className="p-3 border rounded-lg hover:bg-blue-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium text-sm">전체 숙제</p>
+                    <span className="text-lg font-bold text-blue-600">{stats?.totalHomework || 0}개</span>
                   </div>
-                ))}
-                {(!stats?.homeworkResults || stats.homeworkResults.length === 0) && (
-                  <p className="text-center text-gray-500 py-4 text-sm">오늘 숙제 제출이 없습니다</p>
-                )}
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <span className="bg-green-100 text-green-700 px-2 py-1 rounded">제출: {stats?.submittedHomework || 0}</span>
+                    <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">채점완료: {stats?.gradedHomework || 0}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 border rounded-lg hover:bg-purple-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium text-sm">이번 주 제출률</p>
+                    <span className="text-lg font-bold text-purple-600">{stats?.homeworkSubmissionRate || 0}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-purple-600 h-2 rounded-full transition-all"
+                      style={{ width: `${stats?.homeworkSubmissionRate || 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="p-3 border rounded-lg hover:bg-green-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium text-sm">진행 중인 숙제</p>
+                    <span className="text-lg font-bold text-green-600">{stats?.activeHomework || 0}개</span>
+                  </div>
+                  <p className="text-xs text-gray-600">마감 전 숙제</p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* 숙제 미제출 */}
+          {/* AI 봇 사용 통계 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-orange-600" />
-                숙제 미제출
+                AI 봇 활동
               </CardTitle>
-              <CardDescription>알림 필요</CardDescription>
+              <CardDescription>AI 챗봇 사용 현황</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {(stats?.missingHomeworkList || []).slice(0, 5).map((missing: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between p-3 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-                        <AlertCircle className="h-4 w-4 text-orange-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{missing.studentName}</p>
-                        <p className="text-xs text-gray-600">
-                          출석: {new Date(missing.attendedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline" className="text-xs">
-                      알림
-                    </Button>
+                <div className="p-3 border rounded-lg hover:bg-orange-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium text-sm">전체 대화</p>
+                    <span className="text-lg font-bold text-orange-600">{stats?.totalAIConversations || 0}회</span>
                   </div>
-                ))}
-                {(!stats?.missingHomeworkList || stats.missingHomeworkList.length === 0) && (
-                  <p className="text-center text-gray-500 py-4 text-sm">모두 제출 완료! 🎉</p>
-                )}
+                  <p className="text-xs text-gray-600">누적 대화 수</p>
+                </div>
+
+                <div className="p-3 border rounded-lg hover:bg-blue-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium text-sm">활성 봇</p>
+                    <span className="text-lg font-bold text-blue-600">{stats?.activeAIBots || 0}개</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <span className="bg-gray-100 px-2 py-1 rounded">전체: {stats?.totalAIBots || 0}개</span>
+                  </div>
+                </div>
+
+                <Button 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => router.push("/dashboard/admin/ai-bots")}
+                >
+                  AI 봇 관리하기
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
               </div>
             </CardContent>
           </Card>
