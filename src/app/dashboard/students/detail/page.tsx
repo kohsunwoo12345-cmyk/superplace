@@ -14,22 +14,22 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 
 interface StudentDetail {
-  id: number;
+  id: string; // Changed from number to string
   email: string;
   name: string;
   phone?: string;
   role: string;
   password?: string;
-  academy_id?: number;
+  academyId?: string; // Changed from academy_id (number)
   academyName?: string;
-  created_at?: string;
+  createdAt?: string; // Changed from created_at
   student_code?: string;
   school?: string;
   grade?: string;
   diagnostic_memo?: string;
   className?: string;
-  classId?: number;
-  classes?: Array<{classId: number; className: string}>; // 다중 반 소속
+  classId?: string; // Changed from number
+  classes?: Array<{classId: string; className: string}>; // Changed type
 }
 
 interface AttendanceCode {
@@ -929,43 +929,123 @@ function StudentDetailContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-2 sm:p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-2 sm:p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
-        {/* 헤더 */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-            <Button variant="outline" size="sm" onClick={() => router.back()}>
-              <ArrowLeft className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">뒤로가기</span>
+        {/* 학생 프로필 헤더 - 현대적이고 귀여운 디자인 */}
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          {/* 배경 그라데이션 */}
+          <div className="h-32 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 relative">
+            <div className="absolute inset-0 bg-pattern opacity-10"></div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => router.back()}
+              className="absolute top-4 left-4 bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              뒤로가기
             </Button>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2 truncate">
-                <User className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
-                <span className="truncate">{student.name}</span>
-              </h1>
-              <p className="text-sm sm:text-base text-gray-600 mt-1 truncate">{student.email}</p>
+          </div>
+          
+          {/* 프로필 정보 */}
+          <div className="px-6 pb-6 -mt-16 relative">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+              {/* 프로필 아바타 */}
+              <div className="relative">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl sm:text-4xl shadow-xl border-4 border-white">
+                  {student.name?.charAt(0) || '학'}
+                </div>
+                <div className="absolute -bottom-2 -right-2 bg-green-500 rounded-full p-2 border-4 border-white shadow-lg">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+              </div>
+              
+              {/* 학생 정보 */}
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 truncate">
+                    {student.name}
+                  </h1>
+                  <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-fit">
+                    학생
+                  </Badge>
+                </div>
+                
+                <div className="flex flex-wrap gap-3 text-sm text-gray-600">
+                  {student.email && (
+                    <div className="flex items-center gap-1.5">
+                      <Mail className="w-4 h-4 text-blue-500" />
+                      <span className="truncate">{student.email}</span>
+                    </div>
+                  )}
+                  {student.phone && (
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="w-4 h-4 text-purple-500" />
+                      <span>{formatPhoneNumber(student.phone)}</span>
+                    </div>
+                  )}
+                  {student.academyName && (
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-pink-500" />
+                      <span>{student.academyName}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* 액션 버튼 */}
+              <Button
+                onClick={() => setShowProblemModal(true)}
+                disabled={weakConcepts.length === 0}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg whitespace-nowrap"
+                size="sm"
+              >
+                <ClipboardCheck className="w-4 h-4 mr-2" />
+                유사문제 출제
+              </Button>
             </div>
           </div>
-          <Button
-            onClick={() => setShowProblemModal(true)}
-            disabled={weakConcepts.length === 0}
-            className="whitespace-nowrap"
-            size="sm"
-          >
-            <ClipboardCheck className="w-4 h-4 mr-2" />
-            유사문제 출제
-          </Button>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs - 더 귀여운 디자인 */}
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full gap-1" style={{gridTemplateColumns: `repeat(${(!limitations || limitations.weak_concept_analysis_enabled === 1) ? '5' : '4'}, minmax(0, 1fr))`}}>
-            <TabsTrigger value="info" className="text-xs sm:text-sm">개인 정보</TabsTrigger>
-            <TabsTrigger value="code" className="text-xs sm:text-sm">학생 코드</TabsTrigger>
-            <TabsTrigger value="attendance" className="text-xs sm:text-sm">출결</TabsTrigger>
-            <TabsTrigger value="chat" className="text-xs sm:text-sm">AI 대화</TabsTrigger>
+          <TabsList className="grid w-full gap-2 bg-white rounded-xl p-2 shadow-md" style={{gridTemplateColumns: `repeat(${(!limitations || limitations.weak_concept_analysis_enabled === 1) ? '5' : '4'}, minmax(0, 1fr))`}}>
+            <TabsTrigger 
+              value="info" 
+              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-xs sm:text-sm font-semibold"
+            >
+              <User className="w-4 h-4 mr-1.5" />
+              개인 정보
+            </TabsTrigger>
+            <TabsTrigger 
+              value="code" 
+              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-600 data-[state=active]:text-white text-xs sm:text-sm font-semibold"
+            >
+              <QrCode className="w-4 h-4 mr-1.5" />
+              학생 코드
+            </TabsTrigger>
+            <TabsTrigger 
+              value="attendance" 
+              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs sm:text-sm font-semibold"
+            >
+              <CheckCircle className="w-4 h-4 mr-1.5" />
+              출결
+            </TabsTrigger>
+            <TabsTrigger 
+              value="chat" 
+              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-xs sm:text-sm font-semibold"
+            >
+              <MessageSquare className="w-4 h-4 mr-1.5" />
+              AI 대화
+            </TabsTrigger>
             {(!limitations || limitations.weak_concept_analysis_enabled === 1) && (
-              <TabsTrigger value="concepts" className="text-xs sm:text-sm">부족한 개념</TabsTrigger>
+              <TabsTrigger 
+                value="concepts" 
+                className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-rose-600 data-[state=active]:text-white text-xs sm:text-sm font-semibold"
+              >
+                <Brain className="w-4 h-4 mr-1.5" />
+                부족한 개념
+              </TabsTrigger>
             )}
           </TabsList>
 
