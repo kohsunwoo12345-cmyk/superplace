@@ -224,60 +224,6 @@ function UserDetailPage() {
       console.error("결제 정보 로드 실패:", error);
     }
   };
-    try {
-      const response = await fetch(`/api/admin/users/${userId}/login-logs`);
-      if (response.ok) {
-        const data = await response.json();
-        setLoginLogs(data.logs || []);
-      }
-    } catch (error) {
-      console.error("로그인 기록 로드 실패:", error);
-      // API가 없으면 빈 배열로 설정
-      setLoginLogs([]);
-    }
-  };
-
-  const fetchActivityLogs = async () => {
-    try {
-      const response = await fetch(`/api/admin/users/${userId}/activity-logs`);
-      if (response.ok) {
-        const data = await response.json();
-        setActivityLogs(data.logs || []);
-      }
-    } catch (error) {
-      console.error("활동 기록 로드 실패:", error);
-      // API가 없으면 빈 배열로 설정
-      setActivityLogs([]);
-    }
-  };
-
-  const fetchBotAssignments = async () => {
-    try {
-      const response = await fetch(`/api/admin/users/${userId}/bot-assignments`);
-      if (response.ok) {
-        const data = await response.json();
-        setBotAssignments(data.assignments || []);
-      }
-    } catch (error) {
-      console.error("봇 할당 정보 로드 실패:", error);
-      // API가 없으면 빈 배열로 설정
-      setBotAssignments([]);
-    }
-  };
-
-  const fetchPayments = async () => {
-    try {
-      const response = await fetch(`/api/admin/users/${userId}/payments`);
-      if (response.ok) {
-        const data = await response.json();
-        setPayments(data.payments || []);
-      }
-    } catch (error) {
-      console.error("결제 정보 로드 실패:", error);
-      // API가 없으면 빈 배열로 설정
-      setPayments([]);
-    }
-  };
 
   const handleResetPassword = async () => {
     if (!newPassword) {
