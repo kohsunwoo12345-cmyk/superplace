@@ -108,7 +108,11 @@ export async function onRequestPost(context) {
     // Generate email if not provided (required field in DB)
     const finalEmail = email || `student-${Date.now()}@temp.superplace.com`;
     
+    // Generate name if not provided (required field in DB)
+    const finalName = name || `학생${Date.now()}`;
+    
     console.log('📧 Final email:', finalEmail);
+    console.log('👤 Final name:', finalName);
 
     // Validation: phone and password are required
     if (!phone || !password) {
@@ -220,7 +224,7 @@ export async function onRequestPost(context) {
           finalEmail,  // Use generated email if none provided
           phone,
           hashedPassword,
-          name || null,
+          finalName,   // Use generated name if none provided
           'STUDENT',
           academyId
         )
