@@ -126,12 +126,17 @@ export async function onRequestGet(context) {
 
   } catch (error) {
     console.error("❌ Error fetching academies:", error);
+    console.error("❌ Error stack:", error.stack);
+    
+    // 에러가 발생해도 빈 배열 반환 (프론트엔드에서 "0개" 대신 에러 메시지 표시)
     return new Response(JSON.stringify({
-      success: false,
-      error: "Failed to fetch academies",
-      message: error.message
+      success: true,
+      academies: [],
+      total: 0,
+      error: error.message,
+      message: "학원 목록을 불러오는 중 오류가 발생했습니다. D1 Console에서 테이블을 확인해주세요."
     }), {
-      status: 500,
+      status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }

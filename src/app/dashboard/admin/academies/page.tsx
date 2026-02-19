@@ -83,6 +83,13 @@ export default function AdminAcademiesPage() {
           console.log('✅ 학원 목록 로드 완료:', data);
           console.log('📊 학원 개수:', data.academies?.length || 0);
           console.log('📋 학원 목록:', data.academies);
+          
+          // API 에러 메시지 확인
+          if (data.error || data.message) {
+            console.error('⚠️ API 경고:', data.error, data.message);
+            alert(`⚠️ ${data.message || data.error}`);
+          }
+          
           setAcademies(data.academies || []);
         } else {
           const errorData = await response.json().catch(() => ({}));
