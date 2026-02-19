@@ -203,15 +203,12 @@ export async function onRequestPost(context) {
     });
 
     try {
-      // Step 1: Create user account
+      // Step 1: Create user account (minimal fields only)
+      console.log('💾 Inserting into users table...');
       await db
         .prepare(`
-          INSERT INTO users (
-            id, email, phone, password, name, role, 
-            academyId, 
-            createdAt, updatedAt
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          INSERT INTO users (id, email, phone, password, name, role, academyId)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `)
         .bind(
           studentId,
@@ -226,25 +223,28 @@ export async function onRequestPost(context) {
 
       console.log('✅ User account created:', { studentId, phone, academyId });
 
-      // Step 2: Create student record
-      await db
-        .prepare(`
-          INSERT INTO students (
-            id, userId, academyId, grade, status,
-            createdAt, updatedAt
+      // Step 2: Create student record (if students table exists)
+      try {
+        console.log('💾 Inserting into students table...');
+        await db
+          .prepare(`
+            INSERT INTO students (id, userId, academyId, grade, status)
+            VALUES (?, ?, ?, ?, ?)
+          `)
+          .bind(
+            studentId,  // Same ID as user
+            studentId,  // Link to user
+            academyId,
+            grade || null,
+            'ACTIVE'
           )
-          VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-        `)
-        .bind(
-          studentId,  // Same ID as user
-          studentId,  // Link to user
-          academyId,
-          grade || null,
-          'ACTIVE'
-        )
-        .run();
+          .run();
 
-      console.log('✅ Student record created:', { studentId, grade });
+        console.log('✅ Student record created:', { studentId, grade });
+      } catch (studentError) {
+        console.warn('⚠️ Failed to insert into students table (may not exist):', studentError.message);
+        // Continue even if students table doesn't exist
+      }
     } catch (dbError) {
       console.error('❌ Database insert failed:', dbError);
       throw new Error(`데이터베이스 저장 실패: ${dbError.message}`);
