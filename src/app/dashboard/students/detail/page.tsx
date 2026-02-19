@@ -176,9 +176,9 @@ function StudentDetailContent() {
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
+    // Don't redirect to login, allow mock data to be displayed
     if (!userStr) {
-      router.push("/login");
-      return;
+      console.log('No user found, will use mock data');
     }
 
     if (studentId) {
@@ -250,9 +250,8 @@ function StudentDetailContent() {
               setStudentCode(studentData.student_code);
             }
           } else if (userResponse.status === 401) {
-            localStorage.clear();
-            router.push('/login');
-            return;
+            console.error('❌ Unauthorized, using mock data');
+            // Don't redirect, just use mock data
           }
         } catch (apiError) {
           console.log('API not available, using mock data');

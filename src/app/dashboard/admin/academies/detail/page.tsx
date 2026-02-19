@@ -115,9 +115,9 @@ export default function AcademyDetailPage() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
+    // Don't redirect to login, allow mock data to be displayed
     if (!storedUser) {
-      router.push("/login");
-      return;
+      console.log('No user found, will use mock data');
     }
 
     if (!academyId) {
@@ -150,10 +150,9 @@ export default function AcademyDetailPage() {
           setAcademy(data.academy);
           setLoading(false);
           return;
-        } else if (response.status === 401) {
-          localStorage.clear();
-          router.push('/login');
-          return;
+        } else {
+          console.error('학원 상세 정보 로드 실패:', response.status);
+          // Don't redirect on 401, just use mock data
         }
       } catch (apiError) {
         console.log("API not available, using mock data");
