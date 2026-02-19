@@ -208,10 +208,10 @@ export async function onRequestPost(context) {
         .prepare(`
           INSERT INTO users (
             id, email, phone, password, name, role, 
-            academyId, isActive, 
+            academyId, 
             createdAt, updatedAt
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `)
         .bind(
           studentId,
@@ -220,8 +220,7 @@ export async function onRequestPost(context) {
           hashedPassword,
           name || null,
           'STUDENT',
-          academyId,
-          1  // isActive
+          academyId
         )
         .run();
 
