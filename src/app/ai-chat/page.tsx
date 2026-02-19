@@ -16,7 +16,8 @@ import {
   Edit,
   MoreVertical,
   Home,
-  ArrowLeft
+  ArrowLeft,
+  Printer
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,6 +48,7 @@ interface AIBot {
   systemPrompt: string;
   model: string;
   isActive: boolean;
+  enableProblemGeneration?: number;
 }
 
 export default function ModernAIChatPage() {
@@ -663,6 +665,192 @@ export default function ModernAIChatPage() {
     }
   };
 
+  const handlePrintProblems = async () => {
+    if (!selectedBot?.enableProblemGeneration) {
+      alert('이 AI 봇은 문제 출제 기능이 활성화되지 않았습니다.');
+      return;
+    }
+
+    if (messages.length === 0) {
+      alert('출력할 문제가 없습니다. 먼저 AI와 대화를 나눠보세요.');
+      return;
+    }
+
+    // Extract problems from messages
+    const problems = messages
+      .filter(m => m.role === 'assistant' && (
+        m.content.includes('문제') || 
+        m.content.includes('?') ||
+        m.content.includes('풀이')
+      ))
+      .map((m, index) => ({
+        number: index + 1,
+        content: m.content
+      }));
+
+    if (problems.length === 0) {
+      alert('출력할 문제를 찾을 수 없습니다.');
+      return;
+    }
+
+    // Get academy name
+    let academyName = '학원';
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/user/profile', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        academyName = data.academyName || academyName;
+      }
+    } catch (error) {
+      console.error('Failed to fetch academy name:', error);
+    }
+
+    // Create print window
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('팝업 차단이 활성화되어 있습니다. 팝업을 허용해주세요.');
+      return;
+    }
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>문제지 - ${academyName}</title>
+        <style>
+          @media print {
+            @page { margin: 2cm; }
+          }
+          body {
+            font-family: 'Malgun Gothic', sans-serif;
+            max-width: 21cm;
+            margin: 0 auto;
+            padding: 2cm;
+            background: white;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 3px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .academy-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 10px;
+          }
+          .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+          }
+          .date {
+            font-size: 14px;
+            color: #666;
+          }
+          .student-info {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+          }
+          .student-info table {
+            width: 100%;
+          }
+          .student-info td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+          }
+          .student-info td:first-child {
+            width: 80px;
+            font-weight: bold;
+            color: #555;
+          }
+          .problem {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+            page-break-inside: avoid;
+          }
+          .problem-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 15px;
+          }
+          .problem-content {
+            font-size: 16px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            color: #333;
+          }
+          .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #ddd;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+          }
+          @media print {
+            .no-print { display: none; }
+            button { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="academy-name">${academyName}</div>
+          <div class="title">AI 생성 문제지</div>
+          <div class="date">${new Date().toLocaleDateString('ko-KR')}</div>
+        </div>
+
+        <div class="student-info">
+          <table>
+            <tr>
+              <td>이름:</td>
+              <td>_____________________</td>
+              <td>학년:</td>
+              <td>_____________________</td>
+            </tr>
+          </table>
+        </div>
+
+        ${problems.map(p => `
+          <div class="problem">
+            <div class="problem-number">문제 ${p.number}</div>
+            <div class="problem-content">${p.content}</div>
+          </div>
+        `).join('')}
+
+        <div class="footer">
+          <p>본 문제지는 AI를 활용하여 자동 생성되었습니다.</p>
+          <p>생성 일시: ${new Date().toLocaleString('ko-KR')}</p>
+        </div>
+
+        <div class="no-print" style="text-align: center; margin-top: 30px;">
+          <button onclick="window.print()" style="padding: 12px 30px; font-size: 16px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            🖨️ 인쇄하기
+          </button>
+          <button onclick="window.close()" style="padding: 12px 30px; font-size: 16px; background: #6b7280; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+            닫기
+          </button>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1032,7 +1220,18 @@ export default function ModernAIChatPage() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {selectedBot?.enableProblemGeneration === 1 && messages.length > 0 && (
+              <Button
+                onClick={handlePrintProblems}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Printer className="w-4 h-4" />
+                문제지 출력
+              </Button>
+            )}
             <span className="text-xs text-gray-500">안녕하세요, {user?.name}님</span>
           </div>
         </div>
