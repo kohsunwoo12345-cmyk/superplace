@@ -61,13 +61,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // Get requesting user
-    const requestingUser = await DB
-      .prepare('SELECT id, email, role FROM User WHERE email = ?')
-      .bind(tokenData.email)
-      .first();
+    let requestingUser;
+    try {
+      requestingUser = await DB
+        .prepare('SELECT id, email, role FROM User WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    } catch (dbError: any) {
+      console.error('❌ Database error during auth:', dbError);
+      throw new Error(`Auth DB error: ${dbError.message}`);
+    }
 
     if (!requestingUser) {
-      console.error('❌ Requesting user not found');
+      console.error('❌ Requesting user not found for email:', tokenData.email);
       return new Response(JSON.stringify({
         success: false,
         error: 'Unauthorized - User not found'
@@ -94,20 +100,34 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     console.log('✅ Auth passed:', { email: tokenData.email, role });
 
     // 사용자 정보 조회
-    const userResult = await DB.prepare(`
-      SELECT 
-        u.id, u.email, u.name, u.phone, u.role,
-        u.password,
-        u.academyId, a.name as academyName,
-        u.createdAt, u.lastLoginAt, u.lastLoginIP as lastLoginIp,
-        u.approved, u.grade, u.updatedAt
-      FROM User u
-      LEFT JOIN Academy a ON u.academyId = a.id
-      WHERE u.id = ?
-    `).bind(userId).first();
+    let userResult;
+    try {
+      userResult = await DB.prepare(`
+        SELECT 
+          u.id, u.email, u.name, u.phone, u.role,
+          u.password,
+          u.academyId, a.name as academyName,
+          u.createdAt, u.lastLoginAt, u.lastLoginIP as lastLoginIp,
+          u.approved, u.grade, u.updatedAt
+        FROM User u
+        LEFT JOIN Academy a ON u.academyId = a.id
+        WHERE u.id = ?
+      `).bind(userId).first();
+    } catch (sqlError: any) {
+      console.error('❌ SQL Error fetching user:', sqlError);
+      console.error('❌ SQL Error details:', {
+        message: sqlError.message,
+        stack: sqlError.stack
+      });
+      throw new Error(`Failed to fetch user: ${sqlError.message}`);
+    }
 
     if (!userResult) {
-      return new Response(JSON.stringify({ error: "User not found" }), {
+      console.error('❌ User not found in database:', userId);
+      return new Response(JSON.stringify({ 
+        error: "User not found",
+        userId: userId 
+      }), {
         status: 404,
         headers: { "Content-Type": "application/json" },
       });
@@ -215,11 +235,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     );
   } catch (error: any) {
     console.error("❌ User detail error:", error);
+    console.error("❌ Error stack:", error.stack);
+    console.error("❌ Error details:", {
+      message: error.message,
+      name: error.name,
+      cause: error.cause
+    });
+    
     return new Response(
       JSON.stringify({
         success: false,
         error: "Failed to fetch user details",
         message: error.message,
+        details: error.stack,
+        errorType: error.name
       }),
       {
         status: 500,

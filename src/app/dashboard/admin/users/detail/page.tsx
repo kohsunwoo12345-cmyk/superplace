@@ -142,7 +142,19 @@ function UserDetailPage() {
           statusText: response.statusText,
           error: errorData
         });
-        alert(`데이터를 불러오는데 실패했습니다.\n상태: ${response.status}\n에러: ${errorData.error || errorData.message || '알 수 없는 오류'}`);
+        
+        // 더 자세한 에러 메시지 구성
+        let errorMessage = `데이터를 불러오는데 실패했습니다.\n`;
+        errorMessage += `상태: ${response.status} (${response.statusText})\n`;
+        errorMessage += `에러: ${errorData.error || errorData.message || '알 수 없는 오류'}\n`;
+        if (errorData.details) {
+          errorMessage += `\n상세 정보:\n${errorData.details}`;
+        }
+        if (errorData.errorType) {
+          errorMessage += `\n에러 타입: ${errorData.errorType}`;
+        }
+        
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("데이터 로드 실패:", error);
