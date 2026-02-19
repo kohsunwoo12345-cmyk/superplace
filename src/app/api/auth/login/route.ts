@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
+// Edge Runtime 필수 설정
+export const runtime = 'edge';
+
 // SHA-256 해시 함수 (기존 비밀번호 호환)
 function hashPassword(password: string): string {
   const salt = 'superplace-salt-2024';
