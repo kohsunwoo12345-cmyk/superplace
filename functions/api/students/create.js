@@ -185,10 +185,6 @@ export async function onRequestPost(context) {
       });
     }
 
-    console.log('🔐 Hashing password...');
-    const hashedPassword = await hashPassword(password);
-    const studentId = `student-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
     console.log('💾 Inserting student into database...');
     console.log('📋 Student data:', {
       studentId,
