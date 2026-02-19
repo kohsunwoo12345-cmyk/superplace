@@ -19,6 +19,9 @@ import {
   X,
   Clock,
   Info,
+  Phone,
+  CheckCircle,
+  History,
 } from "lucide-react";
 
 interface Student {
@@ -191,7 +194,7 @@ export default function SMSSendPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          senderId: selectedSender,
+          senderPhone: selectedSender,
           receivers,
           message,
           reserveTime: reserveTime || null,
@@ -233,6 +236,66 @@ export default function SMSSendPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      {/* 상단 메뉴 바 */}
+      <div className="bg-white border-b shadow-sm mb-6 -mx-6 -mt-6 px-6 py-3">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms")}
+            className="whitespace-nowrap"
+          >
+            <Send className="w-4 h-4 mr-1" />
+            대시보드
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms/registration")}
+            className="whitespace-nowrap"
+          >
+            <Phone className="w-4 h-4 mr-1" />
+            발신번호 등록
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms/registration-approval")}
+            className="whitespace-nowrap"
+          >
+            <CheckCircle className="w-4 h-4 mr-1" />
+            등록 승인
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms/send")}
+            className="whitespace-nowrap bg-teal-50 text-teal-700"
+          >
+            <Send className="w-4 h-4 mr-1" />
+            문자 발송
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms/templates")}
+            className="whitespace-nowrap"
+          >
+            <FileText className="w-4 h-4 mr-1" />
+            템플릿
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/dashboard/admin/sms/history")}
+            className="whitespace-nowrap"
+          >
+            <History className="w-4 h-4 mr-1" />
+            발송이력
+          </Button>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 헤더 */}
         <div className="flex items-center gap-4">
