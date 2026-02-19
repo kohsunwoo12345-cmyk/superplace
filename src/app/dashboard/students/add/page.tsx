@@ -172,7 +172,17 @@ export default function AddStudentPage() {
       const result = await response.json();
       console.log('✅ Student created successfully:', result);
       
-      alert("학생이 추가되었습니다");
+      // Show password info to admin
+      if (result.student && result.student.password) {
+        alert(`학생이 추가되었습니다!\n\n` +
+              `📱 연락처(로그인 ID): ${result.student.phone}\n` +
+              `🔑 비밀번호: ${result.student.password}\n\n` +
+              `⚠️ 이 비밀번호를 안전하게 보관하고 학생에게 전달하세요.\n` +
+              `이 화면을 닫으면 다시 볼 수 없습니다.`);
+      } else {
+        alert("학생이 추가되었습니다");
+      }
+      
       router.push("/dashboard/students/");
     } catch (error: any) {
       console.error("❌ Failed to create student:", error);

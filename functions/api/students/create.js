@@ -306,7 +306,17 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({
       success: true,
       message: '학생이 추가되었습니다',
-      studentId: studentId
+      studentId: studentId,
+      student: {
+        id: studentId,
+        name: finalName,
+        email: finalEmail,
+        phone: phone,
+        password: password, // Original password (shown only once!)
+        academyId: academyId,
+        role: 'STUDENT'
+      },
+      passwordInfo: `⚠️ 비밀번호를 안전하게 보관하세요: ${password}`
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
