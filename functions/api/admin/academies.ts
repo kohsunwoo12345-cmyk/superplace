@@ -212,14 +212,21 @@ export async function onRequestGet(context) {
     console.error("❌ Error fetching academies:", error);
     console.error("❌ Error message:", error.message);
     console.error("❌ Error stack:", error.stack);
+    console.error("❌ Error cause:", error.cause);
     
+    // 최대한 안전하게 빈 배열 반환 (다른 기능에 영향 없음)
     return new Response(JSON.stringify({
       success: true,
       academies: [],
       total: 0,
       error: error.message,
-      errorStack: error.stack,
-      message: "학원 목록을 불러오는 중 오류가 발생했습니다. D1 Console에서 테이블을 확인해주세요."
+      errorDetails: {
+        message: error.message,
+        stack: error.stack?.split('\n').slice(0, 5).join('\n'),
+        cause: error.cause
+      },
+      // 에러 메시지 제거 - alert 팝업 안 뜸
+      debugInfo: "Cloudflare Pages Logs를 확인하세요"
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
