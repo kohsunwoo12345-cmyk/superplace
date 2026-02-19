@@ -672,8 +672,13 @@ export default function ModernAIChatPage() {
   };
 
   const handlePrintProblems = async () => {
-    if (!selectedBot?.enableProblemGeneration) {
+    // enableProblemGeneration 체크 (1, "1", true 모두 허용)
+    const enableFlag = selectedBot?.enableProblemGeneration;
+    const isProblemGenerationEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
+    
+    if (!isProblemGenerationEnabled) {
       alert('이 AI 봇은 문제 출제 기능이 활성화되지 않았습니다.');
+      console.error('❌ enableProblemGeneration:', selectedBot?.enableProblemGeneration, typeof selectedBot?.enableProblemGeneration);
       return;
     }
 
@@ -1406,26 +1411,33 @@ export default function ModernAIChatPage() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            {(() => {
-              const showButton = selectedBot?.enableProblemGeneration === 1 && messages.length > 0;
-              console.log('🖨️ 문제지 출력 버튼 표시 여부:', {
-                showButton,
-                enableProblemGeneration: selectedBot?.enableProblemGeneration,
-                messagesLength: messages.length,
-                selectedBotName: selectedBot?.name
-              });
-              return showButton ? (
-                <Button
-                  onClick={handlePrintProblems}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <Printer className="w-4 h-4" />
-                  문제지 출력
-                </Button>
-              ) : null;
-            })()}
+            {/* 메시지가 있으면 항상 문제지 출력 버튼 표시 */}
+            {messages.length > 0 && selectedBot && (
+              <Button
+                onClick={handlePrintProblems}
+                variant="outline"
+                size="sm"
+                className={`flex items-center gap-2 ${
+                  (() => {
+                    const enableFlag = selectedBot?.enableProblemGeneration;
+                    const isProblemGenerationEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
+                    console.log('🖨️ 문제지 출력 버튼 상태:', {
+                      enableProblemGeneration: selectedBot?.enableProblemGeneration,
+                      enableProblemGenerationType: typeof selectedBot?.enableProblemGeneration,
+                      isProblemGenerationEnabled,
+                      messagesLength: messages.length,
+                      selectedBotName: selectedBot?.name
+                    });
+                    return isProblemGenerationEnabled 
+                      ? 'bg-green-50 hover:bg-green-100 border-green-300 text-green-700' 
+                      : 'bg-gray-50 hover:bg-gray-100 border-gray-300 text-gray-500';
+                  })()
+                }`}
+              >
+                <Printer className="w-4 h-4" />
+                문제지 출력
+              </Button>
+            )}
             <span className="text-xs text-gray-500">안녕하세요, {user?.name}님</span>
           </div>
         </div>
