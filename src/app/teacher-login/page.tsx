@@ -32,22 +32,28 @@ export default function TeacherLoginPage() {
 
       const result = await response.json();
 
-      if (result.success && result.data) {
+      console.log('📡 Teacher login API response:', result);
+
+      if (result.success && result.token && result.user) {
         // 선생님/학원장 역할 확인
-        if (result.data.user.role !== 'TEACHER' && result.data.user.role !== 'DIRECTOR' && result.data.user.role !== 'ADMIN' && result.data.user.role !== 'SUPER_ADMIN') {
+        if (result.user.role !== 'TEACHER' && result.user.role !== 'DIRECTOR' && result.user.role !== 'ADMIN' && result.user.role !== 'SUPER_ADMIN') {
           setError("선생님 또는 학원장 계정이 아닙니다. 학생은 학생 로그인 페이지를 이용해주세요.");
           setIsLoading(false);
           return;
         }
 
+        console.log('✅ Role verified:', result.user.role);
+
         // 토큰과 사용자 정보 저장
-        localStorage.setItem("token", result.data.token);
-        localStorage.setItem("user", JSON.stringify(result.data.user));
+        localStorage.setItem("token", result.token);
+        localStorage.setItem("user", JSON.stringify(result.user));
+        
+        console.log('✅ Redirecting to dashboard...');
         
         // 대시보드로 이동
         router.push("/dashboard");
-        router.refresh();
       } else {
+        console.error('❌ Login failed:', result);
         setError(result.message || "로그인에 실패했습니다");
       }
     } catch (err) {

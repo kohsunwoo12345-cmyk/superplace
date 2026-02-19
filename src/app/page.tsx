@@ -566,11 +566,11 @@ export default function Home() {
                 </Button>
                 {/* Dropdown menu */}
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <a href="/login" className="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-t-lg transition-colors">
+                  <a href="/teacher-login" className="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-t-lg transition-colors">
                     <Users className="inline-block w-4 h-4 mr-2" />
                     학원장 / 선생님
                   </a>
-                  <a href="/login" className="block px-4 py-3 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-b-lg transition-colors">
+                  <a href="/student-login" className="block px-4 py-3 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-b-lg transition-colors">
                     <GraduationCap className="inline-block w-4 h-4 mr-2" />
                     학생
                   </a>
