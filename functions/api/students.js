@@ -98,8 +98,8 @@ export async function onRequestGet(context) {
           a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
-        WHERE u.role = 'STUDENT' AND (u.status IS NULL OR u.status != 'WITHDRAWN')
-        ORDER BY u.id DESC
+        WHERE UPPER(u.role) = 'STUDENT' AND (u.status IS NULL OR u.status != 'WITHDRAWN')
+        ORDER BY u.createdAt DESC
       `;
     } else if (role === 'DIRECTOR' || role === 'TEACHER') {
       // Directors and teachers can only see students in their academy
@@ -128,8 +128,8 @@ export async function onRequestGet(context) {
           a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
-        WHERE u.role = 'STUDENT' AND u.academyId = ? AND (u.status IS NULL OR u.status != 'WITHDRAWN')
-        ORDER BY u.id DESC
+        WHERE UPPER(u.role) = 'STUDENT' AND u.academyId = ? AND (u.status IS NULL OR u.status != 'WITHDRAWN')
+        ORDER BY u.createdAt DESC
       `;
       params.push(academyId);
     } else if (role === 'STUDENT') {
@@ -166,10 +166,30 @@ export async function onRequestGet(context) {
       ? db.prepare(query).bind(...params)
       : db.prepare(query);
       
+    console.log('🔍 Executing query with params:', params);
     const result = await stmt.all();
     const students = result.results || [];
 
     console.log(`✅ Returning ${students.length} students for ${role}`);
+    
+    // Log first few students for debugging
+    if (students.length > 0) {
+      console.log('📊 Sample students:', students.slice(0, 3).map(s => ({
+        id: s.id,
+        name: s.name,
+        role: s.role,
+        academyId: s.academyId
+      })));
+    } else {
+      console.log('⚠️ No students found - checking total users with STUDENT role');
+      const totalCheck = await db.prepare(`
+        SELECT COUNT(*) as count, 
+               GROUP_CONCAT(DISTINCT role) as roles
+        FROM User 
+        WHERE UPPER(role) = 'STUDENT'
+      `).first();
+      console.log('📊 Total students in DB:', totalCheck);
+    }
 
     return new Response(JSON.stringify({
       success: true,

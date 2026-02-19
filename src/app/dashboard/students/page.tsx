@@ -9,14 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, UserPlus, Search, Mail, Phone, School } from "lucide-react";
 
 interface Student {
-  id: number;
+  id: string; // Changed from number to string
   name: string;
   email: string;
   phone?: string;
-  academy_id?: number;
+  academyId?: string; // Changed from academy_id (number) to academyId (string)
   academy_name?: string;
   role: string;
-  created_at?: string;
+  createdAt?: string; // Changed from created_at
 }
 
 export default function StudentsPage() {
@@ -79,6 +79,12 @@ export default function StudentsPage() {
         if (response.ok) {
           const data = await response.json();
           console.log('✅ Loaded students:', data.students?.length || 0);
+          console.log('📊 API response:', {
+            count: data.count,
+            userRole: data.userRole,
+            userAcademy: data.userAcademy,
+            sampleStudents: data.students?.slice(0, 3)
+          });
           setStudents(data.students || []);
           setLoading(false);
           return;
