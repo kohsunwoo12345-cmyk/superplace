@@ -22,16 +22,18 @@ export async function onRequestPost(context) {
     }
 
     const data = await request.json();
-    const { email, password } = data;
+    const { email, phone, password } = data;
 
-    console.log('📋 Login attempt:', { email });
+    const loginIdentifier = email || phone;
+
+    console.log('📋 Login attempt:', { email, phone, loginIdentifier });
 
     // Validation
-    if (!email || !password) {
+    if (!loginIdentifier || !password) {
       return new Response(
         JSON.stringify({
           success: false,
-          message: '이메일과 비밀번호를 입력해주세요',
+          message: '이메일/연락처와 비밀번호를 입력해주세요',
         }),
         {
           status: 400,
@@ -40,7 +42,7 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Find user
+    // Find user by email or phone
     const user = await db
       .prepare(`
         SELECT 
@@ -56,17 +58,17 @@ export async function onRequestPost(context) {
           a.code as academyCode
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
-        WHERE u.email = ?
+        WHERE u.email = ? OR u.phone = ?
       `)
-      .bind(email)
+      .bind(loginIdentifier, loginIdentifier)
       .first();
 
     if (!user) {
-      console.error('❌ User not found:', email);
+      console.error('❌ User not found:', loginIdentifier);
       return new Response(
         JSON.stringify({
           success: false,
-          message: '이메일 또는 비밀번호가 올바르지 않습니다',
+          message: '이메일/연락처 또는 비밀번호가 올바르지 않습니다',
         }),
         {
           status: 401,
