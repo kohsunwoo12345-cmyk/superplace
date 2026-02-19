@@ -105,7 +105,6 @@ export async function onRequestGet(context) {
           a.code as academyCode
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
-        WHERE u.status IS NULL OR u.status != 'WITHDRAWN'
         ORDER BY u.id DESC
         LIMIT 1000
       `;
@@ -135,7 +134,7 @@ export async function onRequestGet(context) {
           a.code as academyCode
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
-        WHERE u.academyId = ? AND (u.status IS NULL OR u.status != 'WITHDRAWN')
+        WHERE u.academyId = ?
         ORDER BY u.id DESC
         LIMIT 1000
       `;
