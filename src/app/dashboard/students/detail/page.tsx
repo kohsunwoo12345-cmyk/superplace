@@ -302,8 +302,9 @@ function StudentDetailContent() {
       }
 
       // 6. 학원장 제한 설정 조회 (학생의 academy_id 기반)
-      if (studentData && studentData.academy_id) {
-        const academyId = studentData.academy_id;
+      const currentStudent = userData.student || userData;
+      if (currentStudent && currentStudent.academy_id) {
+        const academyId = currentStudent.academy_id;
         console.log('🔍 Fetching limitations for academy:', academyId);
         
         try {
