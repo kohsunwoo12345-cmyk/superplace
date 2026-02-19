@@ -119,11 +119,15 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Update last login
-    await db
-      .prepare('UPDATE User SET lastLoginAt = datetime("now") WHERE id = ?')
-      .bind(user.id)
-      .run();
+    // Update last login (skip if column doesn't exist)
+    try {
+      await db
+        .prepare('UPDATE User SET lastLoginAt = datetime("now") WHERE id = ?')
+        .bind(user.id)
+        .run();
+    } catch (e) {
+      console.log('⚠️ lastLoginAt column not found, skipping update');
+    }
 
     // Generate token
     const token = `${user.id}|${user.email}|${user.role}|${Date.now()}`;
