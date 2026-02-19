@@ -54,6 +54,7 @@ export async function onRequestGet(context) {
     `).all();
 
     console.log('✅ Found academies:', academiesResult.results?.length || 0);
+    console.log('📋 Raw academy data:', JSON.stringify(academiesResult.results?.slice(0, 3), null, 2));
 
     const academies = (academiesResult.results || []).map(academy => ({
       id: academy.id,
