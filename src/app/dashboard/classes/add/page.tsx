@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   ArrowLeft, 
   Plus, 
@@ -17,6 +24,22 @@ import {
   Calendar,
   Palette
 } from "lucide-react";
+
+// 학년 옵션
+const GRADE_OPTIONS = [
+  { value: '초등 1학년', label: '초등 1학년' },
+  { value: '초등 2학년', label: '초등 2학년' },
+  { value: '초등 3학년', label: '초등 3학년' },
+  { value: '초등 4학년', label: '초등 4학년' },
+  { value: '초등 5학년', label: '초등 5학년' },
+  { value: '초등 6학년', label: '초등 6학년' },
+  { value: '중1', label: '중학교 1학년' },
+  { value: '중2', label: '중학교 2학년' },
+  { value: '중3', label: '중학교 3학년' },
+  { value: '고1', label: '고등학교 1학년' },
+  { value: '고2', label: '고등학교 2학년' },
+  { value: '고3', label: '고등학교 3학년' },
+];
 
 // 요일 상수
 const DAYS_OF_WEEK = [
@@ -309,12 +332,18 @@ export default function AddClassPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="grade">학년</Label>
-                    <Input
-                      id="grade"
-                      value={grade}
-                      onChange={(e) => setGrade(e.target.value)}
-                      placeholder="예: 중학교 1학년"
-                    />
+                    <Select value={grade} onValueChange={setGrade}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="학년을 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GRADE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>

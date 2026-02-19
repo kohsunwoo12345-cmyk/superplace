@@ -32,8 +32,48 @@ export async function onRequestGet(context) {
 
     console.log('📊 Fetching academies for user:', user.userId || user.id);
 
+    // 먼저 테이블명 확인 (Academy vs academies)
+    let academyTable = 'Academy';
+    let userTable = 'User';
+    
+    try {
+      // Academy 테이블 존재 여부 확인
+      const checkAcademy = await env.DB.prepare(`
+        SELECT name FROM sqlite_master WHERE type='table' AND name='Academy'
+      `).first();
+      
+      if (!checkAcademy) {
+        // 소문자 테이블명 시도
+        const checkAcademies = await env.DB.prepare(`
+          SELECT name FROM sqlite_master WHERE type='table' AND name='academies'
+        `).first();
+        if (checkAcademies) {
+          academyTable = 'academies';
+        }
+      }
+      
+      // User 테이블 존재 여부 확인
+      const checkUser = await env.DB.prepare(`
+        SELECT name FROM sqlite_master WHERE type='table' AND name='User'
+      `).first();
+      
+      if (!checkUser) {
+        // 소문자 테이블명 시도
+        const checkUsers = await env.DB.prepare(`
+          SELECT name FROM sqlite_master WHERE type='table' AND name='users'
+        `).first();
+        if (checkUsers) {
+          userTable = 'users';
+        }
+      }
+      
+      console.log('📋 Using table names:', { academyTable, userTable });
+    } catch (error) {
+      console.warn('⚠️ Table check failed, using default names:', error);
+    }
+
     // Academy 테이블에서 모든 학원 조회
-    const academiesResult = await env.DB.prepare(`
+    const query = `
       SELECT 
         a.id,
         a.name,
@@ -45,13 +85,16 @@ export async function onRequestGet(context) {
         u.name as directorName,
         u.email as directorEmail,
         u.phoneNumber as directorPhone,
-        (SELECT COUNT(*) FROM User WHERE academyId = a.id AND role = 'STUDENT') as studentCount,
-        (SELECT COUNT(*) FROM User WHERE academyId = a.id AND role = 'TEACHER') as teacherCount,
-        (SELECT COUNT(*) FROM User WHERE academyId = a.id AND role = 'DIRECTOR') as directorCount
-      FROM Academy a
-      LEFT JOIN User u ON a.directorId = u.id
+        (SELECT COUNT(*) FROM ${userTable} WHERE academyId = a.id AND role = 'STUDENT') as studentCount,
+        (SELECT COUNT(*) FROM ${userTable} WHERE academyId = a.id AND role = 'TEACHER') as teacherCount,
+        (SELECT COUNT(*) FROM ${userTable} WHERE academyId = a.id AND role = 'DIRECTOR') as directorCount
+      FROM ${academyTable} a
+      LEFT JOIN ${userTable} u ON a.directorId = u.id
       ORDER BY a.createdAt DESC
-    `).all();
+    `;
+    
+    console.log('🔍 Executing query:', query);
+    const academiesResult = await env.DB.prepare(query).all();
 
     console.log('✅ Found academies:', academiesResult.results?.length || 0);
     console.log('📋 Raw academy data:', JSON.stringify(academiesResult.results?.slice(0, 3), null, 2));
