@@ -65,7 +65,7 @@ export async function onRequestPost(context) {
     // Get user from database
     console.log('🔍 Looking up user:', tokenData.email);
     const user = await db
-      .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
 
