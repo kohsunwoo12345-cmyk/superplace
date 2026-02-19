@@ -242,6 +242,14 @@ export async function onRequestPost(context) {
 
       console.log('✅ User account created:', { studentId, phone, academyId });
 
+      // Verify the student was created correctly
+      const verifyStudent = await db
+        .prepare('SELECT id, email, name, phone, role, academyId FROM User WHERE id = ?')
+        .bind(studentId)
+        .first();
+      
+      console.log('🔍 Verify student in DB:', JSON.stringify(verifyStudent));
+
       // Step 2: Create student record (if students table exists)
       try {
         console.log('💾 Inserting into students table...');
