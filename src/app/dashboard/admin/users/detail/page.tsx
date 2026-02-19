@@ -517,24 +517,16 @@ function UserDetailPage() {
               <CardContent className="space-y-4">
                 <div>
                   <Label>현재 비밀번호</Label>
-                  <div className="flex gap-2 mt-2">
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      value={user.password}
-                      readOnly
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </Button>
+                  <div className="mt-2 p-3 bg-gray-100 rounded-lg border">
+                    <p className="text-sm text-gray-600">
+                      🔒 비밀번호는 SHA-256으로 암호화되어 저장됩니다
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      해시값: {user.password.substring(0, 32)}...
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      ℹ️ 보안상 실제 비밀번호는 표시되지 않습니다. 비밀번호 재설정을 통해 변경할 수 있습니다.
+                    </p>
                   </div>
                 </div>
 

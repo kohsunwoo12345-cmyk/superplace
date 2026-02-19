@@ -145,14 +145,73 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Update last login (skip if column doesn't exist)
+    // Get client IP address
+    const clientIP = request.headers.get('CF-Connecting-IP') || 
+                     request.headers.get('X-Real-IP') || 
+                     request.headers.get('X-Forwarded-For')?.split(',')[0] || 
+                     'unknown';
+    
+    const userAgent = request.headers.get('User-Agent') || 'unknown';
+    
+    console.log('📍 Client info:', { ip: clientIP, userAgent: userAgent.substring(0, 50) });
+
+    // Update last login and IP (skip if columns don't exist)
     try {
       await db
-        .prepare('UPDATE User SET lastLoginAt = datetime("now") WHERE id = ?')
-        .bind(user.id)
+        .prepare('UPDATE User SET lastLoginAt = datetime("now"), lastLoginIP = ? WHERE id = ?')
+        .bind(clientIP, user.id)
         .run();
+      console.log('✅ Updated lastLoginAt and lastLoginIP');
     } catch (e) {
-      console.log('⚠️ lastLoginAt column not found, skipping update');
+      console.log('⚠️ lastLoginAt/lastLoginIP column not found, trying without IP');
+      try {
+        await db
+          .prepare('UPDATE User SET lastLoginAt = datetime("now") WHERE id = ?')
+          .bind(user.id)
+          .run();
+      } catch (e2) {
+        console.log('⚠️ lastLoginAt column not found, skipping update');
+      }
+    }
+
+    // Log login activity
+    try {
+      await db
+        .prepare(`
+          INSERT INTO login_logs (userId, ipAddress, userAgent, loginAt, success)
+          VALUES (?, ?, ?, datetime('now'), 1)
+        `)
+        .bind(user.id, clientIP, userAgent)
+        .run();
+      console.log('✅ Login activity logged');
+    } catch (e) {
+      console.log('⚠️ login_logs table not found, skipping:', e.message);
+      // Try to create table
+      try {
+        await db.prepare(`
+          CREATE TABLE IF NOT EXISTS login_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            userId TEXT NOT NULL,
+            ipAddress TEXT,
+            userAgent TEXT,
+            loginAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            success INTEGER DEFAULT 1
+          )
+        `).run();
+        console.log('✅ Created login_logs table');
+        
+        // Retry insert
+        await db
+          .prepare(`
+            INSERT INTO login_logs (userId, ipAddress, userAgent, loginAt, success)
+            VALUES (?, ?, ?, datetime('now'), 1)
+          `)
+          .bind(user.id, clientIP, userAgent)
+          .run();
+        console.log('✅ Login activity logged after table creation');
+      } catch (e2) {
+        console.log('⚠️ Could not create login_logs table:', e2.message);
+      }
     }
 
     // Generate token
