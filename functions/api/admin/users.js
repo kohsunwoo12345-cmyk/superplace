@@ -97,7 +97,6 @@ export async function onRequestGet(context) {
         u.role,
         u.academyId,
         u.grade,
-        u.school,
         u.approved,
         u.createdAt,
         u.updatedAt,

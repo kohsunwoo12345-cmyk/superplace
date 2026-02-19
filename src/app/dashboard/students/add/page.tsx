@@ -30,7 +30,6 @@ export default function AddStudentPage() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [grade, setGrade] = useState("");
-  const [school, setSchool] = useState("");
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
 
   useEffect(() => {
@@ -129,7 +128,6 @@ export default function AddStudentPage() {
           password: password,
           phone: phone.trim(),
           grade: grade || null,
-          school: school.trim() || null,
           classIds: selectedClasses,
           academyId: user.academyId,
           role: user.role
@@ -244,16 +242,6 @@ export default function AddStudentPage() {
                   <SelectItem value="고3">고등 3학년</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="school">학교</Label>
-              <Input
-                id="school"
-                value={school}
-                onChange={(e) => setSchool(e.target.value)}
-                placeholder="OO초등학교, OO중학교 등"
-              />
             </div>
           </CardContent>
         </Card>

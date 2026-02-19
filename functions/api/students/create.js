@@ -96,7 +96,7 @@ export async function onRequestPost(context) {
     }
 
     const body = await request.json();
-    const { name, email, phone, password, grade, school, classIds } = body;
+    const { name, email, phone, password, grade, classIds } = body;
 
     // Validation: phone and password are required
     if (!phone || !password) {
@@ -180,10 +180,10 @@ export async function onRequestPost(context) {
       .prepare(`
         INSERT INTO User (
           id, email, phone, password, name, role, 
-          grade, school, academyId, approved, 
+          grade, academyId, approved, 
           createdAt, updatedAt
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       `)
       .bind(
         studentId,
@@ -193,7 +193,6 @@ export async function onRequestPost(context) {
         name || null,
         'STUDENT',
         grade || null,
-        school || null,
         academyId,
         1  // Auto-approve students
       )
