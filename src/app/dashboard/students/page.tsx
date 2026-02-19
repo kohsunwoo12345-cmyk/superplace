@@ -55,41 +55,7 @@ export default function StudentsPage() {
       
       if (!token) {
         console.error('❌ No authentication token found');
-        // Use mock data for testing without login
-        console.log('Using mock data for students');
-        const mockStudents: Student[] = [
-          {
-            id: 1,
-            name: "이학생",
-            email: "student1@seoul.academy",
-            phone: "010-2345-6789",
-            academy_id: 1,
-            academy_name: "서울 수학 학원",
-            role: "STUDENT",
-            created_at: "2025-02-01T10:00:00Z",
-          },
-          {
-            id: 2,
-            name: "박학생",
-            email: "student2@seoul.academy",
-            phone: "010-3456-7890",
-            academy_id: 1,
-            academy_name: "서울 수학 학원",
-            role: "STUDENT",
-            created_at: "2025-03-15T10:00:00Z",
-          },
-          {
-            id: 3,
-            name: "최학생",
-            email: "student3@seoul.academy",
-            phone: "010-4567-8901",
-            academy_id: 1,
-            academy_name: "서울 수학 학원",
-            role: "STUDENT",
-            created_at: "2025-04-20T10:00:00Z",
-          },
-        ];
-        setStudents(mockStudents);
+        setStudents([]);
         setLoading(false);
         return;
       }
@@ -104,8 +70,10 @@ export default function StudentsPage() {
         });
         
         if (response.status === 401) {
-          console.error('❌ Unauthorized - invalid token, using mock data');
-          // Don't redirect, just use mock data
+          console.error('❌ Unauthorized - invalid token');
+          setStudents([]);
+          setLoading(false);
+          return;
         }
         
         if (response.ok) {
@@ -119,44 +87,11 @@ export default function StudentsPage() {
         console.error('❌ Failed to load students:', response.status);
         const errorData = await response.json().catch(() => ({}));
         console.error('Error details:', errorData);
+        setStudents([]);
       } catch (apiError) {
-        console.log('API not available, using mock data');
+        console.error('API call failed:', apiError);
+        setStudents([]);
       }
-
-      // Fallback to mock data
-      const mockStudents: Student[] = [
-        {
-          id: 1,
-          name: "이학생",
-          email: "student1@seoul.academy",
-          phone: "010-2345-6789",
-          academy_id: 1,
-          academy_name: "서울 수학 학원",
-          role: "STUDENT",
-          created_at: "2025-02-01T10:00:00Z",
-        },
-        {
-          id: 2,
-          name: "박학생",
-          email: "student2@seoul.academy",
-          phone: "010-3456-7890",
-          academy_id: 1,
-          academy_name: "서울 수학 학원",
-          role: "STUDENT",
-          created_at: "2025-03-15T10:00:00Z",
-        },
-        {
-          id: 3,
-          name: "최학생",
-          email: "student3@seoul.academy",
-          phone: "010-4567-8901",
-          academy_id: 1,
-          academy_name: "서울 수학 학원",
-          role: "STUDENT",
-          created_at: "2025-04-20T10:00:00Z",
-        },
-      ];
-      setStudents(mockStudents);
       
     } catch (error) {
       console.error("Failed to load students:", error);
