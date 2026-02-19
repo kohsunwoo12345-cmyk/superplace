@@ -268,7 +268,7 @@ export default function AdminAIBotsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => router.push(`/dashboard/admin/ai-bots/edit/${bot.id}`)}
+                      onClick={() => router.push(`/dashboard/admin/ai-bots/edit?id=${bot.id}`)}
                     >
                       <Settings className="w-4 h-4" />
                     </Button>
