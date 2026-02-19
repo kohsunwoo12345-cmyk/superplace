@@ -2,11 +2,34 @@ interface Env {
   DB: D1Database;
 }
 
+// Simple token parser
+function parseToken(authHeader: string | null) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  
+  const token = authHeader.substring(7);
+  const parts = token.split('|');
+  
+  if (parts.length < 3) {
+    return null;
+  }
+  
+  return {
+    id: parts[0],
+    email: parts[1],
+    role: parts[2]
+  };
+}
+
 // GET: 사용자 상세 정보 + 로그인 기록 + 활동 기록
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
-    const { DB } = context.env;
-    const userId = context.params.id as string;
+    const { request, env, params } = context;
+    const { DB } = env;
+    const userId = params.id as string;
+
+    console.log('📊 User detail API called for userId:', userId);
 
     if (!DB) {
       return new Response(JSON.stringify({ error: "Database not configured" }), {
@@ -21,6 +44,54 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         headers: { "Content-Type": "application/json" },
       });
     }
+
+    // Parse and validate token
+    const authHeader = request.headers.get('Authorization');
+    const tokenData = parseToken(authHeader);
+
+    if (!tokenData) {
+      console.error('❌ Invalid or missing token');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Unauthorized - Invalid token'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get requesting user
+    const requestingUser = await DB
+      .prepare('SELECT id, email, role FROM User WHERE email = ?')
+      .bind(tokenData.email)
+      .first();
+
+    if (!requestingUser) {
+      console.error('❌ Requesting user not found');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Unauthorized - User not found'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const role = requestingUser.role ? (requestingUser.role as string).toUpperCase() : '';
+
+    // Only SUPER_ADMIN, ADMIN, and DIRECTOR can access user details
+    if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && role !== 'DIRECTOR') {
+      console.error('❌ Insufficient permissions:', role);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Insufficient permissions'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('✅ Auth passed:', { email: tokenData.email, role });
 
     // 사용자 정보 조회
     const user = await DB.prepare(`
@@ -42,6 +113,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
+    console.log('✅ User found:', { id: user.id, email: user.email });
+
     // 로그인 기록 조회 (최근 50개)
     let loginLogs = [];
     try {
@@ -55,8 +128,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         LIMIT 50
       `).bind(userId).all();
       loginLogs = logs.results || [];
+      console.log(`✅ Found ${loginLogs.length} login logs`);
     } catch (e) {
-      console.log('⚠️ login_logs table not found');
+      console.log('⚠️ login_logs table not found or error:', e);
     }
 
     // 활동 기록 조회 (최근 100개)
@@ -71,8 +145,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         LIMIT 100
       `).bind(userId).all();
       activityLogs = activities.results || [];
+      console.log(`✅ Found ${activityLogs.length} activity logs`);
     } catch (e) {
-      console.log('⚠️ activity_logs table not found');
+      console.log('⚠️ activity_logs table not found or error:', e);
     }
 
     // AI 봇 할당 조회
@@ -91,8 +166,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ORDER BY ba.createdAt DESC
       `).bind(userId).all();
       botAssignments = bots.results || [];
+      console.log(`✅ Found ${botAssignments.length} bot assignments`);
     } catch (e) {
-      console.log('⚠️ bot_assignments table not found');
+      console.log('⚠️ bot_assignments table not found or error:', e);
     }
 
     // 결제 내역 조회
@@ -107,9 +183,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         LIMIT 50
       `).bind(userId).all();
       payments = paymentData.results || [];
+      console.log(`✅ Found ${payments.length} payments`);
     } catch (e) {
-      console.log('⚠️ payments table not found');
+      console.log('⚠️ payments table not found or error:', e);
     }
+
+    console.log('✅ Successfully loaded all user data');
 
     return new Response(
       JSON.stringify({
@@ -126,9 +205,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }
     );
   } catch (error: any) {
-    console.error("User detail error:", error);
+    console.error("❌ User detail error:", error);
     return new Response(
       JSON.stringify({
+        success: false,
         error: "Failed to fetch user details",
         message: error.message,
       }),

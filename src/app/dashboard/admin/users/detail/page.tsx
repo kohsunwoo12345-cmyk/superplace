@@ -129,14 +129,20 @@ function UserDetailPage() {
       
       if (response.ok) {
         const data = await response.json();
+        console.log("✅ API Response:", data);
         setUser(data.user);
         setLoginLogs(data.loginLogs || []);
         setActivityLogs(data.activityLogs || []);
         setBotAssignments(data.botAssignments || []);
         setPayments(data.payments || []);
       } else {
-        console.error("데이터 로드 실패:", response.status);
-        alert("데이터를 불러오는데 실패했습니다.");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("❌ 데이터 로드 실패:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        alert(`데이터를 불러오는데 실패했습니다.\n상태: ${response.status}\n에러: ${errorData.error || errorData.message || '알 수 없는 오류'}`);
       }
     } catch (error) {
       console.error("데이터 로드 실패:", error);
