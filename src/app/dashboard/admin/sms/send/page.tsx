@@ -194,7 +194,7 @@ export default function SMSSendPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          senderId: selectedSender,
+          senderPhone: selectedSender,
           receivers,
           message,
           reserveTime: reserveTime || null,
