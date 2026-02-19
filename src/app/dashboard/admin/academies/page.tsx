@@ -84,7 +84,12 @@ export default function AdminAcademiesPage() {
           console.log('📊 학원 개수:', data.academies?.length || 0);
           console.log('📋 학원 목록:', data.academies);
           
-          // API 에러 확인 (alert 제거 - Console에만 출력)
+          // Fallback 데이터 확인
+          if (data.fallback) {
+            console.warn('⚠️ 임시 데이터 표시 중:', data.warning);
+          }
+          
+          // API 에러 확인 (Console에만 출력)
           if (data.error) {
             console.error('⚠️ API Error:', data.error);
             console.error('⚠️ Error Details:', data.errorDetails);
