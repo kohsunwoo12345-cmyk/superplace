@@ -75,6 +75,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     console.log(`✅ 봇 발견: ${bot.name} (model: ${bot.model})`);
+    console.log(`🎛️ Generation Config:`, {
+      temperature: bot.temperature || 0.7,
+      topK: bot.topK || 40,
+      topP: bot.topP || 0.95,
+      maxOutputTokens: bot.maxTokens || 2000
+    });
 
     // 대화 히스토리 구성
     const history = data.conversationHistory || [];
