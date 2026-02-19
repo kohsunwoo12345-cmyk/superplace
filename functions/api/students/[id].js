@@ -73,6 +73,7 @@ export async function onRequestGet(context) {
     // 학생 기본 정보 조회
     const student = await env.DB.prepare(`
       SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId,
+             u.school, u.grade, u.parentPhone, u.parentEmail,
              a.name as academy_name, a.code as academy_code
       FROM User u
       LEFT JOIN Academy a ON u.academyId = a.id
