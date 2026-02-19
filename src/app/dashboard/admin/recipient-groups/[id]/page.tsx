@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Plus, UserPlus, Trash2, User, GraduationCap } from 'lucide-react';
 
-// Configure edge runtime for Cloudflare Pages
+// Disable static generation for this dynamic route
+export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
 interface GroupMember {
