@@ -105,6 +105,11 @@ export async function onRequestPost(context) {
 
     console.log('📥 Received data:', { name, email, phone, school, grade, classIds: classIds?.length || 0 });
 
+    // Generate email if not provided (required field in DB)
+    const finalEmail = email || `student-${Date.now()}@temp.superplace.com`;
+    
+    console.log('📧 Final email:', finalEmail);
+
     // Validation: phone and password are required
     if (!phone || !password) {
       return new Response(JSON.stringify({
@@ -149,7 +154,7 @@ export async function onRequestPost(context) {
     if (email) {
       const existingEmail = await db
         .prepare('SELECT id FROM User WHERE email = ?')
-        .bind(email)
+        .bind(finalEmail)
         .first();
 
       if (existingEmail) {
@@ -212,7 +217,7 @@ export async function onRequestPost(context) {
         `)
         .bind(
           studentId,
-          email || null,
+          finalEmail,  // Use generated email if none provided
           phone,
           hashedPassword,
           name || null,
