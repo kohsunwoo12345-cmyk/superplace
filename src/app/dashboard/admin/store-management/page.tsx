@@ -78,7 +78,29 @@ export default function StoreManagementPage() {
     try {
       setLoading(true);
       
-      // localStorage에서 제품 읽기
+      // Try to fetch from database first
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/store-products?activeOnly=false', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const products = data.products || [];
+          setProducts(products);
+          setFilteredProducts(products);
+          calculateStats(products);
+          setLoading(false);
+          return;
+        }
+      } catch (dbError) {
+        console.warn('Database fetch failed, falling back to localStorage:', dbError);
+      }
+      
+      // Fallback to localStorage
       const storedProducts = localStorage.getItem("storeProducts");
       const products = storedProducts ? JSON.parse(storedProducts) : [];
       

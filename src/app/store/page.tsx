@@ -28,87 +28,95 @@ const AIStorePage = () => {
     section2: false,
     section3: false,
   });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // 제품 데이터
-  const products: Product[] = [
-    // 학원 운영 봇
-    {
-      id: '1',
-      name: '학교/학년 별 내신 대비 봇',
-      description: '학년별로 맞춤화된 내신 대비 학습 지원',
-      price: '문의',
-      category: '학원 운영',
-      imageUrl: '/api/placeholder/400/480',
-      keywords: ['내신', '학교', '학년', '시험'],
-    },
-    {
-      id: '2',
-      name: '영어 내신 클리닉 마스터 봇',
-      description: '학년별 영어내신 클리닉 마스터 - 24시간 AI 숙제 도우미 & 음성 튜터',
-      price: '문의',
-      category: '학원 운영',
-      imageUrl: '/api/placeholder/400/480',
-      keywords: ['영어', '내신', '클리닉', '숙제', '튜터'],
-      featured: true,
-    },
-    // 마케팅 & 블로그 봇
-    {
-      id: '3',
-      name: '블로그 봇 V.1',
-      description: '기본형 AI 블로그 자동 작성',
-      price: '문의',
-      category: '마케팅 & 블로그',
-      imageUrl: '/api/placeholder/400/480',
-      keywords: ['블로그', '마케팅', '작성', '기본'],
-    },
-    {
-      id: '4',
-      name: '블로그 봇 V.2',
-      description: '고급형 AI 블로그 자동 작성',
-      price: '문의',
-      category: '마케팅 & 블로그',
-      imageUrl: '/api/placeholder/400/480',
-      keywords: ['블로그', '마케팅', '작성', '고급'],
-    },
-    {
-      id: '5',
-      name: '블로그 봇 V.3',
-      description: '프리미엄 AI 블로그 자동 작성',
-      price: '문의',
-      category: '마케팅 & 블로그',
-      imageUrl: '/api/placeholder/400/480',
-      keywords: ['블로그', '마케팅', '작성', '프리미엄'],
-    },
-    {
-      id: '6',
-      name: '블로그 봇 V.4',
-      description: '엔터프라이즈급 AI 블로그 자동 작성',
-      price: '문의',
-      category: '마케팅 & 블로그',
-      imageUrl: '/api/placeholder/400/480',
-      keywords: ['블로그', '마케팅', '작성', '엔터프라이즈'],
-    },
-    {
-      id: '7',
-      name: '블로그 SEO 사진 제작 봇',
-      description: '네이버 블로그 상위노출을 위한 AI 사진 생성',
-      price: '문의',
-      category: '마케팅 & 블로그',
-      imageUrl: '/api/placeholder/400/480',
-      keywords: ['블로그', 'SEO', '사진', '네이버', '상위노출'],
-      featured: true,
-    },
-    // 전문가용 봇
-    {
-      id: '8',
-      name: '맞춤형 전문가 봇',
-      description: '귀하의 비즈니스에 최적화된 AI 솔루션',
-      price: '문의',
-      category: '전문가용',
-      imageUrl: '/api/placeholder/400/480',
-      keywords: ['전문가', '맞춤', '비즈니스', '솔루션'],
-    },
-  ];
+  // API에서 제품 로드 (D1 database)
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        console.log('🛒 Loading products from API...');
+        const response = await fetch('/api/admin/store-products?activeOnly=true');
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Products loaded:', data.products?.length || 0);
+          
+          // Transform products to match display format
+          const transformedProducts = (data.products || []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            description: p.shortDescription || p.description,
+            price: p.monthlyPrice 
+              ? `₩${p.monthlyPrice.toLocaleString()}/월` 
+              : p.yearlyPrice 
+                ? `₩${p.yearlyPrice.toLocaleString()}/년`
+                : '문의',
+            category: p.category === 'academy_operation' ? '학원 운영' 
+                     : p.category === 'marketing_blog' ? '마케팅 & 블로그'
+                     : p.category === 'expert' ? '전문가용' : p.category,
+            imageUrl: p.imageUrl || '/api/placeholder/400/480',
+            keywords: p.keywords ? p.keywords.split(',').map((k: string) => k.trim()) : [],
+            featured: p.isFeatured === 1,
+          }));
+          
+          setProducts(transformedProducts);
+        } else {
+          console.warn('⚠️ Failed to load products from API, using fallback');
+          // Fallback to default products
+          setProducts([
+            {
+              id: '1',
+              name: '학교/학년 별 내신 대비 봇',
+              description: '학년별로 맞춤화된 내신 대비 학습 지원',
+              price: '문의',
+              category: '학원 운영',
+              imageUrl: '/api/placeholder/400/480',
+              keywords: ['내신', '학교', '학년', '시험'],
+            },
+            {
+              id: '2',
+              name: '영어 내신 클리닉 마스터 봇',
+              description: '학년별 영어내신 클리닉 마스터 - 24시간 AI 숙제 도우미 & 음성 튜터',
+              price: '문의',
+              category: '학원 운영',
+              imageUrl: '/api/placeholder/400/480',
+              keywords: ['영어', '내신', '클리닉', '숙제', '튜터'],
+              featured: true,
+            },
+            {
+              id: '3',
+              name: '블로그 SEO 사진 제작 봇',
+              description: '네이버 블로그 상위노출을 위한 AI 사진 생성',
+              price: '문의',
+              category: '마케팅 & 블로그',
+              imageUrl: '/api/placeholder/400/480',
+              keywords: ['블로그', 'SEO', '사진', '네이버', '상위노출'],
+              featured: true,
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error('❌ Error loading products:', error);
+        // Load minimal fallback products on error
+        setProducts([
+          {
+            id: '1',
+            name: '학교/학년 별 내신 대비 봇',
+            description: '학년별로 맞춤화된 내신 대비 학습 지원',
+            price: '문의',
+            category: '학원 운영',
+            imageUrl: '/api/placeholder/400/480',
+            keywords: ['내신', '학교', '학년', '시험'],
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, []);
 
   const sections = [
     {

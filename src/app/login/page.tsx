@@ -24,31 +24,45 @@ export default function LoginPage() {
     console.log('🔐 로그인 시도:', { email, passwordLength: password.length });
 
     try {
-      // API 호출
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
+      // Call login API
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
       });
 
-      const result = await response.json();
+      const data = await response.json();
 
-      if (result.success && result.data) {
-        console.log('✅ 로그인 성공:', { userId: result.data.user.id, role: result.data.user.role });
+      console.log('📡 Login API response:', { status: response.status, data });
 
-        // Store token and user info
-        localStorage.setItem('token', result.data.token);
-        localStorage.setItem('user', JSON.stringify(result.data.user));
-
-        // Redirect to dashboard
-        router.push('/dashboard');
-        router.refresh();
-      } else {
-        console.error('❌ 로그인 실패:', result.message);
-        setError(result.message || '이메일 또는 비밀번호가 올바르지 않습니다');
+      if (!response.ok || !data.success) {
+        console.error('❌ 로그인 실패:', data.message);
+        setError(data.message || '이메일 또는 비밀번호가 올바르지 않습니다');
+        setIsLoading(false);
+        return;
       }
+
+      console.log('✅ 로그인 성공:', { userId: data.user.id, role: data.user.role });
+
+      // Store token and user info
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify({
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        role: data.user.role,
+        academy_id: data.user.academyId,
+        academyName: data.user.academyName,
+        academyCode: data.user.academyCode,
+        studentCode: data.user.studentCode,
+        className: data.user.className,
+      }));
+
+      // Redirect to dashboard
+      router.push('/dashboard');
+      router.refresh();
     } catch (err) {
       console.error('💥 Login error:', err);
       setError('로그인 중 오류가 발생했습니다');

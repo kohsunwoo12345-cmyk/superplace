@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "pages:build": "npx @cloudflare/next-on-pages",
-    "preview": "npm run pages:build && wrangler pages dev .vercel/output/static",
-    "deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static --project-name=superplacestudy",
+    "postbuild": "echo 'Next.js build complete'",
+    "pages:build": "next build",
+    "preview": "npm run pages:build && wrangler pages dev out",
+    "deploy": "npm run pages:build && wrangler pages deploy out --project-name=superplacestudy",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "echo 'Dependencies installed'"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
@@ -25,6 +27,7 @@
     "@radix-ui/react-tabs": "^1.0.4",
     "@radix-ui/react-toast": "^1.2.15",
     "axios": "^1.6.2",
+    "bcrypt-ts": "^8.0.1",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
@@ -42,6 +45,7 @@
     "swr": "^2.2.4",
     "tailwind-merge": "^2.2.0",
     "tailwindcss-animate": "^1.0.7",
+    "xlsx": "^0.18.5",
     "zod": "^3.22.4"
   },
   "devDependencies": {

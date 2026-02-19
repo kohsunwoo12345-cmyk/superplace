@@ -154,3 +154,34 @@ CREATE TABLE IF NOT EXISTS SolapiConfig (
 -- Initialize Solapi Config (Create one default record)
 INSERT OR IGNORE INTO SolapiConfig (id, api_key, api_secret, sender_phone, isActive)
 VALUES ('default', '', '', '', 0);
+
+-- RecipientGroup (수신자 그룹)
+CREATE TABLE IF NOT EXISTS RecipientGroup (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  createdById TEXT NOT NULL,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (createdById) REFERENCES User(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_recipient_group_creator ON RecipientGroup(createdById);
+CREATE INDEX IF NOT EXISTS idx_recipient_group_name ON RecipientGroup(name);
+
+-- RecipientGroupMember (수신자 그룹 멤버)
+CREATE TABLE IF NOT EXISTS RecipientGroupMember (
+  id TEXT PRIMARY KEY,
+  groupId TEXT NOT NULL,
+  parentId TEXT NOT NULL,
+  studentId TEXT, -- 연결된 학생 ID (선택)
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(groupId, parentId),
+  FOREIGN KEY (groupId) REFERENCES RecipientGroup(id) ON DELETE CASCADE,
+  FOREIGN KEY (parentId) REFERENCES Parent(id) ON DELETE CASCADE,
+  FOREIGN KEY (studentId) REFERENCES User(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_recipient_group_member_group ON RecipientGroupMember(groupId);
+CREATE INDEX IF NOT EXISTS idx_recipient_group_member_parent ON RecipientGroupMember(parentId);
+CREATE INDEX IF NOT EXISTS idx_recipient_group_member_student ON RecipientGroupMember(studentId);

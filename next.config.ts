@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'export', // Cloudflare Pages 정적 빌드
+  output: 'export', // ✅ Static export - API handled by functions/ directory
   trailingSlash: true,
   images: {
     unoptimized: true,

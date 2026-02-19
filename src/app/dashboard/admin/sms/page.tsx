@@ -257,6 +257,22 @@ export default function SMSManagementPage() {
           </Card>
         </div>
 
+        {/* 중요 안내 */}
+        <Card className="bg-red-50 border-red-300 border-2">
+          <CardHeader>
+            <CardTitle className="text-red-900 flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              ⚠️ 발송 전 먼저 신청해주세요!
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-red-800 space-y-2">
+            <p className="font-semibold text-base">SMS 발송 서비스 이용을 위해 먼저 신청이 필요합니다.</p>
+            <p>• 발신번호 등록 및 인증이 필요합니다</p>
+            <p>• 발송 서비스 신청 후 승인까지 1-2 영업일 소요됩니다</p>
+            <p>• 신청 문의: 고객센터 또는 관리자에게 문의해주세요</p>
+          </CardContent>
+        </Card>
+
         {/* 안내 */}
         <Card className="bg-blue-50 border-blue-200">
           <CardHeader>

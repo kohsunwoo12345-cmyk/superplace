@@ -1,42 +1,27 @@
-// Cloudflare Pages Functions - 회원가입 API (D1 Database 사용)
+// Cloudflare Pages Function - Signup API
+import { hash } from 'bcrypt-ts';
+
+interface Env {
+  DB: D1Database;
+}
 
 interface SignupRequest {
   email: string;
   password: string;
   name: string;
   phone?: string;
-  role: 'ADMIN' | 'DIRECTOR' | 'TEACHER' | 'STUDENT';
+  role: 'DIRECTOR' | 'TEACHER' | 'STUDENT';
   academyName?: string;
+  academyAddress?: string;
   academyCode?: string;
 }
 
-interface Env {
-  DB: D1Database;
+function generateId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Generate unique ID
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-}
-
-// Generate academy code
 function generateAcademyCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
-}
-
-// Simple password hashing using Web Crypto API (available in Cloudflare Workers)
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'superplace-salt-2024');
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return hashHex;
+  return Math.random().toString(36).substr(2, 8).toUpperCase();
 }
 
 export async function onRequestPost(context: { 
@@ -44,18 +29,32 @@ export async function onRequestPost(context: {
   env: Env;
 }) {
   try {
-    const data: SignupRequest = await context.request.json();
-    const db = context.env.DB;
+    const { request, env } = context;
+    const db = env.DB;
 
-    console.log('📝 회원가입 시도:', { 
-      email: data.email, 
-      role: data.role,
-      academyCode: data.academyCode,
-      academyName: data.academyName 
-    });
+    console.log('📝 Signup API called');
 
-    // 입력 검증
-    if (!data.email || !data.password || !data.name || !data.role) {
+    if (!db) {
+      console.error('❌ DB binding not found');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: '데이터베이스가 연결되지 않았습니다',
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const data: SignupRequest = await request.json();
+    const { email, password, name, phone, role, academyName, academyAddress, academyCode } = data;
+
+    console.log('📋 Signup request:', { email, name, role });
+
+    // Validation
+    if (!email || !password || !name || !role) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -68,9 +67,9 @@ export async function onRequestPost(context: {
       );
     }
 
-    // 이메일 형식 검증
+    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email)) {
+    if (!emailRegex.test(email)) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -83,8 +82,8 @@ export async function onRequestPost(context: {
       );
     }
 
-    // 비밀번호 길이 검증
-    if (data.password.length < 8) {
+    // Password length validation
+    if (password.length < 8) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -97,37 +96,10 @@ export async function onRequestPost(context: {
       );
     }
 
-    // 역할별 필수 정보 검증
-    if (data.role === 'DIRECTOR' && !data.academyName) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: '학원 이름을 입력해주세요',
-        }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    if ((data.role === 'TEACHER' || data.role === 'STUDENT') && !data.academyCode) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: '학원 코드를 입력해주세요',
-        }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    // 이메일 중복 확인
+    // Check for existing user
     const existingUser = await db
       .prepare('SELECT id FROM User WHERE email = ?')
-      .bind(data.email)
+      .bind(email)
       .first();
 
     if (existingUser) {
@@ -143,104 +115,151 @@ export async function onRequestPost(context: {
       );
     }
 
-    // 비밀번호 해싱
-    const hashedPassword = await hashPassword(data.password);
-    const userId = generateId();
-    let academyId: string | null = null;
+    // Hash password
+    const hashedPassword = await hash(password, 10);
+    const userId = generateId('user');
+    let academyId: string | undefined;
+    let newAcademyCode: string | undefined;
 
-    // 학원장인 경우 학원 생성
-    if (data.role === 'DIRECTOR' && data.academyName) {
-      academyId = generateId();
-      const academyCode = generateAcademyCode();
-      
+    // DIRECTOR: Create academy
+    if (role === 'DIRECTOR') {
+      if (!academyName) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: '학원 이름을 입력해주세요',
+          }),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      if (!academyAddress) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: '학원 위치를 입력해주세요',
+          }),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      academyId = generateId('academy');
+      newAcademyCode = generateAcademyCode();
+
+      console.log('🏫 Creating academy:', { academyId, academyName, newAcademyCode });
+
       await db
         .prepare(`
-          INSERT INTO Academy (id, name, code, createdAt, updatedAt)
-          VALUES (?, ?, ?, datetime('now'), datetime('now'))
+          INSERT INTO Academy (id, name, code, address, phone, email, subscriptionPlan, maxStudents, maxTeachers, isActive, createdAt, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `)
-        .bind(academyId, data.academyName, academyCode)
+        .bind(
+          academyId,
+          academyName,
+          newAcademyCode,
+          academyAddress,
+          phone || '',
+          email,
+          'FREE',
+          10,
+          2,
+          1
+        )
         .run();
 
-      console.log('✅ 학원 생성 완료:', { academyId, academyCode });
+      console.log('✅ Academy created');
     }
 
-    // 선생님/학생인 경우 학원 코드 확인
-    if ((data.role === 'TEACHER' || data.role === 'STUDENT') && data.academyCode) {
+    // TEACHER or STUDENT: Find academy
+    if (role === 'TEACHER' || role === 'STUDENT') {
+      if (!academyCode) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: '학원 코드를 입력해주세요',
+          }),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
       const academy = await db
         .prepare('SELECT id FROM Academy WHERE code = ?')
-        .bind(data.academyCode)
+        .bind(academyCode)
         .first();
 
       if (!academy) {
         return new Response(
           JSON.stringify({
             success: false,
-            message: '유효하지 않은 학원 코드입니다',
+            message: '올바른 학원 코드가 아닙니다',
           }),
           {
-            status: 404,
+            status: 400,
             headers: { 'Content-Type': 'application/json' },
           }
         );
       }
 
       academyId = academy.id as string;
-      console.log('✅ 학원 확인 완료:', { academyId });
+      console.log('✅ Academy found:', academyId);
     }
 
-    // 사용자 생성
+    // Create user
     await db
       .prepare(`
-        INSERT INTO User (
-          id, email, name, password, phone, role, academyId, 
-          approved, createdAt, updatedAt
-        )
+        INSERT INTO User (id, email, password, name, role, phone, academyId, approved, createdAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       `)
       .bind(
         userId,
-        data.email,
-        data.name,
+        email,
         hashedPassword,
-        data.phone || null,
-        data.role,
-        academyId,
-        data.role === 'DIRECTOR' ? 1 : 0  // 학원장은 자동 승인
+        name,
+        role,
+        phone || '',
+        academyId || null,
+        role === 'DIRECTOR' ? 1 : 0
       )
       .run();
 
-    console.log('✅ 회원가입 성공:', { userId, email: data.email, role: data.role });
+    console.log('✅ User created:', { userId, email, role });
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: data.role === 'DIRECTOR' 
-          ? '회원가입이 완료되었습니다. 로그인하여 학원을 관리하세요.' 
-          : data.role === 'STUDENT' || data.role === 'TEACHER'
-          ? '회원가입이 완료되었습니다. 학원장 승인 후 이용하실 수 있습니다.'
-          : '회원가입이 완료되었습니다.',
-        data: {
-          user: {
-            id: userId,
-            email: data.email,
-            name: data.name,
-            role: data.role,
-            academyId: academyId,
-          },
+        message: '회원가입이 완료되었습니다',
+        user: {
+          id: userId,
+          email,
+          name,
+          role,
+          academyId,
         },
+        ...(role === 'DIRECTOR' && newAcademyCode
+          ? { academyCode: newAcademyCode }
+          : {}),
       }),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error) {
-    console.error('❌ 회원가입 오류:', error);
+  } catch (error: any) {
+    console.error('❌ Signup error:', error);
     return new Response(
       JSON.stringify({
         success: false,
         message: '회원가입 중 오류가 발생했습니다',
-        error: error instanceof Error ? error.message : String(error),
+        error: error.message,
       }),
       {
         status: 500,

@@ -1,0 +1,6 @@
+// Cloudflare Pages Functions ignore patterns
+src/lib/prisma.ts
+src/lib/auth.ts
+.prisma/
+node_modules/@prisma/
+node_modules/@next-auth/prisma-adapter/
