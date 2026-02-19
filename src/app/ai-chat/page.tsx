@@ -188,13 +188,19 @@ export default function ModernAIChatPage() {
         
         const activeBots = (data.bots || []).filter((bot: AIBot) => bot.isActive);
         console.log(`✅ 활성 봇 ${activeBots.length}개 발견`);
-        console.log('✅ 활성 봇 목록:', activeBots.map(b => ({ id: b.id, name: b.name, isActive: b.isActive })));
+        console.log('✅ 활성 봇 목록:', activeBots.map(b => ({ 
+          id: b.id, 
+          name: b.name, 
+          isActive: b.isActive,
+          enableProblemGeneration: b.enableProblemGeneration 
+        })));
         
         if (activeBots.length > 0) {
           console.log('✅ setBots 호출:', activeBots.length, '개');
           setBots(activeBots);
           if (!selectedBot) {
             console.log('✅ 첫 번째 봇 선택:', activeBots[0].name);
+            console.log('🎯 선택된 봇 enableProblemGeneration:', activeBots[0].enableProblemGeneration);
             setSelectedBot(activeBots[0]);
           }
         } else {
@@ -1221,17 +1227,26 @@ export default function ModernAIChatPage() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            {selectedBot?.enableProblemGeneration === 1 && messages.length > 0 && (
-              <Button
-                onClick={handlePrintProblems}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Printer className="w-4 h-4" />
-                문제지 출력
-              </Button>
-            )}
+            {(() => {
+              const showButton = selectedBot?.enableProblemGeneration === 1 && messages.length > 0;
+              console.log('🖨️ 문제지 출력 버튼 표시 여부:', {
+                showButton,
+                enableProblemGeneration: selectedBot?.enableProblemGeneration,
+                messagesLength: messages.length,
+                selectedBotName: selectedBot?.name
+              });
+              return showButton ? (
+                <Button
+                  onClick={handlePrintProblems}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Printer className="w-4 h-4" />
+                  문제지 출력
+                </Button>
+              ) : null;
+            })()}
             <span className="text-xs text-gray-500">안녕하세요, {user?.name}님</span>
           </div>
         </div>
