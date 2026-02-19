@@ -107,8 +107,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.id, u.email, u.name, u.phone, u.role,
           u.password,
           u.academyId, a.name as academyName,
-          u.createdAt, u.lastLoginAt, u.lastLoginIP as lastLoginIp,
-          u.approved, u.grade, u.updatedAt
+          u.createdAt, u.approved, u.grade, u.updatedAt
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
         WHERE u.id = ?
