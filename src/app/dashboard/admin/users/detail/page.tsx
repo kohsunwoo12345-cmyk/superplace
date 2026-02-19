@@ -236,9 +236,13 @@ function UserDetailPage() {
     }
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`/api/admin/users/${userId}/reset-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ newPassword }),
       });
 
@@ -247,7 +251,8 @@ function UserDetailPage() {
         setNewPassword("");
         await fetchUserDetail();
       } else {
-        alert("비밀번호 재설정에 실패했습니다.");
+        const data = await response.json();
+        alert(`비밀번호 재설정 실패: ${data.error || '알 수 없는 오류'}`);
       }
     } catch (error) {
       console.error("비밀번호 재설정 실패:", error);
@@ -261,8 +266,12 @@ function UserDetailPage() {
     }
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`/api/admin/users/${userId}/impersonate`, {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
       });
 
       if (response.ok) {
@@ -279,7 +288,8 @@ function UserDetailPage() {
           }, 500);
         }
       } else {
-        alert("대행 로그인에 실패했습니다.");
+        const data = await response.json();
+        alert(`대행 로그인 실패: ${data.error || '알 수 없는 오류'}`);
       }
     } catch (error) {
       console.error("대행 로그인 실패:", error);
@@ -306,9 +316,13 @@ function UserDetailPage() {
     }
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`/api/admin/users/${userId}/points`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ 
           amount, 
           reason: pointsReason,

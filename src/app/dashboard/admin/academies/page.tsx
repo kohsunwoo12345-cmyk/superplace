@@ -53,10 +53,24 @@ export default function AdminAcademiesPage() {
   const fetchAcademies = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/academies");
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/admin/academies", {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ 학원 목록 로드 완료:', data.academies?.length || 0, '개');
         setAcademies(data.academies || []);
+      } else {
+        console.error('학원 목록 로드 실패:', response.status);
+        if (response.status === 401) {
+          localStorage.clear();
+          router.push('/login');
+        }
       }
     } catch (error) {
       console.error("학원 목록 로드 실패:", error);

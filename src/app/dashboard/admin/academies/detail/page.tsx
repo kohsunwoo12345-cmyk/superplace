@@ -132,22 +132,36 @@ export default function AcademyDetailPage() {
   const fetchAcademyDetail = async () => {
     try {
       setLoading(true);
+      const token = localStorage.getItem("token");
       
-      // Try to fetch from API first
-      try {
-        const response = await fetch(`/api/admin/academies?id=${academyId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setAcademy(data.academy);
-          setLoading(false);
-          return;
+      const response = await fetch(`/api/admin/academies?id=${academyId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      } catch (apiError) {
-        console.log("API not available, using mock data");
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ 학원 상세 정보 로드 완료:', data.academy);
+        setAcademy(data.academy);
+      } else {
+        console.error('학원 상세 정보 로드 실패:', response.status);
+        if (response.status === 401) {
+          localStorage.clear();
+          router.push('/login');
+        } else if (response.status === 404) {
+          alert('학원을 찾을 수 없습니다.');
+          router.push('/dashboard/admin/academies');
+        }
       }
-
-      // Fallback to mock data for static export
-      const mockAcademies: { [key: string]: AcademyDetail } = {
+    } catch (error) {
+      console.error("학원 상세 정보 로드 실패:", error);
+      alert('학원 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
         "1": {
           id: "1",
           name: "서울 수학 학원",
