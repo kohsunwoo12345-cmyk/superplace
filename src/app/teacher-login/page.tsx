@@ -22,7 +22,7 @@ export default function TeacherLoginPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/auth/login/", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -32,9 +32,9 @@ export default function TeacherLoginPage() {
 
       const result = await response.json();
 
-      if (result.success) {
+      if (result.success && result.data) {
         // 선생님/학원장 역할 확인
-        if (result.data.user.role !== 'TEACHER' && result.data.user.role !== 'DIRECTOR') {
+        if (result.data.user.role !== 'TEACHER' && result.data.user.role !== 'DIRECTOR' && result.data.user.role !== 'ADMIN' && result.data.user.role !== 'SUPER_ADMIN') {
           setError("선생님 또는 학원장 계정이 아닙니다. 학생은 학생 로그인 페이지를 이용해주세요.");
           setIsLoading(false);
           return;

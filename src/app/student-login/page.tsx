@@ -22,7 +22,7 @@ export default function StudentLoginPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/auth/login/", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -32,7 +32,7 @@ export default function StudentLoginPage() {
 
       const result = await response.json();
 
-      if (result.success) {
+      if (result.success && result.data) {
         // 학생 역할 확인
         if (result.data.user.role !== 'STUDENT') {
           setError("학생 계정이 아닙니다. 일반 로그인 페이지를 이용해주세요.");

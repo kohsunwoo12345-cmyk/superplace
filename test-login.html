@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D1 로그인 테스트 도구</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .test-accounts {
+            background: #f7f9fc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .test-accounts h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        .account-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        .account-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+            display: block;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+            display: block;
+        }
+        .result h3 {
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .result pre {
+            background: rgba(0,0,0,0.05);
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading.active {
+            display: block;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .info-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #667eea;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 D1 로그인 테스트 도구</h1>
+        <p class="subtitle">webapp-production (8c106540-21b4-4fa9-8879-c4956e459ca1)</p>
+
+        <div class="test-accounts">
+            <h2>📋 테스트 계정 <span class="info-badge">빠른 테스트</span></h2>
+            <button class="account-btn" onclick="fillAccount('admin@superplace.com', 'admin1234')">
+                👨‍💼 관리자 (SUPER_ADMIN) - admin@superplace.com
+            </button>
+            <button class="account-btn" onclick="fillAccount('director@superplace.com', 'director1234')">
+                🏫 학원장 (DIRECTOR) - director@superplace.com
+            </button>
+            <button class="account-btn" onclick="fillAccount('teacher@superplace.com', 'teacher1234')">
+                👩‍🏫 선생님 (TEACHER) - teacher@superplace.com
+            </button>
+            <button class="account-btn" onclick="fillAccount('test@test.com', 'test1234')">
+                👤 일반 사용자 (ADMIN) - test@test.com
+            </button>
+        </div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">📧 이메일</label>
+                <input type="email" id="email" name="email" placeholder="이메일을 입력하세요" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">🔒 비밀번호</label>
+                <input type="password" id="password" name="password" placeholder="비밀번호를 입력하세요" required>
+            </div>
+
+            <button type="submit" class="btn-primary" id="submitBtn">
+                🚀 로그인 테스트
+            </button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px; color: #666;">요청 중...</p>
+        </div>
+
+        <div class="result" id="result">
+            <h3 id="resultTitle"></h3>
+            <p id="resultMessage"></p>
+            <pre id="resultData"></pre>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://superplace-academy.pages.dev/api/auth/login';
+        
+        function fillAccount(email, password) {
+            document.getElementById('email').value = email;
+            document.getElementById('password').value = password;
+            document.getElementById('result').style.display = 'none';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            
+            // UI 초기화
+            submitBtn.disabled = true;
+            loading.classList.add('active');
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                // 결과 표시
+                loading.classList.remove('active');
+                result.style.display = 'block';
+                
+                if (response.ok && data.success) {
+                    result.className = 'result success';
+                    document.getElementById('resultTitle').textContent = '✅ 로그인 성공!';
+                    document.getElementById('resultMessage').textContent = data.message || '로그인에 성공했습니다.';
+                    document.getElementById('resultData').textContent = JSON.stringify(data, null, 2);
+                } else {
+                    result.className = 'result error';
+                    document.getElementById('resultTitle').textContent = '❌ 로그인 실패';
+                    document.getElementById('resultMessage').textContent = data.message || '로그인에 실패했습니다.';
+                    document.getElementById('resultData').textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                loading.classList.remove('active');
+                result.style.display = 'block';
+                result.className = 'result error';
+                document.getElementById('resultTitle').textContent = '❌ 요청 오류';
+                document.getElementById('resultMessage').textContent = '서버와 통신할 수 없습니다.';
+                document.getElementById('resultData').textContent = error.message;
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
