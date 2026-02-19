@@ -65,7 +65,7 @@ export async function onRequestPost(context) {
     // Get user from database
     console.log('🔍 Looking up user:', tokenData.email);
     const user = await db
-      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
 
@@ -203,15 +203,15 @@ export async function onRequestPost(context) {
     });
 
     try {
-      // Create student
+      // Step 1: Create user account
       await db
         .prepare(`
-          INSERT INTO User (
+          INSERT INTO users (
             id, email, phone, password, name, role, 
-            school, grade, academyId, approved, 
+            academyId, isActive, 
             createdAt, updatedAt
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `)
         .bind(
           studentId,
@@ -220,14 +220,32 @@ export async function onRequestPost(context) {
           hashedPassword,
           name || null,
           'STUDENT',
-          school || null,
-          grade || null,
           academyId,
-          1  // Auto-approve students
+          1  // isActive
         )
         .run();
 
-      console.log('✅ Student created successfully:', { studentId, phone, school, academyId });
+      console.log('✅ User account created:', { studentId, phone, academyId });
+
+      // Step 2: Create student record
+      await db
+        .prepare(`
+          INSERT INTO students (
+            id, userId, academyId, grade, status,
+            createdAt, updatedAt
+          )
+          VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `)
+        .bind(
+          studentId,  // Same ID as user
+          studentId,  // Link to user
+          academyId,
+          grade || null,
+          'ACTIVE'
+        )
+        .run();
+
+      console.log('✅ Student record created:', { studentId, grade });
     } catch (dbError) {
       console.error('❌ Database insert failed:', dbError);
       throw new Error(`데이터베이스 저장 실패: ${dbError.message}`);
@@ -242,8 +260,8 @@ export async function onRequestPost(context) {
         try {
           await db
             .prepare(`
-              INSERT INTO ClassStudent (id, classId, studentId, createdAt, updatedAt)
-              VALUES (?, ?, ?, datetime('now'), datetime('now'))
+              INSERT INTO class_students (id, classId, studentId, joinedAt)
+              VALUES (?, ?, ?, datetime('now'))
             `)
             .bind(
               `cs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
