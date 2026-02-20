@@ -62,10 +62,10 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Get user from database
+    // Get user from database - use snake_case column names
     console.log('🔍 Looking up user:', tokenData.email);
     const user = await db
-      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academy_id as academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
 
@@ -105,15 +105,6 @@ export async function onRequestPost(context) {
 
     console.log('📥 Received data:', { name, email, phone, school, grade, classIds: classIds?.length || 0 });
 
-    // Generate email if not provided (required field in DB)
-    const finalEmail = email || `student-${Date.now()}@temp.superplace.com`;
-    
-    // Generate name if not provided (required field in DB)
-    const finalName = name || `학생${Date.now()}`;
-    
-    console.log('📧 Final email:', finalEmail);
-    console.log('👤 Final name:', finalName);
-
     // Validation: phone and password are required
     if (!phone || !password) {
       return new Response(JSON.stringify({
@@ -137,9 +128,9 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Check if phone already exists
+    // Check if phone already exists - use correct table name
     const existingUser = await db
-      .prepare('SELECT id FROM User WHERE phone = ?')
+      .prepare('SELECT id FROM users WHERE phone = ?')
       .bind(phone)
       .first();
 
@@ -154,11 +145,11 @@ export async function onRequestPost(context) {
       });
     }
 
-    // If email provided, check if it exists
+    // If email provided, check if it exists - use correct table name
     if (email) {
       const existingEmail = await db
-        .prepare('SELECT id FROM User WHERE email = ?')
-        .bind(finalEmail)
+        .prepare('SELECT id FROM users WHERE email = ?')
+        .bind(email)
         .first();
 
       if (existingEmail) {
@@ -212,66 +203,49 @@ export async function onRequestPost(context) {
     });
 
     try {
-      // Step 1: Create user account (minimal fields only)
-      console.log('💾 Inserting into users table...');
-      console.log('📋 Values to insert:', {
-        id: studentId,
-        email: finalEmail,
-        phone: phone,
-        passwordLength: hashedPassword.length,
-        name: finalName,
-        role: 'STUDENT',
-        academyId: academyId
-      });
-      
+      // Step 1: Create user account - use snake_case column names
       await db
         .prepare(`
-          INSERT INTO User (id, email, phone, password, name, role, academyId)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO users (
+            id, email, phone, password, name, role, 
+            academy_id, isActive, 
+            createdAt, updatedAt
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `)
         .bind(
           studentId,
-          finalEmail,  // Use generated email if none provided
+          email || null,
           phone,
           hashedPassword,
-          finalName,   // Use generated name if none provided
+          name || null,
           'STUDENT',
-          academyId
+          academyId,
+          1  // isActive
         )
         .run();
 
       console.log('✅ User account created:', { studentId, phone, academyId });
 
-      // Verify the student was created correctly
-      const verifyStudent = await db
-        .prepare('SELECT id, email, name, phone, role, academyId FROM User WHERE id = ?')
-        .bind(studentId)
-        .first();
-      
-      console.log('🔍 Verify student in DB:', JSON.stringify(verifyStudent));
-
-      // Step 2: Create student record (if students table exists)
-      try {
-        console.log('💾 Inserting into students table...');
-        await db
-          .prepare(`
-            INSERT INTO students (id, userId, academyId, grade, status)
-            VALUES (?, ?, ?, ?, ?)
-          `)
-          .bind(
-            studentId,  // Same ID as user
-            studentId,  // Link to user
-            academyId,
-            grade || null,
-            'ACTIVE'
+      // Step 2: Create student record - use snake_case column names
+      await db
+        .prepare(`
+          INSERT INTO students (
+            id, user_id, academy_id, grade, status,
+            createdAt, updatedAt
           )
-          .run();
+          VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `)
+        .bind(
+          studentId,  // Same ID as user
+          studentId,  // Link to user
+          academyId,
+          grade || null,
+          'ACTIVE'
+        )
+        .run();
 
-        console.log('✅ Student record created:', { studentId, grade });
-      } catch (studentError) {
-        console.warn('⚠️ Failed to insert into students table (may not exist):', studentError.message);
-        // Continue even if students table doesn't exist
-      }
+      console.log('✅ Student record created:', { studentId, grade });
     } catch (dbError) {
       console.error('❌ Database insert failed:', dbError);
       throw new Error(`데이터베이스 저장 실패: ${dbError.message}`);
@@ -306,17 +280,7 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({
       success: true,
       message: '학생이 추가되었습니다',
-      studentId: studentId,
-      student: {
-        id: studentId,
-        name: finalName,
-        email: finalEmail,
-        phone: phone,
-        password: password, // Original password (shown only once!)
-        academyId: academyId,
-        role: 'STUDENT'
-      },
-      passwordInfo: `⚠️ 비밀번호를 안전하게 보관하세요: ${password}`
+      studentId: studentId
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }

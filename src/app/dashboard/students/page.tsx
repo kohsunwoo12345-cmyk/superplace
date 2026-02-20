@@ -9,14 +9,18 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, UserPlus, Search, Mail, Phone, School } from "lucide-react";
 
 interface Student {
-  id: string; // Changed from number to string
+  id: number | string;
   name: string;
   email: string;
+  studentCode?: string;
+  grade?: string | null;
   phone?: string;
-  academyId?: string; // Changed from academy_id (number) to academyId (string)
+  academy_id?: number;
+  academyId?: number;
   academy_name?: string;
-  role: string;
-  createdAt?: string; // Changed from created_at
+  role?: string;
+  status?: string;
+  created_at?: string;
 }
 
 export default function StudentsPage() {
@@ -62,7 +66,7 @@ export default function StudentsPage() {
       
       // Try API call
       try {
-        const response = await fetch('/api/students', {
+        const response = await fetch('/api/students/by-academy', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -79,19 +83,7 @@ export default function StudentsPage() {
         if (response.ok) {
           const data = await response.json();
           console.log('✅ Loaded students:', data.students?.length || 0);
-          console.log('📊 API response:', {
-            count: data.count,
-            userRole: data.userRole,
-            userAcademy: data.userAcademy,
-            sampleStudents: data.students?.slice(0, 3)
-          });
-          
-          if (data.students && data.students.length > 0) {
-            setStudents(data.students);
-          } else {
-            console.warn('⚠️ No students returned from API');
-            setStudents([]);
-          }
+          setStudents(data.students || []);
           setLoading(false);
           return;
         }
@@ -99,7 +91,6 @@ export default function StudentsPage() {
         console.error('❌ Failed to load students:', response.status);
         const errorData = await response.json().catch(() => ({}));
         console.error('Error details:', errorData);
-        alert(`학생 목록 로드 실패: ${response.status}\n${errorData.message || errorData.error || '알 수 없는 오류'}`);
         setStudents([]);
       } catch (apiError) {
         console.error('API call failed:', apiError);
@@ -208,10 +199,10 @@ export default function StudentsPage() {
                   <div className="flex-1">
                     <CardTitle className="text-lg">{student.name}</CardTitle>
                     <CardDescription className="mt-1">
-                      ID: {student.id}
+                      {student.studentCode ? `학생코드: ${student.studentCode}` : `ID: ${student.id}`}
                     </CardDescription>
                   </div>
-                  <Badge variant="default">학생</Badge>
+                  <Badge variant="default">{student.grade || '학생'}</Badge>
                 </div>
               </CardHeader>
               <CardContent>

@@ -37,49 +37,31 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
-    const userId = userPayload.userId || userPayload.id;
     const role = userPayload.role?.toUpperCase();
-    let tokenAcademyId = userPayload.academyId;
+    const tokenAcademyId = userPayload.academyId;
     const userEmail = userPayload.email;
 
-    console.log('👥 by-academy API - Token payload:', { userId, role, academyId: tokenAcademyId, email: userEmail });
-    
-    // 🔍 토큰에 academyId가 없으면 DB에서 조회
-    if (!tokenAcademyId && userId) {
-      console.log('🔍 academyId not in token, fetching from DB for user:', userId);
-      try {
-        const userRecord = await DB.prepare(`
-          SELECT id, academy_id, role 
-          FROM users 
-          WHERE id = ?
-        `).bind(userId).first();
-        
-        if (userRecord) {
-          tokenAcademyId = userRecord.academy_id || userRecord.id; // fallback to user id
-          console.log('✅ Found academy_id from DB:', tokenAcademyId, 'for user:', userId);
-        } else {
-          console.error('❌ User not found in DB:', userId);
-        }
-      } catch (dbError: any) {
-        console.error('❌ DB error fetching user:', dbError.message);
-      }
-    }
-
-    console.log('👥 by-academy API - Final values:', { userId, role, academyId: tokenAcademyId, email: userEmail });
+    console.log('👥 by-academy API - Authenticated user:', { role, academyId: tokenAcademyId, email: userEmail });
 
     const upperRole = role;
     
-    // 실제 D1 스키마 사용 (snake_case)
+    // 실제 D1 스키마 사용 (snake_case) - students 테이블과 users 테이블 JOIN
+    // LEFT JOIN 사용: students 테이블에 데이터가 없어도 users 정보는 표시
     let query = `
       SELECT 
-        id,
-        name,
-        email,
-        phone,
-        academy_id as academyId,
-        role
-      FROM users
-      WHERE role = 'STUDENT'
+        u.id,
+        u.name,
+        u.email,
+        u.phone,
+        u.academy_id as academyId,
+        u.role,
+        s.id as studentId,
+        s.student_code as studentCode,
+        s.grade,
+        s.status
+      FROM users u
+      LEFT JOIN students s ON u.id = s.user_id
+      WHERE u.role = 'STUDENT'
     `;
 
     const bindings: any[] = [];
@@ -92,34 +74,28 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const requestedAcademyId = url.searchParams.get("academyId");
       if (requestedAcademyId) {
         const academyIdNum = Math.floor(parseFloat(requestedAcademyId));
-        query += ` AND academy_id = ?`;
+        query += ` AND u.academy_id = ?`;
         bindings.push(academyIdNum);
       }
     } 
-    // DIRECTOR/TEACHER: 자신의 학원 학생만 (토큰의 academyId 또는 userId 사용)
-    else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
-      console.log('🏫 Director/Teacher access - fetching academy students');
+    // DIRECTOR: 자신의 학원 학생만 (토큰의 academyId 사용)
+    else if (upperRole === 'DIRECTOR') {
+      console.log('🏫 Director access - fetching academy students from token');
       
-      // academyId가 없으면 userId를 사용 (학원장 본인의 ID)
-      const effectiveAcademyId = tokenAcademyId || userId;
-      
-      if (!effectiveAcademyId) {
-        console.error('❌ No academy ID or user ID available');
+      if (!tokenAcademyId) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: "Academy ID not found",
-            message: "학원 정보가 없습니다. 사용자 정보를 확인해주세요.",
-            students: [],
-            debug: { userId, tokenAcademyId, role }
+            error: "Academy ID not found in token",
+            message: "학원 정보가 없습니다",
+            students: []
           }),
           { status: 403, headers: { "Content-Type": "application/json" } }
         );
       }
       
-      console.log('🔑 Using academy ID:', effectiveAcademyId);
-      query += ` AND academy_id = ?`;
-      bindings.push(effectiveAcademyId);
+      query += ` AND u.academy_id = ?`;
+      bindings.push(tokenAcademyId);
     }
     // 그 외 역할은 접근 불가
     else {
@@ -133,19 +109,23 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
-    query += ` ORDER BY name ASC`;
+    query += ` ORDER BY u.name ASC`;
 
     console.log('📊 Query:', query, bindings);
     const result = await DB.prepare(query).bind(...bindings).all();
+    
+    console.log('🔍 Raw DB result:', JSON.stringify(result, null, 2));
+    console.log('🔍 Result count:', result.results?.length || 0);
     
     const students = (result.results || []).map((s: any) => ({
       id: s.id.toString(),
       name: s.name,
       email: s.email,
-      studentCode: s.id.toString(),
-      grade: null,
+      studentCode: s.studentCode || s.id.toString(),
+      grade: s.grade,
       phone: s.phone,
-      academyId: s.academyId
+      academyId: s.academyId,
+      status: s.status
     }));
     
     console.log('✅ Students found:', students.length);
