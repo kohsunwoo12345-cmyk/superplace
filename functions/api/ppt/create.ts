@@ -13,7 +13,7 @@ interface Env {
  * POST /api/ppt/create
  * PPT 생성 API
  */
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export const onRequestPost = async (context: any) => {
   try {
     const body: any = await context.request.json();
     const { title, slides } = body;
