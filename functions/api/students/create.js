@@ -62,10 +62,10 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Get user from database
+    // Get user from database - use snake_case column names
     console.log('🔍 Looking up user:', tokenData.email);
     const user = await db
-      .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
+      .prepare('SELECT id, email, role, academy_id as academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
 
@@ -128,9 +128,9 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Check if phone already exists
+    // Check if phone already exists - use correct table name
     const existingUser = await db
-      .prepare('SELECT id FROM User WHERE phone = ?')
+      .prepare('SELECT id FROM users WHERE phone = ?')
       .bind(phone)
       .first();
 
@@ -145,10 +145,10 @@ export async function onRequestPost(context) {
       });
     }
 
-    // If email provided, check if it exists
+    // If email provided, check if it exists - use correct table name
     if (email) {
       const existingEmail = await db
-        .prepare('SELECT id FROM User WHERE email = ?')
+        .prepare('SELECT id FROM users WHERE email = ?')
         .bind(email)
         .first();
 
@@ -203,12 +203,12 @@ export async function onRequestPost(context) {
     });
 
     try {
-      // Step 1: Create user account
+      // Step 1: Create user account - use snake_case column names
       await db
         .prepare(`
           INSERT INTO users (
             id, email, phone, password, name, role, 
-            academyId, isActive, 
+            academy_id, isActive, 
             createdAt, updatedAt
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
@@ -227,11 +227,11 @@ export async function onRequestPost(context) {
 
       console.log('✅ User account created:', { studentId, phone, academyId });
 
-      // Step 2: Create student record
+      // Step 2: Create student record - use snake_case column names
       await db
         .prepare(`
           INSERT INTO students (
-            id, userId, academyId, grade, status,
+            id, user_id, academy_id, grade, status,
             createdAt, updatedAt
           )
           VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))

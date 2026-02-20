@@ -46,6 +46,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const upperRole = role;
     
     // 실제 D1 스키마 사용 (snake_case) - students 테이블과 users 테이블 JOIN
+    // LEFT JOIN 사용: students 테이블에 데이터가 없어도 users 정보는 표시
     let query = `
       SELECT 
         u.id,
@@ -59,7 +60,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         s.grade,
         s.status
       FROM users u
-      INNER JOIN students s ON u.id = s.user_id
+      LEFT JOIN students s ON u.id = s.user_id
       WHERE u.role = 'STUDENT'
     `;
 
@@ -112,6 +113,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     console.log('📊 Query:', query, bindings);
     const result = await DB.prepare(query).bind(...bindings).all();
+    
+    console.log('🔍 Raw DB result:', JSON.stringify(result, null, 2));
+    console.log('🔍 Result count:', result.results?.length || 0);
     
     const students = (result.results || []).map((s: any) => ({
       id: s.id.toString(),
