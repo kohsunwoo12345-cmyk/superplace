@@ -138,8 +138,9 @@ export default function AddStudentPage() {
         role: user.role
       });
       
+      // academyId는 선택사항 - API가 토큰에서 자동으로 가져옴
       if (!academyId) {
-        throw new Error('학원 정보가 없습니다. 다시 로그인해주세요.');
+        console.log('⚠️ academyId not in user object, API will use token academyId');
       }
       
       const response = await fetch("/api/students/create", {
