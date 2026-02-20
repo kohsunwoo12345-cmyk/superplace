@@ -67,11 +67,9 @@ export default function TemplatesPage() {
       
       if (!token) {
         console.error("토큰이 없습니다");
-        alert("로그인이 필요합니다.");
         return;
       }
       
-      // 토큰 형식 확인 - 로깅만 (검증 제거)
       console.log("📍 Token exists:", !!token);
 
       const response = await fetch("/api/landing/templates", {
@@ -86,32 +84,13 @@ export default function TemplatesPage() {
       if (response.ok && data.success) {
         setTemplates(data.templates || []);
         console.log("✅ Templates loaded successfully:", data.templates);
-        
-        // 🔥 템플릿이 없으면 자동 설치 제안
-        if (data.templates && data.templates.length === 0) {
-          const autoInstall = confirm(
-            "❌ 템플릿이 없습니다!\n\n" +
-            "지금 바로 템플릿을 자동 설치하시겠습니까?\n\n" +
-            "✅ 예: 자동 설치 페이지로 이동\n" +
-            "❌ 아니오: 수동으로 설치"
-          );
-          
-          if (autoInstall) {
-            window.open('/install-templates.html', '_blank');
-          }
-        }
-        
-        // 메시지가 있으면 표시
-        if (data.message && data.templates && data.templates.length === 0) {
-          console.log("ℹ️ API Message:", data.message);
-        }
       } else {
         console.error("❌ 템플릿 목록 조회 실패:", data);
-        alert(`템플릿 목록을 불러오지 못했습니다.\n\n오류: ${data.error || data.message || "Unknown error"}`);
+        setTemplates([]);
       }
     } catch (error) {
       console.error("템플릿 목록 조회 실패:", error);
-      alert(`템플릿 목록을 불러오지 못했습니다.\n\n상세: ${error.message || error}`);
+      setTemplates([]);
     } finally {
       setLoading(false);
     }
