@@ -45,7 +45,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const upperRole = role;
     
-    // 실제 D1 스키마 사용 (snake_case) - students 테이블과 users 테이블 JOIN
+    // 실제 D1 스키마 사용 (camelCase) - students 테이블과 users 테이블 JOIN
     // LEFT JOIN 사용: students 테이블에 데이터가 없어도 users 정보는 표시
     let query = `
       SELECT 
@@ -53,14 +53,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.name,
         u.email,
         u.phone,
-        u.academy_id as academyId,
+        u.academyId,
         u.role,
         s.id as studentId,
-        s.student_code as studentCode,
         s.grade,
         s.status
       FROM users u
-      LEFT JOIN students s ON u.id = s.user_id
+      LEFT JOIN students s ON u.id = s.userId
       WHERE u.role = 'STUDENT'
     `;
 
@@ -73,9 +72,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const url = new URL(context.request.url);
       const requestedAcademyId = url.searchParams.get("academyId");
       if (requestedAcademyId) {
-        const academyIdNum = Math.floor(parseFloat(requestedAcademyId));
-        query += ` AND u.academy_id = ?`;
-        bindings.push(academyIdNum);
+        query += ` AND u.academyId = ?`;
+        bindings.push(requestedAcademyId);
       }
     } 
     // DIRECTOR: 자신의 학원 학생만 (토큰의 academyId 사용)
@@ -94,7 +92,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         );
       }
       
-      query += ` AND u.academy_id = ?`;
+      query += ` AND u.academyId = ?`;
       bindings.push(tokenAcademyId);
     }
     // 그 외 역할은 접근 불가
@@ -118,14 +116,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     console.log('🔍 Result count:', result.results?.length || 0);
     
     const students = (result.results || []).map((s: any) => ({
-      id: s.id.toString(),
+      id: s.id,
       name: s.name,
       email: s.email,
-      studentCode: s.studentCode || s.id.toString(),
+      studentCode: s.id,
       grade: s.grade,
       phone: s.phone,
       academyId: s.academyId,
-      status: s.status
+      status: s.status || 'ACTIVE'
     }));
     
     console.log('✅ Students found:', students.length);
