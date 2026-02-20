@@ -209,6 +209,10 @@
         >
       </div>
       
+      <button type="button" id="fixTableBtn" style="margin-bottom: 12px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); font-size: 18px; padding: 18px; font-weight: 700;">
+        🛠️ 테이블 수정 + 템플릿 설치 (FOREIGN KEY 오류 해결)
+      </button>
+      
       <button type="button" id="initializeAllBtn" style="margin-bottom: 12px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); font-size: 18px; padding: 18px; font-weight: 700;">
         🔥 긴급 초기화 (ALL-IN-ONE)
       </button>
@@ -242,12 +246,54 @@
   <script>
     const form = document.getElementById('installForm');
     const passwordInput = document.getElementById('password');
+    const fixTableBtn = document.getElementById('fixTableBtn');
     const initializeAllBtn = document.getElementById('initializeAllBtn');
     const createTablesBtn = document.getElementById('createTablesBtn');
     const installBtn = document.getElementById('installBtn');
     const autoInstallBtn = document.getElementById('autoInstallBtn');
     const updateTemplatesBtn = document.getElementById('updateTemplatesBtn');
     const resultDiv = document.getElementById('result');
+
+    // 🛠️ 테이블 수정 + 템플릿 설치 (FOREIGN KEY 오류 해결)
+    fixTableBtn.addEventListener('click', async () => {
+      if (!confirm('🛠️ LandingPageTemplate 테이블을 재생성합니다!\n\n이 작업은 다음을 수행합니다:\n- 기존 테이블 삭제\n- FOREIGN KEY 없이 새 테이블 생성\n- 5개 템플릿 자동 삽입\n\n계속하시겠습니까?')) {
+        return;
+      }
+      
+      const password = passwordInput.value.trim();
+      if (!password) {
+        showResult('error', '❌ 비밀번호를 입력하세요.');
+        return;
+      }
+      
+      fixTableBtn.disabled = true;
+      fixTableBtn.innerHTML = '테이블 수정 중...<span class="loading"></span>';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/setup/fix-template-table', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          let message = `✅ ${data.message}\n\n`;
+          message += `✅ 총 ${data.total}개 템플릿 설치 완료!\n\n`;
+          message += `지금 바로 템플릿을 사용할 수 있습니다.`;
+          showResult('success', message);
+        } else {
+          showResult('error', `❌ 오류: ${data.error || '알 수 없는 오류'}\n\n상세: ${JSON.stringify(data, null, 2)}`);
+        }
+      } catch (error) {
+        showResult('error', `❌ 네트워크 오류: ${error.message}`);
+      } finally {
+        fixTableBtn.disabled = false;
+        fixTableBtn.innerHTML = '🛠️ 테이블 수정 + 템플릿 설치 (FOREIGN KEY 오류 해결)';
+      }
+    });
 
     // 🔥 긴급 초기화 (ALL-IN-ONE)
     initializeAllBtn.addEventListener('click', async () => {
