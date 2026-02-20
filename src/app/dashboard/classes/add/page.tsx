@@ -155,10 +155,24 @@ export default function AddClassPage() {
         console.log('✅ Students loaded:', data.students?.length || 0);
         console.log('📋 First few students:', data.students?.slice(0, 3));
         setStudents(data.students || []);
+        
+        if (data.students?.length === 0) {
+          console.warn('⚠️ No students found. User may need to add students first.');
+        }
       } else {
         console.error('❌ Failed to load students:', response.status);
         const errorData = await response.json();
         console.error('❌ Error details:', errorData);
+        
+        // 더 자세한 에러 정보 표시
+        if (errorData.debug) {
+          console.error('🔍 Debug info:', errorData.debug);
+        }
+        
+        // 사용자에게 알림
+        if (response.status === 403) {
+          console.error('🚫 Access denied. Please check user permissions.');
+        }
       }
     } catch (error) {
       console.error("학생 목록 로딩 오류:", error);

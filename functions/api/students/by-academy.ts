@@ -37,11 +37,35 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
+    const userId = userPayload.userId || userPayload.id;
     const role = userPayload.role?.toUpperCase();
-    const tokenAcademyId = userPayload.academyId;
+    let tokenAcademyId = userPayload.academyId;
     const userEmail = userPayload.email;
 
-    console.log('👥 by-academy API - Authenticated user:', { role, academyId: tokenAcademyId, email: userEmail });
+    console.log('👥 by-academy API - Token payload:', { userId, role, academyId: tokenAcademyId, email: userEmail });
+    
+    // 🔍 토큰에 academyId가 없으면 DB에서 조회
+    if (!tokenAcademyId && userId) {
+      console.log('🔍 academyId not in token, fetching from DB for user:', userId);
+      try {
+        const userRecord = await DB.prepare(`
+          SELECT id, academy_id, role 
+          FROM users 
+          WHERE id = ?
+        `).bind(userId).first();
+        
+        if (userRecord) {
+          tokenAcademyId = userRecord.academy_id || userRecord.id; // fallback to user id
+          console.log('✅ Found academy_id from DB:', tokenAcademyId, 'for user:', userId);
+        } else {
+          console.error('❌ User not found in DB:', userId);
+        }
+      } catch (dbError: any) {
+        console.error('❌ DB error fetching user:', dbError.message);
+      }
+    }
+
+    console.log('👥 by-academy API - Final values:', { userId, role, academyId: tokenAcademyId, email: userEmail });
 
     const upperRole = role;
     
@@ -72,24 +96,30 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         bindings.push(academyIdNum);
       }
     } 
-    // DIRECTOR: 자신의 학원 학생만 (토큰의 academyId 사용)
-    else if (upperRole === 'DIRECTOR') {
-      console.log('🏫 Director access - fetching academy students from token');
+    // DIRECTOR/TEACHER: 자신의 학원 학생만 (토큰의 academyId 또는 userId 사용)
+    else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
+      console.log('🏫 Director/Teacher access - fetching academy students');
       
-      if (!tokenAcademyId) {
+      // academyId가 없으면 userId를 사용 (학원장 본인의 ID)
+      const effectiveAcademyId = tokenAcademyId || userId;
+      
+      if (!effectiveAcademyId) {
+        console.error('❌ No academy ID or user ID available');
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: "Academy ID not found in token",
-            message: "학원 정보가 없습니다",
-            students: []
+            error: "Academy ID not found",
+            message: "학원 정보가 없습니다. 사용자 정보를 확인해주세요.",
+            students: [],
+            debug: { userId, tokenAcademyId, role }
           }),
           { status: 403, headers: { "Content-Type": "application/json" } }
         );
       }
       
+      console.log('🔑 Using academy ID:', effectiveAcademyId);
       query += ` AND academy_id = ?`;
-      bindings.push(tokenAcademyId);
+      bindings.push(effectiveAcademyId);
     }
     // 그 외 역할은 접근 불가
     else {
