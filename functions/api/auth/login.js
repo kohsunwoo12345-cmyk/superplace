@@ -52,12 +52,12 @@ export async function onRequestPost(context) {
           u.name,
           u.role,
           u.phone,
-          u.academyId,
+          u.academy_id as academyId,
           u.approved,
           a.name as academyName,
           a.code as academyCode
-        FROM User u
-        LEFT JOIN Academy a ON u.academyId = a.id
+        FROM users u
+        LEFT JOIN academies a ON u.academy_id = a.id
         WHERE u.email = ? OR u.phone = ?
       `)
       .bind(loginIdentifier, loginIdentifier)
@@ -158,7 +158,7 @@ export async function onRequestPost(context) {
     // Update last login and IP (skip if columns don't exist)
     try {
       await db
-        .prepare('UPDATE User SET lastLoginAt = datetime("now"), lastLoginIP = ? WHERE id = ?')
+        .prepare('UPDATE users SET lastLoginAt = datetime("now"), lastLoginIP = ? WHERE id = ?')
         .bind(clientIP, user.id)
         .run();
       console.log('✅ Updated lastLoginAt and lastLoginIP');
@@ -166,7 +166,7 @@ export async function onRequestPost(context) {
       console.log('⚠️ lastLoginAt/lastLoginIP column not found, trying without IP');
       try {
         await db
-          .prepare('UPDATE User SET lastLoginAt = datetime("now") WHERE id = ?')
+          .prepare('UPDATE users SET lastLoginAt = datetime("now") WHERE id = ?')
           .bind(user.id)
           .run();
       } catch (e2) {
@@ -214,10 +214,10 @@ export async function onRequestPost(context) {
       }
     }
 
-    // Generate token
-    const token = `${user.id}|${user.email}|${user.role}|${Date.now()}`;
+    // Generate token with academyId
+    const token = `${user.id}|${user.email}|${user.role}|${user.academyId || ''}|${Date.now()}`;
 
-    console.log('✅ Login successful:', { userId: user.id, role: user.role });
+    console.log('✅ Login successful:', { userId: user.id, role: user.role, academyId: user.academyId });
 
     return new Response(
       JSON.stringify({

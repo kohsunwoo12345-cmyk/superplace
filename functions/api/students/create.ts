@@ -64,10 +64,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const userId = userPayload.userId || userPayload.id;
     const role = userPayload.role?.toUpperCase();
-    const tokenAcademyId = userPayload.academyId;
+    let tokenAcademyId = userPayload.academyId;
     const userEmail = userPayload.email;
 
     console.log('👤 Authenticated user:', { userId, role, academyId: tokenAcademyId, email: userEmail });
+
+    // 🔍 토큰에 academyId가 없으면 DB에서 조회
+    if (!tokenAcademyId && userId) {
+      console.log('🔍 academyId not in token, fetching from DB for user:', userId);
+      try {
+        const userRecord = await DB.prepare(`
+          SELECT id, academy_id, role 
+          FROM users 
+          WHERE id = ?
+        `).bind(userId).first();
+        
+        if (userRecord) {
+          tokenAcademyId = userRecord.academy_id;
+          console.log('✅ Found academy_id from DB:', tokenAcademyId, 'for user:', userId);
+        } else {
+          console.error('❌ User not found in DB:', userId);
+        }
+      } catch (dbError: any) {
+        console.error('❌ DB error fetching user:', dbError.message);
+      }
+    }
+
+    console.log('👤 Final user info:', { userId, role, academyId: tokenAcademyId, email: userEmail });
 
     // 권한 확인
     if (role !== 'DIRECTOR' && role !== 'TEACHER' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
