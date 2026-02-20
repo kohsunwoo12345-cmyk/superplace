@@ -7,13 +7,9 @@ interface Env {
 
 export async function onRequestPost(context: { request: Request; env: Env }) {
   try {
-    const authHeader = context.request.headers.get("authorization");
-    
-    // Simple password protection
     const body = await context.request.json();
     const { password } = body;
     
-    // Change this password after first use!
     if (password !== "setup-templates-2026") {
       return new Response(JSON.stringify({ 
         error: "Invalid password" 
@@ -24,6 +20,27 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
 
     const db = context.env.DB;
+    
+    // 🔥 먼저 테이블 생성 확인
+    try {
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS LandingPageTemplate (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          html TEXT NOT NULL,
+          variables TEXT,
+          isDefault INTEGER DEFAULT 0,
+          usageCount INTEGER DEFAULT 0,
+          createdById TEXT NOT NULL,
+          createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+          updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+      console.log('✅ LandingPageTemplate 테이블 확인/생성 완료');
+    } catch (tableError: any) {
+      console.error('테이블 생성 오류:', tableError);
+    }
     
     // Check if templates already exist
     const existingCount = await db
