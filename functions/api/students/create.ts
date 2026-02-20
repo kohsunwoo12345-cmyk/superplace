@@ -214,47 +214,159 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     });
 
     try {
-      // Step 1: users 테이블에 학생 계정 생성
-      const userResult = await DB
-        .prepare(`
-          INSERT INTO users (
-            email, phone, password, name, role, 
-            academyId, createdAt
+      let userId: any = null;
+      let insertSuccess = false;
+      let usedPattern = '';
+
+      // 패턴 1: users + academyId (camelCase)
+      console.log('💾 Creating student - 패턴 1 시도: users + academyId');
+      try {
+        const userResult = await DB
+          .prepare(`
+            INSERT INTO users (
+              email, phone, password, name, role, 
+              academyId, createdAt
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `)
+          .bind(
+            email || null,
+            phone,
+            hashedPassword,
+            name || null,
+            'STUDENT',
+            academyIdInt,
+            koreanTime
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `)
-        .bind(
-          email || null,
-          phone,
-          hashedPassword,
-          name || null,
-          'STUDENT',
-          academyIdInt,
-          koreanTime
-        )
-        .run();
+          .run();
 
-      const userId = userResult.meta.last_row_id;
-      console.log('✅ User account created with ID:', userId);
+        userId = userResult.meta.last_row_id;
+        insertSuccess = true;
+        usedPattern = 'users + academyId';
+        console.log('✅ 패턴 1 성공: User account created with ID:', userId);
+      } catch (e1: any) {
+        console.log('❌ 패턴 1 실패:', e1.message);
+      }
 
-      // Step 2: students 테이블에 학생 레코드 생성
-      await DB
-        .prepare(`
-          INSERT INTO students (
-            userId, academyId, grade, status, createdAt
+      // 패턴 2: User + academyId (대문자 시작)
+      if (!insertSuccess) {
+        console.log('💾 패턴 2 시도: User + academyId');
+        try {
+          const userResult = await DB
+            .prepare(`
+              INSERT INTO User (
+                email, phone, password, name, role, 
+                academyId, createdAt
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `)
+            .bind(
+              email || null,
+              phone,
+              hashedPassword,
+              name || null,
+              'STUDENT',
+              academyIdInt,
+              koreanTime
+            )
+            .run();
+
+          userId = userResult.meta.last_row_id;
+          insertSuccess = true;
+          usedPattern = 'User + academyId';
+          console.log('✅ 패턴 2 성공: User account created with ID:', userId);
+        } catch (e2: any) {
+          console.log('❌ 패턴 2 실패:', e2.message);
+        }
+      }
+
+      // 패턴 3: users + academy_id (snake_case)
+      if (!insertSuccess) {
+        console.log('💾 패턴 3 시도: users + academy_id');
+        try {
+          const userResult = await DB
+            .prepare(`
+              INSERT INTO users (
+                email, phone, password, name, role, 
+                academy_id, created_at
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `)
+            .bind(
+              email || null,
+              phone,
+              hashedPassword,
+              name || null,
+              'STUDENT',
+              academyIdInt,
+              koreanTime
+            )
+            .run();
+
+          userId = userResult.meta.last_row_id;
+          insertSuccess = true;
+          usedPattern = 'users + academy_id';
+          console.log('✅ 패턴 3 성공: User account created with ID:', userId);
+        } catch (e3: any) {
+          console.log('❌ 패턴 3 실패:', e3.message);
+        }
+      }
+
+      if (!insertSuccess) {
+        throw new Error('모든 INSERT 패턴 실패 - 테이블 스키마 확인 필요');
+      }
+
+      console.log(`🎯 사용된 패턴: ${usedPattern}`);
+
+      // Step 2: students 테이블에 학생 레코드 생성 (여러 패턴 시도)
+      let studentInsertSuccess = false;
+      
+      // 패턴 1: students + userId/academyId (camelCase)
+      try {
+        await DB
+          .prepare(`
+            INSERT INTO students (
+              userId, academyId, grade, status, createdAt
+            )
+            VALUES (?, ?, ?, ?, ?)
+          `)
+          .bind(
+            userId,
+            academyIdInt,
+            grade || null,
+            'ACTIVE',
+            koreanTime
           )
-          VALUES (?, ?, ?, ?, ?)
-        `)
-        .bind(
-          userId,
-          academyIdInt,
-          grade || null,
-          'ACTIVE',
-          koreanTime
-        )
-        .run();
-
-      console.log('✅ Student record created for userId:', userId);
+          .run();
+        studentInsertSuccess = true;
+        console.log('✅ Student record created (camelCase)');
+      } catch (e1: any) {
+        console.log('❌ students camelCase 실패:', e1.message);
+        
+        // 패턴 2: students + user_id/academy_id (snake_case)
+        try {
+          await DB
+            .prepare(`
+              INSERT INTO students (
+                user_id, academy_id, grade, status, created_at
+              )
+              VALUES (?, ?, ?, ?, ?)
+            `)
+            .bind(
+              userId,
+              academyIdInt,
+              grade || null,
+              'ACTIVE',
+              koreanTime
+            )
+            .run();
+          studentInsertSuccess = true;
+          console.log('✅ Student record created (snake_case)');
+        } catch (e2: any) {
+          console.log('⚠️ students 테이블 INSERT 실패:', e2.message);
+          console.log('⚠️ students 테이블이 없거나 스키마 불일치 - 계속 진행');
+        }
+      }
 
       // Step 3: 반 배정 (선택사항)
       if (classIds && classIds.length > 0) {

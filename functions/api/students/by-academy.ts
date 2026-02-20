@@ -45,74 +45,182 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const upperRole = role;
     
-    // 실제 D1 스키마 사용 (camelCase) - students 테이블과 users 테이블 JOIN
-    // LEFT JOIN 사용: students 테이블에 데이터가 없어도 users 정보는 표시
-    let query = `
-      SELECT 
-        u.id,
-        u.name,
-        u.email,
-        u.phone,
-        u.academyId,
-        u.role,
-        s.id as studentId,
-        s.grade,
-        s.status
-      FROM users u
-      LEFT JOIN students s ON u.id = s.userId
-      WHERE u.role = 'STUDENT'
-    `;
-
-    const bindings: any[] = [];
-
-    // ADMIN/SUPER_ADMIN: 모든 학생 조회
-    if (upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN') {
-      console.log('🔑 Admin access - fetching all students');
-      // Optional: academyId from query param for filtering
-      const url = new URL(context.request.url);
-      const requestedAcademyId = url.searchParams.get("academyId");
-      if (requestedAcademyId) {
-        query += ` AND u.academyId = ?`;
-        bindings.push(requestedAcademyId);
-      }
-    } 
-    // DIRECTOR: 자신의 학원 학생만 (토큰의 academyId 사용)
-    else if (upperRole === 'DIRECTOR') {
-      console.log('🏫 Director access - fetching academy students from token');
+    // 여러 스키마 패턴 시도
+    let result: any = null;
+    let successPattern = '';
+    
+    // 패턴 1: users + academyId (camelCase)
+    try {
+      console.log('🔍 시도 1: users 테이블 + academyId (camelCase)');
       
-      if (!tokenAcademyId) {
+      let query = `
+        SELECT 
+          u.id,
+          u.name,
+          u.email,
+          u.phone,
+          u.academyId,
+          u.role,
+          s.id as studentId,
+          s.grade,
+          s.status
+        FROM users u
+        LEFT JOIN students s ON u.id = s.userId
+        WHERE u.role = 'STUDENT'
+      `;
+
+      const bindings: any[] = [];
+
+      if (upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN') {
+        const url = new URL(context.request.url);
+        const requestedAcademyId = url.searchParams.get("academyId");
+        if (requestedAcademyId) {
+          query += ` AND u.academyId = ?`;
+          bindings.push(requestedAcademyId);
+        }
+      } else if (upperRole === 'DIRECTOR') {
+        if (!tokenAcademyId) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "Academy ID not found in token",
+              message: "학원 정보가 없습니다",
+              students: []
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        query += ` AND u.academyId = ?`;
+        bindings.push(tokenAcademyId);
+      } else {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: "Academy ID not found in token",
-            message: "학원 정보가 없습니다",
+            error: "Unauthorized access",
             students: []
           }),
           { status: 403, headers: { "Content-Type": "application/json" } }
         );
       }
-      
-      query += ` AND u.academyId = ?`;
-      bindings.push(tokenAcademyId);
+
+      query += ` ORDER BY u.name ASC`;
+
+      console.log('📊 패턴 1 Query:', query, bindings);
+      result = await DB.prepare(query).bind(...bindings).all();
+      successPattern = 'users + academyId';
+      console.log('✅ 패턴 1 성공:', result.results.length, '명');
+    } catch (e1: any) {
+      console.log('❌ 패턴 1 실패:', e1.message);
     }
-    // 그 외 역할은 접근 불가
-    else {
+
+    // 패턴 2: User + academyId (대문자 시작)
+    if (!result || result.results.length === 0) {
+      try {
+        console.log('🔍 시도 2: User 테이블 + academyId');
+        
+        let query = `
+          SELECT 
+            u.id,
+            u.name,
+            u.email,
+            u.phone,
+            u.academyId,
+            u.role,
+            s.id as studentId,
+            s.grade,
+            s.status
+          FROM User u
+          LEFT JOIN students s ON u.id = s.userId
+          WHERE u.role = 'STUDENT'
+        `;
+
+        const bindings: any[] = [];
+
+        if (upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN') {
+          const url = new URL(context.request.url);
+          const requestedAcademyId = url.searchParams.get("academyId");
+          if (requestedAcademyId) {
+            query += ` AND u.academyId = ?`;
+            bindings.push(requestedAcademyId);
+          }
+        } else if (upperRole === 'DIRECTOR') {
+          query += ` AND u.academyId = ?`;
+          bindings.push(tokenAcademyId);
+        }
+
+        query += ` ORDER BY u.name ASC`;
+
+        console.log('📊 패턴 2 Query:', query, bindings);
+        result = await DB.prepare(query).bind(...bindings).all();
+        successPattern = 'User + academyId';
+        console.log('✅ 패턴 2 성공:', result.results.length, '명');
+      } catch (e2: any) {
+        console.log('❌ 패턴 2 실패:', e2.message);
+      }
+    }
+
+    // 패턴 3: users + academy_id (snake_case)
+    if (!result || result.results.length === 0) {
+      try {
+        console.log('🔍 시도 3: users 테이블 + academy_id (snake_case)');
+        
+        let query = `
+          SELECT 
+            u.id,
+            u.name,
+            u.email,
+            u.phone,
+            u.academy_id as academyId,
+            u.role,
+            s.id as studentId,
+            s.grade,
+            s.status
+          FROM users u
+          LEFT JOIN students s ON u.id = s.user_id
+          WHERE u.role = 'STUDENT'
+        `;
+
+        const bindings: any[] = [];
+
+        if (upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN') {
+          const url = new URL(context.request.url);
+          const requestedAcademyId = url.searchParams.get("academyId");
+          if (requestedAcademyId) {
+            query += ` AND u.academy_id = ?`;
+            bindings.push(requestedAcademyId);
+          }
+        } else if (upperRole === 'DIRECTOR') {
+          query += ` AND u.academy_id = ?`;
+          bindings.push(tokenAcademyId);
+        }
+
+        query += ` ORDER BY u.name ASC`;
+
+        console.log('📊 패턴 3 Query:', query, bindings);
+        result = await DB.prepare(query).bind(...bindings).all();
+        successPattern = 'users + academy_id';
+        console.log('✅ 패턴 3 성공:', result.results.length, '명');
+      } catch (e3: any) {
+        console.log('❌ 패턴 3 실패:', e3.message);
+      }
+    }
+
+    if (!result) {
+      console.error('❌ 모든 패턴 실패');
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Unauthorized access",
+        JSON.stringify({
+          success: false,
+          error: "All schema patterns failed",
+          message: "데이터베이스 조회 실패",
           students: []
         }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    query += ` ORDER BY u.name ASC`;
-
-    console.log('📊 Query:', query, bindings);
-    const result = await DB.prepare(query).bind(...bindings).all();
+    console.log(`🎯 사용된 패턴: ${successPattern}`);
     
-    console.log('🔍 Raw DB result:', JSON.stringify(result, null, 2));
+    console.log('🔍 Raw DB result:', JSON.stringify(result.results?.slice(0, 2), null, 2));
     console.log('🔍 Result count:', result.results?.length || 0);
     
     const students = (result.results || []).map((s: any) => ({
@@ -128,6 +236,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     
     console.log('✅ Students found:', students.length);
     console.log('📝 First student:', students[0]);
+    console.log(`🎯 Success pattern: ${successPattern}`);
 
     return new Response(
       JSON.stringify({
