@@ -219,14 +219,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       let insertSuccess = false;
       let usedPattern = '';
 
-      // 패턴 1: users + academyId (camelCase)
-      console.log('💾 Creating student - 패턴 1 시도: users + academyId');
+      // 패턴 1: users + academy_id (snake_case INTEGER - 실제 DB 스키마)
+      console.log('💾 Creating student - 패턴 1 시도: users + academy_id (INTEGER)');
       try {
         const userResult = await DB
           .prepare(`
             INSERT INTO users (
               email, phone, password, name, role, 
-              academyId, createdAt
+              academy_id, created_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
           `)
@@ -243,51 +243,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         userId = userResult.meta.last_row_id;
         insertSuccess = true;
-        usedPattern = 'users + academyId';
+        usedPattern = 'users + academy_id';
         console.log('✅ 패턴 1 성공: User account created with ID:', userId);
       } catch (e1: any) {
         console.log('❌ 패턴 1 실패:', e1.message);
       }
 
-      // 패턴 2: User + academyId (대문자 시작)
+      // 패턴 2: User + academy_id (PascalCase 테이블 + snake_case 컬럼)
       if (!insertSuccess) {
-        console.log('💾 패턴 2 시도: User + academyId');
+        console.log('💾 패턴 2 시도: User + academy_id');
         try {
           const userResult = await DB
             .prepare(`
               INSERT INTO User (
-                email, phone, password, name, role, 
-                academyId, createdAt
-              )
-              VALUES (?, ?, ?, ?, ?, ?, ?)
-            `)
-            .bind(
-              email || null,
-              phone,
-              hashedPassword,
-              name || null,
-              'STUDENT',
-              academyIdInt,
-              koreanTime
-            )
-            .run();
-
-          userId = userResult.meta.last_row_id;
-          insertSuccess = true;
-          usedPattern = 'User + academyId';
-          console.log('✅ 패턴 2 성공: User account created with ID:', userId);
-        } catch (e2: any) {
-          console.log('❌ 패턴 2 실패:', e2.message);
-        }
-      }
-
-      // 패턴 3: users + academy_id (snake_case)
-      if (!insertSuccess) {
-        console.log('💾 패턴 3 시도: users + academy_id');
-        try {
-          const userResult = await DB
-            .prepare(`
-              INSERT INTO users (
                 email, phone, password, name, role, 
                 academy_id, created_at
               )
@@ -306,7 +274,39 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
           userId = userResult.meta.last_row_id;
           insertSuccess = true;
-          usedPattern = 'users + academy_id';
+          usedPattern = 'User + academy_id';
+          console.log('✅ 패턴 2 성공: User account created with ID:', userId);
+        } catch (e2: any) {
+          console.log('❌ 패턴 2 실패:', e2.message);
+        }
+      }
+
+      // 패턴 3: users + academyId (TEXT 타입 대비 - 문자열로 변환)
+      if (!insertSuccess) {
+        console.log('💾 패턴 3 시도: users + academyId (TEXT)');
+        try {
+          const userResult = await DB
+            .prepare(`
+              INSERT INTO users (
+                email, phone, password, name, role, 
+                academyId, createdAt
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `)
+            .bind(
+              email || null,
+              phone,
+              hashedPassword,
+              name || null,
+              'STUDENT',
+              academyIdInt ? academyIdInt.toString() : null,
+              koreanTime
+            )
+            .run();
+
+          userId = userResult.meta.last_row_id;
+          insertSuccess = true;
+          usedPattern = 'users + academyId (TEXT)';
           console.log('✅ 패턴 3 성공: User account created with ID:', userId);
         } catch (e3: any) {
           console.log('❌ 패턴 3 실패:', e3.message);
@@ -319,15 +319,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
       console.log(`🎯 사용된 패턴: ${usedPattern}`);
 
-      // Step 2: students 테이블에 학생 레코드 생성 (여러 패턴 시도)
+      // Step 2: students 테이블에 학생 레코드 생성 (실제 스키마는 user_id, academy_id)
       let studentInsertSuccess = false;
       
-      // 패턴 1: students + userId/academyId (camelCase)
+      // 패턴 1: students + user_id/academy_id (snake_case - 실제 DB 스키마)
       try {
         await DB
           .prepare(`
             INSERT INTO students (
-              userId, academyId, grade, status, createdAt
+              user_id, academy_id, grade, status, created_at
             )
             VALUES (?, ?, ?, ?, ?)
           `)
@@ -340,16 +340,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           )
           .run();
         studentInsertSuccess = true;
-        console.log('✅ Student record created (camelCase)');
+        console.log('✅ Student record created (snake_case)');
       } catch (e1: any) {
-        console.log('❌ students camelCase 실패:', e1.message);
+        console.log('❌ students snake_case 실패:', e1.message);
         
-        // 패턴 2: students + user_id/academy_id (snake_case)
+        // 패턴 2: students + userId/academyId (camelCase 대비)
         try {
           await DB
             .prepare(`
               INSERT INTO students (
-                user_id, academy_id, grade, status, created_at
+                userId, academyId, grade, status, createdAt
               )
               VALUES (?, ?, ?, ?, ?)
             `)
@@ -362,7 +362,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             )
             .run();
           studentInsertSuccess = true;
-          console.log('✅ Student record created (snake_case)');
+          console.log('✅ Student record created (camelCase)');
         } catch (e2: any) {
           console.log('⚠️ students 테이블 INSERT 실패:', e2.message);
           console.log('⚠️ students 테이블이 없거나 스키마 불일치 - 계속 진행');
