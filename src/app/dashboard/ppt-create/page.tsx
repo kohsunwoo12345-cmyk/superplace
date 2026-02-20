@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Loader2, FileText, Download, Plus, X } from "lucide-react";
+
+// PptxGenJS 타입 선언
+declare global {
+  interface Window {
+    PptxGenJS: any;
+  }
+}
 
 interface Slide {
   id: number;
@@ -23,7 +30,25 @@ export default function PPTCreatePage() {
     { id: 1, title: "제목 슬라이드", content: "여기에 제목을 입력하세요" },
     { id: 2, title: "내용 슬라이드 1", content: "여기에 내용을 입력하세요" }
   ]);
-  const [downloadUrl, setDownloadUrl] = useState<string>("");
+  const [pptxReady, setPptxReady] = useState(false);
+
+  // CDN에서 PptxGenJS 로드
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.PptxGenJS) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
+      script.onload = () => {
+        console.log('✅ PptxGenJS loaded from CDN');
+        setPptxReady(true);
+      };
+      script.onerror = () => {
+        console.error('❌ Failed to load PptxGenJS from CDN');
+      };
+      document.head.appendChild(script);
+    } else if (window.PptxGenJS) {
+      setPptxReady(true);
+    }
+  }, []);
 
   const addSlide = () => {
     const newId = Math.max(...slides.map(s => s.id), 0) + 1;
@@ -59,43 +84,82 @@ export default function PPTCreatePage() {
       return;
     }
 
+    if (!pptxReady || !window.PptxGenJS) {
+      alert("PPT 라이브러리가 로드되지 않았습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
     setLoading(true);
-    setDownloadUrl("");
 
     try {
       console.log('📤 Creating PPT:', { pptTitle, slideCount: slides.length });
 
-      const response = await fetch("/api/ppt/create", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          title: pptTitle,
-          slides: slides.map(s => ({
-            title: s.title,
-            content: s.content
-          }))
-        })
+      // PPT 생성 (CDN에서 로드한 PptxGenJS 사용)
+      const pptx = new window.PptxGenJS();
+      
+      // PPT 기본 설정
+      pptx.author = 'Superplace Study';
+      pptx.company = 'Superplace';
+      pptx.title = pptTitle;
+
+      // 각 슬라이드 생성
+      slides.forEach((slideData, index) => {
+        const slide = pptx.addSlide();
+        
+        // 배경색 설정
+        slide.background = { color: 'FFFFFF' };
+        
+        // 제목 추가 (상단)
+        slide.addText(slideData.title, {
+          x: 0.5,
+          y: 0.5,
+          w: 9,
+          h: 1,
+          fontSize: 32,
+          bold: true,
+          color: '363636',
+          align: 'center'
+        });
+        
+        // 내용 추가 (중앙)
+        if (slideData.content && slideData.content.trim()) {
+          const contentLines = slideData.content.split('\n').filter(line => line.trim());
+          
+          slide.addText(contentLines, {
+            x: 1,
+            y: 2,
+            w: 8,
+            h: 4,
+            fontSize: 18,
+            color: '555555',
+            align: 'left',
+            valign: 'top',
+            bullet: contentLines.length > 1 ? true : false
+          });
+        }
+        
+        // 슬라이드 번호 (우측 하단)
+        slide.addText(`${index + 1} / ${slides.length}`, {
+          x: 8.5,
+          y: 7,
+          w: 1,
+          h: 0.3,
+          fontSize: 12,
+          color: '999999',
+          align: 'right'
+        });
       });
 
-      console.log('📥 Response status:', response.status);
+      console.log('✅ PPT 객체 생성 완료');
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        console.error('❌ Error response:', error);
-        throw new Error(error.message || error.error || "PPT 생성 실패");
-      }
+      // 파일명 생성
+      const filename = `${pptTitle.replace(/[^a-zA-Z0-9가-힣]/g, '_')}_${Date.now()}.pptx`;
 
-      const result = await response.json();
-      console.log('✅ PPT created successfully:', result);
-
-      if (result.downloadUrl) {
-        setDownloadUrl(result.downloadUrl);
-        alert(`PPT가 생성되었습니다!\n파일명: ${result.filename}`);
-      } else {
-        alert("PPT가 생성되었습니다!");
-      }
+      // PPT 다운로드
+      await pptx.writeFile({ fileName: filename });
+      
+      console.log('✅ PPT 파일 다운로드 완료:', filename);
+      alert(`PPT가 생성되었습니다!\n파일명: ${filename}`);
 
     } catch (error: any) {
       console.error("❌ Failed to create PPT:", error);
@@ -214,17 +278,6 @@ export default function PPTCreatePage() {
             </>
           )}
         </Button>
-
-        {downloadUrl && (
-          <Button
-            onClick={() => window.open(downloadUrl, '_blank')}
-            variant="outline"
-            size="lg"
-          >
-            <Download className="w-5 h-5 mr-2" />
-            다운로드
-          </Button>
-        )}
       </div>
 
       {/* 미리보기 */}
