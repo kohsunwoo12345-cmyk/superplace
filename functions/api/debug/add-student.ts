@@ -151,6 +151,32 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         console.log('✅ TEST: 패턴 1 성공:', userId);
       } catch (e1: any) {
         console.log('❌ TEST: 패턴 1 실패:', e1.message);
+        console.log('❌ TEST: 패턴 1 전체 에러:', JSON.stringify(e1, null, 2));
+        
+        // 더 상세한 에러 정보 반환
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: '데이터베이스 INSERT 실패',
+            message: e1.message || e1.toString(),
+            errorDetails: {
+              name: e1.name,
+              message: e1.message,
+              cause: e1.cause?.toString(),
+              stack: e1.stack
+            },
+            attemptedPattern: 'users + academy_id (INTEGER)',
+            data: {
+              email: email || null,
+              phone,
+              name: name || null,
+              role: 'STUDENT',
+              academy_id: finalAcademyId,
+              created_at: koreanTime
+            }
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
       }
 
       if (!insertSuccess) {
