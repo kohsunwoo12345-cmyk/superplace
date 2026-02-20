@@ -187,20 +187,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       finalAcademyId: academyId 
     });
 
-    if (!academyId) {
-      console.error('❌ No academy ID available');
+    // academyId가 없으면 null로 진행 (SUPER_ADMIN은 academy 없이도 생성 가능)
+    if (!academyId && role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
+      console.error('❌ No academy ID available for non-admin user');
       return new Response(
         JSON.stringify({
           success: false,
           error: 'No academy assigned',
-          message: '학원이 배정되지 않았습니다'
+          message: '학원이 배정되지 않았습니다. 관리자에게 문의하세요.'
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // academyId를 정수로 변환
-    const academyIdInt = typeof academyId === 'string' ? parseInt(academyId) : academyId;
+    // academyId를 정수로 변환 (null 허용)
+    const academyIdInt = academyId ? (typeof academyId === 'string' ? parseInt(academyId) : academyId) : null;
 
     console.log('💾 Creating student...');
     console.log('📋 Student data:', {
