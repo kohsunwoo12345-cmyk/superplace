@@ -187,24 +187,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       finalAcademyId: academyId 
     });
 
-    // academyId가 없으면 경고만 출력 (ADMIN/SUPER_ADMIN은 academy 없이도 생성 가능)
-    // TEACHER/DIRECTOR는 보통 academyId가 있어야 하지만, 없어도 일단 진행 (기본값 1 사용)
-    if (!academyId) {
-      if (role === 'TEACHER' || role === 'DIRECTOR') {
-        console.warn('⚠️ No academyId for TEACHER/DIRECTOR, using default academyId=1');
-        academyId = 1; // 기본값 사용
-      } else if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
-        console.error('❌ No academy ID available for non-admin user');
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'No academy assigned',
-            message: '학원이 배정되지 않았습니다. 관리자에게 문의하세요.'
-          }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
-        );
-      }
-    }
+    // academyId 유효성 체크는 제거 - 어떤 형태든 허용
+    // ADMIN/SUPER_ADMIN은 academy 없이도 생성 가능
+    // TEACHER/DIRECTOR는 토큰에서 가져온 academyId 사용 (문자열 또는 숫자)
 
     // academyId 처리: 문자열이면 TEXT 컬럼(academyId)에, 숫자면 INTEGER 컬럼(academy_id)에 저장
     const isStringAcademyId = academyId && typeof academyId === 'string' && isNaN(parseInt(academyId));
