@@ -22,7 +22,7 @@ export async function onRequestPost(context: any) {
     
     // Step 1: Drop the existing table
     try {
-      await db.exec(`DROP TABLE IF EXISTS LandingPageTemplate;`);
+      await db.prepare(`DROP TABLE IF EXISTS LandingPageTemplate`).run();
       console.log('✅ Dropped old LandingPageTemplate table');
     } catch (error: any) {
       console.error('⚠️ Failed to drop table:', error.message);
@@ -30,7 +30,7 @@ export async function onRequestPost(context: any) {
     
     // Step 2: Create new table WITHOUT foreign key constraint
     try {
-      await db.exec(`
+      await db.prepare(`
         CREATE TABLE IF NOT EXISTS LandingPageTemplate (
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
@@ -42,8 +42,8 @@ export async function onRequestPost(context: any) {
           createdById TEXT,
           createdAt TEXT NOT NULL DEFAULT (datetime('now')),
           updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-      `);
+        )
+      `).run();
       console.log('✅ Created new LandingPageTemplate table (createdById nullable, no FK)');
     } catch (error: any) {
       console.error('❌ Failed to create table:', error.message);
@@ -52,9 +52,7 @@ export async function onRequestPost(context: any) {
     
     // Step 3: Create indexes
     try {
-      await db.exec(`
-        CREATE INDEX IF NOT EXISTS idx_landing_template_default ON LandingPageTemplate(isDefault);
-      `);
+      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_landing_template_default ON LandingPageTemplate(isDefault)`).run();
       console.log('✅ Created indexes');
     } catch (error: any) {
       console.log('⚠️ Index creation warning:', error.message);

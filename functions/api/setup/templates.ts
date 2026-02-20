@@ -25,7 +25,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     if (forceRecreate === true) {
       console.log('🔥 forceRecreate 모드: 테이블 삭제 후 재생성');
       try {
-        await db.exec(`DROP TABLE IF EXISTS LandingPageTemplate;`);
+        await db.prepare(`DROP TABLE IF EXISTS LandingPageTemplate`).run();
         console.log('✅ 기존 LandingPageTemplate 테이블 삭제 완료');
       } catch (dropError: any) {
         console.error('⚠️ 테이블 삭제 실패 (없을 수 있음):', dropError.message);
@@ -34,7 +34,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     
     // 🔥 테이블 생성 (createdById를 NULL 허용으로 변경, FOREIGN KEY 없음)
     try {
-      await db.exec(`
+      await db.prepare(`
         CREATE TABLE IF NOT EXISTS LandingPageTemplate (
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
@@ -46,8 +46,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           createdById TEXT,
           createdAt TEXT NOT NULL DEFAULT (datetime('now')),
           updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-      `);
+        )
+      `).run();
       console.log('✅ LandingPageTemplate 테이블 생성 완료 (createdById NULL 허용, FK 없음)');
     } catch (tableError: any) {
       console.error('❌ 테이블 생성 오류:', tableError);
