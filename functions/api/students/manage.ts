@@ -60,9 +60,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.academy_id,
           u.role,
           u.created_at,
-          a.name as academy_name
+          a.name as academy_name,
+          s.student_code,
+          s.grade,
+          s.status
         FROM users u
         LEFT JOIN academies a ON u.academy_id = a.id
+        LEFT JOIN students s ON u.id = s.user_id
         WHERE u.role = 'STUDENT'
       `;
 
@@ -111,9 +115,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.academy_id,
           u.role,
           u.created_at,
-          a.name as academy_name
+          a.name as academy_name,
+          s.student_code,
+          s.grade,
+          s.status
         FROM users u
         LEFT JOIN academies a ON u.academy_id = a.id
+        LEFT JOIN students s ON u.id = s.user_id
         WHERE u.role = 'STUDENT' AND u.academy_id = ?
         ORDER BY u.created_at DESC
       `;

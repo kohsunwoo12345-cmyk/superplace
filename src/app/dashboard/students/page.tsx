@@ -9,13 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, UserPlus, Search, Mail, Phone, School } from "lucide-react";
 
 interface Student {
-  id: number;
+  id: number | string;
   name: string;
   email: string;
+  studentCode?: string;
+  grade?: string | null;
   phone?: string;
   academy_id?: number;
+  academyId?: number;
   academy_name?: string;
-  role: string;
+  role?: string;
+  status?: string;
   created_at?: string;
 }
 
@@ -62,7 +66,7 @@ export default function StudentsPage() {
       
       // Try API call
       try {
-        const response = await fetch('/api/students', {
+        const response = await fetch('/api/students/by-academy', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -195,10 +199,10 @@ export default function StudentsPage() {
                   <div className="flex-1">
                     <CardTitle className="text-lg">{student.name}</CardTitle>
                     <CardDescription className="mt-1">
-                      ID: {student.id}
+                      {student.studentCode ? `학생코드: ${student.studentCode}` : `ID: ${student.id}`}
                     </CardDescription>
                   </div>
-                  <Badge variant="default">학생</Badge>
+                  <Badge variant="default">{student.grade || '학생'}</Badge>
                 </div>
               </CardHeader>
               <CardContent>

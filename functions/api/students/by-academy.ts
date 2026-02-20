@@ -45,17 +45,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const upperRole = role;
     
-    // 실제 D1 스키마 사용 (snake_case)
+    // 실제 D1 스키마 사용 (snake_case) - students 테이블과 users 테이블 JOIN
     let query = `
       SELECT 
-        id,
-        name,
-        email,
-        phone,
-        academy_id as academyId,
-        role
-      FROM users
-      WHERE role = 'STUDENT'
+        u.id,
+        u.name,
+        u.email,
+        u.phone,
+        u.academy_id as academyId,
+        u.role,
+        s.id as studentId,
+        s.student_code as studentCode,
+        s.grade,
+        s.status
+      FROM users u
+      INNER JOIN students s ON u.id = s.user_id
+      WHERE u.role = 'STUDENT'
     `;
 
     const bindings: any[] = [];
@@ -68,7 +73,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const requestedAcademyId = url.searchParams.get("academyId");
       if (requestedAcademyId) {
         const academyIdNum = Math.floor(parseFloat(requestedAcademyId));
-        query += ` AND academy_id = ?`;
+        query += ` AND u.academy_id = ?`;
         bindings.push(academyIdNum);
       }
     } 
@@ -88,7 +93,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         );
       }
       
-      query += ` AND academy_id = ?`;
+      query += ` AND u.academy_id = ?`;
       bindings.push(tokenAcademyId);
     }
     // 그 외 역할은 접근 불가
@@ -103,7 +108,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
-    query += ` ORDER BY name ASC`;
+    query += ` ORDER BY u.name ASC`;
 
     console.log('📊 Query:', query, bindings);
     const result = await DB.prepare(query).bind(...bindings).all();
@@ -112,10 +117,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       id: s.id.toString(),
       name: s.name,
       email: s.email,
-      studentCode: s.id.toString(),
-      grade: null,
+      studentCode: s.studentCode || s.id.toString(),
+      grade: s.grade,
       phone: s.phone,
-      academyId: s.academyId
+      academyId: s.academyId,
+      status: s.status
     }));
     
     console.log('✅ Students found:', students.length);
