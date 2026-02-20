@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>학생 추가 테스트</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+    
+    h1 {
+      font-size: 28px;
+      color: #1f2937;
+      margin-bottom: 12px;
+    }
+    
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 30px;
+      font-size: 16px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .result {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      display: none;
+    }
+    
+    .result.success {
+      background: #d1fae5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+      display: block;
+    }
+    
+    .result.error {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+      display: block;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎓 학생 추가 테스트</h1>
+    <div class="subtitle">학생 추가 기능이 정상 작동하는지 테스트합니다</div>
+    
+    <form id="testForm">
+      <div class="form-group">
+        <label for="name">학생 이름</label>
+        <input type="text" id="name" placeholder="김철수" value="테스트학생">
+      </div>
+      
+      <div class="form-group">
+        <label for="phone">연락처 (필수)</label>
+        <input type="tel" id="phone" placeholder="01012345678" value="" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="password">비밀번호 (필수, 6자 이상)</label>
+        <input type="password" id="password" placeholder="비밀번호 입력" value="test1234" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="email">이메일 (선택)</label>
+        <input type="email" id="email" placeholder="student@example.com">
+      </div>
+      
+      <div class="form-group">
+        <label for="school">학교 (선택)</label>
+        <input type="text" id="school" placeholder="서울고등학교">
+      </div>
+      
+      <div class="form-group">
+        <label for="grade">학년 (선택)</label>
+        <input type="text" id="grade" placeholder="2학년">
+      </div>
+      
+      <button type="submit" id="submitBtn">학생 추가 테스트</button>
+    </form>
+    
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('testForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const resultDiv = document.getElementById('result');
+    
+    // 랜덤 전화번호 생성
+    function generateRandomPhone() {
+      const timestamp = Date.now().toString().slice(-8);
+      return `010${timestamp}`;
+    }
+    
+    // 페이지 로드 시 랜덤 전화번호 설정
+    document.getElementById('phone').value = generateRandomPhone();
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('name').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const password = document.getElementById('password').value;
+      const email = document.getElementById('email').value.trim();
+      const school = document.getElementById('school').value.trim();
+      const grade = document.getElementById('grade').value.trim();
+      
+      if (!phone) {
+        showResult('error', '❌ 연락처를 입력하세요');
+        return;
+      }
+      
+      if (!password || password.length < 6) {
+        showResult('error', '❌ 비밀번호는 6자 이상이어야 합니다');
+        return;
+      }
+      
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '추가 중...<span class="loading"></span>';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('로그인이 필요합니다. /login 페이지에서 로그인하세요.');
+        }
+        
+        console.log('📤 Sending request...');
+        const response = await fetch('/api/students/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: name || null,
+            phone,
+            password,
+            email: email || null,
+            school: school || null,
+            grade: grade || null,
+            classIds: []
+          })
+        });
+        
+        const data = await response.json();
+        console.log('📥 Response:', data);
+        
+        if (response.ok && data.success) {
+          showResult('success', 
+            `✅ 학생 추가 성공!\n\n` +
+            `📱 연락처: ${phone}\n` +
+            `🔑 비밀번호: ${password}\n` +
+            `👤 ID: ${data.studentId || 'N/A'}\n\n` +
+            `이제 이 정보로 학생 로그인이 가능합니다.`
+          );
+          
+          // 다음 테스트를 위해 새 전화번호 생성
+          setTimeout(() => {
+            document.getElementById('phone').value = generateRandomPhone();
+          }, 2000);
+        } else {
+          showResult('error', 
+            `❌ 학생 추가 실패\n\n` +
+            `오류: ${data.error || data.message || '알 수 없는 오류'}\n\n` +
+            `상세: ${data.details || 'N/A'}`
+          );
+        }
+      } catch (error) {
+        console.error('❌ Error:', error);
+        showResult('error', `❌ 네트워크 오류\n\n${error.message}`);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '학생 추가 테스트';
+      }
+    });
+    
+    function showResult(type, message) {
+      resultDiv.className = `result ${type}`;
+      resultDiv.textContent = message;
+      resultDiv.style.display = 'block';
+      resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  </script>
+</body>
+</html>
