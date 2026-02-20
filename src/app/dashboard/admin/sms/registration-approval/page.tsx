@@ -19,7 +19,6 @@ import {
   Loader2,
   ExternalLink,
 } from "lucide-react";
-import { toast } from "react-hot-toast";
 import {
   Dialog,
   DialogContent,
@@ -100,15 +99,15 @@ export default function SMSRegistrationApprovalPage() {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success("신청이 승인되었습니다");
+        alert("신청이 승인되었습니다");
         fetchRegistrations();
         setSelectedRegistration(null);
       } else {
-        toast.error(data.error || "승인 실패");
+        alert(data.error || "승인 실패");
       }
     } catch (error) {
       console.error("승인 오류:", error);
-      toast.error("승인 중 오류가 발생했습니다");
+      alert("승인 중 오류가 발생했습니다");
     } finally {
       setActionLoading(false);
     }
@@ -116,7 +115,7 @@ export default function SMSRegistrationApprovalPage() {
 
   const handleReject = async () => {
     if (!selectedRegistration || !rejectionReason.trim()) {
-      toast.error("거부 사유를 입력해주세요");
+      alert("거부 사유를 입력해주세요");
       return;
     }
 
@@ -135,17 +134,17 @@ export default function SMSRegistrationApprovalPage() {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success("신청이 거부되었습니다");
+        alert("신청이 거부되었습니다");
         fetchRegistrations();
         setShowRejectDialog(false);
         setSelectedRegistration(null);
         setRejectionReason("");
       } else {
-        toast.error(data.error || "거부 실패");
+        alert(data.error || "거부 실패");
       }
     } catch (error) {
       console.error("거부 오류:", error);
-      toast.error("거부 중 오류가 발생했습니다");
+      alert("거부 중 오류가 발생했습니다");
     } finally {
       setActionLoading(false);
     }
