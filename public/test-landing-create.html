@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>랜딩페이지 테스트 생성</title>
+  <style>
+    body {
+      font-family: system-ui;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .section {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+    .section h3 {
+      margin-top: 0;
+      color: #667eea;
+    }
+    button {
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      margin: 5px;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .result.success {
+      background: #d1fae5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+    }
+    .result.error {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+    }
+    .landing-link {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 10px 20px;
+      background: #10b981;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .landing-link:hover {
+      background: #059669;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 600;
+      color: #374151;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 랜딩페이지 테스트 생성</h1>
+    
+    <div class="section">
+      <h3>1️⃣ 로그인 토큰 입력</h3>
+      <label>
+        토큰 (localStorage에서 가져오기):
+        <input type="password" id="token" placeholder="Bearer 토큰을 입력하세요">
+      </label>
+      <button onclick="loadTokenFromStorage()">자동으로 가져오기</button>
+    </div>
+
+    <div class="section">
+      <h3>2️⃣ 템플릿 정보 입력</h3>
+      <label>
+        템플릿 ID:
+        <input type="text" id="templateId" value="tpl_student_report_001" placeholder="tpl_student_report_001">
+      </label>
+      
+      <label>
+        학생 이름:
+        <input type="text" id="studentName" value="김철수" placeholder="김철수">
+      </label>
+      
+      <label>
+        기간:
+        <input type="text" id="period" value="2024년 1학기" placeholder="2024년 1학기">
+      </label>
+      
+      <label>
+        출석률 (%):
+        <input type="number" id="attendanceRate" value="95" placeholder="95">
+      </label>
+      
+      <label>
+        과제 완성률 (%):
+        <input type="number" id="homeworkRate" value="88" placeholder="88">
+      </label>
+      
+      <label>
+        평균 점수:
+        <input type="number" id="avgScore" value="92" placeholder="92">
+      </label>
+      
+      <label>
+        선생님 코멘트:
+        <textarea id="teacherComment" rows="3" placeholder="학생의 성실한 태도가 돋보입니다...">학생의 성실한 태도가 돋보이며, 꾸준한 학습으로 좋은 성과를 거두고 있습니다. 앞으로도 지금처럼 노력한다면 더 큰 발전이 있을 것으로 기대됩니다.</textarea>
+      </label>
+      
+      <label>
+        학원 이름:
+        <input type="text" id="academyName" value="슈퍼플레이스 학원" placeholder="슈퍼플레이스 학원">
+      </label>
+    </div>
+
+    <div class="section">
+      <h3>3️⃣ 랜딩페이지 생성</h3>
+      <button onclick="createLandingPage()" id="createBtn">랜딩페이지 만들기</button>
+      <button onclick="testAPI()" id="testBtn">API 테스트</button>
+    </div>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    function loadTokenFromStorage() {
+      const token = localStorage.getItem('token');
+      if (token) {
+        document.getElementById('token').value = token;
+        showResult('success', '✅ 토큰을 로드했습니다!');
+      } else {
+        showResult('error', '❌ localStorage에 토큰이 없습니다. 로그인해주세요.');
+      }
+    }
+
+    async function createLandingPage() {
+      const token = document.getElementById('token').value.trim();
+      if (!token) {
+        showResult('error', '❌ 토큰을 입력해주세요.');
+        return;
+      }
+
+      const btn = document.getElementById('createBtn');
+      btn.disabled = true;
+      btn.textContent = '생성 중...';
+
+      const templateId = document.getElementById('templateId').value;
+      const studentName = document.getElementById('studentName').value;
+      const period = document.getElementById('period').value;
+      const attendanceRate = document.getElementById('attendanceRate').value;
+      const homeworkRate = document.getElementById('homeworkRate').value;
+      const avgScore = document.getElementById('avgScore').value;
+      const teacherComment = document.getElementById('teacherComment').value;
+      const academyName = document.getElementById('academyName').value;
+
+      const slug = `test-${Date.now()}`;
+      const generatedDate = new Date().toLocaleDateString('ko-KR');
+
+      const payload = {
+        slug: slug,
+        title: `${studentName} 학생 리포트`,
+        subtitle: `${period} 학습 성과`,
+        description: `${studentName} 학생의 ${period} 학습 리포트입니다.`,
+        templateId: templateId,
+        templateType: 'template',
+        inputData: {
+          studentName,
+          period,
+          attendanceRate,
+          homeworkRate,
+          avgScore,
+          teacherComment,
+          academyName,
+          generatedDate
+        },
+        showQrCode: true,
+        isActive: true
+      };
+
+      try {
+        const response = await fetch('/api/admin/landing-pages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          const landingPageUrl = `${window.location.origin}/lp/${slug}`;
+          showResult('success', 
+            `✅ 랜딩페이지 생성 완료!\n\n` +
+            `📋 정보:\n` +
+            `- ID: ${data.landingPageId}\n` +
+            `- Slug: ${slug}\n` +
+            `- 제목: ${studentName} 학생 리포트\n\n` +
+            `🔗 URL:\n${landingPageUrl}\n\n` +
+            `<a href="${landingPageUrl}" target="_blank" class="landing-link">랜딩페이지 열기 →</a>`
+          );
+        } else {
+          showResult('error', `❌ 생성 실패\n\n${JSON.stringify(data, null, 2)}`);
+        }
+      } catch (error) {
+        showResult('error', `❌ 네트워크 오류\n\n${error.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '랜딩페이지 만들기';
+      }
+    }
+
+    async function testAPI() {
+      const token = document.getElementById('token').value.trim();
+      if (!token) {
+        showResult('error', '❌ 토큰을 입력해주세요.');
+        return;
+      }
+
+      const btn = document.getElementById('testBtn');
+      btn.disabled = true;
+      btn.textContent = '테스트 중...';
+
+      try {
+        // 1. 템플릿 목록 조회
+        const templateResponse = await fetch('/api/landing/templates', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const templateData = await templateResponse.json();
+
+        // 2. 랜딩페이지 목록 조회
+        const landingResponse = await fetch('/api/admin/landing-pages', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const landingData = await landingResponse.json();
+
+        showResult('success', 
+          `✅ API 테스트 성공!\n\n` +
+          `📚 템플릿: ${templateData.templates?.length || 0}개\n` +
+          `${JSON.stringify(templateData, null, 2)}\n\n` +
+          `📄 랜딩페이지: ${landingData.total || 0}개\n` +
+          `${JSON.stringify(landingData, null, 2)}`
+        );
+      } catch (error) {
+        showResult('error', `❌ API 테스트 실패\n\n${error.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'API 테스트';
+      }
+    }
+
+    function showResult(type, message) {
+      const resultDiv = document.getElementById('result');
+      resultDiv.className = `result ${type}`;
+      resultDiv.innerHTML = message;
+      resultDiv.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // 페이지 로드 시 자동으로 토큰 로드
+    window.addEventListener('load', () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        document.getElementById('token').value = token;
+      }
+    });
+  </script>
+</body>
+</html>
