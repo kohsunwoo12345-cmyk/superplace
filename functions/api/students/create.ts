@@ -187,17 +187,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       finalAcademyId: academyId 
     });
 
-    // academyId가 없으면 null로 진행 (SUPER_ADMIN은 academy 없이도 생성 가능)
-    if (!academyId && role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
-      console.error('❌ No academy ID available for non-admin user');
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'No academy assigned',
-          message: '학원이 배정되지 않았습니다. 관리자에게 문의하세요.'
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+    // academyId가 없으면 경고만 출력 (ADMIN/SUPER_ADMIN은 academy 없이도 생성 가능)
+    // TEACHER/DIRECTOR는 보통 academyId가 있어야 하지만, 없어도 일단 진행 (기본값 1 사용)
+    if (!academyId) {
+      if (role === 'TEACHER' || role === 'DIRECTOR') {
+        console.warn('⚠️ No academyId for TEACHER/DIRECTOR, using default academyId=1');
+        academyId = 1; // 기본값 사용
+      } else if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
+        console.error('❌ No academy ID available for non-admin user');
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'No academy assigned',
+            message: '학원이 배정되지 않았습니다. 관리자에게 문의하세요.'
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // academyId를 정수로 변환 (null 허용)
