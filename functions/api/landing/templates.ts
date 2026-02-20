@@ -40,7 +40,7 @@ export async function onRequestGet(context) {
           t.createdAt,
           t.updatedAt,
           u.name as creatorName,
-          (SELECT COUNT(*) FROM landing_pages WHERE templateId = t.id) as actualUsageCount
+          0 as actualUsageCount
         FROM LandingPageTemplate t
         LEFT JOIN users u ON t.createdById = u.id
         ORDER BY t.isDefault DESC, t.createdAt DESC
