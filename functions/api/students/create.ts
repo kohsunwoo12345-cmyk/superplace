@@ -74,14 +74,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       console.log('🔍 academyId not in token, fetching from DB for user:', userId);
       try {
         const userRecord = await DB.prepare(`
-          SELECT id, academy_id, role 
+          SELECT id, academyId, role 
           FROM users 
           WHERE id = ?
         `).bind(userId).first();
         
         if (userRecord) {
-          tokenAcademyId = userRecord.academy_id;
-          console.log('✅ Found academy_id from DB:', tokenAcademyId, 'for user:', userId);
+          tokenAcademyId = userRecord.academyId;
+          console.log('✅ Found academyId from DB:', tokenAcademyId, 'for user:', userId);
         } else {
           console.error('❌ User not found in DB:', userId);
         }
@@ -219,7 +219,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         .prepare(`
           INSERT INTO users (
             email, phone, password, name, role, 
-            academy_id, created_at
+            academyId, createdAt
           )
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `)
@@ -241,7 +241,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       await DB
         .prepare(`
           INSERT INTO students (
-            user_id, academy_id, grade, status, created_at
+            userId, academyId, grade, status, createdAt
           )
           VALUES (?, ?, ?, ?, ?)
         `)
@@ -254,24 +254,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         )
         .run();
 
-      console.log('✅ Student record created for user_id:', userId);
+      console.log('✅ Student record created for userId:', userId);
 
-      // Step 3: 학생 코드 생성 (선택적)
-      try {
-        const studentCode = `STU${String(userId).padStart(6, '0')}`;
-        await DB
-          .prepare(`
-            UPDATE students 
-            SET student_code = ? 
-            WHERE user_id = ?
-          `)
-          .bind(studentCode, userId)
-          .run();
-        
-        console.log('✅ Student code generated:', studentCode);
-      } catch (codeError) {
-        console.warn('⚠️ Failed to generate student code:', codeError);
-        // 학생 코드 생성 실패는 무시하고 계속 진행
+      // Step 3: 반 배정 (선택사항)
+      if (classIds && classIds.length > 0) {
+        console.log('🏫 Assigning student to classes:', classIds);
+        // 반 배정 로직은 별도로 처리 (여기서는 생략)
       }
 
       return new Response(
