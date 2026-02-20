@@ -1,282 +1,247 @@
-# 🚨 긴급 수정 완료 - 3가지 핵심 문제 해결!
+# 🚨 긴급 수정 완료 - 로그인 및 학생 추가
 
-## ❌ 발견된 문제
+## 📋 문제 상황
+1. **로그인 실패**: 1시간 전까지 작동하던 로그인이 안됨
+2. **학생 추가 실패**: "학생 추가 중 오류가 발생했습니다" 오류 발생
 
-### 1️⃣ **"userId and image are required" 오류**
-- **증상**: 출석 확인 후 숙제 제출 시 오류 발생
-- **원인**: `studentInfo.userId`가 `undefined`
-- **근본 원인**: 
-  - API 응답: `data.student.id`
-  - 프론트엔드 설정: `data.student.id` (옵셔널 체이닝 없음)
-  - 값이 제대로 전달되지 않음
+## 🔍 근본 원인
 
-### 2️⃣ **status 값 대소문자 불일치**
-- **증상**: 출석/지각 표시가 부정확
-- **원인**:
-  - API 응답: `"LATE"`, `"PRESENT"` (대문자)
-  - 프론트엔드 체크: `'late'` (소문자)
-  - 조건문이 항상 false
+### 잘못된 테이블명/컬럼명 사용
+제가 이전에 수정할 때 잘못된 가정을 했습니다:
+- ❌ 잘못된 가정: DB가 snake_case를 사용 (`users`, `academy_id`)
+- ✅ 실제 DB: **소문자 테이블명** + **camelCase 컬럼명** (`users`, `academyId`)
 
-### 3️⃣ **출석 현황에 즉시 반영 안됨**
-- **증상**: 출석 인증 후 출석 현황 페이지에 학생이 안보임
-- **원인**: 
-  - 데이터는 정상 저장됨
-  - 브라우저 캐시 문제
-  - 페이지 새로고침 필요
+### 실제 프로덕션 DB 스키마
 
----
+```sql
+-- ✅ 실제 스키마
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  phone TEXT,
+  academyId TEXT,           -- ⭐ camelCase!
+  isActive INTEGER DEFAULT 1,
+  lastLoginAt TEXT,
+  createdAt TEXT,           -- ⭐ camelCase!
+  updatedAt TEXT,
+  FOREIGN KEY (academyId) REFERENCES academy(id)
+);
 
-## ✅ 해결 방법
+CREATE TABLE academy (       -- ⭐ 소문자!
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  code TEXT UNIQUE NOT NULL,
+  ...
+);
 
-### 1️⃣ userId 오류 해결
+CREATE TABLE students (
+  id TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,      -- ⭐ camelCase!
+  academyId TEXT NOT NULL,   -- ⭐ camelCase!
+  grade TEXT,
+  parentPhone TEXT,
+  parentEmail TEXT,
+  status TEXT DEFAULT 'ACTIVE',
+  createdAt TEXT,            -- ⭐ camelCase!
+  updatedAt TEXT,
+  FOREIGN KEY (userId) REFERENCES users(id),
+  FOREIGN KEY (academyId) REFERENCES academy(id)
+);
+```
 
-**Before**:
+## ✅ 적용된 수정
+
+### 1. 로그인 API (functions/api/auth/login.js)
+
+**변경 사항:**
+```javascript
+// ❌ 이전 (잘못됨)
+FROM User u
+LEFT JOIN Academy a ON u.academy_id = a.id
+
+// ✅ 수정 (올바름)
+FROM users u
+LEFT JOIN academy a ON u.academyId = a.id
+```
+
+**커밋:** `1b16452`
+
+### 2. 학생 추가 API (functions/api/students/create.ts)
+
+**변경 사항:**
 ```typescript
-setStudentInfo({
-  ...data.student,
-  userId: data.student.id,  // ❌ data.student이 undefined면 오류
-  userName: data.student.name,
-  userEmail: data.student.email,
-  // ...
-});
+// ❌ 이전 (잘못됨)
+SELECT id, academy_id FROM users
+INSERT INTO users (academy_id, created_at)
+INSERT INTO students (user_id, academy_id, created_at)
+
+// ✅ 수정 (올바름)
+SELECT id, academyId FROM users
+INSERT INTO users (academyId, createdAt)
+INSERT INTO students (userId, academyId, createdAt)
 ```
 
-**After**:
-```typescript
-setStudentInfo({
-  ...data.student,
-  userId: data.student?.id,  // ✅ 옵셔널 체이닝
-  userName: data.student?.name,
-  userEmail: data.student?.email,
-  // ...
-});
+**주요 수정 내용:**
+1. 테이블명: `users` (소문자) 사용
+2. 컬럼명: `academyId`, `userId`, `createdAt` (camelCase) 사용
+3. `studentCode` 생성 로직 제거 (컬럼이 students 테이블에 없음)
 
-// userId 검증 추가
-if (!studentInfo?.userId) {
-  console.error("❌ userId가 없습니다!", studentInfo);
-  alert("학생 정보를 찾을 수 없습니다. 다시 출석 인증을 해주세요.");
-  setGrading(false);
-  return;
-}
-```
+**커밋:** `5c124a9`
 
-### 2️⃣ status 대소문자 통일
+## 📊 수정 파일 목록
 
-**Before**:
-```typescript
-statusText: data.attendance?.status === 'late' ? '지각' : '출석'  // ❌ 항상 '출석'
-```
-
-**After**:
-```typescript
-statusText: data.attendance?.status === 'LATE' ? '지각' : '출석'  // ✅ 정상 작동
-```
-
-### 3️⃣ 출석 즉시 반영 확인
-
-**데이터 흐름**:
-```
-출석 인증 API
-  ↓
-attendance_records_v2에 즉시 저장
-  - id: attendance-{timestamp}-{random}
-  - userId: 123
-  - code: ABC123
-  - checkInTime: 2025-02-10 14:30:00 (KST)
-  - status: LATE 또는 PRESENT
-  - academyId: 1
-  ↓
-출석 현황 API 조회
-  - WHERE SUBSTR(checkInTime, 1, 10) = '2025-02-10'
-  - AND academyId = 1 (학원장만)
-  ↓
-즉시 화면에 표시
-```
-
----
-
-## 📊 개선 사항
-
-### 로그 추가
-```typescript
-// 출석 인증 시
-console.log("📊 받은 데이터:", data);
-console.log("✅ 저장된 학생 정보:", {
-  userId: data.student?.id,
-  userName: data.student?.name,
-  attendanceCode: trimmedCode
-});
-
-// 숙제 제출 시
-console.log("📊 전송할 학생 정보:", {
-  userId: studentInfo?.userId,
-  attendanceCode: studentInfo?.attendanceCode || code,
-  imagesCount: capturedImages.length
-});
-```
-
-### 검증 로직
-```typescript
-// userId 검증
-if (!studentInfo?.userId) {
-  console.error("❌ userId가 없습니다!", studentInfo);
-  alert("학생 정보를 찾을 수 없습니다. 다시 출석 인증을 해주세요.");
-  setGrading(false);
-  return;
-}
-```
-
----
+| 파일 | 수정 내용 | 커밋 | 상태 |
+|------|----------|------|------|
+| `functions/api/auth/login.js` | 테이블명 users, academy로 수정 | 1b16452 | ✅ 완료 |
+| `functions/api/students/create.ts` | 모든 컬럼명 camelCase로 수정 | 5c124a9 | ✅ 완료 |
 
 ## 🧪 테스트 방법
 
-### 1. PR 머지 및 배포 대기 (2-3분)
-- **PR**: https://github.com/kohsunwoo12345-cmyk/superplace/pull/7
-- **최신 커밋**: 18a1b51
-
-### 2. 브라우저 캐시 완전 삭제 (필수!)
+### 배포 대기 (2-3분)
 ```
-Ctrl/Cmd + Shift + Delete → 모든 캐시 삭제
-또는 시크릿/프라이빗 모드
+https://dash.cloudflare.com/
+→ Pages → superplacestudy → Deployments
+→ 최신 커밋: 1b16452
 ```
 
-### 3. 전체 플로우 테스트
-
-#### Step 1: 출석 인증
-1. https://genspark-ai-developer.superplacestudy.pages.dev/attendance-verify/
-2. 출석 코드 입력
-3. **F12 콘솔 확인**:
+### 1. 로그인 테스트
 ```
-✅ 출석 인증 응답: {success: true, student: {id: 123, ...}}
-📊 받은 데이터: {...}
-✅ 저장된 학생 정보: {userId: 123, userName: "홍길동", ...}
-✅ setVerified(true) 완료
+1. https://superplacestudy.pages.dev/login 접속
+2. 기존 계정으로 로그인
+3. ✅ 예상: 성공적으로 로그인되고 대시보드로 이동
 ```
 
-#### Step 2: 카메라 촬영
-1. "카메라 촬영" 클릭
-2. **F12 콘솔 확인**:
+**브라우저 콘솔 확인:**
+```javascript
+// 로그인 후
+const token = localStorage.getItem('token');
+console.log('Token:', token);
+// 예상: userId|email|role|academyId|timestamp
 ```
-📸 카메라 시작...
-✅ 스트림 획득: {id: "...", active: true}
-🔗 비디오 연결 완료
-✅ 카메라 활성화! {videoWidth: 1280, ...}
-```
-3. 여러 장 촬영 (3~5장)
 
-#### Step 3: 숙제 제출
-1. "숙제 제출하기" 클릭
-2. **F12 콘솔 확인**:
+### 2. 학생 추가 테스트
 ```
-📤 숙제 제출 시작... 총 3 장
-📊 전송할 학생 정보: {userId: 123, attendanceCode: "ABC123", imagesCount: 3}
-✅ 채점 응답: {success: true, ...}
+1. https://superplacestudy.pages.dev/dashboard/students/add/ 접속
+2. 학생 정보 입력:
+   - 이름: 테스트학생002
+   - 이메일: test002@example.com
+   - 비밀번호: test1234
+   - 전화번호: 010-9999-8888
+   - 학교: 테스트중학교
+   - 학년: 2
+3. "학생 추가" 버튼 클릭
+4. ✅ 예상: "학생이 추가되었습니다" 알림 후 학생 목록으로 이동
 ```
-3. ✅ **"userId and image are required" 오류 없음**
-4. ✅ AI 채점 결과 표시
 
-#### Step 4: 출석 현황 확인
-1. 관리자/학원장 계정으로 로그인
-2. 출석 현황 페이지 접속
-3. **디버그 API 확인**:
+**네트워크 탭 확인:**
+```javascript
+// POST /api/students/create
+Response: {
+  "success": true,
+  "studentId": "...",
+  "message": "학생이 추가되었습니다"
+}
 ```
-https://genspark-ai-developer.superplacestudy.pages.dev/api/admin/debug-attendance-records
+
+### 3. 학생 목록 확인
 ```
-4. ✅ `todayRecordsCount > 0` 확인
-5. ✅ 출석한 학생 목록 표시
-6. ✅ 상태: "지각" 또는 "출석" 정확히 표시
+1. https://superplacestudy.pages.dev/dashboard/students/ 접속
+2. ✅ 예상: 방금 추가한 학생이 목록에 표시됨
+```
+
+## 🎯 DB 스키마 규칙 정리
+
+프로덕션 DB는 다음 규칙을 따릅니다:
+
+### 테이블명
+- ✅ **소문자 사용**: `users`, `academy`, `students`, `classes`
+- ❌ **대문자 시작 X**: `User`, `Academy`, `Student`
+
+### 컬럼명
+- ✅ **camelCase 사용**: `academyId`, `userId`, `createdAt`, `updatedAt`, `isActive`
+- ❌ **snake_case X**: `academy_id`, `user_id`, `created_at`
+
+### 예시
+```sql
+-- ✅ 올바른 쿼리
+SELECT u.id, u.name, u.academyId 
+FROM users u
+WHERE u.isActive = 1
+
+-- ❌ 잘못된 쿼리
+SELECT u.id, u.name, u.academy_id 
+FROM User u
+WHERE u.is_active = 1
+```
+
+## 📝 커밋 이력
+
+```bash
+1b16452 - fix: 로그인 API 테이블명 최종 수정 - users와 academy로 통일
+5c124a9 - fix: 학생 추가 API 긴급 수정 - 올바른 테이블/컬럼명 사용
+a9352ff - docs: 로그인 긴급 복구 문서
+f6778ab - fix: 로그인 API 긴급 복구 - 테이블명을 User/Academy로 되돌림 (잘못됨)
+```
+
+## 🐛 문제 해결 타임라인
+
+- **15:00** - 문제 발생 보고 (로그인 안됨)
+- **15:05** - 원인 파악: 테이블명/컬럼명 불일치
+- **15:10** - 첫 번째 수정 시도 (User/Academy) - 잘못됨
+- **15:20** - 실제 DB 스키마 확인 (users/academy + camelCase)
+- **15:25** - 올바른 수정 완료
+- **15:30** - 커밋 및 배포
+- **15:33** - ✅ 배포 완료 예상
+
+## ⚠️ 향후 주의사항
+
+### API 개발 시 반드시 확인
+1. **테이블명**: 소문자 (`users`, `academy`, `students`)
+2. **컬럼명**: camelCase (`academyId`, `userId`, `createdAt`)
+3. **스키마 파일 참조**: `COMPLETE_DATABASE_SCHEMA_AND_TEST_DATA.sql`
+
+### 수정 전 체크리스트
+- [ ] 실제 DB 스키마 확인
+- [ ] 테이블명 소문자인지 확인
+- [ ] 컬럼명 camelCase인지 확인
+- [ ] 로컬 빌드 테스트
+- [ ] 커밋 전 코드 리뷰
+
+## 🌐 배포 정보
+
+- **Production URL**: https://superplacestudy.pages.dev/
+- **GitHub Repo**: https://github.com/kohsunwoo12345-cmyk/superplace
+- **최신 커밋**: `1b16452`
+- **배포 상태**: ⏳ 진행 중 (2-3분)
+- **예상 복구 시간**: 2-3분 후
+
+## ✅ 최종 체크리스트
+
+### 코드 수정
+- [x] 로그인 API 테이블명 수정
+- [x] 학생 추가 API 테이블명/컬럼명 수정
+- [x] 빌드 성공 확인
+- [x] 커밋 및 푸시 완료
+
+### 배포 및 테스트 (2-3분 후)
+- [ ] Cloudflare Pages 배포 완료 확인
+- [ ] 로그인 테스트
+- [ ] 학생 추가 테스트
+- [ ] 학생 목록 확인
+
+## 🎉 예상 결과
+
+배포 완료 후:
+1. ✅ 로그인이 정상적으로 작동
+2. ✅ 학생 추가가 성공
+3. ✅ 학생 목록에 추가한 학생 표시
+4. ✅ 반 추가 시 학생 배정 가능
 
 ---
 
-## 🔍 문제 해결 체크리스트
-
-### userId 오류가 계속 나는 경우
-- [ ] 브라우저 콘솔에서 "✅ 저장된 학생 정보" 로그 확인
-- [ ] `userId: 123` 같은 값이 있는지 확인
-- [ ] 값이 `undefined`면 출석 인증 API 응답 확인
-- [ ] `/api/attendance/verify` 응답에 `student.id` 있는지 확인
-
-### status가 항상 "출석"으로 나오는 경우
-- [ ] 브라우저 콘솔에서 API 응답 확인
-- [ ] `data.attendance.status` 값 확인 (LATE or PRESENT)
-- [ ] 대문자로 비교하는지 확인
-
-### 출석 현황에 안나오는 경우
-- [ ] 디버그 API로 데이터 저장 확인
-- [ ] 브라우저 캐시 삭제
-- [ ] 페이지 새로고침 (F5)
-- [ ] 날짜 필터 확인 (오늘 날짜)
-
----
-
-## 📋 변경된 파일
-
-### `src/app/attendance-verify/page.tsx`
-
-**변경 사항**:
-1. **옵셔널 체이닝 추가** (71-85번 줄)
-   - `data.student.id` → `data.student?.id`
-   - `data.student.name` → `data.student?.name`
-   - `data.student.email` → `data.student?.email`
-
-2. **status 대소문자 수정** (83번 줄)
-   - `'late'` → `'LATE'`
-
-3. **상세 로그 추가** (72-86번 줄)
-   - 받은 데이터 로그
-   - 저장된 학생 정보 로그
-
-4. **userId 검증 추가** (311-318번 줄)
-   - `if (!studentInfo?.userId)` 체크
-   - 오류 시 안내 메시지 표시
-
----
-
-## 🎯 최종 결과
-
-### ✅ 완전히 해결됨!
-1. ✅ **"userId and image are required" 오류**: 완전 해결
-2. ✅ **status 값 불일치**: 대소문자 통일
-3. ✅ **출석 즉시 반영**: 정상 작동
-4. ✅ **카메라 활성화**: 200ms 내 보장
-5. ✅ **로그 추가**: 문제 추적 용이
-
-### 📈 개선 결과
-| 항목 | 이전 | 이후 |
-|------|------|------|
-| 숙제 제출 | userId 오류 ❌ | 정상 제출 ✅ |
-| 출석/지각 표시 | 부정확 ❌ | 정확 표시 ✅ |
-| 출석 현황 | 안보임 ❌ | 즉시 표시 ✅ |
-| 디버깅 | 어려움 ❌ | 로그로 쉬움 ✅ |
-
----
-
-## 🔗 관련 링크
-
-- **GitHub PR**: https://github.com/kohsunwoo12345-cmyk/superplace/pull/7
-- **커밋**: 18a1b51
-- **디버그 API**: `/api/admin/debug-attendance-records`
-
----
-
-## 💡 중요 사항
-
-### ⚠️ 테스트 전 필수
-1. ✅ **PR 머지 완료**
-2. ✅ **배포 완료** (2-3분 대기)
-3. ✅ **브라우저 캐시 삭제** (필수!)
-4. ✅ **F12 콘솔 열고 테스트**
-
-### 🎯 성공 확인
-- [ ] 출석 인증 시 userId 로그 확인
-- [ ] 카메라 200ms 내 활성화
-- [ ] 숙제 제출 오류 없음
-- [ ] AI 채점 결과 표시
-- [ ] 출석 현황에 즉시 표시
-- [ ] 지각/출석 상태 정확히 표시
-
----
-
-**모든 문제가 해결되었습니다!** 🎉
-
-**PR 머지 → 2-3분 대기 → 캐시 삭제 → F12 콘솔 열고 테스트하면 100% 작동합니다!**
+**작성 시간**: 2026-02-20 15:30
+**상태**: 🟡 배포 진행 중
+**ETA**: 2-3분 후 완전 복구 예상
