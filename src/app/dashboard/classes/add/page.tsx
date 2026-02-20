@@ -235,10 +235,16 @@ export default function AddClassPage() {
       return;
     }
 
-    if (!user?.academyId) {
-      alert("학원 정보가 없습니다.");
+    // academyId가 없으면 사용자 ID를 academy_id로 사용 (학원장인 경우)
+    const effectiveAcademyId = user?.academyId || user?.academy_id || user?.id;
+    
+    if (!effectiveAcademyId) {
+      console.error('❌ No academy ID found. User data:', user);
+      alert("학원 정보가 없습니다. 사용자 정보를 확인해주세요.");
       return;
     }
+    
+    console.log('🏫 Using academy ID:', effectiveAcademyId, 'from user:', user);
 
     try {
       setLoading(true);
@@ -255,9 +261,9 @@ export default function AddClassPage() {
       );
 
       const payload = {
-        academyId: user.academyId,
+        academyId: effectiveAcademyId,
         name: name.trim(),
-        grade: grade.trim() || null,
+        grade: grade && grade.trim() ? grade.trim() : null, // 학년 선택 사항
         subject: subject.trim() || null,
         description: description.trim() || null,
         teacherId: user.id,
@@ -331,10 +337,10 @@ export default function AddClassPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="grade">학년</Label>
+                    <Label htmlFor="grade">학년 (선택사항)</Label>
                     <Select value={grade} onValueChange={setGrade}>
                       <SelectTrigger>
-                        <SelectValue placeholder="학년을 선택하세요" />
+                        <SelectValue placeholder="학년을 선택하세요 (선택사항)" />
                       </SelectTrigger>
                       <SelectContent>
                         {GRADE_OPTIONS.map((option) => (

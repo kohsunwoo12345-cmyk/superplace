@@ -113,7 +113,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     `).bind(
       academyIdInt,
       name,
-      grade || null,
+      (grade && grade.trim()) ? grade.trim() : null,  // 빈 문자열도 null로 처리
       description || null,
       teacherIdInt,
       classColor,
