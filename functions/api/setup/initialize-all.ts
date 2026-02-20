@@ -128,27 +128,3 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     });
   }
 }
-.count || 0}개 템플릿 설치됨`,
-      duration: `${duration}ms`,
-      results,
-      templates: templates.results || []
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-
-  } catch (error: any) {
-    const duration = Date.now() - startTime;
-    console.error('❌ Initialize ALL - Failed:', error);
-    
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message || "초기화 실패",
-      stack: error.stack,
-      duration: `${duration}ms`
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-}

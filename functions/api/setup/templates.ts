@@ -8,7 +8,7 @@ interface Env {
 export async function onRequestPost(context: { request: Request; env: Env }) {
   try {
     const body = await context.request.json();
-    const { password } = body;
+    const { password, forceRecreate } = body;
     
     if (password !== "setup-templates-2026") {
       return new Response(JSON.stringify({ 
@@ -21,7 +21,18 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     const db = context.env.DB;
     
-    // 🔥 먼저 테이블 생성 확인 (createdById를 NULL 허용으로 변경)
+    // 🔥 forceRecreate가 true면 테이블 삭제 후 재생성
+    if (forceRecreate === true) {
+      console.log('🔥 forceRecreate 모드: 테이블 삭제 후 재생성');
+      try {
+        await db.exec(`DROP TABLE IF EXISTS LandingPageTemplate;`);
+        console.log('✅ 기존 LandingPageTemplate 테이블 삭제 완료');
+      } catch (dropError: any) {
+        console.error('⚠️ 테이블 삭제 실패 (없을 수 있음):', dropError.message);
+      }
+    }
+    
+    // 🔥 테이블 생성 (createdById를 NULL 허용으로 변경, FOREIGN KEY 없음)
     try {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS LandingPageTemplate (
@@ -37,9 +48,10 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
         );
       `);
-      console.log('✅ LandingPageTemplate 테이블 확인/생성 완료 (createdById NULL 허용)');
+      console.log('✅ LandingPageTemplate 테이블 생성 완료 (createdById NULL 허용, FK 없음)');
     } catch (tableError: any) {
-      console.error('테이블 생성 오류:', tableError);
+      console.error('❌ 테이블 생성 오류:', tableError);
+      throw tableError;
     }
     
     // Check if templates already exist
