@@ -49,9 +49,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     let result: any = null;
     let successPattern = '';
     
-    // 패턴 1 (우선): users + academy_id (snake_case INTEGER - 실제 DB 스키마)
+    // 패턴 1 (우선): users + academy_id/academyId (숫자면 INTEGER, 문자열이면 TEXT)
     try {
-      console.log('🔍 시도 1: users 테이블 + academy_id (INTEGER)');
+      console.log('🔍 시도 1: users 테이블 + academy_id/academyId');
+      
+      // academyId가 숫자인지 문자열인지 판단
+      const isStringAcademyId = tokenAcademyId && typeof tokenAcademyId === 'string' && isNaN(parseInt(tokenAcademyId));
       
       let query = `
         SELECT 
@@ -59,7 +62,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.name,
           u.email,
           u.phone,
-          u.academy_id as academyId,
+          u.academy_id,
+          u.academyId,
           u.role,
           s.id as studentId,
           s.grade,
@@ -75,8 +79,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const url = new URL(context.request.url);
         const requestedAcademyId = url.searchParams.get("academyId");
         if (requestedAcademyId) {
-          query += ` AND u.academy_id = ?`;
-          bindings.push(parseInt(requestedAcademyId));
+          const isRequestStringId = isNaN(parseInt(requestedAcademyId));
+          if (isRequestStringId) {
+            query += ` AND u.academyId = ?`;
+            bindings.push(requestedAcademyId);
+          } else {
+            query += ` AND u.academy_id = ?`;
+            bindings.push(parseInt(requestedAcademyId));
+          }
         }
       } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
         if (!tokenAcademyId) {
@@ -90,10 +100,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
-        query += ` AND u.academy_id = ?`;
-        const academyIdInt = typeof tokenAcademyId === 'string' ? parseInt(tokenAcademyId) : tokenAcademyId;
-        bindings.push(academyIdInt);
-        console.log(`🏫 ${upperRole} - Filtering by academy_id:`, academyIdInt);
+        
+        // academyId가 문자열이면 TEXT 컬럼, 숫자면 INTEGER 컬럼
+        if (isStringAcademyId) {
+          query += ` AND u.academyId = ?`;
+          bindings.push(tokenAcademyId);
+          console.log(`🏫 ${upperRole} - Filtering by academyId (TEXT):`, tokenAcademyId);
+        } else {
+          query += ` AND u.academy_id = ?`;
+          const academyIdInt = typeof tokenAcademyId === 'string' ? parseInt(tokenAcademyId) : tokenAcademyId;
+          bindings.push(academyIdInt);
+          console.log(`🏫 ${upperRole} - Filtering by academy_id (INTEGER):`, academyIdInt);
+        }
       } else {
         return new Response(
           JSON.stringify({ 
@@ -110,7 +128,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
       console.log('📊 패턴 1 Query:', query, 'Bindings:', bindings);
       result = await DB.prepare(query).bind(...bindings).all();
-      successPattern = 'users + academy_id';
+      successPattern = 'users + academy_id/academyId';
       console.log('✅ 패턴 1 성공:', result.results.length, '명');
     } catch (e1: any) {
       console.log('❌ 패턴 1 실패:', e1.message);

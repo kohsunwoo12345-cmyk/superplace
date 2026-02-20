@@ -206,8 +206,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // academyId를 정수로 변환 (null 허용)
-    const academyIdInt = academyId ? (typeof academyId === 'string' ? parseInt(academyId) : academyId) : null;
+    // academyId 처리: 문자열이면 TEXT 컬럼(academyId)에, 숫자면 INTEGER 컬럼(academy_id)에 저장
+    const isStringAcademyId = academyId && typeof academyId === 'string' && isNaN(parseInt(academyId));
+    const academyIdInt = isStringAcademyId ? null : (academyId ? (typeof academyId === 'string' ? parseInt(academyId) : academyId) : null);
+    const academyIdText = isStringAcademyId ? academyId : null;
 
     // 이메일이 없으면 phone 기반으로 생성 (users.email이 NOT NULL 제약조건을 가지고 있음)
     const finalEmail = email || `student_${phone}@temp.superplace.local`;
@@ -219,7 +221,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       name: name || null,
       school: school || null,
       grade: grade || null,
-      academyId: academyIdInt,
+      academyId: academyIdText,
+      academy_id: academyIdInt,
+      isStringAcademyId,
       role: 'STUDENT'
     });
 
@@ -229,15 +233,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       let usedPattern = '';
 
       // 패턴 1: users + academy_id (snake_case INTEGER - 실제 DB 스키마)
-      console.log('💾 Creating student - 패턴 1 시도: users + academy_id (INTEGER)');
+      console.log('💾 Creating student - 패턴 1 시도: users + academy_id + academyId');
       try {
         const userResult = await DB
           .prepare(`
             INSERT INTO users (
               email, phone, password, name, role, 
-              academy_id, created_at
+              academy_id, academyId, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           `)
           .bind(
             finalEmail,
@@ -246,6 +250,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             name || null,
             'STUDENT',
             academyIdInt,
+            academyIdText,
             koreanTime
           )
           .run();
