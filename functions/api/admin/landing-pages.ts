@@ -25,9 +25,8 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
           u.name as studentName, u.id as studentId,
           f.name as folderName,
           (SELECT COUNT(*) FROM LandingPageSubmission WHERE landingPageId = lp.id) as submissions
-        FROM LandingPage lp
-        LEFT JOIN User u ON lp.studentId = u.id
-        LEFT JOIN LandingPageFolder f ON lp.folderId = f.id
+        FROM landing_pages lp
+        LEFT JOIN users u ON lp.createdById = u.id
         ORDER BY lp.createdAt DESC`
       )
       .all();
@@ -110,7 +109,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     // Check if slug already exists
     const existing = await db
-      .prepare(`SELECT id FROM LandingPage WHERE slug = ?`)
+      .prepare(`SELECT id FROM landing_pages WHERE slug = ?`)
       .bind(slug)
       .first();
 
@@ -135,7 +134,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // Insert landing page
     await db
       .prepare(
-        `INSERT INTO LandingPage (
+        `INSERT INTO landing_pages (
           id, slug, title, subtitle, description, templateType, templateHtml,
           inputData, ogTitle, ogDescription, thumbnail, folderId,
           showQrCode, qrCodePosition, qrCodeUrl, pixelScripts, studentId,
