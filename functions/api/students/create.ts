@@ -203,9 +203,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // academyId를 정수로 변환 (null 허용)
     const academyIdInt = academyId ? (typeof academyId === 'string' ? parseInt(academyId) : academyId) : null;
 
+    // 이메일이 없으면 phone 기반으로 생성 (users.email이 NOT NULL 제약조건을 가지고 있음)
+    const finalEmail = email || `student_${phone}@temp.superplace.local`;
+
     console.log('💾 Creating student...');
     console.log('📋 Student data:', {
-      email: email || null,
+      email: finalEmail,
       phone,
       name: name || null,
       school: school || null,
@@ -231,7 +234,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             VALUES (?, ?, ?, ?, ?, ?, ?)
           `)
           .bind(
-            email || null,
+            finalEmail,
             phone,
             hashedPassword,
             name || null,
@@ -262,7 +265,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
               VALUES (?, ?, ?, ?, ?, ?, ?)
             `)
             .bind(
-              email || null,
+              finalEmail,
               phone,
               hashedPassword,
               name || null,

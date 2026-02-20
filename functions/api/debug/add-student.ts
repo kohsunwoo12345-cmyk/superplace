@@ -116,7 +116,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // academyId 기본값 (제공되지 않으면 1)
     const finalAcademyId = academyId || 1;
 
+    // 이메일이 없으면 phone 기반으로 생성 (NOT NULL 제약조건 대응)
+    const finalEmail = email || `student_${phone}@temp.superplace.local`;
+
     console.log('💾 TEST: Creating student with academy_id:', finalAcademyId);
+    console.log('📧 TEST: Using email:', finalEmail);
 
     try {
       let userId: any = null;
@@ -135,7 +139,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             VALUES (?, ?, ?, ?, ?, ?, ?)
           `)
           .bind(
-            email || null,
+            finalEmail,
             phone,
             hashedPassword,
             name || null,
@@ -167,7 +171,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             },
             attemptedPattern: 'users + academy_id (INTEGER)',
             data: {
-              email: email || null,
+              email: finalEmail,
               phone,
               name: name || null,
               role: 'STUDENT',
