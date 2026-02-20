@@ -392,11 +392,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   } catch (error: any) {
     console.error('❌ Create student error:', error);
     console.error('❌ Error stack:', error.stack);
-    console.error('❌ Error details:', JSON.stringify(error, null, 2));
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error cause:', error.cause);
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error.message || '학생 추가 중 오류가 발생했습니다',
+        details: error.stack,
+        cause: error.cause?.toString()
+      }),
         errorDetails: error.toString(),
         message: '학생 추가 중 오류가 발생했습니다',
         hint: '자세한 에러는 Cloudflare 로그를 확인하세요'
