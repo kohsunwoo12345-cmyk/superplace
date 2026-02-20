@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>학생 목록 테스트</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 40px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    h1 { color: #333; margin-bottom: 20px; }
+    .info { background: #e7f3ff; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+    button {
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover { transform: translateY(-2px); }
+    .result {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 8px;
+      display: none;
+    }
+    .result.success { background: #d4edda; color: #155724; display: block; }
+    .result.error { background: #f8d7da; color: #721c24; display: block; }
+    .result.info { background: #d1ecf1; color: #0c5460; display: block; }
+    pre {
+      background: rgba(0,0,0,0.05);
+      padding: 10px;
+      border-radius: 5px;
+      overflow-x: auto;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+    }
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎓 학생 목록 테스트</h1>
+    
+    <div class="info">
+      <strong>📌 테스트 방법:</strong><br>
+      1. 로그인 후 localStorage에 token이 저장되어 있어야 함<br>
+      2. "학생 목록 조회" 버튼 클릭<br>
+      3. 결과 확인
+    </div>
+    
+    <button onclick="checkToken()">🔑 토큰 확인</button>
+    <button onclick="testAPI()">📋 학생 목록 조회 (API)</button>
+    <button onclick="testDebugAPI()">🧪 디버그 API (academyId=1)</button>
+    <button onclick="clearResult()">🗑️ 결과 지우기</button>
+    
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    function clearResult() {
+      const resultDiv = document.getElementById('result');
+      resultDiv.style.display = 'none';
+      resultDiv.innerHTML = '';
+    }
+
+    function showResult(type, title, content) {
+      const resultDiv = document.getElementById('result');
+      resultDiv.className = `result ${type}`;
+      resultDiv.innerHTML = `<strong>${title}</strong><pre>${content}</pre>`;
+    }
+
+    function checkToken() {
+      const token = localStorage.getItem('token');
+      const user = localStorage.getItem('user');
+      
+      if (!token) {
+        showResult('error', '❌ 토큰 없음', '로그인이 필요합니다.\n\n/teacher-login 또는 /login에서 로그인하세요.');
+        return;
+      }
+      
+      let userInfo = '';
+      if (user) {
+        try {
+          const userData = JSON.parse(user);
+          userInfo = JSON.stringify(userData, null, 2);
+        } catch (e) {
+          userInfo = user;
+        }
+      }
+      
+      showResult('success', '✅ 토큰 확인', 
+        `토큰: ${token.substring(0, 50)}...\n\n사용자 정보:\n${userInfo || '없음'}`
+      );
+    }
+
+    async function testAPI() {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        showResult('error', '❌ 토큰 없음', '로그인이 필요합니다.');
+        return;
+      }
+      
+      showResult('info', '⏳ 로딩 중...', '학생 목록을 불러오는 중입니다...');
+      
+      try {
+        const response = await fetch('/api/students/by-academy', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          const studentsCount = data.students?.length || 0;
+          let tableHTML = '';
+          
+          if (studentsCount > 0) {
+            tableHTML = '<table><tr><th>ID</th><th>이름</th><th>전화</th><th>이메일</th><th>학년</th></tr>';
+            data.students.slice(0, 10).forEach(s => {
+              tableHTML += `<tr>
+                <td>${s.id}</td>
+                <td>${s.name || '-'}</td>
+                <td>${s.phone || '-'}</td>
+                <td>${s.email || '-'}</td>
+                <td>${s.grade || '-'}</td>
+              </tr>`;
+            });
+            tableHTML += '</table>';
+          }
+          
+          showResult('success', `✅ 성공 - ${studentsCount}명 조회`, 
+            `${tableHTML}\n\n전체 응답:\n${JSON.stringify(data, null, 2)}`
+          );
+        } else {
+          showResult('error', `❌ 실패 (${response.status})`, 
+            JSON.stringify(data, null, 2)
+          );
+        }
+      } catch (error) {
+        showResult('error', '❌ 에러 발생', error.toString());
+      }
+    }
+
+    async function testDebugAPI() {
+      showResult('info', '⏳ 로딩 중...', '디버그 API를 호출하는 중...');
+      
+      try {
+        const response = await fetch('/api/debug/students-by-academy?academyId=1');
+        const data = await response.json();
+        
+        if (response.ok) {
+          const studentsCount = data.students?.length || 0;
+          let tableHTML = '';
+          
+          if (studentsCount > 0) {
+            tableHTML = '<table><tr><th>ID</th><th>이름</th><th>전화</th><th>이메일</th><th>학년</th></tr>';
+            data.students.slice(0, 10).forEach(s => {
+              tableHTML += `<tr>
+                <td>${s.id}</td>
+                <td>${s.name || '-'}</td>
+                <td>${s.phone || '-'}</td>
+                <td>${s.email || '-'}</td>
+                <td>${s.grade || '-'}</td>
+              </tr>`;
+            });
+            tableHTML += '</table>';
+          }
+          
+          showResult('success', `✅ 디버그 API 성공 - ${studentsCount}명 조회`, 
+            `${tableHTML}\n\n전체 응답:\n${JSON.stringify(data, null, 2)}`
+          );
+        } else {
+          showResult('error', `❌ 실패 (${response.status})`, 
+            JSON.stringify(data, null, 2)
+          );
+        }
+      } catch (error) {
+        showResult('error', '❌ 에러 발생', error.toString());
+      }
+    }
+  </script>
+</body>
+</html>
