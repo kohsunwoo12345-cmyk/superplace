@@ -56,8 +56,8 @@ export async function onRequestPost(context) {
           u.approved,
           a.name as academyName,
           a.code as academyCode
-        FROM User u
-        LEFT JOIN Academy a ON u.academyId = a.id
+        FROM users u
+        LEFT JOIN academy a ON u.academyId = a.id
         WHERE u.email = ? OR u.phone = ?
       `)
       .bind(loginIdentifier, loginIdentifier)
