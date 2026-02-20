@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>템플릿 설치 - Superplace</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+    
+    h1 {
+      font-size: 28px;
+      color: #1f2937;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 30px;
+      font-size: 16px;
+    }
+    
+    .info-box {
+      background: #f3f4f6;
+      border-left: 4px solid #667eea;
+      padding: 16px;
+      border-radius: 6px;
+      margin-bottom: 24px;
+    }
+    
+    .info-box h3 {
+      font-size: 16px;
+      color: #1f2937;
+      margin-bottom: 8px;
+    }
+    
+    .info-box ul {
+      margin-left: 20px;
+      color: #4b5563;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+    
+    .input-group {
+      margin-bottom: 24px;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .result {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      display: none;
+    }
+    
+    .result.success {
+      background: #d1fae5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+      display: block;
+    }
+    
+    .result.error {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+      display: block;
+    }
+    
+    .result.info {
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      color: #1e40af;
+      display: block;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .footer {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      font-size: 14px;
+      color: #6b7280;
+    }
+    
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 랜딩페이지 템플릿 설치</h1>
+    <div class="subtitle">5개의 기본 템플릿을 데이터베이스에 설치합니다</div>
+    
+    <div class="info-box">
+      <h3>📚 설치되는 템플릿</h3>
+      <ul>
+        <li>🌟 학생 성장 리포트 (기본)</li>
+        <li>🎓 모던 학원 소개</li>
+        <li>🎉 이벤트 & 세미나</li>
+        <li>🚀 무료 체험 신청</li>
+        <li>👥 학부모 커뮤니티</li>
+      </ul>
+    </div>
+    
+    <form id="installForm">
+      <div class="input-group">
+        <label for="password">설치 비밀번호</label>
+        <input 
+          type="password" 
+          id="password" 
+          placeholder="비밀번호를 입력하세요"
+          value="setup-templates-2026"
+          required
+        >
+      </div>
+      
+      <button type="submit" id="installBtn">
+        템플릿 설치하기
+      </button>
+    </form>
+    
+    <div id="result" class="result"></div>
+    
+    <div class="footer">
+      설치 완료 후 
+      <a href="/dashboard/admin/landing-pages/templates">템플릿 관리 페이지</a>
+      로 이동하세요
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('installForm');
+    const passwordInput = document.getElementById('password');
+    const installBtn = document.getElementById('installBtn');
+    const resultDiv = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const password = passwordInput.value.trim();
+      
+      if (!password) {
+        showResult('error', '비밀번호를 입력해주세요.');
+        return;
+      }
+      
+      // 로딩 상태
+      installBtn.disabled = true;
+      installBtn.innerHTML = '설치 중...<span class="loading"></span>';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/setup/templates', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          if (data.existing > 0) {
+            showResult('info', `ℹ️ ${data.message}\n\n이미 ${data.existing}개의 템플릿이 존재합니다.\n템플릿 관리 페이지에서 확인하세요.`);
+          } else {
+            showResult('success', `✅ ${data.message}\n\n총 ${data.total}개의 템플릿이 설치되었습니다!\n지금 바로 사용할 수 있습니다.`);
+          }
+        } else {
+          showResult('error', `❌ 설치 실패\n\n${data.error || data.message || '알 수 없는 오류가 발생했습니다.'}`);
+        }
+      } catch (error) {
+        console.error('Installation error:', error);
+        showResult('error', `❌ 네트워크 오류\n\n${error.message || '서버와 통신할 수 없습니다.'}`);
+      } finally {
+        installBtn.disabled = false;
+        installBtn.textContent = '템플릿 설치하기';
+      }
+    });
+    
+    function showResult(type, message) {
+      resultDiv.className = `result ${type}`;
+      resultDiv.textContent = message;
+      resultDiv.style.display = 'block';
+      
+      // 스크롤
+      resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  </script>
+</body>
+</html>
