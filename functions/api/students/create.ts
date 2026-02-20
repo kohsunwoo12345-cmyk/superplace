@@ -401,8 +401,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         success: false,
         error: error.message || '학생 추가 중 오류가 발생했습니다',
         details: error.stack,
-        cause: error.cause?.toString()
-      }),
+        cause: error.cause?.toString(),
         errorDetails: error.toString(),
         message: '학생 추가 중 오류가 발생했습니다',
         hint: '자세한 에러는 Cloudflare 로그를 확인하세요'
