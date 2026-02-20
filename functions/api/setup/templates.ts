@@ -25,33 +25,51 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     if (forceRecreate === true) {
       console.log('🔥 forceRecreate 모드: 테이블 삭제 후 재생성');
       try {
-        await db.prepare(`DROP TABLE IF EXISTS LandingPageTemplate`).run();
-        console.log('✅ 기존 LandingPageTemplate 테이블 삭제 완료');
-      } catch (dropError: any) {
-        console.error('⚠️ 테이블 삭제 실패 (없을 수 있음):', dropError.message);
+        // batch로 DROP과 CREATE를 한번에 실행
+        const dropResult = await db.batch([
+          db.prepare(`DROP TABLE IF EXISTS LandingPageTemplate`),
+          db.prepare(`
+            CREATE TABLE LandingPageTemplate (
+              id TEXT PRIMARY KEY,
+              name TEXT NOT NULL,
+              description TEXT,
+              html TEXT NOT NULL,
+              variables TEXT,
+              isDefault INTEGER DEFAULT 0,
+              usageCount INTEGER DEFAULT 0,
+              createdById TEXT,
+              createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+              updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+          `)
+        ]);
+        console.log('✅ 테이블 삭제 및 재생성 완료');
+      } catch (recreateError: any) {
+        console.error('❌ 테이블 재생성 실패:', recreateError.message);
+        throw recreateError;
       }
-    }
-    
-    // 🔥 테이블 생성 (createdById를 NULL 허용으로 변경, FOREIGN KEY 없음)
-    try {
-      await db.prepare(`
-        CREATE TABLE IF NOT EXISTS LandingPageTemplate (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          description TEXT,
-          html TEXT NOT NULL,
-          variables TEXT,
-          isDefault INTEGER DEFAULT 0,
-          usageCount INTEGER DEFAULT 0,
-          createdById TEXT,
-          createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-          updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-      `).run();
-      console.log('✅ LandingPageTemplate 테이블 생성 완료 (createdById NULL 허용, FK 없음)');
-    } catch (tableError: any) {
-      console.error('❌ 테이블 생성 오류:', tableError);
-      throw tableError;
+    } else {
+      // forceRecreate가 false면 기존 로직: CREATE IF NOT EXISTS
+      try {
+        await db.prepare(`
+          CREATE TABLE IF NOT EXISTS LandingPageTemplate (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            html TEXT NOT NULL,
+            variables TEXT,
+            isDefault INTEGER DEFAULT 0,
+            usageCount INTEGER DEFAULT 0,
+            createdById TEXT,
+            createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+            updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+          )
+        `).run();
+        console.log('✅ LandingPageTemplate 테이블 생성 완료 (createdById NULL 허용, FK 없음)');
+      } catch (tableError: any) {
+        console.error('❌ 테이블 생성 오류:', tableError);
+        throw tableError;
+      }
     }
     
     // Check if templates already exist
