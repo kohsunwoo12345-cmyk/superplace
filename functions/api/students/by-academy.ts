@@ -7,8 +7,8 @@ interface Env {
 /**
  * GET /api/students/by-academy
  * 학원별 학생 목록 조회 (RBAC 적용 - JWT 토큰 기반)
- * - ADMIN/SUPER_ADMIN: 모든 학생 조회
- * - DIRECTOR: 자신의 학원 학생만 조회
+ * - ADMIN/SUPER_ADMIN: 모든 학생 조회 (academyId 쿼리 파라미터로 필터 가능)
+ * - DIRECTOR/TEACHER: 자신의 학원 학생만 조회
  */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
@@ -45,13 +45,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const upperRole = role;
     
-    // 여러 스키마 패턴 시도
+    // 여러 스키마 패턴 시도 (실제 DB는 academy_id INTEGER를 사용하므로 패턴 1을 먼저 시도)
     let result: any = null;
     let successPattern = '';
     
-    // 패턴 1: users + academyId (camelCase)
+    // 패턴 1 (우선): users + academy_id (snake_case INTEGER - 실제 DB 스키마)
     try {
-      console.log('🔍 시도 1: users 테이블 + academyId (camelCase)');
+      console.log('🔍 시도 1: users 테이블 + academy_id (INTEGER)');
       
       let query = `
         SELECT 
@@ -59,13 +59,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.name,
           u.email,
           u.phone,
-          u.academyId,
+          u.academy_id as academyId,
           u.role,
           s.id as studentId,
           s.grade,
           s.status
         FROM users u
-        LEFT JOIN students s ON u.id = s.userId
+        LEFT JOIN students s ON u.id = s.user_id
         WHERE u.role = 'STUDENT'
       `;
 
@@ -75,10 +75,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const url = new URL(context.request.url);
         const requestedAcademyId = url.searchParams.get("academyId");
         if (requestedAcademyId) {
-          query += ` AND u.academyId = ?`;
-          bindings.push(requestedAcademyId);
+          query += ` AND u.academy_id = ?`;
+          bindings.push(parseInt(requestedAcademyId));
         }
-      } else if (upperRole === 'DIRECTOR') {
+      } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
         if (!tokenAcademyId) {
           return new Response(
             JSON.stringify({ 
@@ -90,33 +90,83 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
-        query += ` AND u.academyId = ?`;
-        bindings.push(tokenAcademyId);
+        query += ` AND u.academy_id = ?`;
+        const academyIdInt = typeof tokenAcademyId === 'string' ? parseInt(tokenAcademyId) : tokenAcademyId;
+        bindings.push(academyIdInt);
+        console.log(`🏫 ${upperRole} - Filtering by academy_id:`, academyIdInt);
       } else {
         return new Response(
           JSON.stringify({ 
             success: false, 
             error: "Unauthorized access",
+            message: "접근 권한이 없습니다",
             students: []
           }),
           { status: 403, headers: { "Content-Type": "application/json" } }
         );
       }
 
-      query += ` ORDER BY u.name ASC`;
+      query += ` ORDER BY u.id DESC`;
 
-      console.log('📊 패턴 1 Query:', query, bindings);
+      console.log('📊 패턴 1 Query:', query, 'Bindings:', bindings);
       result = await DB.prepare(query).bind(...bindings).all();
-      successPattern = 'users + academyId';
+      successPattern = 'users + academy_id';
       console.log('✅ 패턴 1 성공:', result.results.length, '명');
     } catch (e1: any) {
       console.log('❌ 패턴 1 실패:', e1.message);
     }
 
-    // 패턴 2: User + academyId (대문자 시작)
+    // 패턴 2: User + academy_id (PascalCase 테이블)
     if (!result || result.results.length === 0) {
       try {
-        console.log('🔍 시도 2: User 테이블 + academyId');
+        console.log('🔍 시도 2: User 테이블 + academy_id');
+        
+        let query = `
+          SELECT 
+            u.id,
+            u.name,
+            u.email,
+            u.phone,
+            u.academy_id as academyId,
+            u.role,
+            s.id as studentId,
+            s.grade,
+            s.status
+          FROM User u
+          LEFT JOIN students s ON u.id = s.user_id
+          WHERE u.role = 'STUDENT'
+        `;
+
+        const bindings: any[] = [];
+
+        if (upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN') {
+          const url = new URL(context.request.url);
+          const requestedAcademyId = url.searchParams.get("academyId");
+          if (requestedAcademyId) {
+            query += ` AND u.academy_id = ?`;
+            bindings.push(parseInt(requestedAcademyId));
+          }
+        } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
+          query += ` AND u.academy_id = ?`;
+          const academyIdInt = typeof tokenAcademyId === 'string' ? parseInt(tokenAcademyId) : tokenAcademyId;
+          bindings.push(academyIdInt);
+        }
+
+        query += ` ORDER BY u.id DESC`;
+
+        console.log('📊 패턴 2 Query:', query, bindings);
+        result = await DB.prepare(query).bind(...bindings).all();
+        successPattern = 'User + academy_id';
+        console.log('✅ 패턴 2 성공:', result.results.length, '명');
+      } catch (e2: any) {
+        console.log('❌ 패턴 2 실패:', e2.message);
+      }
+    }
+
+    // 패턴 3 (최후): users + academyId (TEXT 타입 대비)
+    if (!result || result.results.length === 0) {
+      try {
+        console.log('🔍 시도 3: users 테이블 + academyId (TEXT)');
         
         let query = `
           SELECT 
@@ -129,7 +179,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             s.id as studentId,
             s.grade,
             s.status
-          FROM User u
+          FROM users u
           LEFT JOIN students s ON u.id = s.userId
           WHERE u.role = 'STUDENT'
         `;
@@ -143,62 +193,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             query += ` AND u.academyId = ?`;
             bindings.push(requestedAcademyId);
           }
-        } else if (upperRole === 'DIRECTOR') {
+        } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
           query += ` AND u.academyId = ?`;
-          bindings.push(tokenAcademyId);
+          bindings.push(tokenAcademyId?.toString());
         }
 
-        query += ` ORDER BY u.name ASC`;
-
-        console.log('📊 패턴 2 Query:', query, bindings);
-        result = await DB.prepare(query).bind(...bindings).all();
-        successPattern = 'User + academyId';
-        console.log('✅ 패턴 2 성공:', result.results.length, '명');
-      } catch (e2: any) {
-        console.log('❌ 패턴 2 실패:', e2.message);
-      }
-    }
-
-    // 패턴 3: users + academy_id (snake_case)
-    if (!result || result.results.length === 0) {
-      try {
-        console.log('🔍 시도 3: users 테이블 + academy_id (snake_case)');
-        
-        let query = `
-          SELECT 
-            u.id,
-            u.name,
-            u.email,
-            u.phone,
-            u.academy_id as academyId,
-            u.role,
-            s.id as studentId,
-            s.grade,
-            s.status
-          FROM users u
-          LEFT JOIN students s ON u.id = s.user_id
-          WHERE u.role = 'STUDENT'
-        `;
-
-        const bindings: any[] = [];
-
-        if (upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN') {
-          const url = new URL(context.request.url);
-          const requestedAcademyId = url.searchParams.get("academyId");
-          if (requestedAcademyId) {
-            query += ` AND u.academy_id = ?`;
-            bindings.push(requestedAcademyId);
-          }
-        } else if (upperRole === 'DIRECTOR') {
-          query += ` AND u.academy_id = ?`;
-          bindings.push(tokenAcademyId);
-        }
-
-        query += ` ORDER BY u.name ASC`;
+        query += ` ORDER BY u.id DESC`;
 
         console.log('📊 패턴 3 Query:', query, bindings);
         result = await DB.prepare(query).bind(...bindings).all();
-        successPattern = 'users + academy_id';
+        successPattern = 'users + academyId (TEXT)';
         console.log('✅ 패턴 3 성공:', result.results.length, '명');
       } catch (e3: any) {
         console.log('❌ 패턴 3 실패:', e3.message);
