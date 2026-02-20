@@ -50,15 +50,35 @@ export async function onRequestGet(context) {
       });
     }
 
-    // 관리자 권한 확인
-    if (!['SUPER_ADMIN', 'ADMIN'].includes(userRole)) {
+    // 관리자 또는 학원장 권한 확인
+    if (!['SUPER_ADMIN', 'ADMIN', 'DIRECTOR'].includes(userRole)) {
       return new Response(JSON.stringify({ 
         success: false, 
-        error: "관리자 권한이 필요합니다" 
+        error: "관리자 또는 학원장 권한이 필요합니다" 
       }), { 
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       });
+    }
+
+    // 학원장인 경우 본인의 academyId 가져오기
+    let directorAcademyId = null;
+    if (userRole === 'DIRECTOR') {
+      const director = await env.DB.prepare(`
+        SELECT academyId FROM User WHERE email = ?
+      `).bind(userEmail).first();
+      
+      directorAcademyId = director?.academyId;
+      
+      if (!directorAcademyId) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: "학원이 할당되지 않았습니다" 
+        }), { 
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     const url = new URL(request.url);
@@ -66,7 +86,18 @@ export async function onRequestGet(context) {
 
     // 특정 학원 상세 조회
     if (academyId) {
-      console.log('🏫 학원 상세 조회:', academyId);
+      console.log('🏫 학원 상세 조회:', academyId, '| 요청자 역할:', userRole);
+
+      // 학원장인 경우 본인 학원만 조회 가능
+      if (userRole === 'DIRECTOR' && academyId !== directorAcademyId) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: "본인의 학원만 조회할 수 있습니다" 
+        }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
 
       // 학원 기본 정보
       const academy = await env.DB.prepare(`
@@ -96,22 +127,27 @@ export async function onRequestGet(context) {
         LIMIT 1
       `).bind(academyId).first();
 
-      // 학생 수
-      const studentCountResult = await env.DB.prepare(`
-        SELECT COUNT(*) as count
+      // 학생 목록 및 수
+      const studentsResult = await env.DB.prepare(`
+        SELECT id, name, email, phone, createdAt
         FROM User
-        WHERE academyId = ? AND role = 'STUDENT'
-      `).bind(academyId).first();
+        WHERE academyId = ? AND UPPER(role) = 'STUDENT'
+        ORDER BY createdAt DESC
+      `).bind(academyId).all();
 
-      // 선생님 수
-      const teacherCountResult = await env.DB.prepare(`
-        SELECT COUNT(*) as count
+      const students = studentsResult.results || [];
+      const studentCount = students.length;
+
+      // 선생님 목록 및 수
+      const teachersResult = await env.DB.prepare(`
+        SELECT id, name, email, phone
         FROM User
-        WHERE academyId = ? AND role = 'TEACHER'
-      `).bind(academyId).first();
+        WHERE academyId = ? AND UPPER(role) = 'TEACHER'
+        ORDER BY name ASC
+      `).bind(academyId).all();
 
-      const studentCount = studentCountResult?.count || 0;
-      const teacherCount = teacherCountResult?.count || 0;
+      const teachers = teachersResult.results || [];
+      const teacherCount = teachers.length;
 
       // AI 봇 사용량 (출석 체크 + 숙제 제출)
       let attendanceCount = 0;
@@ -154,9 +190,39 @@ export async function onRequestGet(context) {
           GROUP BY month
           ORDER BY month ASC
         `).bind(academyId).all();
-        monthlyActivity = activityResult.results || [];
+        
+        // 월 형식을 "1월", "2월" 등으로 변환
+        monthlyActivity = (activityResult.results || []).map(item => {
+          const [year, month] = item.month.split('-');
+          return {
+            month: `${parseInt(month)}월`,
+            count: item.count
+          };
+        });
       } catch (e) {
         console.log('월별 활동 조회 실패 (무시)');
+      }
+
+      // 할당된 AI 봇 목록
+      let assignedBots = [];
+      try {
+        const botsResult = await env.DB.prepare(`
+          SELECT 
+            b.id, b.name, b.description,
+            ba.createdAt as assignedAt,
+            CASE 
+              WHEN ba.isActive = 1 AND ba.endDate >= date('now') THEN 'ACTIVE'
+              ELSE 'INACTIVE'
+            END as status
+          FROM bot_assignments ba
+          JOIN ai_bots b ON ba.botId = b.id
+          WHERE ba.academyId = ?
+          ORDER BY ba.createdAt DESC
+        `).bind(academyId).all();
+        
+        assignedBots = botsResult.results || [];
+      } catch (e) {
+        console.log('AI 봇 할당 정보 조회 실패 (무시):', e.message);
       }
 
       // 결제 정보
@@ -184,16 +250,17 @@ export async function onRequestGet(context) {
       const academyDetail = {
         ...academy,
         director: director || null,
+        students,
+        teachers,
         studentCount,
         teacherCount,
-        aiUsage: {
-          total: totalAIUsage,
-          attendance: attendanceCount,
-          homework: homeworkCount
-        },
+        totalChats: totalAIUsage,
+        attendanceCount,
+        homeworkCount,
         monthlyActivity,
+        assignedBots,
         revenue: {
-          total: totalRevenue,
+          totalRevenue: totalRevenue,
           transactionCount: payments.filter(p => p.status === 'APPROVED').length
         },
         payments
@@ -204,7 +271,8 @@ export async function onRequestGet(context) {
         name: academy.name,
         students: studentCount,
         teachers: teacherCount,
-        aiUsage: totalAIUsage
+        totalChats: totalAIUsage,
+        assignedBots: assignedBots.length
       });
 
       return new Response(JSON.stringify({ 
@@ -217,8 +285,56 @@ export async function onRequestGet(context) {
     }
 
     // 모든 학원 조회
-    console.log('🏫 모든 학원 목록 조회');
+    console.log('🏫 학원 목록 조회 | 요청자 역할:', userRole);
 
+    // 학원장인 경우 본인 학원만 조회
+    if (userRole === 'DIRECTOR') {
+      const academy = await env.DB.prepare(`
+        SELECT 
+          id, name, code, description, address, phone, email,
+          subscriptionPlan, isActive, createdAt
+        FROM Academy
+        WHERE id = ?
+      `).bind(directorAcademyId).first();
+
+      if (!academy) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: "학원 정보를 찾을 수 없습니다" 
+        }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      // 학생/선생님 수 조회
+      const studentCountResult = await env.DB.prepare(`
+        SELECT COUNT(*) as count FROM User WHERE academyId = ? AND UPPER(role) = 'STUDENT'
+      `).bind(academy.id).first();
+
+      const teacherCountResult = await env.DB.prepare(`
+        SELECT COUNT(*) as count FROM User WHERE academyId = ? AND UPPER(role) = 'TEACHER'
+      `).bind(academy.id).first();
+
+      const academyWithCounts = {
+        ...academy,
+        studentCount: studentCountResult?.count || 0,
+        teacherCount: teacherCountResult?.count || 0
+      };
+
+      console.log('✅ 학원장 학원 조회 완료:', academyWithCounts.name);
+
+      return new Response(JSON.stringify({
+        success: true,
+        academies: [academyWithCounts],
+        count: 1
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    // 관리자는 모든 학원 조회
     const academiesResult = await env.DB.prepare(`
       SELECT 
         id, name, code, description, address, phone, email,
