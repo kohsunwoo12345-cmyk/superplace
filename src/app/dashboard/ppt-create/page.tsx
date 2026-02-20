@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Loader2, FileText, Download, Plus, X } from "lucide-react";
+import { Loader2, FileText, Plus } from "lucide-react";
 
 // PptxGenJS 타입 선언
 declare global {
@@ -16,20 +16,12 @@ declare global {
   }
 }
 
-interface Slide {
-  id: number;
-  title: string;
-  content: string;
-}
-
 export default function PPTCreatePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [pptTitle, setPptTitle] = useState("나의 프레젠테이션");
-  const [slides, setSlides] = useState<Slide[]>([
-    { id: 1, title: "제목 슬라이드", content: "여기에 제목을 입력하세요" },
-    { id: 2, title: "내용 슬라이드 1", content: "여기에 내용을 입력하세요" }
-  ]);
+  const [content, setContent] = useState("");
+  const [pageCount, setPageCount] = useState(5);
   const [pptxReady, setPptxReady] = useState(false);
 
   // CDN에서 PptxGenJS 로드
@@ -50,27 +42,33 @@ export default function PPTCreatePage() {
     }
   }, []);
 
-  const addSlide = () => {
-    const newId = Math.max(...slides.map(s => s.id), 0) + 1;
-    setSlides([...slides, { 
-      id: newId, 
-      title: `슬라이드 ${newId}`, 
-      content: "" 
-    }]);
-  };
-
-  const removeSlide = (id: number) => {
-    if (slides.length <= 1) {
-      alert("최소 1개의 슬라이드가 필요합니다");
-      return;
+  // 내용을 페이지 수에 맞게 자동 분할
+  const splitContentIntoPages = (text: string, pages: number) => {
+    if (!text.trim()) return [];
+    
+    // 줄바꿈으로 분리
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    if (lines.length === 0) return [];
+    
+    // 페이지당 줄 수 계산
+    const linesPerPage = Math.ceil(lines.length / pages);
+    
+    const slides = [];
+    for (let i = 0; i < pages; i++) {
+      const startIdx = i * linesPerPage;
+      const endIdx = Math.min(startIdx + linesPerPage, lines.length);
+      const pageLines = lines.slice(startIdx, endIdx);
+      
+      if (pageLines.length > 0) {
+        slides.push({
+          title: `${pptTitle} - ${i + 1}`,
+          content: pageLines.join('\n')
+        });
+      }
     }
-    setSlides(slides.filter(s => s.id !== id));
-  };
-
-  const updateSlide = (id: number, field: 'title' | 'content', value: string) => {
-    setSlides(slides.map(s => 
-      s.id === id ? { ...s, [field]: value } : s
-    ));
+    
+    return slides;
   };
 
   const createPPT = async () => {
@@ -79,8 +77,8 @@ export default function PPTCreatePage() {
       return;
     }
 
-    if (slides.some(s => !s.title.trim())) {
-      alert("모든 슬라이드에 제목을 입력하세요");
+    if (!content.trim()) {
+      alert("내용을 입력하세요");
       return;
     }
 
@@ -92,7 +90,16 @@ export default function PPTCreatePage() {
     setLoading(true);
 
     try {
-      console.log('📤 Creating PPT:', { pptTitle, slideCount: slides.length });
+      console.log('📤 Creating PPT:', { pptTitle, pageCount });
+
+      // 내용을 페이지 수에 맞게 분할
+      const slides = splitContentIntoPages(content, pageCount);
+      
+      if (slides.length === 0) {
+        throw new Error("생성할 슬라이드가 없습니다");
+      }
+
+      console.log('📄 Generated slides:', slides.length);
 
       // PPT 생성 (CDN에서 로드한 PptxGenJS 사용)
       const pptx = new window.PptxGenJS();
@@ -102,7 +109,30 @@ export default function PPTCreatePage() {
       pptx.company = 'Superplace';
       pptx.title = pptTitle;
 
-      // 각 슬라이드 생성
+      // 첫 슬라이드 (제목 슬라이드)
+      const titleSlide = pptx.addSlide();
+      titleSlide.background = { color: 'FFFFFF' };
+      titleSlide.addText(pptTitle, {
+        x: 1,
+        y: 2.5,
+        w: 8,
+        h: 1.5,
+        fontSize: 44,
+        bold: true,
+        color: '363636',
+        align: 'center'
+      });
+      titleSlide.addText(`총 ${slides.length}개 슬라이드`, {
+        x: 1,
+        y: 4,
+        w: 8,
+        h: 0.5,
+        fontSize: 20,
+        color: '666666',
+        align: 'center'
+      });
+
+      // 각 내용 슬라이드 생성
       slides.forEach((slideData, index) => {
         const slide = pptx.addSlide();
         
@@ -114,8 +144,8 @@ export default function PPTCreatePage() {
           x: 0.5,
           y: 0.5,
           w: 9,
-          h: 1,
-          fontSize: 32,
+          h: 0.8,
+          fontSize: 28,
           bold: true,
           color: '363636',
           align: 'center'
@@ -129,12 +159,12 @@ export default function PPTCreatePage() {
             x: 1,
             y: 2,
             w: 8,
-            h: 4,
-            fontSize: 18,
+            h: 4.5,
+            fontSize: 16,
             color: '555555',
             align: 'left',
             valign: 'top',
-            bullet: contentLines.length > 1 ? true : false
+            bullet: true
           });
         }
         
@@ -159,7 +189,7 @@ export default function PPTCreatePage() {
       await pptx.writeFile({ fileName: filename });
       
       console.log('✅ PPT 파일 다운로드 완료:', filename);
-      alert(`PPT가 생성되었습니다!\n파일명: ${filename}`);
+      alert(`PPT가 생성되었습니다!\n파일명: ${filename}\n슬라이드 수: ${slides.length + 1}개 (제목 포함)`);
 
     } catch (error: any) {
       console.error("❌ Failed to create PPT:", error);
@@ -175,7 +205,7 @@ export default function PPTCreatePage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">📊 PPT 제작</h1>
-          <p className="text-gray-600 mt-2">간단하게 내용을 입력하고 PPT를 만드세요</p>
+          <p className="text-gray-600 mt-2">내용을 입력하고 페이지 수를 선택하면 자동으로 PPT가 생성됩니다</p>
         </div>
         <Button variant="outline" onClick={() => router.back()}>
           돌아가기
@@ -198,63 +228,47 @@ export default function PPTCreatePage() {
         </CardContent>
       </Card>
 
-      {/* 슬라이드 목록 */}
+      {/* 페이지 수 선택 */}
       <Card className="mb-6">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>슬라이드 ({slides.length}페이지)</CardTitle>
-              <CardDescription>각 슬라이드의 제목과 내용을 입력하세요</CardDescription>
-            </div>
-            <Button onClick={addSlide} size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              슬라이드 추가
-            </Button>
-          </div>
+          <CardTitle>페이지 수</CardTitle>
+          <CardDescription>생성할 슬라이드 개수를 선택하세요 (제목 제외)</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {slides.map((slide, index) => (
-            <div key={slide.id} className="border rounded-lg p-4 relative">
-              {/* 슬라이드 번호 & 삭제 버튼 */}
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-semibold text-gray-500">
-                  슬라이드 {index + 1}
-                </span>
-                {slides.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeSlide(slide.id)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <Input
+              type="number"
+              min="1"
+              max="20"
+              value={pageCount}
+              onChange={(e) => setPageCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+              className="w-32"
+            />
+            <span className="text-gray-600">페이지 (1-20)</span>
+          </div>
+        </CardContent>
+      </Card>
 
-              {/* 제목 */}
-              <div className="mb-4">
-                <Label htmlFor={`title-${slide.id}`}>제목</Label>
-                <Input
-                  id={`title-${slide.id}`}
-                  value={slide.title}
-                  onChange={(e) => updateSlide(slide.id, 'title', e.target.value)}
-                  placeholder="슬라이드 제목"
-                />
-              </div>
-
-              {/* 내용 */}
-              <div>
-                <Label htmlFor={`content-${slide.id}`}>내용</Label>
-                <Textarea
-                  id={`content-${slide.id}`}
-                  value={slide.content}
-                  onChange={(e) => updateSlide(slide.id, 'content', e.target.value)}
-                  placeholder="슬라이드 내용을 입력하세요 (엔터로 줄 구분)"
-                  rows={4}
-                />
-              </div>
-            </div>
-          ))}
+      {/* 내용 입력 */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>내용</CardTitle>
+          <CardDescription>
+            PPT에 들어갈 내용을 입력하세요. 각 줄은 자동으로 불릿 포인트로 표시되며, 
+            입력한 내용이 선택한 페이지 수에 맞게 자동으로 분배됩니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={`예시:\nAI 기술의 발전\n자동화된 업무 처리\n효율성 증대\n비용 절감\n고객 만족도 향상\n미래 전망`}
+            rows={15}
+            className="font-mono"
+          />
+          <div className="mt-2 text-sm text-gray-500">
+            💡 팁: 한 줄에 하나의 포인트를 입력하세요. 총 {content.split('\n').filter(l => l.trim()).length}개 항목
+          </div>
         </CardContent>
       </Card>
 
@@ -262,7 +276,7 @@ export default function PPTCreatePage() {
       <div className="flex gap-4">
         <Button
           onClick={createPPT}
-          disabled={loading}
+          disabled={loading || !pptxReady}
           className="flex-1"
           size="lg"
         >
@@ -270,6 +284,11 @@ export default function PPTCreatePage() {
             <>
               <Loader2 className="w-5 h-5 mr-2 animate-spin" />
               PPT 생성 중...
+            </>
+          ) : !pptxReady ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              라이브러리 로딩 중...
             </>
           ) : (
             <>
@@ -281,30 +300,32 @@ export default function PPTCreatePage() {
       </div>
 
       {/* 미리보기 */}
-      {slides.length > 0 && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>미리보기</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-gray-600">
-                <span>제목:</span>
-                <span className="font-semibold">{pptTitle || "(제목 없음)"}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>슬라이드 수:</span>
-                <span className="font-semibold">{slides.length}장</span>
-              </div>
-              <div className="mt-4 pt-4 border-t">
-                <p className="text-gray-500 text-xs">
-                  💡 팁: 내용에 여러 줄을 입력하면 PPT에서 줄바꿈으로 표시됩니다
-                </p>
-              </div>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>미리보기</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between text-gray-600">
+              <span>제목:</span>
+              <span className="font-semibold">{pptTitle || "(제목 없음)"}</span>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="flex justify-between text-gray-600">
+              <span>슬라이드 수:</span>
+              <span className="font-semibold">{pageCount + 1}장 (제목 포함)</span>
+            </div>
+            <div className="flex justify-between text-gray-600">
+              <span>입력한 항목:</span>
+              <span className="font-semibold">{content.split('\n').filter(l => l.trim()).length}개</span>
+            </div>
+            <div className="mt-4 pt-4 border-t">
+              <p className="text-gray-500 text-xs">
+                💡 팁: 내용이 자동으로 {pageCount}개 페이지에 균등하게 분배됩니다
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
