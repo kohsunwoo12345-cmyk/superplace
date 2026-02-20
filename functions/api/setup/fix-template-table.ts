@@ -2,11 +2,7 @@
 // This API will drop and recreate the LandingPageTemplate table without foreign key constraints
 // Access: /api/setup/fix-template-table
 
-interface Env {
-  DB: D1Database;
-}
-
-export async function onRequestPost(context: { request: Request; env: Env }) {
+export async function onRequestPost(context: any) {
   try {
     const body = await context.request.json();
     const { password } = body;
