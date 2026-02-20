@@ -220,6 +220,10 @@
       <button type="button" id="autoInstallBtn" style="margin-top: 12px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
         ⚡ 자동 설치 (테이블 + 템플릿)
       </button>
+      
+      <button type="button" id="updateTemplatesBtn" style="margin-top: 12px; background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);">
+        🔄 상세 템플릿 업데이트
+      </button>
     </form>
     
     <div id="result" class="result"></div>
@@ -237,6 +241,7 @@
     const createTablesBtn = document.getElementById('createTablesBtn');
     const installBtn = document.getElementById('installBtn');
     const autoInstallBtn = document.getElementById('autoInstallBtn');
+    const updateTemplatesBtn = document.getElementById('updateTemplatesBtn');
     const resultDiv = document.getElementById('result');
 
     // 1단계: 테이블 생성
@@ -369,6 +374,42 @@
       } finally {
         autoInstallBtn.disabled = false;
         autoInstallBtn.innerHTML = '⚡ 자동 설치 (테이블 + 템플릿)';
+      }
+    });
+    
+    // 상세 템플릿 업데이트
+    updateTemplatesBtn.addEventListener('click', async () => {
+      const password = passwordInput.value.trim();
+      
+      if (!password) {
+        showResult('error', '비밀번호를 입력해주세요.');
+        return;
+      }
+      
+      updateTemplatesBtn.disabled = true;
+      updateTemplatesBtn.innerHTML = '업데이트 중...<span class="loading"></span>';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/setup/update-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          showResult('success', `✅ ${data.message}\n\n🆕 새로운 상세 템플릿이 추가되었습니다!\n- 문제점 분석\n- 개선 과정 (3단계)\n- 개선 결과 (점수/이해도/태도 변화)\n\n지금 바로 사용할 수 있습니다!`);
+        } else {
+          showResult('error', `❌ 업데이트 실패\n\n${data.error || '알 수 없는 오류가 발생했습니다.'}`);
+        }
+      } catch (error) {
+        console.error('Update error:', error);
+        showResult('error', `❌ 네트워크 오류\n\n${error.message || '서버와 통신할 수 없습니다.'}`);
+      } finally {
+        updateTemplatesBtn.disabled = false;
+        updateTemplatesBtn.innerHTML = '🔄 상세 템플릿 업데이트';
       }
     });
     
