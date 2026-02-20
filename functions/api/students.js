@@ -94,12 +94,11 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
-          a.name as academyName,
-          u.createdAt
+          a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
-        WHERE u.role = 'STUDENT'
-        ORDER BY u.createdAt DESC
+        WHERE UPPER(u.role) = 'STUDENT'
+        ORDER BY u.id DESC
       `;
     } else if (role === 'DIRECTOR' || role === 'TEACHER') {
       // Directors and teachers can only see students in their academy
@@ -124,12 +123,11 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
-          a.name as academyName,
-          u.createdAt
+          a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
-        WHERE u.role = 'STUDENT' AND u.academyId = ?
-        ORDER BY u.createdAt DESC
+        WHERE UPPER(u.role) = 'STUDENT' AND u.academyId = ?
+        ORDER BY u.id DESC
       `;
       params.push(academyId);
     } else if (role === 'STUDENT') {
@@ -143,8 +141,7 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
-          a.name as academyName,
-          u.createdAt
+          a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
         WHERE u.id = ?
@@ -167,10 +164,66 @@ export async function onRequestGet(context) {
       ? db.prepare(query).bind(...params)
       : db.prepare(query);
       
+    console.log('🔍 Executing query with params:', params);
     const result = await stmt.all();
     const students = result.results || [];
 
     console.log(`✅ Returning ${students.length} students for ${role}`);
+    
+    // Log first few students for debugging
+    if (students.length > 0) {
+      console.log('📊 Sample students:', students.slice(0, 3).map(s => ({
+        id: s.id,
+        name: s.name,
+        role: s.role,
+        academyId: s.academyId
+      })));
+    } else {
+      console.log('⚠️ No students found - running diagnostics...');
+      
+      // Check 1: Total users with STUDENT role (case insensitive)
+      const totalCheck = await db.prepare(`
+        SELECT COUNT(*) as count, 
+               GROUP_CONCAT(DISTINCT role) as roles
+        FROM User 
+        WHERE UPPER(role) = 'STUDENT'
+      `).first();
+      console.log('📊 Total STUDENT users in DB:', totalCheck);
+      
+      // Check 2: All distinct roles in User table
+      const allRoles = await db.prepare(`
+        SELECT DISTINCT role, COUNT(*) as count
+        FROM User
+        GROUP BY role
+      `).all();
+      console.log('📊 All roles in DB:', allRoles.results);
+      
+      // Check 3: Sample of all users (first 5)
+      const sampleUsers = await db.prepare(`
+        SELECT id, name, role, academyId
+        FROM User
+        ORDER BY createdAt DESC
+        LIMIT 5
+      `).all();
+      console.log('📊 Sample of all users:', sampleUsers.results);
+      
+      // Check 4: If admin, show why students weren't returned
+      if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+        const testQuery = await db.prepare(`
+          SELECT COUNT(*) as count
+          FROM User u
+          WHERE u.role = 'STUDENT'
+        `).first();
+        console.log('📊 Students with exact match "STUDENT":', testQuery);
+        
+        const testQueryLower = await db.prepare(`
+          SELECT COUNT(*) as count
+          FROM User u
+          WHERE u.role = 'student'
+        `).first();
+        console.log('📊 Students with lowercase "student":', testQueryLower);
+      }
+    }
 
     return new Response(JSON.stringify({
       success: true,

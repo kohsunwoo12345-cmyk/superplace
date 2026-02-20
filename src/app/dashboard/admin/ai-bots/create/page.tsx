@@ -29,11 +29,10 @@ import {
 } from "lucide-react";
 
 const GEMINI_MODELS = [
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (추천)", description: "균형잡힌 속도와 품질, 안정 버전", recommended: true },
-  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "고급 추론 능력, 복잡한 작업에 최적", recommended: false },
-  { value: "gemini-3-flash-preview", label: "Gemini 3 Flash (프리뷰)", description: "차세대 모델, 최신 기능", recommended: false },
-  { value: "gemini-3-pro-preview", label: "Gemini 3 Pro (프리뷰)", description: "최고 성능, 가장 강력한 모델", recommended: false },
-  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", description: "초고속, 비용 효율적", recommended: false },
+  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (추천)", description: "최신 실험 모델, 빠른 응답", recommended: true },
+  { value: "gemini-1.5-flash-latest", label: "Gemini 1.5 Flash", description: "안정적인 빠른 모델", recommended: false },
+  { value: "gemini-1.5-pro-latest", label: "Gemini 1.5 Pro", description: "고급 추론 능력, 복잡한 작업에 최적", recommended: false },
+  { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash-8B", description: "초고속, 비용 효율적", recommended: false },
 ];
 
 const PRESET_PROMPTS = [
@@ -238,13 +237,16 @@ export default function CreateAIBotPage() {
     starterMessage3: "",
     profileIcon: "🤖",
     profileImage: "", // 이미지 URL 추가
-    model: "gemini-2.5-flash",
+    model: "gemini-2.0-flash-exp",
     temperature: "0.7",
     maxTokens: "2000",
     topK: "40",
     topP: "0.95",
     language: "ko",
     knowledgeBase: "",
+    enableProblemGeneration: false,
+    voiceEnabled: false, // TTS 활성화 여부
+    voiceName: "ko-KR", // 음성 이름
   });
 
   useEffect(() => {
@@ -360,28 +362,37 @@ export default function CreateAIBotPage() {
     setUploadingFile(true);
     try {
       for (const file of Array.from(files)) {
-        // 파일 크기 제한 (5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          alert(`${file.name}: 파일 크기는 5MB를 초과할 수 없습니다.`);
+        // 파일 크기 제한 (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`${file.name}: 파일 크기는 10MB를 초과할 수 없습니다.`);
           continue;
         }
 
-        // 지원 파일 형식 확인
+        // 지원 파일 형식 확인 (텍스트 기반만)
         const allowedTypes = [
           'text/plain',
           'text/markdown',
-          'application/pdf',
           'application/json',
-          'text/csv'
+          'text/csv',
+          'text/html',
+          'application/xml',
+          'text/xml'
         ];
         
-        if (!allowedTypes.includes(file.type) && !file.name.endsWith('.md') && !file.name.endsWith('.txt')) {
-          alert(`${file.name}: 지원하지 않는 파일 형식입니다. (지원: txt, md, pdf, json, csv)`);
+        const fileExtension = file.name.toLowerCase().split('.').pop();
+        const supportedExtensions = ['txt', 'md', 'json', 'csv', 'html', 'xml'];
+        
+        if (!allowedTypes.includes(file.type) && !supportedExtensions.includes(fileExtension || '')) {
+          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD (Markdown), JSON, CSV, HTML, XML\n\n참고: PDF 파일은 텍스트를 복사하여 직접 붙여넣기 하거나, 텍스트로 변환 후 업로드해주세요.`);
           continue;
         }
 
+        console.log(`📁 파일 업로드 시작: ${file.name} (${file.size} bytes, type: ${file.type})`);
+
         // 텍스트 파일 읽기
         const text = await file.text();
+        
+        console.log(`✅ 파일 읽기 완료: ${file.name} (${text.length} chars)`);
         
         setKnowledgeFiles(prev => [
           ...prev,
@@ -395,12 +406,16 @@ export default function CreateAIBotPage() {
         // knowledgeBase에 추가
         setFormData(prev => ({
           ...prev,
-          knowledgeBase: prev.knowledgeBase + `\n\n## ${file.name}\n${text}`
+          knowledgeBase: prev.knowledgeBase + `\n\n## 📄 ${file.name}\n\n${text}\n\n---\n`
         }));
+        
+        console.log(`💾 Knowledge Base 업데이트 완료`);
       }
+      
+      alert(`${files.length}개 파일이 성공적으로 업로드되었습니다.`);
     } catch (error) {
-      console.error('파일 업로드 오류:', error);
-      alert('파일을 읽는 중 오류가 발생했습니다.');
+      console.error('❌ 파일 업로드 오류:', error);
+      alert('파일을 읽는 중 오류가 발생했습니다.\n\n' + (error as Error).message);
     } finally {
       setUploadingFile(false);
       if (fileInputRef.current) {
@@ -1027,17 +1042,19 @@ export default function CreateAIBotPage() {
                       <Input
                         id="maxTokens"
                         type="number"
-                        step="100"
+                        step="500"
                         min="100"
-                        max="8000"
+                        max="20000"
                         value={formData.maxTokens}
                         onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
                         className="mt-2"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        {parseInt(formData.maxTokens) < 1000 ? "짧은 답변 (~500자)" :
-                         parseInt(formData.maxTokens) < 3000 ? "중간 길이 (~1500자)" :
-                         "긴 답변 (~4000자)"} · 기본: 2000
+                        {parseInt(formData.maxTokens) < 1000 ? "매우 짧은 답변 (~500자)" :
+                         parseInt(formData.maxTokens) < 3000 ? "짧은 답변 (~1500자)" :
+                         parseInt(formData.maxTokens) < 8000 ? "중간 길이 (~4000자)" :
+                         parseInt(formData.maxTokens) < 15000 ? "긴 답변 (~7500자)" :
+                         "매우 긴 답변 (~10000자)"} · 기본: 2000 · 최대: 20000
                       </p>
                     </div>
                   </div>
@@ -1058,6 +1075,83 @@ export default function CreateAIBotPage() {
                     <option value="ja">日本語</option>
                     <option value="zh">中文</option>
                   </select>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="enableProblemGeneration"
+                      checked={formData.enableProblemGeneration}
+                      onChange={(e) => setFormData({ ...formData, enableProblemGeneration: e.target.checked })}
+                      className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="enableProblemGeneration" className="text-base font-semibold cursor-pointer">
+                        📝 유사문제 출제 기능
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1">
+                        AI와 대화 중 나온 문제를 학원 이름이 들어간 문제지로 프린트할 수 있습니다.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TTS 음성 출력 설정 */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="voiceEnabled"
+                      checked={formData.voiceEnabled}
+                      onChange={(e) => setFormData({ ...formData, voiceEnabled: e.target.checked })}
+                      className="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="voiceEnabled" className="text-base font-semibold cursor-pointer">
+                        🔊 음성 출력 (TTS)
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1">
+                        AI 응답을 음성으로 들을 수 있습니다. 채팅 화면에서 스피커 버튼을 눌러 재생하세요.
+                      </p>
+                      
+                      {formData.voiceEnabled && (
+                        <div className="mt-3">
+                          <Label htmlFor="voiceName" className="text-sm font-medium">
+                            음성 선택
+                          </Label>
+                          <select
+                            id="voiceName"
+                            value={formData.voiceName}
+                            onChange={(e) => setFormData({ ...formData, voiceName: e.target.value })}
+                            className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          >
+                            <optgroup label="한국어">
+                              <option value="ko-KR">한국어 (기본)</option>
+                              <option value="ko-KR-Wavenet-A">한국어 여성 (A)</option>
+                              <option value="ko-KR-Wavenet-B">한국어 남성 (B)</option>
+                              <option value="ko-KR-Wavenet-C">한국어 여성 (C)</option>
+                              <option value="ko-KR-Wavenet-D">한국어 남성 (D)</option>
+                            </optgroup>
+                            <optgroup label="영어">
+                              <option value="en-US">영어 (기본)</option>
+                              <option value="en-US-Wavenet-A">영어 여성 (A)</option>
+                              <option value="en-US-Wavenet-B">영어 남성 (B)</option>
+                              <option value="en-US-Wavenet-C">영어 여성 (C)</option>
+                              <option value="en-US-Wavenet-D">영어 남성 (D)</option>
+                            </optgroup>
+                            <optgroup label="일본어">
+                              <option value="ja-JP">일본어 (기본)</option>
+                              <option value="ja-JP-Wavenet-A">일본어 여성 (A)</option>
+                              <option value="ja-JP-Wavenet-B">일본어 여성 (B)</option>
+                              <option value="ja-JP-Wavenet-C">일본어 남성 (C)</option>
+                              <option value="ja-JP-Wavenet-D">일본어 남성 (D)</option>
+                            </optgroup>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

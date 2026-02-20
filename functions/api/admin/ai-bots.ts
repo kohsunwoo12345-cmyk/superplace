@@ -33,6 +33,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         topK INTEGER DEFAULT 40,
         topP REAL DEFAULT 0.95,
         language TEXT DEFAULT 'ko',
+        enableProblemGeneration INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1,
         conversationCount INTEGER DEFAULT 0,
         lastUsedAt TEXT,
@@ -46,7 +47,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `SELECT * FROM ai_bots ORDER BY datetime(createdAt) DESC`
     ).all();
 
-    const bots = botsResult?.results || [];
+    // enableProblemGeneration을 명시적으로 숫자로 변환
+    const bots = (botsResult?.results || []).map((bot: any) => ({
+      ...bot,
+      enableProblemGeneration: bot.enableProblemGeneration ? Number(bot.enableProblemGeneration) : 0,
+      isActive: bot.isActive ? Number(bot.isActive) : 0,
+      temperature: bot.temperature ? Number(bot.temperature) : 0.7,
+      maxTokens: bot.maxTokens ? Number(bot.maxTokens) : 2000,
+      topK: bot.topK ? Number(bot.topK) : 40,
+      topP: bot.topP ? Number(bot.topP) : 0.95
+    }));
 
     return new Response(JSON.stringify({ bots }), {
       status: 200,
@@ -83,13 +93,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       starterMessage3,
       profileIcon = "🤖",
       profileImage = "",
-      model = "gemini-2.5-flash",
+      model = "gemini-2.0-flash-exp",
       temperature = 0.7,
       maxTokens = 2000,
       topK = 40,
       topP = 0.95,
       language = "ko",
+      knowledgeBase = "",
+      enableProblemGeneration = false,
+      voiceEnabled = false,
+      voiceName = "ko-KR-Wavenet-A",
     } = body;
+
+    console.log('📝 Creating bot:', {
+      name,
+      model,
+      knowledgeBaseLength: knowledgeBase?.length || 0
+    });
 
     if (!name || !systemPrompt) {
       return new Response(
@@ -100,31 +120,112 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const botId = `bot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    await DB.prepare(`
-      INSERT INTO ai_bots (
-        id, name, description, systemPrompt, welcomeMessage, 
-        starterMessage1, starterMessage2, starterMessage3, profileIcon, profileImage,
-        model, temperature, maxTokens, topK, topP, language,
-        isActive, conversationCount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
-    `).bind(
-      botId,
-      name,
-      description || null,
-      systemPrompt,
-      welcomeMessage || null,
-      starterMessage1 || null,
-      starterMessage2 || null,
-      starterMessage3 || null,
-      profileIcon,
-      profileImage || null,
-      model,
-      temperature,
-      maxTokens,
-      topK,
-      topP,
-      language
-    ).run();
+    // Try to add enableProblemGeneration column if it doesn't exist
+    try {
+      await DB.prepare(`
+        ALTER TABLE ai_bots ADD COLUMN enableProblemGeneration INTEGER DEFAULT 0
+      `).run();
+      console.log('✅ enableProblemGeneration column added successfully');
+    } catch (alterError: any) {
+      console.log('ℹ️ enableProblemGeneration column add attempt:', alterError.message);
+    }
+
+    // Try to add TTS voice columns if they don't exist
+    try {
+      await DB.prepare(`
+        ALTER TABLE ai_bots ADD COLUMN voiceEnabled INTEGER DEFAULT 0
+      `).run();
+      console.log('✅ voiceEnabled column added successfully');
+    } catch (alterError: any) {
+      console.log('ℹ️ voiceEnabled column add attempt:', alterError.message);
+    }
+
+    try {
+      await DB.prepare(`
+        ALTER TABLE ai_bots ADD COLUMN voiceName TEXT DEFAULT 'ko-KR-Wavenet-A'
+      `).run();
+      console.log('✅ voiceName column added successfully');
+    } catch (alterError: any) {
+      console.log('ℹ️ voiceName column add attempt:', alterError.message);
+    }
+
+    // Try to add knowledgeBase column
+    try {
+      await DB.prepare(`
+        ALTER TABLE ai_bots ADD COLUMN knowledgeBase TEXT
+      `).run();
+      console.log('✅ knowledgeBase column added successfully');
+    } catch (alterError: any) {
+      console.log('ℹ️ knowledgeBase column add attempt:', alterError.message);
+    }
+
+    // Try with enableProblemGeneration first
+    try {
+      await DB.prepare(`
+        INSERT INTO ai_bots (
+          id, name, description, systemPrompt, welcomeMessage, 
+          starterMessage1, starterMessage2, starterMessage3, profileIcon, profileImage,
+          model, temperature, maxTokens, topK, topP, language, knowledgeBase,
+          enableProblemGeneration, voiceEnabled, voiceName, isActive, conversationCount
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+      `).bind(
+        botId,
+        name,
+        description || null,
+        systemPrompt,
+        welcomeMessage || null,
+        starterMessage1 || null,
+        starterMessage2 || null,
+        starterMessage3 || null,
+        profileIcon,
+        profileImage || null,
+        model,
+        temperature,
+        maxTokens,
+        topK,
+        topP,
+        language,
+        knowledgeBase || null,
+        enableProblemGeneration ? 1 : 0,
+        voiceEnabled ? 1 : 0,
+        voiceName
+      ).run();
+
+      console.log('✅ AI bot created successfully with all fields');
+    } catch (insertError: any) {
+      // If enableProblemGeneration column doesn't exist, try without it
+      if (insertError.message?.includes('enableProblemGeneration')) {
+        console.log('⚠️ Retrying without enableProblemGeneration column');
+        await DB.prepare(`
+          INSERT INTO ai_bots (
+            id, name, description, systemPrompt, welcomeMessage, 
+            starterMessage1, starterMessage2, starterMessage3, profileIcon, profileImage,
+            model, temperature, maxTokens, topK, topP, language,
+            isActive, conversationCount
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+        `).bind(
+          botId,
+          name,
+          description || null,
+          systemPrompt,
+          welcomeMessage || null,
+          starterMessage1 || null,
+          starterMessage2 || null,
+          starterMessage3 || null,
+          profileIcon,
+          profileImage || null,
+          model,
+          temperature,
+          maxTokens,
+          topK,
+          topP,
+          language
+        ).run();
+        console.log('✅ AI bot created without enableProblemGeneration (feature disabled)');
+      } else {
+        throw insertError;
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true, botId, message: "AI bot created successfully" }),

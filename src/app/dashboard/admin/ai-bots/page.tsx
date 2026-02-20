@@ -268,7 +268,7 @@ export default function AdminAIBotsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => alert(`${bot.name} 설정 기능은 곧 추가됩니다.`)}
+                      onClick={() => router.push(`/dashboard/admin/ai-bots/edit?id=${bot.id}`)}
                     >
                       <Settings className="w-4 h-4" />
                     </Button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,13 +22,17 @@ import {
   TestTube,
   Send,
   Smile,
+  ImageIcon,
+  FileText,
+  Upload,
+  X,
 } from "lucide-react";
 
 const GEMINI_MODELS = [
-  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (실험적, 최신)", description: "가장 빠르고 최신 기능" },
-  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (추천)", description: "균형잡힌 성능과 품질" },
-  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash", description: "빠른 응답 속도" },
-  { value: "gemini-1.0-pro", label: "Gemini 1.0 Pro", description: "안정적인 버전" },
+  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (추천)", description: "최신 실험 모델, 빠른 응답", recommended: true },
+  { value: "gemini-1.5-flash-latest", label: "Gemini 1.5 Flash", description: "안정적인 빠른 모델", recommended: false },
+  { value: "gemini-1.5-pro-latest", label: "Gemini 1.5 Pro", description: "고급 추론 능력, 복잡한 작업에 최적", recommended: false },
+  { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash-8B", description: "초고속, 비용 효율적", recommended: false },
 ];
 
 const PRESET_PROMPTS = [
@@ -154,44 +158,53 @@ const PRESET_PROMPTS = [
   },
 ];
 
-// 프로필 아이콘 옵션 (100+ 이모지)
+// 프로필 아이콘 옵션 (200+ 이모지)
 const PROFILE_EMOJIS = [
-  // 기술 & AI
-  "🤖", "💻", "🖥️", "⌨️", "🖱️", "💾", "💿", "📱", "📲", "☎️",
-  // 교육 & 학습
-  "🎓", "📚", "📖", "📝", "✏️", "✒️", "🖊️", "📕", "📗", "📘",
-  // 에너지 & 빛
-  "💡", "🔦", "🕯️", "💫", "⭐", "🌟", "✨", "🌠", "🔆", "☀️",
-  // 우주 & 과학
-  "🚀", "🛸", "🛰️", "🔬", "🔭", "⚗️", "🧪", "🧬", "🔋", "⚡",
-  // 예술 & 창작
-  "🎨", "🖼️", "🎭", "🎪", "🎬", "🎤", "🎧", "🎼", "🎹", "🎸",
-  // 스포츠 & 성취
-  "🏆", "🥇", "🥈", "🥉", "🏅", "🎖️", "🎯", "🎲", "🎰", "🎳",
-  // 자연 & 날씨
-  "🌈", "🌤️", "⛅", "🌦️", "🌧️", "⛈️", "🌩️", "🌨️", "☃️", "⛄",
-  // 동물 - 포유류
-  "🐱", "🐶", "🦊", "🐼", "🦁", "🐯", "🐨", "🐻", "🐰", "🐹",
-  "🐭", "🐮", "🐷", "🐸", "🐵", "🙈", "🙉", "🙊", "🦍", "🦧",
-  // 동물 - 조류 & 해양
-  "🦅", "🦆", "🦉", "🦜", "🐧", "🐦", "🐤", "🐣", "🐥", "🦩",
-  "🐬", "🐳", "🐋", "🦈", "🐙", "🦑", "🦀", "🦞", "🐠", "🐟",
-  // 곤충 & 작은 생물
-  "🐝", "🦋", "🐛", "🐌", "🐞", "🦗", "🕷️", "🦂", "🐜", "🪰",
-  // 식물 & 꽃
-  "🌸", "🌺", "🌻", "🌼", "🌷", "🥀", "🏵️", "🌹", "🍀", "🍁",
-  "🍂", "🍃", "🌿", "🌱", "🌾", "🌵", "🎄", "🌲", "🌳", "🌴",
-  // 음식 & 음료
-  "🍎", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🍑", "🍒", "🍍",
-  "🥝", "🥑", "🍔", "🍕", "🍰", "🎂", "🍪", "🍩", "☕", "🍵",
-  // 여행 & 장소
-  "✈️", "🚁", "🚂", "🚃", "🚄", "🚅", "🚆", "🚇", "🚈", "🚉",
-  "🏠", "🏡", "🏢", "🏣", "🏤", "🏥", "🏦", "🏨", "🏩", "🏪",
-  // 시간 & 도구
-  "⏰", "⏱️", "⏲️", "⏳", "⌛", "🕐", "🕑", "🕒", "🔧", "🔨",
-  // 기타 유용한 이모지
-  "💝", "💖", "💗", "💓", "💞", "💕", "💟", "❣️", "💔", "❤️",
-  "🧡", "💛", "💚", "💙", "💜", "🤎", "🖤", "🤍", "♥️", "💯"
+  // 기술 & AI (확장)
+  "🤖", "💻", "🖥️", "⌨️", "🖱️", "💾", "💿", "📱", "📲", "☎️", "📞", "📟", "📠", "📡", "🔌", "💡", "🔦", "💾", "🖨️", "⌚",
+  // 교육 & 학습 (확장)
+  "🎓", "📚", "📖", "📝", "✏️", "✒️", "🖊️", "🖍️", "📕", "📗", "📘", "📙", "📔", "📓", "📒", "📃", "📜", "📄", "📰", "🗞️",
+  // 에너지 & 빛 (확장)
+  "💡", "🔦", "🕯️", "💫", "⭐", "🌟", "✨", "🌠", "🔆", "☀️", "🌞", "🌝", "🌛", "🌜", "🌙", "⚡", "🔥", "💥", "✴️", "🌟",
+  // 우주 & 과학 (확장)
+  "🚀", "🛸", "🛰️", "🔬", "🔭", "⚗️", "🧪", "🧬", "🔋", "⚡", "🌌", "🪐", "🌍", "🌎", "🌏", "🗺️", "🧭", "⚙️", "🔩", "🔧",
+  // 예술 & 창작 (확장)
+  "🎨", "🖼️", "🎭", "🎪", "🎬", "🎤", "🎧", "🎼", "🎹", "🎸", "🎺", "🎷", "🥁", "🎻", "🪕", "🎲", "♟️", "🎯", "🎰", "🎮",
+  // 스포츠 & 성취 (확장)
+  "🏆", "🥇", "🥈", "🥉", "🏅", "🎖️", "🎯", "🎲", "🎰", "🎳", "⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🏉", "🥊", "🥋", "🎿",
+  // 자연 & 날씨 (확장)
+  "🌈", "🌤️", "⛅", "🌦️", "🌧️", "⛈️", "🌩️", "🌨️", "☃️", "⛄", "❄️", "☁️", "🌪️", "🌫️", "🌬️", "💨", "🌊", "💦", "💧", "☔",
+  // 동물 - 포유류 (확장)
+  "🐱", "🐶", "🦊", "🐼", "🦁", "🐯", "🐨", "🐻", "🐰", "🐹", "🐭", "🐮", "🐷", "🐸", "🐵", "🙈", "🙉", "🙊", "🦍", "🦧",
+  "🐺", "🦝", "🦨", "🦦", "🦥", "🦘", "🦡", "🐘", "🦏", "🦛", "🐪", "🐫", "🦒", "🦌", "🐎", "🦓", "🦙", "🐐", "🐑", "🦙",
+  // 동물 - 조류 & 해양 (확장)
+  "🦅", "🦆", "🦉", "🦜", "🐧", "🐦", "🐤", "🐣", "🐥", "🦩", "🦚", "🦃", "🦢", "🕊️", "🐓", "🐔",
+  "🐬", "🐳", "🐋", "🦈", "🐙", "🦑", "🦀", "🦞", "🦐", "🐠", "🐟", "🐡", "🐚", "🦪", "🪼", "🐢",
+  // 곤충 & 작은 생물 (확장)
+  "🐝", "🦋", "🐛", "🐌", "🐞", "🦗", "🕷️", "🦂", "🐜", "🪰", "🪱", "🦟", "🪲", "🐾",
+  // 식물 & 꽃 (확장)
+  "🌸", "🌺", "🌻", "🌼", "🌷", "🥀", "🏵️", "🌹", "🍀", "🍁", "🍂", "🍃", "🌿", "🌱", "🌾", "🌵", "🎄", "🌲", "🌳", "🌴",
+  "🎋", "🎍", "🌾", "🌺", "🌻", "🏞️", "🌾", "🪴", "🪵",
+  // 음식 & 음료 (확장)
+  "🍎", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🍑", "🍒", "🍍", "🥝", "🥑", "🍔", "🍕", "🍰", "🎂", "🍪", "🍩", "☕", "🍵",
+  "🥐", "🥖", "🥨", "🥯", "🥞", "🧇", "🧀", "🍖", "🍗", "🥩", "🥓", "🍤", "🍱", "🍛", "🍜", "🍝", "🍠", "🍢", "🍣", "🍥",
+  "🍦", "🍧", "🍨", "🍬", "🍭", "🍮", "🍯", "🍼", "🥛", "🍷", "🍸", "🍹", "🍺", "🍻", "🥂", "🥃", "🧃", "🧉", "🧊",
+  // 여행 & 장소 (확장)
+  "✈️", "🚁", "🚂", "🚃", "🚄", "🚅", "🚆", "🚇", "🚈", "🚉", "🚊", "🚝", "🚞", "🚋", "🚌", "🚍", "🚎", "🚐", "🚑", "🚒",
+  "🚓", "🚔", "🚕", "🚖", "🚗", "🚘", "🚙", "🚚", "🚛", "🚜",
+  "🏠", "🏡", "🏢", "🏣", "🏤", "🏥", "🏦", "🏨", "🏩", "🏪", "🏫", "🏬", "🏭", "🏯", "🏰", "💒", "🗼", "🗽", "⛪", "🕌",
+  // 시간 & 도구 (확장)
+  "⏰", "⏱️", "⏲️", "⏳", "⌛", "🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚", "🕛",
+  "🔧", "🔨", "⚒️", "🛠️", "⛏️", "🪛", "🔩", "⚙️", "🔗", "⛓️", "📎", "🖇️", "📌", "📍", "✂️", "🗃️", "🗄️", "🗑️",
+  // 기타 유용한 이모지 (확장)
+  "💝", "💖", "💗", "💓", "💞", "💕", "💟", "❣️", "💔", "❤️", "🧡", "💛", "💚", "💙", "💜", "🤎", "🖤", "🤍", "♥️", "💯",
+  "💢", "💬", "💭", "🗨️", "🗯️", "💤", "💮", "🏁", "🚩", "🎌", "🏴", "🏳️", "🏳️‍🌈", "🏴‍☠️",
+  // 표정 & 감정
+  "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😗", "😚", "😙",
+  "🥲", "😋", "😛", "😜", "🤪", "😝", "🤑", "🤗", "🤭", "🤫", "🤔", "🤐", "🤨", "😐", "😑", "😶", "😏", "😒", "🙄", "😬",
+  // 상징 & 기호
+  "✅", "❎", "✔️", "✖️", "❌", "➕", "➖", "✳️", "✴️", "❇️", "‼️", "⁉️", "❓", "❔", "❕", "❗", "〰️", "©️", "®️", "™️",
+  "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤", "⚫", "⚪", "🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🟫", "⬛", "⬜", "◼️", "◻️"
 ];
 
 interface Message {
@@ -200,8 +213,12 @@ interface Message {
   timestamp: Date;
 }
 
-export default function CreateAIBotPage() {
+export default function EditAIBotPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const botId = searchParams.get('id');
+  
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -210,6 +227,9 @@ export default function CreateAIBotPage() {
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [knowledgeFiles, setKnowledgeFiles] = useState<Array<{name: string, content: string, size: number}>>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -220,12 +240,17 @@ export default function CreateAIBotPage() {
     starterMessage2: "",
     starterMessage3: "",
     profileIcon: "🤖",
-    model: "gemini-1.5-pro",
+    profileImage: "", // 이미지 URL 추가
+    model: "gemini-2.0-flash-exp",
     temperature: "0.7",
     maxTokens: "2000",
     topK: "40",
     topP: "0.95",
     language: "ko",
+    knowledgeBase: "",
+    enableProblemGeneration: false,
+    voiceEnabled: false,
+    voiceName: "ko-KR-Wavenet-A",
   });
 
   useEffect(() => {
@@ -237,7 +262,55 @@ export default function CreateAIBotPage() {
 
     const userData = JSON.parse(storedUser);
     setCurrentUser(userData);
+
+    // Load existing bot data
+    fetchBotData();
   }, [router]);
+
+  const fetchBotData = async () => {
+    try {
+      setInitialLoading(true);
+      const response = await fetch(`/api/admin/ai-bots/${botId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const bot = data.bot;
+        
+        // Load bot data into form
+        setFormData({
+          name: bot.name || "",
+          description: bot.description || "",
+          systemPrompt: bot.systemPrompt || "",
+          welcomeMessage: bot.welcomeMessage || "",
+          starterMessage1: bot.starterMessage1 || "",
+          starterMessage2: bot.starterMessage2 || "",
+          starterMessage3: bot.starterMessage3 || "",
+          profileIcon: bot.profileIcon || "🤖",
+          profileImage: bot.profileImage || "",
+          model: bot.model || "gemini-2.0-flash-exp",
+          temperature: String(bot.temperature || 0.7),
+          maxTokens: String(bot.maxTokens || 2000),
+          topK: String(bot.topK || 40),
+          topP: String(bot.topP || 0.95),
+          language: bot.language || "ko",
+          knowledgeBase: bot.knowledgeBase || "",
+          enableProblemGeneration: bot.enableProblemGeneration === 1 || bot.enableProblemGeneration === true,
+          voiceEnabled: bot.voiceEnabled === 1 || bot.voiceEnabled === true,
+          voiceName: bot.voiceName || "ko-KR-Wavenet-A",
+        });
+        
+        setShowPresets(false);
+      } else {
+        alert("봇 데이터를 불러오는데 실패했습니다.");
+        router.push("/dashboard/admin/ai-bots");
+      }
+    } catch (error) {
+      console.error("봇 데이터 로드 실패:", error);
+      alert("봇 데이터를 불러오는데 실패했습니다.");
+      router.push("/dashboard/admin/ai-bots");
+    } finally {
+      setInitialLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -278,12 +351,17 @@ export default function CreateAIBotPage() {
     setTestLoading(true);
 
     try {
+      // 지식 베이스를 시스템 프롬프트에 추가
+      const enhancedSystemPrompt = formData.knowledgeBase 
+        ? `${formData.systemPrompt}\n\n---\n\n## 참고 자료 (Knowledge Base)\n\n다음 자료를 참고하여 답변하세요:\n\n${formData.knowledgeBase}`
+        : formData.systemPrompt;
+
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: messageToSend,
-          systemPrompt: formData.systemPrompt,
+          systemPrompt: enhancedSystemPrompt,
           model: formData.model,
           temperature: parseFloat(formData.temperature),
           maxTokens: parseInt(formData.maxTokens),
@@ -329,6 +407,89 @@ export default function CreateAIBotPage() {
     setChatMessages([]);
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingFile(true);
+    try {
+      for (const file of Array.from(files)) {
+        // 파일 크기 제한 (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`${file.name}: 파일 크기는 10MB를 초과할 수 없습니다.`);
+          continue;
+        }
+
+        // 지원 파일 형식 확인 (텍스트 기반만)
+        const allowedTypes = [
+          'text/plain',
+          'text/markdown',
+          'application/json',
+          'text/csv',
+          'text/html',
+          'application/xml',
+          'text/xml'
+        ];
+        
+        const fileExtension = file.name.toLowerCase().split('.').pop();
+        const supportedExtensions = ['txt', 'md', 'json', 'csv', 'html', 'xml'];
+        
+        if (!allowedTypes.includes(file.type) && !supportedExtensions.includes(fileExtension || '')) {
+          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD (Markdown), JSON, CSV, HTML, XML\n\n참고: PDF 파일은 텍스트를 복사하여 직접 붙여넣기 하거나, 텍스트로 변환 후 업로드해주세요.`);
+          continue;
+        }
+
+        console.log(`📁 파일 업로드 시작: ${file.name} (${file.size} bytes, type: ${file.type})`);
+
+        // 텍스트 파일 읽기
+        const text = await file.text();
+        
+        console.log(`✅ 파일 읽기 완료: ${file.name} (${text.length} chars)`);
+        
+        setKnowledgeFiles(prev => [
+          ...prev,
+          {
+            name: file.name,
+            content: text,
+            size: file.size
+          }
+        ]);
+
+        // knowledgeBase에 추가
+        setFormData(prev => ({
+          ...prev,
+          knowledgeBase: prev.knowledgeBase + `\n\n## 📄 ${file.name}\n\n${text}\n\n---\n`
+        }));
+        
+        console.log(`💾 Knowledge Base 업데이트 완료`);
+      }
+      
+      alert(`${files.length}개 파일이 성공적으로 업로드되었습니다.`);
+    } catch (error) {
+      console.error('❌ 파일 업로드 오류:', error);
+      alert('파일을 읽는 중 오류가 발생했습니다.\n\n' + (error as Error).message);
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removeKnowledgeFile = (fileName: string) => {
+    setKnowledgeFiles(prev => prev.filter(f => f.name !== fileName));
+    
+    // knowledgeBase에서 제거
+    const fileToRemove = knowledgeFiles.find(f => f.name === fileName);
+    if (fileToRemove) {
+      const pattern = `\n\n## ${fileName}\n${fileToRemove.content}`;
+      setFormData(prev => ({
+        ...prev,
+        knowledgeBase: prev.knowledgeBase.replace(pattern, '')
+      }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -340,8 +501,8 @@ export default function CreateAIBotPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/admin/ai-bots", {
-        method: "POST",
+      const response = await fetch(`/api/admin/ai-bots/${botId}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
@@ -353,19 +514,30 @@ export default function CreateAIBotPage() {
       });
 
       if (response.ok) {
-        alert("✨ AI Gem이 생성되었습니다!");
+        alert("✨ AI Gem이 수정되었습니다!");
         router.push("/dashboard/admin/ai-bots");
       } else {
         const error = await response.json();
-        alert(error.message || "봇 생성에 실패했습니다.");
+        alert(`오류: ${error.message || "알 수 없는 오류"}`);
       }
     } catch (error) {
-      console.error("봇 생성 실패:", error);
-      alert("오류가 발생했습니다.");
+      console.error("AI Gem 수정 실패:", error);
+      alert("AI Gem 수정 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
   };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">봇 데이터 로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -374,10 +546,10 @@ export default function CreateAIBotPage() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Sparkles className="h-8 w-8 text-purple-600" />
-            새로운 Gem 만들기
+            Gem 수정하기
           </h1>
           <p className="text-gray-600 mt-1">
-            Google Gemini 기반 맞춤형 AI 어시스턴트를 만들어보세요
+            AI 어시스턴트의 설정을 수정하세요
           </p>
         </div>
         <Button
@@ -451,39 +623,83 @@ export default function CreateAIBotPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* 프로필 아이콘 선택 */}
+                {/* 프로필 아이콘/이미지 선택 */}
                 <div>
-                  <Label className="text-base mb-2 block">프로필 아이콘</Label>
-                  <div className="flex items-center gap-3">
-                    <div className="text-5xl">{formData.profileIcon}</div>
-                    <div className="flex-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        className="w-full"
-                      >
-                        <Smile className="w-4 h-4 mr-2" />
-                        아이콘 변경
-                      </Button>
-                      {showEmojiPicker && (
-                        <div className="mt-2 p-3 border rounded-lg bg-white shadow-lg grid grid-cols-10 gap-2 max-h-48 overflow-y-auto">
-                          {PROFILE_EMOJIS.map((emoji, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              className="text-2xl hover:bg-gray-100 p-2 rounded transition"
-                              onClick={() => {
-                                setFormData({ ...formData, profileIcon: emoji });
-                                setShowEmojiPicker(false);
-                              }}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
+                  <Label className="text-base mb-2 block">프로필 아이콘 / 이미지</Label>
+                  <div className="space-y-3">
+                    {/* 미리보기 */}
+                    <div className="flex items-center gap-3">
+                      {formData.profileImage ? (
+                        <img 
+                          src={formData.profileImage} 
+                          alt="프로필 이미지" 
+                          className="w-16 h-16 object-cover rounded-lg border-2 border-gray-200"
+                        />
+                      ) : (
+                        <div className="text-5xl">{formData.profileIcon}</div>
                       )}
+                      <div className="flex-1 space-y-2">
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            className="flex-1"
+                          >
+                            <Smile className="w-4 h-4 mr-2" />
+                            이모지 선택
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              const url = prompt("이미지 URL을 입력하세요:");
+                              if (url) {
+                                setFormData({ ...formData, profileImage: url, profileIcon: "" });
+                              }
+                            }}
+                            className="flex-1"
+                          >
+                            <ImageIcon className="w-4 h-4 mr-2" />
+                            이미지 URL
+                          </Button>
+                        </div>
+                        {(formData.profileImage || formData.profileIcon !== "🤖") && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFormData({ ...formData, profileImage: "", profileIcon: "🤖" })}
+                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            초기화
+                          </Button>
+                        )}
+                      </div>
                     </div>
+                    
+                    {/* 이모지 선택 그리드 */}
+                    {showEmojiPicker && (
+                      <div className="p-3 border rounded-lg bg-white shadow-lg grid grid-cols-10 gap-2 max-h-64 overflow-y-auto">
+                        {PROFILE_EMOJIS.map((emoji, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            className="text-2xl hover:bg-blue-50 p-2 rounded transition"
+                            onClick={() => {
+                              setFormData({ ...formData, profileIcon: emoji, profileImage: "" });
+                              setShowEmojiPicker(false);
+                            }}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <p className="text-sm text-gray-500">
+                      이모지 또는 이미지 URL을 선택하여 봇의 프로필을 설정할 수 있습니다
+                    </p>
                   </div>
                 </div>
 
@@ -603,11 +819,133 @@ export default function CreateAIBotPage() {
                     💡 효과적인 지침 작성 팁:
                   </p>
                   <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• <strong>역할 정의:</strong> "당신은 ~입니다" 형식으로 명확히</li>
-                    <li>• <strong>구체적 행동:</strong> 해야 할 것과 하지 말아야 할 것</li>
-                    <li>• <strong>톤과 스타일:</strong> 친근한, 전문적인, 교육적인 등</li>
-                    <li>• <strong>응답 형식:</strong> 구조화된 답변 방식 제시</li>
+                    <li>• <strong>역할 정의:</strong> "당신은 ~입니다" 형식으로 명확히 (예: "당신은 친절한 수학 선생님입니다")</li>
+                    <li>• <strong>구체적 행동:</strong> 해야 할 것과 하지 말아야 할 것을 명시</li>
+                    <li>• <strong>톤과 스타일:</strong> 친근한, 전문적인, 교육적인, 격려하는 등</li>
+                    <li>• <strong>응답 형식:</strong> 구조화된 답변 방식 제시 (단계별, 번호 매기기 등)</li>
                     <li>• <strong>제약 사항:</strong> 길이, 형식, 내용 제한 명시</li>
+                    <li>• <strong>예시 제공:</strong> 원하는 응답의 구체적 예시 포함</li>
+                    <li>• <strong>맥락 설명:</strong> 대상 사용자, 사용 목적 명시</li>
+                  </ul>
+                  <div className="mt-3 pt-3 border-t border-blue-300">
+                    <p className="text-xs font-semibold text-blue-900 mb-1">🎯 실전 적용 가능한 요소:</p>
+                    <ul className="text-xs text-blue-800 space-y-0.5">
+                      <li>✓ <strong>페르소나:</strong> 나이, 성격, 전문 분야 설정</li>
+                      <li>✓ <strong>대화 스타일:</strong> 이모지 사용 여부, 반말/존댓말</li>
+                      <li>✓ <strong>응답 길이:</strong> 간결한 답변 vs 상세한 설명</li>
+                      <li>✓ <strong>오류 처리:</strong> 모르는 답변 시 대응 방법</li>
+                      <li>✓ <strong>안전 장치:</strong> 부적절한 질문 대응 방식</li>
+                      <li>✓ <strong>특화 기능:</strong> 코드 블록, 표, 리스트 활용</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 지식 베이스 (Knowledge Base) - RAG */}
+            <Card className="border-2 border-orange-200">
+              <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-orange-600" />
+                  지식 베이스 (Knowledge Base)
+                </CardTitle>
+                <CardDescription>
+                  AI가 참고할 수 있는 문서, 자료, 지식을 업로드하세요. RAG (Retrieval-Augmented Generation)로 더 정확한 답변을 제공합니다.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                {/* 파일 업로드 버튼 */}
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".txt,.md,.pdf,.json,.csv"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="knowledge-file-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-dashed border-2 border-orange-300 hover:border-orange-500 hover:bg-orange-50"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {uploadingFile ? "업로드 중..." : "파일 선택 (txt, md, pdf, json, csv)"}
+                  </Button>
+                  <p className="text-xs text-gray-500 mt-2">
+                    • 최대 파일 크기: 5MB per file
+                    <br />
+                    • 지원 형식: 텍스트(.txt), 마크다운(.md), PDF(.pdf), JSON(.json), CSV(.csv)
+                    <br />
+                    • 업로드된 내용은 AI가 답변할 때 참고 자료로 활용됩니다
+                  </p>
+                </div>
+
+                {/* 업로드된 파일 목록 */}
+                {knowledgeFiles.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">업로드된 파일 ({knowledgeFiles.length}개)</Label>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {knowledgeFiles.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <FileText className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {(file.size / 1024).toFixed(2)} KB
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeKnowledgeFile(file.name)}
+                            className="flex-shrink-0"
+                          >
+                            <X className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 지식 베이스 내용 미리보기 */}
+                {formData.knowledgeBase && (
+                  <div>
+                    <Label className="text-sm font-semibold">지식 베이스 내용 미리보기</Label>
+                    <Textarea
+                      value={formData.knowledgeBase}
+                      onChange={(e) => setFormData({ ...formData, knowledgeBase: e.target.value })}
+                      rows={8}
+                      className="mt-2 font-mono text-xs"
+                      placeholder="파일을 업로드하면 여기에 내용이 표시됩니다"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      💡 업로드된 내용을 직접 수정할 수도 있습니다
+                    </p>
+                  </div>
+                )}
+
+                {/* RAG 설명 */}
+                <div className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg border border-orange-200">
+                  <p className="text-sm font-semibold text-orange-900 mb-2">
+                    📚 RAG (Retrieval-Augmented Generation)란?
+                  </p>
+                  <ul className="text-sm text-orange-800 space-y-1">
+                    <li>• AI가 답변할 때 <strong>업로드된 지식을 참고</strong>하여 더 정확하고 맞춤형 답변 제공</li>
+                    <li>• 회사 매뉴얼, 학습 자료, 제품 설명서 등을 업로드하여 <strong>전문화된 AI 봇</strong> 생성</li>
+                    <li>• 실시간으로 최신 정보를 반영하여 환각(Hallucination) 현상 감소</li>
                   </ul>
                 </div>
               </CardContent>
@@ -628,7 +966,7 @@ export default function CreateAIBotPage() {
                 {/* 모델 선택 */}
                 <div>
                   <Label htmlFor="model" className="text-base mb-3 block">Gemini 모델 선택</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     {GEMINI_MODELS.map((model) => (
                       <div
                         key={model.value}
@@ -641,7 +979,14 @@ export default function CreateAIBotPage() {
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="font-semibold text-sm">{model.label}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-semibold text-sm">{model.label}</div>
+                              {model.recommended && (
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                                  추천
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-gray-600 mt-1">{model.description}</div>
                           </div>
                           {formData.model === model.value && (
@@ -651,96 +996,130 @@ export default function CreateAIBotPage() {
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    💡 선택한 모델이 테스트와 실제 Gem에 적용됩니다
-                  </p>
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs font-semibold text-blue-900 mb-1">💡 모델 선택 가이드:</p>
+                    <ul className="text-xs text-blue-800 space-y-1">
+                      <li>• <strong>2.5 Flash (추천):</strong> 대부분의 작업에 적합, 빠르고 비용 효율적</li>
+                      <li>• <strong>2.5 Pro:</strong> 복잡한 추론, 코드 생성, 데이터 분석에 최적</li>
+                      <li>• <strong>3.0 Preview:</strong> 최신 기능 테스트용, 프로덕션 미권장</li>
+                      <li>• <strong>2.5 Flash Lite:</strong> 간단한 작업, 초고속 응답 필요시</li>
+                    </ul>
+                  </div>
                 </div>
 
                 {/* 파라미터 설정 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="temperature" className="text-base">
-                      Temperature (창의성)
-                    </Label>
-                    <div className="flex items-center gap-3 mt-2">
-                      <input
-                        id="temperature"
-                        type="range"
-                        min="0"
-                        max="2"
-                        step="0.1"
-                        value={formData.temperature}
-                        onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
-                        className="flex-1"
-                      />
-                      <span className="text-sm font-mono w-12 text-right">
-                        {formData.temperature}
-                      </span>
+                <div className="space-y-4">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-amber-900 mb-1">⚙️ 파라미터 조정 가이드:</p>
+                    <ul className="text-xs text-amber-800 space-y-0.5">
+                      <li>• <strong>창의적 작업</strong> (시, 스토리): Temperature 0.8-1.2</li>
+                      <li>• <strong>일반 대화</strong> (상담, 조언): Temperature 0.6-0.8</li>
+                      <li>• <strong>정확한 답변</strong> (계산, 번역): Temperature 0.3-0.5</li>
+                      <li>• <strong>코드 생성</strong>: Temperature 0.2-0.4, Top-K 20-30</li>
+                    </ul>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="temperature" className="text-base">
+                        Temperature (창의성) 🌡️
+                      </Label>
+                      <div className="flex items-center gap-3 mt-2">
+                        <input
+                          id="temperature"
+                          type="range"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={formData.temperature}
+                          onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
+                          className="flex-1"
+                        />
+                        <span className="text-sm font-mono w-12 text-right font-semibold">
+                          {formData.temperature}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex justify-between text-xs text-gray-600">
+                        <span>정확함 (0.0)</span>
+                        <span>창의적 (2.0)</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {parseFloat(formData.temperature) < 0.5 ? "🎯 매우 일관적이고 정확한 응답" :
+                         parseFloat(formData.temperature) < 1.0 ? "⚖️ 균형잡힌 응답 (추천)" :
+                         "🎨 창의적이고 다양한 응답"}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      낮을수록 일관적, 높을수록 창의적 (기본: 0.7)
-                    </p>
-                  </div>
 
-                  <div>
-                    <Label htmlFor="topP" className="text-base">
-                      Top-P (다양성)
-                    </Label>
-                    <div className="flex items-center gap-3 mt-2">
-                      <input
-                        id="topP"
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={formData.topP}
-                        onChange={(e) => setFormData({ ...formData, topP: e.target.value })}
-                        className="flex-1"
-                      />
-                      <span className="text-sm font-mono w-12 text-right">
-                        {formData.topP}
-                      </span>
+                    <div>
+                      <Label htmlFor="topP" className="text-base">
+                        Top-P (다양성) 🎲
+                      </Label>
+                      <div className="flex items-center gap-3 mt-2">
+                        <input
+                          id="topP"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={formData.topP}
+                          onChange={(e) => setFormData({ ...formData, topP: e.target.value })}
+                          className="flex-1"
+                        />
+                        <span className="text-sm font-mono w-12 text-right font-semibold">
+                          {formData.topP}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex justify-between text-xs text-gray-600">
+                        <span>집중 (0.0)</span>
+                        <span>다양함 (1.0)</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {parseFloat(formData.topP) < 0.5 ? "🎯 가장 확률 높은 답변만" :
+                         parseFloat(formData.topP) < 0.9 ? "⚖️ 적절한 다양성" :
+                         "🌈 매우 다양한 표현"}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      응답의 다양성 조절 (기본: 0.95)
-                    </p>
-                  </div>
 
-                  <div>
-                    <Label htmlFor="topK" className="text-base">
-                      Top-K
-                    </Label>
-                    <Input
-                      id="topK"
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={formData.topK}
-                      onChange={(e) => setFormData({ ...formData, topK: e.target.value })}
-                      className="mt-2"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      상위 K개 토큰만 고려 (기본: 40)
-                    </p>
-                  </div>
+                    <div>
+                      <Label htmlFor="topK" className="text-base">
+                        Top-K (어휘 범위) 📚
+                      </Label>
+                      <Input
+                        id="topK"
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={formData.topK}
+                        onChange={(e) => setFormData({ ...formData, topK: e.target.value })}
+                        className="mt-2"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        상위 K개 단어만 고려 (낮을수록 일관적, 기본: 40)
+                      </p>
+                    </div>
 
-                  <div>
-                    <Label htmlFor="maxTokens" className="text-base">
-                      최대 토큰
-                    </Label>
-                    <Input
-                      id="maxTokens"
-                      type="number"
-                      step="100"
-                      min="100"
-                      max="8000"
-                      value={formData.maxTokens}
-                      onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
-                      className="mt-2"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      응답 최대 길이 (기본: 2000)
-                    </p>
+                    <div>
+                      <Label htmlFor="maxTokens" className="text-base">
+                        최대 토큰 (응답 길이) 📏
+                      </Label>
+                      <Input
+                        id="maxTokens"
+                        type="number"
+                        step="500"
+                        min="100"
+                        max="20000"
+                        value={formData.maxTokens}
+                        onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
+                        className="mt-2"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {parseInt(formData.maxTokens) < 1000 ? "매우 짧은 답변 (~500자)" :
+                         parseInt(formData.maxTokens) < 3000 ? "짧은 답변 (~1500자)" :
+                         parseInt(formData.maxTokens) < 8000 ? "중간 길이 (~4000자)" :
+                         parseInt(formData.maxTokens) < 15000 ? "긴 답변 (~7500자)" :
+                         "매우 긴 답변 (~10000자)"} · 기본: 2000 · 최대: 20000
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -759,6 +1138,83 @@ export default function CreateAIBotPage() {
                     <option value="ja">日本語</option>
                     <option value="zh">中文</option>
                   </select>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="enableProblemGeneration"
+                      checked={formData.enableProblemGeneration}
+                      onChange={(e) => setFormData({ ...formData, enableProblemGeneration: e.target.checked })}
+                      className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="enableProblemGeneration" className="text-base font-semibold cursor-pointer">
+                        📝 유사문제 출제 기능
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1">
+                        AI와 대화 중 나온 문제를 학원 이름이 들어간 문제지로 프린트할 수 있습니다.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TTS 음성 출력 설정 */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="voiceEnabled"
+                      checked={formData.voiceEnabled}
+                      onChange={(e) => setFormData({ ...formData, voiceEnabled: e.target.checked })}
+                      className="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="voiceEnabled" className="text-base font-semibold cursor-pointer">
+                        🔊 음성 출력 (TTS)
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1">
+                        AI 응답을 음성으로 들을 수 있습니다. 채팅 화면에서 스피커 버튼을 눌러 재생하세요.
+                      </p>
+                      
+                      {formData.voiceEnabled && (
+                        <div className="mt-3">
+                          <Label htmlFor="voiceName" className="text-sm font-medium">
+                            음성 선택
+                          </Label>
+                          <select
+                            id="voiceName"
+                            value={formData.voiceName}
+                            onChange={(e) => setFormData({ ...formData, voiceName: e.target.value })}
+                            className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          >
+                            <optgroup label="한국어">
+                              <option value="ko-KR">한국어 (기본)</option>
+                              <option value="ko-KR-Wavenet-A">한국어 여성 (A)</option>
+                              <option value="ko-KR-Wavenet-B">한국어 남성 (B)</option>
+                              <option value="ko-KR-Wavenet-C">한국어 여성 (C)</option>
+                              <option value="ko-KR-Wavenet-D">한국어 남성 (D)</option>
+                            </optgroup>
+                            <optgroup label="영어">
+                              <option value="en-US">영어 (기본)</option>
+                              <option value="en-US-Wavenet-A">영어 여성 (A)</option>
+                              <option value="en-US-Wavenet-B">영어 남성 (B)</option>
+                              <option value="en-US-Wavenet-C">영어 여성 (C)</option>
+                              <option value="en-US-Wavenet-D">영어 남성 (D)</option>
+                            </optgroup>
+                            <optgroup label="일본어">
+                              <option value="ja-JP">일본어 (기본)</option>
+                              <option value="ja-JP-Wavenet-A">일본어 여성 (A)</option>
+                              <option value="ja-JP-Wavenet-B">일본어 여성 (B)</option>
+                              <option value="ja-JP-Wavenet-C">일본어 남성 (C)</option>
+                              <option value="ja-JP-Wavenet-D">일본어 남성 (D)</option>
+                            </optgroup>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -935,7 +1391,7 @@ export default function CreateAIBotPage() {
             className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
           >
             <Sparkles className="w-4 h-4 mr-2" />
-            {loading ? "생성 중..." : "Gem 생성하기"}
+            {loading ? "수정 중..." : "Gem 수정하기"}
           </Button>
         </div>
       </form>

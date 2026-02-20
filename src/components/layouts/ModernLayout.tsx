@@ -7,7 +7,7 @@ import {
   Users, Calendar, MessageCircle, BarChart2, Settings,
   GraduationCap, Award, FileText, Clock, ExternalLink,
   DollarSign, CreditCard, Presentation, ClipboardList, Sparkles, Bot,
-  ShoppingCart, Zap, Shield, Layout
+  ShoppingCart, Zap, Shield, Layout, MessageSquare
 } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
 
@@ -116,6 +116,8 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'attendance', href: '/dashboard/teacher-attendance', icon: Clock, text: '출석 현황' },
           { id: 'homework', href: '/dashboard/homework/teacher', icon: FileText, text: '숙제 관리' },
           { id: 'homework-results', href: '/dashboard/homework/results', icon: Award, text: '숙제 검사 결과' },
+          { id: 'ai-bots', href: '/dashboard/admin/ai-bots/assign', icon: Bot, text: 'AI 봇 할당' },
+          { id: 'sms', href: '/dashboard/admin/sms/send', icon: MessageSquare, text: '문자 발송' },
           { id: 'analytics', href: '/dashboard/analytics', icon: BarChart2, text: '통계' },
           { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, text: 'AI 도우미' },
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },

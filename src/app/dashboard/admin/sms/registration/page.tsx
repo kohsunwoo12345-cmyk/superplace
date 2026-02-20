@@ -21,7 +21,6 @@ import {
   User,
   AlertCircle,
 } from "lucide-react";
-import { toast } from "react-hot-toast";
 
 interface Registration {
   id: string;
@@ -97,13 +96,13 @@ export default function SMSRegistrationPage() {
     
     // 필수 입력 검증
     if (!formData.phone_number || !formData.company_name || !formData.representative_name || !formData.representative_phone) {
-      toast.error("필수 입력 항목을 모두 입력해주세요.");
+      alert("필수 입력 항목을 모두 입력해주세요.");
       return;
     }
 
     // 파일 업로드 검증
     if (!files.telecom_certificate || !files.employment_certificate || !files.usage_agreement || !files.proxy_application) {
-      toast.error("모든 서류를 첨부해주세요.");
+      alert("모든 서류를 첨부해주세요.");
       return;
     }
 
@@ -134,7 +133,7 @@ export default function SMSRegistrationPage() {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success("발신번호 등록 신청이 완료되었습니다!");
+        alert("발신번호 등록 신청이 완료되었습니다!");
         setShowForm(false);
         fetchMyRegistrations();
         
@@ -153,11 +152,11 @@ export default function SMSRegistrationPage() {
           proxy_application: null,
         });
       } else {
-        toast.error(data.error || "등록 신청 실패");
+        alert(data.error || "등록 신청 실패");
       }
     } catch (error) {
       console.error("등록 신청 오류:", error);
-      toast.error("등록 신청 중 오류가 발생했습니다.");
+      alert("등록 신청 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }

@@ -29,13 +29,12 @@ export async function onRequestGet(context) {
 
     const token = authHeader.replace('Bearer ', '');
     
-    // JWT 토큰 디코딩 (간단 버전 - Cloudflare Workers에서 사용)
+    // Simple token parsing (format: id|email|role)
     let userEmail = null;
     try {
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        userEmail = payload.email;
+      const parts = token.split('|');
+      if (parts.length >= 2) {
+        userEmail = parts[1]; // email is second part
       }
     } catch (e) {
       console.error('토큰 파싱 오류:', e);
@@ -73,12 +72,11 @@ export async function onRequestGet(context) {
 
     // 학생 기본 정보 조회
     const student = await env.DB.prepare(`
-      SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId, 
-             u.grade, u.createdAt, u.updatedAt,
-             a.name as academyName, a.code as academyCode
+      SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId,
+             a.name as academy_name, a.code as academy_code
       FROM User u
       LEFT JOIN Academy a ON u.academyId = a.id
-      WHERE u.id = ? AND u.role = 'STUDENT'
+      WHERE u.id = ? AND UPPER(u.role) = 'STUDENT'
     `).bind(studentId).first();
 
     if (!student) {

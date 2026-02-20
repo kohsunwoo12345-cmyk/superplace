@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   ArrowLeft, 
   Plus, 
@@ -17,6 +24,22 @@ import {
   Calendar,
   Palette
 } from "lucide-react";
+
+// 학년 옵션
+const GRADE_OPTIONS = [
+  { value: '초등 1학년', label: '초등 1학년' },
+  { value: '초등 2학년', label: '초등 2학년' },
+  { value: '초등 3학년', label: '초등 3학년' },
+  { value: '초등 4학년', label: '초등 4학년' },
+  { value: '초등 5학년', label: '초등 5학년' },
+  { value: '초등 6학년', label: '초등 6학년' },
+  { value: '중1', label: '중학교 1학년' },
+  { value: '중2', label: '중학교 2학년' },
+  { value: '중3', label: '중학교 3학년' },
+  { value: '고1', label: '고등학교 1학년' },
+  { value: '고2', label: '고등학교 2학년' },
+  { value: '고3', label: '고등학교 3학년' },
+];
 
 // 요일 상수
 const DAYS_OF_WEEK = [
@@ -132,10 +155,24 @@ export default function AddClassPage() {
         console.log('✅ Students loaded:', data.students?.length || 0);
         console.log('📋 First few students:', data.students?.slice(0, 3));
         setStudents(data.students || []);
+        
+        if (data.students?.length === 0) {
+          console.warn('⚠️ No students found. User may need to add students first.');
+        }
       } else {
         console.error('❌ Failed to load students:', response.status);
         const errorData = await response.json();
         console.error('❌ Error details:', errorData);
+        
+        // 더 자세한 에러 정보 표시
+        if (errorData.debug) {
+          console.error('🔍 Debug info:', errorData.debug);
+        }
+        
+        // 사용자에게 알림
+        if (response.status === 403) {
+          console.error('🚫 Access denied. Please check user permissions.');
+        }
       }
     } catch (error) {
       console.error("학생 목록 로딩 오류:", error);
@@ -212,10 +249,16 @@ export default function AddClassPage() {
       return;
     }
 
-    if (!user?.academyId) {
-      alert("학원 정보가 없습니다.");
+    // academyId가 없으면 사용자 ID를 academy_id로 사용 (학원장인 경우)
+    const effectiveAcademyId = user?.academyId || user?.academy_id || user?.id;
+    
+    if (!effectiveAcademyId) {
+      console.error('❌ No academy ID found. User data:', user);
+      alert("학원 정보가 없습니다. 사용자 정보를 확인해주세요.");
       return;
     }
+    
+    console.log('🏫 Using academy ID:', effectiveAcademyId, 'from user:', user);
 
     try {
       setLoading(true);
@@ -232,9 +275,9 @@ export default function AddClassPage() {
       );
 
       const payload = {
-        academyId: user.academyId,
+        academyId: effectiveAcademyId,
         name: name.trim(),
-        grade: grade.trim() || null,
+        grade: grade && grade.trim() ? grade.trim() : null, // 학년 선택 사항
         subject: subject.trim() || null,
         description: description.trim() || null,
         teacherId: user.id,
@@ -308,13 +351,19 @@ export default function AddClassPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="grade">학년</Label>
-                    <Input
-                      id="grade"
-                      value={grade}
-                      onChange={(e) => setGrade(e.target.value)}
-                      placeholder="예: 중학교 1학년"
-                    />
+                    <Label htmlFor="grade">학년 (선택사항)</Label>
+                    <Select value={grade} onValueChange={setGrade}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="학년을 선택하세요 (선택사항)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GRADE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>

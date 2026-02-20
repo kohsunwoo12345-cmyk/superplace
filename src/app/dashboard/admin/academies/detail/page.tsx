@@ -134,9 +134,18 @@ export default function AcademyDetailPage() {
       setLoading(true);
       
       // Try to fetch from API first
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        console.error('❌ No authentication token found');
+        alert('로그인이 필요합니다.');
+        router.push('/login');
+        return;
+      }
+      
+      console.log('📡 Fetching academy detail for ID:', academyId);
+      
       try {
-        const token = localStorage.getItem("token");
-        
         const response = await fetch(`/api/admin/academies?id=${academyId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -144,217 +153,50 @@ export default function AcademyDetailPage() {
           }
         });
         
-        if (response.ok) {
-          const data = await response.json();
+        console.log('📊 API Response status:', response.status, response.ok);
+        
+        const data = await response.json();
+        console.log('📦 API Response data:', data);
+        
+        if (response.ok && data.success) {
           console.log('✅ 학원 상세 정보 로드 완료:', data.academy);
+          console.log('👨‍🎓 학생 수:', data.academy?.studentCount || 0);
+          console.log('👨‍🏫 교사 수:', data.academy?.teacherCount || 0);
+          console.log('📋 학생 목록:', data.academy?.students?.length || 0);
+          console.log('📋 교사 목록:', data.academy?.teachers?.length || 0);
+          
           setAcademy(data.academy);
           setLoading(false);
           return;
         } else {
-          console.error('학원 상세 정보 로드 실패:', response.status);
-          // Don't redirect on 401, just use mock data
+          console.error('❌ 학원 상세 정보 로드 실패:', response.status);
+          console.error('❌ Error:', data.error || data.message);
+          
+          if (response.status === 404) {
+            alert('학원 정보를 찾을 수 없습니다.');
+            router.push('/dashboard/admin/academies');
+            return;
+          }
+          
+          if (response.status === 401) {
+            alert('인증이 만료되었습니다. 다시 로그인해주세요.');
+            router.push('/login');
+            return;
+          }
+          
+          // For other errors, show alert
+          alert(`학원 정보를 불러오는데 실패했습니다: ${data.error || data.message || '알 수 없는 오류'}`);
+          router.push('/dashboard/admin/academies');
         }
       } catch (apiError) {
-        console.log("API not available, using mock data");
-      }
-
-      // Fallback to mock data for static export
-      const mockAcademies: { [key: string]: AcademyDetail } = {
-        "1": {
-          id: "1",
-          name: "서울 수학 학원",
-          code: "SEOUL-MATH-001",
-          description: "서울 지역 최고의 수학 전문 학원",
-          address: "서울시 강남구 역삼동 123-45",
-          phone: "02-1234-5678",
-          email: "seoul@academy.co.kr",
-          subscriptionPlan: "PREMIUM",
-          maxStudents: 100,
-          maxTeachers: 10,
-          isActive: 1,
-          createdAt: "2025-01-15T10:00:00Z",
-          updatedAt: "2026-02-18T10:00:00Z",
-          director: {
-            id: 2,
-            name: "김학원",
-            email: "director1@academy.com",
-            phone: "010-1234-5678",
-          },
-          students: [
-            {
-              id: 5,
-              name: "이학생",
-              email: "student1@seoul.academy",
-              phone: "010-2345-6789",
-              createdAt: "2025-02-01T10:00:00Z",
-            },
-            {
-              id: 6,
-              name: "박학생",
-              email: "student2@seoul.academy",
-              phone: "010-3456-7890",
-              createdAt: "2025-03-15T10:00:00Z",
-            },
-            {
-              id: 7,
-              name: "최학생",
-              email: "student3@seoul.academy",
-              phone: "010-4567-8901",
-              createdAt: "2025-04-20T10:00:00Z",
-            },
-          ],
-          teachers: [
-            {
-              id: 3,
-              name: "이선생",
-              email: "teacher1@academy.com",
-              phone: "010-5678-9012",
-            },
-            {
-              id: 4,
-              name: "박선생",
-              email: "teacher2@academy.com",
-              phone: "010-6789-0123",
-            },
-          ],
-          studentCount: 3,
-          teacherCount: 2,
-          totalChats: 450,
-          attendanceCount: 280,
-          homeworkCount: 170,
-          monthlyActivity: [
-            { month: "9월", count: 65 },
-            { month: "10월", count: 72 },
-            { month: "11월", count: 80 },
-            { month: "12월", count: 75 },
-            { month: "1월", count: 88 },
-            { month: "2월", count: 70 },
-          ],
-          assignedBots: [
-            {
-              id: 1,
-              name: "수학 학습 봇",
-              description: "중등 수학 전문 AI 튜터",
-              assignedAt: "2025-01-20T10:00:00Z",
-              status: "ACTIVE",
-            },
-            {
-              id: 2,
-              name: "영어 회화 봇",
-              description: "영어 회화 전문 AI 튜터",
-              assignedAt: "2025-02-01T10:00:00Z",
-              status: "ACTIVE",
-            },
-          ],
-          payments: [
-            {
-              id: 1,
-              planName: "프리미엄 플랜",
-              amount: 300000,
-              status: "APPROVED",
-              createdAt: "2025-01-15T10:00:00Z",
-              approvedAt: "2025-01-16T10:00:00Z",
-            },
-            {
-              id: 2,
-              planName: "프리미엄 플랜 (2월)",
-              amount: 300000,
-              status: "APPROVED",
-              createdAt: "2025-02-01T10:00:00Z",
-              approvedAt: "2025-02-02T10:00:00Z",
-            },
-          ],
-          revenue: {
-            totalRevenue: 600000,
-            transactionCount: 2,
-          },
-        },
-        "2": {
-          id: "2",
-          name: "부산 영어 학원",
-          code: "BUSAN-ENG-002",
-          description: "부산 지역 영어 전문 학원",
-          address: "부산시 해운대구 우동 567-89",
-          phone: "051-9876-5432",
-          email: "busan@academy.co.kr",
-          subscriptionPlan: "STANDARD",
-          maxStudents: 50,
-          maxTeachers: 5,
-          isActive: 1,
-          createdAt: "2025-02-10T10:00:00Z",
-          updatedAt: "2026-02-18T10:00:00Z",
-          director: {
-            id: 8,
-            name: "최원장",
-            email: "director2@academy.com",
-            phone: "010-7890-1234",
-          },
-          students: [
-            {
-              id: 9,
-              name: "정학생",
-              email: "student4@busan.academy",
-              phone: "010-8901-2345",
-              createdAt: "2025-02-15T10:00:00Z",
-            },
-          ],
-          teachers: [
-            {
-              id: 10,
-              name: "강선생",
-              email: "teacher3@academy.com",
-              phone: "010-9012-3456",
-            },
-          ],
-          studentCount: 1,
-          teacherCount: 1,
-          totalChats: 120,
-          attendanceCount: 80,
-          homeworkCount: 40,
-          monthlyActivity: [
-            { month: "9월", count: 15 },
-            { month: "10월", count: 18 },
-            { month: "11월", count: 22 },
-            { month: "12월", count: 20 },
-            { month: "1월", count: 25 },
-            { month: "2월", count: 20 },
-          ],
-          assignedBots: [
-            {
-              id: 3,
-              name: "영어 문법 봇",
-              description: "영어 문법 전문 AI 튜터",
-              assignedAt: "2025-02-12T10:00:00Z",
-              status: "ACTIVE",
-            },
-          ],
-          payments: [
-            {
-              id: 3,
-              planName: "스탠다드 플랜",
-              amount: 150000,
-              status: "APPROVED",
-              createdAt: "2025-02-10T10:00:00Z",
-              approvedAt: "2025-02-11T10:00:00Z",
-            },
-          ],
-          revenue: {
-            totalRevenue: 150000,
-            transactionCount: 1,
-          },
-        },
-      };
-
-      const mockAcademy = mockAcademies[academyId || "1"];
-      if (mockAcademy) {
-        setAcademy(mockAcademy);
-      } else {
-        alert("학원 정보를 찾을 수 없습니다.");
-        router.push("/dashboard/admin/academies");
+        console.error("❌ API 호출 실패:", apiError);
+        alert('서버와의 연결에 실패했습니다. 네트워크를 확인해주세요.');
+        router.push('/dashboard/admin/academies');
       }
     } catch (error) {
-      console.error("학원 상세 정보 로드 실패:", error);
+      console.error("❌ 학원 상세 정보 로드 중 예상치 못한 오류:", error);
       alert('학원 정보를 불러오는데 실패했습니다.');
+      router.push('/dashboard/admin/academies');
     } finally {
       setLoading(false);
     }

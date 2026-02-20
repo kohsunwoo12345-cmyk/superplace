@@ -78,6 +78,42 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         AND date(createdAt) >= date('now', '-7 days')
     `).bind(parseInt(academyId)).first();
 
+    // 7. 숙제 통계
+    const homeworkStats = await DB.prepare(`
+      SELECT 
+        COUNT(DISTINCT h.id) as totalHomework,
+        COUNT(DISTINCT CASE WHEN hs.status = 'submitted' THEN hs.id END) as submittedCount,
+        COUNT(DISTINCT CASE WHEN hs.status = 'graded' THEN hs.id END) as gradedCount,
+        COUNT(DISTINCT CASE WHEN h.dueDate >= date('now') THEN h.id END) as activeHomework
+      FROM homework h
+      LEFT JOIN homework_submissions hs ON h.id = hs.homeworkId
+      WHERE h.academyId = ?
+    `).bind(parseInt(academyId)).first();
+
+    // 8. 이번 주 숙제 제출률
+    const thisWeekHomework = await DB.prepare(`
+      SELECT 
+        COUNT(DISTINCT h.id) as total,
+        COUNT(DISTINCT CASE WHEN hs.status IN ('submitted', 'graded') THEN hs.id END) as submitted
+      FROM homework h
+      LEFT JOIN homework_submissions hs ON h.id = hs.homeworkId
+      WHERE h.academyId = ?
+        AND date(h.createdAt) >= date('now', '-7 days')
+    `).bind(parseInt(academyId)).first();
+
+    const homeworkSubmissionRate = thisWeekHomework?.total > 0
+      ? ((thisWeekHomework.submitted / thisWeekHomework.total) * 100).toFixed(1)
+      : 0;
+
+    // 9. AI 챗봇 사용 통계
+    const aiBotsStats = await DB.prepare(`
+      SELECT 
+        COUNT(*) as totalBots,
+        SUM(conversationCount) as totalConversations,
+        SUM(CASE WHEN isActive = 1 THEN 1 ELSE 0 END) as activeBots
+      FROM ai_bots
+    `).first();
+
     const stats = {
       totalStudents: studentsCount?.count || 0,
       totalTeachers: teachersCount?.count || 0,
@@ -85,6 +121,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       attendanceRate: parseFloat(attendanceRate as string),
       recentStudents: recentStudents.results || [],
       thisWeekStudents: thisWeekStudents?.count || 0,
+      totalHomework: homeworkStats?.totalHomework || 0,
+      submittedHomework: homeworkStats?.submittedCount || 0,
+      gradedHomework: homeworkStats?.gradedCount || 0,
+      activeHomework: homeworkStats?.activeHomework || 0,
+      homeworkSubmissionRate: parseFloat(homeworkSubmissionRate as string),
+      totalAIBots: aiBotsStats?.totalBots || 0,
+      activeAIBots: aiBotsStats?.activeBots || 0,
+      totalAIConversations: aiBotsStats?.totalConversations || 0,
     };
 
     return new Response(JSON.stringify(stats), {

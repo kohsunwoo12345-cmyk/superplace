@@ -72,10 +72,15 @@ export async function onRequestGet(context) {
     const role = user.role ? user.role.toUpperCase() : '';
     const userAcademyId = user.academyId;
 
-    console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId });
+    console.log('✅ User verified:', { 
+      email: user.email, 
+      role, 
+      academyId: userAcademyId,
+      userId: user.id 
+    });
 
-    // Only SUPER_ADMIN and ADMIN can access this API
-    if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
+    // Allow SUPER_ADMIN, ADMIN, DIRECTOR, and TEACHER
+    if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && role !== 'DIRECTOR' && role !== 'TEACHER') {
       console.error('❌ Insufficient permissions:', role);
       return new Response(JSON.stringify({
         success: false,
@@ -87,33 +92,77 @@ export async function onRequestGet(context) {
       });
     }
 
-    // Get all users with academy information
-    const query = `
-      SELECT 
-        u.id,
-        u.email,
-        u.name,
-        u.phone,
-        u.role,
-        u.academyId,
-        u.grade,
-        u.approved,
-        u.createdAt,
-        u.updatedAt,
-        a.name as academyName,
-        a.code as academyCode
-      FROM User u
-      LEFT JOIN Academy a ON u.academyId = a.id
-      ORDER BY u.createdAt DESC
-      LIMIT 1000
-    `;
+    // Build query based on role
+    let query = '';
+    let queryParams = [];
+    
+    if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+      // Admin can see all users
+      query = `
+        SELECT 
+          u.id,
+          u.email,
+          u.name,
+          u.phone,
+          u.role,
+          u.academyId,
+          a.name as academyName,
+          a.code as academyCode
+        FROM User u
+        LEFT JOIN Academy a ON u.academyId = a.id
+        ORDER BY u.id DESC
+        LIMIT 1000
+      `;
+    } else if (role === 'DIRECTOR' || role === 'TEACHER') {
+      // Director/Teacher can only see users from their academy
+      if (!userAcademyId) {
+        console.error('❌ Director/Teacher has no academy assigned');
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'No academy assigned',
+          message: '학원이 배정되지 않았습니다'
+        }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      
+      query = `
+        SELECT 
+          u.id,
+          u.email,
+          u.name,
+          u.phone,
+          u.role,
+          u.academyId,
+          a.name as academyName,
+          a.code as academyCode
+        FROM User u
+        LEFT JOIN Academy a ON u.academyId = a.id
+        WHERE u.academyId = ?
+        ORDER BY u.id DESC
+        LIMIT 1000
+      `;
+      queryParams = [userAcademyId];
+    }
 
-    console.log('📝 Executing query to fetch all users');
+    console.log('📝 Executing query to fetch users for role:', role);
 
-    const result = await db.prepare(query).all();
+    const result = queryParams.length > 0 
+      ? await db.prepare(query).bind(...queryParams).all()
+      : await db.prepare(query).all();
     const users = result.results || [];
 
     console.log(`✅ Users fetched: ${users.length} users`);
+    
+    // Log role breakdown
+    const roleStats = {
+      students: users.filter(u => u.role?.toUpperCase() === 'STUDENT').length,
+      teachers: users.filter(u => u.role?.toUpperCase() === 'TEACHER').length,
+      directors: users.filter(u => u.role?.toUpperCase() === 'DIRECTOR').length,
+      admins: users.filter(u => ['ADMIN', 'SUPER_ADMIN'].includes(u.role?.toUpperCase())).length
+    };
+    console.log('📊 Role breakdown:', roleStats);
 
     return new Response(JSON.stringify({ 
       success: true, 

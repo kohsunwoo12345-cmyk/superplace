@@ -2,6 +2,26 @@ interface Env {
   DB: D1Database;
 }
 
+// Simple token parser
+function parseToken(authHeader: string | null) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  
+  const token = authHeader.substring(7);
+  const parts = token.split('|');
+  
+  if (parts.length < 3) {
+    return null;
+  }
+  
+  return {
+    id: parts[0],
+    email: parts[1],
+    role: parts[2]
+  };
+}
+
 /**
  * POST /api/admin/ai-bots/assign
  * AI 봇을 사용자에게 할당
@@ -18,6 +38,43 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   }
 
   try {
+    // Parse token
+    const authHeader = request.headers.get('Authorization');
+    const tokenData = parseToken(authHeader);
+
+    if (!tokenData) {
+      console.error('❌ Invalid or missing token');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Unauthorized'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get requesting user from database
+    const requestingUser = await DB
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .bind(tokenData.email)
+      .first() as any;
+
+    if (!requestingUser) {
+      console.error('❌ Requesting user not found');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'User not found'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const role = requestingUser.role ? requestingUser.role.toUpperCase() : '';
+    const userAcademyId = requestingUser.academyId;
+
+    console.log('✅ Requesting user verified:', { email: requestingUser.email, role, academyId: userAcademyId });
+
     const body = await request.json();
     const { botId, userId, duration, durationUnit } = body;
 
@@ -30,10 +87,10 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     console.log("🤖 AI 봇 할당 요청:", { botId, userId, duration, durationUnit });
 
-    // 사용자 확인
-    const user = await DB.prepare("SELECT * FROM users WHERE id = ?")
+    // 사용자 확인 (User 테이블)
+    const user = await DB.prepare("SELECT * FROM User WHERE id = ?")
       .bind(userId)
-      .first();
+      .first() as any;
 
     if (!user) {
       return new Response(
@@ -42,10 +99,37 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
+    // DIRECTOR/TEACHER는 자신의 학원 사용자만 할당 가능
+    if (role === 'DIRECTOR' || role === 'TEACHER') {
+      if (!userAcademyId) {
+        console.error('❌ Director/Teacher has no academy assigned');
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'No academy assigned',
+          message: '학원이 배정되지 않았습니다'
+        }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      
+      if (user.academyId !== userAcademyId) {
+        console.error('❌ Cannot assign bot to user from different academy');
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Cannot assign to user from different academy',
+          message: '다른 학원의 사용자에게는 할당할 수 없습니다'
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // AI 봇 확인
     const bot = await DB.prepare("SELECT * FROM ai_bots WHERE id = ?")
       .bind(botId)
-      .first();
+      .first() as any;
 
     if (!bot) {
       return new Response(
@@ -81,17 +165,16 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         id TEXT PRIMARY KEY,
         botId TEXT NOT NULL,
         botName TEXT NOT NULL,
-        userId INTEGER NOT NULL,
+        userId TEXT NOT NULL,
         userName TEXT NOT NULL,
         userEmail TEXT NOT NULL,
+        userAcademyId TEXT,
         startDate TEXT NOT NULL,
         endDate TEXT NOT NULL,
         duration INTEGER NOT NULL,
         durationUnit TEXT NOT NULL,
         status TEXT DEFAULT 'active',
-        createdAt TEXT DEFAULT (datetime('now')),
-        FOREIGN KEY (botId) REFERENCES ai_bots(id),
-        FOREIGN KEY (userId) REFERENCES users(id)
+        createdAt TEXT DEFAULT (datetime('now'))
       )
     `).run();
 
@@ -101,15 +184,16 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     // 할당 저장
     await DB.prepare(`
       INSERT INTO ai_bot_assignments 
-      (id, botId, botName, userId, userName, userEmail, startDate, endDate, duration, durationUnit, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+      (id, botId, botName, userId, userName, userEmail, userAcademyId, startDate, endDate, duration, durationUnit, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
     `).bind(
       assignmentId,
       botId,
-      bot.name as string,
+      bot.name,
       userId,
-      user.name as string,
-      user.email as string,
+      user.name || '',
+      user.email || '',
+      user.academyId || null,
       startDate,
       endDateStr,
       duration,
@@ -129,6 +213,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           userId,
           userName: user.name,
           userEmail: user.email,
+          userAcademyId: user.academyId,
           startDate,
           endDate: endDateStr,
           duration,

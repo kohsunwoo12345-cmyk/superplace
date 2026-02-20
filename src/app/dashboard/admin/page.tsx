@@ -344,6 +344,22 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
 
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-blue-200"
+                onClick={() => router.push("/dashboard/admin/bot-shop-approvals")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-blue-600" />
+                🛒 봇 쇼핑몰 결제 승인
+              </CardTitle>
+              <CardDescription>
+                학원장의 봇 구매 요청을 승인하거나 거절합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">바로가기</Button>
+            </CardContent>
+          </Card>
+
           <Card className="hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => router.push("/dashboard/admin/system")}>
             <CardHeader>

@@ -16,7 +16,9 @@ import {
   Edit,
   MoreVertical,
   Home,
-  ArrowLeft
+  ArrowLeft,
+  Printer,
+  Volume2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,6 +49,9 @@ interface AIBot {
   systemPrompt: string;
   model: string;
   isActive: boolean;
+  enableProblemGeneration?: number;
+  voiceEnabled?: number | boolean;
+  voiceName?: string;
 }
 
 export default function ModernAIChatPage() {
@@ -186,13 +191,19 @@ export default function ModernAIChatPage() {
         
         const activeBots = (data.bots || []).filter((bot: AIBot) => bot.isActive);
         console.log(`✅ 활성 봇 ${activeBots.length}개 발견`);
-        console.log('✅ 활성 봇 목록:', activeBots.map(b => ({ id: b.id, name: b.name, isActive: b.isActive })));
+        console.log('✅ 활성 봇 목록:', activeBots.map(b => ({ 
+          id: b.id, 
+          name: b.name, 
+          isActive: b.isActive,
+          enableProblemGeneration: b.enableProblemGeneration 
+        })));
         
         if (activeBots.length > 0) {
           console.log('✅ setBots 호출:', activeBots.length, '개');
           setBots(activeBots);
           if (!selectedBot) {
             console.log('✅ 첫 번째 봇 선택:', activeBots[0].name);
+            console.log('🎯 선택된 봇 enableProblemGeneration:', activeBots[0].enableProblemGeneration);
             setSelectedBot(activeBots[0]);
           }
         } else {
@@ -663,6 +674,297 @@ export default function ModernAIChatPage() {
     }
   };
 
+  const playTTS = async (text: string, messageId: string) => {
+    try {
+      if (!selectedBot || !selectedBot.voiceEnabled) {
+        console.log('🔇 TTS not enabled for this bot');
+        return;
+      }
+
+      console.log('🔊 Playing TTS for message:', messageId);
+      
+      const response = await fetch('/api/ai/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text,
+          voiceName: selectedBot.voiceName || 'ko-KR-Wavenet-A',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('TTS API failed');
+      }
+
+      const data = await response.json();
+      
+      if (!data.audioContent) {
+        throw new Error('No audio content received');
+      }
+
+      // Convert base64 audio to blob and play
+      const audioBlob = base64ToBlob(data.audioContent, 'audio/mp3');
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+      };
+      
+      await audio.play();
+      console.log('✅ TTS playback started');
+      
+    } catch (error) {
+      console.error('❌ TTS playback error:', error);
+      alert('음성 재생에 실패했습니다.');
+    }
+  };
+
+  const base64ToBlob = (base64: string, mimeType: string): Blob => {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
+  };
+
+  const handlePrintProblems = async () => {
+    // enableProblemGeneration 체크 (1, "1", true 모두 허용)
+    const enableFlag = selectedBot?.enableProblemGeneration;
+    const isProblemGenerationEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
+    
+    if (!isProblemGenerationEnabled) {
+      alert('이 AI 봇은 문제 출제 기능이 활성화되지 않았습니다.');
+      console.error('❌ enableProblemGeneration:', selectedBot?.enableProblemGeneration, typeof selectedBot?.enableProblemGeneration);
+      return;
+    }
+
+    if (messages.length === 0) {
+      alert('출력할 문제가 없습니다. 먼저 AI와 대화를 나눠보세요.');
+      return;
+    }
+
+    console.log('🖨️ 문제지 출력 시작...');
+    console.log('📝 전체 메시지 개수:', messages.length);
+
+    // Extract problems from AI assistant messages
+    // 더 정교한 문제 추출 로직: 번호가 있는 문제, 질문 형태, 또는 "문제" 키워드가 있는 응답
+    const assistantMessages = messages.filter(m => m.role === 'assistant');
+    console.log('🤖 AI 응답 메시지 개수:', assistantMessages.length);
+
+    const extractedProblems: { number: number; content: string; hasAnswer: boolean }[] = [];
+
+    assistantMessages.forEach((msg, index) => {
+      const content = msg.content;
+      
+      // 문제 출제와 관련된 응답만 필터링
+      const isProblemRelated = 
+        content.includes('문제') || 
+        content.includes('?') || 
+        content.includes('풀이') ||
+        content.includes('답') ||
+        /\d+\.\s/.test(content) || // "1. " 형태의 번호
+        /\d+\)\s/.test(content) || // "1) " 형태의 번호
+        content.includes('계산') ||
+        content.includes('구하') ||
+        content.includes('식') ||
+        content.includes('해결');
+
+      if (isProblemRelated) {
+        // 문제와 풀이 분리 시도
+        let problemText = content;
+        let hasAnswer = false;
+
+        // "풀이", "답", "해설" 등의 키워드 이후를 분리
+        const answerKeywords = ['[풀이]', '[답]', '[해설]', '풀이:', '답:', '해설:', '정답:', '\n답:'];
+        for (const keyword of answerKeywords) {
+          if (content.includes(keyword)) {
+            hasAnswer = true;
+            const parts = content.split(keyword);
+            problemText = parts[0].trim();
+            break;
+          }
+        }
+
+        // 내용이 너무 짧으면 제외 (최소 10자)
+        if (problemText.length > 10) {
+          extractedProblems.push({
+            number: extractedProblems.length + 1,
+            content: problemText,
+            hasAnswer: hasAnswer
+          });
+        }
+      }
+    });
+
+    console.log('📋 추출된 문제 개수:', extractedProblems.length);
+    console.log('📋 문제 상세:', extractedProblems.map(p => ({ 
+      number: p.number, 
+      length: p.content.length, 
+      hasAnswer: p.hasAnswer,
+      preview: p.content.substring(0, 50) + '...'
+    })));
+
+    if (extractedProblems.length === 0) {
+      alert('출력할 문제를 찾을 수 없습니다.\n\nAI에게 "수학 문제 3개 출제해줘" 같은 요청을 먼저 해보세요.');
+      return;
+    }
+
+    const problems = extractedProblems;
+
+    // Get academy name
+    let academyName = '학원';
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/user/profile', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        academyName = data.academyName || academyName;
+      }
+    } catch (error) {
+      console.error('Failed to fetch academy name:', error);
+    }
+
+    // Create print window
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('팝업 차단이 활성화되어 있습니다. 팝업을 허용해주세요.');
+      return;
+    }
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>문제지 - ${academyName}</title>
+        <style>
+          @media print {
+            @page { 
+              margin: 2cm;
+              size: A4;
+            }
+            .no-print { display: none !important; }
+          }
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            max-width: 21cm;
+            margin: 0 auto;
+            padding: 2cm;
+            background: white;
+            color: #000;
+            line-height: 1.6;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #000;
+          }
+          .academy-name {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 15px;
+          }
+          .student-info {
+            margin-bottom: 30px;
+            font-size: 14px;
+          }
+          .student-info-line {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+          }
+          .student-info-label {
+            font-weight: 600;
+            min-width: 80px;
+          }
+          .student-info-input {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            min-height: 20px;
+          }
+          .problem {
+            margin-bottom: 40px;
+            page-break-inside: avoid;
+          }
+          .problem-number {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 10px;
+          }
+          .problem-content {
+            font-size: 14px;
+            line-height: 2.0;
+            white-space: pre-wrap;
+            margin-bottom: 15px;
+          }
+          .answer-space {
+            margin-top: 20px;
+            min-height: 80px;
+          }
+          .answer-line {
+            border-bottom: 1px solid #ccc;
+            height: 30px;
+            margin-bottom: 5px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="academy-name">${academyName}</div>
+        </div>
+
+        <div class="student-info">
+          <div class="student-info-line">
+            <span class="student-info-label">이름:</span>
+            <span class="student-info-input"></span>
+          </div>
+          <div class="student-info-line">
+            <span class="student-info-label">날짜:</span>
+            <span class="student-info-input">${new Date().toLocaleDateString('ko-KR')}</span>
+          </div>
+        </div>
+
+        ${problems.map((p, index) => `
+          <div class="problem">
+            <div class="problem-number">${p.number}. </div>
+            <div class="problem-content">${p.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            <div class="answer-space">
+              <div class="answer-line"></div>
+              <div class="answer-line"></div>
+              <div class="answer-line"></div>
+            </div>
+          </div>
+        `).join('')}
+
+        <div class="no-print" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <button onclick="window.print()" style="padding: 10px 25px; font-size: 14px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
+            인쇄
+          </button>
+          <button onclick="window.close()" style="padding: 10px 25px; font-size: 14px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
+            닫기
+          </button>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1032,7 +1334,20 @@ export default function ModernAIChatPage() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* 유사문제 출제 기능이 활성화된 경우에만 버튼 표시 */}
+            {selectedBot && messages.length > 0 && selectedBot.enableProblemGeneration === 1 && (
+              <Button
+                onClick={handlePrintProblems}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-700 font-medium"
+                title="문제지를 출력합니다"
+              >
+                <Printer className="w-4 h-4" />
+                문제지 출력
+              </Button>
+            )}
             <span className="text-xs text-gray-500">안녕하세요, {user?.name}님</span>
           </div>
         </div>
@@ -1105,6 +1420,15 @@ export default function ModernAIChatPage() {
                       )}
                       <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
+                    {message.role === "assistant" && selectedBot?.voiceEnabled && (
+                      <button
+                        onClick={() => playTTS(message.content, message.id)}
+                        className="ml-2 p-2 rounded-full hover:bg-gray-200 transition-colors"
+                        title="음성으로 듣기"
+                      >
+                        <Volume2 className="w-4 h-4 text-gray-600" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))

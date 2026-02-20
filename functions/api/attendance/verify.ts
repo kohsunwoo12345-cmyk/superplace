@@ -87,7 +87,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // 2. 학생 정보 조회
     const student = await DB.prepare(`
-      SELECT id, name, email, academy_id FROM users WHERE id = ?
+      SELECT id, name, email, academyId FROM User WHERE id = ?
     `).bind(userId).first();
 
     console.log('👤 Student lookup:', student);
@@ -157,7 +157,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       code,
       currentTime,
       status,
-      student.academy_id || null
+      student.academyId || null
     ).run();
 
     console.log('✅ Attendance recorded:', attendanceId, status);
