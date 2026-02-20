@@ -22,7 +22,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 최근 추가된 학생 20명 조회
     const students = await DB.prepare(`
       SELECT 
-        id, email, phone, name, role, academy_id, 
+        id, email, phone, name, role, academy_id, academyId,
         created_at, school, grade
       FROM users 
       WHERE role = 'STUDENT'
