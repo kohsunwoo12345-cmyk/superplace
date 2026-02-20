@@ -1,228 +1,356 @@
-# ✅ 최종 테스트 가이드 - 100% 작동 보장
+# 학생 추가 및 반 배정 완전 해결 - 최종 테스트 가이드
 
-## 🎯 문제 해결 완료
+## 🔴 해결한 핵심 문제
 
-### 1️⃣ 출석 코드 "오늘 출석 상태: 지각" Alert 제거
-- **원인**: API에서 `error`와 `message` 필드 반환
-- **해결**: API 응답을 `success`, `alreadyCheckedIn`, `student`, `attendance`만 포함하도록 수정
-- **코드**: `functions/api/attendance/verify.ts` (144-163번 줄)
-- **결과**: Alert 없이 즉시 숙제 페이지로 전환
+### 문제: "학원이 배정되지 않았습니다"
+**원인**: 토큰에 `academyId`가 포함되지 않음
 
-### 2️⃣ 카메라 1초 내 활성화
-- **원인**: 복잡한 이벤트 리스너 타이밍 문제
-- **해결**: 100ms 폴링으로 `videoWidth` 체크 (최대 10회 = 1초)
-- **코드**: `src/app/attendance-verify/page.tsx` (startCamera 함수)
-- **결과**: 카메라 준비 시간 0.5~1초 보장
+### 해결 방법
+1. **토큰 형식 변경**: `userId|email|role|timestamp` (4개) → `userId|email|role|academyId|timestamp` (5개)
+2. **테이블명 수정**: `User` → `users`, `Academy` → `academies`
+3. **Fallback 로직**: 토큰에 academyId 없으면 DB에서 조회
 
-### 3️⃣ 다중 사진 촬영 및 제출
-- **기능**: 여러 장의 사진을 촬영하거나 업로드 후 한 번에 제출
-- **코드**: `capturedImages` 배열로 관리
-- **채점**: `/api/homework/grade`에서 `images` 배열 처리
-- **결과**: 다중 사진 동시 채점 지원
+## ✅ 수정 완료 내역
 
----
+### 1. functions/api/auth/login.js (로그인 API)
+```javascript
+// BEFORE
+const token = `${user.id}|${user.email}|${user.role}|${Date.now()}`;
+// 4개 파트, academyId 없음
 
-## 🚀 즉시 테스트 방법
-
-### ⚠️ 사전 준비 (필수)
-출석 코드가 활성화되어 있지 않으면 테스트가 불가능합니다!
-
-#### Option 1: Cloudflare D1 Console (권장, 30초 소요)
-1. https://dash.cloudflare.com 접속
-2. Workers & Pages → D1 → superplace-db → Console
-3. 다음 SQL 실행:
-```sql
-UPDATE student_attendance_codes SET isActive = 1;
-```
-4. 결과 확인:
-```sql
-SELECT code, userId, isActive FROM student_attendance_codes WHERE isActive = 1 LIMIT 5;
+// AFTER
+const token = `${user.id}|${user.email}|${user.role}|${user.academyId || ''}|${Date.now()}`;
+// 5개 파트, academyId 포함
 ```
 
-#### Option 2: API로 자동 활성화 (10초 소요)
-브라우저에서 다음 URL 접속:
+### 2. functions/_lib/auth.ts (토큰 파서)
+```typescript
+// 새로운 5개 파트 토큰 지원
+if (parts.length === 5) {
+  const [userId, email, role, academyId, timestamp] = parts;
+  return { userId, email, role, academyId, ... };
+}
+
+// 구 형식 4개 파트도 호환 (academyId는 null)
+if (parts.length === 4) {
+  const [userId, email, role, timestamp] = parts;
+  return { userId, email, role, academyId: null, ... };
+}
 ```
-https://genspark-ai-developer.superplacestudy.pages.dev/api/admin/activate-all-codes
+
+### 3. functions/api/students/create.ts (학생 생성 API)
+```typescript
+// Fallback: 토큰에 academyId 없으면 DB 조회
+if (!tokenAcademyId && userId) {
+  const userRecord = await DB.prepare(`
+    SELECT academy_id FROM users WHERE id = ?
+  `).bind(userId).first();
+  
+  tokenAcademyId = userRecord.academy_id;
+}
 ```
 
----
+## 🧪 테스트 시나리오
 
-### 📱 전체 플로우 테스트
+### ⚠️ 중요: 다시 로그인 필요!
+기존 토큰은 4개 파트 형식이므로 **반드시 로그아웃 후 다시 로그인**하여 새로운 5개 파트 토큰을 받아야 합니다.
 
-#### 1단계: 출석 인증
-1. https://genspark-ai-developer.superplacestudy.pages.dev/attendance-verify/ 접속
-2. **활성화된 출석 코드** 입력 (위 SQL 쿼리 결과에서 확인한 코드)
-3. "출석 인증" 버튼 클릭
+### 시나리오 1: 학생 추가 테스트
 
-**✅ 예상 결과:**
-- Alert 없이 즉시 숙제 제출 페이지로 전환
-- 화면에 "출석 완료" 또는 "오늘 이미 출석 완료" 표시
-- 콘솔 로그 (F12):
+#### Step 1: 로그아웃 후 재로그인
+1. **로그아웃**
+   - 우측 상단 사용자 메뉴 → 로그아웃
+
+2. **재로그인** ⭐ 필수!
+   - URL: https://superplacestudy.pages.dev/login
+   - 학원장 계정으로 로그인
+   - 새로운 토큰 생성됨 (5개 파트, academyId 포함)
+
+#### Step 2: 학생 추가
+1. **학생 추가 페이지 이동**
+   - URL: https://superplacestudy.pages.dev/dashboard/students/add/
+
+2. **학생 정보 입력**
+   ```
+   이름: 테스트학생1 (필수 아님, 비워도 됨)
+   이메일: student1@test.com (선택)
+   연락처: 010-9999-0001 ⭐ 필수
+   비밀번호: test1234 ⭐ 필수 (6자 이상)
+   학교: 테스트중학교 (선택)
+   학년: 중학교 1학년 (선택)
+   ```
+
+3. **"학생 추가" 버튼 클릭**
+
+4. **예상 결과**
+   - ✅ "학생이 추가되었습니다" 메시지
+   - ✅ `/dashboard/students/` 페이지로 자동 이동
+   - ✅ 추가한 학생이 목록에 표시됨
+
+5. **브라우저 콘솔 확인 (F12)**
+   ```javascript
+   📤 Creating student with data: {
+     phone: "010-9999-0001",
+     academyId: 5,  // ⭐ academyId가 있어야 함!
+     role: "DIRECTOR"
+   }
+   📥 Response status: 200
+   ✅ Student created successfully
+   ```
+
+#### Step 3: 학생 목록 확인
+1. **학생 페이지 확인**
+   - URL: https://superplacestudy.pages.dev/dashboard/students/
+
+2. **예상 결과**
+   - ✅ 방금 추가한 학생이 카드 형태로 표시
+   - ✅ 학생 이름 (또는 "이름 없음")
+   - ✅ 학생 코드: STU000XXX
+   - ✅ 연락처: 010-9999-0001
+   - ✅ 학년: 중학교 1학년
+
+### 시나리오 2: 반 추가 시 학생 배정 테스트
+
+#### Step 1: 반 추가 페이지 이동
+1. **URL**: https://superplacestudy.pages.dev/dashboard/classes/add/
+
+2. **반 기본 정보 입력**
+   ```
+   반 이름: 중1-A반 ⭐ 필수
+   학년: 중학교 1학년
+   과목: 수학
+   설명: 테스트 반입니다
+   ```
+
+3. **반 색상 선택** (선택사항)
+   - 파란색, 초록색 등 원하는 색상 선택
+
+#### Step 2: 학생 배정 확인
+1. **페이지 아래로 스크롤**
+   - "학생 배정" 섹션 찾기
+
+2. **예상 결과** ⭐⭐⭐
+   ```
+   학생 배정
+   반에 배정할 학생을 선택합니다
+   선택: 0명 / 전체: 1명  ← 전체가 1명 이상이어야 함!
+   
+   □ 전체 선택
+   
+   학생 목록:
+   ☑️ 테스트학생1
+      010-9999-0001 · 중학교 1학년
+   ```
+
+3. **확인 사항**
+   - ✅ "전체: X명" 카운터에 학생 수 표시 (0이 아님!)
+   - ✅ 추가했던 학생이 체크박스와 함께 표시
+   - ✅ 학생 이름, 연락처, 학년 정보 표시
+   - ✅ 체크박스 클릭 시 "선택: 1명" 카운터 증가
+
+4. **브라우저 콘솔 확인**
+   ```javascript
+   👥 Loading students with token authentication
+   ✅ Students loaded: 1  // ⭐ 0이 아닌 숫자!
+   📋 First few students: [{
+     id: "123",
+     name: "테스트학생1",
+     studentCode: "STU000123",
+     grade: "중학교 1학년",
+     academyId: 5
+   }]
+   ```
+
+#### Step 3: 학생 선택 및 반 생성
+1. **학생 체크박스 선택**
+   - 배정하고 싶은 학생 선택
+   - "선택: X명" 카운터 확인
+
+2. **"반 생성" 버튼 클릭**
+
+3. **예상 결과**
+   - ✅ "반이 생성되었습니다" 메시지
+   - ✅ `/dashboard/classes` 페이지로 이동
+   - ✅ 생성된 반이 목록에 표시됨
+
+### 시나리오 3: 여러 학생 추가 및 배정
+
+1. **학생 2명 이상 추가**
+   ```
+   학생1: 010-9999-0001, test1234
+   학생2: 010-9999-0002, test1234
+   학생3: 010-9999-0003, test1234
+   ```
+
+2. **반 추가 시 학생 목록 확인**
+   - "전체: 3명" 표시
+   - 3명의 학생 모두 표시
+
+3. **"전체 선택" 테스트**
+   - "전체 선택" 체크박스 클릭
+   - ✅ 모든 학생이 선택됨
+   - ✅ "선택: 3명 / 전체: 3명" 표시
+
+4. **개별 선택 테스트**
+   - 일부 학생만 선택
+   - ✅ "선택: 2명 / 전체: 3명" 표시
+
+## 🔍 문제 발생 시 체크리스트
+
+### 1. "학원이 배정되지 않았습니다" 오류
+- [ ] **다시 로그인 했는가?** ⭐ 가장 중요!
+  - 구 토큰(4개 파트)은 academyId가 없음
+  - 로그아웃 → 재로그인 필수
+
+- [ ] 브라우저 콘솔에서 토큰 확인
+  ```javascript
+  // localStorage에서 토큰 확인
+  const user = JSON.parse(localStorage.getItem('user'));
+  const token = user.token;
+  const parts = token.split('|');
+  console.log('Token parts:', parts.length);  // 5여야 함!
+  console.log('AcademyId in token:', parts[3]);  // 빈 문자열이 아니어야 함!
   ```
-  ✅ 출석 인증 응답: {success: true, ...}
-  ✅ success === true, 학생 정보 설정 및 페이지 전환
-  ✅ setVerified(true) 완료
+
+- [ ] Cloudflare 로그 확인
+  ```
+  👤 Authenticated user: {
+    userId: 208,
+    role: "DIRECTOR",
+    academyId: 5  ← 이 값이 있어야 함!
+  }
   ```
 
-#### 2단계: 카메라 촬영 (다중 사진)
-1. "카메라 촬영" 버튼 클릭
-2. "카메라 준비 중..." 메시지가 **1초 내**에 사라지는지 확인
-3. "촬영" 버튼 클릭 (첫 번째 사진)
-4. Alert: "1번째 사진이 촬영되었습니다." 확인
-5. "촬영" 버튼 다시 클릭 (두 번째 사진)
-6. Alert: "2번째 사진이 촬영되었습니다." 확인
-7. 필요한 만큼 반복 (예: 3~5장)
+### 2. 학생 목록이 0명으로 표시
+- [ ] 학생 추가가 성공했는가?
+  - `/dashboard/students/` 페이지에서 확인
 
-**✅ 예상 결과:**
-- 카메라 활성화: 0.5~1초
-- 촬영 버튼 활성화: 즉시
-- 여러 장 촬영 가능
-- 촬영된 이미지 미리보기 표시
+- [ ] 브라우저 콘솔 확인
+  ```javascript
+  ✅ Students loaded: 0  ← 0이면 문제!
+  
+  // API 응답 직접 확인
+  const token = JSON.parse(localStorage.getItem('user')).token;
+  fetch('/api/students/by-academy', {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  }).then(r => r.json()).then(console.log);
+  ```
 
-**콘솔 로그 (F12):**
+- [ ] 데이터베이스 확인 (Cloudflare Dashboard)
+  ```sql
+  -- 학생이 DB에 있는지 확인
+  SELECT u.id, u.name, u.phone, u.academy_id, s.student_code
+  FROM users u
+  LEFT JOIN students s ON u.id = s.user_id
+  WHERE u.role = 'STUDENT'
+  ORDER BY u.created_at DESC
+  LIMIT 10;
+  ```
+
+### 3. 다른 학원의 학생이 보임
+- [ ] 토큰의 academyId가 올바른가?
+  ```javascript
+  const user = JSON.parse(localStorage.getItem('user'));
+  console.log('My academyId:', user.academyId);
+  ```
+
+- [ ] Cloudflare 로그에서 쿼리 확인
+  ```
+  📊 Query: SELECT ... WHERE ... AND u.academy_id = ? [5]
+  // 학원장의 academy_id와 일치해야 함
+  ```
+
+## 📊 데이터베이스 직접 확인
+
+Cloudflare Dashboard → D1 Database → Query
+
+### 학생 데이터 확인
+```sql
+-- 최근 추가된 학생 확인
+SELECT 
+  u.id,
+  u.name,
+  u.email,
+  u.phone,
+  u.role,
+  u.academy_id,
+  u.created_at,
+  s.student_code,
+  s.grade,
+  s.status
+FROM users u
+LEFT JOIN students s ON u.id = s.user_id
+WHERE u.role = 'STUDENT'
+ORDER BY u.created_at DESC
+LIMIT 10;
 ```
-🎥 카메라 시작...
-📹 스트림 획득: {id: ..., active: true}
-🔌 비디오 연결 완료
-✅ 카메라 준비 완료! {width: 1280, height: 720, readyState: 4}
-📸 사진 촬영 완료, 크기: 250000, 해상도: 1280 x 720
+
+### 특정 학원의 학생만 확인
+```sql
+-- academy_id = 5인 학생들
+SELECT 
+  u.id,
+  u.name,
+  u.phone,
+  u.academy_id,
+  s.student_code,
+  s.grade
+FROM users u
+LEFT JOIN students s ON u.id = s.user_id
+WHERE u.role = 'STUDENT'
+AND u.academy_id = 5  -- 학원장의 academy_id로 변경
+ORDER BY u.created_at DESC;
 ```
 
-#### 3단계: 파일 업로드 (선택 사항)
-1. "사진 파일 선택" 버튼 클릭
-2. 여러 이미지 파일 선택 (Ctrl/Cmd 키로 다중 선택)
-3. 업로드된 이미지 미리보기 확인
-
-**✅ 예상 결과:**
-- 다중 파일 선택 가능
-- 각 파일이 `capturedImages` 배열에 추가
-- 미리보기 표시
-
-#### 4단계: 숙제 제출 및 AI 채점
-1. "숙제 제출하기" 버튼 클릭
-2. 채점 진행 중 로딩 표시 확인
-3. 채점 결과 표시 대기 (10~30초)
-
-**✅ 예상 결과:**
-- 로딩 메시지: "AI가 숙제를 채점하는 중입니다..."
-- 채점 결과 표시:
-  - 점수: XX/100점
-  - 피드백: AI가 생성한 상세 피드백
-  - 잘한 점 (strengths)
-  - 개선 사항 (suggestions)
-- 3초 후 자동으로 `/attendance-verify` 페이지로 이동
-
-**콘솔 로그 (F12):**
-```
-📤 숙제 제출 시작... 총 3 장
-학생 정보: {userId: ..., userName: ..., ...}
-✅ 숙제 채점 완료: {score: 85, feedback: "..."}
+### 토큰 형식 확인
+```sql
+-- 학원장 계정 정보 확인
+SELECT id, email, name, role, academy_id
+FROM users
+WHERE role = 'DIRECTOR'
+LIMIT 10;
 ```
 
----
+## ✅ 배포 완료
 
-## 🐛 문제 해결 (Troubleshooting)
+### 커밋 정보
+```
+커밋: f454424
+제목: fix: 토큰에 academyId 추가 및 로그인/인증 로직 완전 수정
+브랜치: main
+배포 URL: https://superplacestudy.pages.dev/
+```
 
-### ❌ "유효하지 않은 출석 코드입니다" 오류
-**원인**: 출석 코드가 활성화되지 않음 (`isActive = 0`)
-**해결**:
-1. Cloudflare D1 Console에서 SQL 실행:
-   ```sql
-   UPDATE student_attendance_codes SET isActive = 1;
-   ```
-2. 또는 API 호출:
-   ```
-   https://genspark-ai-developer.superplacestudy.pages.dev/api/admin/activate-all-codes
-   ```
+### 배포 상태 확인
+**Cloudflare Pages Dashboard**:
+https://dash.cloudflare.com/ → Pages → superplacestudy → Deployments
 
-### ❌ "오늘 출석 상태: 지각" Alert이 여전히 표시됨
-**원인**: 브라우저 캐시에 이전 코드가 남아 있음
-**해결**:
-1. 브라우저 캐시 완전 삭제 (Ctrl/Cmd + Shift + Delete)
-2. Hard Refresh (Ctrl/Cmd + Shift + R)
-3. 시크릿/프라이빗 모드로 테스트
+**예상 배포 시간**: 2-3분
 
-### ❌ 카메라가 "준비 중..."에서 멈춤
-**원인**: 카메라 권한 거부 또는 다른 앱이 카메라 사용 중
-**해결**:
-1. 브라우저 주소창 옆 자물쇠 아이콘 → 카메라 권한 허용
-2. 다른 앱(Zoom, Skype 등) 종료
-3. 파일 업로드로 대체
+## 🎯 성공 기준
 
-### ❌ 숙제 제출 시 "채점 실패" 오류
-**원인**: Gemini API 키 미설정 또는 네트워크 오류
-**해결**:
-1. Cloudflare Pages 환경 변수에 `GEMINI_API_KEY` 확인
-2. 네트워크 연결 확인
-3. 콘솔 로그에서 구체적 오류 메시지 확인
+### 학생 추가
+- ✅ "학생이 추가되었습니다" 메시지
+- ✅ `/dashboard/students/` 목록에 표시
+- ✅ 오류 메시지 없음
+
+### 반 추가 시 학생 배정
+- ✅ "전체: X명" 카운터가 0이 아님
+- ✅ 추가한 학생들이 목록에 표시
+- ✅ 체크박스로 선택 가능
+- ✅ "반이 생성되었습니다" 메시지
 
 ---
 
-## 📊 테스트 체크리스트
+## ⚠️ 최종 확인사항
 
-### 출석 인증
-- [ ] 출석 코드 입력 시 Alert 없이 즉시 전환
-- [ ] "출석 완료" 또는 "오늘 이미 출석 완료" 표시
-- [ ] 콘솔 로그에 `✅ success === true` 출력
+**배포 완료 후 (2-3분 대기)**
 
-### 카메라 촬영
-- [ ] 카메라 활성화 시간 1초 이내
-- [ ] 촬영 버튼 즉시 활성화
-- [ ] 여러 장 촬영 가능 (3~5장)
-- [ ] 촬영된 이미지 미리보기 표시
+1. ✅ 반드시 로그아웃
+2. ✅ 반드시 재로그인 (새 토큰 발급)
+3. ✅ 학생 추가 테스트
+4. ✅ 반 추가 시 학생 목록 확인
 
-### 파일 업로드
-- [ ] 다중 파일 선택 가능
-- [ ] 업로드된 이미지 미리보기 표시
-- [ ] 촬영 + 업로드 혼합 가능
-
-### 숙제 제출
-- [ ] 로딩 메시지 표시
-- [ ] 채점 결과 표시 (점수, 피드백)
-- [ ] 3초 후 자동 페이지 이동
-
----
-
-## 🔗 관련 링크
-
-- **GitHub PR**: https://github.com/kohsunwoo12345-cmyk/superplace/pull/7
-- **테스트 사이트**: https://genspark-ai-developer.superplacestudy.pages.dev/attendance-verify/
-- **Cloudflare Dashboard**: https://dash.cloudflare.com
-- **최신 커밋**: 68d3c44
-
----
-
-## 📝 커밋 히스토리
-
-1. **68d3c44**: 이미 출석 시 alert 완전 제거 및 페이지 전환 강제 보장
-2. **2ade161**: 이미 출석한 경우 (지각 포함) 숙제 페이지 미전환 문제 해결
-3. **d159969**: 카메라 1초 활성화 완전 가이드 및 테스트 방법 문서화
-4. **e54b10d**: 카메라 1초 내 즉시 활성화 - 극도로 단순화
-5. **fb5872e**: 카메라 '준비 중...' 무한 대기 문제 완전 해결
-
----
-
-## 🎉 최종 결과
-
-### ✅ 모든 문제 해결 완료
-1. **출석 코드 Alert**: ❌ → ✅ (제거 완료)
-2. **카메라 무한 대기**: ❌ → ✅ (1초 내 활성화)
-3. **다중 사진 촬영**: ❌ → ✅ (여러 장 지원)
-4. **전체 플로우**: ❌ → ✅ (출석 → 촬영 → 제출 → 채점)
-
-### 📈 개선 결과
-| 항목 | 이전 | 이후 |
-|------|------|------|
-| 출석 인증 | Alert 표시 후 멈춤 | 즉시 전환 |
-| 카메라 준비 | 무한 대기 | 최대 1초 |
-| 사진 촬영 | 1장만 가능 | 여러 장 가능 |
-| 성공률 | 낮음 | 거의 100% |
-
----
-
-## 💡 참고 사항
-
-- **배포 시간**: PR 머지 후 2~3분 소요
-- **캐시 삭제**: 변경사항 테스트 시 필수
-- **출석 코드**: 반드시 `isActive = 1`로 활성화 필요
-- **다중 사진**: 최대 10장까지 권장 (파일 크기 제한)
+**이제 모든 기능이 정상 작동할 것입니다!** 🚀
