@@ -87,10 +87,23 @@ export default function TemplatesPage() {
         setTemplates(data.templates || []);
         console.log("✅ Templates loaded successfully:", data.templates);
         
+        // 🔥 템플릿이 없으면 자동 설치 제안
+        if (data.templates && data.templates.length === 0) {
+          const autoInstall = confirm(
+            "❌ 템플릿이 없습니다!\n\n" +
+            "지금 바로 템플릿을 자동 설치하시겠습니까?\n\n" +
+            "✅ 예: 자동 설치 페이지로 이동\n" +
+            "❌ 아니오: 수동으로 설치"
+          );
+          
+          if (autoInstall) {
+            window.open('/install-templates.html', '_blank');
+          }
+        }
+        
         // 메시지가 있으면 표시
-        if (data.message) {
+        if (data.message && data.templates && data.templates.length === 0) {
           console.log("ℹ️ API Message:", data.message);
-          alert(data.message);
         }
       } else {
         console.error("❌ 템플릿 목록 조회 실패:", data);
