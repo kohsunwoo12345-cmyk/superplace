@@ -79,15 +79,15 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         'system'
       ).run();
       
-      results.push({ step: 3, action: "Detailed template", status: "✅ Inserted", id: 'tpl_student_detailed_001' });
+      results.push({ step: 4, action: "Detailed template", status: "✅ Inserted", id: 'tpl_student_detailed_001' });
       console.log('✅ Detailed template inserted');
     } catch (error: any) {
-      results.push({ step: 3, action: "Detailed template", status: "❌ Error", error: error.message });
+      results.push({ step: 4, action: "Detailed template", status: "❌ Error", error: error.message });
       console.error('❌ Template insertion failed:', error);
     }
 
-    // 4️⃣ 확인
-    console.log('📋 Step 4: Verifying...');
+    // 5️⃣ 확인
+    console.log('📋 Step 5: Verifying...');
     const count = await db.prepare('SELECT COUNT(*) as count FROM LandingPageTemplate').first();
     const templates = await db.prepare('SELECT id, name, isDefault FROM LandingPageTemplate ORDER BY isDefault DESC').all();
     
@@ -105,6 +105,30 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     return new Response(JSON.stringify({
       success: true,
       message: `🎉 초기화 완료! ${count?.count || 0}개 템플릿 설치됨`,
+      duration: `${duration}ms`,
+      results,
+      templates: templates.results || []
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    console.error('❌ Initialize ALL - Failed:', error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || "초기화 실패",
+      stack: error.stack,
+      duration: `${duration}ms`
+    }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+.count || 0}개 템플릿 설치됨`,
       duration: `${duration}ms`,
       results,
       templates: templates.results || []

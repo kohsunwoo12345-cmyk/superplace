@@ -21,7 +21,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     const db = context.env.DB;
     
-    // 🔥 먼저 테이블 생성 확인
+    // 🔥 먼저 테이블 생성 확인 (createdById를 NULL 허용으로 변경)
     try {
       await db.exec(`
         CREATE TABLE IF NOT EXISTS LandingPageTemplate (
@@ -32,12 +32,12 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           variables TEXT,
           isDefault INTEGER DEFAULT 0,
           usageCount INTEGER DEFAULT 0,
-          createdById TEXT NOT NULL,
+          createdById TEXT,
           createdAt TEXT NOT NULL DEFAULT (datetime('now')),
           updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
         );
       `);
-      console.log('✅ LandingPageTemplate 테이블 확인/생성 완료');
+      console.log('✅ LandingPageTemplate 테이블 확인/생성 완료 (createdById NULL 허용)');
     } catch (tableError: any) {
       console.error('테이블 생성 오류:', tableError);
     }
@@ -111,7 +111,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           .prepare(`
             INSERT OR IGNORE INTO LandingPageTemplate (
               id, name, description, html, variables, isDefault, usageCount, createdById, createdAt, updatedAt
-            ) VALUES (?, ?, ?, ?, ?, ?, 0, 'system', datetime('now'), datetime('now'))
+            ) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, datetime('now'), datetime('now'))
           `)
           .bind(
             template.id,
@@ -124,7 +124,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           .run();
         
         insertedCount++;
+        console.log(`✅ 템플릿 삽입 성공: ${template.id}`);
       } catch (error: any) {
+        console.error(`❌ 템플릿 삽입 실패: ${template.id}`, error.message);
         errors.push({ id: template.id, error: error.message });
       }
     }
