@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>PPT Readonly 최종 테스트</title>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+</head>
+<body>
+    <h1>PPT Readonly 최종 테스트</h1>
+    <button onclick="test()">테스트 실행</button>
+    <pre id="log"></pre>
+    
+    <script>
+        function log(msg) {
+            document.getElementById('log').textContent += msg + '\n';
+            console.log(msg);
+        }
+        
+        async function test() {
+            document.getElementById('log').textContent = '';
+            log('테스트 시작...');
+            
+            try {
+                // 1. PPT 생성
+                log('1. PPT 객체 생성');
+                const pptx = new PptxGenJS();
+                log('✅ 성공');
+                
+                // 2. 슬라이드 추가 (background 없이!)
+                log('2. 슬라이드 추가');
+                const slide = pptx.addSlide();
+                log('✅ 성공');
+                
+                // 3. 텍스트 추가
+                log('3. 텍스트 추가');
+                slide.addText('테스트', {
+                    x: 1, y: 2, w: 8, h: 1,
+                    fontSize: 32, bold: true
+                });
+                log('✅ 성공');
+                
+                // 4. 파일 생성
+                log('4. 파일 다운로드');
+                await pptx.writeFile({ fileName: 'test.pptx' });
+                log('✅ 완료! 파일이 다운로드되었습니다!');
+                
+            } catch (e) {
+                log('❌ 오류: ' + e.message);
+                log('Stack: ' + e.stack);
+            }
+        }
+    </script>
+</body>
+</html>
