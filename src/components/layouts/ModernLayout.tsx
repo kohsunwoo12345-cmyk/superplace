@@ -71,7 +71,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
     
     // 관리자 메뉴 (ADMIN, SUPER_ADMIN) - 관리자 전용 + 일반 메뉴
     if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
-      console.log('✅ ModernLayout - Loading ADMIN menu (21 items)');
+      console.log('✅ ModernLayout - Loading ADMIN menu (27 items)');
       return [
         { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
         // 관리자 전용 메뉴
@@ -88,6 +88,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         { id: 'admin-bot-management', href: '/dashboard/admin/bot-management', icon: Bot, text: 'AI 봇 할당' },
         { id: 'admin-store', href: '/dashboard/admin/store-management', icon: ShoppingCart, text: 'AI쇼핑몰 제품 추가' },
         { id: 'admin-landing-pages', href: '/dashboard/admin/landing-pages', icon: Layout, text: '랜딩페이지' },
+        { id: 'admin-ppt-create', href: '/dashboard/ppt-create', icon: Presentation, text: 'PPT 제작' },
         { id: 'admin-inquiries', href: '/dashboard/admin/inquiries', icon: FileText, text: '문의 관리' },
         { id: 'admin-system', href: '/dashboard/admin/system', icon: Settings, text: '시스템 설정' },
         // 일반 메뉴
