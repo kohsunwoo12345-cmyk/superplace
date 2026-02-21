@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>자동 PPT 생성 테스트</title>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .status {
+            background: #f0f4f8;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            margin: 20px 0;
+        }
+        .status-item {
+            padding: 8px 0;
+            font-size: 14px;
+        }
+        .success { color: #22c55e; font-weight: bold; }
+        .error { color: #ef4444; font-weight: bold; }
+        .info { color: #3b82f6; }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        #log {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        .emoji { font-size: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><span class="emoji">🎯</span> PPT 자동 생성 테스트</h1>
+        <p class="subtitle">Superplace Study 소개 PPT 자동 생성</p>
+        
+        <div class="status">
+            <div class="status-item">
+                <strong>📊 PPT 제목:</strong> <span id="pptTitle">Superplace Study - 스마트 학원 관리 시스템</span>
+            </div>
+            <div class="status-item">
+                <strong>📄 페이지 수:</strong> <span id="pageCount">10 페이지</span>
+            </div>
+            <div class="status-item">
+                <strong>📝 항목 수:</strong> <span id="itemCount">30 개</span>
+            </div>
+            <div class="status-item">
+                <strong>⏱️ 상태:</strong> <span id="status" class="info">대기 중</span>
+            </div>
+        </div>
+        
+        <button onclick="createPPT()" id="createBtn">
+            <span class="emoji">🚀</span> PPT 생성 시작
+        </button>
+        
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const log = (message, type = 'info') => {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString('ko-KR');
+            const prefix = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warn' ? '⚠️' : '📋';
+            logDiv.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        };
+
+        const updateStatus = (text, className = 'info') => {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = text;
+            statusEl.className = className;
+        };
+
+        window.addEventListener('load', () => {
+            log('페이지 로드 완료');
+            if (typeof PptxGenJS !== 'undefined') {
+                log('PptxGenJS 라이브러리 로드 성공', 'success');
+            } else {
+                log('PptxGenJS 라이브러리 로드 실패', 'error');
+            }
+        });
+
+        async function createPPT() {
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
+            updateStatus('PPT 생성 중...', 'info');
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            log('PPT 생성 시작', 'success');
+            
+            try {
+                // PPT 데이터
+                const pptTitle = 'Superplace Study - 스마트 학원 관리 시스템';
+                const slides = [
+                    {
+                        title: '통합 학원 관리 플랫폼',
+                        content: '학생 관리, 출결, 성적, 결제를 하나의 플랫폼에서\n직관적인 대시보드로 한눈에 확인\n모바일과 PC 모두 지원'
+                    },
+                    {
+                        title: 'AI 기반 학습 지원',
+                        content: 'AI가 학생별 맞춤 학습 계획 제안\n취약 과목 자동 분석 및 보완\n학습 패턴 기반 성적 예측'
+                    },
+                    {
+                        title: '실시간 출결 관리',
+                        content: 'QR 코드 기반 빠른 출석 체크\n학부모에게 실시간 알림 발송\n출석률 통계 및 분석'
+                    },
+                    {
+                        title: '자동 문자 발송',
+                        content: '수업 시작 전 자동 리마인더\n성적표 발표 시 자동 안내\n맞춤형 메시지 템플릿 제공'
+                    },
+                    {
+                        title: '랜딩페이지 제작 도구',
+                        content: '코딩 없이 드래그 앤 드롭으로 제작\n다양한 템플릿 제공\nSEO 최적화 자동 적용'
+                    },
+                    {
+                        title: '클라우드 기반 시스템',
+                        content: '언제 어디서나 접속 가능\n자동 백업으로 데이터 안전\n서버 관리 불필요'
+                    },
+                    {
+                        title: '모바일 앱 지원',
+                        content: 'iOS와 Android 모두 지원\n푸시 알림으로 즉시 확인\n오프라인 모드 제공'
+                    },
+                    {
+                        title: '학생 성적 관리',
+                        content: '시험 성적 입력 및 분석\n성적 추이 그래프 제공\n과목별 평균 비교'
+                    },
+                    {
+                        title: 'AI 챗봇 지원',
+                        content: '24/7 자동 응답 시스템\n자주 묻는 질문 자동 답변\n복잡한 문의는 관리자에게 전달'
+                    },
+                    {
+                        title: '보안 및 결제',
+                        content: '금융권 수준의 보안\n다양한 결제 수단 지원\n자동 영수증 발행'
+                    }
+                ];
+                
+                log(`제목: ${pptTitle}`);
+                log(`슬라이드 수: ${slides.length}개`);
+                
+                // 1. PPT 객체 생성
+                log('1️⃣ PPT 객체 생성 중...');
+                const pptx = new PptxGenJS();
+                log('PPT 객체 생성 완료', 'success');
+                
+                // 2. 제목 슬라이드
+                log('2️⃣ 제목 슬라이드 추가 중...');
+                const titleSlide = pptx.addSlide();
+                titleSlide.addText(pptTitle, {
+                    x: 1, y: 2.5, w: 8, h: 1.5,
+                    fontSize: 40, bold: true,
+                    color: '363636', align: 'center'
+                });
+                titleSlide.addText(`총 ${slides.length}개 슬라이드`, {
+                    x: 1, y: 4, w: 8, h: 0.5,
+                    fontSize: 20, color: '666666', align: 'center'
+                });
+                log('제목 슬라이드 추가 완료', 'success');
+                
+                // 3. 내용 슬라이드
+                log('3️⃣ 내용 슬라이드 추가 중...');
+                slides.forEach((slideData, index) => {
+                    const slide = pptx.addSlide();
+                    
+                    // 제목
+                    slide.addText(slideData.title, {
+                        x: 0.5, y: 0.5, w: 9, h: 0.8,
+                        fontSize: 28, bold: true,
+                        color: '363636', align: 'center'
+                    });
+                    
+                    // 내용
+                    const contentLines = slideData.content.split('\n');
+                    slide.addText(contentLines, {
+                        x: 1, y: 2, w: 8, h: 4.5,
+                        fontSize: 16, color: '555555',
+                        align: 'left', valign: 'top',
+                        bullet: true
+                    });
+                    
+                    // 슬라이드 번호
+                    slide.addText(`${index + 1} / ${slides.length}`, {
+                        x: 8.5, y: 7, w: 1, h: 0.3,
+                        fontSize: 12, color: '999999', align: 'right'
+                    });
+                    
+                    log(`  슬라이드 ${index + 1}/${slides.length}: ${slideData.title}`);
+                });
+                log(`${slides.length}개 내용 슬라이드 추가 완료`, 'success');
+                
+                // 4. 파일 저장
+                log('4️⃣ PPT 파일 생성 및 다운로드 중...');
+                const filename = `Superplace_Study_소개_${Date.now()}.pptx`;
+                await pptx.writeFile({ fileName: filename });
+                
+                log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+                log(`파일명: ${filename}`, 'success');
+                log(`총 슬라이드: ${slides.length + 1}개 (제목 포함)`, 'success');
+                log('PPT 생성 성공!', 'success');
+                updateStatus('생성 완료!', 'success');
+                
+                alert(`✅ PPT 생성 완료!\n\n파일명: ${filename}\n슬라이드: ${slides.length + 1}개\n\nDownloads 폴더를 확인하세요!`);
+                
+            } catch (error) {
+                log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+                log(`오류 발생: ${error.message}`, 'error');
+                log(`Stack: ${error.stack}`, 'error');
+                updateStatus('생성 실패', 'error');
+                alert(`❌ PPT 생성 실패\n\n${error.message}`);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
