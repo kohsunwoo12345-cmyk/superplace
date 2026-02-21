@@ -106,6 +106,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       
       if (student) {
         console.log('✅ 학생 조회 성공 (users)');
+        console.log('📊 users 테이블 데이터:', JSON.stringify(student, null, 2));
         
         // students 테이블에서 추가 정보 조회 시도
         try {
