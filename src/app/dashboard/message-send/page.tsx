@@ -86,6 +86,13 @@ interface UserInfo {
   points: number;
 }
 
+interface KakaoChannel {
+  channelId: string;
+  phoneNumber: string;
+  channelName: string;
+  status: string;
+}
+
 const SMS_COST = 20; // 20 포인트/건
 const KAKAO_COST = 15; // 15 포인트/건
 
@@ -98,9 +105,11 @@ export default function MessageSendPage() {
   // 메시지 설정
   const [messageType, setMessageType] = useState<"SMS" | "KAKAO">("SMS");
   const [senderNumber, setSenderNumber] = useState("");
+  const [selectedKakaoChannel, setSelectedKakaoChannel] = useState("");
   const [messageTitle, setMessageTitle] = useState("");
   const [messageContent, setMessageContent] = useState("");
   const [senderNumbers, setSenderNumbers] = useState<string[]>([]);
+  const [kakaoChannels, setKakaoChannels] = useState<KakaoChannel[]>([]);
 
   // 수신자 설정
   const [recipientMode, setRecipientMode] = useState<"manual" | "students" | "excel">("students");
@@ -184,6 +193,19 @@ export default function MessageSendPage() {
       if (templatesRes.ok) {
         const data = await templatesRes.json();
         setTemplates(data.templates || []);
+      }
+
+      // 카카오 채널 목록
+      const kakaoRes = await fetch("/api/kakao/channels/my", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (kakaoRes.ok) {
+        const data = await kakaoRes.json();
+        const approvedChannels = (data.channels || []).filter((ch: KakaoChannel) => ch.status === 'APPROVED');
+        setKakaoChannels(approvedChannels);
+        if (approvedChannels.length > 0) {
+          setSelectedKakaoChannel(approvedChannels[0].channelId);
+        }
       }
 
       // 사용자 포인트 갱신
@@ -352,8 +374,13 @@ export default function MessageSendPage() {
   };
 
   const handleSend = async () => {
-    if (!senderNumber) {
+    if (messageType === "SMS" && !senderNumber) {
       alert("발신번호를 선택해주세요.");
+      return;
+    }
+
+    if (messageType === "KAKAO" && !selectedKakaoChannel) {
+      alert("카카오 채널을 선택해주세요.");
       return;
     }
 
@@ -396,7 +423,8 @@ export default function MessageSendPage() {
         },
         body: JSON.stringify({
           messageType,
-          senderNumber,
+          senderNumber: messageType === "SMS" ? senderNumber : null,
+          kakaoChannelId: messageType === "KAKAO" ? selectedKakaoChannel : null,
           messageTitle,
           messageContent,
           recipients: mappings,
@@ -573,37 +601,76 @@ export default function MessageSendPage() {
                   </Label>
                 </RadioGroup>
 
-                <div className="space-y-2">
-                  <Label>발신번호</Label>
-                  <Select value={senderNumber} onValueChange={setSenderNumber}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="발신번호 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {senderNumbers.length === 0 ? (
-                        <SelectItem value="none" disabled>
-                          등록된 발신번호가 없습니다
-                        </SelectItem>
-                      ) : (
-                        senderNumbers.map((number) => (
-                          <SelectItem key={number} value={number}>
-                            {number}
+                {messageType === "SMS" && (
+                  <div className="space-y-2">
+                    <Label>발신번호</Label>
+                    <Select value={senderNumber} onValueChange={setSenderNumber}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="발신번호 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {senderNumbers.length === 0 ? (
+                          <SelectItem value="none" disabled>
+                            등록된 발신번호가 없습니다
                           </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {senderNumbers.length === 0 && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      onClick={() => router.push("/dashboard/sender-number-register")}
-                      className="p-0 h-auto"
-                    >
-                      발신번호 등록하기 →
-                    </Button>
-                  )}
-                </div>
+                        ) : (
+                          senderNumbers.map((number) => (
+                            <SelectItem key={number} value={number}>
+                              {number}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {senderNumbers.length === 0 && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => router.push("/dashboard/sender-number-register")}
+                        className="p-0 h-auto"
+                      >
+                        발신번호 등록하기 →
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {messageType === "KAKAO" && (
+                  <div className="space-y-2">
+                    <Label>카카오 채널</Label>
+                    <Select value={selectedKakaoChannel} onValueChange={setSelectedKakaoChannel}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="카카오 채널 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {kakaoChannels.length === 0 ? (
+                          <SelectItem value="none" disabled>
+                            등록된 카카오 채널이 없습니다
+                          </SelectItem>
+                        ) : (
+                          kakaoChannels.map((channel) => (
+                            <SelectItem key={channel.channelId} value={channel.channelId}>
+                              {channel.channelName} ({channel.phoneNumber})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {kakaoChannels.length === 0 && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => router.push("/dashboard/kakao-channel")}
+                        className="p-0 h-auto"
+                      >
+                        카카오 채널 등록하기 →
+                      </Button>
+                    )}
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                      💡 카카오 알림톡 발송 시 채널 검수가 완료된 채널만 사용 가능합니다.
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

@@ -229,9 +229,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
         let result;
         if (messageType === 'SMS') {
-          result = await sendSMS(apiKey, apiSecret, senderNumber, recipient.parentPhone, finalMessage);
+          result = await sendSMS(apiKey, apiSecret, fromNumber!, recipient.parentPhone, finalMessage);
         } else {
-          result = await sendKakao(apiKey, apiSecret, senderNumber, recipient.parentPhone, 'default', finalMessage);
+          result = await sendKakao(apiKey, apiSecret, fromNumber!, recipient.parentPhone, 'default', finalMessage);
         }
 
         successCount++;
@@ -276,7 +276,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       user.id || user.userId,
       user.name || user.userName,
       messageType,
-      senderNumber,
+      fromNumber,
       recipients.length,
       JSON.stringify(recipients),
       messageTitle || '',
