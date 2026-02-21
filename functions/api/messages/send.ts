@@ -155,6 +155,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     const {
       messageType, // SMS, KAKAO
       senderNumber,
+      kakaoChannelId,
       messageTitle,
       messageContent,
       recipients, // RecipientMapping[]
@@ -163,10 +164,32 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     } = body;
 
     // 입력 검증
-    if (!messageType || !senderNumber || !messageContent || !recipients || recipients.length === 0) {
+    if (!messageType || !messageContent || !recipients || recipients.length === 0) {
       return new Response(JSON.stringify({ 
         error: 'Required fields missing',
         message: '필수 필드가 누락되었습니다.'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // SMS인 경우 발신번호 검증
+    if (messageType === 'SMS' && !senderNumber) {
+      return new Response(JSON.stringify({ 
+        error: 'Sender number required',
+        message: 'SMS 발송을 위해서는 발신번호가 필요합니다.'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 카카오인 경우 채널 ID 검증
+    if (messageType === 'KAKAO' && !kakaoChannelId) {
+      return new Response(JSON.stringify({ 
+        error: 'Kakao channel required',
+        message: '카카오톡 발송을 위해서는 카카오 채널이 필요합니다.'
       }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
@@ -198,7 +221,51 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    console.log(`📤 메시지 발송 시작: ${messageType}, 수신자 ${recipients.length}명`);
+    // 발신번호 또는 카카오 채널 검증
+    let fromNumber = '';
+    let kakaoChannelInfo: any = null;
+
+    if (messageType === 'SMS') {
+      // 사용자가 등록한 발신번호인지 확인
+      const senderNumberResult = await env.DB.prepare(`
+        SELECT phoneNumber, status FROM SenderNumber 
+        WHERE userId = ? AND phoneNumber = ? AND status = 'APPROVED'
+      `).bind(user.id || user.userId, senderNumber).first();
+
+      if (!senderNumberResult) {
+        return new Response(JSON.stringify({ 
+          error: 'Invalid sender number',
+          message: '등록되지 않았거나 승인되지 않은 발신번호입니다.'
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      fromNumber = senderNumber;
+    } else if (messageType === 'KAKAO') {
+      // 사용자가 등록한 카카오 채널인지 확인
+      const channelResult = await env.DB.prepare(`
+        SELECT channelId, phoneNumber, channelName, status, solapiChannelId 
+        FROM KakaoChannel 
+        WHERE userId = ? AND channelId = ? AND status = 'APPROVED'
+      `).bind(user.id || user.userId, kakaoChannelId).first();
+
+      if (!channelResult) {
+        return new Response(JSON.stringify({ 
+          error: 'Invalid Kakao channel',
+          message: '등록되지 않았거나 승인되지 않은 카카오 채널입니다.'
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      kakaoChannelInfo = channelResult;
+      fromNumber = channelResult.phoneNumber as string;
+    }
+
+    console.log(`📤 메시지 발송 시작: ${messageType}, 수신자 ${recipients.length}명, 발신: ${fromNumber}`);
 
     // Solapi API 키 확인
     const apiKey = env.SOLAPI_API_KEY;
@@ -229,9 +296,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
         let result;
         if (messageType === 'SMS') {
-          result = await sendSMS(apiKey, apiSecret, fromNumber!, recipient.parentPhone, finalMessage);
+          result = await sendSMS(apiKey, apiSecret, fromNumber, recipient.parentPhone, finalMessage);
         } else {
-          result = await sendKakao(apiKey, apiSecret, fromNumber!, recipient.parentPhone, 'default', finalMessage);
+          // 카카오 발송 시 채널 ID 사용
+          const channelPfId = kakaoChannelInfo?.solapiChannelId || kakaoChannelInfo?.channelId;
+          result = await sendKakao(apiKey, apiSecret, fromNumber, recipient.parentPhone, channelPfId, finalMessage);
         }
 
         successCount++;

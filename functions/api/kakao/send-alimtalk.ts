@@ -76,11 +76,29 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 사용자 정보 가져오기 (토큰에서 추출 - 간단한 버전)
-    // 실제로는 JWT 디코딩 필요
+    // JWT 토큰에서 사용자 정보 추출
+    let userId: number;
+    let userName: string;
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        userId = payload.id || payload.userId;
+        userName = payload.name || payload.userName || 'User';
+      } else {
+        throw new Error('Invalid token format');
+      }
+    } catch (e) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 사용자 정보 및 포인트 확인
     const userQuery = await env.DB.prepare(
       'SELECT id, name, points FROM User WHERE id = ? LIMIT 1'
-    ).bind(1).first(); // 임시로 ID 1 사용
+    ).bind(userId).first();
 
     if (!userQuery) {
       return new Response(JSON.stringify({ error: 'User not found' }), {
@@ -89,9 +107,25 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const userId = userQuery.id;
-    const userName = userQuery.name;
     const userPoints = userQuery.points || 0;
+
+    // 카카오 채널 검증 - 사용자가 등록하고 승인받은 채널인지 확인
+    const channelQuery = await env.DB.prepare(
+      'SELECT channelId, phoneNumber, channelName, status, solapiChannelId FROM KakaoChannel WHERE userId = ? AND channelId = ? AND status = ?'
+    ).bind(userId, channelId, 'APPROVED').first();
+
+    if (!channelQuery) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid Kakao channel',
+        message: '등록되지 않았거나 승인되지 않은 카카오 채널입니다.'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const channelPhoneNumber = channelQuery.phoneNumber as string;
+    const solapiChannelId = channelQuery.solapiChannelId || channelId;
 
     // 포인트 계산
     const KAKAO_COST = 15;
@@ -131,9 +165,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         const solapiPayload = {
           message: {
             to: normalizedPhone,
-            from: '발신번호', // 실제로는 채널에 등록된 발신번호 사용
+            from: channelPhoneNumber.replace(/[^0-9]/g, ''), // 채널에 등록된 발신번호
             kakaoOptions: {
-              pfId: channelId, // 카카오 채널 ID
+              pfId: solapiChannelId, // Solapi에 등록된 카카오 채널 ID
               templateId: templateCode || templateId, // 템플릿 코드
               variables: variables, // 템플릿 변수
               disableSms: false // SMS 대체 발송 허용
