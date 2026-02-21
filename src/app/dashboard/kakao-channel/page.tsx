@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
   MessageCircle, Phone, Building2, ChevronRight,
-  CheckCircle, AlertCircle, Loader2, Info
+  CheckCircle, AlertCircle, Loader2, Info, Building, Briefcase, List
 } from "lucide-react";
 
 interface Category {
@@ -69,7 +69,6 @@ export default function KakaoChannelRegisterPage() {
       }
     } catch (error) {
       console.error('Failed to fetch categories:', error);
-      // 로딩 실패 시 기본 카테고리 사용
       loadDefaultCategories();
     } finally {
       setCategoriesLoading(false);
@@ -77,7 +76,6 @@ export default function KakaoChannelRegisterPage() {
   };
 
   const loadDefaultCategories = () => {
-    // Solapi 카카오톡 채널 기본 카테고리
     const defaultCategories: CategoryData = {
       mainCategories: [
         { code: '001', name: '교육' },
@@ -89,6 +87,9 @@ export default function KakaoChannelRegisterPage() {
         { code: '007', name: '서비스업' },
         { code: '008', name: '미디어/출판' },
         { code: '009', name: '공공/단체' },
+        { code: '010', name: 'IT/전자' },
+        { code: '011', name: '음식점' },
+        { code: '012', name: '패션/뷰티' },
       ],
       middleCategories: {
         '001': [
@@ -97,36 +98,80 @@ export default function KakaoChannelRegisterPage() {
           { code: '001003', name: '온라인교육' },
           { code: '001004', name: '유아교육' },
           { code: '001005', name: '어학' },
+          { code: '001006', name: '예체능' },
         ],
         '002': [
           { code: '002001', name: '은행' },
-          { code: '002002', name: '증권' },
+          { code: '002002', name: '증권/투자' },
           { code: '002003', name: '보험' },
           { code: '002004', name: '대부/캐피탈' },
+          { code: '002005', name: '카드' },
         ],
         '003': [
           { code: '003001', name: '백화점/마트' },
-          { code: '003002', name: '온라인쇼핑' },
-          { code: '003003', name: '패션/의류' },
-          { code: '003004', name: '식품' },
+          { code: '003002', name: '온라인쇼핑몰' },
+          { code: '003003', name: '편의점' },
+          { code: '003004', name: '가전제품' },
+          { code: '003005', name: '식품' },
+        ],
+        '004': [
+          { code: '004001', name: '병원' },
+          { code: '004002', name: '약국' },
+          { code: '004003', name: '건강식품' },
+          { code: '004004', name: '헬스/피트니스' },
+        ],
+        '011': [
+          { code: '011001', name: '한식' },
+          { code: '011002', name: '중식' },
+          { code: '011003', name: '일식' },
+          { code: '011004', name: '양식' },
+          { code: '011005', name: '카페/디저트' },
+          { code: '011006', name: '패스트푸드' },
         ],
       },
       subCategories: {
         '001001': [
           { code: '001001001', name: '입시학원' },
-          { code: '001001002', name: '보습학원' },
+          { code: '001001002', name: '초중고 보습학원' },
           { code: '001001003', name: '예체능학원' },
           { code: '001001004', name: '직업/취업학원' },
+          { code: '001001005', name: '외국어학원' },
+          { code: '001001006', name: '컴퓨터/IT학원' },
         ],
         '001002': [
-          { code: '001002001', name: '초등학교' },
-          { code: '001002002', name: '중학교' },
-          { code: '001002003', name: '고등학교' },
-          { code: '001002004', name: '대학교' },
+          { code: '001002001', name: '유치원' },
+          { code: '001002002', name: '초등학교' },
+          { code: '001002003', name: '중학교' },
+          { code: '001002004', name: '고등학교' },
+          { code: '001002005', name: '대학교' },
+          { code: '001002006', name: '대학원' },
         ],
         '001003': [
           { code: '001003001', name: '인터넷강의' },
           { code: '001003002', name: 'VOD강의' },
+          { code: '001003003', name: '라이브강의' },
+        ],
+        '002001': [
+          { code: '002001001', name: '시중은행' },
+          { code: '002001002', name: '지방은행' },
+          { code: '002001003', name: '인터넷은행' },
+        ],
+        '003002': [
+          { code: '003002001', name: '종합쇼핑몰' },
+          { code: '003002002', name: '오픈마켓' },
+          { code: '003002003', name: '소셜커머스' },
+        ],
+        '011001': [
+          { code: '011001001', name: '일반한식' },
+          { code: '011001002', name: '고기/구이' },
+          { code: '011001003', name: '찌개/전골' },
+          { code: '011001004', name: '분식' },
+        ],
+        '011005': [
+          { code: '011005001', name: '커피전문점' },
+          { code: '011005002', name: '베이커리' },
+          { code: '011005003', name: '디저트카페' },
+          { code: '011005004', name: '아이스크림' },
         ],
       }
     };
@@ -164,7 +209,6 @@ export default function KakaoChannelRegisterPage() {
       return;
     }
 
-    // 전화번호 형식 검증
     const phoneRegex = /^01[0-9]{8,9}$/;
     if (!phoneRegex.test(phoneNumber.replace(/-/g, ''))) {
       alert('올바른 전화번호 형식이 아닙니다.');
@@ -193,11 +237,8 @@ export default function KakaoChannelRegisterPage() {
         throw new Error(error.message || 'Failed to register channel');
       }
 
-      const result = await response.json();
-      
       alert('카카오 채널 등록 신청이 완료되었습니다.\n승인까지 1-2일 소요될 수 있습니다.');
       
-      // 폼 초기화
       setPhoneNumber('');
       setChannelName('');
       setBusinessNumber('');
@@ -243,251 +284,342 @@ export default function KakaoChannelRegisterPage() {
   const middleCategories = selectedMain ? (categories.middleCategories[selectedMain] || []) : [];
   const subCategories = selectedMiddle ? (categories.subCategories[selectedMiddle] || []) : [];
 
+  const getSelectedCategoryName = (code: string, list: Category[]) => {
+    return list.find(c => c.code === code)?.name || '';
+  };
+
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      {/* 헤더 */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <MessageCircle className="w-8 h-8 text-green-600" />
-          카카오 채널 등록
-        </h1>
-        <p className="text-gray-600 mt-2">카카오톡 알림톡 발송을 위한 채널을 등록하세요</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 p-6">
+      <div className="container mx-auto max-w-7xl">
+        {/* 헤더 */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg">
+              <MessageCircle className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">카카오 채널 등록</h1>
+              <p className="text-gray-600 mt-1">카카오톡 알림톡 발송을 위한 채널을 등록하세요</p>
+            </div>
+          </div>
+        </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* 등록 폼 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>새 채널 등록</CardTitle>
-            <CardDescription>
-              전화번호와 카테고리를 선택하여 카카오 채널을 등록하세요
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* 전화번호 */}
-              <div>
-                <Label htmlFor="phoneNumber" className="flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  전화번호 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="phoneNumber"
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
-                  placeholder="010-1234-5678"
-                  required
-                  className="mt-1"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  카카오톡 알림톡 발신번호로 사용할 전화번호
-                </p>
-              </div>
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* 등록 폼 - 2열 */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card className="shadow-lg border-0">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 border-b">
+                <CardTitle className="flex items-center gap-2 text-2xl">
+                  <Building className="w-6 h-6 text-green-600" />
+                  채널 기본 정보
+                </CardTitle>
+                <CardDescription className="text-base">
+                  채널로 사용할 전화번호와 채널명을 입력하세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* 전화번호 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="phoneNumber" className="flex items-center gap-2 text-base font-semibold">
+                      <Phone className="w-4 h-4 text-green-600" />
+                      전화번호 <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="phoneNumber"
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
+                      placeholder="010-1234-5678"
+                      required
+                      className="h-12 text-lg"
+                    />
+                    <p className="text-sm text-gray-500">
+                      카카오톡 알림톡 발신번호로 사용할 전화번호
+                    </p>
+                  </div>
 
-              {/* 채널명 */}
-              <div>
-                <Label htmlFor="channelName">
-                  채널명 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="channelName"
-                  value={channelName}
-                  onChange={(e) => setChannelName(e.target.value)}
-                  placeholder="예: 슈퍼플레이스 스터디"
-                  required
-                  className="mt-1"
-                />
-              </div>
+                  {/* 채널명 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="channelName" className="flex items-center gap-2 text-base font-semibold">
+                      <MessageCircle className="w-4 h-4 text-green-600" />
+                      채널명 <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="channelName"
+                      value={channelName}
+                      onChange={(e) => setChannelName(e.target.value)}
+                      placeholder="예: 슈퍼플레이스 스터디"
+                      required
+                      className="h-12 text-lg"
+                    />
+                  </div>
 
-              {/* 사업자등록번호 */}
-              <div>
-                <Label htmlFor="businessNumber">
-                  사업자등록번호 (선택)
-                </Label>
-                <Input
-                  id="businessNumber"
-                  value={businessNumber}
-                  onChange={(e) => setBusinessNumber(e.target.value)}
-                  placeholder="123-45-67890"
-                  className="mt-1"
-                />
-              </div>
+                  {/* 사업자등록번호 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="businessNumber" className="flex items-center gap-2 text-base font-semibold">
+                      <Building2 className="w-4 h-4 text-blue-600" />
+                      사업자등록번호 <span className="text-gray-400">(선택)</span>
+                    </Label>
+                    <Input
+                      id="businessNumber"
+                      value={businessNumber}
+                      onChange={(e) => setBusinessNumber(e.target.value)}
+                      placeholder="123-45-67890"
+                      className="h-12 text-lg"
+                    />
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
 
-              {/* 카테고리 선택 */}
-              <div className="space-y-3">
-                <Label>업종 카테고리 <span className="text-red-500">*</span></Label>
-                
+            {/* 카테고리 선택 */}
+            <Card className="shadow-lg border-0">
+              <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b">
+                <CardTitle className="flex items-center gap-2 text-2xl">
+                  <Briefcase className="w-6 h-6 text-purple-600" />
+                  업종 카테고리 <span className="text-red-500">*</span>
+                </CardTitle>
+                <CardDescription className="text-base">
+                  실제 업종과 일치하는 카테고리를 선택하세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
                 {categoriesLoading ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
                   </div>
                 ) : (
-                  <>
+                  <div className="space-y-6">
                     {/* 대분류 */}
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-2 block">
-                        대분류
-                      </label>
-                      <select
-                        value={selectedMain}
-                        onChange={(e) => handleMainCategoryChange(e.target.value)}
-                        className="w-full border rounded-md p-2"
-                        required
-                      >
-                        <option value="">선택하세요</option>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <span className="text-blue-600 font-bold">1</span>
+                        </div>
+                        <label className="text-lg font-bold text-gray-900">
+                          대분류
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {categories.mainCategories.map((cat) => (
-                          <option key={cat.code} value={cat.code}>
-                            {cat.name}
-                          </option>
+                          <button
+                            key={cat.code}
+                            type="button"
+                            onClick={() => handleMainCategoryChange(cat.code)}
+                            className={`
+                              p-4 rounded-xl border-2 transition-all duration-200 text-left
+                              ${selectedMain === cat.code
+                                ? 'border-blue-500 bg-blue-50 shadow-md'
+                                : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                              }
+                            `}
+                          >
+                            <div className="font-semibold text-gray-900">{cat.name}</div>
+                            <div className="text-xs text-gray-500 mt-1">{cat.code}</div>
+                          </button>
                         ))}
-                      </select>
+                      </div>
                     </div>
 
                     {/* 중분류 */}
-                    {selectedMain && (
-                      <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block flex items-center gap-1">
-                          <ChevronRight className="w-4 h-4" />
-                          중분류
-                        </label>
-                        <select
-                          value={selectedMiddle}
-                          onChange={(e) => handleMiddleCategoryChange(e.target.value)}
-                          className="w-full border rounded-md p-2"
-                          required
-                        >
-                          <option value="">선택하세요</option>
+                    {selectedMain && middleCategories.length > 0 && (
+                      <div className="space-y-3 animate-in slide-in-from-top">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                            <span className="text-green-600 font-bold">2</span>
+                          </div>
+                          <label className="text-lg font-bold text-gray-900">
+                            중분류
+                          </label>
+                          <ChevronRight className="w-5 h-5 text-gray-400" />
+                          <span className="text-sm text-blue-600 font-medium">
+                            {getSelectedCategoryName(selectedMain, categories.mainCategories)}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {middleCategories.map((cat) => (
-                            <option key={cat.code} value={cat.code}>
-                              {cat.name}
-                            </option>
+                            <button
+                              key={cat.code}
+                              type="button"
+                              onClick={() => handleMiddleCategoryChange(cat.code)}
+                              className={`
+                                p-4 rounded-xl border-2 transition-all duration-200 text-left
+                                ${selectedMiddle === cat.code
+                                  ? 'border-green-500 bg-green-50 shadow-md'
+                                  : 'border-gray-200 hover:border-green-300 hover:bg-green-50/50'
+                                }
+                              `}
+                            >
+                              <div className="font-semibold text-gray-900">{cat.name}</div>
+                              <div className="text-xs text-gray-500 mt-1">{cat.code}</div>
+                            </button>
                           ))}
-                        </select>
+                        </div>
                       </div>
                     )}
 
                     {/* 소분류 */}
                     {selectedMiddle && subCategories.length > 0 && (
-                      <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block flex items-center gap-1">
-                          <ChevronRight className="w-4 h-4" />
-                          <ChevronRight className="w-4 h-4" />
-                          소분류
-                        </label>
-                        <select
-                          value={selectedSub}
-                          onChange={(e) => setSelectedSub(e.target.value)}
-                          className="w-full border rounded-md p-2"
-                          required
-                        >
-                          <option value="">선택하세요</option>
+                      <div className="space-y-3 animate-in slide-in-from-top">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <span className="text-purple-600 font-bold">3</span>
+                          </div>
+                          <label className="text-lg font-bold text-gray-900">
+                            소분류
+                          </label>
+                          <ChevronRight className="w-5 h-5 text-gray-400" />
+                          <span className="text-sm text-green-600 font-medium">
+                            {getSelectedCategoryName(selectedMiddle, middleCategories)}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {subCategories.map((cat) => (
-                            <option key={cat.code} value={cat.code}>
-                              {cat.name}
-                            </option>
+                            <button
+                              key={cat.code}
+                              type="button"
+                              onClick={() => setSelectedSub(cat.code)}
+                              className={`
+                                p-4 rounded-xl border-2 transition-all duration-200 text-left
+                                ${selectedSub === cat.code
+                                  ? 'border-purple-500 bg-purple-50 shadow-md'
+                                  : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50/50'
+                                }
+                              `}
+                            >
+                              <div className="font-semibold text-gray-900">{cat.name}</div>
+                              <div className="text-xs text-gray-500 mt-1">{cat.code}</div>
+                            </button>
                           ))}
-                        </select>
+                        </div>
                       </div>
                     )}
-                  </>
-                )}
-              </div>
 
-              {/* 선택된 카테고리 표시 */}
-              {selectedSub && (
-                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm font-medium text-blue-900 mb-1">선택된 카테고리:</p>
-                  <p className="text-sm text-blue-700">
-                    {categories.mainCategories.find(c => c.code === selectedMain)?.name}
-                    {' > '}
-                    {middleCategories.find(c => c.code === selectedMiddle)?.name}
-                    {subCategories.length > 0 && (
-                      <>
-                        {' > '}
-                        {subCategories.find(c => c.code === selectedSub)?.name}
-                      </>
+                    {/* 선택된 카테고리 요약 */}
+                    {selectedSub && (
+                      <div className="p-5 bg-gradient-to-r from-blue-50 via-green-50 to-purple-50 rounded-xl border-2 border-blue-200 animate-in slide-in-from-bottom">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle className="w-6 h-6 text-green-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-semibold text-gray-700 mb-2">선택된 카테고리:</p>
+                            <div className="flex flex-wrap items-center gap-2 text-base">
+                              <Badge className="bg-blue-500 text-white px-3 py-1">
+                                {getSelectedCategoryName(selectedMain, categories.mainCategories)}
+                              </Badge>
+                              <ChevronRight className="w-4 h-4 text-gray-400" />
+                              <Badge className="bg-green-500 text-white px-3 py-1">
+                                {getSelectedCategoryName(selectedMiddle, middleCategories)}
+                              </Badge>
+                              <ChevronRight className="w-4 h-4 text-gray-400" />
+                              <Badge className="bg-purple-500 text-white px-3 py-1">
+                                {getSelectedCategoryName(selectedSub, subCategories)}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-gray-600 mt-2">
+                              코드: {selectedSub}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     )}
-                  </p>
-                </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 제출 버튼 */}
+            <Button
+              onClick={handleSubmit}
+              disabled={loading || !selectedSub}
+              className="w-full h-14 text-lg font-bold shadow-lg bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+              size="lg"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  등록 중...
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  채널 등록 신청하기
+                </>
               )}
+            </Button>
 
-              {/* 안내 사항 */}
-              <div className="p-3 bg-gray-50 rounded-lg border">
-                <div className="flex items-start gap-2">
-                  <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-xs text-gray-600 space-y-1">
-                    <p>• 카카오 채널 등록 후 승인까지 1-2일 소요됩니다</p>
-                    <p>• 전화번호는 실제 사용 가능한 번호여야 합니다</p>
-                    <p>• 카테고리는 실제 업종과 일치해야 합니다</p>
-                    <p>• 승인 후 카카오톡 알림톡 발송이 가능합니다</p>
+            {/* 안내 사항 */}
+            <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start gap-3">
+                  <Info className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <p className="font-semibold text-amber-900">📋 등록 안내</p>
+                    <ul className="space-y-1.5 ml-1">
+                      <li>• 카카오 채널 등록 후 승인까지 <strong>1-2일</strong> 소요됩니다</li>
+                      <li>• 전화번호는 <strong>실제 사용 가능한 번호</strong>여야 합니다</li>
+                      <li>• 카테고리는 <strong>실제 업종과 일치</strong>해야 합니다</li>
+                      <li>• 승인 후 카카오톡 알림톡 발송이 가능합니다</li>
+                    </ul>
                   </div>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
+          </div>
 
-              {/* 제출 버튼 */}
-              <Button
-                type="submit"
-                disabled={loading || !selectedSub}
-                className="w-full"
-                size="lg"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    등록 중...
-                  </>
-                ) : (
-                  <>
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    채널 등록 신청
-                  </>
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* 등록된 채널 목록 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>등록된 채널 목록</CardTitle>
-            <CardDescription>
-              내가 등록한 카카오 채널 목록입니다
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {myChannels.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>등록된 채널이 없습니다</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {myChannels.map((channel) => (
-                  <div
-                    key={channel.channelId}
-                    className="p-4 border rounded-lg hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="font-semibold text-lg">{channel.channelName}</h3>
-                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                          <Phone className="w-3 h-3" />
-                          {channel.phoneNumber}
-                        </p>
-                      </div>
-                      {getStatusBadge(channel.status)}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      등록일: {new Date(channel.createdAt).toLocaleDateString('ko-KR')}
-                    </div>
+          {/* 등록된 채널 목록 - 1열 */}
+          <div className="lg:col-span-1">
+            <Card className="shadow-lg border-0 sticky top-6">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <List className="w-5 h-5 text-blue-600" />
+                  등록된 채널
+                </CardTitle>
+                <CardDescription>
+                  내가 등록한 채널 목록
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {myChannels.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <MessageCircle className="w-16 h-16 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">등록된 채널이 없습니다</p>
+                    <p className="text-sm mt-1">첫 채널을 등록해보세요</p>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                ) : (
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                    {myChannels.map((channel) => (
+                      <div
+                        key={channel.channelId}
+                        className="p-4 border-2 rounded-xl hover:shadow-lg transition-all duration-200 bg-white"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg text-gray-900 mb-1">
+                              {channel.channelName}
+                            </h3>
+                            <p className="text-sm text-gray-600 flex items-center gap-1.5">
+                              <Phone className="w-3.5 h-3.5" />
+                              {channel.phoneNumber}
+                            </p>
+                          </div>
+                          {getStatusBadge(channel.status)}
+                        </div>
+                        <div className="text-xs text-gray-500 pt-2 border-t">
+                          등록일: {new Date(channel.createdAt).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
