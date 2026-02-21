@@ -154,6 +154,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           SELECT id FROM students WHERE user_id = ?
         `).bind(studentId).first();
 
+        console.log('🔍 existingStudent:', existingStudent);
+
         if (existingStudent) {
           // 업데이트
           const updateFields = [];
@@ -174,25 +176,30 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           
           if (updateFields.length > 0) {
             updateValues.push(studentId);
-            await env.DB.prepare(`
-              UPDATE students 
-              SET ${updateFields.join(', ')}
-              WHERE user_id = ?
-            `).bind(...updateValues).run();
+            const updateQuery = `UPDATE students SET ${updateFields.join(', ')} WHERE user_id = ?`;
+            console.log('📝 UPDATE 쿼리:', updateQuery);
+            console.log('📝 VALUES:', updateValues);
             
-            console.log('✅ students 테이블 업데이트 성공');
+            const result = await env.DB.prepare(updateQuery).bind(...updateValues).run();
+            
+            console.log('✅ students 테이블 업데이트 성공:', result);
           }
         } else {
           // 삽입
-          await env.DB.prepare(`
-            INSERT INTO students (user_id, school, grade, status)
-            VALUES (?, ?, ?, 'ACTIVE')
-          `).bind(studentId, school || '', grade || '').run();
+          console.log('⚠️ students 레코드 없음 - 새로 생성');
+          console.log('📝 INSERT VALUES:', { studentId, school, grade });
           
-          console.log('✅ students 테이블 삽입 성공');
+          const insertResult = await env.DB.prepare(`
+            INSERT INTO students (user_id, school, grade, status, created_at)
+            VALUES (?, ?, ?, 'ACTIVE', datetime('now'))
+          `).bind(studentId, school || null, grade || null).run();
+          
+          console.log('✅ students 테이블 삽입 성공:', insertResult);
         }
-      } catch (e) {
-        console.log('⚠️ students 테이블 업데이트 실패 (무시):', e);
+      } catch (e: any) {
+        console.error('❌ students 테이블 업데이트 실패:', e.message);
+        console.error('❌ Stack:', e.stack);
+        // 에러를 반환하지 않고 계속 진행
       }
     }
 
