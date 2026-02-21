@@ -922,15 +922,8 @@ function StudentDetailContent() {
         alert(`✅ ${data.message}`);
         setShowWithdrawDialog(false);
         setWithdrawReason("");
-        // 학생 정보 새로고침
-        if (student) {
-          setStudent({
-            ...student,
-            isWithdrawn: 1,
-            withdrawnAt: data.withdrawnAt,
-            withdrawnReason: withdrawReason,
-          });
-        }
+        // 퇴원 처리 후 학생 목록으로 이동
+        router.push("/dashboard/students");
       } else {
         const error = await response.json();
         alert(`❌ ${error.message || "퇴원 처리에 실패했습니다."}`);
@@ -969,15 +962,8 @@ function StudentDetailContent() {
       if (response.ok) {
         const data = await response.json();
         alert(`✅ ${data.message}`);
-        // 학생 정보 새로고침
-        if (student) {
-          setStudent({
-            ...student,
-            isWithdrawn: 0,
-            withdrawnAt: undefined,
-            withdrawnReason: undefined,
-          });
-        }
+        // 페이지 새로고침하여 최신 정보 표시
+        window.location.reload();
       } else {
         const error = await response.json();
         alert(`❌ ${error.message || "복학 처리에 실패했습니다."}`);

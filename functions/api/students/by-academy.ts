@@ -71,6 +71,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         FROM users u
         LEFT JOIN students s ON u.id = s.user_id
         WHERE u.role = 'STUDENT'
+        AND (u.isWithdrawn IS NULL OR u.isWithdrawn = 0)
       `;
 
       const bindings: any[] = [];
@@ -153,6 +154,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           FROM User u
           LEFT JOIN students s ON u.id = s.user_id
           WHERE u.role = 'STUDENT'
+          AND (u.isWithdrawn IS NULL OR u.isWithdrawn = 0)
         `;
 
         const bindings: any[] = [];
@@ -200,6 +202,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           FROM users u
           LEFT JOIN students s ON u.id = s.userId
           WHERE u.role = 'STUDENT'
+          AND (u.isWithdrawn IS NULL OR u.isWithdrawn = 0)
         `;
 
         const bindings: any[] = [];
