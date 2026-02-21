@@ -108,9 +108,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 학생 존재 여부 확인 (isWithdrawn 체크 제외)
     console.log('🔍 Checking student ID:', studentId);
     
-    const studentCheck = await env.DB.prepare(
-      'SELECT id, name, email, role FROM User WHERE id = ?'
-    ).bind(studentId).first();
+    // users 테이블 먼저 시도, 실패하면 User 테이블 시도
+    let studentCheck: any = null;
+    try {
+      studentCheck = await env.DB.prepare(
+        'SELECT id, name, email, role FROM users WHERE id = ?'
+      ).bind(studentId).first();
+      console.log('✅ Found in users table');
+    } catch (e) {
+      console.log('⚠️ users table failed, trying User table');
+      studentCheck = await env.DB.prepare(
+        'SELECT id, name, email, role FROM User WHERE id = ?'
+      ).bind(studentId).first();
+    }
 
     console.log('📋 Student check result:', studentCheck ? `Found: ${studentCheck.name}` : 'Not found');
 
@@ -142,10 +152,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     
     console.log('💾 Attempting withdrawal update...');
     
-    // isWithdrawn 컬럼 확인 및 추가
+    // users 테이블 먼저 시도
+    let updateSuccess = false;
+    let tableName = 'users';
+    
     try {
       const result = await env.DB.prepare(`
-        UPDATE User 
+        UPDATE users 
         SET isWithdrawn = 1, 
             withdrawnAt = ?, 
             withdrawnReason = ?,
@@ -153,45 +166,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         WHERE id = ?
       `).bind(now, withdrawnReason, adminUserId, studentId).run();
       
-      console.log('✅ Update successful:', result.meta);
+      console.log('✅ Update successful on users table:', result.meta);
+      updateSuccess = true;
     } catch (e: any) {
-      console.error('⚠️ Update failed, attempting to add columns:', e.message);
+      console.error('⚠️ users table update failed:', e.message);
       
-      // 컬럼이 없으면 추가하고 다시 시도
-      if (e.message.includes('no such column') || e.message.includes('isWithdrawn')) {
-        console.log('📝 Adding isWithdrawn columns...');
-        
-        try {
-          await env.DB.prepare('ALTER TABLE User ADD COLUMN isWithdrawn INTEGER DEFAULT 0').run();
-          console.log('✅ Added isWithdrawn column');
-        } catch (alterErr) {
-          console.log('⚠️ Column may already exist:', alterErr);
-        }
-        
-        try {
-          await env.DB.prepare('ALTER TABLE User ADD COLUMN withdrawnAt TEXT').run();
-          console.log('✅ Added withdrawnAt column');
-        } catch (alterErr) {
-          console.log('⚠️ Column may already exist:', alterErr);
-        }
-        
-        try {
-          await env.DB.prepare('ALTER TABLE User ADD COLUMN withdrawnReason TEXT').run();
-          console.log('✅ Added withdrawnReason column');
-        } catch (alterErr) {
-          console.log('⚠️ Column may already exist:', alterErr);
-        }
-        
-        try {
-          await env.DB.prepare('ALTER TABLE User ADD COLUMN withdrawnBy INTEGER').run();
-          console.log('✅ Added withdrawnBy column');
-        } catch (alterErr) {
-          console.log('⚠️ Column may already exist:', alterErr);
-        }
-        
-        // 다시 시도
-        console.log('🔄 Retrying update after adding columns...');
-        const retryResult = await env.DB.prepare(`
+      // users 테이블 실패 시 User 테이블 시도
+      try {
+        const result = await env.DB.prepare(`
           UPDATE User 
           SET isWithdrawn = 1, 
               withdrawnAt = ?, 
@@ -200,10 +182,56 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           WHERE id = ?
         `).bind(now, withdrawnReason, adminUserId, studentId).run();
         
-        console.log('✅ Retry successful:', retryResult.meta);
-      } else {
-        throw e;
+        console.log('✅ Update successful on User table:', result.meta);
+        tableName = 'User';
+        updateSuccess = true;
+      } catch (e2: any) {
+        console.error('⚠️ User table update also failed:', e2.message);
+        
+        // 두 테이블 모두 실패 - 컬럼이 없을 가능성
+        if (e2.message.includes('no such column') || e2.message.includes('isWithdrawn')) {
+          console.log('📝 Adding isWithdrawn columns to both tables...');
+          
+          // users 테이블에 컬럼 추가 시도
+          for (const table of ['users', 'User']) {
+            try {
+              await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN isWithdrawn INTEGER DEFAULT 0`).run();
+              await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN withdrawnAt TEXT`).run();
+              await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN withdrawnReason TEXT`).run();
+              await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN withdrawnBy INTEGER`).run();
+              console.log(`✅ Added columns to ${table} table`);
+            } catch (alterErr) {
+              console.log(`⚠️ Columns may already exist in ${table}:`, alterErr);
+            }
+          }
+          
+          // 다시 시도
+          console.log('🔄 Retrying update after adding columns...');
+          try {
+            const retryResult = await env.DB.prepare(`
+              UPDATE users 
+              SET isWithdrawn = 1, withdrawnAt = ?, withdrawnReason = ?, withdrawnBy = ?
+              WHERE id = ?
+            `).bind(now, withdrawnReason, adminUserId, studentId).run();
+            console.log('✅ Retry successful on users table');
+            updateSuccess = true;
+          } catch (retryErr) {
+            const retryResult = await env.DB.prepare(`
+              UPDATE User 
+              SET isWithdrawn = 1, withdrawnAt = ?, withdrawnReason = ?, withdrawnBy = ?
+              WHERE id = ?
+            `).bind(now, withdrawnReason, adminUserId, studentId).run();
+            console.log('✅ Retry successful on User table');
+            updateSuccess = true;
+          }
+        } else {
+          throw e2;
+        }
       }
+    }
+    
+    if (!updateSuccess) {
+      throw new Error('Failed to update student withdrawal status');
     }
 
     console.log(`✅ 학생 퇴원 처리 완료: ${studentCheck.name} (ID: ${studentId}), 사유: ${withdrawnReason}`);
