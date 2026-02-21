@@ -1,6 +1,8 @@
 // Cloudflare Pages Function: POST /api/students/withdraw
 // 학생 퇴원 처리
 
+import { decodeToken } from '../../_lib/auth';
+
 interface Env {
   DB: D1Database;
   JWT_SECRET: string;
@@ -34,34 +36,28 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const token = authHeader.substring(7);
     
     console.log('🎫 Token length:', token.length);
+    console.log('🎫 Token preview:', token.substring(0, 50) + '...');
     
-    // JWT 디코딩 (간단한 버전)
-    let adminUserId: number;
-    let adminRole: string;
-    try {
-      const parts = token.split('.');
-      console.log('🔍 Token parts:', parts.length);
-      
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        console.log('✅ Decoded payload:', {id: payload.id, role: payload.role});
-        adminUserId = payload.id || payload.userId;
-        adminRole = payload.role;
-      } else {
-        throw new Error('Invalid token format');
-      }
-    } catch (e: any) {
-      console.error('❌ Token decode error:', e.message);
+    // 토큰 디코딩 (auth.ts의 decodeToken 사용)
+    const payload = decodeToken(token);
+    
+    if (!payload) {
+      console.error('❌ Token decode failed');
       return new Response(JSON.stringify({ 
         success: false,
         error: 'Invalid token',
         message: 'JWT 토큰이 유효하지 않습니다.',
-        debug: e.message
+        debug: 'Failed to decode token'
       }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
     }
+    
+    console.log('✅ Decoded payload:', { id: payload.id || payload.userId, role: payload.role });
+    
+    const adminUserId = payload.id || payload.userId;
+    const adminRole = payload.role;
 
     // 권한 확인 (학원장 또는 관리자만 가능)
     console.log('👤 User role check:', adminRole);
