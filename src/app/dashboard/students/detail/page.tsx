@@ -223,6 +223,22 @@ function StudentDetailContent() {
             
             console.log("📥 Received student data:", studentData);
             
+            // 로그인한 사용자 정보에서 학원 정보 가져오기
+            const userStr = localStorage.getItem("user");
+            if (userStr) {
+              try {
+                const currentUser = JSON.parse(userStr);
+                // 학생에게 학원 정보가 없으면 현재 director의 학원으로 설정
+                if (!studentData.academyId && currentUser.academyId) {
+                  studentData.academyId = currentUser.academyId;
+                  studentData.academy_name = currentUser.academyName || '현재 학원';
+                  console.log('✅ 학원 정보 자동 설정:', studentData.academyId);
+                }
+              } catch (e) {
+                console.error('사용자 정보 파싱 실패:', e);
+              }
+            }
+            
             setStudent(studentData);
             apiSuccess = true;
             
@@ -609,20 +625,20 @@ function StudentDetailContent() {
       setSaving(true);
       const token = localStorage.getItem("token");
 
-      const response = await fetch(`/api/admin/users/${studentId}`, {
+      const response = await fetch(`/api/students/update`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          studentId: studentId,
           name: editedStudent.name,
           phone: editedStudent.phone,
           email: editedStudent.email,
           school: editedStudent.school,
           grade: editedStudent.grade,
           diagnostic_memo: editedStudent.diagnostic_memo,
-          academy_id: editedStudent.academy_id,
           password: editedStudent.password,
           classIds: selectedClassIds, // 최대 3개의 반 ID
         }),
