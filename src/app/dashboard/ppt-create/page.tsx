@@ -103,81 +103,96 @@ export default function PPTCreatePage() {
       console.log('📄 Generated slides:', slides.length);
 
       // PPT 생성 (CDN에서 로드한 PptxGenJS 사용)
-      const pptx = new window.PptxGenJS();
-      
-      // 메타데이터는 설정하지 않음 (readonly 오류 방지)
-      console.log('✅ PPT 객체 생성됨');
+      // **중요**: Object.freeze/seal 등으로 보호된 속성을 건드리지 않음
+      let pptx;
+      try {
+        pptx = new window.PptxGenJS();
+        console.log('✅ PPT 객체 생성됨');
+      } catch (err: any) {
+        throw new Error(`PPT 객체 생성 실패: ${err.message}`);
+      }
 
       // 첫 슬라이드 (제목 슬라이드)
-      const titleSlide = pptx.addSlide();
-      titleSlide.background = { color: 'FFFFFF' };
-      titleSlide.addText(pptTitle, {
-        x: 1,
-        y: 2.5,
-        w: 8,
-        h: 1.5,
-        fontSize: 44,
-        bold: true,
-        color: '363636',
-        align: 'center'
-      });
-      titleSlide.addText(`총 ${slides.length}개 슬라이드`, {
-        x: 1,
-        y: 4,
-        w: 8,
-        h: 0.5,
-        fontSize: 20,
-        color: '666666',
-        align: 'center'
-      });
-
-      // 각 내용 슬라이드 생성
-      slides.forEach((slideData, index) => {
-        const slide = pptx.addSlide();
-        
-        // 배경색 설정
-        slide.background = { color: 'FFFFFF' };
-        
-        // 제목 추가 (상단)
-        slide.addText(slideData.title, {
-          x: 0.5,
-          y: 0.5,
-          w: 9,
-          h: 0.8,
-          fontSize: 28,
+      let titleSlide;
+      try {
+        titleSlide = pptx.addSlide();
+        titleSlide.background = { color: 'FFFFFF' };
+        titleSlide.addText(pptTitle, {
+          x: 1,
+          y: 2.5,
+          w: 8,
+          h: 1.5,
+          fontSize: 44,
           bold: true,
           color: '363636',
           align: 'center'
         });
-        
-        // 내용 추가 (중앙)
-        if (slideData.content && slideData.content.trim()) {
-          const contentLines = slideData.content.split('\n').filter(line => line.trim());
-          
-          slide.addText(contentLines, {
-            x: 1,
-            y: 2,
-            w: 8,
-            h: 4.5,
-            fontSize: 16,
-            color: '555555',
-            align: 'left',
-            valign: 'top',
-            bullet: true
-          });
-        }
-        
-        // 슬라이드 번호 (우측 하단)
-        slide.addText(`${index + 1} / ${slides.length}`, {
-          x: 8.5,
-          y: 7,
-          w: 1,
-          h: 0.3,
-          fontSize: 12,
-          color: '999999',
-          align: 'right'
+        titleSlide.addText(`총 ${slides.length}개 슬라이드`, {
+          x: 1,
+          y: 4,
+          w: 8,
+          h: 0.5,
+          fontSize: 20,
+          color: '666666',
+          align: 'center'
         });
-      });
+        console.log('✅ 제목 슬라이드 추가됨');
+      } catch (err: any) {
+        throw new Error(`제목 슬라이드 생성 실패: ${err.message}`);
+      }
+
+      // 각 내용 슬라이드 생성
+      try {
+        slides.forEach((slideData, index) => {
+          const slide = pptx.addSlide();
+          
+          // 배경색 설정
+          slide.background = { color: 'FFFFFF' };
+          
+          // 제목 추가 (상단)
+          slide.addText(slideData.title, {
+            x: 0.5,
+            y: 0.5,
+            w: 9,
+            h: 0.8,
+            fontSize: 28,
+            bold: true,
+            color: '363636',
+            align: 'center'
+          });
+          
+          // 내용 추가 (중앙)
+          if (slideData.content && slideData.content.trim()) {
+            const contentLines = slideData.content.split('\n').filter(line => line.trim());
+            
+            slide.addText(contentLines, {
+              x: 1,
+              y: 2,
+              w: 8,
+              h: 4.5,
+              fontSize: 16,
+              color: '555555',
+              align: 'left',
+              valign: 'top',
+              bullet: true
+            });
+          }
+          
+          // 슬라이드 번호 (우측 하단)
+          slide.addText(`${index + 1} / ${slides.length}`, {
+            x: 8.5,
+            y: 7,
+            w: 1,
+            h: 0.3,
+            fontSize: 12,
+            color: '999999',
+            align: 'right'
+          });
+        });
+        console.log(`✅ ${slides.length}개 내용 슬라이드 추가됨`);
+      } catch (err: any) {
+        throw new Error(`내용 슬라이드 생성 실패: ${err.message}`);
+      }
 
       console.log('✅ PPT 객체 생성 완료');
 
@@ -185,14 +200,19 @@ export default function PPTCreatePage() {
       const filename = `${pptTitle.replace(/[^a-zA-Z0-9가-힣]/g, '_')}_${Date.now()}.pptx`;
 
       // PPT 다운로드
-      await pptx.writeFile({ fileName: filename });
-      
-      console.log('✅ PPT 파일 다운로드 완료:', filename);
-      alert(`PPT가 생성되었습니다!\n파일명: ${filename}\n슬라이드 수: ${slides.length + 1}개 (제목 포함)`);
+      console.log('📥 PPT 파일 다운로드 시작...');
+      try {
+        await pptx.writeFile({ fileName: filename });
+        console.log('✅ PPT 파일 다운로드 완료:', filename);
+        alert(`✅ PPT가 성공적으로 생성되었습니다!\n\n파일명: ${filename}\n슬라이드 수: ${slides.length + 1}개 (제목 포함)`);
+      } catch (err: any) {
+        throw new Error(`PPT 파일 저장 실패: ${err.message}`);
+      }
 
     } catch (error: any) {
       console.error("❌ Failed to create PPT:", error);
-      alert(`PPT 생성 실패: ${error.message}`);
+      const errorMsg = error.message || String(error);
+      alert(`❌ PPT 생성 실패\n\n오류: ${errorMsg}\n\n페이지를 새로고침 후 다시 시도해주세요.`);
     } finally {
       setLoading(false);
     }
