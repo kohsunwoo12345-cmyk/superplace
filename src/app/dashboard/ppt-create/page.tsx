@@ -113,14 +113,8 @@ export default function PPTCreatePage() {
       }
 
       // 첫 슬라이드 (제목 슬라이드)
-      let titleSlide;
       try {
-        titleSlide = pptx.addSlide();
-        // ⚠️ background 속성은 readonly! 대신 addShape으로 배경 추가
-        titleSlide.addShape(pptx.ShapeType.rect, {
-          x: 0, y: 0, w: '100%', h: '100%',
-          fill: { color: 'FFFFFF' }
-        });
+        const titleSlide = pptx.addSlide();
         titleSlide.addText(pptTitle, {
           x: 1,
           y: 2.5,
