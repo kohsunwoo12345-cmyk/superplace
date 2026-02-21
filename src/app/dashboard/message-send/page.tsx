@@ -29,6 +29,7 @@ import {
   Send,
   Phone,
   MessageSquare,
+  MessageCircle,
   Upload,
   Users,
   Loader2,
@@ -539,6 +540,16 @@ export default function MessageSendPage() {
                 <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="w-5 h-5" />
                   발송 유형 선택
+                  {messageType === "SMS" && (
+                    <Badge variant="outline" className="ml-auto">
+                      📱 SMS 문자 선택됨
+                    </Badge>
+                  )}
+                  {messageType === "KAKAO" && (
+                    <Badge variant="outline" className="ml-auto bg-yellow-100 text-yellow-800 border-yellow-300">
+                      💬 카카오톡 선택됨
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -636,39 +647,49 @@ export default function MessageSendPage() {
                 )}
 
                 {messageType === "KAKAO" && (
-                  <div className="space-y-2">
-                    <Label>카카오 채널</Label>
-                    <Select value={selectedKakaoChannel} onValueChange={setSelectedKakaoChannel}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="카카오 채널 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {kakaoChannels.length === 0 ? (
-                          <SelectItem value="none" disabled>
-                            등록된 카카오 채널이 없습니다
-                          </SelectItem>
-                        ) : (
-                          kakaoChannels.map((channel) => (
-                            <SelectItem key={channel.channelId} value={channel.channelId}>
-                              {channel.channelName} ({channel.phoneNumber})
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {kakaoChannels.length === 0 && (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={() => router.push("/dashboard/kakao-channel")}
-                        className="p-0 h-auto"
-                      >
-                        카카오 채널 등록하기 →
-                      </Button>
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">카카오 채널 선택</Label>
+                    {kakaoChannels.length === 0 ? (
+                      <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg space-y-3">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                          <div className="flex-1">
+                            <div className="font-semibold text-yellow-900 mb-1">
+                              등록된 카카오 채널이 없습니다
+                            </div>
+                            <div className="text-sm text-yellow-800 mb-2">
+                              카카오톡으로 메시지를 발송하려면 먼저 카카오 채널을 등록해야 합니다.
+                            </div>
+                            <Button
+                              onClick={() => router.push("/dashboard/kakao-channel")}
+                              className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                              size="sm"
+                            >
+                              <MessageCircle className="w-4 h-4 mr-2" />
+                              카카오 채널 등록하러 가기
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <Select value={selectedKakaoChannel} onValueChange={setSelectedKakaoChannel}>
+                          <SelectTrigger className="border-yellow-300 focus:border-yellow-500">
+                            <SelectValue placeholder="카카오 채널 선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {kakaoChannels.map((channel) => (
+                              <SelectItem key={channel.channelId} value={channel.channelId}>
+                                💬 {channel.channelName} ({channel.phoneNumber})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                          💡 승인 완료된 카카오 채널만 표시됩니다. 검수는 보통 1-2일 소요됩니다.
+                        </div>
+                      </>
                     )}
-                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                      💡 카카오 알림톡 발송 시 채널 검수가 완료된 채널만 사용 가능합니다.
-                    </div>
                   </div>
                 )}
               </CardContent>
