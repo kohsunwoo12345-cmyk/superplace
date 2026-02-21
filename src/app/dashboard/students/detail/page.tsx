@@ -1550,7 +1550,7 @@ function StudentDetailContent() {
                         />
                       ) : (
                         <p className="font-medium font-mono bg-gray-50 px-2 py-1 rounded">
-                          {student.hasPassword || student.password ? '●●●●●● (설정됨)' : '미설정'}
+                          {student.password || '미설정'}
                         </p>
                       )}
                     </div>

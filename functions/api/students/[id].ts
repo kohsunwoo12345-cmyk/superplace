@@ -99,7 +99,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 패턴 1: users 테이블 먼저 (가장 일반적)
     try {
       student = await env.DB.prepare(`
-        SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId
+        SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId, u.password
         FROM users u
         WHERE u.id = ? AND UPPER(u.role) = 'STUDENT'
       `).bind(studentId).first();
@@ -117,7 +117,29 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           
           if (studentExtra) {
             student = { ...student, ...studentExtra };
-            console.log('✅ students 테이블 정보 추가');
+            console.log('✅ students 테이블 정보 추가:', studentExtra);
+          } else {
+            // students 테이블에 레코드가 없으면 자동 생성
+            console.log('⚠️ students 레코드 없음 - 자동 생성 시도');
+            try {
+              await env.DB.prepare(`
+                INSERT INTO students (user_id, academy_id, status, created_at)
+                VALUES (?, ?, 'ACTIVE', datetime('now'))
+              `).bind(studentId, student.academyId || null).run();
+              console.log('✅ students 레코드 자동 생성 완료');
+              
+              // 다시 조회
+              const newStudentExtra = await env.DB.prepare(`
+                SELECT school, grade, status, student_code
+                FROM students
+                WHERE user_id = ?
+              `).bind(studentId).first();
+              if (newStudentExtra) {
+                student = { ...student, ...newStudentExtra };
+              }
+            } catch (insertErr: any) {
+              console.log('⚠️ students 자동 생성 실패:', insertErr.message);
+            }
           }
         } catch (e) {
           console.log('⚠️ students 테이블 없음 (무시)');
@@ -149,7 +171,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (!student) {
       try {
         student = await env.DB.prepare(`
-          SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId
+          SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId, u.password
           FROM User u
           WHERE u.id = ? AND UPPER(u.role) = 'STUDENT'
         `).bind(studentId).first();
@@ -167,6 +189,29 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             
             if (studentExtra) {
               student = { ...student, ...studentExtra };
+              console.log('✅ students 테이블 정보 추가 (User 패턴)');
+            } else {
+              // students 테이블에 레코드가 없으면 자동 생성
+              console.log('⚠️ students 레코드 없음 (User 패턴) - 자동 생성 시도');
+              try {
+                await env.DB.prepare(`
+                  INSERT INTO students (user_id, academy_id, status, created_at)
+                  VALUES (?, ?, 'ACTIVE', datetime('now'))
+                `).bind(studentId, student.academyId || null).run();
+                console.log('✅ students 레코드 자동 생성 완료 (User 패턴)');
+                
+                // 다시 조회
+                const newStudentExtra = await env.DB.prepare(`
+                  SELECT school, grade, status, student_code
+                  FROM students
+                  WHERE user_id = ?
+                `).bind(studentId).first();
+                if (newStudentExtra) {
+                  student = { ...student, ...newStudentExtra };
+                }
+              } catch (insertErr: any) {
+                console.log('⚠️ students 자동 생성 실패 (User 패턴):', insertErr.message);
+              }
             }
           } catch (e) {
             console.log('⚠️ students 테이블 없음');
@@ -314,19 +359,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       classes,
       attendanceStats,
       chatCount,
-      homeworkStats,
-      hasPassword: !!student.password,  // 비밀번호 존재 여부만 반환
-      password: undefined  // 실제 비밀번호는 제거
+      homeworkStats
+      // password는 그대로 포함 (사용자 요청에 따라)
     };
 
     console.log('✅ 학생 상세 정보 조회 완료:', {
       studentId,
       name: student.name,
       grade: student.grade,
+      school: student.school,
+      password: student.password ? '설정됨' : '미설정',
       classCount: classes.length,
       attendanceRate: attendanceStats.attendanceRate,
-      chatCount,
-      hasPassword: !!student.password
+      chatCount
     });
 
     return Response.json({
