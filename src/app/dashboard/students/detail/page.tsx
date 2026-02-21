@@ -1446,7 +1446,7 @@ function StudentDetailContent() {
                           ))}
                         </select>
                       ) : (
-                        <p className="font-medium">{student.academyName || '미등록'}</p>
+                        <p className="font-medium">{student.academy_name || student.academyName || '미등록'}</p>
                       )}
                     </div>
                   </div>
