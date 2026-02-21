@@ -1,6 +1,8 @@
 // 학생 상세 정보 조회 API
 // GET /api/students/[id]
 
+import { decodeToken } from '../../_lib/auth';
+
 interface Env {
   DB: D1Database;
 }
@@ -27,26 +29,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const token = authHeader.replace('Bearer ', '');
     
-    // Simple token parsing (format: id|email|role|academyId|timestamp)
-    let userEmail = null;
-    try {
-      const parts = token.split('|');
-      if (parts.length >= 2) {
-        userEmail = parts[1]; // email is second part
-      }
-    } catch (e: any) {
-      console.error('토큰 파싱 오류:', e);
-    }
-
-    const studentId = params.id;
-    console.log('👨‍🎓 학생 상세 정보 조회:', { studentId, userEmail });
-
-    if (!userEmail) {
+    // auth.ts의 decodeToken 사용
+    const payload = decodeToken(token);
+    
+    if (!payload) {
       return Response.json({ 
         success: false, 
         error: "유효하지 않은 토큰입니다" 
       }, { status: 401 });
     }
+
+    const userEmail = payload.email;
+    const studentId = params.id;
+    console.log('👨‍🎓 학생 상세 정보 조회:', { studentId, userEmail });
 
     // 패턴 시도: 요청자 정보 조회
     let requester: any = null;
