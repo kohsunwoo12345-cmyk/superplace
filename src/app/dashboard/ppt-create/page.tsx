@@ -116,7 +116,11 @@ export default function PPTCreatePage() {
       let titleSlide;
       try {
         titleSlide = pptx.addSlide();
-        titleSlide.background = { color: 'FFFFFF' };
+        // ⚠️ background 속성은 readonly! 대신 addShape으로 배경 추가
+        titleSlide.addShape(pptx.ShapeType.rect, {
+          x: 0, y: 0, w: '100%', h: '100%',
+          fill: { color: 'FFFFFF' }
+        });
         titleSlide.addText(pptTitle, {
           x: 1,
           y: 2.5,
@@ -146,8 +150,7 @@ export default function PPTCreatePage() {
         slides.forEach((slideData, index) => {
           const slide = pptx.addSlide();
           
-          // 배경색 설정
-          slide.background = { color: 'FFFFFF' };
+          // ⚠️ background 속성은 readonly! 대신 addShape으로 배경 추가 - 제거 (기본 흰색 배경 사용)
           
           // 제목 추가 (상단)
           slide.addText(slideData.title, {
