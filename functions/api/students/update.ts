@@ -229,9 +229,17 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     }
 
     if (!updated) {
+      console.error('❌ 최종 updated 상태: false');
+      console.error('❌ 제공된 필드:', { name, phone, email, password, school, grade, diagnostic_memo, classIds });
       return Response.json({ 
         success: false, 
-        error: "업데이트 실패" 
+        error: "업데이트 실패",
+        debug: {
+          updated,
+          hasUserUpdate: !!(name || phone || email || password),
+          hasStudentUpdate: !!(school !== undefined || grade !== undefined || diagnostic_memo !== undefined),
+          hasClassUpdate: !!(classIds && Array.isArray(classIds))
+        }
       }, { status: 500 });
     }
 
