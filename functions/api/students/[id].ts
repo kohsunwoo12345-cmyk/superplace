@@ -152,8 +152,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
               student.grade = null;
             }
           }
-        } catch (e) {
-          console.log('⚠️ students 테이블 없음 (무시)');
+        } catch (e: any) {
+          console.log('⚠️ students 테이블 조회 오류:', e.message);
+          // 테이블이 없거나 오류가 발생해도 기본값 설정
+          student.school = null;
+          student.grade = null;
+          student.status = 'ACTIVE';
         }
         
         // academy 테이블에서 학원 정보 조회
@@ -234,8 +238,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                 student.grade = null;
               }
             }
-          } catch (e) {
-            console.log('⚠️ students 테이블 없음');
+          } catch (e: any) {
+            console.log('⚠️ students 테이블 조회 오류 (User 패턴):', e.message);
+            // 테이블이 없거나 오류가 발생해도 기본값 설정
+            student.school = null;
+            student.grade = null;
+            student.status = 'ACTIVE';
           }
           
           // Academy 테이블 시도
