@@ -147,6 +147,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     }
 
     // students 테이블 업데이트 (school, grade)
+    let studentUpdateError = null;
     if (school !== undefined || grade !== undefined || diagnostic_memo !== undefined) {
       try {
         // students 테이블이 있는지 확인
@@ -183,7 +184,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             const result = await env.DB.prepare(updateQuery).bind(...updateValues).run();
             
             console.log('✅ students 테이블 업데이트 성공:', result);
-            updated = true;  // ← 이 줄 추가!
+            updated = true;
           }
         } else {
           // 삽입
@@ -196,12 +197,12 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           `).bind(studentId, school || null, grade || null).run();
           
           console.log('✅ students 테이블 삽입 성공:', insertResult);
-          updated = true;  // ← 이 줄 추가!
+          updated = true;
         }
       } catch (e: any) {
         console.error('❌ students 테이블 업데이트 실패:', e.message);
         console.error('❌ Stack:', e.stack);
-        // 에러를 반환하지 않고 계속 진행
+        studentUpdateError = e.message;
       }
     }
 
@@ -238,7 +239,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           updated,
           hasUserUpdate: !!(name || phone || email || password),
           hasStudentUpdate: !!(school !== undefined || grade !== undefined || diagnostic_memo !== undefined),
-          hasClassUpdate: !!(classIds && Array.isArray(classIds))
+          hasClassUpdate: !!(classIds && Array.isArray(classIds)),
+          studentUpdateError
         }
       }, { status: 500 });
     }
