@@ -296,11 +296,40 @@ export default function MessageDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* 카카오 채널 등록 */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+          {/* 카카오 알림톡 발송 */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group border-2 border-yellow-200">
             <CardHeader>
               <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-3 group-hover:bg-yellow-200 transition-colors">
                 <MessageSquare className="w-6 h-6 text-yellow-600" />
+              </div>
+              <CardTitle>카카오 알림톡</CardTitle>
+              <CardDescription>
+                템플릿으로 카카오 알림톡을 발송하세요 (15P/건)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-gray-600">등록된 채널</span>
+                <Badge variant={stats.kakaoChannels > 0 ? "default" : "secondary"}>
+                  {stats.kakaoChannels}개
+                </Badge>
+              </div>
+              <Button
+                onClick={() => router.push("/dashboard/kakao-alimtalk")}
+                variant="ghost"
+                className="w-full justify-between"
+              >
+                발송하기
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* 카카오 채널 등록 */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-3 group-hover:bg-orange-200 transition-colors">
+                <MessageSquare className="w-6 h-6 text-orange-600" />
               </div>
               <CardTitle>카카오 채널 등록</CardTitle>
               <CardDescription>
