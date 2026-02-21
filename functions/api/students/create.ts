@@ -326,20 +326,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         await DB
           .prepare(`
             INSERT INTO students (
-              user_id, academy_id, grade, status, created_at
+              user_id, academy_id, school, grade, status, created_at
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
           `)
           .bind(
             userId,
             academyIdInt,
+            school || null,
             grade || null,
             'ACTIVE',
             koreanTime
           )
           .run();
         studentInsertSuccess = true;
-        console.log('✅ Student record created (snake_case)');
+        console.log('✅ Student record created (snake_case) with school:', school);
       } catch (e1: any) {
         console.log('❌ students snake_case 실패:', e1.message);
         
@@ -348,20 +349,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           await DB
             .prepare(`
               INSERT INTO students (
-                userId, academyId, grade, status, createdAt
+                userId, academyId, school, grade, status, createdAt
               )
-              VALUES (?, ?, ?, ?, ?)
+              VALUES (?, ?, ?, ?, ?, ?)
             `)
             .bind(
               userId,
               academyIdInt,
+              school || null,
               grade || null,
               'ACTIVE',
               koreanTime
             )
             .run();
           studentInsertSuccess = true;
-          console.log('✅ Student record created (camelCase)');
+          console.log('✅ Student record created (camelCase) with school:', school);
         } catch (e2: any) {
           console.log('⚠️ students 테이블 INSERT 실패:', e2.message);
           console.log('⚠️ students 테이블이 없거나 스키마 불일치 - 계속 진행');

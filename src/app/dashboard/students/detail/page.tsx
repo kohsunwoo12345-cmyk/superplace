@@ -1452,14 +1452,12 @@ function StudentDetailContent() {
                             await fetchClasses(academyId);
                             setSelectedClassIds([]); // 학원 변경 시 반 선택 초기화
                           }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed opacity-60"
                         >
-                          <option value="">선택하세요</option>
-                          {academies.map((academy: any) => (
-                            <option key={academy.id} value={academy.id}>
-                              {academy.name}
-                            </option>
-                          ))}
+                          <option value={editedStudent?.academy_id || ''}>
+                            {student.academy_name || student.academyName || '소속 학원'}
+                          </option>
                         </select>
                       ) : (
                         <p className="font-medium">{student.academy_name || student.academyName || '미등록'}</p>
