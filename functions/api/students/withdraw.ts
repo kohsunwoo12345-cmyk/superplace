@@ -19,8 +19,19 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   try {
     // JWT 토큰 검증
     const authHeader = request.headers.get('Authorization');
+    console.log('🔐 Authorization header:', authHeader ? 'Present' : 'Missing');
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      console.error('❌ Invalid authorization header');
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Unauthorized',
+        message: '인증 토큰이 필요합니다.',
+        debug: {
+          hasHeader: !!authHeader,
+          startsWithBearer: authHeader?.startsWith('Bearer ')
+        }
+      }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -28,35 +39,53 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     const token = authHeader.substring(7);
     
+    console.log('🎫 Token length:', token.length);
+    
     // JWT 디코딩 (간단한 버전)
     let adminUserId: number;
     let adminRole: string;
     try {
       const parts = token.split('.');
+      console.log('🔍 Token parts:', parts.length);
+      
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
+        console.log('✅ Decoded payload:', {id: payload.id, role: payload.role});
         adminUserId = payload.id || payload.userId;
         adminRole = payload.role;
       } else {
-        throw new Error('Invalid token');
+        throw new Error('Invalid token format');
       }
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+    } catch (e: any) {
+      console.error('❌ Token decode error:', e.message);
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Invalid token',
+        message: 'JWT 토큰이 유효하지 않습니다.',
+        debug: e.message
+      }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
     // 권한 확인 (학원장 또는 관리자만 가능)
+    console.log('👤 User role check:', adminRole);
+    
     if (!['DIRECTOR', 'ADMIN', 'SUPER_ADMIN'].includes(adminRole)) {
+      console.error('❌ Insufficient permissions:', adminRole);
       return new Response(JSON.stringify({ 
+        success: false,
         error: 'Forbidden',
-        message: '퇴원 처리 권한이 없습니다.'
+        message: '퇴원 처리 권한이 없습니다.',
+        debug: { role: adminRole }
       }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       });
     }
+
+    console.log('✅ Authorization passed - userId:', adminUserId, 'role:', adminRole);
 
     // 요청 바디 파싱
     const body = await request.json();
@@ -83,12 +112,17 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     // 학생 존재 여부 확인 (isWithdrawn 체크 제외)
+    console.log('🔍 Checking student ID:', studentId);
+    
     const studentCheck = await env.DB.prepare(
       'SELECT id, name, email, role FROM User WHERE id = ?'
     ).bind(studentId).first();
 
+    console.log('📋 Student check result:', studentCheck ? `Found: ${studentCheck.name}` : 'Not found');
+
     if (!studentCheck) {
       return new Response(JSON.stringify({ 
+        success: false,
         error: 'Not Found',
         message: '학생을 찾을 수 없습니다.'
       }), {
@@ -99,8 +133,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     if (studentCheck.role !== 'STUDENT') {
       return new Response(JSON.stringify({ 
+        success: false,
         error: 'Bad Request',
-        message: '학생이 아닌 사용자는 퇴원 처리할 수 없습니다.'
+        message: '학생이 아닌 사용자는 퇴원 처리할 수 없습니다.',
+        debug: { role: studentCheck.role }
       }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
@@ -110,9 +146,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // 퇴원 처리 (컬럼이 없으면 추가)
     const now = new Date().toISOString();
     
+    console.log('💾 Attempting withdrawal update...');
+    
     // isWithdrawn 컬럼 확인 및 추가
     try {
-      await env.DB.prepare(`
+      const result = await env.DB.prepare(`
         UPDATE User 
         SET isWithdrawn = 1, 
             withdrawnAt = ?, 
@@ -120,37 +158,46 @@ export const onRequest: PagesFunction<Env> = async (context) => {
             withdrawnBy = ?
         WHERE id = ?
       `).bind(now, withdrawnReason, adminUserId, studentId).run();
+      
+      console.log('✅ Update successful:', result.meta);
     } catch (e: any) {
+      console.error('⚠️ Update failed, attempting to add columns:', e.message);
+      
       // 컬럼이 없으면 추가하고 다시 시도
       if (e.message.includes('no such column') || e.message.includes('isWithdrawn')) {
-        console.log('⚠️ isWithdrawn 컬럼 추가 중...');
+        console.log('📝 Adding isWithdrawn columns...');
         
         try {
           await env.DB.prepare('ALTER TABLE User ADD COLUMN isWithdrawn INTEGER DEFAULT 0').run();
+          console.log('✅ Added isWithdrawn column');
         } catch (alterErr) {
-          console.log('컬럼 추가 실패 (이미 있을 수 있음):', alterErr);
+          console.log('⚠️ Column may already exist:', alterErr);
         }
         
         try {
           await env.DB.prepare('ALTER TABLE User ADD COLUMN withdrawnAt TEXT').run();
+          console.log('✅ Added withdrawnAt column');
         } catch (alterErr) {
-          console.log('컬럼 추가 실패 (이미 있을 수 있음):', alterErr);
+          console.log('⚠️ Column may already exist:', alterErr);
         }
         
         try {
           await env.DB.prepare('ALTER TABLE User ADD COLUMN withdrawnReason TEXT').run();
+          console.log('✅ Added withdrawnReason column');
         } catch (alterErr) {
-          console.log('컬럼 추가 실패 (이미 있을 수 있음):', alterErr);
+          console.log('⚠️ Column may already exist:', alterErr);
         }
         
         try {
           await env.DB.prepare('ALTER TABLE User ADD COLUMN withdrawnBy INTEGER').run();
+          console.log('✅ Added withdrawnBy column');
         } catch (alterErr) {
-          console.log('컬럼 추가 실패 (이미 있을 수 있음):', alterErr);
+          console.log('⚠️ Column may already exist:', alterErr);
         }
         
         // 다시 시도
-        await env.DB.prepare(`
+        console.log('🔄 Retrying update after adding columns...');
+        const retryResult = await env.DB.prepare(`
           UPDATE User 
           SET isWithdrawn = 1, 
               withdrawnAt = ?, 
@@ -158,6 +205,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
               withdrawnBy = ?
           WHERE id = ?
         `).bind(now, withdrawnReason, adminUserId, studentId).run();
+        
+        console.log('✅ Retry successful:', retryResult.meta);
       } else {
         throw e;
       }
