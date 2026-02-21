@@ -57,88 +57,153 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       academyBindings = [academyId];
     }
 
-    // 1. 전체 재학생 수
-    const activeStudentsResult = await env.DB.prepare(`
-      SELECT COUNT(*) as count FROM User 
-      WHERE role = 'STUDENT' AND isWithdrawn = 0${academyFilter}
-    `).bind(...academyBindings).first();
-    const activeStudents = activeStudentsResult?.count || 0;
+    // isWithdrawn 컬럼 확인
+    let hasWithdrawnColumn = false;
+    try {
+      await env.DB.prepare('SELECT isWithdrawn FROM User LIMIT 1').first();
+      hasWithdrawnColumn = true;
+      console.log('✅ isWithdrawn 컬럼 존재');
+    } catch (e) {
+      console.log('⚠️ isWithdrawn 컬럼 없음 - 모든 학생을 재학생으로 처리');
+    }
 
-    // 2. 전체 퇴원생 수
-    const withdrawnStudentsResult = await env.DB.prepare(`
-      SELECT COUNT(*) as count FROM User 
-      WHERE role = 'STUDENT' AND isWithdrawn = 1${academyFilter}
-    `).bind(...academyBindings).first();
-    const withdrawnStudents = withdrawnStudentsResult?.count || 0;
+    let activeStudents = 0;
+    let withdrawnStudents = 0;
+    let thisMonthNew = 0;
+    let thisMonthWithdrawn = 0;
 
-    // 3. 이번 달 신규 등록 학생
-    const thisMonthNewResult = await env.DB.prepare(`
-      SELECT COUNT(*) as count FROM User 
-      WHERE role = 'STUDENT' 
-      AND isWithdrawn = 0
-      AND createdAt >= date('now', 'start of month')${academyFilter}
-    `).bind(...academyBindings).first();
-    const thisMonthNew = thisMonthNewResult?.count || 0;
+    if (hasWithdrawnColumn) {
+      // 1. 전체 재학생 수
+      const activeStudentsResult = await env.DB.prepare(`
+        SELECT COUNT(*) as count FROM User 
+        WHERE role = 'STUDENT' AND (isWithdrawn IS NULL OR isWithdrawn = 0)${academyFilter}
+      `).bind(...academyBindings).first();
+      activeStudents = activeStudentsResult?.count || 0;
 
-    // 4. 이번 달 퇴원 학생
-    const thisMonthWithdrawnResult = await env.DB.prepare(`
-      SELECT COUNT(*) as count FROM User 
-      WHERE role = 'STUDENT' 
-      AND isWithdrawn = 1
-      AND withdrawnAt >= date('now', 'start of month')${academyFilter}
-    `).bind(...academyBindings).first();
-    const thisMonthWithdrawn = thisMonthWithdrawnResult?.count || 0;
+      // 2. 전체 퇴원생 수
+      const withdrawnStudentsResult = await env.DB.prepare(`
+        SELECT COUNT(*) as count FROM User 
+        WHERE role = 'STUDENT' AND isWithdrawn = 1${academyFilter}
+      `).bind(...academyBindings).first();
+      withdrawnStudents = withdrawnStudentsResult?.count || 0;
+
+      // 3. 이번 달 신규 등록 학생
+      const thisMonthNewResult = await env.DB.prepare(`
+        SELECT COUNT(*) as count FROM User 
+        WHERE role = 'STUDENT' 
+        AND (isWithdrawn IS NULL OR isWithdrawn = 0)
+        AND createdAt >= date('now', 'start of month')${academyFilter}
+      `).bind(...academyBindings).first();
+      thisMonthNew = thisMonthNewResult?.count || 0;
+
+      // 4. 이번 달 퇴원 학생
+      const thisMonthWithdrawnResult = await env.DB.prepare(`
+        SELECT COUNT(*) as count FROM User 
+        WHERE role = 'STUDENT' 
+        AND isWithdrawn = 1
+        AND withdrawnAt >= date('now', 'start of month')${academyFilter}
+      `).bind(...academyBindings).first();
+      thisMonthWithdrawn = thisMonthWithdrawnResult?.count || 0;
+    } else {
+      // isWithdrawn 컬럼이 없으면 모든 학생을 재학생으로 처리
+      const totalStudentsResult = await env.DB.prepare(`
+        SELECT COUNT(*) as count FROM User 
+        WHERE role = 'STUDENT'${academyFilter}
+      `).bind(...academyBindings).first();
+      activeStudents = totalStudentsResult?.count || 0;
+      withdrawnStudents = 0;
+
+      const thisMonthNewResult = await env.DB.prepare(`
+        SELECT COUNT(*) as count FROM User 
+        WHERE role = 'STUDENT' 
+        AND createdAt >= date('now', 'start of month')${academyFilter}
+      `).bind(...academyBindings).first();
+      thisMonthNew = thisMonthNewResult?.count || 0;
+      thisMonthWithdrawn = 0;
+    }
 
     // 5. 지난 달 신규 등록 학생
-    const lastMonthNewResult = await env.DB.prepare(`
-      SELECT COUNT(*) as count FROM User 
-      WHERE role = 'STUDENT' 
-      AND isWithdrawn = 0
-      AND createdAt >= date('now', 'start of month', '-1 month')
-      AND createdAt < date('now', 'start of month')${academyFilter}
-    `).bind(...academyBindings).first();
-    const lastMonthNew = lastMonthNewResult?.count || 0;
+    let lastMonthNew = 0;
+    let lastMonthWithdrawn = 0;
+    let withdrawalReasons: any[] = [];
+    let recentWithdrawals: any[] = [];
+    let recentNewStudents: any[] = [];
+    let monthlyTrend: any[] = [];
 
-    // 6. 지난 달 퇴원 학생
-    const lastMonthWithdrawnResult = await env.DB.prepare(`
-      SELECT COUNT(*) as count FROM User 
-      WHERE role = 'STUDENT' 
-      AND isWithdrawn = 1
-      AND withdrawnAt >= date('now', 'start of month', '-1 month')
-      AND withdrawnAt < date('now', 'start of month')${academyFilter}
-    `).bind(...academyBindings).first();
-    const lastMonthWithdrawn = lastMonthWithdrawnResult?.count || 0;
+    if (hasWithdrawnColumn) {
+      const lastMonthNewResult = await env.DB.prepare(`
+        SELECT COUNT(*) as count FROM User 
+        WHERE role = 'STUDENT' 
+        AND (isWithdrawn IS NULL OR isWithdrawn = 0)
+        AND createdAt >= date('now', 'start of month', '-1 month')
+        AND createdAt < date('now', 'start of month')${academyFilter}
+      `).bind(...academyBindings).first();
+      lastMonthNew = lastMonthNewResult?.count || 0;
 
-    // 7. 퇴원 사유별 통계
-    const withdrawalReasonsResult = await env.DB.prepare(`
-      SELECT withdrawnReason, COUNT(*) as count
-      FROM User
-      WHERE role = 'STUDENT' AND isWithdrawn = 1${academyFilter}
-      GROUP BY withdrawnReason
-      ORDER BY count DESC
-      LIMIT 10
-    `).bind(...academyBindings).all();
-    const withdrawalReasons = withdrawalReasonsResult.results || [];
+      // 6. 지난 달 퇴원 학생
+      const lastMonthWithdrawnResult = await env.DB.prepare(`
+        SELECT COUNT(*) as count FROM User 
+        WHERE role = 'STUDENT' 
+        AND isWithdrawn = 1
+        AND withdrawnAt >= date('now', 'start of month', '-1 month')
+        AND withdrawnAt < date('now', 'start of month')${academyFilter}
+      `).bind(...academyBindings).first();
+      lastMonthWithdrawn = lastMonthWithdrawnResult?.count || 0;
 
-    // 8. 최근 퇴원 학생 목록 (최근 10명)
-    const recentWithdrawalsResult = await env.DB.prepare(`
-      SELECT id, name, email, withdrawnAt, withdrawnReason
-      FROM User
-      WHERE role = 'STUDENT' AND isWithdrawn = 1${academyFilter}
-      ORDER BY withdrawnAt DESC
-      LIMIT 10
-    `).bind(...academyBindings).all();
-    const recentWithdrawals = recentWithdrawalsResult.results || [];
+      // 7. 퇴원 사유별 통계
+      const withdrawalReasonsResult = await env.DB.prepare(`
+        SELECT withdrawnReason, COUNT(*) as count
+        FROM User
+        WHERE role = 'STUDENT' AND isWithdrawn = 1${academyFilter}
+        GROUP BY withdrawnReason
+        ORDER BY count DESC
+        LIMIT 10
+      `).bind(...academyBindings).all();
+      withdrawalReasons = withdrawalReasonsResult.results || [];
+
+      // 8. 최근 퇴원 학생 목록 (최근 10명)
+      const recentWithdrawalsResult = await env.DB.prepare(`
+        SELECT id, name, email, withdrawnAt, withdrawnReason
+        FROM User
+        WHERE role = 'STUDENT' AND isWithdrawn = 1${academyFilter}
+        ORDER BY withdrawnAt DESC
+        LIMIT 10
+      `).bind(...academyBindings).all();
+      recentWithdrawals = recentWithdrawalsResult.results || [];
+    } else {
+      // isWithdrawn 컬럼이 없으면 빈 배열
+      const lastMonthNewResult = await env.DB.prepare(`
+        SELECT COUNT(*) as count FROM User 
+        WHERE role = 'STUDENT' 
+        AND createdAt >= date('now', 'start of month', '-1 month')
+        AND createdAt < date('now', 'start of month')${academyFilter}
+      `).bind(...academyBindings).first();
+      lastMonthNew = lastMonthNewResult?.count || 0;
+      lastMonthWithdrawn = 0;
+      withdrawalReasons = [];
+      recentWithdrawals = [];
+    }
 
     // 9. 최근 신규 등록 학생 목록 (최근 10명)
-    const recentNewStudentsResult = await env.DB.prepare(`
-      SELECT id, name, email, createdAt
-      FROM User
-      WHERE role = 'STUDENT' AND isWithdrawn = 0${academyFilter}
-      ORDER BY createdAt DESC
-      LIMIT 10
-    `).bind(...academyBindings).all();
-    const recentNewStudents = recentNewStudentsResult.results || [];
+    if (hasWithdrawnColumn) {
+      const recentNewStudentsResult = await env.DB.prepare(`
+        SELECT id, name, email, createdAt
+        FROM User
+        WHERE role = 'STUDENT' AND (isWithdrawn IS NULL OR isWithdrawn = 0)${academyFilter}
+        ORDER BY createdAt DESC
+        LIMIT 10
+      `).bind(...academyBindings).all();
+      recentNewStudents = recentNewStudentsResult.results || [];
+    } else {
+      const recentNewStudentsResult = await env.DB.prepare(`
+        SELECT id, name, email, createdAt
+        FROM User
+        WHERE role = 'STUDENT'${academyFilter}
+        ORDER BY createdAt DESC
+        LIMIT 10
+      `).bind(...academyBindings).all();
+      recentNewStudents = recentNewStudentsResult.results || [];
+    }
 
     // 10. 월별 등록/퇴원 추세 (최근 6개월)
     const monthlyTrendResult = await env.DB.prepare(`
@@ -153,18 +218,21 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     `).bind(...academyBindings).all();
     const monthlyNewTrend = monthlyTrendResult.results || [];
 
-    const monthlyWithdrawalTrendResult = await env.DB.prepare(`
-      SELECT 
-        strftime('%Y-%m', withdrawnAt) as month,
-        COUNT(*) as withdrawnStudents
-      FROM User
-      WHERE role = 'STUDENT' 
-      AND isWithdrawn = 1
-      AND withdrawnAt >= date('now', '-6 months')${academyFilter}
-      GROUP BY month
-      ORDER BY month DESC
-    `).bind(...academyBindings).all();
-    const monthlyWithdrawalTrend = monthlyWithdrawalTrendResult.results || [];
+    let monthlyWithdrawalTrend: any[] = [];
+    if (hasWithdrawnColumn) {
+      const monthlyWithdrawalTrendResult = await env.DB.prepare(`
+        SELECT 
+          strftime('%Y-%m', withdrawnAt) as month,
+          COUNT(*) as withdrawnStudents
+        FROM User
+        WHERE role = 'STUDENT' 
+        AND isWithdrawn = 1
+        AND withdrawnAt >= date('now', '-6 months')${academyFilter}
+        GROUP BY month
+        ORDER BY month DESC
+      `).bind(...academyBindings).all();
+      monthlyWithdrawalTrend = monthlyWithdrawalTrendResult.results || [];
+    }
 
     return new Response(JSON.stringify({ 
       success: true,

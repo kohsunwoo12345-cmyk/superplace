@@ -127,9 +127,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       query += ` ORDER BY u.id DESC`;
 
       console.log('📊 패턴 1 Query:', query, 'Bindings:', bindings);
-      result = await DB.prepare(query).bind(...bindings).all();
+      
+      // isWithdrawn 필터 시도
+      try {
+        const withdrawnQuery = query.replace('WHERE u.role = \'STUDENT\'', 'WHERE u.role = \'STUDENT\' AND (u.isWithdrawn IS NULL OR u.isWithdrawn != 1)');
+        result = await DB.prepare(withdrawnQuery).bind(...bindings).all();
+        console.log('✅ 패턴 1 성공 (isWithdrawn 필터 적용):', result.results.length, '명');
+      } catch (withdrawnErr: any) {
+        console.log('⚠️ isWithdrawn 컬럼 없음, 필터 없이 조회');
+        result = await DB.prepare(query).bind(...bindings).all();
+        console.log('✅ 패턴 1 성공 (필터 없음):', result.results.length, '명');
+      }
+      
       successPattern = 'users + academy_id/academyId';
-      console.log('✅ 패턴 1 성공:', result.results.length, '명');
     } catch (e1: any) {
       console.log('❌ 패턴 1 실패:', e1.message);
     }
@@ -173,9 +183,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         query += ` ORDER BY u.id DESC`;
 
         console.log('📊 패턴 2 Query:', query, bindings);
-        result = await DB.prepare(query).bind(...bindings).all();
+        
+        // isWithdrawn 필터 시도
+        try {
+          const withdrawnQuery = query.replace('WHERE u.role = \'STUDENT\'', 'WHERE u.role = \'STUDENT\' AND (u.isWithdrawn IS NULL OR u.isWithdrawn != 1)');
+          result = await DB.prepare(withdrawnQuery).bind(...bindings).all();
+          console.log('✅ 패턴 2 성공 (isWithdrawn 필터 적용):', result.results.length, '명');
+        } catch (withdrawnErr: any) {
+          console.log('⚠️ isWithdrawn 컬럼 없음, 필터 없이 조회');
+          result = await DB.prepare(query).bind(...bindings).all();
+          console.log('✅ 패턴 2 성공 (필터 없음):', result.results.length, '명');
+        }
+        
         successPattern = 'User + academy_id';
-        console.log('✅ 패턴 2 성공:', result.results.length, '명');
       } catch (e2: any) {
         console.log('❌ 패턴 2 실패:', e2.message);
       }
@@ -219,9 +239,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         query += ` ORDER BY u.id DESC`;
 
         console.log('📊 패턴 3 Query:', query, bindings);
-        result = await DB.prepare(query).bind(...bindings).all();
+        
+        // isWithdrawn 필터 시도
+        try {
+          const withdrawnQuery = query.replace('WHERE u.role = \'STUDENT\'', 'WHERE u.role = \'STUDENT\' AND (u.isWithdrawn IS NULL OR u.isWithdrawn != 1)');
+          result = await DB.prepare(withdrawnQuery).bind(...bindings).all();
+          console.log('✅ 패턴 3 성공 (isWithdrawn 필터 적용):', result.results.length, '명');
+        } catch (withdrawnErr: any) {
+          console.log('⚠️ isWithdrawn 컬럼 없음, 필터 없이 조회');
+          result = await DB.prepare(query).bind(...bindings).all();
+          console.log('✅ 패턴 3 성공 (필터 없음):', result.results.length, '명');
+        }
+        
         successPattern = 'users + academyId (TEXT)';
-        console.log('✅ 패턴 3 성공:', result.results.length, '명');
       } catch (e3: any) {
         console.log('❌ 패턴 3 실패:', e3.message);
       }

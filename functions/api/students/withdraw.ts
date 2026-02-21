@@ -82,9 +82,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 학생 존재 여부 확인
+    // 학생 존재 여부 확인 (isWithdrawn 체크 제외)
     const studentCheck = await env.DB.prepare(
-      'SELECT id, name, email, role, isWithdrawn FROM User WHERE id = ?'
+      'SELECT id, name, email, role FROM User WHERE id = ?'
     ).bind(studentId).first();
 
     if (!studentCheck) {
@@ -107,26 +107,61 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    if (studentCheck.isWithdrawn === 1) {
-      return new Response(JSON.stringify({ 
-        error: 'Bad Request',
-        message: '이미 퇴원 처리된 학생입니다.'
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
-    // 퇴원 처리
+    // 퇴원 처리 (컬럼이 없으면 추가)
     const now = new Date().toISOString();
-    await env.DB.prepare(`
-      UPDATE User 
-      SET isWithdrawn = 1, 
-          withdrawnAt = ?, 
-          withdrawnReason = ?,
-          withdrawnBy = ?
-      WHERE id = ?
-    `).bind(now, withdrawnReason, adminUserId, studentId).run();
+    
+    // isWithdrawn 컬럼 확인 및 추가
+    try {
+      await env.DB.prepare(`
+        UPDATE User 
+        SET isWithdrawn = 1, 
+            withdrawnAt = ?, 
+            withdrawnReason = ?,
+            withdrawnBy = ?
+        WHERE id = ?
+      `).bind(now, withdrawnReason, adminUserId, studentId).run();
+    } catch (e: any) {
+      // 컬럼이 없으면 추가하고 다시 시도
+      if (e.message.includes('no such column') || e.message.includes('isWithdrawn')) {
+        console.log('⚠️ isWithdrawn 컬럼 추가 중...');
+        
+        try {
+          await env.DB.prepare('ALTER TABLE User ADD COLUMN isWithdrawn INTEGER DEFAULT 0').run();
+        } catch (alterErr) {
+          console.log('컬럼 추가 실패 (이미 있을 수 있음):', alterErr);
+        }
+        
+        try {
+          await env.DB.prepare('ALTER TABLE User ADD COLUMN withdrawnAt TEXT').run();
+        } catch (alterErr) {
+          console.log('컬럼 추가 실패 (이미 있을 수 있음):', alterErr);
+        }
+        
+        try {
+          await env.DB.prepare('ALTER TABLE User ADD COLUMN withdrawnReason TEXT').run();
+        } catch (alterErr) {
+          console.log('컬럼 추가 실패 (이미 있을 수 있음):', alterErr);
+        }
+        
+        try {
+          await env.DB.prepare('ALTER TABLE User ADD COLUMN withdrawnBy INTEGER').run();
+        } catch (alterErr) {
+          console.log('컬럼 추가 실패 (이미 있을 수 있음):', alterErr);
+        }
+        
+        // 다시 시도
+        await env.DB.prepare(`
+          UPDATE User 
+          SET isWithdrawn = 1, 
+              withdrawnAt = ?, 
+              withdrawnReason = ?,
+              withdrawnBy = ?
+          WHERE id = ?
+        `).bind(now, withdrawnReason, adminUserId, studentId).run();
+      } else {
+        throw e;
+      }
+    }
 
     console.log(`✅ 학생 퇴원 처리 완료: ${studentCheck.name} (ID: ${studentId}), 사유: ${withdrawnReason}`);
 
