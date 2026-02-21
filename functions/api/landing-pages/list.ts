@@ -38,40 +38,34 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     const token = authHeader.substring(7);
     const user = await getUserFromToken(token, env.JWT_SECRET);
 
-    // 사용자의 카카오 채널 목록 조회
+    // 랜딩페이지 목록 조회
     const result = await env.DB.prepare(`
       SELECT 
-        id as channelId,
-        phoneNumber,
-        channelName,
-        categoryCode,
-        mainCategory,
-        middleCategory,
-        subCategory,
-        businessNumber,
-        status,
-        solapiChannelId,
-        createdAt,
-        updatedAt
-      FROM KakaoChannel
-      WHERE userId = ?
+        id,
+        slug,
+        title,
+        description,
+        studentId
+      FROM LandingPage
+      WHERE createdById = ? AND isActive = 1
       ORDER BY createdAt DESC
+      LIMIT 50
     `).bind(user.id || user.userId).all();
 
-    const channels = result.results || [];
+    const landingPages = result.results || [];
 
     return new Response(JSON.stringify({ 
       success: true,
-      channels
+      landingPages
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (error: any) {
-    console.error('Failed to fetch Kakao channels:', error);
+    console.error('Failed to fetch landing pages:', error);
     return new Response(JSON.stringify({ 
       error: 'Fetch failed',
-      message: error.message || '카카오 채널 조회에 실패했습니다.'
+      message: error.message || '랜딩페이지 조회에 실패했습니다.'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
