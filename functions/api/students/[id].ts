@@ -96,55 +96,101 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 패턴 시도: 학생 기본 정보 조회
     let student: any = null;
 
-    // 패턴 1: User + students + Academy
+    // 패턴 1: users 테이블 먼저 (가장 일반적)
     try {
       student = await env.DB.prepare(`
-        SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId,
-               s.school, s.grade, s.status, s.student_code,
-               a.name as academy_name, a.code as academy_code
-        FROM User u
-        LEFT JOIN students s ON u.id = s.user_id
-        LEFT JOIN Academy a ON u.academyId = a.id
+        SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId
+        FROM users u
         WHERE u.id = ? AND UPPER(u.role) = 'STUDENT'
       `).bind(studentId).first();
-      if (student) console.log('✅ 학생 조회 성공 (User + students + Academy)');
-    } catch (e: any) {
-      console.log('❌ 학생 조회 패턴 1 실패:', e.message);
-    }
-
-    // 패턴 2: users + students + academy (camelCase)
-    if (!student) {
-      try {
-        student = await env.DB.prepare(`
-          SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId,
-                 s.school, s.grade, s.status, s.student_code,
-                 a.name as academy_name, a.code as academy_code
-          FROM users u
-          LEFT JOIN students s ON u.id = s.user_id
-          LEFT JOIN academy a ON u.academyId = a.id
-          WHERE u.id = ? AND UPPER(u.role) = 'STUDENT'
-        `).bind(studentId).first();
-        if (student) console.log('✅ 학생 조회 성공 (users + students + academy)');
-      } catch (e: any) {
-        console.log('❌ 학생 조회 패턴 2 실패:', e.message);
+      
+      if (student) {
+        console.log('✅ 학생 조회 성공 (users)');
+        
+        // students 테이블에서 추가 정보 조회 시도
+        try {
+          const studentExtra = await env.DB.prepare(`
+            SELECT school, grade, status, student_code
+            FROM students
+            WHERE user_id = ?
+          `).bind(studentId).first();
+          
+          if (studentExtra) {
+            student = { ...student, ...studentExtra };
+            console.log('✅ students 테이블 정보 추가');
+          }
+        } catch (e) {
+          console.log('⚠️ students 테이블 없음 (무시)');
+        }
+        
+        // academy 테이블에서 학원 정보 조회
+        if (student.academyId) {
+          try {
+            const academy = await env.DB.prepare(`
+              SELECT name as academy_name, code as academy_code
+              FROM academy
+              WHERE id = ?
+            `).bind(student.academyId).first();
+            
+            if (academy) {
+              student = { ...student, ...academy };
+              console.log('✅ academy 정보 추가');
+            }
+          } catch (e) {
+            console.log('⚠️ academy 테이블 없음 (무시)');
+          }
+        }
       }
+    } catch (e: any) {
+      console.log('❌ users 테이블 조회 실패:', e.message);
     }
 
-    // 패턴 3: users + students + academy (snake_case)
+    // 패턴 2: User 테이블 시도 (PascalCase)
     if (!student) {
       try {
         student = await env.DB.prepare(`
-          SELECT u.id, u.email, u.name, u.phone, u.role, u.academy_id as academyId,
-                 s.school, s.grade, s.status, s.student_code,
-                 a.name as academy_name, a.code as academy_code
-          FROM users u
-          LEFT JOIN students s ON u.id = s.user_id
-          LEFT JOIN academy a ON u.academy_id = a.id
+          SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId
+          FROM User u
           WHERE u.id = ? AND UPPER(u.role) = 'STUDENT'
         `).bind(studentId).first();
-        if (student) console.log('✅ 학생 조회 성공 (users + students + academy snake_case)');
+        
+        if (student) {
+          console.log('✅ 학생 조회 성공 (User)');
+          
+          // students 테이블 시도
+          try {
+            const studentExtra = await env.DB.prepare(`
+              SELECT school, grade, status, student_code
+              FROM students
+              WHERE user_id = ?
+            `).bind(studentId).first();
+            
+            if (studentExtra) {
+              student = { ...student, ...studentExtra };
+            }
+          } catch (e) {
+            console.log('⚠️ students 테이블 없음');
+          }
+          
+          // Academy 테이블 시도
+          if (student.academyId) {
+            try {
+              const academy = await env.DB.prepare(`
+                SELECT name as academy_name, code as academy_code
+                FROM Academy
+                WHERE id = ?
+              `).bind(student.academyId).first();
+              
+              if (academy) {
+                student = { ...student, ...academy };
+              }
+            } catch (e) {
+              console.log('⚠️ Academy 테이블 없음');
+            }
+          }
+        }
       } catch (e: any) {
-        console.log('❌ 학생 조회 패턴 3 실패:', e.message);
+        console.log('❌ User 테이블 조회 실패:', e.message);
       }
     }
 
