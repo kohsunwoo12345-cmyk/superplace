@@ -115,51 +115,50 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     } catch (e: any) {
       console.log('⚠️ users 테이블 업데이트 실패:', e.message);
     }
-      
-      // User 테이블 시도 (users 실패 시)
-      if (!updated) {
-        try {
-          const updateFields = [];
-          const updateValues = [];
-          
-          if (name) {
-            updateFields.push('name = ?');
-            updateValues.push(name);
-          }
-          if (phone) {
-            updateFields.push('phone = ?');
-            updateValues.push(phone);
-          }
-          if (email) {
-            updateFields.push('email = ?');
-            updateValues.push(email);
-          }
-          if (password) {
-            updateFields.push('password = ?');
-            updateValues.push(password);
-          }
-          if (school !== undefined) {
-            updateFields.push('school = ?');
-            updateValues.push(school);
-          }
-          if (grade !== undefined) {
-            updateFields.push('grade = ?');
-            updateValues.push(grade);
-          }
-          
-          if (updateFields.length > 0) {
-            updateValues.push(studentId);
-            const query = `UPDATE User SET ${updateFields.join(', ')} WHERE id = ?`;
-            console.log('📝 UPDATE User:', query);
-            console.log('📝 VALUES:', updateValues);
-            await env.DB.prepare(query).bind(...updateValues).run();
-            
-            console.log('✅ User 테이블 업데이트 성공 (school, grade 포함)');
-            updated = true;
-          }
-        } catch (e2: any) {
-          console.error('❌ User 테이블 업데이트도 실패:', e2.message);
+    
+    // User 테이블 시도 (users 실패 시)
+    if (!updated) {
+      try {
+        const updateFields = [];
+        const updateValues = [];
+        
+        if (name) {
+          updateFields.push('name = ?');
+          updateValues.push(name);
         }
+        if (phone) {
+          updateFields.push('phone = ?');
+          updateValues.push(phone);
+        }
+        if (email) {
+          updateFields.push('email = ?');
+          updateValues.push(email);
+        }
+        if (password) {
+          updateFields.push('password = ?');
+          updateValues.push(password);
+        }
+        if (school !== undefined) {
+          updateFields.push('school = ?');
+          updateValues.push(school);
+        }
+        if (grade !== undefined) {
+          updateFields.push('grade = ?');
+          updateValues.push(grade);
+        }
+        
+        if (updateFields.length > 0) {
+          updateValues.push(studentId);
+          const query = `UPDATE User SET ${updateFields.join(', ')} WHERE id = ?`;
+          console.log('📝 UPDATE User:', query);
+          console.log('📝 VALUES:', updateValues);
+          await env.DB.prepare(query).bind(...updateValues).run();
+          
+          console.log('✅ User 테이블 업데이트 성공 (school, grade 포함)');
+          updated = true;
+        }
+      } catch (e2: any) {
+        console.error('❌ User 테이블 업데이트도 실패:', e2.message);
       }
     }
 
