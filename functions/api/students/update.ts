@@ -183,6 +183,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             const result = await env.DB.prepare(updateQuery).bind(...updateValues).run();
             
             console.log('✅ students 테이블 업데이트 성공:', result);
+            updated = true;  // ← 이 줄 추가!
           }
         } else {
           // 삽입
@@ -195,6 +196,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           `).bind(studentId, school || null, grade || null).run();
           
           console.log('✅ students 테이블 삽입 성공:', insertResult);
+          updated = true;  // ← 이 줄 추가!
         }
       } catch (e: any) {
         console.error('❌ students 테이블 업데이트 실패:', e.message);
@@ -220,6 +222,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         }
         
         console.log('✅ 반 정보 업데이트 성공');
+        updated = true;  // ← 이 줄 추가!
       } catch (e) {
         console.log('⚠️ 반 정보 업데이트 실패 (무시):', e);
       }
