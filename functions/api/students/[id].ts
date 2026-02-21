@@ -314,15 +314,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       classes,
       attendanceStats,
       chatCount,
-      homeworkStats
+      homeworkStats,
+      hasPassword: !!student.password,  // 비밀번호 존재 여부만 반환
+      password: undefined  // 실제 비밀번호는 제거
     };
 
     console.log('✅ 학생 상세 정보 조회 완료:', {
       studentId,
       name: student.name,
+      grade: student.grade,
       classCount: classes.length,
       attendanceRate: attendanceStats.attendanceRate,
-      chatCount
+      chatCount,
+      hasPassword: !!student.password
     });
 
     return Response.json({
