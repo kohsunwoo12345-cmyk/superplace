@@ -104,14 +104,8 @@ export default function PPTCreatePage() {
       // PPT 생성 (CDN에서 로드한 PptxGenJS 사용)
       const pptx = new window.PptxGenJS();
       
-      // PPT 기본 설정 (readonly 오류 방지를 위해 try-catch)
-      try {
-        pptx.author = 'Superplace Study';
-        pptx.company = 'Superplace';
-        pptx.title = pptTitle;
-      } catch (e) {
-        console.log('메타데이터 설정 건너뜀:', e);
-      }
+      // 메타데이터는 설정하지 않음 (readonly 오류 방지)
+      console.log('✅ PPT 객체 생성됨');
 
       // 첫 슬라이드 (제목 슬라이드)
       const titleSlide = pptx.addSlide();
