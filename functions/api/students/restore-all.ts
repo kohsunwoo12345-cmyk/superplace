@@ -6,15 +6,9 @@ interface Env {
   JWT_SECRET: string;
 }
 
-export const onRequest: PagesFunction<Env> = async (context) => {
+// POST 메소드만 처리
+export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
-
-  if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
 
   try {
     // JWT 토큰 검증
