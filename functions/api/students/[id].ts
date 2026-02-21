@@ -137,9 +137,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
               `).bind(studentId).first();
               if (newStudentExtra) {
                 student = { ...student, ...newStudentExtra };
+                console.log('✅ 자동 생성 후 재조회 성공:', newStudentExtra);
+              } else {
+                // 재조회 실패 시 기본값 설정
+                console.log('⚠️ 재조회 실패 - 기본값 설정');
+                student.school = null;
+                student.grade = null;
+                student.status = 'ACTIVE';
               }
             } catch (insertErr: any) {
               console.log('⚠️ students 자동 생성 실패:', insertErr.message);
+              // 실패해도 기본값은 설정
+              student.school = null;
+              student.grade = null;
             }
           }
         } catch (e) {
@@ -209,9 +219,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                 `).bind(studentId).first();
                 if (newStudentExtra) {
                   student = { ...student, ...newStudentExtra };
+                  console.log('✅ 자동 생성 후 재조회 성공 (User 패턴):', newStudentExtra);
+                } else {
+                  // 재조회 실패 시 기본값 설정
+                  console.log('⚠️ 재조회 실패 (User 패턴) - 기본값 설정');
+                  student.school = null;
+                  student.grade = null;
+                  student.status = 'ACTIVE';
                 }
               } catch (insertErr: any) {
                 console.log('⚠️ students 자동 생성 실패 (User 패턴):', insertErr.message);
+                // 실패해도 기본값은 설정
+                student.school = null;
+                student.grade = null;
               }
             }
           } catch (e) {

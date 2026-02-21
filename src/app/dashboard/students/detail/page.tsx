@@ -164,12 +164,12 @@ function StudentDetailContent() {
   // 이메일 표시 함수
   const displayEmail = (email: string | undefined) => {
     if (!email) return '미등록';
-    // 자동생성 이메일 패턴 체크
+    // 명시적으로 생성된 임시 이메일만 미등록으로 표시
     if (email.includes('@temp.student.local') || 
-        email.includes('@phone.generated') ||
-        email.startsWith('student_')) {
+        email.includes('@phone.generated')) {
       return '미등록';
     }
+    // student_XXX@temp.superplace.local 형식도 실제 이메일로 간주
     return email;
   };
 
