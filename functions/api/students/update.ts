@@ -73,7 +73,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     let updated = false;
     
     try {
-      // users 테이블 업데이트
+      // users 테이블 업데이트 (name, phone, email, password, school, grade 포함)
       const updateFields = [];
       const updateValues = [];
       
@@ -93,75 +93,51 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         updateFields.push('password = ?');
         updateValues.push(password);
       }
+      if (school !== undefined) {
+        updateFields.push('school = ?');
+        updateValues.push(school);
+      }
+      if (grade !== undefined) {
+        updateFields.push('grade = ?');
+        updateValues.push(grade);
+      }
       
       if (updateFields.length > 0) {
         updateValues.push(studentId);
-        await env.DB.prepare(`
-          UPDATE users 
-          SET ${updateFields.join(', ')}
-          WHERE id = ?
-        `).bind(...updateValues).run();
+        const query = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+        console.log('📝 UPDATE users:', query);
+        console.log('📝 VALUES:', updateValues);
+        await env.DB.prepare(query).bind(...updateValues).run();
         
-        console.log('✅ users 테이블 업데이트 성공');
+        console.log('✅ users 테이블 업데이트 성공 (school, grade 포함)');
         updated = true;
       }
-    } catch (e) {
-      console.log('⚠️ users 테이블 업데이트 실패, User 테이블 시도');
-      
-      // User 테이블 시도
-      try {
-        const updateFields = [];
-        const updateValues = [];
-        
-        if (name) {
-          updateFields.push('name = ?');
-          updateValues.push(name);
-        }
-        if (phone) {
-          updateFields.push('phone = ?');
-          updateValues.push(phone);
-        }
-        if (email) {
-          updateFields.push('email = ?');
-          updateValues.push(email);
-        }
-        if (password) {
-          updateFields.push('password = ?');
-          updateValues.push(password);
-        }
-        
-        if (updateFields.length > 0) {
-          updateValues.push(studentId);
-          await env.DB.prepare(`
-            UPDATE User 
-            SET ${updateFields.join(', ')}
-            WHERE id = ?
-          `).bind(...updateValues).run();
-          
-          console.log('✅ User 테이블 업데이트 성공');
-          updated = true;
-        }
-      } catch (e2) {
-        console.error('❌ User 테이블 업데이트도 실패');
-      }
+    } catch (e: any) {
+      console.log('⚠️ users 테이블 업데이트 실패:', e.message);
     }
-
-    // students 테이블 업데이트 (school, grade)
-    let studentUpdateError = null;
-    if (school !== undefined || grade !== undefined || diagnostic_memo !== undefined) {
-      try {
-        // students 테이블이 있는지 확인
-        const existingStudent = await env.DB.prepare(`
-          SELECT id FROM students WHERE user_id = ?
-        `).bind(studentId).first();
-
-        console.log('🔍 existingStudent:', existingStudent);
-
-        if (existingStudent) {
-          // 업데이트
+      
+      // User 테이블 시도 (users 실패 시)
+      if (!updated) {
+        try {
           const updateFields = [];
           const updateValues = [];
           
+          if (name) {
+            updateFields.push('name = ?');
+            updateValues.push(name);
+          }
+          if (phone) {
+            updateFields.push('phone = ?');
+            updateValues.push(phone);
+          }
+          if (email) {
+            updateFields.push('email = ?');
+            updateValues.push(email);
+          }
+          if (password) {
+            updateFields.push('password = ?');
+            updateValues.push(password);
+          }
           if (school !== undefined) {
             updateFields.push('school = ?');
             updateValues.push(school);
@@ -170,39 +146,20 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             updateFields.push('grade = ?');
             updateValues.push(grade);
           }
-          if (diagnostic_memo !== undefined) {
-            updateFields.push('diagnostic_memo = ?');
-            updateValues.push(diagnostic_memo);
-          }
           
           if (updateFields.length > 0) {
             updateValues.push(studentId);
-            const updateQuery = `UPDATE students SET ${updateFields.join(', ')} WHERE user_id = ?`;
-            console.log('📝 UPDATE 쿼리:', updateQuery);
+            const query = `UPDATE User SET ${updateFields.join(', ')} WHERE id = ?`;
+            console.log('📝 UPDATE User:', query);
             console.log('📝 VALUES:', updateValues);
+            await env.DB.prepare(query).bind(...updateValues).run();
             
-            const result = await env.DB.prepare(updateQuery).bind(...updateValues).run();
-            
-            console.log('✅ students 테이블 업데이트 성공:', result);
+            console.log('✅ User 테이블 업데이트 성공 (school, grade 포함)');
             updated = true;
           }
-        } else {
-          // 삽입
-          console.log('⚠️ students 레코드 없음 - 새로 생성');
-          console.log('📝 INSERT VALUES:', { studentId, school, grade });
-          
-          const insertResult = await env.DB.prepare(`
-            INSERT INTO students (user_id, school, grade, status, created_at)
-            VALUES (?, ?, ?, 'ACTIVE', datetime('now'))
-          `).bind(studentId, school || null, grade || null).run();
-          
-          console.log('✅ students 테이블 삽입 성공:', insertResult);
-          updated = true;
+        } catch (e2: any) {
+          console.error('❌ User 테이블 업데이트도 실패:', e2.message);
         }
-      } catch (e: any) {
-        console.error('❌ students 테이블 업데이트 실패:', e.message);
-        console.error('❌ Stack:', e.stack);
-        studentUpdateError = e.message;
       }
     }
 

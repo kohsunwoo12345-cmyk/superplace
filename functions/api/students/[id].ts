@@ -99,7 +99,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 패턴 1: users 테이블 먼저 (가장 일반적)
     try {
       student = await env.DB.prepare(`
-        SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId, u.password
+        SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId, u.password, u.school, u.grade
         FROM users u
         WHERE u.id = ? AND UPPER(u.role) = 'STUDENT'
       `).bind(studentId).first();
@@ -107,58 +107,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       if (student) {
         console.log('✅ 학생 조회 성공 (users)');
         console.log('📊 users 테이블 데이터:', JSON.stringify(student, null, 2));
-        
-        // students 테이블에서 추가 정보 조회 시도
-        try {
-          const studentExtra = await env.DB.prepare(`
-            SELECT school, grade, status, student_code
-            FROM students
-            WHERE user_id = ?
-          `).bind(studentId).first();
-          
-          if (studentExtra) {
-            student = { ...student, ...studentExtra };
-            console.log('✅ students 테이블 정보 추가:', studentExtra);
-          } else {
-            // students 테이블에 레코드가 없으면 자동 생성
-            console.log('⚠️ students 레코드 없음 - 자동 생성 시도');
-            try {
-              await env.DB.prepare(`
-                INSERT INTO students (user_id, academy_id, status, created_at)
-                VALUES (?, ?, 'ACTIVE', datetime('now'))
-              `).bind(studentId, student.academyId || null).run();
-              console.log('✅ students 레코드 자동 생성 완료');
-              
-              // 다시 조회
-              const newStudentExtra = await env.DB.prepare(`
-                SELECT school, grade, status, student_code
-                FROM students
-                WHERE user_id = ?
-              `).bind(studentId).first();
-              if (newStudentExtra) {
-                student = { ...student, ...newStudentExtra };
-                console.log('✅ 자동 생성 후 재조회 성공:', newStudentExtra);
-              } else {
-                // 재조회 실패 시 기본값 설정
-                console.log('⚠️ 재조회 실패 - 기본값 설정');
-                student.school = null;
-                student.grade = null;
-                student.status = 'ACTIVE';
-              }
-            } catch (insertErr: any) {
-              console.log('⚠️ students 자동 생성 실패:', insertErr.message);
-              // 실패해도 기본값은 설정
-              student.school = null;
-              student.grade = null;
-            }
-          }
-        } catch (e: any) {
-          console.log('⚠️ students 테이블 조회 오류:', e.message);
-          // 테이블이 없거나 오류가 발생해도 기본값 설정
-          student.school = null;
-          student.grade = null;
-          student.status = 'ACTIVE';
-        }
         
         // academy 테이블에서 학원 정보 조회
         if (student.academyId) {
@@ -186,65 +134,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (!student) {
       try {
         student = await env.DB.prepare(`
-          SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId, u.password
+          SELECT u.id, u.email, u.name, u.phone, u.role, u.academyId, u.password, u.school, u.grade
           FROM User u
           WHERE u.id = ? AND UPPER(u.role) = 'STUDENT'
         `).bind(studentId).first();
         
         if (student) {
           console.log('✅ 학생 조회 성공 (User)');
-          
-          // students 테이블 시도
-          try {
-            const studentExtra = await env.DB.prepare(`
-              SELECT school, grade, status, student_code
-              FROM students
-              WHERE user_id = ?
-            `).bind(studentId).first();
-            
-            if (studentExtra) {
-              student = { ...student, ...studentExtra };
-              console.log('✅ students 테이블 정보 추가 (User 패턴)');
-            } else {
-              // students 테이블에 레코드가 없으면 자동 생성
-              console.log('⚠️ students 레코드 없음 (User 패턴) - 자동 생성 시도');
-              try {
-                await env.DB.prepare(`
-                  INSERT INTO students (user_id, academy_id, status, created_at)
-                  VALUES (?, ?, 'ACTIVE', datetime('now'))
-                `).bind(studentId, student.academyId || null).run();
-                console.log('✅ students 레코드 자동 생성 완료 (User 패턴)');
-                
-                // 다시 조회
-                const newStudentExtra = await env.DB.prepare(`
-                  SELECT school, grade, status, student_code
-                  FROM students
-                  WHERE user_id = ?
-                `).bind(studentId).first();
-                if (newStudentExtra) {
-                  student = { ...student, ...newStudentExtra };
-                  console.log('✅ 자동 생성 후 재조회 성공 (User 패턴):', newStudentExtra);
-                } else {
-                  // 재조회 실패 시 기본값 설정
-                  console.log('⚠️ 재조회 실패 (User 패턴) - 기본값 설정');
-                  student.school = null;
-                  student.grade = null;
-                  student.status = 'ACTIVE';
-                }
-              } catch (insertErr: any) {
-                console.log('⚠️ students 자동 생성 실패 (User 패턴):', insertErr.message);
-                // 실패해도 기본값은 설정
-                student.school = null;
-                student.grade = null;
-              }
-            }
-          } catch (e: any) {
-            console.log('⚠️ students 테이블 조회 오류 (User 패턴):', e.message);
-            // 테이블이 없거나 오류가 발생해도 기본값 설정
-            student.school = null;
-            student.grade = null;
-            student.status = 'ACTIVE';
-          }
           
           // Academy 테이블 시도
           if (student.academyId) {
