@@ -1,4 +1,5 @@
 "use client";
+// Force refresh: 2026-02-21 10:00:00 - Readonly fix applied
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
