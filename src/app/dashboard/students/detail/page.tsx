@@ -905,6 +905,16 @@ function StudentDetailContent() {
       setWithdrawing(true);
       const token = localStorage.getItem("token");
 
+      console.log("🔐 Token check:", token ? `Present (${token.substring(0, 20)}...)` : "Missing");
+
+      if (!token) {
+        alert("❌ 로그인 토큰이 없습니다. 다시 로그인해주세요.");
+        router.push("/login");
+        return;
+      }
+
+      console.log("📤 Sending withdraw request:", { studentId, withdrawnReason: withdrawReason });
+
       const response = await fetch("/api/students/withdraw", {
         method: "POST",
         headers: {
@@ -917,8 +927,11 @@ function StudentDetailContent() {
         }),
       });
 
+      console.log("📥 Response status:", response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log("✅ Success:", data);
         alert(`✅ ${data.message}`);
         setShowWithdrawDialog(false);
         setWithdrawReason("");
@@ -926,7 +939,8 @@ function StudentDetailContent() {
         router.push("/dashboard/students");
       } else {
         const error = await response.json();
-        alert(`❌ ${error.message || "퇴원 처리에 실패했습니다."}`);
+        console.error("❌ Error response:", error);
+        alert(`❌ ${error.message || "퇴원 처리에 실패했습니다."}\n\n상세: ${JSON.stringify(error.debug || {})}`);
       }
     } catch (error: any) {
       console.error("Failed to withdraw student:", error);
