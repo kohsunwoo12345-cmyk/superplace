@@ -2637,3 +2637,4 @@ export default function StudentDetailPage() {
     </Suspense>
   );
 }
+// Build 1771716273
