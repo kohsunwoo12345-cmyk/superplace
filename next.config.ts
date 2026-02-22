@@ -1,8 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // output: 'export', // ❌ Disabled for dev - API routes need server mode
-  // trailingSlash: true, // ❌ Disabled to prevent redirect issues
+  output: 'export', // ✅ Enabled for production - API handled by Cloudflare Functions
+  trailingSlash: true,
   images: {
     unoptimized: true,
   },
