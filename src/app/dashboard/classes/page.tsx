@@ -175,6 +175,18 @@ export default function ClassesPage() {
         const data = await response.json();
         console.log('✅ 클래스 데이터:', data);
         console.log('📊 클래스 개수:', data.classes?.length || 0);
+        
+        // 임시 디버그: 클래스가 0개면 alert로 상세 정보 표시
+        if (!data.classes || data.classes.length === 0) {
+          const debugInfo = {
+            user: storedUser ? JSON.parse(storedUser) : null,
+            apiResponse: data,
+            message: "API는 응답했지만 클래스가 0개입니다"
+          };
+          console.error('🚨 클래스 0개 디버그:', debugInfo);
+          // alert(JSON.stringify(debugInfo, null, 2));
+        }
+        
         setClasses(data.classes || []);
       } else if (response.status === 401) {
         console.error('❌ 인증 실패');
@@ -374,6 +386,32 @@ export default function ClassesPage() {
               ? "검색 결과가 없습니다"
               : "새로운 클래스를 추가해보세요"}
           </p>
+          {/* 디버그 정보 */}
+          {user && (
+            <details className="mt-4 text-left max-w-2xl mx-auto">
+              <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+                🔍 디버그 정보 보기
+              </summary>
+              <div className="mt-2 p-4 bg-gray-100 rounded text-xs text-left">
+                <div className="mb-2">
+                  <strong>사용자 정보:</strong>
+                  <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(user, null, 2)}</pre>
+                </div>
+                <div className="mb-2">
+                  <strong>API 응답 (console.log 확인):</strong>
+                  <p className="mt-1">F12 → Console 탭에서 "클래스 데이터" 확인</p>
+                </div>
+                <div>
+                  <strong>해결 방법:</strong>
+                  <ol className="mt-1 ml-4 list-decimal">
+                    <li>F12 키를 눌러 개발자 도구 열기</li>
+                    <li>Console 탭에서 "클래스 데이터" 검색</li>
+                    <li>스크린샷 공유</li>
+                  </ol>
+                </div>
+              </div>
+            </details>
+          )}
         </div>
       )}
     </div>
