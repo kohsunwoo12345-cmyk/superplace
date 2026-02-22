@@ -195,6 +195,14 @@ export default function ClassesPage() {
       } else if (response.status === 401) {
         console.error('❌ 인증 실패');
         router.push('/login');
+      } else if (response.status === 403) {
+        console.error('❌ 권한 없음 또는 사용자 없음');
+        const errorData = await response.json();
+        if (errorData.error === 'User not found') {
+          alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+          localStorage.clear();
+          router.push('/login');
+        }
       } else {
         console.error('❌ 클래스 조회 실패:', response.status);
         const errorData = await response.json();
