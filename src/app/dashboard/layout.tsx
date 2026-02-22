@@ -1,8 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import ModernLayout from '@/components/layouts/ModernLayout';
+
+// 인증 없이 접근 가능한 경로 목록
+const PUBLIC_PATHS = [
+  '/dashboard/classes',
+  // 필요시 다른 공개 경로 추가
+];
 
 export default function DashboardLayout({
   children,
@@ -10,6 +16,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -32,8 +39,11 @@ export default function DashboardLayout({
     return null;
   }
 
-  // 로그인하지 않은 경우 로그인 페이지로 리다이렉트
-  if (!user) {
+  // 현재 경로가 공개 경로인지 확인
+  const isPublicPath = PUBLIC_PATHS.some(path => pathname?.startsWith(path));
+
+  // 공개 경로가 아니고 로그인하지 않은 경우에만 리다이렉트
+  if (!isPublicPath && !user) {
     if (typeof window !== 'undefined') {
       router.push('/login');
     }
@@ -41,5 +51,6 @@ export default function DashboardLayout({
   }
 
   // 모든 사용자는 Modern Layout 사용 (관리자 포함)
-  return <ModernLayout role={user.role}>{children}</ModernLayout>;
+  // 로그인하지 않은 경우 'GUEST' 역할로 처리
+  return <ModernLayout role={user?.role || 'GUEST'}>{children}</ModernLayout>;
 }
