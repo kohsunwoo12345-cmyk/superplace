@@ -149,6 +149,10 @@ export default function ClassesPage() {
       setLoading(true);
       
       const token = localStorage.getItem("token");
+      const storedUser = localStorage.getItem('user');
+      
+      console.log('📚 Loading classes...');
+      console.log('👤 Current user:', storedUser ? JSON.parse(storedUser) : null);
       
       if (!token) {
         console.error('토큰 없음');
@@ -165,9 +169,12 @@ export default function ClassesPage() {
         }
       });
       
+      console.log('📡 API Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
         console.log('✅ 클래스 데이터:', data);
+        console.log('📊 클래스 개수:', data.classes?.length || 0);
         setClasses(data.classes || []);
       } else if (response.status === 401) {
         console.error('❌ 인증 실패');

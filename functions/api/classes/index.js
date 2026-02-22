@@ -83,7 +83,13 @@ export async function onRequestGet(context) {
     const academyId = user.academyId || user.academy_id;
     const userId = user.id;
 
-    console.log('✅ User verified:', { email: user.email, role, academyId, userId });
+    console.log('✅ User verified:', { 
+      email: user.email, 
+      role, 
+      academyId, 
+      userId,
+      rawUser: user 
+    });
 
     let query;
     let params = [];
@@ -214,10 +220,19 @@ export async function onRequestGet(context) {
       ? db.prepare(query).bind(...params)
       : db.prepare(query);
       
+    console.log('🔍 Executing query with params:', params);
+    
     const result = await stmt.all();
     const classes = result.results || [];
 
     console.log(`✅ Returning ${classes.length} classes for ${role} (academy: ${academyId})`);
+    
+    // Debug: 실제 classes 테이블 데이터 확인
+    if (classes.length === 0) {
+      console.log('⚠️ No classes found. Checking all classes in database...');
+      const allClasses = await db.prepare('SELECT id, academy_id, class_name FROM classes LIMIT 10').all();
+      console.log('📊 All classes in DB:', allClasses.results);
+    }
 
     return new Response(JSON.stringify({
       success: true,

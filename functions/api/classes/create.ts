@@ -126,6 +126,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     
     const classId = createClassResult.meta.last_row_id;
     console.log('✅ Class created with ID:', classId);
+    console.log('📝 Inserted data:', {
+      academy_id: academyIdInt,
+      class_name: name,
+      grade,
+      teacher_id: teacherIdInt,
+      color: classColor
+    });
+    
+    // 생성된 클래스 확인
+    const verifyClass = await DB.prepare(`
+      SELECT id, academy_id, class_name FROM classes WHERE id = ?
+    `).bind(classId).first();
+    console.log('✅ Verification - Class in DB:', verifyClass);
 
     // 2. 학생 배정 (class_students 테이블과 students 테이블 모두 업데이트)
     if (studentIds && Array.isArray(studentIds) && studentIds.length > 0) {
