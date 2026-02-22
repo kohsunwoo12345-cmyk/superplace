@@ -1,4 +1,5 @@
-// Classes API - Complete CRUD with proper table names
+// Classes API - Complete CRUD with proper table names  
+// FORCE DEPLOY: 2026-02-22-06:05 - Using snake_case columns
 
 // Simple token parser
 function parseToken(authHeader) {
