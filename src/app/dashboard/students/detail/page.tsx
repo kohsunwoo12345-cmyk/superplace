@@ -1882,40 +1882,38 @@ function StudentDetailContent() {
                 </div>
               </CardHeader>
               <CardContent>
-                {attendanceStats && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
-                    <Card className="border-2 border-gray-100">
-                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
-                        <p className="text-xs sm:text-sm text-gray-500">총 출결</p>
-                        <p className="text-xl sm:text-2xl font-bold">{attendanceStats.total}일</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="border-2 border-green-100">
-                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
-                        <p className="text-xs sm:text-sm text-gray-500">출석</p>
-                        <p className="text-xl sm:text-2xl font-bold text-green-600">{attendanceStats.present}일</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="border-2 border-yellow-100">
-                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
-                        <p className="text-xs sm:text-sm text-gray-500">지각</p>
-                        <p className="text-xl sm:text-2xl font-bold text-yellow-600">{attendanceStats.late}일</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="border-2 border-red-100">
-                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
-                        <p className="text-xs sm:text-sm text-gray-500">결석</p>
-                        <p className="text-xl sm:text-2xl font-bold text-red-600">{attendanceStats.absent}일</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="border-2 border-blue-100">
-                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
-                        <p className="text-xs sm:text-sm text-gray-500">출석률</p>
-                        <p className="text-xl sm:text-2xl font-bold text-blue-600">{attendanceStats.attendanceRate}%</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
+                  <Card className="border-2 border-gray-100">
+                    <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                      <p className="text-xs sm:text-sm text-gray-500">총 출결</p>
+                      <p className="text-xl sm:text-2xl font-bold">{attendanceStats?.total || 0}일</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-green-100">
+                    <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                      <p className="text-xs sm:text-sm text-gray-500">출석</p>
+                      <p className="text-xl sm:text-2xl font-bold text-green-600">{attendanceStats?.present || 0}일</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-yellow-100">
+                    <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                      <p className="text-xs sm:text-sm text-gray-500">지각</p>
+                      <p className="text-xl sm:text-2xl font-bold text-yellow-600">{attendanceStats?.late || 0}일</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-red-100">
+                    <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                      <p className="text-xs sm:text-sm text-gray-500">결석</p>
+                      <p className="text-xl sm:text-2xl font-bold text-red-600">{attendanceStats?.absent || 0}일</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-blue-100">
+                    <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                      <p className="text-xs sm:text-sm text-gray-500">출석률</p>
+                      <p className="text-xl sm:text-2xl font-bold text-blue-600">{attendanceStats?.attendanceRate || 0}%</p>
+                    </CardContent>
+                  </Card>
+                </div>
 
                 {attendance.length === 0 ? (
                   <div className="text-center py-12">

@@ -31,33 +31,55 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
 
     console.log('📊 Fetching attendance for student:', studentId);
 
-    // 출결 기록 조회
-    const query = `
-      SELECT 
-        id,
-        user_id as userId,
-        class_id as classId,
-        date,
-        status,
-        check_in_time as checkInTime,
-        check_out_time as checkOutTime,
-        notes,
-        created_at as createdAt
-      FROM attendance
-      WHERE user_id = ?
-      ORDER BY date DESC, created_at DESC
-      LIMIT ?
-    `;
-
     let attendanceRecords = [];
     
+    // 패턴 1: attendance (snake_case)
     try {
-      const result = await DB.prepare(query).bind(parseInt(studentId), limit).all();
+      const result = await DB.prepare(`
+        SELECT 
+          id,
+          user_id as userId,
+          class_id as classId,
+          date,
+          status,
+          check_in_time as checkInTime,
+          check_out_time as checkOutTime,
+          notes,
+          created_at as createdAt
+        FROM attendance
+        WHERE user_id = ?
+        ORDER BY date DESC, created_at DESC
+        LIMIT ?
+      `).bind(parseInt(studentId), limit).all();
       attendanceRecords = result.results || [];
-      console.log(`✅ Found ${attendanceRecords.length} attendance records`);
-    } catch (dbError: any) {
-      console.warn('⚠️ attendance table may not exist:', dbError.message);
-      attendanceRecords = [];
+      console.log(`✅ Found ${attendanceRecords.length} attendance records (attendance)`);
+    } catch (e1: any) {
+      console.warn('⚠️ attendance 테이블 조회 실패, 다른 패턴 시도:', e1.message);
+      
+      // 패턴 2: Attendance (PascalCase)
+      try {
+        const result = await DB.prepare(`
+          SELECT 
+            id,
+            userId,
+            classId,
+            date,
+            status,
+            checkInTime,
+            checkOutTime,
+            notes,
+            createdAt
+          FROM Attendance
+          WHERE userId = ?
+          ORDER BY date DESC, createdAt DESC
+          LIMIT ?
+        `).bind(parseInt(studentId), limit).all();
+        attendanceRecords = result.results || [];
+        console.log(`✅ Found ${attendanceRecords.length} attendance records (Attendance)`);
+      } catch (e2: any) {
+        console.warn('⚠️ Attendance 테이블도 조회 실패, 빈 배열 반환:', e2.message);
+        attendanceRecords = [];
+      }
     }
 
     // 출결 통계 계산

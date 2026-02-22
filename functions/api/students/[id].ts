@@ -218,8 +218,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 출석 통계
+    // 출석 통계 (여러 테이블명 패턴 시도)
     let attendanceStats = { total: 0, present: 0, late: 0, absent: 0, attendanceRate: 0 };
+    
+    // 패턴 1: Attendance (PascalCase)
     try {
       const attendanceResult = await env.DB.prepare(`
         SELECT 
@@ -239,13 +241,42 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           absent: attendanceResult.absent || 0,
           attendanceRate: Math.round(((attendanceResult.present || 0) / (attendanceResult.total || 1)) * 100)
         };
+        console.log('✅ 출석 통계 조회 성공 (Attendance):', attendanceStats);
       }
     } catch (e: any) {
-      console.log('출석 통계 조회 실패 (무시):', e.message);
+      console.log('⚠️ Attendance 테이블 조회 실패, 다른 패턴 시도:', e.message);
+      
+      // 패턴 2: attendance (snake_case)
+      try {
+        const attendanceResult = await env.DB.prepare(`
+          SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present,
+            SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late,
+            SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent
+          FROM attendance
+          WHERE user_id = ?
+        `).bind(studentId).first();
+        
+        if (attendanceResult && attendanceResult.total > 0) {
+          attendanceStats = {
+            total: attendanceResult.total || 0,
+            present: attendanceResult.present || 0,
+            late: attendanceResult.late || 0,
+            absent: attendanceResult.absent || 0,
+            attendanceRate: Math.round(((attendanceResult.present || 0) / (attendanceResult.total || 1)) * 100)
+          };
+          console.log('✅ 출석 통계 조회 성공 (attendance):', attendanceStats);
+        }
+      } catch (e2: any) {
+        console.log('⚠️ attendance 테이블도 실패, 출석 데이터 없음:', e2.message);
+      }
     }
 
-    // AI 챗봇 사용 횟수
+    // AI 챗봇 사용 횟수 (여러 테이블명 패턴 시도)
     let chatCount = 0;
+    
+    // 패턴 1: ChatHistory (PascalCase)
     try {
       const chatResult = await env.DB.prepare(`
         SELECT COUNT(*) as count
@@ -253,12 +284,28 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         WHERE studentId = ?
       `).bind(studentId).first();
       chatCount = chatResult?.count || 0;
+      console.log('✅ 챗봇 사용 횟수 조회 성공 (ChatHistory):', chatCount);
     } catch (e: any) {
-      console.log('챗봇 사용 횟수 조회 실패 (무시):', e.message);
+      console.log('⚠️ ChatHistory 테이블 조회 실패, 다른 패턴 시도:', e.message);
+      
+      // 패턴 2: chat_history (snake_case)
+      try {
+        const chatResult = await env.DB.prepare(`
+          SELECT COUNT(*) as count
+          FROM chat_history
+          WHERE student_id = ?
+        `).bind(studentId).first();
+        chatCount = chatResult?.count || 0;
+        console.log('✅ 챗봇 사용 횟수 조회 성공 (chat_history):', chatCount);
+      } catch (e2: any) {
+        console.log('⚠️ chat_history 테이블도 실패, 챗봇 데이터 없음:', e2.message);
+      }
     }
 
-    // 숙제 제출 현황
+    // 숙제 제출 현황 (여러 테이블명 패턴 시도)
     let homeworkStats = { total: 0, submitted: 0, submissionRate: 0 };
+    
+    // 패턴 1: HomeworkSubmission (PascalCase)
     try {
       const homeworkResult = await env.DB.prepare(`
         SELECT 
@@ -274,9 +321,32 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           submitted: homeworkResult.submitted || 0,
           submissionRate: Math.round(((homeworkResult.submitted || 0) / (homeworkResult.total || 1)) * 100)
         };
+        console.log('✅ 숙제 통계 조회 성공 (HomeworkSubmission):', homeworkStats);
       }
     } catch (e: any) {
-      console.log('숙제 통계 조회 실패 (무시):', e.message);
+      console.log('⚠️ HomeworkSubmission 테이블 조회 실패, 다른 패턴 시도:', e.message);
+      
+      // 패턴 2: homework_submissions (snake_case)
+      try {
+        const homeworkResult = await env.DB.prepare(`
+          SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END) as submitted
+          FROM homework_submissions
+          WHERE user_id = ?
+        `).bind(studentId).first();
+        
+        if (homeworkResult && homeworkResult.total > 0) {
+          homeworkStats = {
+            total: homeworkResult.total || 0,
+            submitted: homeworkResult.submitted || 0,
+            submissionRate: Math.round(((homeworkResult.submitted || 0) / (homeworkResult.total || 1)) * 100)
+          };
+          console.log('✅ 숙제 통계 조회 성공 (homework_submissions):', homeworkStats);
+        }
+      } catch (e2: any) {
+        console.log('⚠️ homework_submissions 테이블도 실패, 숙제 데이터 없음:', e2.message);
+      }
     }
 
     const studentDetail = {
