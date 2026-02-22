@@ -21,13 +21,13 @@ export async function onRequestGet(context) {
     // Test 1: Get all users with DIRECTOR role
     const directors = await db.prepare(`
       SELECT id, email, name, role, academyId, academy_id 
-      FROM User 
+      FROM users 
       WHERE role = 'DIRECTOR' OR role = 'director'
       LIMIT 5
     `).all();
     
     results.tests.push({
-      name: 'Directors in User table',
+      name: 'Directors in users table',
       count: directors.results?.length || 0,
       data: directors.results || []
     });
@@ -49,7 +49,7 @@ export async function onRequestGet(context) {
     // Test 3: Get all academies
     const academies = await db.prepare(`
       SELECT id, name, code 
-      FROM Academy 
+      FROM academies 
       LIMIT 10
     `).all();
     

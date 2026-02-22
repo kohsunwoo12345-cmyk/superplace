@@ -59,20 +59,20 @@ export async function onRequestGet(context) {
 
     // 1. Get user info from both possible tables
     let user = await db
-      .prepare('SELECT * FROM User WHERE email = ?')
+      .prepare('SELECT * FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT * FROM users WHERE email = ?')
+        .prepare('SELECT * FROM User WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
 
     diagnostics.user = {
       found: !!user,
-      table: user ? (await db.prepare('SELECT * FROM User WHERE email = ?').bind(tokenData.email).first() ? 'User' : 'users') : null,
+      table: user ? (await db.prepare('SELECT * FROM users WHERE email = ?').bind(tokenData.email).first() ? 'users' : 'User') : null,
       data: user,
       academyId: user ? (user.academyId || user.academy_id) : null,
       role: user?.role
@@ -84,7 +84,7 @@ export async function onRequestGet(context) {
     diagnostics.classes.count = diagnostics.classes.all.length;
 
     // 3. Get all academies
-    const allAcademies = await db.prepare('SELECT * FROM Academy LIMIT 50').all();
+    const allAcademies = await db.prepare('SELECT * FROM academies LIMIT 50').all();
     diagnostics.academies.all = allAcademies.results || [];
     diagnostics.academies.count = diagnostics.academies.all.length;
 
@@ -102,7 +102,7 @@ export async function onRequestGet(context) {
 
       // 5. Get the academy info
       const academy = await db
-        .prepare('SELECT * FROM Academy WHERE id = ?')
+        .prepare('SELECT * FROM academies WHERE id = ?')
         .bind(userAcademyId)
         .first();
       
@@ -132,8 +132,8 @@ export async function onRequestGet(context) {
           u.name as teacherName,
           a.name as academyName
         FROM classes c
-        LEFT JOIN User u ON c.teacher_id = u.id
-        LEFT JOIN Academy a ON c.academy_id = a.id
+        LEFT JOIN users u ON c.teacher_id = u.id
+        LEFT JOIN academies a ON c.academy_id = a.id
         WHERE c.academy_id = ?
       `).bind(userAcademyId).all();
       
