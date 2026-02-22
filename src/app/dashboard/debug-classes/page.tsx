@@ -61,14 +61,14 @@ export default function DebugClassesPage() {
     }
   };
 
-  const testAllClassesInDB = async () => {
+  const testDiagnostic = async () => {
     setLoading(true);
     
     try {
       const token = localStorage.getItem("token");
 
-      // 모든 클래스 조회 (디버그용 API 필요)
-      const response = await fetch('/api/classes/debug-all', {
+      // 종합 진단 API 호출
+      const response = await fetch('/api/classes/diagnostic', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -77,8 +77,8 @@ export default function DebugClassesPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setAllClasses(data.classes || []);
-        console.log("📊 All classes in DB:", data);
+        setAllClasses(data);
+        console.log("🔬 Comprehensive Diagnostic:", data);
       }
 
     } catch (err: any) {
@@ -91,7 +91,7 @@ export default function DebugClassesPage() {
   const refreshAll = () => {
     loadUserInfo();
     testClassesAPI();
-    testAllClassesInDB();
+    testDiagnostic();
   };
 
   return (
@@ -111,8 +111,8 @@ export default function DebugClassesPage() {
         <Button onClick={testClassesAPI} variant="outline" disabled={loading}>
           클래스 API 테스트
         </Button>
-        <Button onClick={testAllClassesInDB} variant="outline" disabled={loading}>
-          전체 DB 조회
+        <Button onClick={testDiagnostic} variant="outline" disabled={loading}>
+          종합 진단
         </Button>
       </div>
 
@@ -262,19 +262,152 @@ export default function DebugClassesPage() {
           </CardContent>
         </Card>
 
-        {/* 전체 DB 클래스 */}
+        {/* 종합 진단 결과 */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Database className="w-5 h-5" />
-              3️⃣ 데이터베이스의 모든 클래스
+              3️⃣ 종합 진단 결과
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {allClasses.length > 0 ? (
+            {allClasses && typeof allClasses === 'object' && allClasses.user ? (
+              <div className="space-y-6">
+                {/* User Info from DB */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">👤 데이터베이스 사용자 정보</h3>
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div><span className="font-semibold">테이블:</span> {allClasses.user.table}</div>
+                      <div><span className="font-semibold">이메일:</span> {allClasses.user.data?.email}</div>
+                      <div><span className="font-semibold">역할:</span> <Badge>{allClasses.user.role}</Badge></div>
+                      <div>
+                        <span className="font-semibold">academyId:</span> 
+                        <Badge variant={allClasses.user.academyId ? "default" : "destructive"} className="ml-2">
+                          {allClasses.user.academyId || "NULL"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Type Checks */}
+                {allClasses.typeChecks && (
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">🔍 타입 비교 분석</h3>
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded space-y-2">
+                      <div className="text-sm">
+                        <span className="font-semibold">사용자 academyId:</span> 
+                        <code className="ml-2 px-2 py-1 bg-white rounded">
+                          {JSON.stringify(allClasses.typeChecks.userAcademyIdValue)} 
+                          (타입: {allClasses.typeChecks.userAcademyIdType})
+                        </code>
+                      </div>
+                      <div className="mt-3">
+                        <p className="font-semibold text-sm mb-2">각 클래스의 academy_id 비교:</p>
+                        <div className="space-y-1 max-h-64 overflow-auto">
+                          {allClasses.typeChecks.classAcademyIds?.map((item: any, idx: number) => (
+                            <div 
+                              key={idx}
+                              className={`p-2 rounded text-xs ${
+                                item.matches ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'
+                              }`}
+                            >
+                              <span className="font-mono">
+                                클래스 ID: {item.id} | academy_id: {JSON.stringify(item.academy_id)} ({item.type}) | 
+                                loose(==): {item.matches ? '✓' : '✗'} | 
+                                strict(===): {item.strictMatches ? '✓' : '✗'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* All Classes */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">📚 모든 클래스 ({allClasses.classes?.count || 0}개)</h3>
+                  {allClasses.classes?.all && allClasses.classes.all.length > 0 ? (
+                    <div className="space-y-2 max-h-96 overflow-auto">
+                      {allClasses.classes.all.map((cls: any) => (
+                        <div key={cls.id} className="p-3 bg-gray-50 border border-gray-300 rounded text-sm">
+                          <div className="grid grid-cols-3 gap-2">
+                            <div><span className="font-semibold">ID:</span> {cls.id}</div>
+                            <div><span className="font-semibold">이름:</span> {cls.class_name}</div>
+                            <div><span className="font-semibold">academy_id:</span> {cls.academy_id}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">클래스가 없습니다</p>
+                  )}
+                </div>
+
+                {/* Matching Classes */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">✅ 매칭된 클래스 ({allClasses.classes?.matchingCount || 0}개)</h3>
+                  {allClasses.classes?.matchingUserAcademy && allClasses.classes.matchingUserAcademy.length > 0 ? (
+                    <div className="space-y-2">
+                      {allClasses.classes.matchingUserAcademy.map((cls: any) => (
+                        <div key={cls.id} className="p-3 bg-green-50 border border-green-300 rounded text-sm">
+                          <div className="grid grid-cols-3 gap-2">
+                            <div><span className="font-semibold">ID:</span> {cls.id}</div>
+                            <div><span className="font-semibold">이름:</span> {cls.class_name}</div>
+                            <div><span className="font-semibold">academy_id:</span> {cls.academy_id}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-red-50 border border-red-300 rounded">
+                      <p className="text-red-800 font-semibold">⚠️ 매칭된 클래스가 없습니다!</p>
+                      <p className="text-sm text-red-700 mt-1">
+                        사용자의 academyId와 일치하는 academy_id를 가진 클래스가 데이터베이스에 없습니다.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* SQL JOIN Result */}
+                {allClasses.joins?.withUserAcademy && (
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">🔗 JOIN 쿼리 결과</h3>
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded">
+                      <p className="text-sm mb-2">
+                        User, Academy 테이블과 JOIN한 결과: {allClasses.joins.withUserAcademy.length}개
+                      </p>
+                      {allClasses.joins.withUserAcademy.length > 0 ? (
+                        <div className="space-y-2">
+                          {allClasses.joins.withUserAcademy.map((cls: any) => (
+                            <div key={cls.id} className="p-2 bg-white rounded text-xs">
+                              {cls.class_name} (academy: {cls.academyName || 'N/A'}, teacher: {cls.teacherName || 'N/A'})
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-purple-700">JOIN 결과가 없습니다</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Raw JSON */}
+                <details>
+                  <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-900 font-semibold">
+                    전체 진단 데이터 (JSON)
+                  </summary>
+                  <pre className="mt-2 p-4 bg-gray-100 rounded text-xs overflow-auto max-h-96">
+                    {JSON.stringify(allClasses, null, 2)}
+                  </pre>
+                </details>
+              </div>
+            ) : Array.isArray(allClasses) && allClasses.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-sm text-gray-600 mb-3">
-                  총 {allClasses.length}개의 클래스가 데이터베이스에 존재합니다
+                  총 {allClasses.length}개의 클래스
                 </p>
                 {allClasses.map((cls: any) => {
                   const matchesUser = 
