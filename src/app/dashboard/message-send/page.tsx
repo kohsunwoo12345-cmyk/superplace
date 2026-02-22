@@ -97,6 +97,7 @@ interface KakaoChannel {
 const SMS_COST = 20; // 20 포인트/건
 const KAKAO_COST = 15; // 15 포인트/건
 
+// 메시지 발송 페이지 - SMS 및 카카오톡 통합 발송
 export default function MessageSendPage() {
   const router = useRouter();
   const [user, setUser] = useState<UserInfo | null>(null);
