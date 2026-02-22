@@ -162,10 +162,14 @@ export default function ClassesPage() {
 
       console.log('📚 클래스 목록 로드 중...');
 
-      const response = await fetch('/api/classes', {
+      // Add cache buster to force fresh API call
+      const cacheBuster = `?_t=${Date.now()}`;
+      const response = await fetch(`/api/classes${cacheBuster}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         }
       });
       
@@ -265,17 +269,29 @@ export default function ClassesPage() {
           <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2">클래스 관리</h1>
           <p className="text-gray-600">학원의 클래스를 관리합니다</p>
         </div>
-        {(user?.role?.toUpperCase() === "SUPER_ADMIN" || 
-          user?.role?.toUpperCase() === "ADMIN" ||
-          user?.role?.toUpperCase() === "DIRECTOR") && (
+        <div className="flex gap-2">
           <Button
-            onClick={() => router.push("/dashboard/classes/add")}
+            onClick={() => {
+              setClasses([]);
+              loadClasses();
+            }}
+            variant="outline"
             className="w-full sm:w-auto"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            클래스 추가
+            새로고침
           </Button>
-        )}
+          {(user?.role?.toUpperCase() === "SUPER_ADMIN" || 
+            user?.role?.toUpperCase() === "ADMIN" ||
+            user?.role?.toUpperCase() === "DIRECTOR") && (
+            <Button
+              onClick={() => router.push("/dashboard/classes/add")}
+              className="w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              클래스 추가
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* 검색 */}
