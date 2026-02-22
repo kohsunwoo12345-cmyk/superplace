@@ -88,19 +88,19 @@ export async function onRequestGet(context) {
       query = `
         SELECT 
           c.id,
-          c.academyId,
-          c.name,
+          c.academy_id as academyId,
+          c.class_name as name,
           c.grade,
           c.description,
-          c.teacherId,
+          c.teacher_id as teacherId,
           c.color,
-          c.createdAt,
+          c.created_at as createdAt,
           u.name as teacherName,
           a.name as academyName
-        FROM Class c
-        LEFT JOIN User u ON c.teacherId = u.id
-        LEFT JOIN Academy a ON c.academyId = a.id
-        ORDER BY c.createdAt DESC
+        FROM classes c
+        LEFT JOIN User u ON c.teacher_id = u.id
+        LEFT JOIN Academy a ON c.academy_id = a.id
+        ORDER BY c.created_at DESC
       `;
     } else if (role === 'DIRECTOR') {
       // Directors see all classes in their academy
@@ -119,20 +119,20 @@ export async function onRequestGet(context) {
       query = `
         SELECT 
           c.id,
-          c.academyId,
-          c.name,
+          c.academy_id as academyId,
+          c.class_name as name,
           c.grade,
           c.description,
-          c.teacherId,
+          c.teacher_id as teacherId,
           c.color,
-          c.createdAt,
+          c.created_at as createdAt,
           u.name as teacherName,
           a.name as academyName
-        FROM Class c
-        LEFT JOIN User u ON c.teacherId = u.id
-        LEFT JOIN Academy a ON c.academyId = a.id
-        WHERE c.academyId = ?
-        ORDER BY c.createdAt DESC
+        FROM classes c
+        LEFT JOIN User u ON c.teacher_id = u.id
+        LEFT JOIN Academy a ON c.academy_id = a.id
+        WHERE c.academy_id = ?
+        ORDER BY c.created_at DESC
       `;
       params.push(academyId);
     } else if (role === 'TEACHER') {
@@ -141,20 +141,20 @@ export async function onRequestGet(context) {
       query = `
         SELECT 
           c.id,
-          c.academyId,
-          c.name,
+          c.academy_id as academyId,
+          c.class_name as name,
           c.grade,
           c.description,
-          c.teacherId,
+          c.teacher_id as teacherId,
           c.color,
-          c.createdAt,
+          c.created_at as createdAt,
           u.name as teacherName,
           a.name as academyName
-        FROM Class c
-        LEFT JOIN User u ON c.teacherId = u.id
-        LEFT JOIN Academy a ON c.academyId = a.id
-        WHERE c.teacherId = ?
-        ORDER BY c.createdAt DESC
+        FROM classes c
+        LEFT JOIN User u ON c.teacher_id = u.id
+        LEFT JOIN Academy a ON c.academy_id = a.id
+        WHERE c.teacher_id = ?
+        ORDER BY c.created_at DESC
       `;
       params.push(userId);
     } else if (role === 'STUDENT') {
@@ -163,21 +163,21 @@ export async function onRequestGet(context) {
       query = `
         SELECT DISTINCT
           c.id,
-          c.academyId,
-          c.name,
+          c.academy_id as academyId,
+          c.class_name as name,
           c.grade,
           c.description,
-          c.teacherId,
+          c.teacher_id as teacherId,
           c.color,
-          c.createdAt,
+          c.created_at as createdAt,
           u.name as teacherName,
           a.name as academyName
-        FROM Class c
-        INNER JOIN ClassStudent cs ON c.id = cs.classId
-        LEFT JOIN User u ON c.teacherId = u.id
-        LEFT JOIN Academy a ON c.academyId = a.id
+        FROM classes c
+        INNER JOIN class_students cs ON c.id = cs.classId
+        LEFT JOIN User u ON c.teacher_id = u.id
+        LEFT JOIN Academy a ON c.academy_id = a.id
         WHERE cs.studentId = ?
-        ORDER BY c.createdAt DESC
+        ORDER BY c.created_at DESC
       `;
       params.push(userId);
     } else {
