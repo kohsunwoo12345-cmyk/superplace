@@ -64,8 +64,40 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const classColor = color || '#3B82F6';
     
     // academyId와 teacherId를 정수로 변환
-    const academyIdInt = parseInt(String(academyId).split('.')[0]);
+    let academyIdInt = parseInt(String(academyId).split('.')[0]);
     const teacherIdInt = teacherId ? parseInt(String(teacherId).split('.')[0]) : null;
+    
+    // NaN 체크 및 원본 값으로 재시도
+    if (isNaN(academyIdInt)) {
+      console.error('⚠️ academyIdInt is NaN, trying direct parseInt');
+      academyIdInt = parseInt(String(academyId));
+      
+      if (isNaN(academyIdInt)) {
+        console.error('❌ Still NaN after direct parseInt');
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Invalid academyId",
+            debug: {
+              received: academyId,
+              type: typeof academyId,
+              parsed: academyIdInt
+            }
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+    
+    console.log('🔍 Academy ID conversion:', {
+      original: academyId,
+      type: typeof academyId,
+      string: String(academyId),
+      afterSplit: String(academyId).split('.')[0],
+      parseInt: academyIdInt,
+      isNaN: isNaN(academyIdInt),
+      final: academyIdInt
+    });
 
     // 스케줄 정보 처리 (여러 요일을 JSON 배열로 저장)
     let scheduleDays = null;
@@ -126,12 +158,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     
     const classId = createClassResult.meta.last_row_id;
     console.log('✅ Class created with ID:', classId);
-    console.log('📝 Inserted data:', {
-      academy_id: academyIdInt,
-      class_name: name,
-      grade,
-      teacher_id: teacherIdInt,
-      color: classColor
+    console.log('📝 Bind parameters:', {
+      1: academyIdInt,
+      2: name,
+      3: (grade && grade.trim()) ? grade.trim() : null,
+      4: description || null,
+      5: teacherIdInt,
+      6: classColor,
+      7: scheduleDays,
+      8: startTime,
+      9: endTime,
+      10: daySchedule,
+      11: koreanTime
     });
     
     // 생성된 클래스 확인
