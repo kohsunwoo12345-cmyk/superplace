@@ -288,7 +288,7 @@ export default function AddClassPage() {
 
       console.log('📝 Creating class:', payload);
 
-      const response = await fetch("/api/classes/create", {
+      const response = await fetch("/api/classes/create-new", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
