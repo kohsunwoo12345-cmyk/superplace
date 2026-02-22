@@ -15,7 +15,8 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   const db = env.DB;
 
-  console.log('📚 Classes API v3 - REWRITTEN VERSION');
+  console.log('📚 Classes API v3.1 - FINAL VERSION - 2026-02-22-10:26');
+  console.log('🔍 THIS IS THE CORRECT VERSION WITH academy_id');
 
   if (!db) {
     return new Response(JSON.stringify({ success: false, error: 'Database not configured' }), {
