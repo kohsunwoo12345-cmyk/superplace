@@ -131,10 +131,7 @@ export async function onRequestGet(context) {
 
       console.log('🔒 Admin/Director access - academy filtered:', academyId);
       
-      // 타입 변환: 문자열이든 숫자든 정수로 통일
-      const academyIdInt = parseInt(String(academyId).split('.')[0]);
-      console.log('🔍 Converted academyId:', academyId, '→', academyIdInt);
-      
+      // WHERE 절 없이 모든 클래스를 가져온 후 JavaScript로 필터링
       query = `
         SELECT 
           c.id,
@@ -150,10 +147,9 @@ export async function onRequestGet(context) {
         FROM classes c
         LEFT JOIN User u ON c.teacher_id = u.id
         LEFT JOIN Academy a ON c.academy_id = a.id
-        WHERE CAST(c.academy_id AS INTEGER) = ?
         ORDER BY c.created_at DESC
       `;
-      params.push(academyIdInt);
+      // params는 비워둠 - JavaScript에서 필터링할 것
     } else if (role === 'TEACHER') {
       // Teachers see only their academy's classes (not just their own)
       if (!academyId) {
@@ -169,10 +165,7 @@ export async function onRequestGet(context) {
       
       console.log('🔒 Teacher access - academy classes:', academyId);
       
-      // 타입 변환: 문자열이든 숫자든 정수로 통일
-      const academyIdInt = parseInt(String(academyId).split('.')[0]);
-      console.log('🔍 Converted academyId:', academyId, '→', academyIdInt);
-      
+      // WHERE 절 없이 모든 클래스를 가져온 후 JavaScript로 필터링
       query = `
         SELECT 
           c.id,
@@ -188,10 +181,9 @@ export async function onRequestGet(context) {
         FROM classes c
         LEFT JOIN User u ON c.teacher_id = u.id
         LEFT JOIN Academy a ON c.academy_id = a.id
-        WHERE CAST(c.academy_id AS INTEGER) = ?
         ORDER BY c.created_at DESC
       `;
-      params.push(academyIdInt);
+      // params는 비워둠 - JavaScript에서 필터링할 것
     } else if (role === 'STUDENT') {
       // Students see classes they're enrolled in
       console.log('🔒 Student access - enrolled classes only:', userId);
@@ -230,41 +222,55 @@ export async function onRequestGet(context) {
       ? db.prepare(query).bind(...params)
       : db.prepare(query);
       
-    console.log('🔍 Executing query with params:', params);
-    console.log('📝 SQL Query:', query);
+    console.log('🔍 Executing query');
+    console.log('📝 SQL Query:', query.substring(0, 200));
     
     const result = await stmt.all();
-    const classes = result.results || [];
+    let classes = result.results || [];
 
-    console.log(`✅ Query returned ${classes.length} classes`);
-    console.log(`👤 User info: role=${role}, academyId=${academyId}, userId=${userId}`);
+    console.log(`✅ Query returned ${classes.length} total classes`);
+    
+    // JavaScript에서 academy 필터링 (ADMIN, DIRECTOR, TEACHER)
+    if ((role === 'ADMIN' || role === 'DIRECTOR' || role === 'TEACHER') && academyId) {
+      const userAcademyIdStr = String(academyId);
+      const userAcademyIdInt = parseInt(userAcademyIdStr.split('.')[0]);
+      
+      console.log('🔍 Filtering by academyId:', {
+        original: academyId,
+        string: userAcademyIdStr,
+        integer: userAcademyIdInt
+      });
+      
+      const beforeFilter = classes.length;
+      classes = classes.filter(cls => {
+        const clsAcademyIdStr = String(cls.academyId);
+        const clsAcademyIdInt = parseInt(clsAcademyIdStr.split('.')[0]);
+        
+        // 문자열 비교, 숫자 비교, loose 비교 모두 시도
+        const match = 
+          clsAcademyIdStr === userAcademyIdStr ||
+          clsAcademyIdInt === userAcademyIdInt ||
+          cls.academyId == academyId;
+        
+        if (match) {
+          console.log(`✅ MATCH: Class ${cls.id} (${cls.name}) academy_id=${cls.academyId}`);
+        }
+        
+        return match;
+      });
+      
+      console.log(`🔍 Filtered: ${beforeFilter} → ${classes.length} classes`);
+    }
+    
+    console.log(`👤 User info: role=${role}, academyId=${academyId}`);
     
     // Debug: 실제 classes 테이블 데이터 확인
     if (classes.length === 0) {
-      console.log('⚠️ No classes found. Checking all classes in database...');
-      const allClasses = await db.prepare('SELECT id, academy_id, class_name FROM classes LIMIT 10').all();
+      console.log('⚠️ No classes found after filtering. Checking all classes in database...');
+      const allClasses = await db.prepare('SELECT id, academy_id, class_name FROM classes LIMIT 20').all();
       console.log('📊 All classes in DB:', JSON.stringify(allClasses.results));
-      
-      // academyId가 있는 경우, 타입별로 비교 테스트
-      if (academyId) {
-        const academyIdInt = parseInt(String(academyId).split('.')[0]);
-        console.log('🧪 Testing matches with academyId:', academyId, 'converted to:', academyIdInt);
-        
-        const testQuery = await db.prepare(`
-          SELECT 
-            id, 
-            academy_id, 
-            class_name,
-            CAST(academy_id AS INTEGER) as academy_id_int,
-            CASE WHEN CAST(academy_id AS INTEGER) = ? THEN 'MATCH' ELSE 'NO_MATCH' END as match_result
-          FROM classes
-          LIMIT 10
-        `).bind(academyIdInt).all();
-        
-        console.log('🧪 Match test results:', JSON.stringify(testQuery.results));
-      }
     } else {
-      console.log('✅ Classes found:', JSON.stringify(classes.map(c => ({
+      console.log('✅ Returning classes:', JSON.stringify(classes.map(c => ({
         id: c.id,
         name: c.name,
         academyId: c.academyId
