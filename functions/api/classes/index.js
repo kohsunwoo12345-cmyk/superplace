@@ -27,7 +27,7 @@ export async function onRequestGet(context) {
     const { request, env } = context;
     const db = env.DB;
 
-    console.log('📚 Classes API GET called');
+    console.log('📚 Classes API GET called - VERSION: 2026-02-22-v2');
 
     if (!db) {
       return new Response(JSON.stringify({ 
