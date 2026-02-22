@@ -35,6 +35,7 @@ interface DashboardStats {
 export default function MessageDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>("");
   const [stats, setStats] = useState<DashboardStats>({
     totalSent: 0,
     thisMonthSent: 0,
@@ -48,6 +49,9 @@ export default function MessageDashboardPage() {
   });
 
   useEffect(() => {
+    // 사용자 역할 가져오기
+    const role = localStorage.getItem("userRole") || "";
+    setUserRole(role.toUpperCase());
     loadDashboardData();
   }, []);
 
@@ -437,6 +441,78 @@ export default function MessageDashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 관리자 전용: 승인 관리 */}
+        {(userRole === "ADMIN" || userRole === "SUPER_ADMIN") && (
+          <>
+            <div className="border-t pt-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <CheckCircle className="w-6 h-6 text-purple-600" />
+                승인 관리 (관리자 전용)
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 발신번호 승인 관리 */}
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer group border-2 border-purple-200">
+                <CardHeader>
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-3 group-hover:bg-purple-200 transition-colors">
+                    <Phone className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <CardTitle>발신번호 승인 관리</CardTitle>
+                  <CardDescription>
+                    사용자들의 발신번호 등록 신청을 승인하세요
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-gray-600">대기 중인 신청</span>
+                    <Badge variant="outline" className="bg-yellow-50">
+                      확인 필요
+                    </Badge>
+                  </div>
+                  <Button
+                    onClick={() => router.push("/dashboard/admin/sms/registration-approval")}
+                    variant="ghost"
+                    className="w-full justify-between"
+                  >
+                    승인 관리
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* 카카오 채널 승인 관리 */}
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer group border-2 border-purple-200">
+                <CardHeader>
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-3 group-hover:bg-purple-200 transition-colors">
+                    <MessageSquare className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <CardTitle>카카오 채널 승인 관리</CardTitle>
+                  <CardDescription>
+                    사용자들의 카카오 채널 등록 신청을 승인하세요
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-gray-600">대기 중인 신청</span>
+                    <Badge variant="outline" className="bg-yellow-50">
+                      확인 필요
+                    </Badge>
+                  </div>
+                  <Button
+                    onClick={() => router.push("/dashboard/admin/kakao/channel-approval")}
+                    variant="ghost"
+                    className="w-full justify-between"
+                  >
+                    승인 관리
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
 
         {/* 안내 사항 */}
         <Card className="bg-blue-50 border-blue-200">

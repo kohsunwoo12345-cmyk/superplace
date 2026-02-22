@@ -58,7 +58,7 @@ async function sendSMS(
   to: string,
   text: string
 ): Promise<any> {
-  const timestamp = Date.now().toString();
+  const timestamp = new Date().toISOString();
   const salt = Math.random().toString(36).substring(2, 15);
   const signature = await generateHmacSignature(apiSecret, timestamp + salt);
 
@@ -69,12 +69,12 @@ async function sendSMS(
       'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${timestamp}, salt=${salt}, signature=${signature}`
     },
     body: JSON.stringify({
-      message: {
+      messages: [{
         to: to.replace(/-/g, ''),
         from: from.replace(/-/g, ''),
         text: text,
         type: text.length > 90 ? 'LMS' : 'SMS'
-      }
+      }]
     })
   });
 
@@ -96,7 +96,7 @@ async function sendKakao(
   templateCode: string,
   text: string
 ): Promise<any> {
-  const timestamp = Date.now().toString();
+  const timestamp = new Date().toISOString();
   const salt = Math.random().toString(36).substring(2, 15);
   const signature = await generateHmacSignature(apiSecret, timestamp + salt);
 
@@ -107,16 +107,16 @@ async function sendKakao(
       'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${timestamp}, salt=${salt}, signature=${signature}`
     },
     body: JSON.stringify({
-      message: {
+      messages: [{
         to: to.replace(/-/g, ''),
         from: from.replace(/-/g, ''),
         text: text,
         type: 'ATA', // 알림톡
         kakaoOptions: {
-          pfId: from.replace(/-/g, ''),
-          templateId: templateCode || 'default'
+          pfId: templateCode || from.replace(/-/g, ''),
+          templateId: 'default'
         }
-      }
+      }]
     })
   });
 
