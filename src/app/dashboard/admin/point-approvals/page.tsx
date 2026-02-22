@@ -44,7 +44,12 @@ export default function PointApprovalsPage() {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/point-charge-requests');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/point-charge-requests', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch requests');
       const data = await response.json();
       setRequests(data.requests || []);
@@ -61,19 +66,31 @@ export default function PointApprovalsPage() {
 
     try {
       setProcessingId(requestId);
+      const token = localStorage.getItem('token');
+      
+      console.log('🔄 Approving request:', requestId);
+      
       const response = await fetch('/api/admin/point-charge-requests/approve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ requestId })
       });
 
-      if (!response.ok) throw new Error('Failed to approve');
+      const data = await response.json();
+      console.log('✅ Approval response:', data);
 
-      alert('포인트 충전이 승인되었습니다.');
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to approve');
+      }
+
+      alert(`포인트 충전이 승인되었습니다.\n승인된 포인트: ${data.points || 0}P`);
       fetchRequests();
-    } catch (error) {
-      console.error('Failed to approve:', error);
-      alert('승인 처리에 실패했습니다.');
+    } catch (error: any) {
+      console.error('❌ Failed to approve:', error);
+      alert(`승인 처리에 실패했습니다.\n${error.message || '알 수 없는 오류'}`);
     } finally {
       setProcessingId(null);
     }
@@ -90,9 +107,14 @@ export default function PointApprovalsPage() {
 
     try {
       setProcessingId(requestId);
+      const token = localStorage.getItem('token');
+      
       const response = await fetch('/api/admin/point-charge-requests/reject', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ requestId, reason })
       });
 
