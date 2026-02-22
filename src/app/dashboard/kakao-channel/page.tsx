@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
   MessageCircle, Phone, Building2, ChevronRight,
-  CheckCircle, AlertCircle, Loader2, Info, Building, Briefcase, List
+  CheckCircle, AlertCircle, Loader2, Info, Building, Briefcase, List, BookOpen
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface Category {
   code: string;
@@ -32,6 +33,8 @@ interface KakaoChannel {
 }
 
 export default function KakaoChannelRegisterPage() {
+  const router = useRouter();
+  
   // 카테고리 데이터
   const [categories, setCategories] = useState<CategoryData>({
     mainCategories: [],
@@ -293,14 +296,24 @@ export default function KakaoChannelRegisterPage() {
       <div className="container mx-auto max-w-7xl">
         {/* 헤더 */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg">
-              <MessageCircle className="w-8 h-8 text-white" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg">
+                <MessageCircle className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900">카카오 채널 등록</h1>
+                <p className="text-gray-600 mt-1">카카오톡 알림톡 발송을 위한 채널을 등록하세요</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900">카카오 채널 등록</h1>
-              <p className="text-gray-600 mt-1">카카오톡 알림톡 발송을 위한 채널을 등록하세요</p>
-            </div>
+            <Button
+              onClick={() => router.push('/dashboard/kakao-business-guide')}
+              variant="outline"
+              className="flex items-center gap-2 h-12 px-6 bg-yellow-50 border-yellow-200 hover:bg-yellow-100"
+            >
+              <BookOpen className="w-5 h-5 text-yellow-600" />
+              <span className="font-semibold text-yellow-700">연동가이드 보기</span>
+            </Button>
           </div>
         </div>
 
