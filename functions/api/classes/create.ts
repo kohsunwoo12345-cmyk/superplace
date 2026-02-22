@@ -124,23 +124,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     
     const classId = createClassResult.meta.last_row_id;
     console.log('✅ Class created with ID:', classId);
-<<<<<<< HEAD
-    console.log('📝 Bind parameters:', {
-      1: academyIdInt,
-      2: name,
-      3: (grade && grade.trim()) ? grade.trim() : null,
-      4: description || null,
-      5: teacherIdInt,
-      6: classColor,
-      7: koreanTime
-=======
     console.log('📝 Inserted data:', {
       academy_id: academyIdStr,
       class_name: name,
       grade,
       teacher_id: teacherIdStr,
       color: classColor
->>>>>>> 4a6e582 (fix: academyId 문자열 ID 지원 (academy-xxx-xxx 형식))
     });
     
     // 생성된 클래스 확인
