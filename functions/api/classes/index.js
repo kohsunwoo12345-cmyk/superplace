@@ -111,8 +111,8 @@ export async function onRequestGet(context) {
           u.name as teacherName,
           a.name as academyName
         FROM classes c
-        LEFT JOIN User u ON c.teacher_id = u.id
-        LEFT JOIN Academy a ON c.academy_id = a.id
+        LEFT JOIN users u ON c.teacher_id = u.id
+        LEFT JOIN academies a ON c.academy_id = a.id
         ORDER BY c.created_at DESC
       `;
     } else if (role === 'ADMIN' || role === 'DIRECTOR') {
@@ -145,8 +145,8 @@ export async function onRequestGet(context) {
           u.name as teacherName,
           a.name as academyName
         FROM classes c
-        LEFT JOIN User u ON c.teacher_id = u.id
-        LEFT JOIN Academy a ON c.academy_id = a.id
+        LEFT JOIN users u ON c.teacher_id = u.id
+        LEFT JOIN academies a ON c.academy_id = a.id
         ORDER BY c.created_at DESC
       `;
       // params는 비워둠 - JavaScript에서 필터링할 것
@@ -179,8 +179,8 @@ export async function onRequestGet(context) {
           u.name as teacherName,
           a.name as academyName
         FROM classes c
-        LEFT JOIN User u ON c.teacher_id = u.id
-        LEFT JOIN Academy a ON c.academy_id = a.id
+        LEFT JOIN users u ON c.teacher_id = u.id
+        LEFT JOIN academies a ON c.academy_id = a.id
         ORDER BY c.created_at DESC
       `;
       // params는 비워둠 - JavaScript에서 필터링할 것
@@ -201,8 +201,8 @@ export async function onRequestGet(context) {
           a.name as academyName
         FROM classes c
         INNER JOIN class_students cs ON c.id = cs.classId
-        LEFT JOIN User u ON c.teacher_id = u.id
-        LEFT JOIN Academy a ON c.academy_id = a.id
+        LEFT JOIN users u ON c.teacher_id = u.id
+        LEFT JOIN academies a ON c.academy_id = a.id
         WHERE cs.studentId = ?
         ORDER BY c.created_at DESC
       `;
