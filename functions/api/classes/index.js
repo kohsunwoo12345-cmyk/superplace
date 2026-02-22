@@ -231,17 +231,44 @@ export async function onRequestGet(context) {
       : db.prepare(query);
       
     console.log('🔍 Executing query with params:', params);
+    console.log('📝 SQL Query:', query);
     
     const result = await stmt.all();
     const classes = result.results || [];
 
-    console.log(`✅ Returning ${classes.length} classes for ${role} (academy: ${academyId})`);
+    console.log(`✅ Query returned ${classes.length} classes`);
+    console.log(`👤 User info: role=${role}, academyId=${academyId}, userId=${userId}`);
     
     // Debug: 실제 classes 테이블 데이터 확인
     if (classes.length === 0) {
       console.log('⚠️ No classes found. Checking all classes in database...');
       const allClasses = await db.prepare('SELECT id, academy_id, class_name FROM classes LIMIT 10').all();
-      console.log('📊 All classes in DB:', allClasses.results);
+      console.log('📊 All classes in DB:', JSON.stringify(allClasses.results));
+      
+      // academyId가 있는 경우, 타입별로 비교 테스트
+      if (academyId) {
+        const academyIdInt = parseInt(String(academyId).split('.')[0]);
+        console.log('🧪 Testing matches with academyId:', academyId, 'converted to:', academyIdInt);
+        
+        const testQuery = await db.prepare(`
+          SELECT 
+            id, 
+            academy_id, 
+            class_name,
+            CAST(academy_id AS INTEGER) as academy_id_int,
+            CASE WHEN CAST(academy_id AS INTEGER) = ? THEN 'MATCH' ELSE 'NO_MATCH' END as match_result
+          FROM classes
+          LIMIT 10
+        `).bind(academyIdInt).all();
+        
+        console.log('🧪 Match test results:', JSON.stringify(testQuery.results));
+      }
+    } else {
+      console.log('✅ Classes found:', JSON.stringify(classes.map(c => ({
+        id: c.id,
+        name: c.name,
+        academyId: c.academyId
+      }))));
     }
 
     return new Response(JSON.stringify({
