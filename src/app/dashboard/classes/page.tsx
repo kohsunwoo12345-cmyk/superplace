@@ -17,6 +17,8 @@ import {
   CheckCircle,
   Plus,
   Search,
+  Trash2,
+  Edit,
 } from "lucide-react";
 
 // 학생용 타입
@@ -188,6 +190,37 @@ export default function ClassesPage() {
     cls.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleDeleteClass = async (classId: string, className: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // 카드 클릭 이벤트 방지
+
+    if (!confirm(`"${className}" 반을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/classes?id=${classId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        alert('반이 삭제되었습니다.');
+        // 목록 새로고침
+        window.location.reload();
+      } else {
+        const errorData = await response.json();
+        alert(`삭제 실패: ${errorData.message || '알 수 없는 오류'}`);
+      }
+    } catch (error) {
+      console.error('삭제 오류:', error);
+      alert('반 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -245,13 +278,7 @@ export default function ClassesPage() {
         {filteredClasses.map((classItem) => (
           <Card
             key={classItem.id}
-            className="cursor-pointer hover:shadow-lg transition-shadow relative overflow-hidden"
-            onClick={() => {
-              const url = `/dashboard/classes/edit/?id=${classItem.id}`;
-              console.log('🔍 Navigating to:', url);
-              console.log('📝 Class ID:', classItem.id);
-              router.push(url);
-            }}
+            className="hover:shadow-lg transition-shadow relative overflow-hidden"
           >
             {/* 색상 바 */}
             {classItem.color && (
@@ -299,6 +326,32 @@ export default function ClassesPage() {
                     <span>{classItem.schedules?.length || 0}개 수업</span>
                   </div>
                 </div>
+                
+                {/* 액션 버튼 */}
+                {(user?.role?.toUpperCase() === "SUPER_ADMIN" || 
+                  user?.role?.toUpperCase() === "ADMIN" ||
+                  user?.role?.toUpperCase() === "DIRECTOR") && (
+                  <div className="flex gap-2 mt-4 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => router.push(`/dashboard/classes/edit/?id=${classItem.id}`)}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      수정
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      onClick={(e) => handleDeleteClass(classItem.id, classItem.name, e)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      삭제
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

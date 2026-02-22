@@ -1,4 +1,4 @@
-// Classes API - JavaScript version with role-based filtering
+// Classes API - Complete CRUD with proper table names
 
 // Simple token parser
 function parseToken(authHeader) {
@@ -55,11 +55,18 @@ export async function onRequestGet(context) {
       });
     }
 
-    // Get user from database
-    const user = await db
-      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+    // Get user from database - try both User and users table
+    let user = await db
+      .prepare('SELECT id, email, role, academyId, academy_id FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
+    
+    if (!user) {
+      user = await db
+        .prepare('SELECT id, email, role, academyId, academy_id FROM users WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    }
 
     if (!user) {
       console.error('❌ User not found:', tokenData.email);
@@ -73,7 +80,7 @@ export async function onRequestGet(context) {
     }
 
     const role = user.role ? user.role.toUpperCase() : '';
-    const academyId = user.academyId;
+    const academyId = user.academyId || user.academy_id;
     const userId = user.id;
 
     console.log('✅ User verified:', { email: user.email, role, academyId, userId });
@@ -81,10 +88,10 @@ export async function onRequestGet(context) {
     let query;
     let params = [];
 
-    // Role-based filtering
-    if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
-      // Admins can see all classes
-      console.log('🔓 Admin access - returning all classes');
+    // Role-based filtering - 학원별로 완전히 분리
+    if (role === 'SUPER_ADMIN') {
+      // Super admin can see all classes
+      console.log('🔓 Super Admin access - returning all classes');
       query = `
         SELECT 
           c.id,
@@ -102,20 +109,21 @@ export async function onRequestGet(context) {
         LEFT JOIN Academy a ON c.academy_id = a.id
         ORDER BY c.created_at DESC
       `;
-    } else if (role === 'DIRECTOR') {
-      // Directors see all classes in their academy
+    } else if (role === 'ADMIN' || role === 'DIRECTOR') {
+      // Admins and Directors see only their academy's classes
       if (!academyId) {
-        console.error('❌ No academy assigned to director');
+        console.error('❌ No academy assigned');
         return new Response(JSON.stringify({
           success: false,
-          error: 'No academy assigned'
+          error: 'No academy assigned',
+          message: '학원이 배정되지 않았습니다'
         }), {
           status: 403,
           headers: { 'Content-Type': 'application/json' }
         });
       }
 
-      console.log('🔒 Director access - academy filtered:', academyId);
+      console.log('🔒 Admin/Director access - academy filtered:', academyId);
       query = `
         SELECT 
           c.id,
@@ -136,8 +144,19 @@ export async function onRequestGet(context) {
       `;
       params.push(academyId);
     } else if (role === 'TEACHER') {
-      // Teachers see only their own classes
-      console.log('🔒 Teacher access - own classes only:', userId);
+      // Teachers see only their academy's classes (not just their own)
+      if (!academyId) {
+        console.error('❌ No academy assigned to teacher');
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'No academy assigned'
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      
+      console.log('🔒 Teacher access - academy classes:', academyId);
       query = `
         SELECT 
           c.id,
@@ -153,10 +172,10 @@ export async function onRequestGet(context) {
         FROM classes c
         LEFT JOIN User u ON c.teacher_id = u.id
         LEFT JOIN Academy a ON c.academy_id = a.id
-        WHERE c.teacher_id = ?
+        WHERE c.academy_id = ?
         ORDER BY c.created_at DESC
       `;
-      params.push(userId);
+      params.push(academyId);
     } else if (role === 'STUDENT') {
       // Students see classes they're enrolled in
       console.log('🔒 Student access - enrolled classes only:', userId);
@@ -198,7 +217,7 @@ export async function onRequestGet(context) {
     const result = await stmt.all();
     const classes = result.results || [];
 
-    console.log(`✅ Returning ${classes.length} classes for ${role}`);
+    console.log(`✅ Returning ${classes.length} classes for ${role} (academy: ${academyId})`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -223,13 +242,13 @@ export async function onRequestGet(context) {
   }
 }
 
-// POST: 반 생성
-export async function onRequestPost(context) {
+// DELETE: 반 삭제
+export async function onRequestDelete(context) {
   try {
     const { request, env } = context;
     const db = env.DB;
 
-    console.log('📚 Classes API POST called');
+    console.log('🗑️ Classes API DELETE called');
 
     if (!db) {
       return new Response(JSON.stringify({ 
@@ -246,7 +265,6 @@ export async function onRequestPost(context) {
     const tokenData = parseToken(authHeader);
 
     if (!tokenData) {
-      console.error('❌ Invalid or missing token');
       return new Response(JSON.stringify({
         success: false,
         error: 'Unauthorized'
@@ -256,14 +274,20 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Get user from database
-    const user = await db
-      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+    // Get user
+    let user = await db
+      .prepare('SELECT id, email, role, academyId, academy_id FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
+    
+    if (!user) {
+      user = await db
+        .prepare('SELECT id, email, role, academyId, academy_id FROM users WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    }
 
     if (!user) {
-      console.error('❌ User not found');
       return new Response(JSON.stringify({
         success: false,
         error: 'User not found'
@@ -274,15 +298,162 @@ export async function onRequestPost(context) {
     }
 
     const role = user.role ? user.role.toUpperCase() : '';
-    const userAcademyId = user.academyId;
+    const userAcademyId = user.academyId || user.academy_id;
 
-    // Only DIRECTOR and ADMIN can create classes
+    // Only ADMIN, SUPER_ADMIN, DIRECTOR can delete classes
     if (role !== 'DIRECTOR' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-      console.error('❌ Insufficient permissions:', role);
       return new Response(JSON.stringify({
         success: false,
         error: 'Insufficient permissions',
-        message: '반을 생성할 권한이 없습니다'
+        message: '반을 삭제할 권한이 없습니다'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get class ID from URL
+    const url = new URL(request.url);
+    const classId = url.searchParams.get('id');
+
+    if (!classId) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Missing class ID'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Check if class exists and belongs to user's academy (except for SUPER_ADMIN)
+    const classInfo = await db
+      .prepare('SELECT id, academy_id FROM classes WHERE id = ?')
+      .bind(classId)
+      .first();
+
+    if (!classInfo) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Class not found',
+        message: '반을 찾을 수 없습니다'
+      }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Verify academy ownership (except for SUPER_ADMIN)
+    if (role !== 'SUPER_ADMIN' && classInfo.academy_id != userAcademyId) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Access denied',
+        message: '이 반을 삭제할 권한이 없습니다'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Delete class_students records first
+    await db
+      .prepare('DELETE FROM class_students WHERE classId = ?')
+      .bind(classId)
+      .run();
+
+    // Delete class
+    await db
+      .prepare('DELETE FROM classes WHERE id = ?')
+      .bind(classId)
+      .run();
+
+    console.log('✅ Class deleted:', classId);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: '반이 삭제되었습니다'
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('❌ Classes DELETE error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message,
+      message: '반 삭제 중 오류가 발생했습니다'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// PATCH: 반 수정
+export async function onRequestPatch(context) {
+  try {
+    const { request, env } = context;
+    const db = env.DB;
+
+    console.log('✏️ Classes API PATCH called');
+
+    if (!db) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Database not configured' 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Parse token
+    const authHeader = request.headers.get('Authorization');
+    const tokenData = parseToken(authHeader);
+
+    if (!tokenData) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Unauthorized'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get user
+    let user = await db
+      .prepare('SELECT id, email, role, academyId, academy_id FROM User WHERE email = ?')
+      .bind(tokenData.email)
+      .first();
+    
+    if (!user) {
+      user = await db
+        .prepare('SELECT id, email, role, academyId, academy_id FROM users WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    }
+
+    if (!user) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'User not found'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const role = user.role ? user.role.toUpperCase() : '';
+    const userAcademyId = user.academyId || user.academy_id;
+
+    // Only ADMIN, SUPER_ADMIN, DIRECTOR can edit classes
+    if (role !== 'DIRECTOR' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Insufficient permissions',
+        message: '반을 수정할 권한이 없습니다'
       }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
@@ -290,59 +461,104 @@ export async function onRequestPost(context) {
     }
 
     const body = await request.json();
-    const { name, grade, description, teacherId, color } = body;
+    const { id, name, grade, description, color, teacherId } = body;
 
-    if (!name) {
+    if (!id) {
       return new Response(JSON.stringify({
         success: false,
-        error: 'Missing required fields',
-        message: '반 이름은 필수입니다'
+        error: 'Missing class ID'
       }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // For directors, use their academyId
-    const academyId = role === 'DIRECTOR' ? userAcademyId : (body.academyId || userAcademyId);
+    // Check if class exists and belongs to user's academy
+    const classInfo = await db
+      .prepare('SELECT id, academy_id FROM classes WHERE id = ?')
+      .bind(id)
+      .first();
 
-    if (!academyId) {
+    if (!classInfo) {
       return new Response(JSON.stringify({
         success: false,
-        error: 'No academy assigned'
+        error: 'Class not found',
+        message: '반을 찾을 수 없습니다'
+      }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Verify academy ownership (except for SUPER_ADMIN)
+    if (role !== 'SUPER_ADMIN' && classInfo.academy_id != userAcademyId) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Access denied',
+        message: '이 반을 수정할 권한이 없습니다'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Build update query
+    const updates = [];
+    const params = [];
+
+    if (name !== undefined) {
+      updates.push('class_name = ?');
+      params.push(name);
+    }
+    if (grade !== undefined) {
+      updates.push('grade = ?');
+      params.push(grade);
+    }
+    if (description !== undefined) {
+      updates.push('description = ?');
+      params.push(description);
+    }
+    if (color !== undefined) {
+      updates.push('color = ?');
+      params.push(color);
+    }
+    if (teacherId !== undefined) {
+      updates.push('teacher_id = ?');
+      params.push(teacherId);
+    }
+
+    if (updates.length === 0) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'No fields to update'
       }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    const classId = `class-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    params.push(id);
 
-    await db
-      .prepare(`
-        INSERT INTO Class (id, academyId, name, grade, description, teacherId, color, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-      `)
-      .bind(classId, academyId, name, grade || '', description || '', teacherId || null, color || '#8B5CF6')
-      .run();
+    const query = `UPDATE classes SET ${updates.join(', ')} WHERE id = ?`;
+    
+    await db.prepare(query).bind(...params).run();
 
-    console.log('✅ Class created:', { classId, name, academyId });
+    console.log('✅ Class updated:', id);
 
     return new Response(JSON.stringify({
       success: true,
-      message: '반이 생성되었습니다',
-      classId: classId
+      message: '반이 수정되었습니다'
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('❌ Classes POST error:', error);
+    console.error('❌ Classes PATCH error:', error);
     return new Response(JSON.stringify({
       success: false,
       error: error.message,
-      message: '반 생성 중 오류가 발생했습니다'
+      message: '반 수정 중 오류가 발생했습니다'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
