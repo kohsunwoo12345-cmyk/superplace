@@ -272,7 +272,7 @@ export async function onRequestGet(context) {
     } else {
       console.log('✅ Returning classes:', JSON.stringify(classes.map(c => ({
         id: c.id,
-        name: c.class_name as name,
+        name: c.class_name,
         academy_id: c.academy_id
       }))));
     }
