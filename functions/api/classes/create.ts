@@ -20,8 +20,8 @@ function getKoreanTime(): string {
 
 /**
  * POST /api/classes/create
- * 새 클래스 생성
- * 실제 D1 스키마에 맞춘 버전 (snake_case 컬럼명 사용)
+ * 새 클래스 생성 - 완전히 재작성된 버전
+ * academyId를 어떤 형태로든 받아서 문자열로 저장
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
@@ -43,18 +43,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       description, 
       teacherId,
       color,
-      schedules, // [{ dayOfWeek: number[], startTime, endTime, subject?, room? }]
-      studentIds // [userId1, userId2, ...]
+      schedules,
+      studentIds
     } = body;
 
-    console.log('📚 Create class request:', { academyId, name, color, schedules, studentIds });
+    console.log('📚 Create class request:', { 
+      academyId, 
+      academyIdType: typeof academyId,
+      name, 
+      color 
+    });
 
     // 필수 필드 검증
-    if (!academyId || !name) {
+    if (!name) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Missing required fields: academyId, name" 
+          error: "Missing required field: name" 
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
@@ -63,43 +68,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const koreanTime = getKoreanTime();
     const classColor = color || '#3B82F6';
     
-    // academyId는 문자열 ID일 수 있음 (예: "academy-1771479246368-5viyubmqk")
-    const academyIdStr = String(academyId);
-    const teacherIdStr = teacherId ? String(teacherId) : null;
+    // academyId와 teacherId를 있는 그대로 문자열로 변환
+    // 어떤 형태든 받아들임: 숫자, 문자열, UUID 등
+    const academyIdValue = academyId ? String(academyId) : null;
+    const teacherIdValue = teacherId ? String(teacherId) : null;
     
-    console.log('🔑 Academy ID:', { 
-      received: academyId, 
-      type: typeof academyId, 
-      processed: academyIdStr 
+    console.log('🔑 IDs:', { 
+      academyId: academyIdValue,
+      teacherId: teacherIdValue
     });
 
-    // 스케줄 정보 처리 (여러 요일을 JSON 배열로 저장)
-    let scheduleDays = null;
-    let startTime = null;
-    let endTime = null;
-    let daySchedule = null;
-
-    if (schedules && Array.isArray(schedules) && schedules.length > 0) {
-      const schedule = schedules[0]; // 첫 번째 스케줄 사용
-      if (Array.isArray(schedule.dayOfWeek) && schedule.dayOfWeek.length > 0) {
-        // dayOfWeek 배열을 JSON 문자열로 변환
-        scheduleDays = JSON.stringify(schedule.dayOfWeek);
-        startTime = schedule.startTime;
-        endTime = schedule.endTime;
-        
-        // day_schedule도 전체 스케줄 정보를 JSON으로 저장
-        daySchedule = JSON.stringify(schedules.map(s => ({
-          dayOfWeek: s.dayOfWeek,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          subject: s.subject || null,
-          room: s.room || null
-        })));
-      }
-    }
-
-    // 1. 클래스 생성 (snake_case 컬럼명 사용 - 프로덕션 DB 스키마)
-    console.log('📝 Creating class with snake_case schema...');
+    // INSERT 실행
+    console.log('📝 Inserting into classes table...');
     
     const createClassResult = await DB.prepare(`
       INSERT INTO classes (
@@ -113,92 +93,59 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       )
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      academyIdStr,
+      academyIdValue,
       name,
-      (grade && grade.trim()) ? grade.trim() : null,  // 빈 문자열도 null로 처리
+      grade || null,
       description || null,
-      teacherIdStr,
+      teacherIdValue,
       classColor,
       koreanTime
     ).run();
     
     const classId = createClassResult.meta.last_row_id;
-    console.log('✅ Class created with ID:', classId);
-    console.log('📝 Inserted data:', {
-      academy_id: academyIdStr,
-      class_name: name,
-      grade,
-      teacher_id: teacherIdStr,
-      color: classColor
+    console.log('✅ Class created successfully!', {
+      classId,
+      academy_id: academyIdValue,
+      class_name: name
     });
-    
-    // 생성된 클래스 확인
-    const verifyClass = await DB.prepare(`
-      SELECT id, academy_id, class_name FROM classes WHERE id = ?
-    `).bind(classId).first();
-    console.log('✅ Verification - Class in DB:', verifyClass);
 
-    // 2. 학생 배정 (class_students 테이블과 students 테이블 모두 업데이트)
+    // 학생 배정 (있다면)
     if (studentIds && Array.isArray(studentIds) && studentIds.length > 0) {
       console.log('👥 Enrolling students:', studentIds.length);
       
       for (const studentId of studentIds) {
         try {
-          const studentIdInt = parseInt(String(studentId).split('.')[0]);
+          const studentIdStr = String(studentId);
           
-          // 2-1. students 테이블에 class_id 업데이트 (있다면)
-          try {
-            await DB.prepare(`
-              UPDATE students 
-              SET class_id = ? 
-              WHERE user_id = ?
-            `).bind(classId, studentIdInt).run();
-            console.log(`✅ Student ${studentIdInt} assigned to class ${classId} in students table`);
-          } catch (error: any) {
-            console.log('⚠️ students table update skipped:', error.message);
-          }
-          
-          // 2-2. class_students 테이블에 관계 생성 (학생 대시보드에서 보이도록)
-          try {
-            // 이미 등록되어 있는지 확인
-            const existing = await DB.prepare(`
-              SELECT id FROM class_students 
-              WHERE classId = ? AND studentId = ?
-            `).bind(classId, studentIdInt).first();
+          // class_students 테이블에 추가
+          const existing = await DB.prepare(`
+            SELECT id FROM class_students 
+            WHERE classId = ? AND studentId = ?
+          `).bind(classId, studentIdStr).first();
 
-            if (existing) {
-              // 이미 존재하면 상태만 active로 변경
-              await DB.prepare(`
-                UPDATE class_students 
-                SET status = 'active', enrolledAt = ?
-                WHERE classId = ? AND studentId = ?
-              `).bind(koreanTime, classId, studentIdInt).run();
-              console.log(`✅ Student ${studentIdInt} reactivated in class_students`);
-            } else {
-              // 새로 추가
-              await DB.prepare(`
-                INSERT INTO class_students (classId, studentId, enrolledAt, status)
-                VALUES (?, ?, ?, ?)
-              `).bind(classId, studentIdInt, koreanTime, 'active').run();
-              console.log(`✅ Student ${studentIdInt} added to class_students`);
-            }
-          } catch (error: any) {
-            console.log('⚠️ class_students table update skipped:', error.message);
+          if (existing) {
+            await DB.prepare(`
+              UPDATE class_students 
+              SET status = 'active', enrolledAt = ?
+              WHERE classId = ? AND studentId = ?
+            `).bind(koreanTime, classId, studentIdStr).run();
+          } else {
+            await DB.prepare(`
+              INSERT INTO class_students (classId, studentId, enrolledAt, status)
+              VALUES (?, ?, ?, ?)
+            `).bind(classId, studentIdStr, koreanTime, 'active').run();
           }
-          
         } catch (error: any) {
           console.error('⚠️ Failed to assign student:', studentId, error.message);
-          // 에러가 나도 계속 진행
         }
       }
-      console.log('✅ Students enrollment completed');
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         classId: classId,
-        message: "반이 생성되었습니다",
+        message: "반이 생성되었습니다"
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
@@ -208,7 +155,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       JSON.stringify({
         success: false,
         error: "Failed to create class",
-        message: error.message,
+        message: error.message
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
