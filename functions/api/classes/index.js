@@ -57,13 +57,13 @@ export async function onRequestGet(context) {
 
     // Get user from database - try both User and users table
     let user = await db
-      .prepare('SELECT id, email, role, academy_id, academy_id FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academy_id FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academy_id, academy_id FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academy_id FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
@@ -334,13 +334,13 @@ export async function onRequestDelete(context) {
 
     // Get user
     let user = await db
-      .prepare('SELECT id, email, role, academy_id, academy_id FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academy_id FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academy_id, academy_id FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academy_id FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
@@ -483,13 +483,13 @@ export async function onRequestPatch(context) {
 
     // Get user
     let user = await db
-      .prepare('SELECT id, email, role, academy_id, academy_id FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academy_id FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academy_id, academy_id FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academy_id FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
