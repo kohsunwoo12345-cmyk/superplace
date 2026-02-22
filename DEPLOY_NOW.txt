@@ -1,0 +1,11 @@
+🚨 CRITICAL FIX - DEPLOY IMMEDIATELY
+
+This commit contains CRITICAL fixes:
+- Merge conflict removed from functions/api/classes/create.ts
+- Class creation API completely rewritten
+- All academyId validation simplified
+
+Deployment Timestamp: $(date)
+Commit: a3e42bd
+
+MUST DEPLOY THIS VERSION!
