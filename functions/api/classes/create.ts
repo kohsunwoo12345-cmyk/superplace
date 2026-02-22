@@ -124,18 +124,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 1. 클래스 생성 (camelCase 컬럼명 사용)
-    console.log('📝 Creating class with camelCase schema...');
+    // 1. 클래스 생성 (snake_case 컬럼명 사용 - 프로덕션 DB 스키마)
+    console.log('📝 Creating class with snake_case schema...');
     
     const createClassResult = await DB.prepare(`
       INSERT INTO classes (
-        academyId, 
-        name, 
+        academy_id, 
+        class_name, 
         grade, 
         description, 
-        teacherId, 
+        teacher_id, 
         color,
-        createdAt
+        created_at
       )
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).bind(
@@ -162,7 +162,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     
     // 생성된 클래스 확인
     const verifyClass = await DB.prepare(`
-      SELECT id, academyId, name FROM classes WHERE id = ?
+      SELECT id, academy_id, class_name FROM classes WHERE id = ?
     `).bind(classId).first();
     console.log('✅ Verification - Class in DB:', verifyClass);
 
@@ -174,12 +174,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         try {
           const studentIdInt = parseInt(String(studentId).split('.')[0]);
           
-          // 2-1. students 테이블에 classId 업데이트 (있다면)
+          // 2-1. students 테이블에 class_id 업데이트 (있다면)
           try {
             await DB.prepare(`
               UPDATE students 
-              SET classId = ? 
-              WHERE userId = ?
+              SET class_id = ? 
+              WHERE user_id = ?
             `).bind(classId, studentIdInt).run();
             console.log(`✅ Student ${studentIdInt} assigned to class ${classId} in students table`);
           } catch (error: any) {

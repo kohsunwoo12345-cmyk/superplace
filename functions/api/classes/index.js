@@ -57,13 +57,13 @@ export async function onRequestGet(context) {
 
     // Get user from database - try both User and users table
     let user = await db
-      .prepare('SELECT id, email, role, academyId, academyId FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academy_id, academy_id FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academyId, academyId FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academy_id, academy_id FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
@@ -80,13 +80,13 @@ export async function onRequestGet(context) {
     }
 
     const role = user.role ? user.role.toUpperCase() : '';
-    const academyId = user.academyId || user.academyId;
+    const academy_id = user.academy_id || user.academy_id;
     const userId = user.id;
 
     console.log('✅ User verified:', { 
       email: user.email, 
       role, 
-      academyId, 
+      academy_id, 
       userId,
       rawUser: user 
     });
@@ -101,23 +101,23 @@ export async function onRequestGet(context) {
       query = `
         SELECT 
           c.id,
-          c.academyId,
-          c.name,
+          c.academy_id,
+          c.class_name as name,
           c.grade,
           c.description,
-          c.teacherId as teacherId,
+          c.teacher_id as teacher_id,
           c.color,
-          c.createdAt as createdAt,
+          c.created_at as created_at,
           u.name as teacherName,
           a.name as academyName
         FROM classes c
-        LEFT JOIN users u ON c.teacherId = u.id
-        LEFT JOIN academy a ON c.academyId = a.id
-        ORDER BY c.createdAt DESC
+        LEFT JOIN users u ON c.teacher_id = u.id
+        LEFT JOIN academy a ON c.academy_id = a.id
+        ORDER BY c.created_at DESC
       `;
     } else if (role === 'ADMIN' || role === 'DIRECTOR') {
       // Admins and Directors see only their academy's classes
-      if (!academyId) {
+      if (!academy_id) {
         console.error('❌ No academy assigned');
         return new Response(JSON.stringify({
           success: false,
@@ -129,30 +129,30 @@ export async function onRequestGet(context) {
         });
       }
 
-      console.log('🔒 Admin/Director access - academy filtered:', academyId);
+      console.log('🔒 Admin/Director access - academy filtered:', academy_id);
       
       // WHERE 절 없이 모든 클래스를 가져온 후 JavaScript로 필터링
       query = `
         SELECT 
           c.id,
-          c.academyId as academyId,
-          c.name,
+          c.academy_id as academy_id,
+          c.class_name as name,
           c.grade,
           c.description,
-          c.teacherId as teacherId,
+          c.teacher_id as teacher_id,
           c.color,
-          c.createdAt as createdAt,
+          c.created_at as created_at,
           u.name as teacherName,
           a.name as academyName
         FROM classes c
-        LEFT JOIN users u ON c.teacherId = u.id
-        LEFT JOIN academy a ON c.academyId = a.id
-        ORDER BY c.createdAt DESC
+        LEFT JOIN users u ON c.teacher_id = u.id
+        LEFT JOIN academy a ON c.academy_id = a.id
+        ORDER BY c.created_at DESC
       `;
       // params는 비워둠 - JavaScript에서 필터링할 것
     } else if (role === 'TEACHER') {
       // Teachers see only their academy's classes (not just their own)
-      if (!academyId) {
+      if (!academy_id) {
         console.error('❌ No academy assigned to teacher');
         return new Response(JSON.stringify({
           success: false,
@@ -163,25 +163,25 @@ export async function onRequestGet(context) {
         });
       }
       
-      console.log('🔒 Teacher access - academy classes:', academyId);
+      console.log('🔒 Teacher access - academy classes:', academy_id);
       
       // WHERE 절 없이 모든 클래스를 가져온 후 JavaScript로 필터링
       query = `
         SELECT 
           c.id,
-          c.academyId as academyId,
-          c.name,
+          c.academy_id as academy_id,
+          c.class_name as name,
           c.grade,
           c.description,
-          c.teacherId as teacherId,
+          c.teacher_id as teacher_id,
           c.color,
-          c.createdAt as createdAt,
+          c.created_at as created_at,
           u.name as teacherName,
           a.name as academyName
         FROM classes c
-        LEFT JOIN users u ON c.teacherId = u.id
-        LEFT JOIN academy a ON c.academyId = a.id
-        ORDER BY c.createdAt DESC
+        LEFT JOIN users u ON c.teacher_id = u.id
+        LEFT JOIN academy a ON c.academy_id = a.id
+        ORDER BY c.created_at DESC
       `;
       // params는 비워둠 - JavaScript에서 필터링할 것
     } else if (role === 'STUDENT') {
@@ -190,21 +190,21 @@ export async function onRequestGet(context) {
       query = `
         SELECT DISTINCT
           c.id,
-          c.academyId as academyId,
-          c.name,
+          c.academy_id as academy_id,
+          c.class_name as name,
           c.grade,
           c.description,
-          c.teacherId as teacherId,
+          c.teacher_id as teacher_id,
           c.color,
-          c.createdAt as createdAt,
+          c.created_at as created_at,
           u.name as teacherName,
           a.name as academyName
         FROM classes c
         INNER JOIN class_students cs ON c.id = cs.classId
-        LEFT JOIN users u ON c.teacherId = u.id
-        LEFT JOIN academy a ON c.academyId = a.id
+        LEFT JOIN users u ON c.teacher_id = u.id
+        LEFT JOIN academy a ON c.academy_id = a.id
         WHERE cs.studentId = ?
-        ORDER BY c.createdAt DESC
+        ORDER BY c.created_at DESC
       `;
       params.push(userId);
     } else {
@@ -231,29 +231,29 @@ export async function onRequestGet(context) {
     console.log(`✅ Query returned ${classes.length} total classes`);
     
     // JavaScript에서 academy 필터링 (ADMIN, DIRECTOR, TEACHER)
-    if ((role === 'ADMIN' || role === 'DIRECTOR' || role === 'TEACHER') && academyId) {
-      const userAcademyIdStr = String(academyId);
+    if ((role === 'ADMIN' || role === 'DIRECTOR' || role === 'TEACHER') && academy_id) {
+      const userAcademyIdStr = String(academy_id);
       const userAcademyIdInt = parseInt(userAcademyIdStr.split('.')[0]);
       
-      console.log('🔍 Filtering by academyId:', {
-        original: academyId,
+      console.log('🔍 Filtering by academy_id:', {
+        original: academy_id,
         string: userAcademyIdStr,
         integer: userAcademyIdInt
       });
       
       const beforeFilter = classes.length;
       classes = classes.filter(cls => {
-        const clsAcademyIdStr = String(cls.academyId);
+        const clsAcademyIdStr = String(cls.academy_id);
         const clsAcademyIdInt = parseInt(clsAcademyIdStr.split('.')[0]);
         
         // 문자열 비교, 숫자 비교, loose 비교 모두 시도
         const match = 
           clsAcademyIdStr === userAcademyIdStr ||
           clsAcademyIdInt === userAcademyIdInt ||
-          cls.academyId == academyId;
+          cls.academy_id == academy_id;
         
         if (match) {
-          console.log(`✅ MATCH: Class ${cls.id} (${cls.name}) academyId=${cls.academyId}`);
+          console.log(`✅ MATCH: Class ${cls.id} (${cls.name}) academy_id=${cls.academy_id}`);
         }
         
         return match;
@@ -262,18 +262,18 @@ export async function onRequestGet(context) {
       console.log(`🔍 Filtered: ${beforeFilter} → ${classes.length} classes`);
     }
     
-    console.log(`👤 User info: role=${role}, academyId=${academyId}`);
+    console.log(`👤 User info: role=${role}, academy_id=${academy_id}`);
     
     // Debug: 실제 classes 테이블 데이터 확인
     if (classes.length === 0) {
       console.log('⚠️ No classes found after filtering. Checking all classes in database...');
-      const allClasses = await db.prepare('SELECT id, academyId, class_name FROM classes LIMIT 20').all();
+      const allClasses = await db.prepare('SELECT id, academy_id, class_name FROM classes LIMIT 20').all();
       console.log('📊 All classes in DB:', JSON.stringify(allClasses.results));
     } else {
       console.log('✅ Returning classes:', JSON.stringify(classes.map(c => ({
         id: c.id,
-        name: c.name,
-        academyId: c.academyId
+        name: c.class_name as name,
+        academy_id: c.academy_id
       }))));
     }
 
@@ -334,13 +334,13 @@ export async function onRequestDelete(context) {
 
     // Get user
     let user = await db
-      .prepare('SELECT id, email, role, academyId, academyId FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academy_id, academy_id FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academyId, academyId FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academy_id, academy_id FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
@@ -356,7 +356,7 @@ export async function onRequestDelete(context) {
     }
 
     const role = user.role ? user.role.toUpperCase() : '';
-    const userAcademyId = user.academyId || user.academyId;
+    const userAcademyId = user.academy_id || user.academy_id;
     const userAcademyIdInt = parseInt(String(userAcademyId).split('.')[0]);
 
     // Only ADMIN, SUPER_ADMIN, DIRECTOR can delete classes
@@ -387,7 +387,7 @@ export async function onRequestDelete(context) {
 
     // Check if class exists and belongs to user's academy (except for SUPER_ADMIN)
     const classInfo = await db
-      .prepare('SELECT id, academyId FROM classes WHERE id = ?')
+      .prepare('SELECT id, academy_id FROM classes WHERE id = ?')
       .bind(classId)
       .first();
 
@@ -403,7 +403,7 @@ export async function onRequestDelete(context) {
     }
 
     // Verify academy ownership (except for SUPER_ADMIN)
-    if (role !== 'SUPER_ADMIN' && parseInt(String(classInfo.academyId).split('.')[0]) !== userAcademyIdInt) {
+    if (role !== 'SUPER_ADMIN' && parseInt(String(classInfo.academy_id).split('.')[0]) !== userAcademyIdInt) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Access denied',
@@ -483,13 +483,13 @@ export async function onRequestPatch(context) {
 
     // Get user
     let user = await db
-      .prepare('SELECT id, email, role, academyId, academyId FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academy_id, academy_id FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academyId, academyId FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academy_id, academy_id FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
@@ -505,7 +505,7 @@ export async function onRequestPatch(context) {
     }
 
     const role = user.role ? user.role.toUpperCase() : '';
-    const userAcademyId = user.academyId || user.academyId;
+    const userAcademyId = user.academy_id || user.academy_id;
     const userAcademyIdInt = parseInt(String(userAcademyId).split('.')[0]);
 
     // Only ADMIN, SUPER_ADMIN, DIRECTOR can edit classes
@@ -521,7 +521,7 @@ export async function onRequestPatch(context) {
     }
 
     const body = await request.json();
-    const { id, name, grade, description, color, teacherId } = body;
+    const { id, name, grade, description, color, teacher_id } = body;
 
     if (!id) {
       return new Response(JSON.stringify({
@@ -535,7 +535,7 @@ export async function onRequestPatch(context) {
 
     // Check if class exists and belongs to user's academy
     const classInfo = await db
-      .prepare('SELECT id, academyId FROM classes WHERE id = ?')
+      .prepare('SELECT id, academy_id FROM classes WHERE id = ?')
       .bind(id)
       .first();
 
@@ -551,7 +551,7 @@ export async function onRequestPatch(context) {
     }
 
     // Verify academy ownership (except for SUPER_ADMIN)
-    if (role !== 'SUPER_ADMIN' && parseInt(String(classInfo.academyId).split('.')[0]) !== userAcademyIdInt) {
+    if (role !== 'SUPER_ADMIN' && parseInt(String(classInfo.academy_id).split('.')[0]) !== userAcademyIdInt) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Access denied',
@@ -582,9 +582,9 @@ export async function onRequestPatch(context) {
       updates.push('color = ?');
       params.push(color);
     }
-    if (teacherId !== undefined) {
-      updates.push('teacherId = ?');
-      params.push(teacherId);
+    if (teacher_id !== undefined) {
+      updates.push('teacher_id = ?');
+      params.push(teacher_id);
     }
 
     if (updates.length === 0) {
