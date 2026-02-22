@@ -124,24 +124,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 1. 클래스 생성 (실제 D1 스키마의 snake_case 컬럼명 사용)
-    console.log('📝 Creating class with actual D1 schema...');
+    // 1. 클래스 생성 (camelCase 컬럼명 사용)
+    console.log('📝 Creating class with camelCase schema...');
     
     const createClassResult = await DB.prepare(`
       INSERT INTO classes (
-        academy_id, 
-        class_name, 
+        academyId, 
+        name, 
         grade, 
         description, 
-        teacher_id, 
+        teacherId, 
         color,
-        schedule_days,
-        start_time,
-        end_time,
-        day_schedule,
-        created_at
+        createdAt
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `).bind(
       academyIdInt,
       name,
@@ -149,10 +145,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       description || null,
       teacherIdInt,
       classColor,
-      scheduleDays,
-      startTime,
-      endTime,
-      daySchedule,
       koreanTime
     ).run();
     
@@ -165,16 +157,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       4: description || null,
       5: teacherIdInt,
       6: classColor,
-      7: scheduleDays,
-      8: startTime,
-      9: endTime,
-      10: daySchedule,
-      11: koreanTime
+      7: koreanTime
     });
     
     // 생성된 클래스 확인
     const verifyClass = await DB.prepare(`
-      SELECT id, academy_id, class_name FROM classes WHERE id = ?
+      SELECT id, academyId, name FROM classes WHERE id = ?
     `).bind(classId).first();
     console.log('✅ Verification - Class in DB:', verifyClass);
 
@@ -186,12 +174,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         try {
           const studentIdInt = parseInt(String(studentId).split('.')[0]);
           
-          // 2-1. students 테이블에 class_id 업데이트 (있다면)
+          // 2-1. students 테이블에 classId 업데이트 (있다면)
           try {
             await DB.prepare(`
               UPDATE students 
-              SET class_id = ? 
-              WHERE user_id = ?
+              SET classId = ? 
+              WHERE userId = ?
             `).bind(classId, studentIdInt).run();
             console.log(`✅ Student ${studentIdInt} assigned to class ${classId} in students table`);
           } catch (error: any) {
