@@ -244,17 +244,17 @@ export async function onRequestGet(context) {
       
       const beforeFilter = classes.length;
       classes = classes.filter(cls => {
-        const clsAcademyIdStr = String(cls.academyId);
+        const clsAcademyIdStr = String(cls.academy_id);  // FIXED: was cls.academyId
         const clsAcademyIdInt = parseInt(clsAcademyIdStr.split('.')[0]);
         
         // 문자열 비교, 숫자 비교, loose 비교 모두 시도
         const match = 
           clsAcademyIdStr === userAcademyIdStr ||
           clsAcademyIdInt === userAcademyIdInt ||
-          cls.academyId == academy_id;
+          cls.academy_id == academy_id;  // FIXED: was cls.academyId
         
         if (match) {
-          console.log(`✅ MATCH: Class ${cls.id} (${cls.name}) academy_id=${cls.academyId}`);
+          console.log(`✅ MATCH: Class ${cls.id} (${cls.name}) academy_id=${cls.academy_id}`);
         }
         
         return match;
@@ -268,13 +268,13 @@ export async function onRequestGet(context) {
     // Debug: 실제 classes 테이블 데이터 확인
     if (classes.length === 0) {
       console.log('⚠️ No classes found after filtering. Checking all classes in database...');
-      const allClasses = await db.prepare('SELECT id, academyId, name FROM classes LIMIT 20').all();
+      const allClasses = await db.prepare('SELECT id, academy_id, class_name as name FROM classes LIMIT 20').all();
       console.log('📊 All classes in DB:', JSON.stringify(allClasses.results));
     } else {
       console.log('✅ Returning classes:', JSON.stringify(classes.map(c => ({
         id: c.id,
         name: c.name,
-        academy_id: c.academyId
+        academy_id: c.academy_id  // FIXED: was c.academyId
       }))));
     }
 
