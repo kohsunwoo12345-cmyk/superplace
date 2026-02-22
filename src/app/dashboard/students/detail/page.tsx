@@ -30,6 +30,10 @@ interface StudentDetail {
   className?: string;
   classId?: string; // Changed from number
   classes?: Array<{classId: string; className: string}>; // Changed type
+  isWithdrawn?: number;
+  withdrawnAt?: string;
+  withdrawnReason?: string;
+  withdrawnBy?: number;
 }
 
 interface AttendanceCode {
@@ -110,6 +114,11 @@ function StudentDetailContent() {
   const [codeCopied, setCodeCopied] = useState(false);
   const [attendanceCodeCopied, setAttendanceCodeCopied] = useState(false);
   
+  // 퇴원 처리 상태
+  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
+  const [withdrawReason, setWithdrawReason] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
+  
   // 편집 모드 상태
   const [isEditing, setIsEditing] = useState(false);
   const [editedStudent, setEditedStudent] = useState<StudentDetail | null>(null);
@@ -155,12 +164,12 @@ function StudentDetailContent() {
   // 이메일 표시 함수
   const displayEmail = (email: string | undefined) => {
     if (!email) return '미등록';
-    // 자동생성 이메일 패턴 체크
+    // 명시적으로 생성된 임시 이메일만 미등록으로 표시
     if (email.includes('@temp.student.local') || 
-        email.includes('@phone.generated') ||
-        email.startsWith('student_')) {
+        email.includes('@phone.generated')) {
       return '미등록';
     }
+    // student_XXX@temp.superplace.local 형식도 실제 이메일로 간주
     return email;
   };
 
@@ -213,6 +222,22 @@ function StudentDetailContent() {
             const studentData = userData.student || userData;
             
             console.log("📥 Received student data:", studentData);
+            
+            // 로그인한 사용자 정보에서 학원 정보 가져오기
+            const userStr = localStorage.getItem("user");
+            if (userStr) {
+              try {
+                const currentUser = JSON.parse(userStr);
+                // 학생에게 학원 정보가 없으면 현재 director의 학원으로 설정
+                if (!studentData.academyId && currentUser.academyId) {
+                  studentData.academyId = currentUser.academyId;
+                  studentData.academy_name = currentUser.academyName || '현재 학원';
+                  console.log('✅ 학원 정보 자동 설정:', studentData.academyId);
+                }
+              } catch (e) {
+                console.error('사용자 정보 파싱 실패:', e);
+              }
+            }
             
             setStudent(studentData);
             apiSuccess = true;
@@ -600,20 +625,20 @@ function StudentDetailContent() {
       setSaving(true);
       const token = localStorage.getItem("token");
 
-      const response = await fetch(`/api/admin/users/${studentId}`, {
+      const response = await fetch(`/api/students/update`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          studentId: studentId,
           name: editedStudent.name,
           phone: editedStudent.phone,
           email: editedStudent.email,
           school: editedStudent.school,
           grade: editedStudent.grade,
           diagnostic_memo: editedStudent.diagnostic_memo,
-          academy_id: editedStudent.academy_id,
           password: editedStudent.password,
           classIds: selectedClassIds, // 최대 3개의 반 ID
         }),
@@ -879,6 +904,108 @@ function StudentDetailContent() {
     }
   };
 
+  // 퇴원 처리
+  const handleWithdraw = async () => {
+    if (!studentId) return;
+    
+    if (!withdrawReason.trim()) {
+      alert("퇴원 사유를 입력해주세요.");
+      return;
+    }
+
+    if (!confirm(`${student?.name} 학생을 퇴원 처리하시겠습니까?\n\n퇴원 사유: ${withdrawReason}`)) {
+      return;
+    }
+
+    try {
+      setWithdrawing(true);
+      const token = localStorage.getItem("token");
+
+      console.log("🔐 Token check:", token ? `Present (${token.substring(0, 20)}...)` : "Missing");
+
+      if (!token) {
+        alert("❌ 로그인 토큰이 없습니다. 다시 로그인해주세요.");
+        router.push("/login");
+        return;
+      }
+
+      console.log("📤 Sending withdraw request:", { studentId, withdrawnReason: withdrawReason });
+
+      const response = await fetch("/api/students/withdraw", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studentId,
+          withdrawnReason: withdrawReason,
+        }),
+      });
+
+      console.log("📥 Response status:", response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("✅ Success:", data);
+        alert(`✅ ${data.message}`);
+        setShowWithdrawDialog(false);
+        setWithdrawReason("");
+        // 퇴원 처리 후 학생 목록으로 이동
+        router.push("/dashboard/students");
+      } else {
+        const error = await response.json();
+        console.error("❌ Error response:", error);
+        alert(`❌ ${error.message || "퇴원 처리에 실패했습니다."}\n\n상세: ${JSON.stringify(error.debug || {})}`);
+      }
+    } catch (error: any) {
+      console.error("Failed to withdraw student:", error);
+      alert("퇴원 처리 중 오류가 발생했습니다.");
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
+  // 복학 처리
+  const handleReactivate = async () => {
+    if (!studentId) return;
+
+    if (!confirm(`${student?.name} 학생을 복학 처리하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      setWithdrawing(true);
+      const token = localStorage.getItem("token");
+
+      const response = await fetch("/api/students/reactivate", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studentId,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`✅ ${data.message}`);
+        // 페이지 새로고침하여 최신 정보 표시
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(`❌ ${error.message || "복학 처리에 실패했습니다."}`);
+      }
+    } catch (error: any) {
+      console.error("Failed to reactivate student:", error);
+      alert("복학 처리 중 오류가 발생했습니다.");
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'present':
@@ -929,7 +1056,81 @@ function StudentDetailContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-2 sm:p-4 md:p-6">
+    <>
+      {/* 퇴원 처리 다이얼로그 */}
+      {showWithdrawDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-orange-500" />
+                학생 퇴원 처리
+              </h3>
+              <button
+                onClick={() => setShowWithdrawDialog(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>{student?.name}</strong> 학생을 퇴원 처리하시겠습니까?
+                </p>
+                <p className="text-xs text-yellow-700 mt-2">
+                  퇴원 처리 후에도 학생 데이터는 유지되며, 복학 처리를 통해 다시 활성화할 수 있습니다.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  퇴원 사유 <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={withdrawReason}
+                  onChange={(e) => setWithdrawReason(e.target.value)}
+                  placeholder="퇴원 사유를 입력해주세요 (예: 졸업, 이사, 타 학원 전학 등)"
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => setShowWithdrawDialog(false)}
+                variant="outline"
+                className="flex-1"
+                disabled={withdrawing}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={handleWithdraw}
+                variant="destructive"
+                className="flex-1"
+                disabled={withdrawing || !withdrawReason.trim()}
+              >
+                {withdrawing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    처리 중...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4 mr-2" />
+                    퇴원 처리
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-2 sm:p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* 학생 프로필 헤더 - 현대적이고 귀여운 디자인 */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -1055,10 +1256,49 @@ function StudentDetailContent() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>기본 정보</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      기본 정보
+                      {student.isWithdrawn === 1 && (
+                        <Badge variant="destructive">퇴원</Badge>
+                      )}
+                    </CardTitle>
                     <CardDescription>학생의 기본 정보를 확인하고 수정할 수 있습니다</CardDescription>
                   </div>
                   <div className="flex gap-2">
+                    {student.isWithdrawn === 1 ? (
+                      <Button 
+                        onClick={handleReactivate} 
+                        disabled={withdrawing}
+                        variant="default" 
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {withdrawing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            처리 중...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            복학 처리
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <>
+                        {!isEditing && (
+                          <Button 
+                            onClick={() => setShowWithdrawDialog(true)} 
+                            variant="destructive" 
+                            size="sm"
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            퇴원 처리
+                          </Button>
+                        )}
+                      </>
+                    )}
                     {!isEditing ? (
                       <Button onClick={startEditing} variant="outline" size="sm">
                         <Edit className="w-4 h-4 mr-2" />
@@ -1212,17 +1452,15 @@ function StudentDetailContent() {
                             await fetchClasses(academyId);
                             setSelectedClassIds([]); // 학원 변경 시 반 선택 초기화
                           }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed opacity-60"
                         >
-                          <option value="">선택하세요</option>
-                          {academies.map((academy: any) => (
-                            <option key={academy.id} value={academy.id}>
-                              {academy.name}
-                            </option>
-                          ))}
+                          <option value={editedStudent?.academy_id || ''}>
+                            {student.academy_name || student.academyName || '소속 학원'}
+                          </option>
                         </select>
                       ) : (
-                        <p className="font-medium">{student.academyName || '미등록'}</p>
+                        <p className="font-medium">{student.academy_name || student.academyName || '미등록'}</p>
                       )}
                     </div>
                   </div>
@@ -1327,7 +1565,48 @@ function StudentDetailContent() {
                       </div>
                     </div>
                   )}
+
+                  {/* 퇴원 정보 */}
+                  {student.isWithdrawn === 1 && (
+                    <>
+                      <div className="flex items-start gap-3">
+                        <XCircle className="w-5 h-5 text-red-500 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-500">퇴원일</p>
+                          <p className="font-medium text-red-600">
+                            {student.withdrawnAt ? new Date(student.withdrawnAt).toLocaleDateString('ko-KR') : '-'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 md:col-span-2">
+                        <AlertTriangle className="w-5 h-5 text-orange-500 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-500">퇴원 사유</p>
+                          <p className="font-medium text-orange-700">
+                            {student.withdrawnReason || '-'}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
+
+                {/* 퇴원 상태 알림 */}
+                {student.isWithdrawn === 1 && (
+                  <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="text-sm font-semibold text-red-900 mb-1">
+                          퇴원 처리된 학생입니다
+                        </h3>
+                        <p className="text-sm text-red-700">
+                          이 학생은 현재 퇴원 상태입니다. 복학 처리를 원하시면 상단의 "복학 처리" 버튼을 클릭하세요.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* 진단 메모 */}
                 <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1603,40 +1882,38 @@ function StudentDetailContent() {
                 </div>
               </CardHeader>
               <CardContent>
-                {attendanceStats && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
-                    <Card className="border-2 border-gray-100">
-                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
-                        <p className="text-xs sm:text-sm text-gray-500">총 출결</p>
-                        <p className="text-xl sm:text-2xl font-bold">{attendanceStats.total}일</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="border-2 border-green-100">
-                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
-                        <p className="text-xs sm:text-sm text-gray-500">출석</p>
-                        <p className="text-xl sm:text-2xl font-bold text-green-600">{attendanceStats.present}일</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="border-2 border-yellow-100">
-                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
-                        <p className="text-xs sm:text-sm text-gray-500">지각</p>
-                        <p className="text-xl sm:text-2xl font-bold text-yellow-600">{attendanceStats.late}일</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="border-2 border-red-100">
-                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
-                        <p className="text-xs sm:text-sm text-gray-500">결석</p>
-                        <p className="text-xl sm:text-2xl font-bold text-red-600">{attendanceStats.absent}일</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="border-2 border-blue-100">
-                      <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
-                        <p className="text-xs sm:text-sm text-gray-500">출석률</p>
-                        <p className="text-xl sm:text-2xl font-bold text-blue-600">{attendanceStats.attendanceRate}%</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
+                  <Card className="border-2 border-gray-100">
+                    <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                      <p className="text-xs sm:text-sm text-gray-500">총 출결</p>
+                      <p className="text-xl sm:text-2xl font-bold">{attendanceStats?.total || 0}일</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-green-100">
+                    <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                      <p className="text-xs sm:text-sm text-gray-500">출석</p>
+                      <p className="text-xl sm:text-2xl font-bold text-green-600">{attendanceStats?.present || 0}일</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-yellow-100">
+                    <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                      <p className="text-xs sm:text-sm text-gray-500">지각</p>
+                      <p className="text-xl sm:text-2xl font-bold text-yellow-600">{attendanceStats?.late || 0}일</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-red-100">
+                    <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                      <p className="text-xs sm:text-sm text-gray-500">결석</p>
+                      <p className="text-xl sm:text-2xl font-bold text-red-600">{attendanceStats?.absent || 0}일</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 border-blue-100">
+                    <CardContent className="pt-3 sm:pt-4 px-3 sm:px-4">
+                      <p className="text-xs sm:text-sm text-gray-500">출석률</p>
+                      <p className="text-xl sm:text-2xl font-bold text-blue-600">{attendanceStats?.attendanceRate || 0}%</p>
+                    </CardContent>
+                  </Card>
+                </div>
 
                 {attendance.length === 0 ? (
                   <div className="text-center py-12">
@@ -2343,6 +2620,7 @@ function StudentDetailContent() {
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -2357,3 +2635,4 @@ export default function StudentDetailPage() {
     </Suspense>
   );
 }
+// Build 1771716273

@@ -7,7 +7,34 @@ export function decodeToken(token: string): any {
     // 먼저 | 구분자로 파싱 시도 (새 형식)
     let parts = token.split('|');
     
-    // 현재 시스템의 단순 토큰 형식 (4개 파트, | 구분자)
+    // 현재 시스템의 단순 토큰 형식 (5개 파트: userId|email|role|academyId|timestamp)
+    if (parts.length === 5) {
+      const [userId, email, role, academyId, timestamp] = parts;
+      
+      // 토큰 만료 확인 (24시간)
+      const tokenTime = parseInt(timestamp);
+      const now = Date.now();
+      const tokenAge = now - tokenTime;
+      const maxAge = 24 * 60 * 60 * 1000; // 24시간
+      
+      if (tokenAge > maxAge) {
+        console.error('Token expired:', { tokenAge, maxAge });
+        throw new Error('Token expired');
+      }
+      
+      console.log('Token decoded (5 parts):', { userId, email, role, academyId });
+      
+      return {
+        userId,
+        id: userId,  // 호환성을 위해 id도 제공
+        email,
+        role,
+        academyId: academyId || null,  // academyId가 빈 문자열이면 null
+        timestamp: tokenTime,
+      };
+    }
+    
+    // 구 형식 토큰 (4개 파트, | 구분자) - 이전 버전과의 호환성
     if (parts.length === 4) {
       const [userId, email, role, timestamp] = parts;
       
@@ -22,13 +49,14 @@ export function decodeToken(token: string): any {
         throw new Error('Token expired');
       }
       
-      console.log('Simple token decoded (| separator):', { userId, email, role });
+      console.log('Token decoded (4 parts, old format):', { userId, email, role });
       
       return {
         userId,
         id: userId,  // 호환성을 위해 id도 제공
         email,
         role,
+        academyId: null,  // 구 형식에는 academyId 없음
         timestamp: tokenTime,
       };
     }

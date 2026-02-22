@@ -99,7 +99,7 @@ export default function SMSManagementPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push("/dashboard/admin/sms/send")}
+            onClick={() => router.push("/dashboard/message-send")}
             className="whitespace-nowrap"
           >
             <Send className="w-4 h-4 mr-1" />
@@ -139,7 +139,7 @@ export default function SMSManagementPage() {
             </p>
           </div>
           <Button
-            onClick={() => router.push("/dashboard/admin/sms/send")}
+            onClick={() => router.push("/dashboard/message-send")}
             className="bg-teal-600 hover:bg-teal-700"
           >
             <Send className="w-4 h-4 mr-2" />
@@ -206,7 +206,7 @@ export default function SMSManagementPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card
             className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-teal-200"
-            onClick={() => router.push("/dashboard/admin/sms/send")}
+            onClick={() => router.push("/dashboard/message-send")}
           >
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

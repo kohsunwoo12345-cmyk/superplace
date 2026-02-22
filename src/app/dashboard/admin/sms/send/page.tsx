@@ -269,7 +269,7 @@ export default function SMSSendPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push("/dashboard/admin/sms/send")}
+            onClick={() => router.push("/dashboard/message-send")}
             className="whitespace-nowrap bg-teal-50 text-teal-700"
           >
             <Send className="w-4 h-4 mr-1" />

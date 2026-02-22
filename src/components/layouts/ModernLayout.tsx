@@ -71,7 +71,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
     
     // 관리자 메뉴 (ADMIN, SUPER_ADMIN) - 관리자 전용 + 일반 메뉴
     if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
-      console.log('✅ ModernLayout - Loading ADMIN menu (21 items)');
+      console.log('✅ ModernLayout - Loading ADMIN menu (27 items)');
       return [
         { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
         // 관리자 전용 메뉴
@@ -80,6 +80,8 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         { id: 'admin-director-limitations', href: '/dashboard/admin/director-limitations', icon: Shield, text: '학원장 제한 설정' },
         { id: 'admin-notifications', href: '/dashboard/admin/notifications', icon: Bell, text: '알림 관리' },
         { id: 'admin-sms', href: '/dashboard/admin/sms', icon: MessageCircle, text: '문자 발송' },
+        { id: 'admin-kakao-channel', href: '/dashboard/kakao-channel', icon: MessageCircle, text: '카카오 채널 등록' },
+        { id: 'admin-point-approvals', href: '/dashboard/admin/point-approvals', icon: CreditCard, text: '포인트 충전 승인' },
         { id: 'admin-revenue', href: '/dashboard/admin/revenue', icon: DollarSign, text: '매출 관리' },
         { id: 'admin-pricing', href: '/dashboard/admin/pricing', icon: CreditCard, text: '요금제 관리' },
         { id: 'admin-seminars', href: '/dashboard/admin/seminars', icon: Presentation, text: '교육 세미나' },
@@ -88,6 +90,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         { id: 'admin-bot-management', href: '/dashboard/admin/bot-management', icon: Bot, text: 'AI 봇 할당' },
         { id: 'admin-store', href: '/dashboard/admin/store-management', icon: ShoppingCart, text: 'AI쇼핑몰 제품 추가' },
         { id: 'admin-landing-pages', href: '/dashboard/admin/landing-pages', icon: Layout, text: '랜딩페이지' },
+        { id: 'admin-ppt-create', href: '/dashboard/ppt-create', icon: Presentation, text: 'PPT 제작' },
         { id: 'admin-inquiries', href: '/dashboard/admin/inquiries', icon: FileText, text: '문의 관리' },
         { id: 'admin-system', href: '/dashboard/admin/system', icon: Settings, text: '시스템 설정' },
         // 일반 메뉴
@@ -116,8 +119,10 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'attendance', href: '/dashboard/teacher-attendance', icon: Clock, text: '출석 현황' },
           { id: 'homework', href: '/dashboard/homework/teacher', icon: FileText, text: '숙제 관리' },
           { id: 'homework-results', href: '/dashboard/homework/results', icon: Award, text: '숙제 검사 결과' },
+          { id: 'kakao-channel', href: '/dashboard/kakao-channel', icon: MessageCircle, text: '카카오 채널 등록' },
+          { id: 'point-charge', href: '/dashboard/point-charge', icon: CreditCard, text: '포인트 충전' },
           { id: 'ai-bots', href: '/dashboard/admin/ai-bots/assign', icon: Bot, text: 'AI 봇 할당' },
-          { id: 'sms', href: '/dashboard/admin/sms/send', icon: MessageSquare, text: '문자 발송' },
+          { id: 'sms', href: '/dashboard/message-send', icon: MessageSquare, text: '문자 발송' },
           { id: 'analytics', href: '/dashboard/analytics', icon: BarChart2, text: '통계' },
           { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, text: 'AI 도우미' },
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },

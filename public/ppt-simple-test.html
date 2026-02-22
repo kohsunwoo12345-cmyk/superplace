@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPT 제작 - 실제 동작 테스트</title>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+        .form-group {
+            margin: 25px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        textarea {
+            min-height: 250px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+        }
+        .btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .preview {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .status {
+            text-align: center;
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 PPT 제작 테스트</h1>
+        
+        <div class="form-group">
+            <label>제목</label>
+            <input type="text" id="title" value="테스트 프레젠테이션" placeholder="PPT 제목 입력">
+        </div>
+
+        <div class="form-group">
+            <label>페이지 수</label>
+            <input type="number" id="pages" value="3" min="1" max="10">
+        </div>
+
+        <div class="form-group">
+            <label>내용 (한 줄에 하나씩)</label>
+            <textarea id="content" placeholder="내용을 입력하세요...">첫 번째 항목
+두 번째 항목
+세 번째 항목
+네 번째 항목
+다섯 번째 항목
+여섯 번째 항목</textarea>
+        </div>
+
+        <div class="preview">
+            <div><strong>입력한 항목:</strong> <span id="itemCount">0</span>개</div>
+            <div><strong>생성될 슬라이드:</strong> <span id="slideCount">0</span>장 (제목 포함)</div>
+        </div>
+
+        <button id="createBtn" class="btn" onclick="testPPT()">
+            📊 PPT 생성하기 (테스트)
+        </button>
+
+        <div id="status" class="status hidden"></div>
+    </div>
+
+    <script>
+        console.log('🚀 페이지 로드 완료');
+        
+        // PptxGenJS 로드 확인
+        if (typeof PptxGenJS !== 'undefined') {
+            console.log('✅ PptxGenJS 로드됨:', PptxGenJS);
+            showStatus('✅ PPT 라이브러리 로드 완료', 'success');
+        } else {
+            console.error('❌ PptxGenJS 없음');
+            showStatus('❌ PPT 라이브러리 로드 실패', 'error');
+        }
+
+        function showStatus(msg, type) {
+            const status = document.getElementById('status');
+            status.textContent = msg;
+            status.className = 'status ' + type;
+        }
+
+        function updatePreview() {
+            const content = document.getElementById('content').value;
+            const pages = parseInt(document.getElementById('pages').value) || 1;
+            const lines = content.split('\n').filter(l => l.trim());
+            
+            document.getElementById('itemCount').textContent = lines.length;
+            document.getElementById('slideCount').textContent = pages + 1;
+        }
+
+        document.getElementById('content').addEventListener('input', updatePreview);
+        document.getElementById('pages').addEventListener('input', updatePreview);
+        updatePreview();
+
+        async function testPPT() {
+            console.log('🎬 testPPT 시작');
+            
+            const btn = document.getElementById('createBtn');
+            const title = document.getElementById('title').value.trim();
+            const pages = parseInt(document.getElementById('pages').value) || 1;
+            const content = document.getElementById('content').value.trim();
+
+            if (!title) {
+                alert('제목을 입력하세요');
+                return;
+            }
+
+            if (!content) {
+                alert('내용을 입력하세요');
+                return;
+            }
+
+            if (typeof PptxGenJS === 'undefined') {
+                alert('PPT 라이브러리가 로드되지 않았습니다');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '⏳ 생성 중...';
+            showStatus('⏳ PPT 생성 중...', 'info');
+
+            try {
+                console.log('📤 Creating PPT...');
+                
+                // 내용 분할
+                const lines = content.split('\n').filter(l => l.trim());
+                const linesPerPage = Math.ceil(lines.length / pages);
+                const slides = [];
+                
+                for (let i = 0; i < pages; i++) {
+                    const start = i * linesPerPage;
+                    const end = Math.min(start + linesPerPage, lines.length);
+                    const pageLines = lines.slice(start, end);
+                    
+                    if (pageLines.length > 0) {
+                        slides.push({
+                            title: `${title} - ${i + 1}`,
+                            content: pageLines
+                        });
+                    }
+                }
+
+                console.log('📄 슬라이드 수:', slides.length);
+
+                // PPT 생성
+                const pptx = new PptxGenJS();
+                pptx.author = 'Test';
+                pptx.title = title;
+
+                // 제목 슬라이드
+                const titleSlide = pptx.addSlide();
+                titleSlide.background = { color: 'FFFFFF' };
+                titleSlide.addText(title, {
+                    x: 1, y: 3, w: 8, h: 1,
+                    fontSize: 44,
+                    bold: true,
+                    color: '363636',
+                    align: 'center'
+                });
+
+                // 내용 슬라이드
+                slides.forEach((slideData, idx) => {
+                    const slide = pptx.addSlide();
+                    slide.background = { color: 'FFFFFF' };
+                    
+                    slide.addText(slideData.title, {
+                        x: 0.5, y: 0.5, w: 9, h: 0.8,
+                        fontSize: 28,
+                        bold: true,
+                        color: '363636',
+                        align: 'center'
+                    });
+                    
+                    slide.addText(slideData.content, {
+                        x: 1, y: 2, w: 8, h: 4.5,
+                        fontSize: 16,
+                        color: '555555',
+                        align: 'left',
+                        bullet: true
+                    });
+                });
+
+                console.log('✅ PPT 객체 생성 완료');
+
+                // 다운로드
+                const filename = `${title.replace(/[^a-zA-Z0-9가-힣]/g, '_')}_${Date.now()}.pptx`;
+                
+                await pptx.writeFile({ fileName: filename });
+                
+                console.log('✅ 다운로드 완료:', filename);
+                showStatus(`✅ 성공! 파일: ${filename}`, 'success');
+                alert(`✅ PPT 생성 완료!\n\n파일: ${filename}\n슬라이드: ${slides.length + 1}장`);
+
+            } catch (error) {
+                console.error('❌ 오류:', error);
+                showStatus('❌ 생성 실패: ' + error.message, 'error');
+                alert('❌ PPT 생성 실패:\n' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📊 PPT 생성하기 (테스트)';
+            }
+        }
+    </script>
+</body>
+</html>

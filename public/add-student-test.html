@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>학생 추가 테스트</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+    }
+    
+    h1 {
+      font-size: 28px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 10px;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .result {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 10px;
+      display: none;
+    }
+    
+    .result.success {
+      background: #d4edda;
+      color: #155724;
+      border: 2px solid #c3e6cb;
+    }
+    
+    .result.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 2px solid #f5c6cb;
+    }
+    
+    .result.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 2px solid #bee5eb;
+    }
+    
+    .result pre {
+      margin-top: 10px;
+      white-space: pre-wrap;
+      font-size: 12px;
+      background: rgba(0,0,0,0.05);
+      padding: 10px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 12px;
+      color: #999;
+    }
+    
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+    
+    .info-box {
+      background: #e7f3ff;
+      border-left: 4px solid #2196f3;
+      padding: 16px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #0d47a1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎓 학생 추가 테스트</h1>
+    <p class="subtitle">DB 스키마 맞춤 버전 (academy_id INTEGER 우선)</p>
+    
+    <div class="info-box">
+      <strong>📌 테스트 전 준비사항:</strong><br>
+      1. <a href="/teacher-login" target="_blank">선생님 로그인</a>하거나 <a href="/login" target="_blank">관리자 로그인</a> 필요<br>
+      2. localStorage에 토큰이 저장되어 있어야 함<br>
+      3. 연락처는 중복되지 않는 번호 사용
+    </div>
+    
+    <form id="addStudentForm">
+      <div class="form-group">
+        <label for="name">이름 <span style="color: #999;">(선택)</span></label>
+        <input type="text" id="name" placeholder="예: 홍길동">
+      </div>
+      
+      <div class="form-group">
+        <label for="phone">연락처 <span style="color: red;">*</span></label>
+        <input type="tel" id="phone" placeholder="예: 01012345678" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="password">비밀번호 <span style="color: red;">*</span> (6자 이상)</label>
+        <input type="password" id="password" placeholder="최소 6자" required minlength="6">
+      </div>
+      
+      <div class="form-group">
+        <label for="email">이메일 <span style="color: #999;">(선택)</span></label>
+        <input type="email" id="email" placeholder="예: student@example.com">
+      </div>
+      
+      <div class="form-group">
+        <label for="school">학교 <span style="color: #999;">(선택)</span></label>
+        <input type="text" id="school" placeholder="예: 서울고등학교">
+      </div>
+      
+      <div class="form-group">
+        <label for="grade">학년 <span style="color: #999;">(선택)</span></label>
+        <select id="grade">
+          <option value="">선택 안함</option>
+          <option value="초1">초등학교 1학년</option>
+          <option value="초2">초등학교 2학년</option>
+          <option value="초3">초등학교 3학년</option>
+          <option value="초4">초등학교 4학년</option>
+          <option value="초5">초등학교 5학년</option>
+          <option value="초6">초등학교 6학년</option>
+          <option value="중1">중학교 1학년</option>
+          <option value="중2">중학교 2학년</option>
+          <option value="중3">중학교 3학년</option>
+          <option value="고1">고등학교 1학년</option>
+          <option value="고2">고등학교 2학년</option>
+          <option value="고3">고등학교 3학년</option>
+        </select>
+      </div>
+      
+      <button type="button" onclick="generateRandomData()">🎲 랜덤 데이터 생성</button>
+      <button type="submit" id="submitBtn">
+        <span id="btnText">학생 추가 테스트</span>
+        <span id="btnLoading" style="display: none;" class="loading"></span>
+      </button>
+    </form>
+    
+    <div id="result" class="result"></div>
+    
+    <div class="footer">
+      배포 커밋: <a href="https://github.com/kohsunwoo12345-cmyk/superplace/commit/aebba59" target="_blank">aebba59</a><br>
+      <a href="/dashboard/students">학생 목록 확인하기 →</a>
+    </div>
+  </div>
+
+  <script>
+    function generateRandomData() {
+      const names = ['김민수', '이지은', '박서준', '최유진', '정민호', '강지우', '윤하은', '임준혁'];
+      const schools = ['서울중학교', '강남고등학교', '송파중학교', '마포고등학교'];
+      const grades = ['중1', '중2', '중3', '고1', '고2', '고3'];
+      
+      document.getElementById('name').value = names[Math.floor(Math.random() * names.length)];
+      document.getElementById('phone').value = '010' + Math.floor(Math.random() * 90000000 + 10000000);
+      document.getElementById('password').value = 'test1234';
+      document.getElementById('email').value = 'test' + Date.now() + '@test.com';
+      document.getElementById('school').value = schools[Math.floor(Math.random() * schools.length)];
+      document.getElementById('grade').value = grades[Math.floor(Math.random() * grades.length)];
+    }
+
+    document.getElementById('addStudentForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const submitBtn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+      const btnLoading = document.getElementById('btnLoading');
+      const resultDiv = document.getElementById('result');
+      
+      // 로딩 시작
+      submitBtn.disabled = true;
+      btnText.style.display = 'none';
+      btnLoading.style.display = 'inline-block';
+      resultDiv.style.display = 'none';
+      
+      try {
+        // localStorage에서 토큰 가져오기
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          throw new Error('로그인이 필요합니다. localStorage에 token이 없습니다.');
+        }
+        
+        // 폼 데이터 수집
+        const formData = {
+          name: document.getElementById('name').value || null,
+          phone: document.getElementById('phone').value,
+          password: document.getElementById('password').value,
+          email: document.getElementById('email').value || null,
+          school: document.getElementById('school').value || null,
+          grade: document.getElementById('grade').value || null
+        };
+        
+        console.log('📤 Request data:', formData);
+        
+        // API 호출
+        const response = await fetch('/api/students/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        console.log('📥 Response:', data);
+        
+        // 결과 표시
+        if (data.success) {
+          resultDiv.className = 'result success';
+          resultDiv.style.display = 'block';
+          resultDiv.innerHTML = `
+            <strong>✅ 학생 추가 성공!</strong><br><br>
+            학생 ID: ${data.studentId}<br>
+            연락처: ${formData.phone}<br>
+            비밀번호: ${formData.password}<br><br>
+            <a href="/dashboard/students" target="_blank" style="color: #155724; text-decoration: underline;">
+              → 학생 목록에서 확인하기
+            </a>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          `;
+          
+          // 폼 초기화
+          document.getElementById('addStudentForm').reset();
+        } else {
+          throw new Error(data.error || data.message || '알 수 없는 오류');
+        }
+        
+      } catch (error) {
+        console.error('❌ Error:', error);
+        resultDiv.className = 'result error';
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+          <strong>❌ 학생 추가 실패</strong><br><br>
+          오류: ${error.message}<br><br>
+          <pre>${JSON.stringify(error, null, 2)}</pre>
+        `;
+      } finally {
+        // 로딩 종료
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+      }
+    });
+    
+    // 페이지 로드 시 토큰 확인
+    window.addEventListener('load', function() {
+      const token = localStorage.getItem('token');
+      const resultDiv = document.getElementById('result');
+      
+      if (!token) {
+        resultDiv.className = 'result info';
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+          <strong>ℹ️ 로그인이 필요합니다</strong><br><br>
+          먼저 <a href="/teacher-login" target="_blank" style="color: #0c5460; text-decoration: underline;">선생님 로그인</a> 
+          또는 <a href="/login" target="_blank" style="color: #0c5460; text-decoration: underline;">관리자 로그인</a>을 해주세요.
+        `;
+      } else {
+        console.log('✅ Token found in localStorage');
+      }
+    });
+  </script>
+</body>
+</html>

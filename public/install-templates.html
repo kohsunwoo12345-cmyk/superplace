@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>템플릿 설치 - Superplace</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+    
+    h1 {
+      font-size: 28px;
+      color: #1f2937;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 30px;
+      font-size: 16px;
+    }
+    
+    .info-box {
+      background: #f3f4f6;
+      border-left: 4px solid #667eea;
+      padding: 16px;
+      border-radius: 6px;
+      margin-bottom: 24px;
+    }
+    
+    .info-box h3 {
+      font-size: 16px;
+      color: #1f2937;
+      margin-bottom: 8px;
+    }
+    
+    .info-box ul {
+      margin-left: 20px;
+      color: #4b5563;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+    
+    .input-group {
+      margin-bottom: 24px;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .result {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      display: none;
+    }
+    
+    .result.success {
+      background: #d1fae5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+      display: block;
+    }
+    
+    .result.error {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+      display: block;
+    }
+    
+    .result.info {
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      color: #1e40af;
+      display: block;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .footer {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      font-size: 14px;
+      color: #6b7280;
+    }
+    
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 랜딩페이지 템플릿 설치</h1>
+    <div class="subtitle">5개의 기본 템플릿을 데이터베이스에 설치합니다</div>
+    
+    <div class="info-box">
+      <h3>📚 설치되는 템플릿</h3>
+      <ul>
+        <li>🌟 학생 성장 리포트 (기본)</li>
+        <li>🎓 모던 학원 소개</li>
+        <li>🎉 이벤트 & 세미나</li>
+        <li>🚀 무료 체험 신청</li>
+        <li>👥 학부모 커뮤니티</li>
+      </ul>
+    </div>
+    
+    <form id="installForm">
+      <div class="input-group">
+        <label for="password">설치 비밀번호</label>
+        <input 
+          type="password" 
+          id="password" 
+          placeholder="비밀번호를 입력하세요"
+          value="setup-templates-2026"
+          required
+        >
+      </div>
+      
+      <button type="button" id="fixTableBtn" style="margin-bottom: 12px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); font-size: 18px; padding: 18px; font-weight: 700;">
+        🛠️ 테이블 수정 + 템플릿 설치 (FOREIGN KEY 오류 해결)
+      </button>
+      
+      <button type="button" id="initializeAllBtn" style="margin-bottom: 12px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); font-size: 18px; padding: 18px; font-weight: 700;">
+        🔥 긴급 초기화 (ALL-IN-ONE)
+      </button>
+      
+      <button type="button" id="createTablesBtn" style="margin-bottom: 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+        1단계: 테이블 생성하기
+      </button>
+      
+      <button type="submit" id="installBtn">
+        2단계: 템플릿 설치하기
+      </button>
+      
+      <button type="button" id="autoInstallBtn" style="margin-top: 12px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+        ⚡ 자동 설치 (테이블 + 템플릿)
+      </button>
+      
+      <button type="button" id="updateTemplatesBtn" style="margin-top: 12px; background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);">
+        🔄 상세 템플릿 업데이트
+      </button>
+    </form>
+    
+    <div id="result" class="result"></div>
+    
+    <div class="footer">
+      설치 완료 후 
+      <a href="/dashboard/admin/landing-pages/templates">템플릿 관리 페이지</a>
+      로 이동하세요
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('installForm');
+    const passwordInput = document.getElementById('password');
+    const fixTableBtn = document.getElementById('fixTableBtn');
+    const initializeAllBtn = document.getElementById('initializeAllBtn');
+    const createTablesBtn = document.getElementById('createTablesBtn');
+    const installBtn = document.getElementById('installBtn');
+    const autoInstallBtn = document.getElementById('autoInstallBtn');
+    const updateTemplatesBtn = document.getElementById('updateTemplatesBtn');
+    const resultDiv = document.getElementById('result');
+
+    // 🛠️ 테이블 수정 + 템플릿 설치 (FOREIGN KEY 오류 해결)
+    fixTableBtn.addEventListener('click', async () => {
+      if (!confirm('🛠️ LandingPageTemplate 테이블을 재생성합니다!\n\n이 작업은 다음을 수행합니다:\n- 기존 테이블 삭제\n- FOREIGN KEY 없이 새 테이블 생성\n- 5개 템플릿 자동 삽입\n\n계속하시겠습니까?')) {
+        return;
+      }
+      
+      const password = passwordInput.value.trim();
+      if (!password) {
+        showResult('error', '❌ 비밀번호를 입력하세요.');
+        return;
+      }
+      
+      fixTableBtn.disabled = true;
+      fixTableBtn.innerHTML = '테이블 재생성 중...<span class="loading"></span>';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/setup/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password, forceRecreate: true })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          let message = `✅ ${data.message}\n\n`;
+          message += `✅ 총 ${data.total}개 템플릿 설치 완료!\n\n`;
+          if (data.errors && data.errors.length > 0) {
+            message += `⚠️ 일부 오류 발생:\n${JSON.stringify(data.errors, null, 2)}\n\n`;
+          }
+          message += `지금 바로 템플릿을 사용할 수 있습니다.`;
+          showResult('success', message);
+        } else {
+          showResult('error', `❌ 오류: ${data.error || data.message || '알 수 없는 오류'}\n\n상세: ${JSON.stringify(data, null, 2)}`);
+        }
+      } catch (error) {
+        showResult('error', `❌ 네트워크 오류: ${error.message}`);
+      } finally {
+        fixTableBtn.disabled = false;
+        fixTableBtn.innerHTML = '🛠️ 테이블 수정 + 템플릿 설치 (FOREIGN KEY 오류 해결)';
+      }
+    });
+
+    // 🔥 긴급 초기화 (ALL-IN-ONE)
+    initializeAllBtn.addEventListener('click', async () => {
+      if (!confirm('🔥 긴급 초기화를 실행합니다!\n\n테이블 생성 + 템플릿 자동 삽입이 한번에 실행됩니다.\n\n계속하시겠습니까?')) {
+        return;
+      }
+      
+      initializeAllBtn.disabled = true;
+      initializeAllBtn.innerHTML = '초기화 중...<span class="loading"></span>';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/setup/initialize-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: 'setup-all-2026' })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          let message = `✅ ${data.message}\n\n`;
+          message += `⏱ 소요시간: ${data.duration}\n\n`;
+          message += `📊 설치된 템플릿:\n`;
+          data.templates.forEach(t => {
+            message += `- ${t.name}${t.isDefault ? ' (기본)' : ''}\n`;
+          });
+          message += `\n✅ 지금 바로 사용 가능합니다!`;
+          showResult('success', message);
+        } else {
+          showResult('error', `❌ 초기화 실패\n\n${data.error || '알 수 없는 오류'}`);
+        }
+      } catch (error) {
+        console.error('Initialize error:', error);
+        showResult('error', `❌ 네트워크 오류\n\n${error.message}`);
+      } finally {
+        initializeAllBtn.disabled = false;
+        initializeAllBtn.innerHTML = '🔥 긴급 초기화 (ALL-IN-ONE)';
+      }
+    });
+
+    // 1단계: 테이블 생성
+    createTablesBtn.addEventListener('click', async () => {
+      const password = passwordInput.value.trim();
+      
+      if (!password) {
+        showResult('error', '비밀번호를 입력해주세요.');
+        return;
+      }
+      
+      createTablesBtn.disabled = true;
+      createTablesBtn.innerHTML = '테이블 생성 중...<span class="loading"></span>';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/setup/create-tables', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: 'setup-tables-2026' })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          showResult('success', `✅ 테이블 생성 완료!\n\n${data.results.length}개 작업 완료\n이제 "2단계: 템플릿 설치하기"를 클릭하세요.`);
+        } else {
+          showResult('error', `❌ 테이블 생성 실패\n\n${data.error || '알 수 없는 오류가 발생했습니다.'}`);
+        }
+      } catch (error) {
+        console.error('Table creation error:', error);
+        showResult('error', `❌ 네트워크 오류\n\n${error.message || '서버와 통신할 수 없습니다.'}`);
+      } finally {
+        createTablesBtn.disabled = false;
+        createTablesBtn.innerHTML = '1단계: 테이블 생성하기';
+      }
+    });
+
+    // 2단계: 템플릿 설치
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const password = passwordInput.value.trim();
+      
+      if (!password) {
+        showResult('error', '비밀번호를 입력해주세요.');
+        return;
+      }
+      
+      installBtn.disabled = true;
+      installBtn.innerHTML = '설치 중...<span class="loading"></span>';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/setup/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          if (data.existing > 0) {
+            showResult('info', `ℹ️ ${data.message}\n\n이미 ${data.existing}개의 템플릿이 존재합니다.\n템플릿 관리 페이지에서 확인하세요.`);
+          } else {
+            showResult('success', `✅ ${data.message}\n\n총 ${data.total}개의 템플릿이 설치되었습니다!\n지금 바로 사용할 수 있습니다.`);
+          }
+        } else {
+          showResult('error', `❌ 설치 실패\n\n${data.error || data.message || '알 수 없는 오류가 발생했습니다.'}\n\n💡 먼저 "1단계: 테이블 생성하기"를 실행해주세요.`);
+        }
+      } catch (error) {
+        console.error('Installation error:', error);
+        showResult('error', `❌ 네트워크 오류\n\n${error.message || '서버와 통신할 수 없습니다.'}`);
+      } finally {
+        installBtn.disabled = false;
+        installBtn.innerHTML = '2단계: 템플릿 설치하기';
+      }
+    });
+
+    // 자동 설치 (테이블 + 템플릿)
+    autoInstallBtn.addEventListener('click', async () => {
+      const password = passwordInput.value.trim();
+      
+      if (!password) {
+        showResult('error', '비밀번호를 입력해주세요.');
+        return;
+      }
+      
+      autoInstallBtn.disabled = true;
+      autoInstallBtn.innerHTML = '자동 설치 중...<span class="loading"></span>';
+      resultDiv.style.display = 'none';
+      
+      try {
+        // Step 1: Create tables
+        showResult('info', '⚙️ 1단계: 테이블 생성 중...');
+        const tableResponse = await fetch('/api/setup/create-tables', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: 'setup-tables-2026' })
+        });
+        
+        const tableData = await tableResponse.json();
+        
+        if (!tableResponse.ok || !tableData.success) {
+          showResult('error', `❌ 테이블 생성 실패\n\n${tableData.error || '알 수 없는 오류가 발생했습니다.'}`);
+          return;
+        }
+        
+        // Step 2: Install templates
+        showResult('info', '⚙️ 2단계: 템플릿 설치 중...');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 대기
+        
+        const templateResponse = await fetch('/api/setup/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        
+        const templateData = await templateResponse.json();
+        
+        if (templateResponse.ok && templateData.success) {
+          showResult('success', `✅ 자동 설치 완료!\n\n📊 테이블: ${tableData.results.length}개 생성\n🎨 템플릿: ${templateData.total}개 설치\n\n지금 바로 사용할 수 있습니다!`);
+        } else {
+          showResult('error', `❌ 템플릿 설치 실패\n\n${templateData.error || '알 수 없는 오류가 발생했습니다.'}`);
+        }
+      } catch (error) {
+        console.error('Auto installation error:', error);
+        showResult('error', `❌ 네트워크 오류\n\n${error.message || '서버와 통신할 수 없습니다.'}`);
+      } finally {
+        autoInstallBtn.disabled = false;
+        autoInstallBtn.innerHTML = '⚡ 자동 설치 (테이블 + 템플릿)';
+      }
+    });
+    
+    // 상세 템플릿 업데이트
+    updateTemplatesBtn.addEventListener('click', async () => {
+      const password = passwordInput.value.trim();
+      
+      if (!password) {
+        showResult('error', '비밀번호를 입력해주세요.');
+        return;
+      }
+      
+      updateTemplatesBtn.disabled = true;
+      updateTemplatesBtn.innerHTML = '업데이트 중...<span class="loading"></span>';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/setup/update-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          showResult('success', `✅ ${data.message}\n\n🆕 새로운 상세 템플릿이 추가되었습니다!\n- 문제점 분석\n- 개선 과정 (3단계)\n- 개선 결과 (점수/이해도/태도 변화)\n\n지금 바로 사용할 수 있습니다!`);
+        } else {
+          showResult('error', `❌ 업데이트 실패\n\n${data.error || '알 수 없는 오류가 발생했습니다.'}`);
+        }
+      } catch (error) {
+        console.error('Update error:', error);
+        showResult('error', `❌ 네트워크 오류\n\n${error.message || '서버와 통신할 수 없습니다.'}`);
+      } finally {
+        updateTemplatesBtn.disabled = false;
+        updateTemplatesBtn.innerHTML = '🔄 상세 템플릿 업데이트';
+      }
+    });
+    
+    function showResult(type, message) {
+      resultDiv.className = `result ${type}`;
+      resultDiv.textContent = message;
+      resultDiv.style.display = 'block';
+      resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  </script>
+</body>
+</html>

@@ -57,10 +57,26 @@ export default function SMSRegistrationApprovalPage() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [hasAccess, setHasAccess] = useState<boolean>(false);
 
   useEffect(() => {
+    checkAccess();
     fetchRegistrations();
   }, []);
+
+  const checkAccess = () => {
+    // 권한 체크: 관리자만 접근 가능 (학원장 접근 불가)
+    const userRole = localStorage.getItem("userRole") || "";
+    const roleUpper = userRole.toUpperCase();
+    
+    if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
+      setHasAccess(true);
+    } else {
+      setHasAccess(false);
+      alert('접근 권한이 없습니다. 관리자만 접근할 수 있는 페이지입니다.');
+      window.location.href = '/dashboard';
+    }
+  };
 
   const fetchRegistrations = async () => {
     try {
@@ -167,6 +183,18 @@ export default function SMSRegistrationApprovalPage() {
     if (filter === "all") return true;
     return reg.status === filter;
   });
+
+  if (!hasAccess) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">접근 권한 없음</h2>
+          <p className="text-gray-600">이 페이지는 관리자만 접근할 수 있습니다.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

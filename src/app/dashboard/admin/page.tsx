@@ -1,5 +1,5 @@
 "use client";
-// Force redeploy: 2026-02-13 16:39:05 - Payment Approval Menu Fix
+// Force redeploy: 2026-02-21 08:50:00 - PPT Feature Added
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,7 @@ import {
   ShoppingCart,
   Package,
   FileText,
+  Presentation,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
@@ -405,6 +406,22 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <Button className="w-full bg-teal-600 hover:bg-teal-700 text-white">발송하기</Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-pink-200"
+                onClick={() => router.push("/dashboard/ppt-create")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Presentation className="h-5 w-5 text-pink-600" />
+                📊 PPT 제작
+              </CardTitle>
+              <CardDescription>
+                내용을 입력하면 자동으로 프레젠테이션 파일을 생성합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white">제작하기</Button>
             </CardContent>
           </Card>
         </div>

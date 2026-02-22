@@ -7,13 +7,9 @@ interface Env {
 
 export async function onRequestPost(context: { request: Request; env: Env }) {
   try {
-    const authHeader = context.request.headers.get("authorization");
-    
-    // Simple password protection
     const body = await context.request.json();
-    const { password } = body;
+    const { password, forceRecreate } = body;
     
-    // Change this password after first use!
     if (password !== "setup-templates-2026") {
       return new Response(JSON.stringify({ 
         error: "Invalid password" 
@@ -24,6 +20,57 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
 
     const db = context.env.DB;
+    
+    // 🔥 forceRecreate가 true면 테이블 삭제 후 재생성
+    if (forceRecreate === true) {
+      console.log('🔥 forceRecreate 모드: 테이블 삭제 후 재생성');
+      try {
+        // batch로 DROP과 CREATE를 한번에 실행
+        const dropResult = await db.batch([
+          db.prepare(`DROP TABLE IF EXISTS LandingPageTemplate`),
+          db.prepare(`
+            CREATE TABLE LandingPageTemplate (
+              id TEXT PRIMARY KEY,
+              name TEXT NOT NULL,
+              description TEXT,
+              html TEXT NOT NULL,
+              variables TEXT,
+              isDefault INTEGER DEFAULT 0,
+              usageCount INTEGER DEFAULT 0,
+              createdById TEXT,
+              createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+              updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+          `)
+        ]);
+        console.log('✅ 테이블 삭제 및 재생성 완료');
+      } catch (recreateError: any) {
+        console.error('❌ 테이블 재생성 실패:', recreateError.message);
+        throw recreateError;
+      }
+    } else {
+      // forceRecreate가 false면 기존 로직: CREATE IF NOT EXISTS
+      try {
+        await db.prepare(`
+          CREATE TABLE IF NOT EXISTS LandingPageTemplate (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            html TEXT NOT NULL,
+            variables TEXT,
+            isDefault INTEGER DEFAULT 0,
+            usageCount INTEGER DEFAULT 0,
+            createdById TEXT,
+            createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+            updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+          )
+        `).run();
+        console.log('✅ LandingPageTemplate 테이블 생성 완료 (createdById NULL 허용, FK 없음)');
+      } catch (tableError: any) {
+        console.error('❌ 테이블 생성 오류:', tableError);
+        throw tableError;
+      }
+    }
     
     // Check if templates already exist
     const existingCount = await db
@@ -94,7 +141,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           .prepare(`
             INSERT OR IGNORE INTO LandingPageTemplate (
               id, name, description, html, variables, isDefault, usageCount, createdById, createdAt, updatedAt
-            ) VALUES (?, ?, ?, ?, ?, ?, 0, 'system', datetime('now'), datetime('now'))
+            ) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, datetime('now'), datetime('now'))
           `)
           .bind(
             template.id,
@@ -107,7 +154,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           .run();
         
         insertedCount++;
+        console.log(`✅ 템플릿 삽입 성공: ${template.id}`);
       } catch (error: any) {
+        console.error(`❌ 템플릿 삽입 실패: ${template.id}`, error.message);
         errors.push({ id: template.id, error: error.message });
       }
     }

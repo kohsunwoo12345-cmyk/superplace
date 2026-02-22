@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPT Readonly 테스트</title>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        #log {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 PPT Readonly Property 테스트</h1>
+        <p>PptxGenJS 3.12.0의 readonly 속성 문제를 진단합니다</p>
+        
+        <button onclick="testPPT()">📊 PPT 생성 테스트</button>
+        
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const log = (message) => {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            console.log(message);
+        };
+
+        window.addEventListener('load', () => {
+            log('✅ 페이지 로드 완료');
+            log(`✅ PptxGenJS 버전: ${typeof PptxGenJS !== 'undefined' ? 'Loaded' : 'Not loaded'}`);
+            
+            if (typeof PptxGenJS !== 'undefined') {
+                log('✅ PptxGenJS 객체 사용 가능');
+                
+                // PptxGenJS 인스턴스 생성 테스트
+                try {
+                    const testPptx = new PptxGenJS();
+                    log('✅ PptxGenJS 인스턴스 생성 성공');
+                    
+                    // readonly 속성 확인
+                    const descriptor1 = Object.getOwnPropertyDescriptor(testPptx, 'author');
+                    const descriptor2 = Object.getOwnPropertyDescriptor(testPptx, 'company');
+                    const descriptor3 = Object.getOwnPropertyDescriptor(testPptx, 'title');
+                    
+                    log(`📋 author 속성: ${descriptor1 ? (descriptor1.writable ? 'writable' : 'readonly') : 'not found'}`);
+                    log(`📋 company 속성: ${descriptor2 ? (descriptor2.writable ? 'writable' : 'readonly') : 'not found'}`);
+                    log(`📋 title 속성: ${descriptor3 ? (descriptor3.writable ? 'writable' : 'readonly') : 'not found'}`);
+                    
+                } catch (e) {
+                    log(`❌ PptxGenJS 인스턴스 생성 실패: ${e.message}`);
+                }
+            }
+        });
+
+        async function testPPT() {
+            log('🚀 PPT 생성 시작...');
+            
+            try {
+                // 1. PPT 객체 생성
+                log('1️⃣ PPT 객체 생성 중...');
+                const pptx = new PptxGenJS();
+                log('✅ PPT 객체 생성 완료');
+                
+                // 2. 메타데이터 설정 시도 (readonly 오류 확인)
+                log('2️⃣ 메타데이터 설정 시도...');
+                try {
+                    pptx.author = 'Test Author';
+                    log('✅ author 설정 성공');
+                } catch (e) {
+                    log(`⚠️ author 설정 실패: ${e.message}`);
+                }
+                
+                try {
+                    pptx.company = 'Test Company';
+                    log('✅ company 설정 성공');
+                } catch (e) {
+                    log(`⚠️ company 설정 실패: ${e.message}`);
+                }
+                
+                try {
+                    pptx.title = 'Test Title';
+                    log('✅ title 설정 성공');
+                } catch (e) {
+                    log(`⚠️ title 설정 실패: ${e.message}`);
+                }
+                
+                // 3. 슬라이드 추가
+                log('3️⃣ 슬라이드 추가 중...');
+                const slide = pptx.addSlide();
+                slide.background = { color: 'FFFFFF' };
+                
+                slide.addText('테스트 제목', {
+                    x: 1,
+                    y: 2,
+                    w: 8,
+                    h: 1,
+                    fontSize: 36,
+                    bold: true,
+                    color: '363636',
+                    align: 'center'
+                });
+                
+                slide.addText('이것은 테스트 슬라이드입니다', {
+                    x: 1,
+                    y: 3.5,
+                    w: 8,
+                    h: 0.5,
+                    fontSize: 18,
+                    color: '666666',
+                    align: 'center'
+                });
+                
+                log('✅ 슬라이드 추가 완료');
+                
+                // 4. 파일 다운로드
+                log('4️⃣ PPT 파일 생성 중...');
+                await pptx.writeFile({ fileName: 'test-readonly.pptx' });
+                log('✅ PPT 파일 다운로드 완료!');
+                
+                alert('✅ PPT 생성 성공! 다운로드를 확인하세요.');
+                
+            } catch (error) {
+                log(`❌ PPT 생성 실패: ${error.message}`);
+                log(`❌ Stack: ${error.stack}`);
+                alert(`❌ PPT 생성 실패: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>
