@@ -101,7 +101,7 @@ export async function onRequestGet(context) {
       query = `
         SELECT 
           c.id,
-          c.academy_id as academyId,
+          CAST(c.academy_id AS INTEGER) as academyId,
           c.class_name as name,
           c.grade,
           c.description,
@@ -130,6 +130,11 @@ export async function onRequestGet(context) {
       }
 
       console.log('🔒 Admin/Director access - academy filtered:', academyId);
+      
+      // 타입 변환: 문자열이든 숫자든 정수로 통일
+      const academyIdInt = parseInt(String(academyId).split('.')[0]);
+      console.log('🔍 Converted academyId:', academyId, '→', academyIdInt);
+      
       query = `
         SELECT 
           c.id,
@@ -145,10 +150,10 @@ export async function onRequestGet(context) {
         FROM classes c
         LEFT JOIN User u ON c.teacher_id = u.id
         LEFT JOIN Academy a ON c.academy_id = a.id
-        WHERE c.academy_id = ?
+        WHERE CAST(c.academy_id AS INTEGER) = ?
         ORDER BY c.created_at DESC
       `;
-      params.push(academyId);
+      params.push(academyIdInt);
     } else if (role === 'TEACHER') {
       // Teachers see only their academy's classes (not just their own)
       if (!academyId) {
@@ -163,6 +168,11 @@ export async function onRequestGet(context) {
       }
       
       console.log('🔒 Teacher access - academy classes:', academyId);
+      
+      // 타입 변환: 문자열이든 숫자든 정수로 통일
+      const academyIdInt = parseInt(String(academyId).split('.')[0]);
+      console.log('🔍 Converted academyId:', academyId, '→', academyIdInt);
+      
       query = `
         SELECT 
           c.id,
@@ -178,10 +188,10 @@ export async function onRequestGet(context) {
         FROM classes c
         LEFT JOIN User u ON c.teacher_id = u.id
         LEFT JOIN Academy a ON c.academy_id = a.id
-        WHERE c.academy_id = ?
+        WHERE CAST(c.academy_id AS INTEGER) = ?
         ORDER BY c.created_at DESC
       `;
-      params.push(academyId);
+      params.push(academyIdInt);
     } else if (role === 'STUDENT') {
       // Students see classes they're enrolled in
       console.log('🔒 Student access - enrolled classes only:', userId);
@@ -314,6 +324,7 @@ export async function onRequestDelete(context) {
 
     const role = user.role ? user.role.toUpperCase() : '';
     const userAcademyId = user.academyId || user.academy_id;
+    const userAcademyIdInt = parseInt(String(userAcademyId).split('.')[0]);
 
     // Only ADMIN, SUPER_ADMIN, DIRECTOR can delete classes
     if (role !== 'DIRECTOR' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
@@ -359,7 +370,7 @@ export async function onRequestDelete(context) {
     }
 
     // Verify academy ownership (except for SUPER_ADMIN)
-    if (role !== 'SUPER_ADMIN' && classInfo.academy_id != userAcademyId) {
+    if (role !== 'SUPER_ADMIN' && parseInt(String(classInfo.academy_id).split('.')[0]) !== userAcademyIdInt) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Access denied',
@@ -462,6 +473,7 @@ export async function onRequestPatch(context) {
 
     const role = user.role ? user.role.toUpperCase() : '';
     const userAcademyId = user.academyId || user.academy_id;
+    const userAcademyIdInt = parseInt(String(userAcademyId).split('.')[0]);
 
     // Only ADMIN, SUPER_ADMIN, DIRECTOR can edit classes
     if (role !== 'DIRECTOR' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
@@ -506,7 +518,7 @@ export async function onRequestPatch(context) {
     }
 
     // Verify academy ownership (except for SUPER_ADMIN)
-    if (role !== 'SUPER_ADMIN' && classInfo.academy_id != userAcademyId) {
+    if (role !== 'SUPER_ADMIN' && parseInt(String(classInfo.academy_id).split('.')[0]) !== userAcademyIdInt) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Access denied',
