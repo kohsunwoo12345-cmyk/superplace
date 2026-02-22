@@ -57,13 +57,13 @@ export async function onRequestGet(context) {
 
     // Get user from database - try both User and users table
     let user = await db
-      .prepare('SELECT id, email, role, academy_id FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academy_id FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
@@ -80,7 +80,7 @@ export async function onRequestGet(context) {
     }
 
     const role = user.role ? user.role.toUpperCase() : '';
-    const academy_id = user.academy_id || user.academy_id;
+    const academy_id = user.academyId;
     const userId = user.id;
 
     console.log('✅ User verified:', { 
@@ -334,13 +334,13 @@ export async function onRequestDelete(context) {
 
     // Get user
     let user = await db
-      .prepare('SELECT id, email, role, academy_id FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academy_id FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
@@ -356,7 +356,7 @@ export async function onRequestDelete(context) {
     }
 
     const role = user.role ? user.role.toUpperCase() : '';
-    const userAcademyId = user.academy_id || user.academy_id;
+    const userAcademyId = user.academyId;
     const userAcademyIdInt = parseInt(String(userAcademyId).split('.')[0]);
 
     // Only ADMIN, SUPER_ADMIN, DIRECTOR can delete classes
@@ -483,13 +483,13 @@ export async function onRequestPatch(context) {
 
     // Get user
     let user = await db
-      .prepare('SELECT id, email, role, academy_id FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academy_id FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
@@ -505,7 +505,7 @@ export async function onRequestPatch(context) {
     }
 
     const role = user.role ? user.role.toUpperCase() : '';
-    const userAcademyId = user.academy_id || user.academy_id;
+    const userAcademyId = user.academyId;
     const userAcademyIdInt = parseInt(String(userAcademyId).split('.')[0]);
 
     // Only ADMIN, SUPER_ADMIN, DIRECTOR can edit classes
