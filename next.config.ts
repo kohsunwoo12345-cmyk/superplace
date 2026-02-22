@@ -1,8 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'export', // ✅ Static export - API handled by functions/ directory
-  trailingSlash: true,
+  // output: 'export', // ❌ Disabled for dev - API routes need server mode
+  // trailingSlash: true, // ❌ Disabled to prevent redirect issues
   images: {
     unoptimized: true,
   },
