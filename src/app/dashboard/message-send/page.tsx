@@ -284,16 +284,17 @@ export default function MessageSendPage() {
         body: formData,
       });
 
+      const data = await response.json();
+      
       if (response.ok) {
-        const data = await response.json();
         setUploadedRecipients(data.recipients || []);
-        alert(`✅ ${data.recipients.length}건의 수신자 정보를 불러왔습니다.`);
+        alert(`✅ ${data.recipients?.length || 0}건의 수신자 정보를 불러왔습니다.`);
       } else {
-        alert("엑셀 파일 업로드 실패");
+        alert(`❌ 업로드 실패\n\n${data.message || '알 수 없는 오류가 발생했습니다.'}`);
       }
     } catch (error) {
       console.error("엑셀 업로드 오류:", error);
-      alert("엑셀 파일 업로드 중 오류가 발생했습니다.");
+      alert("엑셀 파일 업로드 중 오류가 발생했습니다.\n\n파일 형식을 확인해주세요.");
     }
   };
 
@@ -1048,8 +1049,45 @@ export default function MessageSendPage() {
             </Card>
           </div>
 
-          {/* 우측: 발송 요약 */}
+          {/* 우측: 발송 요약 & 미리보기 */}
           <div className="space-y-6">
+            {/* 카카오톡 미리보기 */}
+            {messageType === "KAKAO" && (
+              <Card className="sticky top-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-yellow-600" />
+                    카카오톡 미리보기
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-gradient-to-b from-blue-100 to-blue-50 rounded-lg p-4">
+                    <div className="bg-white rounded-2xl shadow-md p-4 max-w-sm mx-auto">
+                      {/* 카카오톡 말풍선 */}
+                      <div className="space-y-2">
+                        {messageTitle && (
+                          <div className="font-bold text-sm text-gray-900 border-b pb-2">
+                            {messageTitle}
+                          </div>
+                        )}
+                        <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {messageContent || "메시지 내용을 입력하면 여기에 미리보기가 표시됩니다."}
+                        </div>
+                        <div className="text-xs text-gray-400 text-right mt-3">
+                          {new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-center mt-3">
+                      <span className="text-xs text-gray-600 bg-white px-3 py-1 rounded-full">
+                        💬 실제 발송 화면과 유사하게 표시됩니다
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="sticky top-6">
               <CardHeader>
                 <CardTitle>발송 요약</CardTitle>

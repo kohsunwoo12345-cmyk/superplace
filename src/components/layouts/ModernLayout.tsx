@@ -122,7 +122,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'kakao-channel', href: '/dashboard/kakao-channel', icon: MessageCircle, text: '카카오 채널 등록' },
           { id: 'point-charge', href: '/dashboard/point-charge', icon: CreditCard, text: '포인트 충전' },
           { id: 'ai-bots', href: '/dashboard/admin/ai-bots/assign', icon: Bot, text: 'AI 봇 할당' },
-          { id: 'sms', href: '/dashboard/admin/sms/send', icon: MessageSquare, text: '문자 발송' },
+          { id: 'sms', href: '/dashboard/message-send', icon: MessageSquare, text: '문자 발송' },
           { id: 'analytics', href: '/dashboard/analytics', icon: BarChart2, text: '통계' },
           { id: 'ai-chat', href: '/ai-chat', icon: MessageCircle, text: 'AI 도우미' },
           { id: 'settings', href: '/dashboard/settings', icon: Settings, text: '설정' },
