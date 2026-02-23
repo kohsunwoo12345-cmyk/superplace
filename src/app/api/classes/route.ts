@@ -1,7 +1,9 @@
-// Classes API - Public Access with In-Memory Storage
-// Supports full CRUD operations for demo purposes
+// Next.js API Route - Classes Management (Dev Environment)
+// Supports GET, POST, PUT, DELETE with in-memory storage
 
-// In-memory storage that persists across requests (Cloudflare Workers global scope)
+import { NextRequest, NextResponse } from 'next/server';
+
+// In-memory storage for development
 let CLASSES_STORE = [
   {
     id: '1',
@@ -99,35 +101,32 @@ let CLASSES_STORE = [
   },
 ];
 
-// Helper function to create JSON response
-function jsonResponse(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
+// GET - 클래스 목록 조회
+export async function GET(request: NextRequest) {
+  console.log('📚 [DEV CLASSES API] GET - Fetching all classes');
+  console.log(`📊 [DEV CLASSES API] Total classes in store: ${CLASSES_STORE.length}`);
+
+  return NextResponse.json(
+    {
+      success: true,
+      classes: CLASSES_STORE,
+      total: CLASSES_STORE.length,
+      message: 'Classes loaded successfully (dev mode)',
     },
-  });
+    {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    }
+  );
 }
 
-// GET - Fetch all classes
-export async function onRequestGet(context) {
-  console.log('📚 [PRODUCTION CLASSES API] GET - Fetching all classes');
-  console.log(`📊 [PRODUCTION CLASSES API] Total classes: ${CLASSES_STORE.length}`);
-
-  return jsonResponse({
-    success: true,
-    classes: CLASSES_STORE,
-    total: CLASSES_STORE.length,
-    message: 'Classes loaded successfully (production mode)',
-  });
-}
-
-// POST - Create new class
-export async function onRequestPost(context) {
+// POST - 새 클래스 생성
+export async function POST(request: NextRequest) {
   try {
-    const body = await context.request.json();
-    console.log('➕ [PRODUCTION CLASSES API] POST - Creating new class:', body.name);
+    const body = await request.json();
+    console.log('➕ [DEV CLASSES API] POST - Creating new class:', body);
 
     const newClass = {
       id: String(Date.now()),
@@ -140,47 +139,47 @@ export async function onRequestPost(context) {
 
     CLASSES_STORE.push(newClass);
 
-    console.log(`✅ [PRODUCTION CLASSES API] Class created: ${newClass.id}`);
-    console.log(`📊 [PRODUCTION CLASSES API] Total classes: ${CLASSES_STORE.length}`);
+    console.log('✅ [DEV CLASSES API] Class created:', newClass.id);
+    console.log(`📊 [DEV CLASSES API] Total classes: ${CLASSES_STORE.length}`);
 
-    return jsonResponse(
+    return NextResponse.json(
       {
         success: true,
         class: newClass,
         message: '클래스가 생성되었습니다',
       },
-      201
+      { status: 201 }
     );
   } catch (error) {
-    console.error('❌ [PRODUCTION CLASSES API] POST error:', error);
-    return jsonResponse(
+    console.error('❌ [DEV CLASSES API] POST error:', error);
+    return NextResponse.json(
       {
         success: false,
         message: '클래스 생성 실패',
       },
-      500
+      { status: 500 }
     );
   }
 }
 
-// PUT - Update class
-export async function onRequestPut(context) {
+// PUT - 클래스 수정
+export async function PUT(request: NextRequest) {
   try {
-    const body = await context.request.json();
+    const body = await request.json();
     const { id, ...updates } = body;
 
-    console.log(`✏️ [PRODUCTION CLASSES API] PUT - Updating class ${id}`);
+    console.log(`✏️ [DEV CLASSES API] PUT - Updating class ${id}:`, updates);
 
     const index = CLASSES_STORE.findIndex(c => c.id === id);
 
     if (index === -1) {
-      console.log(`❌ [PRODUCTION CLASSES API] Class not found: ${id}`);
-      return jsonResponse(
+      console.log(`❌ [DEV CLASSES API] Class not found: ${id}`);
+      return NextResponse.json(
         {
           success: false,
           message: '클래스를 찾을 수 없습니다',
         },
-        404
+        { status: 404 }
       );
     }
 
@@ -191,40 +190,43 @@ export async function onRequestPut(context) {
       id, // Keep original ID
     };
 
-    console.log(`✅ [PRODUCTION CLASSES API] Class updated: ${id}`);
+    console.log('✅ [DEV CLASSES API] Class updated:', id);
 
-    return jsonResponse({
-      success: true,
-      class: CLASSES_STORE[index],
-      message: '클래스가 수정되었습니다',
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        class: CLASSES_STORE[index],
+        message: '클래스가 수정되었습니다',
+      },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error('❌ [PRODUCTION CLASSES API] PUT error:', error);
-    return jsonResponse(
+    console.error('❌ [DEV CLASSES API] PUT error:', error);
+    return NextResponse.json(
       {
         success: false,
         message: '클래스 수정 실패',
       },
-      500
+      { status: 500 }
     );
   }
 }
 
-// DELETE - Delete class
-export async function onRequestDelete(context) {
+// DELETE - 클래스 삭제
+export async function DELETE(request: NextRequest) {
   try {
-    const url = new URL(context.request.url);
-    const classId = url.searchParams.get('id');
+    const { searchParams } = new URL(request.url);
+    const classId = searchParams.get('id');
 
-    console.log(`🗑️ [PRODUCTION CLASSES API] DELETE - Deleting class: ${classId}`);
+    console.log(`🗑️ [DEV CLASSES API] DELETE - Deleting class: ${classId}`);
 
     if (!classId) {
-      return jsonResponse(
+      return NextResponse.json(
         {
           success: false,
           message: '클래스 ID가 필요합니다',
         },
-        400
+        { status: 400 }
       );
     }
 
@@ -233,32 +235,35 @@ export async function onRequestDelete(context) {
     const deleted = CLASSES_STORE.length < initialLength;
 
     if (!deleted) {
-      console.log(`❌ [PRODUCTION CLASSES API] Class not found: ${classId}`);
-      return jsonResponse(
+      console.log(`❌ [DEV CLASSES API] Class not found: ${classId}`);
+      return NextResponse.json(
         {
           success: false,
           message: '클래스를 찾을 수 없습니다',
         },
-        404
+        { status: 404 }
       );
     }
 
-    console.log(`✅ [PRODUCTION CLASSES API] Class deleted: ${classId}`);
-    console.log(`📊 [PRODUCTION CLASSES API] Remaining classes: ${CLASSES_STORE.length}`);
+    console.log(`✅ [DEV CLASSES API] Class deleted: ${classId}`);
+    console.log(`📊 [DEV CLASSES API] Remaining classes: ${CLASSES_STORE.length}`);
 
-    return jsonResponse({
-      success: true,
-      message: '클래스가 삭제되었습니다',
-      remainingClasses: CLASSES_STORE.length,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: '클래스가 삭제되었습니다',
+        remainingClasses: CLASSES_STORE.length,
+      },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error('❌ [PRODUCTION CLASSES API] DELETE error:', error);
-    return jsonResponse(
+    console.error('❌ [DEV CLASSES API] DELETE error:', error);
+    return NextResponse.json(
       {
         success: false,
         message: '클래스 삭제 실패',
       },
-      500
+      { status: 500 }
     );
   }
 }
