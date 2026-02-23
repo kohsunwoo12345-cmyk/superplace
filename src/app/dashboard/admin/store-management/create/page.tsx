@@ -37,6 +37,7 @@ export default function CreateStoreProductPage() {
     price: number | string;
     monthlyPrice: number | string;
     yearlyPrice: number | string;
+    pricePerStudent: number | string;      // 🆕 학생당 월 가격
     features: string;
     detailHtml: string;
     imageUrl: string;
@@ -54,6 +55,7 @@ export default function CreateStoreProductPage() {
     price: "",
     monthlyPrice: "",
     yearlyPrice: "",
+    pricePerStudent: "",                   // 🆕 학생당 월 가격 초기값
     features: "",
     detailHtml: "",
     imageUrl: "",
@@ -130,6 +132,7 @@ export default function CreateStoreProductPage() {
         price: formData.price === "" ? 0 : Number(formData.price),
         monthlyPrice: formData.monthlyPrice === "" ? 0 : Number(formData.monthlyPrice),
         yearlyPrice: formData.yearlyPrice === "" ? 0 : Number(formData.yearlyPrice),
+        pricePerStudent: formData.pricePerStudent === "" ? 0 : Number(formData.pricePerStudent), // 🆕
         displayOrder: formData.displayOrder === "" ? 0 : Number(formData.displayOrder),
         features: formData.features ? formData.features.split("\n").filter((f) => f.trim()) : [],
         createdById: user?.id || "admin",
@@ -244,9 +247,18 @@ export default function CreateStoreProductPage() {
                 </p>
 
                 {/* 가격 정보 */}
-                <div className="flex gap-6 mb-6">
+                <div className="flex gap-6 mb-6 flex-wrap">
+                  {Number(formData.pricePerStudent) > 0 && (
+                    <div className="bg-green-50 p-4 rounded-lg flex-1 min-w-[200px]">
+                      <p className="text-sm text-gray-600 mb-1">학생당 월 가격</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {Number(formData.pricePerStudent).toLocaleString()}원
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">학생 × 개월 수로 계산</p>
+                    </div>
+                  )}
                   {Number(formData.monthlyPrice) > 0 && (
-                    <div className="bg-blue-50 p-4 rounded-lg flex-1">
+                    <div className="bg-blue-50 p-4 rounded-lg flex-1 min-w-[200px]">
                       <p className="text-sm text-gray-600 mb-1">월간 구독</p>
                       <p className="text-2xl font-bold text-blue-600">
                         {Number(formData.monthlyPrice).toLocaleString()}원
@@ -254,7 +266,7 @@ export default function CreateStoreProductPage() {
                     </div>
                   )}
                   {Number(formData.yearlyPrice) > 0 && (
-                    <div className="bg-purple-50 p-4 rounded-lg flex-1">
+                    <div className="bg-purple-50 p-4 rounded-lg flex-1 min-w-[200px]">
                       <p className="text-sm text-gray-600 mb-1">연간 구독</p>
                       <p className="text-2xl font-bold text-purple-600">
                         {Number(formData.yearlyPrice).toLocaleString()}원
@@ -465,7 +477,7 @@ export default function CreateStoreProductPage() {
               <CardDescription>구독 기간별 가격을 설정하세요</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">기본 가격</label>
                   <input
@@ -478,6 +490,26 @@ export default function CreateStoreProductPage() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    🆕 학생당 월 가격 (원)
+                    <span className="text-xs text-gray-500 ml-2">예: 990</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="pricePerStudent"
+                    value={formData.pricePerStudent}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="990"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    학원장이 구매 시: 학생 수 × 개월 수 × 이 금액
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">월간 가격 (1개월)</label>
                   <input
