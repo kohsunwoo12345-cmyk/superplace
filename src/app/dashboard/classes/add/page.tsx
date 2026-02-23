@@ -100,7 +100,28 @@ export default function AddClassPage() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    let storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("token");
+    
+    // 개발 환경: 토큰이 없으면 기본 테스트 토큰 설정
+    if (!storedUser && !storedToken) {
+      console.log('⚠️ 개발 모드: 기본 테스트 사용자 설정');
+      const testUser = {
+        id: '1',
+        email: 'director@test.com',
+        name: '테스트 학원장',
+        role: 'DIRECTOR',
+        academy_id: '1',
+        academyId: '1',
+        academyName: '테스트 학원',
+        token: `1|director@test.com|DIRECTOR|1|${Date.now()}`,
+      };
+      localStorage.setItem('user', JSON.stringify(testUser));
+      localStorage.setItem('token', testUser.token);
+      storedUser = JSON.stringify(testUser);
+      console.log('✅ 테스트 사용자 설정 완료:', testUser.email);
+    }
+    
     if (!storedUser) {
       router.push("/login");
       return;
