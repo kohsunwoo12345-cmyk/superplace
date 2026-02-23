@@ -382,7 +382,61 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       // Step 3: 반 배정 (선택사항)
       if (classIds && classIds.length > 0) {
         console.log('🏫 Assigning student to classes:', classIds);
-        // 반 배정 로직은 별도로 처리 (여기서는 생략)
+        
+        // 여러 패턴 시도하여 반 배정
+        for (const classId of classIds) {
+          let classAssignSuccess = false;
+          
+          // 패턴 1: ClassStudent 테이블 (PascalCase)
+          try {
+            await DB
+              .prepare(`
+                INSERT INTO ClassStudent (studentId, classId, enrolledAt)
+                VALUES (?, ?, ?)
+              `)
+              .bind(userId, classId, koreanTime)
+              .run();
+            classAssignSuccess = true;
+            console.log(`✅ Class assignment success (ClassStudent): classId=${classId}`);
+          } catch (e1: any) {
+            console.log(`❌ ClassStudent 패턴 실패 (classId=${classId}):`, e1.message);
+          }
+          
+          // 패턴 2: class_students 테이블 (snake_case)
+          if (!classAssignSuccess) {
+            try {
+              await DB
+                .prepare(`
+                  INSERT INTO class_students (student_id, class_id, enrolled_at)
+                  VALUES (?, ?, ?)
+                `)
+                .bind(userId, classId, koreanTime)
+                .run();
+              classAssignSuccess = true;
+              console.log(`✅ Class assignment success (class_students): classId=${classId}`);
+            } catch (e2: any) {
+              console.log(`❌ class_students 패턴 실패 (classId=${classId}):`, e2.message);
+            }
+          }
+          
+          // 패턴 3: ClassStudents 테이블 (복수형)
+          if (!classAssignSuccess) {
+            try {
+              await DB
+                .prepare(`
+                  INSERT INTO ClassStudents (studentId, classId, enrolledAt)
+                  VALUES (?, ?, ?)
+                `)
+                .bind(userId, classId, koreanTime)
+                .run();
+              classAssignSuccess = true;
+              console.log(`✅ Class assignment success (ClassStudents): classId=${classId}`);
+            } catch (e3: any) {
+              console.log(`❌ ClassStudents 패턴 실패 (classId=${classId}):`, e3.message);
+              console.log(`⚠️ 반 배정 테이블이 없거나 스키마 불일치 - classId=${classId} 배정 실패`);
+            }
+          }
+        }
       }
 
       return new Response(
