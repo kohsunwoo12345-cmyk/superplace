@@ -50,7 +50,9 @@ export default function KakaoChannelRegisterPage() {
   // 폼 데이터
   const [phoneNumber, setPhoneNumber] = useState('');
   const [channelName, setChannelName] = useState('');
+  const [searchChannelId, setSearchChannelId] = useState(''); // 검색용 카카오 채널 ID
   const [businessNumber, setBusinessNumber] = useState('');
+  const [businessFile, setBusinessFile] = useState<File | null>(null); // 사업자등록증
 
   // 상태
   const [loading, setLoading] = useState(false);
@@ -207,7 +209,7 @@ export default function KakaoChannelRegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!phoneNumber || !channelName || !selectedSub) {
+    if (!phoneNumber || !channelName || !searchChannelId || !businessFile || !selectedSub) {
       alert('모든 필수 항목을 입력해주세요.');
       return;
     }
@@ -218,21 +220,34 @@ export default function KakaoChannelRegisterPage() {
       return;
     }
 
+    // 파일 크기 체크 (5MB)
+    if (businessFile.size > 5 * 1024 * 1024) {
+      alert('사업자등록증 파일은 최대 5MB까지 업로드 가능합니다.');
+      return;
+    }
+
     try {
       setLoading(true);
 
+      // FormData로 파일과 함께 전송
+      const formData = new FormData();
+      formData.append('phoneNumber', phoneNumber.replace(/-/g, ''));
+      formData.append('channelName', channelName);
+      formData.append('searchChannelId', searchChannelId);
+      formData.append('businessNumber', businessNumber.replace(/-/g, ''));
+      formData.append('categoryCode', selectedSub);
+      formData.append('mainCategory', selectedMain);
+      formData.append('middleCategory', selectedMiddle);
+      formData.append('subCategory', selectedSub);
+      formData.append('businessFile', businessFile);
+
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/kakao/channels/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phoneNumber: phoneNumber.replace(/-/g, ''),
-          channelName,
-          businessNumber: businessNumber.replace(/-/g, ''),
-          categoryCode: selectedSub,
-          mainCategory: selectedMain,
-          middleCategory: selectedMiddle,
-          subCategory: selectedSub
-        })
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
       });
 
       if (!response.ok) {
@@ -244,10 +259,16 @@ export default function KakaoChannelRegisterPage() {
       
       setPhoneNumber('');
       setChannelName('');
+      setSearchChannelId('');
       setBusinessNumber('');
+      setBusinessFile(null);
       setSelectedMain('');
       setSelectedMiddle('');
       setSelectedSub('');
+      
+      // 파일 input 초기화
+      const fileInput = document.getElementById('businessFile') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
       
       fetchMyChannels();
     } catch (error: any) {
@@ -368,6 +389,25 @@ export default function KakaoChannelRegisterPage() {
                     />
                   </div>
 
+                  {/* 검색용 카카오 채널 ID */}
+                  <div className="space-y-2">
+                    <Label htmlFor="searchChannelId" className="flex items-center gap-2 text-base font-semibold">
+                      <MessageCircle className="w-4 h-4 text-yellow-600" />
+                      검색용 카카오 채널 ID <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="searchChannelId"
+                      value={searchChannelId}
+                      onChange={(e) => setSearchChannelId(e.target.value)}
+                      placeholder="예: @superplacestudy"
+                      required
+                      className="h-12 text-lg"
+                    />
+                    <p className="text-sm text-gray-500">
+                      카카오톡에서 검색할 때 사용되는 채널 ID (@로 시작)
+                    </p>
+                  </div>
+
                   {/* 사업자등록번호 */}
                   <div className="space-y-2">
                     <Label htmlFor="businessNumber" className="flex items-center gap-2 text-base font-semibold">
@@ -381,6 +421,31 @@ export default function KakaoChannelRegisterPage() {
                       placeholder="123-45-67890"
                       className="h-12 text-lg"
                     />
+                  </div>
+
+                  {/* 사업자등록증 첨부 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="businessFile" className="flex items-center gap-2 text-base font-semibold">
+                      <Building2 className="w-4 h-4 text-purple-600" />
+                      사업자등록증 첨부 <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="businessFile"
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={(e) => setBusinessFile(e.target.files?.[0] || null)}
+                      required
+                      className="h-12 text-lg"
+                    />
+                    <p className="text-sm text-gray-500">
+                      사업자등록증 이미지 또는 PDF 파일 (최대 5MB)
+                    </p>
+                    {businessFile && (
+                      <div className="flex items-center gap-2 text-sm text-green-600">
+                        <CheckCircle className="w-4 h-4" />
+                        {businessFile.name} ({(businessFile.size / 1024 / 1024).toFixed(2)}MB)
+                      </div>
+                    )}
                   </div>
                 </form>
               </CardContent>
@@ -429,7 +494,6 @@ export default function KakaoChannelRegisterPage() {
                             `}
                           >
                             <div className="font-semibold text-gray-900">{cat.name}</div>
-                            <div className="text-xs text-gray-500 mt-1">{cat.code}</div>
                           </button>
                         ))}
                       </div>
@@ -464,7 +528,6 @@ export default function KakaoChannelRegisterPage() {
                                 }
                               `}
                             >
-                              <div className="font-semibold text-gray-900">{cat.name}</div>
                               <div className="text-xs text-gray-500 mt-1">{cat.code}</div>
                             </button>
                           ))}
@@ -501,7 +564,6 @@ export default function KakaoChannelRegisterPage() {
                                 }
                               `}
                             >
-                              <div className="font-semibold text-gray-900">{cat.name}</div>
                               <div className="text-xs text-gray-500 mt-1">{cat.code}</div>
                             </button>
                           ))}

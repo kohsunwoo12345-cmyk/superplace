@@ -181,6 +181,69 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
+      {/* 승인 대기 알림 */}
+      <div>
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <AlertCircle className="h-6 w-6 text-yellow-600" />
+          승인 대기
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* 카카오 채널 승인 */}
+          <Card className="border-2 border-yellow-200 hover:shadow-lg transition-shadow cursor-pointer bg-yellow-50"
+                onClick={() => router.push("/dashboard/admin/kakao-approvals")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-yellow-900">
+                <MessageSquare className="h-5 w-5 text-yellow-600" />
+                카카오 채널 신청
+                {stats?.pendingKakaoChannels > 0 && (
+                  <span className="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                    {stats.pendingKakaoChannels}
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription className="text-yellow-700">
+                승인 대기 중인 카카오 채널 신청
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">
+                {stats?.pendingKakaoChannels || 0}건
+              </div>
+              <Button className="w-full mt-3 bg-yellow-600 hover:bg-yellow-700 text-white">
+                승인 관리
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* 포인트 충전 승인 */}
+          <Card className="border-2 border-green-200 hover:shadow-lg transition-shadow cursor-pointer bg-green-50"
+                onClick={() => router.push("/dashboard/admin/point-approvals")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-900">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                포인트 충전 승인
+                {stats?.pendingPointApprovals > 0 && (
+                  <span className="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                    {stats.pendingPointApprovals}
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription className="text-green-700">
+                승인 대기 중인 포인트 충전 신청
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {stats?.pendingPointApprovals || 0}건
+              </div>
+              <Button className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white">
+                승인 관리
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
       {/* 빠른 액세스 메뉴 */}
       <div>
         <h2 className="text-xl font-bold mb-4">빠른 액세스</h2>
