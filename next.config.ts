@@ -1,8 +1,11 @@
 import type { NextConfig } from 'next';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 const nextConfig: NextConfig = {
-  output: 'export', // ✅ Enabled for production - API handled by Cloudflare Functions
-  trailingSlash: true,
+  // 개발 환경에서는 비활성화, 프로덕션에서만 활성화
+  ...(isProduction && { output: 'export' }),
+  ...(isProduction && { trailingSlash: true }),
   images: {
     unoptimized: true,
   },
