@@ -64,14 +64,28 @@ export default function ClassesPage() {
       
       console.log('📚 클래스 목록 로드 중...');
 
-      // 인증 헤더 없이 API 호출 (누구나 접근 가능)
+      // 토큰 가져오기
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const token = user?.token || localStorage.getItem("token");
+      
+      const headers: any = {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      };
+      
+      // 토큰이 있으면 Authorization 헤더 추가
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        console.log('🔐 Using authentication token for academy-specific data');
+      } else {
+        console.log('⚠️ No token found, will load demo data');
+      }
+
       const cacheBuster = `?_t=${Date.now()}`;
       const response = await fetch(`/api/classes${cacheBuster}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
+        headers: headers
       });
       
       console.log('📡 API Response status:', response.status);
@@ -110,8 +124,23 @@ export default function ClassesPage() {
     }
 
     try {
+      // 토큰 가져오기
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const token = user?.token || localStorage.getItem("token");
+      
+      const headers: any = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`/api/classes?id=${classId}`, {
         method: 'DELETE',
+        headers: headers
+      });
         headers: {
           'Content-Type': 'application/json'
         }

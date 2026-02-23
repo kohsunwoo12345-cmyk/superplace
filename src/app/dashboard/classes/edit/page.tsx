@@ -109,8 +109,23 @@ export default function ClassEditPage() {
       
       console.log('📚 Loading class data for ID:', id);
       
+      // 토큰 가져오기
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const token = user?.token || localStorage.getItem("token");
+      
+      const headers: any = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       // 전체 클래스 목록 가져오기
-      const response = await fetch('/api/classes');
+      const response = await fetch('/api/classes', {
+        headers: headers
+      });
       
       if (!response.ok) throw new Error("Failed to load classes");
       
@@ -380,9 +395,22 @@ export default function ClassEditPage() {
         }
       }));
 
+      // 토큰 가져오기
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const token = user?.token || localStorage.getItem("token");
+      
+      const headers: any = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`/api/classes`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: headers,
         body: JSON.stringify({
           id: classId,
           name: name.trim(),
@@ -416,8 +444,20 @@ export default function ClassEditPage() {
     if (!confirm("정말로 이 반을 삭제하시겠습니까?")) return;
 
     try {
+      // 토큰 가져오기
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const token = user?.token || localStorage.getItem("token");
+      
+      const headers: any = {};
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`/api/classes?id=${classId}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: headers
       });
 
       if (!response.ok) throw new Error("Failed to delete class");
