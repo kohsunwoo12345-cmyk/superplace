@@ -107,58 +107,80 @@ export default function ClassEditPage() {
     try {
       setLoading(true);
       
-      const response = await fetch(
-        `/api/classes/manage?userId=${userData.id}&role=${userData.role}&academyId=${userData.academyId}`
-      );
+      console.log('📚 Loading class data for ID:', id);
       
-      if (!response.ok) throw new Error("Failed to load class");
+      // 전체 클래스 목록 가져오기
+      const response = await fetch('/api/classes');
+      
+      if (!response.ok) throw new Error("Failed to load classes");
       
       const data = await response.json();
-      const classData = data.classes?.find((c: any) => c.id === id);
+      console.log('✅ Classes loaded:', data.classes?.length);
+      
+      // ID가 문자열인지 숫자인지 확인하고 비교
+      const classData = data.classes?.find((c: any) => 
+        String(c.id) === String(id)
+      );
       
       if (!classData) {
+        console.error('❌ Class not found. ID:', id);
+        console.log('Available class IDs:', data.classes?.map((c: any) => c.id));
         alert("클래스를 찾을 수 없습니다");
         router.push("/dashboard/classes");
         return;
       }
+      
+      console.log('✅ Class found:', classData.name);
       
       setName(classData.name || "");
       setGrade(classData.grade || "");
       setDescription(classData.description || "");
       setColor(classData.color || "#3B82F6");
       
-      // 스케줄 파싱
-      if (classData.daySchedule) {
-        try {
-          const parsed = JSON.parse(classData.daySchedule);
-          setSchedules(parsed.map((s: any, idx: number) => ({
-            id: `schedule-${idx}`,
-            dayOfWeek: Array.isArray(s.dayOfWeek) ? s.dayOfWeek : [s.dayOfWeek],
-            startTime: s.startTime || "",
-            endTime: s.endTime || "",
-            subject: s.subject || "",
-            room: s.room || ""
-          })));
-        } catch (e) {
-          console.error("Failed to parse schedule:", e);
-        }
-      } else if (classData.scheduleDays) {
-        try {
-          const days = JSON.parse(classData.scheduleDays);
-          setSchedules([{
-            id: "schedule-0",
-            dayOfWeek: days,
-            startTime: classData.startTime || "",
-            endTime: classData.endTime || "",
-            subject: "",
-            room: ""
-          }]);
-        } catch (e) {
-          console.error("Failed to parse legacy schedule:", e);
-        }
+      // 스케줄 파싱 - API에서 받은 형식 그대로 사용
+      if (classData.schedules && Array.isArray(classData.schedules)) {
+        console.log('📅 Parsing schedules:', classData.schedules.length);
+        
+        // 요일별로 그룹화
+        const schedulesByTime = new Map<string, Schedule>();
+        
+        classData.schedules.forEach((s: any, idx: number) => {
+          const timeKey = `${s.startTime}-${s.endTime}-${s.subject || ''}`;
+          
+          if (schedulesByTime.has(timeKey)) {
+            // 같은 시간대에 다른 요일 추가
+            const existing = schedulesByTime.get(timeKey)!;
+            if (!existing.dayOfWeek.includes(s.dayOfWeek)) {
+              existing.dayOfWeek.push(s.dayOfWeek);
+            }
+          } else {
+            // 새 스케줄 생성
+            schedulesByTime.set(timeKey, {
+              id: `schedule-${idx}`,
+              dayOfWeek: [s.dayOfWeek],
+              startTime: s.startTime || "",
+              endTime: s.endTime || "",
+              subject: s.subject || "",
+              room: ""
+            });
+          }
+        });
+        
+        setSchedules(Array.from(schedulesByTime.values()));
       }
       
-      loadAssignedStudents(id);
+      // 학생 정보 로드
+      if (classData.students && Array.isArray(classData.students)) {
+        console.log('👥 Loading students:', classData.students.length);
+        const students = classData.students.map((s: any) => ({
+          id: Number(s.student?.id || s.id),
+          name: s.student?.name || '',
+          email: s.student?.email || '',
+          phone: '',
+          academyId: userData.academyId
+        }));
+        setAssignedStudents(students);
+      }
       
     } catch (error) {
       console.error("Failed to load class:", error);
@@ -335,21 +357,42 @@ export default function ClassEditPage() {
     setSaving(true);
 
     try {
-      const response = await fetch(`/api/classes/${classId}`, {
+      // API가 기대하는 형식으로 스케줄 변환
+      const formattedSchedules = schedules.flatMap((s, index) => 
+        s.dayOfWeek.map((day, dayIndex) => ({
+          id: `${index + 1}-${dayIndex + 1}`,
+          subject: s.subject || '수업',
+          dayOfWeek: day,
+          startTime: s.startTime,
+          endTime: s.endTime,
+        }))
+      );
+
+      // API가 기대하는 형식으로 학생 변환
+      const formattedStudents = assignedStudents.map((student, index) => ({
+        id: String(index + 1),
+        student: {
+          id: String(student.id),
+          name: student.name,
+          email: student.email,
+          studentCode: '',
+          grade: grade.trim() || '',
+        }
+      }));
+
+      const response = await fetch(`/api/classes`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: classId,
           name: name.trim(),
           grade: grade.trim() || null,
           description: description.trim() || null,
           color: color,
-          schedules: schedules.map(s => ({
-            dayOfWeek: s.dayOfWeek,
-            startTime: s.startTime,
-            endTime: s.endTime,
-            subject: s.subject || null,
-            room: s.room || null
-          }))
+          capacity: 30,
+          isActive: true,
+          students: formattedStudents,
+          schedules: formattedSchedules,
         })
       });
 
@@ -373,7 +416,7 @@ export default function ClassEditPage() {
     if (!confirm("정말로 이 반을 삭제하시겠습니까?")) return;
 
     try {
-      const response = await fetch(`/api/classes/${classId}`, {
+      const response = await fetch(`/api/classes?id=${classId}`, {
         method: "DELETE"
       });
 
