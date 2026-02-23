@@ -274,21 +274,44 @@ export default function AddClassPage() {
         }))
       );
 
+      // 스케줄 배열을 API가 기대하는 형식으로 변환
+      const formattedSchedules = flattenedSchedules.map((s, index) => ({
+        id: String(index + 1),
+        subject: s.subject || '수업',
+        dayOfWeek: s.dayOfWeek,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      }));
+
+      // 선택된 학생들을 API가 기대하는 형식으로 변환
+      const formattedStudents = Array.from(selectedStudentIds).map((studentId, index) => {
+        const student = students.find(s => s.id === studentId);
+        return {
+          id: String(index + 1),
+          student: {
+            id: studentId,
+            name: student?.name || '',
+            email: student?.email || '',
+            studentCode: student?.studentCode || '',
+            grade: student?.grade || '',
+          }
+        };
+      });
+
       const payload = {
-        academyId: effectiveAcademyId,
         name: name.trim(),
-        grade: grade && grade.trim() ? grade.trim() : null, // 학년 선택 사항
-        subject: subject.trim() || null,
+        grade: grade && grade.trim() ? grade.trim() : null,
         description: description.trim() || null,
-        teacherId: user.id,
         color: color,
-        schedules: flattenedSchedules,
-        studentIds: Array.from(selectedStudentIds),
+        capacity: 30, // 기본 정원
+        isActive: true,
+        students: formattedStudents,
+        schedules: formattedSchedules,
       };
 
       console.log('📝 Creating class:', payload);
 
-      const response = await fetch("/api/classes/create-new", {
+      const response = await fetch("/api/classes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
