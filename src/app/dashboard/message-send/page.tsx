@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -87,17 +86,9 @@ interface UserInfo {
   points: number;
 }
 
-interface KakaoChannel {
-  channelId: string;
-  phoneNumber: string;
-  channelName: string;
-  status: string;
-}
-
 const SMS_COST = 20; // 20 포인트/건
-const KAKAO_COST = 15; // 15 포인트/건
 
-// 메시지 발송 페이지 - SMS 및 카카오톡 통합 발송
+// 메시지 발송 페이지 - SMS 전용 발송
 export default function MessageSendPage() {
   const router = useRouter();
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -105,13 +96,9 @@ export default function MessageSendPage() {
   const [sending, setSending] = useState(false);
 
   // 메시지 설정
-  const [messageType, setMessageType] = useState<"SMS" | "KAKAO">("SMS");
   const [senderNumber, setSenderNumber] = useState("");
-  const [selectedKakaoChannel, setSelectedKakaoChannel] = useState("");
-  const [messageTitle, setMessageTitle] = useState("");
   const [messageContent, setMessageContent] = useState("");
   const [senderNumbers, setSenderNumbers] = useState<string[]>([]);
-  const [kakaoChannels, setKakaoChannels] = useState<KakaoChannel[]>([]);
 
   // 수신자 설정
   const [recipientMode, setRecipientMode] = useState<"manual" | "students" | "excel">("students");
@@ -197,19 +184,6 @@ export default function MessageSendPage() {
         setTemplates(data.templates || []);
       }
 
-      // 카카오 채널 목록
-      const kakaoRes = await fetch("/api/kakao/channels/my", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (kakaoRes.ok) {
-        const data = await kakaoRes.json();
-        const approvedChannels = (data.channels || []).filter((ch: KakaoChannel) => ch.status === 'APPROVED');
-        setKakaoChannels(approvedChannels);
-        if (approvedChannels.length > 0) {
-          setSelectedKakaoChannel(approvedChannels[0].channelId);
-        }
-      }
-
       // 사용자 포인트 갱신
       const userRes = await fetch("/api/user/me", {
         headers: { Authorization: `Bearer ${token}` },
@@ -262,9 +236,6 @@ export default function MessageSendPage() {
     const template = templates.find((t) => t.id === templateId);
     if (template) {
       setMessageContent(template.content);
-      if (template.messageType === "KAKAO" && !messageTitle) {
-        setMessageTitle(template.name);
-      }
     }
   };
 
@@ -366,8 +337,7 @@ export default function MessageSendPage() {
 
   const calculateTotalCost = () => {
     const mappings = generateRecipientMappings();
-    const costPerMessage = messageType === "SMS" ? SMS_COST : KAKAO_COST;
-    return mappings.length * costPerMessage;
+    return mappings.length * SMS_COST;
   };
 
   const handlePreview = () => {
@@ -377,13 +347,8 @@ export default function MessageSendPage() {
   };
 
   const handleSend = async () => {
-    if (messageType === "SMS" && !senderNumber) {
+    if (!senderNumber) {
       alert("발신번호를 선택해주세요.");
-      return;
-    }
-
-    if (messageType === "KAKAO" && !selectedKakaoChannel) {
-      alert("카카오 채널을 선택해주세요.");
       return;
     }
 
@@ -406,7 +371,7 @@ export default function MessageSendPage() {
     }
 
     const confirmed = confirm(
-      `총 ${mappings.length}명에게 ${messageType} 발송\n` +
+      `총 ${mappings.length}명에게 SMS 발송\n` +
         `차감 포인트: ${totalCost}P\n` +
         `잔여 포인트: ${user.points - totalCost}P\n\n` +
         `발송하시겠습니까?`
@@ -425,10 +390,8 @@ export default function MessageSendPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messageType,
-          senderNumber: messageType === "SMS" ? senderNumber : null,
-          kakaoChannelId: messageType === "KAKAO" ? selectedKakaoChannel : null,
-          messageTitle,
+          messageType: "SMS",
+          senderNumber,
           messageContent,
           recipients: mappings,
           landingPageId: useLandingPage ? selectedLandingPageId : null,
@@ -518,10 +481,10 @@ export default function MessageSendPage() {
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Send className="h-8 w-8 text-teal-600" />
-              문자 / 카카오 발송
+              SMS 문자 발송
             </h1>
             <p className="text-gray-600 mt-1">
-              학부모에게 학생별 맞춤 메시지를 발송하세요
+              학부모에게 학생별 맞춤 SMS 메시지를 발송하세요
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -540,160 +503,45 @@ export default function MessageSendPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5" />
-                  발송 유형 선택
-                  {messageType === "SMS" && (
-                    <Badge variant="outline" className="ml-auto">
-                      📱 SMS 문자 선택됨
-                    </Badge>
-                  )}
-                  {messageType === "KAKAO" && (
-                    <Badge variant="outline" className="ml-auto bg-yellow-100 text-yellow-800 border-yellow-300">
-                      💬 카카오톡 선택됨
-                    </Badge>
-                  )}
+                  <Phone className="w-5 h-5" />
+                  SMS 문자 발송
+                  <Badge variant="outline" className="ml-auto">
+                    📱 {SMS_COST}P/건
+                  </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <RadioGroup
-                  value={messageType}
-                  onValueChange={(value) => setMessageType(value as "SMS" | "KAKAO")}
-                  className="grid grid-cols-2 gap-4"
-                >
-                  <Label
-                    htmlFor="sms"
-                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                      messageType === "SMS"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <RadioGroupItem value="SMS" id="sms" className="sr-only" />
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <Phone className="w-6 h-6 text-blue-600" />
-                        <Badge variant={messageType === "SMS" ? "default" : "outline"}>
-                          {SMS_COST}P/건
-                        </Badge>
-                      </div>
-                      <div>
-                        <div className="font-semibold text-lg">SMS 문자</div>
-                        <div className="text-sm text-gray-600">
-                          단문/장문 문자 발송
-                        </div>
-                      </div>
-                    </div>
-                  </Label>
-
-                  <Label
-                    htmlFor="kakao"
-                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                      messageType === "KAKAO"
-                        ? "border-yellow-500 bg-yellow-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <RadioGroupItem value="KAKAO" id="kakao" className="sr-only" />
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <MessageSquare className="w-6 h-6 text-yellow-600" />
-                        <Badge
-                          variant={messageType === "KAKAO" ? "default" : "outline"}
-                          className={messageType === "KAKAO" ? "bg-yellow-500" : ""}
-                        >
-                          {KAKAO_COST}P/건
-                        </Badge>
-                      </div>
-                      <div>
-                        <div className="font-semibold text-lg">카카오톡</div>
-                        <div className="text-sm text-gray-600">
-                          알림톡/친구톡 발송
-                        </div>
-                      </div>
-                    </div>
-                  </Label>
-                </RadioGroup>
-
-                {messageType === "SMS" && (
-                  <div className="space-y-2">
-                    <Label>발신번호</Label>
-                    <Select value={senderNumber} onValueChange={setSenderNumber}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="발신번호 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {senderNumbers.length === 0 ? (
-                          <SelectItem value="none" disabled>
-                            등록된 발신번호가 없습니다
+                <div className="space-y-2">
+                  <Label>발신번호</Label>
+                  <Select value={senderNumber} onValueChange={setSenderNumber}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="발신번호 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {senderNumbers.length === 0 ? (
+                        <SelectItem value="none" disabled>
+                          등록된 발신번호가 없습니다
+                        </SelectItem>
+                      ) : (
+                        senderNumbers.map((number) => (
+                          <SelectItem key={number} value={number}>
+                            {number}
                           </SelectItem>
-                        ) : (
-                          senderNumbers.map((number) => (
-                            <SelectItem key={number} value={number}>
-                              {number}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {senderNumbers.length === 0 && (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={() => router.push("/dashboard/sender-number-register")}
-                        className="p-0 h-auto"
-                      >
-                        발신번호 등록하기 →
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                {messageType === "KAKAO" && (
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold">카카오 채널 선택</Label>
-                    {kakaoChannels.length === 0 ? (
-                      <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg space-y-3">
-                        <div className="flex items-start gap-3">
-                          <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                          <div className="flex-1">
-                            <div className="font-semibold text-yellow-900 mb-1">
-                              등록된 카카오 채널이 없습니다
-                            </div>
-                            <div className="text-sm text-yellow-800 mb-2">
-                              카카오톡으로 메시지를 발송하려면 먼저 카카오 채널을 등록해야 합니다.
-                            </div>
-                            <Button
-                              onClick={() => router.push("/dashboard/kakao-channel")}
-                              className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                              size="sm"
-                            >
-                              <MessageCircle className="w-4 h-4 mr-2" />
-                              카카오 채널 등록하러 가기
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <Select value={selectedKakaoChannel} onValueChange={setSelectedKakaoChannel}>
-                          <SelectTrigger className="border-yellow-300 focus:border-yellow-500">
-                            <SelectValue placeholder="카카오 채널 선택" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {kakaoChannels.map((channel) => (
-                              <SelectItem key={channel.channelId} value={channel.channelId}>
-                                💬 {channel.channelName} ({channel.phoneNumber})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                          💡 승인 완료된 카카오 채널만 표시됩니다. 검수는 보통 1-2일 소요됩니다.
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {senderNumbers.length === 0 && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => router.push("/dashboard/sender-number-register")}
+                      className="p-0 h-auto"
+                    >
+                      발신번호 등록하기 →
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -963,9 +811,7 @@ export default function MessageSendPage() {
                       <SelectValue placeholder="저장된 템플릿 불러오기" />
                     </SelectTrigger>
                     <SelectContent>
-                      {templates
-                        .filter((t) => t.messageType === messageType)
-                        .map((template) => (
+                      {templates.map((template) => (
                           <SelectItem key={template.id} value={template.id}>
                             {template.name}
                           </SelectItem>
@@ -973,17 +819,6 @@ export default function MessageSendPage() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                {messageType === "KAKAO" && (
-                  <div className="space-y-2">
-                    <Label>메시지 제목</Label>
-                    <Input
-                      placeholder="카카오톡 메시지 제목"
-                      value={messageTitle}
-                      onChange={(e) => setMessageTitle(e.target.value)}
-                    />
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -998,11 +833,7 @@ export default function MessageSendPage() {
                     </span>
                   </div>
                   <Textarea
-                    placeholder={
-                      messageType === "SMS"
-                        ? "문자 메시지 내용을 입력하세요"
-                        : "카카오톡 메시지 내용을 입력하세요"
-                    }
+                    placeholder="문자 메시지 내용을 입력하세요"
                     value={messageContent}
                     onChange={(e) => setMessageContent(e.target.value)}
                     rows={8}
@@ -1049,45 +880,8 @@ export default function MessageSendPage() {
             </Card>
           </div>
 
-          {/* 우측: 발송 요약 & 미리보기 */}
+          {/* 우측: 발송 요약 */}
           <div className="space-y-6">
-            {/* 카카오톡 미리보기 */}
-            {messageType === "KAKAO" && (
-              <Card className="sticky top-6">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-yellow-600" />
-                    카카오톡 미리보기
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-gradient-to-b from-blue-100 to-blue-50 rounded-lg p-4">
-                    <div className="bg-white rounded-2xl shadow-md p-4 max-w-sm mx-auto">
-                      {/* 카카오톡 말풍선 */}
-                      <div className="space-y-2">
-                        {messageTitle && (
-                          <div className="font-bold text-sm text-gray-900 border-b pb-2">
-                            {messageTitle}
-                          </div>
-                        )}
-                        <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                          {messageContent || "메시지 내용을 입력하면 여기에 미리보기가 표시됩니다."}
-                        </div>
-                        <div className="text-xs text-gray-400 text-right mt-3">
-                          {new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-center mt-3">
-                      <span className="text-xs text-gray-600 bg-white px-3 py-1 rounded-full">
-                        💬 실제 발송 화면과 유사하게 표시됩니다
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             <Card className="sticky top-6">
               <CardHeader>
                 <CardTitle>발송 요약</CardTitle>
@@ -1096,13 +890,8 @@ export default function MessageSendPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">발송 유형</span>
-                    <Badge
-                      variant={messageType === "SMS" ? "default" : "secondary"}
-                      className={
-                        messageType === "KAKAO" ? "bg-yellow-500 text-white" : ""
-                      }
-                    >
-                      {messageType}
+                    <Badge variant="default">
+                      SMS
                     </Badge>
                   </div>
 
@@ -1114,7 +903,7 @@ export default function MessageSendPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">메시지당 포인트</span>
                     <span className="font-semibold">
-                      {messageType === "SMS" ? SMS_COST : KAKAO_COST}P
+                      {SMS_COST}P
                     </span>
                   </div>
 
@@ -1216,9 +1005,6 @@ export default function MessageSendPage() {
                 <CardTitle className="text-sm">메시지 내용</CardTitle>
               </CardHeader>
               <CardContent>
-                {messageType === "KAKAO" && messageTitle && (
-                  <div className="font-semibold mb-2 text-lg">{messageTitle}</div>
-                )}
                 <div className="whitespace-pre-wrap bg-gray-50 p-4 rounded border">
                   {messageContent}
                 </div>

@@ -528,7 +528,7 @@ export default function KakaoChannelRegisterPage() {
                                 }
                               `}
                             >
-                              <div className="text-xs text-gray-500 mt-1">{cat.code}</div>
+                              <div className="font-semibold text-gray-900">{cat.name}</div>
                             </button>
                           ))}
                         </div>
@@ -564,7 +564,7 @@ export default function KakaoChannelRegisterPage() {
                                 }
                               `}
                             >
-                              <div className="text-xs text-gray-500 mt-1">{cat.code}</div>
+                              <div className="font-semibold text-gray-900">{cat.name}</div>
                             </button>
                           ))}
                         </div>
