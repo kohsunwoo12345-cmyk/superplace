@@ -218,15 +218,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       let usedPattern = '';
 
       // 패턴 1: users + academy_id (snake_case INTEGER - 실제 DB 스키마)
-      console.log('💾 Creating student - 패턴 1 시도: users + academy_id + academyId');
+      console.log('💾 Creating student - 패턴 1 시도: users + academy_id + academyId + school + grade');
       try {
         const userResult = await DB
           .prepare(`
             INSERT INTO users (
               email, phone, password, name, role, 
+              school, grade,
               academy_id, academyId, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `)
           .bind(
             finalEmail,
@@ -234,6 +235,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             hashedPassword,
             name || null,
             'STUDENT',
+            school || null,
+            grade || null,
             academyIdInt,
             academyIdText,
             koreanTime
@@ -250,15 +253,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
       // 패턴 2: User + academy_id (PascalCase 테이블 + snake_case 컬럼)
       if (!insertSuccess) {
-        console.log('💾 패턴 2 시도: User + academy_id');
+        console.log('💾 패턴 2 시도: User + academy_id + school + grade');
         try {
           const userResult = await DB
             .prepare(`
               INSERT INTO User (
                 email, phone, password, name, role, 
+                school, grade,
                 academy_id, created_at
               )
-              VALUES (?, ?, ?, ?, ?, ?, ?)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `)
             .bind(
               finalEmail,
@@ -266,6 +270,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
               hashedPassword,
               name || null,
               'STUDENT',
+              school || null,
+              grade || null,
               academyIdInt,
               koreanTime
             )
@@ -282,15 +288,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
       // 패턴 3: users + academyId (TEXT 타입 대비 - 문자열로 변환)
       if (!insertSuccess) {
-        console.log('💾 패턴 3 시도: users + academyId (TEXT)');
+        console.log('💾 패턴 3 시도: users + academyId (TEXT) + school + grade');
         try {
           const userResult = await DB
             .prepare(`
               INSERT INTO users (
                 email, phone, password, name, role, 
+                school, grade,
                 academyId, createdAt
               )
-              VALUES (?, ?, ?, ?, ?, ?, ?)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `)
             .bind(
               email || null,
@@ -298,6 +305,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
               hashedPassword,
               name || null,
               'STUDENT',
+              school || null,
+              grade || null,
               academyIdInt ? academyIdInt.toString() : null,
               koreanTime
             )
