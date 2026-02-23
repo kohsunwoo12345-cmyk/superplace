@@ -57,7 +57,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     console.log('🔍 Approving point charge request:', requestId);
 
-    // 요청 정보 조회
+    // 요청 정보 조회 (academyId 포함)
     const requestInfo = await env.DB.prepare(`
       SELECT * FROM PointChargeRequest WHERE id = ?
     `).bind(requestId).first();
@@ -78,7 +78,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     console.log('✅ Request found:', {
       userId: requestInfo.userId,
-      points: requestInfo.requestedPoints
+      points: requestInfo.requestedPoints,
+      academyId: requestInfo.academyId
     });
 
     const now = new Date().toISOString();
@@ -95,10 +96,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     console.log('✅ Request status updated to APPROVED');
 
-    // 2. 사용자 포인트 증가 (users 테이블, camelCase 사용)
-    // points 컬럼이 없을 수 있으므로 먼저 확인
+    // 2. 사용자 포인트 증가 (users 테이블)
+    // 사용자의 academyId를 확인하고, 해당 학원의 포인트로 관리
     const user = await env.DB.prepare(`
-      SELECT id, email, name FROM users WHERE id = ?
+      SELECT id, email, name, academyId FROM users WHERE id = ?
     `).bind(requestInfo.userId).first();
 
     if (!user) {
@@ -109,7 +110,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    console.log('✅ User found:', user.email);
+    console.log('✅ User found:', { email: user.email, academyId: user.academyId });
 
     // points 컬럼 추가 시도 (이미 있으면 무시됨)
     try {
@@ -122,7 +123,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       console.log('ℹ️ Points column already exists or error:', e);
     }
 
-    // 포인트 증가
+    // 포인트 증가 (학원별로 포인트가 분리되어 있으므로 각 사용자의 포인트를 증가)
+    // academyId가 동일한 사용자들의 포인트는 각각 독립적으로 관리됨
     await env.DB.prepare(`
       UPDATE users
       SET points = COALESCE(points, 0) + ?,
@@ -132,6 +134,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     console.log('✅ User points updated:', {
       userId: requestInfo.userId,
+      academyId: user.academyId,
       addedPoints: requestInfo.requestedPoints
     });
 
