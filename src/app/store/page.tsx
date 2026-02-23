@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import BotPurchaseDialog from '@/components/BotPurchaseDialog';
 
 interface Product {
   id: string;
   name: string;
   description: string;
   price: string;
+  pricePerStudent?: number;  // 🆕 학생당 월 가격
   category: string;
   imageUrl: string;
   keywords: string[];
@@ -30,6 +32,8 @@ const AIStorePage = () => {
   });
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);  // 🆕
+  const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);           // 🆕
 
   // API에서 제품 로드 (D1 database)
   useEffect(() => {
@@ -47,11 +51,14 @@ const AIStorePage = () => {
             id: p.id,
             name: p.name,
             description: p.shortDescription || p.description,
-            price: p.monthlyPrice 
-              ? `₩${p.monthlyPrice.toLocaleString()}/월` 
-              : p.yearlyPrice 
-                ? `₩${p.yearlyPrice.toLocaleString()}/년`
-                : '문의',
+            price: p.pricePerStudent
+              ? `₩${p.pricePerStudent.toLocaleString()}/학생/월`
+              : p.monthlyPrice 
+                ? `₩${p.monthlyPrice.toLocaleString()}/월` 
+                : p.yearlyPrice 
+                  ? `₩${p.yearlyPrice.toLocaleString()}/년`
+                  : '문의',
+            pricePerStudent: p.pricePerStudent || 0,  // 🆕 추가
             category: p.category === 'academy_operation' ? '학원 운영' 
                      : p.category === 'marketing_blog' ? '마케팅 & 블로그'
                      : p.category === 'expert' ? '전문가용' : p.category,
@@ -295,7 +302,17 @@ const AIStorePage = () => {
                             <h3 className="font-semibold text-sm text-gray-900 mb-2">{product.name}</h3>
                             <p className="text-xs text-gray-600 mb-3 min-h-[36px]">{product.description}</p>
                             <div className="text-lg font-bold text-blue-600 mb-3">{product.price}</div>
-                            <button className="w-full bg-blue-600 text-white py-2 rounded text-sm font-semibold hover:bg-blue-700">
+                            <button 
+                              onClick={() => {
+                                if (product.pricePerStudent && product.pricePerStudent > 0) {
+                                  setSelectedProduct(product);
+                                  setPurchaseDialogOpen(true);
+                                } else {
+                                  alert('이 제품은 현재 구매 신청이 불가능합니다. 관리자에게 문의하세요.');
+                                }
+                              }}
+                              className="w-full bg-blue-600 text-white py-2 rounded text-sm font-semibold hover:bg-blue-700"
+                            >
                               구매하기
                             </button>
                           </div>
@@ -358,7 +375,17 @@ const AIStorePage = () => {
                       <h3 className="font-semibold text-sm text-gray-900 mb-2">{product.name}</h3>
                       <p className="text-xs text-gray-600 mb-3 min-h-[36px]">{product.description}</p>
                       <div className="text-lg font-bold text-blue-600 mb-3">{product.price}</div>
-                      <button className="w-full bg-blue-600 text-white py-2 rounded text-sm font-semibold hover:bg-blue-700">
+                      <button 
+                        onClick={() => {
+                          if (product.pricePerStudent && product.pricePerStudent > 0) {
+                            setSelectedProduct(product);
+                            setPurchaseDialogOpen(true);
+                          } else {
+                            alert('이 제품은 현재 구매 신청이 불가능합니다. 관리자에게 문의하세요.');
+                          }
+                        }}
+                        className="w-full bg-blue-600 text-white py-2 rounded text-sm font-semibold hover:bg-blue-700"
+                      >
                         구매하기
                       </button>
                     </div>
@@ -377,6 +404,22 @@ const AIStorePage = () => {
           <p className="text-sm text-gray-400">© 2024 SUPER PLACE. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* 🆕 구매 신청 다이얼로그 */}
+      {selectedProduct && selectedProduct.pricePerStudent && (
+        <BotPurchaseDialog
+          open={purchaseDialogOpen}
+          onClose={() => {
+            setPurchaseDialogOpen(false);
+            setSelectedProduct(null);
+          }}
+          product={{
+            id: selectedProduct.id,
+            name: selectedProduct.name,
+            pricePerStudent: selectedProduct.pricePerStudent
+          }}
+        />
+      )}
     </div>
   );
 };
