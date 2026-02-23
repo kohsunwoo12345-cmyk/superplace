@@ -38,9 +38,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // SUPER_ADMIN만 접근 가능
-    if (tokenData.role !== 'SUPER_ADMIN') {
-      return new Response(JSON.stringify({ error: 'Only SUPER_ADMIN can access point charge requests' }), {
+    // ADMIN 또는 SUPER_ADMIN만 접근 가능
+    if (tokenData.role !== 'SUPER_ADMIN' && tokenData.role !== 'ADMIN') {
+      return new Response(JSON.stringify({ error: 'Only ADMIN or SUPER_ADMIN can access point charge requests' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       });

@@ -29,26 +29,35 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   try {
     // 관리자 인증 확인
     const authHeader = request.headers.get('Authorization');
+    console.log('🔐 Auth header:', authHeader ? 'Present' : 'Missing');
+    
     const tokenData = parseToken(authHeader);
+    console.log('👤 Token data:', tokenData);
 
     if (!tokenData) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      console.error('❌ Unauthorized: No valid token');
+      return new Response(JSON.stringify({ error: 'Unauthorized', message: 'Invalid or missing token' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // SUPER_ADMIN만 승인 가능
-    if (tokenData.role !== 'SUPER_ADMIN') {
-      return new Response(JSON.stringify({ error: 'Only SUPER_ADMIN can approve point charges' }), {
+    console.log('✅ User authenticated:', { id: tokenData.id, role: tokenData.role });
+
+    // ADMIN 또는 SUPER_ADMIN만 승인 가능
+    if (tokenData.role !== 'SUPER_ADMIN' && tokenData.role !== 'ADMIN') {
+      console.error('❌ Forbidden: User role is', tokenData.role);
+      return new Response(JSON.stringify({ error: 'Only ADMIN or SUPER_ADMIN can approve point charges', role: tokenData.role }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
     const { requestId } = await request.json();
+    console.log('📝 Request ID:', requestId);
 
     if (!requestId) {
+      console.error('❌ No request ID provided');
       return new Response(JSON.stringify({ error: 'Request ID is required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
