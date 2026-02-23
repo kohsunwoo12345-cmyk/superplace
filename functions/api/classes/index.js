@@ -36,7 +36,7 @@ function filterClassesByRole(classes, user) {
       return classes;
 
     case 'DIRECTOR':
-      // 학원장은 자신이 생성한 클래스만 (학원별로 이미 분리됨)
+      // 학원장은 자신의 학원 클래스 모두 조회 (teacherId 여부 무관)
       console.log(`🏫 [DIRECTOR] Showing all ${classes.length} classes for their academy`);
       return classes;
 
@@ -238,6 +238,7 @@ export async function onRequestPost(context) {
     const newClass = {
       id: String(Date.now()),
       ...body,
+      teacherId: body.teacherId || null, // 선생님 미배정 시 null
       students: body.students || [],
       schedules: body.schedules || [],
       _count: { students: body.students?.length || 0 },

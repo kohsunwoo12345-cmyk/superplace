@@ -1,0 +1,30 @@
+
+> super-place-marketing@1.0.0 build
+> next build
+
+   ▲ Next.js 15.4.11
+
+   Creating an optimized production build ...
+Failed to compile.
+
+./src/app/dashboard/classes/page.tsx
+Error:   [31mx[0m Expected ';', '}' or <eof>
+     ,-[[36;1;4m/home/user/webapp/src/app/dashboard/classes/page.tsx[0m:145:1]
+ [2m142[0m |         headers: headers
+ [2m143[0m |       });
+ [2m144[0m |         headers: {
+ [2m145[0m |           'Content-Type': 'application/json'
+     : [35;1m          ^^^^^^^|^^^^^^[0m[33;1m^[0m
+     :                  [35;1m`-- [35;1mThis is the expression part of an expression statement[0m[0m
+ [2m146[0m |         }
+ [2m147[0m |       });
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/dashboard/classes/page.tsx
+
+
+> Build failed because of webpack errors
