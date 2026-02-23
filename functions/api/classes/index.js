@@ -25,41 +25,6 @@ function parseToken(authHeader) {
   return null;
 }
 
-// Helper function to filter classes by user role
-function filterClassesByRole(classes, user) {
-  const { userId, role } = user;
-
-  switch (role) {
-    case 'ADMIN':
-      // 관리자는 모든 클래스 볼 수 있음
-      console.log(`👑 [ADMIN] Showing all ${classes.length} classes`);
-      return classes;
-
-    case 'DIRECTOR':
-      // 학원장은 자신의 학원 클래스 모두 조회 (teacherId 여부 무관)
-      console.log(`🏫 [DIRECTOR] Showing all ${classes.length} classes for their academy`);
-      return classes;
-
-    case 'TEACHER':
-      // 선생님은 자신이 배정받은 클래스만 (teacherId가 자신의 userId)
-      const teacherClasses = classes.filter(cls => cls.teacherId === userId);
-      console.log(`👨‍🏫 [TEACHER] User ${userId} assigned to ${teacherClasses.length} classes`);
-      return teacherClasses;
-
-    case 'STUDENT':
-      // 학생은 자신이 속한 클래스만
-      const studentClasses = classes.filter(cls => 
-        cls.students?.some(s => s.student?.id === userId || s.id === userId)
-      );
-      console.log(`👨‍🎓 [STUDENT] User ${userId} enrolled in ${studentClasses.length} classes`);
-      return studentClasses;
-
-    default:
-      console.log(`⚠️ [UNKNOWN ROLE] ${role} - Returning empty array`);
-      return [];
-  }
-}
-
 // Initialize default classes for a specific academy
 function getDefaultClasses() {
   return [
@@ -206,18 +171,14 @@ export async function onRequestGet(context) {
 
   console.log(`👤 [PRODUCTION CLASSES API] User: ${user.email}, Academy: ${user.academyId}, Role: ${user.role}`);
 
-  const allClasses = getAcademyClasses(user.academyId);
-  console.log(`📊 [PRODUCTION CLASSES API] Total classes for academy ${user.academyId}: ${allClasses.length}`);
-
-  // 역할별로 클래스 필터링
-  const filteredClasses = filterClassesByRole(allClasses, user);
-  console.log(`🔍 [PRODUCTION CLASSES API] Filtered classes for ${user.role}: ${filteredClasses.length}`);
+  const classes = getAcademyClasses(user.academyId);
+  console.log(`📊 [PRODUCTION CLASSES API] Total classes for academy ${user.academyId}: ${classes.length}`);
 
   return jsonResponse({
     success: true,
-    classes: filteredClasses,
-    total: filteredClasses.length,
-    message: `Classes loaded successfully for ${user.role}`,
+    classes: classes,
+    total: classes.length,
+    message: `Classes loaded successfully for academy ${user.academyId}`,
   });
 }
 
