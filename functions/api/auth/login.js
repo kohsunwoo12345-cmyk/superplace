@@ -1,4 +1,4 @@
-// Cloudflare Pages Function - Login API (JavaScript)
+// Cloudflare Pages Function - Login API (JavaScript) - 모든 패턴 시도
 
 export async function onRequestPost(context) {
   try {
@@ -42,29 +42,105 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Find user by email or phone
-    const user = await db
-      .prepare(`
-        SELECT 
-          u.id,
-          u.email,
-          u.password,
-          u.name,
-          u.role,
-          u.phone,
-          u.academyId,
-          u.approved,
-          a.name as academyName,
-          a.code as academyCode
-        FROM users u
-        LEFT JOIN academy a ON u.academyId = a.id
-        WHERE u.email = ? OR u.phone = ?
-      `)
-      .bind(loginIdentifier, loginIdentifier)
-      .first();
+    // 여러 패턴으로 사용자 찾기 시도
+    let user = null;
+    
+    // 패턴 1: users + academyId (camelCase)
+    try {
+      console.log('🔍 시도 1: users 테이블 + academyId (camelCase)');
+      user = await db
+        .prepare(`
+          SELECT 
+            u.id,
+            u.email,
+            u.password,
+            u.name,
+            u.role,
+            u.phone,
+            u.academyId,
+            u.approved,
+            a.name as academyName,
+            a.code as academyCode
+          FROM users u
+          LEFT JOIN academy a ON u.academyId = a.id
+          WHERE u.email = ? OR u.phone = ?
+        `)
+        .bind(loginIdentifier, loginIdentifier)
+        .first();
+      
+      if (user) {
+        console.log('✅ 패턴 1 성공 (users + academyId)');
+      }
+    } catch (e) {
+      console.log('❌ 패턴 1 실패:', e.message);
+    }
+
+    // 패턴 2: User + academyId (대문자 시작)
+    if (!user) {
+      try {
+        console.log('🔍 시도 2: User 테이블 + academyId');
+        user = await db
+          .prepare(`
+            SELECT 
+              u.id,
+              u.email,
+              u.password,
+              u.name,
+              u.role,
+              u.phone,
+              u.academyId,
+              u.approved,
+              a.name as academyName,
+              a.code as academyCode
+            FROM User u
+            LEFT JOIN Academy a ON u.academyId = a.id
+            WHERE u.email = ? OR u.phone = ?
+          `)
+          .bind(loginIdentifier, loginIdentifier)
+          .first();
+        
+        if (user) {
+          console.log('✅ 패턴 2 성공 (User + academyId)');
+        }
+      } catch (e) {
+        console.log('❌ 패턴 2 실패:', e.message);
+      }
+    }
+
+    // 패턴 3: users + academy_id (snake_case)
+    if (!user) {
+      try {
+        console.log('🔍 시도 3: users 테이블 + academy_id (snake_case)');
+        user = await db
+          .prepare(`
+            SELECT 
+              u.id,
+              u.email,
+              u.password,
+              u.name,
+              u.role,
+              u.phone,
+              u.academy_id as academyId,
+              u.approved,
+              a.name as academyName,
+              a.code as academyCode
+            FROM users u
+            LEFT JOIN academy a ON u.academy_id = a.id
+            WHERE u.email = ? OR u.phone = ?
+          `)
+          .bind(loginIdentifier, loginIdentifier)
+          .first();
+        
+        if (user) {
+          console.log('✅ 패턴 3 성공 (users + academy_id)');
+        }
+      } catch (e) {
+        console.log('❌ 패턴 3 실패:', e.message);
+      }
+    }
 
     if (!user) {
-      console.error('❌ User not found:', loginIdentifier);
+      console.error('❌ User not found in all patterns:', loginIdentifier);
       return new Response(
         JSON.stringify({
           success: false,
@@ -77,7 +153,7 @@ export async function onRequestPost(context) {
       );
     }
 
-    console.log('✅ User found:', { id: user.id, role: user.role, passwordLength: user.password.length });
+    console.log('✅ User found:', { id: user.id, role: user.role, passwordLength: user.password?.length });
 
     let isValid = false;
 
@@ -113,8 +189,6 @@ export async function onRequestPost(context) {
         console.log('✅ Password verified with SHA-256');
       } else {
         console.error('❌ SHA-256 verification failed');
-        console.log('Expected:', user.password);
-        console.log('Got:', hashHex);
       }
     }
 
@@ -143,75 +217,6 @@ export async function onRequestPost(context) {
           headers: { 'Content-Type': 'application/json' },
         }
       );
-    }
-
-    // Get client IP address
-    const clientIP = request.headers.get('CF-Connecting-IP') || 
-                     request.headers.get('X-Real-IP') || 
-                     request.headers.get('X-Forwarded-For')?.split(',')[0] || 
-                     'unknown';
-    
-    const userAgent = request.headers.get('User-Agent') || 'unknown';
-    
-    console.log('📍 Client info:', { ip: clientIP, userAgent: userAgent.substring(0, 50) });
-
-    // Update last login and IP (skip if columns don't exist)
-    try {
-      await db
-        .prepare('UPDATE users SET lastLoginAt = datetime("now"), lastLoginIP = ? WHERE id = ?')
-        .bind(clientIP, user.id)
-        .run();
-      console.log('✅ Updated lastLoginAt and lastLoginIP');
-    } catch (e) {
-      console.log('⚠️ lastLoginAt/lastLoginIP column not found, trying without IP');
-      try {
-        await db
-          .prepare('UPDATE users SET lastLoginAt = datetime("now") WHERE id = ?')
-          .bind(user.id)
-          .run();
-      } catch (e2) {
-        console.log('⚠️ lastLoginAt column not found, skipping update');
-      }
-    }
-
-    // Log login activity
-    try {
-      await db
-        .prepare(`
-          INSERT INTO login_logs (userId, ipAddress, userAgent, loginAt, success)
-          VALUES (?, ?, ?, datetime('now'), 1)
-        `)
-        .bind(user.id, clientIP, userAgent)
-        .run();
-      console.log('✅ Login activity logged');
-    } catch (e) {
-      console.log('⚠️ login_logs table not found, skipping:', e.message);
-      // Try to create table
-      try {
-        await db.prepare(`
-          CREATE TABLE IF NOT EXISTS login_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            userId TEXT NOT NULL,
-            ipAddress TEXT,
-            userAgent TEXT,
-            loginAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-            success INTEGER DEFAULT 1
-          )
-        `).run();
-        console.log('✅ Created login_logs table');
-        
-        // Retry insert
-        await db
-          .prepare(`
-            INSERT INTO login_logs (userId, ipAddress, userAgent, loginAt, success)
-            VALUES (?, ?, ?, datetime('now'), 1)
-          `)
-          .bind(user.id, clientIP, userAgent)
-          .run();
-        console.log('✅ Login activity logged after table creation');
-      } catch (e2) {
-        console.log('⚠️ Could not create login_logs table:', e2.message);
-      }
     }
 
     // Generate token with academyId

@@ -11,9 +11,23 @@ echo "🚀 Starting Cloudflare Pages build..."
 echo "📦 Node.js version: $(node -v)"
 echo "📦 npm version: $(npm -v)"
 
+# Remove Next.js API routes for production build (incompatible with output: export)
+echo "🧹 Removing Next.js API routes for production..."
+if [ -d "src/app/api" ]; then
+  # Move to temporary location outside src directory
+  mv src/app/api /tmp/nextjs-api-backup
+  echo "✅ API routes backed up to /tmp/nextjs-api-backup"
+fi
+
 # Build Next.js static export
 echo "🔨 Building Next.js static site..."
 npm run build
+
+# Restore API routes for development
+if [ -d "/tmp/nextjs-api-backup" ]; then
+  mv /tmp/nextjs-api-backup src/app/api
+  echo "✅ API routes restored for development"
+fi
 
 # Verify build output
 echo "✅ Build completed successfully!"
@@ -35,7 +49,7 @@ if [ -d "functions" ]; then
   # So we keep functions at the root level
   echo "✅ Functions directory exists at root level"
   echo "📁 Functions structure:"
-  find functions -type f -name "*.ts" | head -10
+  find functions -type f -name "*.js" -o -name "*.ts" | head -10
 else
   echo "⚠️  WARNING: functions directory not found!"
 fi
@@ -43,5 +57,5 @@ fi
 echo "🎉 Cloudflare Pages build complete!"
 echo "📊 Build summary:"
 echo "  - Static pages: out/"
-echo "  - API functions: out/functions/"
+echo "  - API functions: functions/"
 echo "  - Ready for deployment!"
