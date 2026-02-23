@@ -52,7 +52,12 @@ export default function PointChargePage() {
 
   const fetchCurrentPoints = async () => {
     try {
-      const response = await fetch('/api/user/points');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/user/points', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setCurrentPoints(data.points || 0);
@@ -64,7 +69,12 @@ export default function PointChargePage() {
 
   const fetchMyRequests = async () => {
     try {
-      const response = await fetch('/api/point-charge-requests/my');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/point-charge-requests/my', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setMyRequests(data.requests || []);
@@ -128,9 +138,13 @@ export default function PointChargePage() {
 
       const { basePrice, vat, totalPrice } = calculatePrice(pointsToCharge);
 
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/point-charge-requests/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           requestedPoints: pointsToCharge,
           pointPrice: basePrice,

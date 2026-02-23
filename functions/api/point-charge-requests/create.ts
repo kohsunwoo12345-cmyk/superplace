@@ -11,11 +11,12 @@ function parseToken(authHeader: string | null) {
   }
   const token = authHeader.substring(7);
   const parts = token.split('|');
-  if (parts.length < 3) return null;
+  if (parts.length < 4) return null;
   return {
     id: parts[0],
     email: parts[1],
-    role: parts[2]
+    role: parts[2],
+    academyId: parts[3] || null
   };
 }
 
@@ -27,19 +28,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const body = await request.json();
-    const {
-      requestedPoints,
-      pointPrice,
-      vat,
-      totalPrice,
-      paymentMethod,
-      depositBank,
-      depositorName,
-      attachmentUrl,
-      requestMessage
-    } = body;
-
     // 사용자 인증 확인
     const authHeader = request.headers.get('Authorization');
     const tokenData = parseToken(authHeader);
@@ -51,27 +39,19 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    console.log('🔍 Point charge request from user:', tokenData.email);
+    const {
+      requestedPoints,
+      pointPrice,
+      vat,
+      totalPrice,
+      paymentMethod,
+      depositBank,
+      depositorName,
+      attachmentUrl,
+      requestMessage
+    } = await request.json();
 
-    // 사용자 정보 조회 (이름, 이메일, academyId 포함)
-    const user = await env.DB.prepare(`
-      SELECT id, name, email, academyId FROM users WHERE id = ?
-    `).bind(tokenData.id).first();
-
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'User not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
-    const userId = user.id as string;
-    const userName = user.name as string;
-    const userEmail = user.email as string;
-    const academyId = user.academyId as number | null;
-
-    console.log('✅ User found:', { userId, userName, userEmail, academyId });
-
+    // 유효성 검사
     if (!requestedPoints || requestedPoints < 1000) {
       return new Response(JSON.stringify({ error: 'Minimum 1,000 points required' }), {
         status: 400,
@@ -79,49 +59,81 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const requestId = `pcr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    const now = new Date().toISOString();
-
-    // academyId 컬럼 추가 시도 (이미 있으면 무시됨)
-    try {
-      await env.DB.prepare(`
-        ALTER TABLE PointChargeRequest ADD COLUMN academyId INTEGER
-      `).run();
-      console.log('✅ academyId column added to PointChargeRequest table');
-    } catch (e) {
-      // 컬럼이 이미 존재하면 무시
-      console.log('ℹ️ academyId column already exists or error:', e);
+    if (!paymentMethod || !depositBank || !depositorName) {
+      return new Response(JSON.stringify({ error: 'Payment information is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    // 포인트 충전 신청 생성 (academyId 포함)
-    await env.DB.prepare(`
-      INSERT INTO PointChargeRequest (
-        id, userId, userName, userEmail, academyId,
-        requestedPoints, pointPrice, vat, totalPrice,
-        paymentMethod, depositBank, depositorName,
-        attachmentUrl, requestMessage,
-        status, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
-    `).bind(
-      requestId, userId, userName, userEmail, academyId,
-      requestedPoints, pointPrice, vat, totalPrice,
-      paymentMethod, depositBank, depositorName,
-      attachmentUrl, requestMessage,
-      now, now
-    ).run();
-
-    console.log('✅ Point charge request created:', {
-      requestId,
-      userId,
-      userName,
-      academyId,
+    console.log('🔍 Creating point charge request:', {
+      userId: tokenData.id,
+      academyId: tokenData.academyId,
       requestedPoints
     });
+
+    // PointChargeRequest 테이블 생성 (없으면)
+    try {
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS PointChargeRequest (
+          id TEXT PRIMARY KEY,
+          userId TEXT NOT NULL,
+          academyId TEXT,
+          requestedPoints INTEGER NOT NULL,
+          pointPrice INTEGER NOT NULL,
+          vat INTEGER NOT NULL,
+          totalPrice INTEGER NOT NULL,
+          paymentMethod TEXT,
+          depositBank TEXT,
+          depositorName TEXT,
+          attachmentUrl TEXT,
+          requestMessage TEXT,
+          status TEXT DEFAULT 'PENDING',
+          approvedBy TEXT,
+          approvedAt TEXT,
+          rejectionReason TEXT,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        )
+      `).run();
+      console.log('✅ PointChargeRequest table created or already exists');
+    } catch (e) {
+      console.log('ℹ️ Table creation error (may already exist):', e);
+    }
+
+    const requestId = `pcr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const now = new Date().toISOString();
+
+    // 충전 신청 생성
+    await env.DB.prepare(`
+      INSERT INTO PointChargeRequest (
+        id, userId, academyId, requestedPoints, pointPrice, vat, totalPrice,
+        paymentMethod, depositBank, depositorName, attachmentUrl, requestMessage,
+        status, createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
+    `).bind(
+      requestId,
+      tokenData.id,
+      tokenData.academyId,
+      requestedPoints,
+      pointPrice,
+      vat,
+      totalPrice,
+      paymentMethod,
+      depositBank,
+      depositorName,
+      attachmentUrl || null,
+      requestMessage || null,
+      now,
+      now
+    ).run();
+
+    console.log('✅ Point charge request created:', requestId);
 
     return new Response(JSON.stringify({ 
       success: true,
       requestId,
-      message: 'Point charge request created successfully'
+      message: 'Point charge request submitted successfully'
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
