@@ -141,10 +141,6 @@ export default function ClassesPage() {
         method: 'DELETE',
         headers: headers
       });
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
 
       if (response.ok) {
         alert('반이 삭제되었습니다.');
