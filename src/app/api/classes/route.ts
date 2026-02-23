@@ -28,6 +28,42 @@ function getUserFromToken(request: NextRequest): { userId: string; email: string
   return null;
 }
 
+// Helper function to filter classes by user role
+function filterClassesByRole(classes: any[], user: { userId: string; email: string; role: string; academyId: string }): any[] {
+  const { userId, role } = user;
+
+  switch (role) {
+    case 'ADMIN':
+      // 관리자는 모든 클래스 볼 수 있음
+      console.log(`👑 [ADMIN] Showing all ${classes.length} classes`);
+      return classes;
+
+    case 'DIRECTOR':
+      // 학원장은 자신이 생성한 클래스만 (createdBy 또는 모든 클래스)
+      // 현재는 학원별로 이미 분리되어 있으므로 모든 클래스 반환
+      console.log(`🏫 [DIRECTOR] Showing all ${classes.length} classes for their academy`);
+      return classes;
+
+    case 'TEACHER':
+      // 선생님은 자신이 배정받은 클래스만 (teacherId가 자신의 userId)
+      const teacherClasses = classes.filter(cls => cls.teacherId === userId);
+      console.log(`👨‍🏫 [TEACHER] User ${userId} assigned to ${teacherClasses.length} classes`);
+      return teacherClasses;
+
+    case 'STUDENT':
+      // 학생은 자신이 속한 클래스만
+      const studentClasses = classes.filter(cls => 
+        cls.students?.some((s: any) => s.student?.id === userId || s.id === userId)
+      );
+      console.log(`👨‍🎓 [STUDENT] User ${userId} enrolled in ${studentClasses.length} classes`);
+      return studentClasses;
+
+    default:
+      console.log(`⚠️ [UNKNOWN ROLE] ${role} - Returning empty array`);
+      return [];
+  }
+}
+
 // Initialize default classes for a specific academy
 function getDefaultClasses(): any[] {
   return [
@@ -39,8 +75,9 @@ function getDefaultClasses(): any[] {
       color: '#3B82F6',
       capacity: 20,
       isActive: true,
+      teacherId: '2', // teacher@test.com의 userId
       students: [
-        { id: '1', student: { id: '1', name: '김민수', email: 'minsu@example.com', studentCode: 'STU001', grade: '3학년' } },
+        { id: '1', student: { id: '3', name: '김민수', email: 'student@test.com', studentCode: 'STU001', grade: '3학년' } },
         { id: '2', student: { id: '2', name: '이지은', email: 'jieun@example.com', studentCode: 'STU002', grade: '3학년' } },
         { id: '3', student: { id: '3', name: '박서준', email: 'seojun@example.com', studentCode: 'STU003', grade: '3학년' } },
       ],
@@ -58,6 +95,7 @@ function getDefaultClasses(): any[] {
       color: '#10B981',
       capacity: 15,
       isActive: true,
+      teacherId: '2', // teacher@test.com의 userId
       students: [
         { id: '4', student: { id: '4', name: '최유진', email: 'yujin@example.com', studentCode: 'STU004', grade: '4학년' } },
         { id: '5', student: { id: '5', name: '강민호', email: 'minho@example.com', studentCode: 'STU005', grade: '4학년' } },
@@ -76,6 +114,7 @@ function getDefaultClasses(): any[] {
       color: '#8B5CF6',
       capacity: 10,
       isActive: true,
+      teacherId: '2', // teacher@test.com의 userId
       students: [
         { id: '6', student: { id: '6', name: '정서연', email: 'seoyeon@example.com', studentCode: 'STU006', grade: '5학년' } },
       ],
@@ -90,6 +129,7 @@ function getDefaultClasses(): any[] {
       id: '4',
       name: '중등 1학년 A반',
       grade: '중등 1학년',
+      teacherId: '2', // teacher@test.com의 userId
       description: '중학교 과정 기초 다지기',
       color: '#F59E0B',
       capacity: 25,
@@ -115,6 +155,7 @@ function getDefaultClasses(): any[] {
       color: '#EC4899',
       capacity: 20,
       isActive: true,
+      teacherId: '2', // teacher@test.com의 userId
       students: [
         { id: '11', student: { id: '11', name: '임재현', email: 'jaehyun@example.com', studentCode: 'STU011', grade: '중2' } },
         { id: '12', student: { id: '12', name: '송하늘', email: 'haneul@example.com', studentCode: 'STU012', grade: '중2' } },
@@ -165,15 +206,19 @@ export async function GET(request: NextRequest) {
 
   console.log(`👤 [DEV CLASSES API] User: ${user.email}, Academy: ${user.academyId}, Role: ${user.role}`);
 
-  const classes = getAcademyClasses(user.academyId);
-  console.log(`📊 [DEV CLASSES API] Total classes for academy ${user.academyId}: ${classes.length}`);
+  const allClasses = getAcademyClasses(user.academyId);
+  console.log(`📊 [DEV CLASSES API] Total classes for academy ${user.academyId}: ${allClasses.length}`);
+
+  // 역할별로 클래스 필터링
+  const filteredClasses = filterClassesByRole(allClasses, user);
+  console.log(`🔍 [DEV CLASSES API] Filtered classes for ${user.role}: ${filteredClasses.length}`);
 
   return NextResponse.json(
     {
       success: true,
-      classes: classes,
-      total: classes.length,
-      message: `Classes loaded successfully for academy ${user.academyId}`,
+      classes: filteredClasses,
+      total: filteredClasses.length,
+      message: `Classes loaded successfully for ${user.role}`,
     },
     {
       status: 200,
