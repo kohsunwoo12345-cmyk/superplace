@@ -44,7 +44,13 @@ export async function onRequestGet(context: { env: Env }) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Failed to fetch categories: ${response.status}` 
+          error: `Failed to fetch categories: ${response.status}`,
+          details: errorData,
+          debug: {
+            url: 'https://api.solapi.com/kakao/v1/plus-friends/categories',
+            timestamp,
+            salt
+          }
         }),
         { status: response.status, headers: { 'Content-Type': 'application/json' } }
       );
