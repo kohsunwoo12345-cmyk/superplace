@@ -59,7 +59,17 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Failed to request token: ${response.status}` 
+          error: `Failed to request token: ${response.status}`,
+          details: errorData,
+          debug: {
+            url: 'https://api.solapi.com/kakao/v1/plus-friends/token',
+            timestamp,
+            salt,
+            requestBody: {
+              plusFriendId: searchId,
+              phoneNumber: phoneNumber
+            }
+          }
         }),
         { status: response.status, headers: { 'Content-Type': 'application/json' } }
       );
