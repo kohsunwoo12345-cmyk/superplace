@@ -71,6 +71,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     console.log('👤 Student lookup (User):', student);
 
+    let foundInUsersTable = false; // users 테이블에서 찾았는지 플래그
+
     // User 테이블에 없으면 users 테이블 확인 (legacy 지원)
     if (!student) {
       console.log('🔍 Trying users table for userId:', userId);
@@ -80,6 +82,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       
       if (student) {
         console.log('✅ Found in users table:', student);
+        foundInUsersTable = true; // users 테이블에서 찾음
       }
     }
 
@@ -93,15 +96,14 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // isActive 값 확인 - users 테이블에서 찾았으면 무조건 허용
     const isActiveValue = attendanceCode.isActive;
-    const foundInUsers = student && !student.academyId; // users 테이블은 academy_id 필드 사용
-    const isActive = foundInUsers || // users 테이블에서 찾았으면 허용
+    const isActive = foundInUsersTable || // users 테이블에서 찾았으면 허용
                     isActiveValue === 1 || 
                     isActiveValue === "1" || 
                     isActiveValue === true || 
                     isActiveValue === "true" ||
                     isActiveValue === "TRUE";
     
-    console.log('🔐 isActive check:', { original: isActiveValue, result: isActive, foundInUsers });
+    console.log('🔐 isActive check:', { original: isActiveValue, result: isActive, foundInUsersTable });
     
     if (!isActive) {
       console.error('❌ Code is inactive:', code, 'isActive value:', isActiveValue);
