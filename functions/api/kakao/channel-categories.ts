@@ -28,7 +28,7 @@ export async function onRequestGet(context: { env: Env }) {
     }
 
     // Solapi REST API 직접 호출
-    const timestamp = Date.now().toString();
+    const timestamp = new Date().toISOString();  // ISO 8601 형식
     const salt = Math.random().toString(36).substring(2);
     
     // HMAC 서명 생성

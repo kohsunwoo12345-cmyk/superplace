@@ -37,7 +37,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     }
 
     // Solapi REST API 직접 호출
-    const timestamp = Date.now().toString();
+    const timestamp = new Date().toISOString();  // ISO 8601 형식
     const salt = Math.random().toString(36).substring(2);
     const signature = await generateSignature(SOLAPI_API_Secret, timestamp, salt);
     
