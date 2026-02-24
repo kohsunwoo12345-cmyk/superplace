@@ -4,15 +4,16 @@
  */
 
 interface Env {
-  SOLAPI_API_Key: string;
-  SOLAPI_API_Secret: string;
+  'SOLAPI_API_Key ': string;  // 주의: 끝에 공백이 있는 환경변수명
+  SOLAPI_API_Secret?: string;
 }
 
 export async function onRequestGet(context: { env: Env }) {
   try {
-    const { SOLAPI_API_Key, SOLAPI_API_Secret } = context.env;
+    const SOLAPI_API_Key = context.env['SOLAPI_API_Key '];  // 공백 포함
+    const SOLAPI_API_Secret = context.env.SOLAPI_API_Secret;
 
-    if (!SOLAPI_API_Key || !SOLAPI_API_Secret) {
+    if (!SOLAPI_API_Key) {
       return new Response(
         JSON.stringify({ 
           success: false, 
