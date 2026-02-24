@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, CheckCircle } from 'lucide-react';
+import { Plus, MessageSquare, CheckCircle, BookOpen, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 interface KakaoChannel {
@@ -45,12 +45,21 @@ export default function KakaoChannelPage() {
           <h1 className="text-3xl font-bold">카카오톡 채널 관리</h1>
           <p className="text-gray-600 mt-2">알림톡 발송을 위한 카카오 채널을 관리합니다</p>
         </div>
-        <Link href="/dashboard/kakao-channel/register">
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            채널 추가
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/dashboard/kakao-business-guide" target="_blank">
+            <Button variant="outline">
+              <BookOpen className="w-4 h-4 mr-2" />
+              연동 가이드
+              <ExternalLink className="w-3 h-3 ml-1" />
+            </Button>
+          </Link>
+          <Link href="/dashboard/kakao-channel/register">
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              채널 추가
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -66,12 +75,20 @@ export default function KakaoChannelPage() {
             <p className="text-gray-600 mb-4">
               카카오톡 채널을 등록하여 알림톡을 발송할 수 있습니다
             </p>
-            <Link href="/dashboard/kakao-channel/register">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                첫 채널 등록하기
-              </Button>
-            </Link>
+            <div className="flex gap-2 justify-center">
+              <Link href="/dashboard/kakao-business-guide" target="_blank">
+                <Button variant="outline">
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  연동 가이드
+                </Button>
+              </Link>
+              <Link href="/dashboard/kakao-channel/register">
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  첫 채널 등록하기
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       ) : (

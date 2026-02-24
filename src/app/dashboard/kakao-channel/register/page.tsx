@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, ArrowRight, BookOpen, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 
 interface Category {
   code: string;
@@ -157,7 +158,16 @@ export default function KakaoChannelRegisterPage() {
   return (
     <div className="container mx-auto py-8 px-4 max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">카카오톡 채널 연동</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-3xl font-bold">카카오톡 채널 연동</h1>
+          <Link href="/dashboard/kakao-business-guide" target="_blank">
+            <Button variant="outline" size="sm">
+              <BookOpen className="w-4 h-4 mr-2" />
+              연동 가이드 보기
+              <ExternalLink className="w-3 h-3 ml-1" />
+            </Button>
+          </Link>
+        </div>
         <p className="text-gray-600">카카오 비즈니스 채널을 연동하여 알림톡을 발송하세요</p>
       </div>
 
@@ -337,9 +347,21 @@ export default function KakaoChannelRegisterPage() {
       )}
 
       <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h3 className="font-semibold text-blue-900 mb-2">📌 채널 연동 안내</h3>
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="font-semibold text-blue-900">📌 채널 연동 안내</h3>
+          <Link href="/dashboard/kakao-business-guide" target="_blank">
+            <Button variant="link" size="sm" className="text-blue-600 h-auto p-0">
+              <BookOpen className="w-4 h-4 mr-1" />
+              자세한 가이드 →
+            </Button>
+          </Link>
+        </div>
         <ul className="text-sm text-blue-800 space-y-1">
-          <li>• 카카오톡 채널이 이미 개설되어 있어야 합니다</li>
+          <li>• <strong className="text-blue-900">카카오톡 채널이 이미 개설되어 있어야 합니다</strong> - 
+            <Link href="https://center-pf.kakao.com" target="_blank" className="underline ml-1">
+              채널 개설하기 ↗
+            </Link>
+          </li>
           <li>• 카카오 비즈니스 센터에서 채널 검색용 ID를 확인하세요</li>
           <li>• 담당자 휴대전화는 카카오톡이 설치된 번호여야 합니다</li>
           <li>• <strong className="text-blue-900">인증번호는 SMS로 전송되며 유효시간이 있으니 빠르게 입력하세요</strong></li>

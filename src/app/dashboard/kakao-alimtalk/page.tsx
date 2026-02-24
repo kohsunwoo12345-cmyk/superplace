@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Send, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Send, AlertCircle, CheckCircle, ArrowLeft, BookOpen, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 interface Template {
@@ -117,11 +117,18 @@ export default function KakaoAlimtalkPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <Link href="/dashboard/kakao-channel">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="w-4 h-4 mr-2" />
             채널 목록으로
+          </Button>
+        </Link>
+        <Link href="/dashboard/kakao-business-guide" target="_blank">
+          <Button variant="outline" size="sm">
+            <BookOpen className="w-4 h-4 mr-2" />
+            가이드 보기
+            <ExternalLink className="w-3 h-3 ml-1" />
           </Button>
         </Link>
       </div>
