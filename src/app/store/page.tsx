@@ -62,7 +62,7 @@ const AIStorePage = () => {
             category: p.category === 'academy_operation' ? '학원 운영' 
                      : p.category === 'marketing_blog' ? '마케팅 & 블로그'
                      : p.category === 'expert' ? '전문가용' : p.category,
-            imageUrl: p.imageUrl || '/api/placeholder/400/480',
+            imageUrl: p.imageUrl || 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image',
             keywords: p.keywords ? p.keywords.split(',').map((k: string) => k.trim()) : [],
             featured: p.isFeatured === 1,
           }));
@@ -84,7 +84,7 @@ const AIStorePage = () => {
               description: '학년별로 맞춤화된 내신 대비 학습 지원',
               price: '문의',
               category: '학원 운영',
-              imageUrl: '/api/placeholder/400/480',
+              imageUrl: 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image',
               keywords: ['내신', '학교', '학년', '시험'],
             },
             {
@@ -93,7 +93,7 @@ const AIStorePage = () => {
               description: '학년별 영어내신 클리닉 마스터 - 24시간 AI 숙제 도우미 & 음성 튜터',
               price: '문의',
               category: '학원 운영',
-              imageUrl: '/api/placeholder/400/480',
+              imageUrl: 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image',
               keywords: ['영어', '내신', '클리닉', '숙제', '튜터'],
               featured: true,
             },
@@ -103,7 +103,7 @@ const AIStorePage = () => {
               description: '네이버 블로그 상위노출을 위한 AI 사진 생성',
               price: '문의',
               category: '마케팅 & 블로그',
-              imageUrl: '/api/placeholder/400/480',
+              imageUrl: 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image',
               keywords: ['블로그', 'SEO', '사진', '네이버', '상위노출'],
               featured: true,
             },
@@ -305,7 +305,7 @@ const AIStorePage = () => {
                               onError={(e) => {
                                 const target = e.currentTarget;
                                 target.onerror = null; // Prevent infinite loop
-                                target.src = '/api/placeholder/400/480';
+                                target.src = 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image';
                               }}
                             />
                           </div>
@@ -383,7 +383,7 @@ const AIStorePage = () => {
                         onError={(e) => {
                           const target = e.currentTarget;
                           target.onerror = null; // Prevent infinite loop
-                          target.src = '/api/placeholder/400/480';
+                          target.src = 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image';
                         }}
                       />
                     </div>
