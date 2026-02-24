@@ -68,6 +68,12 @@ const AIStorePage = () => {
           }));
           
           setProducts(transformedProducts);
+          console.log('📦 Transformed products:', transformedProducts.length);
+          console.log('📦 Products by category:', {
+            '학원 운영': transformedProducts.filter(p => p.category === '학원 운영').length,
+            '마케팅 & 블로그': transformedProducts.filter(p => p.category === '마케팅 & 블로그').length,
+            '전문가용': transformedProducts.filter(p => p.category === '전문가용').length,
+          });
         } else {
           console.warn('⚠️ Failed to load products from API, using fallback');
           // Fallback to default products
