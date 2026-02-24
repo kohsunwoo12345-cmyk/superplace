@@ -1,70 +1,36 @@
-// API: 환경 변수 테스트 (디버깅용)
-// GET /api/test-env
+/**
+ * 환경변수 확인용 테스트 엔드포인트
+ * GET /api/test-env
+ */
 
 interface Env {
-  GOOGLE_GEMINI_API_KEY: string;
-  GEMINI_API_KEY?: string;
-  DB: D1Database;
+  [key: string]: any;
 }
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
-  try {
-    const googleApiKey = context.env.GOOGLE_GEMINI_API_KEY;
-    const geminiApiKey = context.env.GEMINI_API_KEY;
-    const db = context.env.DB;
-    
-    const result = {
-      timestamp: new Date().toISOString(),
-      environment: {
-        GOOGLE_GEMINI_API_KEY: googleApiKey ? {
-          exists: true,
-          length: googleApiKey.length,
-          prefix: googleApiKey.substring(0, 10) + '...',
-        } : {
-          exists: false,
-          message: '❌ GOOGLE_GEMINI_API_KEY가 설정되지 않았습니다'
-        },
-        GEMINI_API_KEY: geminiApiKey ? {
-          exists: true,
-          length: geminiApiKey.length,
-          prefix: geminiApiKey.substring(0, 10) + '...',
-        } : {
-          exists: false,
-          message: '⚠️ GEMINI_API_KEY가 설정되지 않았습니다 (옵션)'
-        },
-        DB: db ? {
-          exists: true,
-          type: typeof db,
-        } : {
-          exists: false,
-          message: '❌ DB가 설정되지 않았습니다'
-        }
-      },
-      cloudflareInfo: {
-        workerId: context.env?.CF_WORKER_ID || 'N/A',
-        region: context.request.cf?.region || 'N/A',
-        country: context.request.cf?.country || 'N/A',
-      }
-    };
-
-    return new Response(JSON.stringify(result, null, 2), {
-      status: 200,
-      headers: { 
-        "Content-Type": "application/json",
-        "Cache-Control": "no-cache"
-      },
-    });
-  } catch (error: any) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-        stack: error.stack
-      }, null, 2),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  }
-};
+export async function onRequestGet(context: { env: Env }) {
+  const envKeys = Object.keys(context.env);
+  
+  // SOLAPI 관련 환경변수 찾기
+  const solapiKeys = envKeys.filter(key => key.includes('SOLAPI'));
+  
+  return new Response(
+    JSON.stringify({ 
+      success: true,
+      message: 'Environment variables check',
+      allKeys: envKeys,
+      solapiKeys: solapiKeys,
+      // 실제 값은 보안상 앞 4자리만 표시
+      solapiValues: solapiKeys.reduce((acc, key) => {
+        const value = context.env[key];
+        acc[key] = typeof value === 'string' && value.length > 4 
+          ? value.substring(0, 4) + '...' 
+          : typeof value;
+        return acc;
+      }, {} as Record<string, any>)
+    }, null, 2),
+    { 
+      status: 200, 
+      headers: { 'Content-Type': 'application/json' } 
+    }
+  );
+}
