@@ -4,16 +4,16 @@
  */
 
 interface Env {
-  SOLAPI_API_KEY: string;
-  SOLAPI_API_SECRET: string;
+  SOLAPI_API_Key: string;
+  SOLAPI_API_Secret: string;
   DB: any;
 }
 
 export async function onRequestPost(context: { env: Env; request: Request }) {
   try {
-    const { SOLAPI_API_KEY, SOLAPI_API_SECRET, DB } = context.env;
+    const { SOLAPI_API_Key, SOLAPI_API_Secret, DB } = context.env;
 
-    if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
+    if (!SOLAPI_API_Key || !SOLAPI_API_Secret) {
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -39,12 +39,12 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     // Solapi REST API 직접 호출
     const timestamp = Date.now().toString();
     const salt = Math.random().toString(36).substring(2);
-    const signature = await generateSignature(SOLAPI_API_SECRET, timestamp, salt);
+    const signature = await generateSignature(SOLAPI_API_Secret, timestamp, salt);
     
     const response = await fetch('https://api.solapi.com/kakao/v1/plus-friends', {
       method: 'POST',
       headers: {
-        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${timestamp}, salt=${salt}, signature=${signature}`,
+        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${timestamp}, salt=${salt}, signature=${signature}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
