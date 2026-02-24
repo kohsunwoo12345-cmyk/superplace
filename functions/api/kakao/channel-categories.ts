@@ -13,11 +13,15 @@ export async function onRequestGet(context: { env: Env }) {
     const SOLAPI_API_Key = context.env['SOLAPI_API_Key '];  // 공백 포함
     const SOLAPI_API_Secret = context.env.SOLAPI_API_Secret;
 
-    if (!SOLAPI_API_Key) {
+    if (!SOLAPI_API_Key || !SOLAPI_API_Secret) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'SOLAPI API credentials not configured' 
+          error: 'SOLAPI API credentials not configured',
+          debug: {
+            hasKey: !!SOLAPI_API_Key,
+            hasSecret: !!SOLAPI_API_Secret
+          }
         }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
@@ -77,7 +81,10 @@ export async function onRequestGet(context: { env: Env }) {
   }
 }
 
-async function generateSignature(secret: string, timestamp: string, salt: string): Promise<string> {
+async function generateSignature(secret: string | undefined, timestamp: string, salt: string): Promise<string> {
+  if (!secret) {
+    throw new Error('SOLAPI_API_Secret is required');
+  }
   const message = timestamp + salt;
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secret);
