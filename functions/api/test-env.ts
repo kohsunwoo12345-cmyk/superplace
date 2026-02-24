@@ -4,29 +4,42 @@
  */
 
 interface Env {
+  SOLAPI_API_Key?: string;
+  SOLAPI_API_Secret?: string;
   [key: string]: any;
 }
 
 export async function onRequestGet(context: { env: Env }) {
-  const envKeys = Object.keys(context.env);
+  const env = context.env;
   
-  // SOLAPI 관련 환경변수 찾기
-  const solapiKeys = envKeys.filter(key => key.includes('SOLAPI'));
+  // 모든 환경변수 키 확인
+  const allKeys = Object.keys(env);
+  
+  // SOLAPI 관련 키 찾기
+  const solapiRelated = allKeys.filter(key => 
+    key.toLowerCase().includes('solapi')
+  );
   
   return new Response(
     JSON.stringify({ 
       success: true,
-      message: 'Environment variables check',
-      allKeys: envKeys,
-      solapiKeys: solapiKeys,
-      // 실제 값은 보안상 앞 4자리만 표시
-      solapiValues: solapiKeys.reduce((acc, key) => {
-        const value = context.env[key];
-        acc[key] = typeof value === 'string' && value.length > 4 
-          ? value.substring(0, 4) + '...' 
-          : typeof value;
-        return acc;
-      }, {} as Record<string, any>)
+      totalEnvVars: allKeys.length,
+      allEnvKeys: allKeys,
+      solapiRelatedKeys: solapiRelated,
+      checks: {
+        'SOLAPI_API_Key': {
+          exists: !!env.SOLAPI_API_Key,
+          type: typeof env.SOLAPI_API_Key,
+          length: env.SOLAPI_API_Key?.length || 0,
+          prefix: env.SOLAPI_API_Key?.substring(0, 8) || 'N/A'
+        },
+        'SOLAPI_API_Secret': {
+          exists: !!env.SOLAPI_API_Secret,
+          type: typeof env.SOLAPI_API_Secret,
+          length: env.SOLAPI_API_Secret?.length || 0,
+          prefix: env.SOLAPI_API_Secret?.substring(0, 8) || 'N/A'
+        }
+      }
     }, null, 2),
     { 
       status: 200, 
