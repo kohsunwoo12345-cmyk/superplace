@@ -146,38 +146,40 @@ export default function CreateStoreProductPage() {
     setLoading(true);
 
     try {
-      // localStorage에 제품 저장 (임시 솔루션)
-      const existingProducts = localStorage.getItem("storeProducts");
-      const products = existingProducts ? JSON.parse(existingProducts) : [];
+      const token = localStorage.getItem("token");
       
-      const newProduct = {
-        id: `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        ...formData,
-        price: formData.price === "" ? 0 : Number(formData.price),
-        monthlyPrice: formData.monthlyPrice === "" ? 0 : Number(formData.monthlyPrice),
-        yearlyPrice: formData.yearlyPrice === "" ? 0 : Number(formData.yearlyPrice),
-        pricePerStudent: formData.pricePerStudent === "" ? 0 : Number(formData.pricePerStudent), // 🆕
-        // 🆕 마케팅 필드
-        originalPrice: formData.originalPrice === "" ? 0 : Number(formData.originalPrice),
-        discountValue: formData.discountValue === "" ? 0 : Number(formData.discountValue),
-        stockQuantity: formData.stockQuantity === "" ? -1 : Number(formData.stockQuantity),
-        maxPurchasePerUser: formData.maxPurchasePerUser === "" ? -1 : Number(formData.maxPurchasePerUser),
-        badges: formData.badges ? formData.badges.split(",").map(b => b.trim()).filter(b => b) : [],
-        displayOrder: formData.displayOrder === "" ? 0 : Number(formData.displayOrder),
-        features: formData.features ? formData.features.split("\n").filter((f) => f.trim()) : [],
-        createdById: user?.id || "admin",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      products.push(newProduct);
-      localStorage.setItem("storeProducts", JSON.stringify(products));
+      const response = await fetch("/api/admin/store-products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...formData,
+          price: formData.price === "" ? 0 : Number(formData.price),
+          monthlyPrice: formData.monthlyPrice === "" ? 0 : Number(formData.monthlyPrice),
+          yearlyPrice: formData.yearlyPrice === "" ? 0 : Number(formData.yearlyPrice),
+          pricePerStudent: formData.pricePerStudent === "" ? 0 : Number(formData.pricePerStudent),
+          originalPrice: formData.originalPrice === "" ? 0 : Number(formData.originalPrice),
+          discountValue: formData.discountValue === "" ? 0 : Number(formData.discountValue),
+          stockQuantity: formData.stockQuantity === "" ? -1 : Number(formData.stockQuantity),
+          maxPurchasePerUser: formData.maxPurchasePerUser === "" ? -1 : Number(formData.maxPurchasePerUser),
+          displayOrder: formData.displayOrder === "" ? 0 : Number(formData.displayOrder),
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("제품 생성에 실패했습니다.");
+      }
+
+      const data = await response.json();
+      console.log("✅ Product created:", data.productId);
       
       alert("제품이 성공적으로 생성되었습니다!");
       router.push("/dashboard/admin/store-management");
     } catch (error) {
       console.error("Error creating product:", error);
-      alert("오류가 발생했습니다.");
+      alert("제품 생성 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
