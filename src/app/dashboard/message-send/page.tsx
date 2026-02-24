@@ -132,65 +132,96 @@ export default function MessageSendPage() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setUser(userData);
-      loadInitialData(userData);
+      try {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+        loadInitialData(userData);
+      } catch (error) {
+        console.error("Failed to parse user data:", error);
+        router.push("/login");
+      }
     } else {
       router.push("/login");
     }
-  }, []);
+  }, [router]);
 
   const loadInitialData = async (userData: UserInfo) => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
 
+      if (!token) {
+        console.error("No token found");
+        router.push("/login");
+        return;
+      }
+
       // 발신번호 목록
-      const sendersRes = await fetch("/api/sender-numbers/approved", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (sendersRes.ok) {
-        const data = await sendersRes.json();
-        setSenderNumbers(data.senderNumbers || []);
-        if (data.senderNumbers?.length > 0) {
-          setSenderNumber(data.senderNumbers[0]);
+      try {
+        const sendersRes = await fetch("/api/sender-numbers/approved", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (sendersRes.ok) {
+          const data = await sendersRes.json();
+          setSenderNumbers(data.senderNumbers || []);
+          if (data.senderNumbers?.length > 0) {
+            setSenderNumber(data.senderNumbers[0]);
+          }
         }
+      } catch (error) {
+        console.error("발신번호 로딩 실패:", error);
       }
 
       // 학생 목록
-      const studentsRes = await fetch("/api/students/by-academy", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (studentsRes.ok) {
-        const data = await studentsRes.json();
-        setStudents(data.students || []);
+      try {
+        const studentsRes = await fetch("/api/students/by-academy", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (studentsRes.ok) {
+          const data = await studentsRes.json();
+          setStudents(data.students || []);
+        }
+      } catch (error) {
+        console.error("학생 목록 로딩 실패:", error);
       }
 
       // 랜딩페이지 목록
-      const landingRes = await fetch("/api/landing-pages/list", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (landingRes.ok) {
-        const data = await landingRes.json();
-        setLandingPages(data.landingPages || []);
+      try {
+        const landingRes = await fetch("/api/landing-pages/list", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (landingRes.ok) {
+          const data = await landingRes.json();
+          setLandingPages(data.landingPages || []);
+        }
+      } catch (error) {
+        console.error("랜딩페이지 목록 로딩 실패:", error);
       }
 
       // 템플릿 목록
-      const templatesRes = await fetch("/api/message-templates/list", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (templatesRes.ok) {
-        const data = await templatesRes.json();
-        setTemplates(data.templates || []);
+      try {
+        const templatesRes = await fetch("/api/message-templates/list", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (templatesRes.ok) {
+          const data = await templatesRes.json();
+          setTemplates(data.templates || []);
+        }
+      } catch (error) {
+        console.error("템플릿 목록 로딩 실패:", error);
       }
 
       // 사용자 포인트 갱신
-      const userRes = await fetch("/api/user/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (userRes.ok) {
-        const data = await userRes.json();
-        setUser((prev) => (prev ? { ...prev, points: data.user.points } : null));
+      try {
+        const userRes = await fetch("/api/user/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (userRes.ok) {
+          const data = await userRes.json();
+          setUser((prev) => (prev ? { ...prev, points: data.user?.points || 0 } : null));
+        }
+      } catch (error) {
+        console.error("사용자 정보 로딩 실패:", error);
       }
     } catch (error) {
       console.error("초기 데이터 로딩 실패:", error);
@@ -276,12 +307,15 @@ export default function MessageSendPage() {
       const baseLandingPage = landingPages.find((lp) => lp.id === selectedLandingPageId);
       if (!baseLandingPage) return mappings;
 
+      // 클라이언트 사이드에서만 window 객체 사용
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://superplacestudy.pages.dev';
+
       selectedStudents.forEach((studentId) => {
         const student = students.find((s) => s.id === studentId);
         if (student && student.parentPhone) {
           // 각 학생마다 고유한 슬러그 생성
           const customSlug = `${baseLandingPage.slug}-${student.studentId || student.id}`;
-          const landingPageUrl = `${window.location.origin}/l/${customSlug}`;
+          const landingPageUrl = `${origin}/l/${customSlug}`;
 
           mappings.push({
             studentId: student.id,
