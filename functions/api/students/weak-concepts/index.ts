@@ -46,8 +46,11 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
           id TEXT PRIMARY KEY,
           studentId INTEGER NOT NULL,
           summary TEXT,
+          detailedAnalysis TEXT,
+          learningDirection TEXT,
           weakConcepts TEXT,
           recommendations TEXT,
+          commonMistakeTypes TEXT,
           chatCount INTEGER,
           homeworkCount INTEGER,
           analyzedAt TEXT DEFAULT (datetime('now')),
@@ -67,8 +70,11 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
           id,
           studentId,
           summary,
+          detailedAnalysis,
+          learningDirection,
           weakConcepts,
           recommendations,
+          commonMistakeTypes,
           chatCount,
           homeworkCount,
           analyzedAt
@@ -96,13 +102,44 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
       );
     }
 
+    // 안전하게 JSON 파싱 시도
+    let weakConcepts: any[] = [];
+    let recommendations: any[] = [];
+    let commonMistakeTypes: any[] = [];
+    
+    try {
+      weakConcepts = JSON.parse(result.weakConcepts as string);
+    } catch (parseError) {
+      console.error('❌ weakConcepts 파싱 실패:', parseError);
+      weakConcepts = [];
+    }
+    
+    try {
+      recommendations = JSON.parse(result.recommendations as string);
+    } catch (parseError) {
+      console.error('❌ recommendations 파싱 실패:', parseError);
+      recommendations = [];
+    }
+    
+    try {
+      if (result.commonMistakeTypes) {
+        commonMistakeTypes = JSON.parse(result.commonMistakeTypes as string);
+      }
+    } catch (parseError) {
+      console.error('❌ commonMistakeTypes 파싱 실패:', parseError);
+      commonMistakeTypes = [];
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         cached: true,
-        weakConcepts: JSON.parse(result.weakConcepts as string),
-        recommendations: JSON.parse(result.recommendations as string),
-        summary: result.summary,
+        weakConcepts: weakConcepts,
+        recommendations: recommendations,
+        commonMistakeTypes: commonMistakeTypes,
+        summary: result.summary || "",
+        detailedAnalysis: result.detailedAnalysis || "",
+        learningDirection: result.learningDirection || "",
         chatCount: result.chatCount,
         homeworkCount: result.homeworkCount,
         analyzedAt: result.analyzedAt,
@@ -471,8 +508,11 @@ Rules:
       // Gemini 응답을 프론트엔드 형식으로 변환
       analysisResult = {
         summary: parsedData.overallAssessment || parsedData.summary || '분석 완료',
+        detailedAnalysis: parsedData.detailedAnalysis || '',
+        learningDirection: parsedData.learningDirection || '',
         weakConcepts: [],
-        recommendations: []
+        recommendations: [],
+        commonMistakeTypes: []
       };
       
       // conceptsNeedingReview → weakConcepts 변환
@@ -502,6 +542,17 @@ Rules:
         analysisResult.recommendations = parsedData.improvementSuggestions.map((item: any) => ({
           concept: item.area || '개선 영역',
           action: item.method || item.action || ''
+        }));
+      }
+      
+      // weaknessPatterns를 commonMistakeTypes로 추가
+      if (Array.isArray(parsedData.weaknessPatterns)) {
+        analysisResult.commonMistakeTypes = parsedData.weaknessPatterns.map((item: any, idx: number) => ({
+          id: idx + 1,
+          type: item.pattern || '유형',
+          frequency: 'medium',
+          example: item.description || '',
+          solution: item.solution || ''
         }));
       }
       
@@ -547,8 +598,11 @@ Rules:
         
         analysisResult = {
           summary: summary,
+          detailedAnalysis: '',
+          learningDirection: '',
           weakConcepts: weakConcepts,
-          recommendations: recommendations
+          recommendations: recommendations,
+          commonMistakeTypes: []
         };
         
         console.log('✅ 정규식 추출 성공! 개념:', weakConcepts.length);
@@ -559,8 +613,11 @@ Rules:
         // 파싱 실패 시 빈 결과 반환
         analysisResult = {
           summary: `AI 응답 파싱 실패\n\n오류: ${parseError.message}\n\nGemini 2.5 Flash API는 정상 응답했지만 JSON 파싱에 실패했습니다.\n\n**해결 방법:**\n1. Cloudflare Pages 대시보드 → Workers & Pages → superplacestudy → Logs에서 전체 응답 확인\n2. '📝 Gemini 2.5 Flash 원본 응답' 로그 확인\n3. API 키가 올바른지 확인\n\n분석 대상: 채팅 ${chatHistory.length}건, 숙제 ${homeworkData.length}건`,
+          detailedAnalysis: '',
+          learningDirection: '',
           weakConcepts: [],
-          recommendations: []
+          recommendations: [],
+          commonMistakeTypes: []
         };
         console.error('❌ 파싱 실패로 오류 메시지와 함께 빈 결과 반환');
       }
@@ -573,8 +630,11 @@ Rules:
           id TEXT PRIMARY KEY,
           studentId INTEGER NOT NULL,
           summary TEXT,
+          detailedAnalysis TEXT,
+          learningDirection TEXT,
           weakConcepts TEXT,
           recommendations TEXT,
+          commonMistakeTypes TEXT,
           chatCount INTEGER,
           homeworkCount INTEGER,
           analyzedAt TEXT DEFAULT (datetime('now')),
@@ -586,14 +646,17 @@ Rules:
       
       await DB.prepare(`
         INSERT OR REPLACE INTO student_weak_concepts 
-        (id, studentId, summary, weakConcepts, recommendations, chatCount, homeworkCount, analyzedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        (id, studentId, summary, detailedAnalysis, learningDirection, weakConcepts, recommendations, commonMistakeTypes, chatCount, homeworkCount, analyzedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       `).bind(
         cacheId,
         parseInt(studentId),
         analysisResult.summary || "",
+        analysisResult.detailedAnalysis || "",
+        analysisResult.learningDirection || "",
         JSON.stringify(analysisResult.weakConcepts || []),
         JSON.stringify(analysisResult.recommendations || []),
+        JSON.stringify(analysisResult.commonMistakeTypes || []),
         chatHistory.length,
         homeworkData.length
       ).run();
