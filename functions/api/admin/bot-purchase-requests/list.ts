@@ -19,7 +19,7 @@ export async function onRequestGet(context: any) {
     
     // 토큰으로 사용자 조회
     const userResult = await env.DB.prepare(
-      'SELECT id, email, name, role FROM Users WHERE token = ?'
+      'SELECT id, email, name, role FROM User WHERE token = ?'
     ).bind(token).first();
 
     if (!userResult) {
@@ -72,8 +72,8 @@ export async function onRequestGet(context: any) {
         u.email as userEmail,
         a.name as academyName
       FROM BotPurchaseRequest bpr
-      LEFT JOIN Users u ON bpr.userId = u.id
-      LEFT JOIN Academies a ON bpr.academyId = a.id
+      LEFT JOIN User u ON bpr.userId = u.id
+      LEFT JOIN Academy a ON bpr.academyId = a.id
       WHERE 1=1
     `;
     

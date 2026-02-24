@@ -19,7 +19,7 @@ export async function onRequestGet(context: any) {
     
     // 토큰으로 사용자 조회
     const user = await env.DB.prepare(
-      'SELECT id, email, name, role, academyId FROM Users WHERE token = ?'
+      'SELECT id, email, name, role, academyId FROM User WHERE token = ?'
     ).bind(token).first();
 
     if (!user) {
