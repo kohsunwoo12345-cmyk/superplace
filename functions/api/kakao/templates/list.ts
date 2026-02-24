@@ -1,6 +1,6 @@
 /**
- * 카카오 알림톡 전송 API
- * POST /api/kakao/send-alimtalk
+ * 카카오 알림톡 템플릿 목록 조회 API
+ * GET /api/kakao/templates/list?pfId=xxxxx
  */
 
 interface Env {
@@ -8,14 +8,7 @@ interface Env {
   SOLAPI_API_Secret?: string;
 }
 
-interface SendRequest {
-  pfId: string;
-  templateId: string;
-  to: string;
-  variables?: Record<string, string>;
-}
-
-export async function onRequestPost(context: { env: Env; request: Request }) {
+export async function onRequestGet(context: { env: Env; request: Request }) {
   try {
     const SOLAPI_API_Key = context.env['SOLAPI_API_Key '];
     const SOLAPI_API_Secret = context.env.SOLAPI_API_Secret;
@@ -30,14 +23,14 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       );
     }
 
-    const body: SendRequest = await context.request.json();
-    const { pfId, templateId, to, variables } = body;
+    const url = new URL(context.request.url);
+    const pfId = url.searchParams.get('pfId');
 
-    if (!pfId || !templateId || !to) {
+    if (!pfId) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'pfId, templateId, and to are required' 
+          error: 'pfId is required' 
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
@@ -47,34 +40,20 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     const salt = Math.random().toString(36).substring(2);
     const signature = await generateSignature(SOLAPI_API_Secret, timestamp, salt);
     
-    const messageData = {
-      message: {
-        to: to,
-        from: '01087399697', // 발신번호 (등록된 번호)
-        kakaoOptions: {
-          pfId: pfId,
-          templateId: templateId,
-          variables: variables || {}
-        }
-      }
-    };
-
-    const response = await fetch('https://api.solapi.com/messages/v4/send', {
-      method: 'POST',
+    const response = await fetch(`https://api.solapi.com/kakao/v1/plus-friends/${pfId}/templates`, {
+      method: 'GET',
       headers: {
         'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${timestamp}, salt=${salt}, signature=${signature}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(messageData),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('Solapi API error:', errorData);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Failed to send message: ${response.status}`,
+          error: `Failed to fetch templates: ${response.status}`,
           details: errorData
         }),
         { status: response.status, headers: { 'Content-Type': 'application/json' } }
@@ -86,17 +65,15 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: '알림톡이 성공적으로 전송되었습니다!',
-        result: data
+        templates: data.templates || data
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
-    console.error('Error sending alimtalk:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'Failed to send alimtalk' 
+        error: error.message || 'Failed to fetch templates' 
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
