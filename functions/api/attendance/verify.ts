@@ -85,14 +85,27 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     const userId = attendanceCode.userId;
 
-    // 2. 학생 정보 조회
-    const student = await DB.prepare(`
+    // 2. 학생 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
+    let student = await DB.prepare(`
       SELECT id, name, email, academyId FROM User WHERE id = ?
     `).bind(userId).first();
 
-    console.log('👤 Student lookup:', student);
+    console.log('👤 Student lookup (User):', student);
+
+    // User 테이블에 없으면 users 테이블 확인 (legacy 지원)
+    if (!student) {
+      console.log('🔍 Trying users table for userId:', userId);
+      student = await DB.prepare(`
+        SELECT id, name, email, academy_id as academyId FROM users WHERE id = ?
+      `).bind(userId).first();
+      
+      if (student) {
+        console.log('✅ Found in users table:', student);
+      }
+    }
 
     if (!student) {
+      console.error('❌ Student not found in both User and users tables');
       return new Response(
         JSON.stringify({ success: false, error: "학생 정보를 찾을 수 없습니다" }),
         { status: 404, headers: { "Content-Type": "application/json" } }
