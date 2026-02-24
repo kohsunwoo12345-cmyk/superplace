@@ -26,7 +26,8 @@ export default function KakaoChannelRegisterPage() {
   const [searchId, setSearchId] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [categoryCode, setCategoryCode] = useState('');
-  const [token, setToken] = useState('');
+  const [verificationCode, setVerificationCode] = useState(''); // 인증번호
+  const [tokenSentTime, setTokenSentTime] = useState<Date | null>(null);
 
   // Load categories on mount
   useEffect(() => {
@@ -69,10 +70,11 @@ export default function KakaoChannelRegisterPage() {
       const data = await response.json();
 
       if (data.success) {
-        setSuccess(data.message);
+        setSuccess('인증번호가 SMS로 전송되었습니다. 휴대전화를 확인해주세요.');
+        setTokenSentTime(new Date());
         setStep(2);
       } else {
-        setError(data.error || 'Failed to request token');
+        setError(data.error || '인증번호 요청에 실패했습니다.');
       }
     } catch (err: any) {
       setError('Failed to request token');
@@ -83,8 +85,14 @@ export default function KakaoChannelRegisterPage() {
   };
 
   const handleCreateChannel = async () => {
-    if (!searchId || !phoneNumber || !categoryCode || !token) {
+    if (!searchId || !phoneNumber || !categoryCode || !verificationCode) {
       setError('모든 필드를 입력해주세요.');
+      return;
+    }
+
+    // 인증번호 길이 체크 (일반적으로 6자리)
+    if (verificationCode.length < 4) {
+      setError('올바른 인증번호를 입력해주세요.');
       return;
     }
 
@@ -100,22 +108,22 @@ export default function KakaoChannelRegisterPage() {
           searchId, 
           phoneNumber, 
           categoryCode, 
-          token 
+          token: verificationCode // 인증번호를 token으로 전달
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setSuccess(data.message);
+        setSuccess('카카오톡 채널이 성공적으로 연동되었습니다! 잠시 후 채널 관리 페이지로 이동합니다.');
         setTimeout(() => {
           router.push('/dashboard/kakao-channel');
         }, 2000);
       } else {
-        setError(data.error || 'Failed to create channel');
+        setError(data.error || '채널 연동에 실패했습니다. 인증번호를 확인해주세요.');
       }
     } catch (err: any) {
-      setError('Failed to create channel');
+      setError('채널 연동에 실패했습니다. 다시 시도해주세요.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -136,7 +144,7 @@ export default function KakaoChannelRegisterPage() {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}>
               {step > 1 ? <CheckCircle2 size={20} /> : '1'}
             </div>
-            <span className="ml-2 font-medium">토큰 요청</span>
+            <span className="ml-2 font-medium">인증번호 요청</span>
           </div>
           <div className="flex-1 h-1 mx-4 bg-gray-300">
             <div className={`h-full ${step >= 2 ? 'bg-blue-600' : 'bg-gray-300'}`} style={{ width: step >= 2 ? '100%' : '0%', transition: 'width 0.3s' }}></div>
@@ -145,7 +153,7 @@ export default function KakaoChannelRegisterPage() {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}>
               2
             </div>
-            <span className="ml-2 font-medium">채널 연동</span>
+            <span className="ml-2 font-medium">인증 및 연동</span>
           </div>
         </div>
       </div>
@@ -167,10 +175,9 @@ export default function KakaoChannelRegisterPage() {
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 1: 연동 토큰 요청</CardTitle>
+            <CardTitle>Step 1: 인증번호 요청</CardTitle>
             <CardDescription>
-              카카오 비즈니스 채널 정보를 입력하고 연동 토큰을 요청하세요.
-              토큰은 담당자 휴대전화로 전송됩니다.
+              카카오 비즈니스 채널 정보를 입력하면 담당자 휴대전화로 인증번호가 SMS로 전송됩니다.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -211,11 +218,11 @@ export default function KakaoChannelRegisterPage() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  처리중...
+                  전송 중...
                 </>
               ) : (
                 <>
-                  토큰 요청하기
+                  인증번호 요청
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               )}
@@ -227,21 +234,32 @@ export default function KakaoChannelRegisterPage() {
       {step === 2 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 2: 채널 연동 완료</CardTitle>
+            <CardTitle>Step 2: 인증번호 확인 및 채널 연동</CardTitle>
             <CardDescription>
-              휴대전화로 받은 토큰을 입력하고 카테고리를 선택하여 채널 연동을 완료하세요.
+              SMS로 받은 인증번호를 입력하고 카테고리를 선택하여 채널 연동을 완료하세요.
+              {tokenSentTime && (
+                <div className="mt-2 text-xs text-blue-600">
+                  📱 인증번호 전송 시간: {tokenSentTime.toLocaleTimeString('ko-KR')}
+                </div>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="token">연동 토큰 *</Label>
+              <Label htmlFor="verificationCode">인증번호 (6자리) *</Label>
               <Input
-                id="token"
-                placeholder="휴대전화로 받은 토큰 입력"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
+                id="verificationCode"
+                type="text"
+                placeholder="SMS로 받은 인증번호 입력"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
                 disabled={loading}
+                maxLength={6}
+                className="text-center text-2xl tracking-widest font-mono"
               />
+              <p className="text-sm text-gray-500 mt-1">
+                📱 {phoneNumber}로 전송된 6자리 인증번호를 입력하세요
+              </p>
             </div>
 
             <div>
@@ -265,24 +283,28 @@ export default function KakaoChannelRegisterPage() {
             <div className="flex gap-2">
               <Button 
                 variant="outline"
-                onClick={() => setStep(1)} 
+                onClick={() => {
+                  setStep(1);
+                  setVerificationCode('');
+                  setSuccess(null);
+                }} 
                 disabled={loading}
                 className="flex-1"
               >
-                이전
+                ← 인증번호 재요청
               </Button>
               <Button 
                 onClick={handleCreateChannel} 
-                disabled={loading || !token || !categoryCode}
+                disabled={loading || !verificationCode || !categoryCode || verificationCode.length < 4}
                 className="flex-1"
               >
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    처리중...
+                    인증 중...
                   </>
                 ) : (
-                  '채널 연동 완료'
+                  '인증 및 연동 완료'
                 )}
               </Button>
             </div>
@@ -291,12 +313,13 @@ export default function KakaoChannelRegisterPage() {
       )}
 
       <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h3 className="font-semibold text-blue-900 mb-2">📌 연동 전 확인사항</h3>
+        <h3 className="font-semibold text-blue-900 mb-2">📌 채널 연동 안내</h3>
         <ul className="text-sm text-blue-800 space-y-1">
           <li>• 카카오톡 채널이 이미 개설되어 있어야 합니다</li>
           <li>• 카카오 비즈니스 센터에서 채널 검색용 ID를 확인하세요</li>
           <li>• 담당자 휴대전화는 카카오톡이 설치된 번호여야 합니다</li>
-          <li>• 토큰은 SMS로 전송되며 유효시간이 있으니 빠르게 입력하세요</li>
+          <li>• <strong className="text-blue-900">인증번호는 SMS로 전송되며 유효시간이 있으니 빠르게 입력하세요</strong></li>
+          <li>• 인증번호를 받지 못했다면 "이전" 버튼을 눌러 다시 요청하세요</li>
         </ul>
       </div>
     </div>
