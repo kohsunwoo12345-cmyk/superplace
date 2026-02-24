@@ -39,13 +39,31 @@ export default function KakaoChannelRegisterPage() {
       const response = await fetch('/api/kakao/channel-categories');
       const data = await response.json();
       
-      if (data.success) {
+      if (data.success && data.categories && data.categories.length > 0) {
         setCategories(data.categories);
       } else {
-        setError(data.error || 'Failed to load categories');
+        // API 실패 시 기본 카테고리 사용
+        setCategories([
+          { code: 'CATEGORY_001', name: '교육' },
+          { code: 'CATEGORY_002', name: '금융/보험' },
+          { code: 'CATEGORY_003', name: '유통/소매' },
+          { code: 'CATEGORY_004', name: '서비스' },
+          { code: 'CATEGORY_005', name: '의료' },
+          { code: 'CATEGORY_006', name: 'IT/기술' },
+          { code: 'CATEGORY_007', name: '기타' }
+        ]);
       }
     } catch (err: any) {
-      setError('Failed to load categories');
+      // 에러 발생 시 기본 카테고리 사용
+      setCategories([
+        { code: 'CATEGORY_001', name: '교육' },
+        { code: 'CATEGORY_002', name: '금융/보험' },
+        { code: 'CATEGORY_003', name: '유통/소매' },
+        { code: 'CATEGORY_004', name: '서비스' },
+        { code: 'CATEGORY_005', name: '의료' },
+        { code: 'CATEGORY_006', name: 'IT/기술' },
+        { code: 'CATEGORY_007', name: '기타' }
+      ]);
       console.error(err);
     }
   };
@@ -61,10 +79,13 @@ export default function KakaoChannelRegisterPage() {
     setSuccess(null);
 
     try {
+      // @ 기호 제거
+      const cleanSearchId = searchId.replace('@', '');
+      
       const response = await fetch('/api/kakao/request-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ searchId, phoneNumber }),
+        body: JSON.stringify({ searchId: cleanSearchId, phoneNumber }),
       });
 
       const data = await response.json();
@@ -101,11 +122,14 @@ export default function KakaoChannelRegisterPage() {
     setSuccess(null);
 
     try {
+      // @ 기호 제거
+      const cleanSearchId = searchId.replace('@', '');
+      
       const response = await fetch('/api/kakao/create-channel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          searchId, 
+          searchId: cleanSearchId, 
           phoneNumber, 
           categoryCode, 
           token: verificationCode // 인증번호를 token으로 전달
