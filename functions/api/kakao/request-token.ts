@@ -48,7 +48,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        plusFriendId: searchId,
+        searchId: searchId,
         phoneNumber: phoneNumber,
       }),
     });
