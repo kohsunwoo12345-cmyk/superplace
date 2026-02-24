@@ -3,9 +3,12 @@
  * GET /api/kakao/channel-categories
  */
 
-import { SolapiMessageService } from 'solapi';
+interface Env {
+  SOLAPI_API_KEY: string;
+  SOLAPI_API_SECRET: string;
+}
 
-export async function onRequestGet(context: any) {
+export async function onRequestGet(context: { env: Env }) {
   try {
     const { SOLAPI_API_KEY, SOLAPI_API_SECRET } = context.env;
 
@@ -19,16 +22,39 @@ export async function onRequestGet(context: any) {
       );
     }
 
-    const messageService = new SolapiMessageService(SOLAPI_API_KEY, SOLAPI_API_SECRET);
-    const categories = await messageService.getKakaoChannelCategories();
+    // Solapi REST API 직접 호출
+    const timestamp = Date.now().toString();
+    const salt = Math.random().toString(36).substring(2);
+    
+    // HMAC 서명 생성
+    const signature = await generateSignature(SOLAPI_API_SECRET, timestamp, salt);
+    
+    const response = await fetch('https://api.solapi.com/kakao/v1/plus-friends/categories', {
+      method: 'GET',
+      headers: {
+        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${timestamp}, salt=${salt}, signature=${signature}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Solapi API error:', errorData);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Failed to fetch categories: ${response.status}` 
+        }),
+        { status: response.status, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const data = await response.json();
+    
     return new Response(
       JSON.stringify({ 
         success: true, 
-        categories: categories.map((cat: any) => ({
-          code: cat.code,
-          name: cat.name
-        }))
+        categories: data.categories || data
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
@@ -42,4 +68,24 @@ export async function onRequestGet(context: any) {
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
+}
+
+async function generateSignature(secret: string, timestamp: string, salt: string): Promise<string> {
+  const message = timestamp + salt;
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+  const messageData = encoder.encode(message);
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+  return Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
