@@ -230,7 +230,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
               </div>
 
               {/* AI 쇼핑몰 & 홈페이지 버튼 (왼쪽) */}
-              <div className="hidden lg:flex items-center gap-2 ml-4">
+              <div className="flex items-center gap-2 ml-4">
                 {/* AI 쇼핑몰 버튼 - 관리자/학원장만 */}
                 {(role.toUpperCase() === 'ADMIN' || 
                   role.toUpperCase() === 'SUPER_ADMIN' || 
@@ -263,7 +263,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
               </div>
 
               {/* Search Bar (넓게 확장) */}
-              <div className="hidden xl:flex items-center flex-1 max-w-2xl mx-4">
+              <div className="flex items-center flex-1 max-w-2xl mx-4">
                 <div className="relative w-full">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
