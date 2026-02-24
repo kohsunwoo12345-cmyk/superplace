@@ -19,34 +19,47 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
     setMounted(true);
     const userStr = localStorage.getItem('user');
+    
+    // 현재 경로가 공개 경로인지 확인
+    const isPublicPath = PUBLIC_PATHS.some(path => pathname?.startsWith(path));
+    
     if (userStr) {
       try {
         const userData = JSON.parse(userStr);
         setUser(userData);
         console.log('🔍 DashboardLayout - User Data:', userData);
         console.log('🔍 DashboardLayout - User Role:', userData.role);
+        setIsChecking(false);
       } catch (error) {
         console.error('Failed to parse user data:', error);
+        setIsChecking(false);
+        if (!isPublicPath) {
+          router.push('/login');
+        }
       }
+    } else {
+      // 공개 경로가 아니고 로그인하지 않은 경우 리다이렉트
+      if (!isPublicPath) {
+        router.push('/login');
+      }
+      setIsChecking(false);
     }
-  }, []);
+  }, [pathname, router]);
 
-  if (!mounted) {
+  if (!mounted || isChecking) {
     return null;
   }
 
   // 현재 경로가 공개 경로인지 확인
   const isPublicPath = PUBLIC_PATHS.some(path => pathname?.startsWith(path));
 
-  // 공개 경로가 아니고 로그인하지 않은 경우에만 리다이렉트
+  // 공개 경로가 아니고 사용자가 없으면 null 반환 (리다이렉트 진행 중)
   if (!isPublicPath && !user) {
-    if (typeof window !== 'undefined') {
-      router.push('/login');
-    }
     return null;
   }
 
