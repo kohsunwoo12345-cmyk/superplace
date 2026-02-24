@@ -296,6 +296,11 @@ const AIStorePage = () => {
                               src={product.imageUrl}
                               alt={product.name}
                               className="absolute top-0 left-0 w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.currentTarget;
+                                target.onerror = null; // Prevent infinite loop
+                                target.src = '/api/placeholder/400/480';
+                              }}
                             />
                           </div>
                           <div className="p-3 flex-grow">
@@ -369,6 +374,11 @@ const AIStorePage = () => {
                         src={product.imageUrl}
                         alt={product.name}
                         className="absolute top-0 left-0 w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.onerror = null; // Prevent infinite loop
+                          target.src = '/api/placeholder/400/480';
+                        }}
                       />
                     </div>
                     <div className="p-3">
