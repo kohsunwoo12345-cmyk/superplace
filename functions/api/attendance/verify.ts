@@ -130,6 +130,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       WHERE userId = ? AND SUBSTR(checkInTime, 1, 10) = ?
     `).bind(userId, today).first();
 
+    const alreadyCheckedIn = !!existingAttendance;
+
     if (existingAttendance) {
       console.log('⚠️ 중복 출석 허용: 기존 출석을 업데이트합니다.', existingAttendance);
       // 중복 출석 허용: 기존 레코드를 삭제하고 새로 생성
@@ -165,6 +167,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     return new Response(
       JSON.stringify({
         success: true,
+        alreadyCheckedIn: alreadyCheckedIn,
         student: {
           id: student.id,
           name: student.name,
