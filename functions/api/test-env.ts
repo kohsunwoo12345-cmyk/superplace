@@ -4,7 +4,7 @@
  */
 
 interface Env {
-  SOLAPI_API_Key?: string;
+  'SOLAPI_API_Key '?: string;  // 주의: 끝에 공백
   SOLAPI_API_Secret?: string;
   [key: string]: any;
 }
@@ -27,11 +27,11 @@ export async function onRequestGet(context: { env: Env }) {
       allEnvKeys: allKeys,
       solapiRelatedKeys: solapiRelated,
       checks: {
-        'SOLAPI_API_Key': {
-          exists: !!env.SOLAPI_API_Key,
-          type: typeof env.SOLAPI_API_Key,
-          length: env.SOLAPI_API_Key?.length || 0,
-          prefix: env.SOLAPI_API_Key?.substring(0, 8) || 'N/A'
+        'SOLAPI_API_Key ': {
+          exists: !!env['SOLAPI_API_Key '],
+          type: typeof env['SOLAPI_API_Key '],
+          length: env['SOLAPI_API_Key ']?.length || 0,
+          prefix: env['SOLAPI_API_Key ']?.substring(0, 8) || 'N/A'
         },
         'SOLAPI_API_Secret': {
           exists: !!env.SOLAPI_API_Secret,
