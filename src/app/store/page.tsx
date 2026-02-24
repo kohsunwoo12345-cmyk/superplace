@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import BotPurchaseDialog from '@/components/BotPurchaseDialog';
 
@@ -131,7 +131,7 @@ const AIStorePage = () => {
     loadProducts();
   }, []);
 
-  const sections = [
+  const sections = useMemo(() => [
     {
       id: 'section1',
       title: '학원 운영 봇',
@@ -150,7 +150,7 @@ const AIStorePage = () => {
       subtitle: '맞춤형 AI 솔루션으로 경쟁력 강화',
       products: products.filter(p => p.category === '전문가용'),
     },
-  ];
+  ], [products]);
 
   // 검색 기능
   const handleSearch = (query: string) => {
