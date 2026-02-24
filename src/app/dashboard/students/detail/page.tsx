@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, MessageSquare,
   TrendingUp, Brain, Loader2, RefreshCw, CheckCircle, XCircle,
-  ClipboardCheck, AlertTriangle, QrCode, Copy, Check, Key, Edit, Save, X as XIcon
+  ClipboardCheck, AlertTriangle, QrCode, Copy, Check, Key, Edit, Save, X as XIcon, FileText
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
