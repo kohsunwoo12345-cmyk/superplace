@@ -73,7 +73,7 @@ export default function AttendanceVerifyPage() {
         console.log("📊 받은 데이터:", data);
         
         // 학생 정보 설정
-        setStudentInfo({
+        const newStudentInfo = {
           ...data.student,
           userId: data.student?.id,
           userName: data.student?.name,
@@ -83,17 +83,26 @@ export default function AttendanceVerifyPage() {
           status: data.attendance?.status,
           statusText: data.attendance?.status === 'LATE' ? '지각' : '출석',
           alreadyCheckedIn: data.alreadyCheckedIn || false
-        });
+        };
+        
+        setStudentInfo(newStudentInfo);
         
         console.log("✅ 저장된 학생 정보:", {
           userId: data.student?.id,
           userName: data.student?.name,
-          attendanceCode: trimmedCode
+          attendanceCode: trimmedCode,
+          fullInfo: newStudentInfo
         });
         
         // 숙제 제출 페이지로 이동
+        console.log("🔄 setVerified(true) 호출 전 - verified 상태:", verified);
         setVerified(true);
         console.log("✅ setVerified(true) 완료");
+        
+        // 상태 업데이트 확인을 위한 지연 로그
+        setTimeout(() => {
+          console.log("⏰ 500ms 후 verified 상태 확인:", verified);
+        }, 500);
         
         // 이미 출석한 경우 로그
         if (data.alreadyCheckedIn) {
@@ -501,6 +510,7 @@ export default function AttendanceVerifyPage() {
 
   // 출석 완료 + 숙제 채점 완료 화면
   if (verified && studentInfo && studentInfo.homework?.graded) {
+    console.log("🎯 렌더링: 출석 + 숙제 완료 화면");
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full border-2 border-green-200">
@@ -560,6 +570,7 @@ export default function AttendanceVerifyPage() {
 
   // 출석 완료 - 숙제 제출 대기
   if (verified && studentInfo) {
+    console.log("🎯 렌더링: 숙제 제출 페이지", { verified, studentInfo });
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
         <Card className="max-w-2xl w-full">
@@ -725,6 +736,7 @@ export default function AttendanceVerifyPage() {
   }
 
   // 출석 코드 입력 화면
+  console.log("🎯 렌더링: 출석 코드 입력 화면", { verified, studentInfo });
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
       <Card className="max-w-md w-full shadow-xl">
