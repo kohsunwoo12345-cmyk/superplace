@@ -138,6 +138,59 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
+    // 🔒 구독 슬롯 검증 (학원장/선생님의 경우)
+    if ((role === 'DIRECTOR' || role === 'TEACHER') && userAcademyId) {
+      console.log('🔍 Checking subscription slots for academy:', userAcademyId);
+      
+      // 학원의 구독 정보 조회
+      const subscription = await DB.prepare(`
+        SELECT * FROM AcademyBotSubscription 
+        WHERE academyId = ? AND productId = ?
+        ORDER BY subscriptionEnd DESC
+        LIMIT 1
+      `).bind(userAcademyId, botId).first() as any;
+
+      if (!subscription) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'No subscription found',
+          message: '이 AI 봇에 대한 구독이 없습니다.\nAI 쇼핑몰에서 구독을 신청하거나 관리자에게 문의하세요.'
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      // 구독 만료 확인
+      const subscriptionEnd = new Date(subscription.subscriptionEnd);
+      const now = new Date();
+      if (subscriptionEnd < now) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Subscription expired',
+          message: `구독이 만료되었습니다 (만료일: ${subscription.subscriptionEnd}).\n새로운 구독을 신청해주세요.`
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      // 남은 슬롯 확인
+      const remainingSlots = subscription.remainingStudentSlots || 0;
+      if (remainingSlots <= 0) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'No remaining slots',
+          message: `사용 가능한 학생 슬롯이 부족합니다.\n\n현재 상태:\n- 전체 슬롯: ${subscription.totalStudentSlots}개\n- 사용 중: ${subscription.usedStudentSlots}개\n- 남은 슬롯: ${remainingSlots}개\n\n추가 슬롯이 필요한 경우 AI 쇼핑몰에서 구독을 추가 신청하세요.`
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      console.log(`✅ Subscription slots available: ${remainingSlots}/${subscription.totalStudentSlots}`);
+    }
+
     // 시작일 및 종료일 계산 (한국 시간 KST)
     const now = new Date();
     const kstOffset = 9 * 60; // KST = UTC+9
@@ -199,6 +252,21 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       duration,
       durationUnit
     ).run();
+
+    // 🔒 구독 슬롯 차감 (학원장/선생님의 경우)
+    if ((role === 'DIRECTOR' || role === 'TEACHER') && user.academyId) {
+      console.log('📉 Decreasing subscription slot for academy:', user.academyId);
+      
+      await DB.prepare(`
+        UPDATE AcademyBotSubscription
+        SET usedStudentSlots = usedStudentSlots + 1,
+            remainingStudentSlots = remainingStudentSlots - 1,
+            updatedAt = datetime('now')
+        WHERE academyId = ? AND productId = ?
+      `).bind(user.academyId, botId).run();
+
+      console.log('✅ Subscription slot decreased');
+    }
 
     console.log("✅ AI 봇 할당 완료:", assignmentId);
 
