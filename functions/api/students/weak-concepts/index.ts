@@ -233,64 +233,54 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       chatHistory = [];
     }
 
-    // 2. 학생의 숙제 채점 데이터 가져오기 - 여러 테이블 시도
+    // 2. 학생의 숙제 채점 데이터 가져오기
     let homeworkData: any[] = [];
     
-    // 시도할 테이블명 조합들
-    const tableCombinations = [
-      { submissions: 'homework_submissions_v2', gradings: 'homework_gradings_v2' },
-      { submissions: 'homework_submissions', gradings: 'homework_gradings' },
-      { submissions: 'homeworkSubmissions', gradings: 'homeworkGradings' },
-    ];
-    
-    for (const tables of tableCombinations) {
-      try {
-        let homeworkQuery = `
-          SELECT 
-            hs.id,
-            hs.submittedAt,
-            hg.score,
-            hg.subject,
-            hg.feedback,
-            hg.weaknessTypes,
-            hg.detailedAnalysis,
-            hg.studyDirection,
-            hg.problemAnalysis
-          FROM ${tables.submissions} hs
-          LEFT JOIN ${tables.gradings} hg ON hg.submissionId = hs.id
-          WHERE hs.userId = ? AND hg.score IS NOT NULL
-        `;
-        
-        const params: any[] = [parseInt(studentId)];
-        
-        // 기간 필터 추가
-        if (startDate && endDate) {
-          // ISO 날짜를 YYYY-MM-DD 00:00:00 형식으로 변환
-          const startDateTime = `${startDate} 00:00:00`;
-          const endDateTime = `${endDate} 23:59:59`;
-          homeworkQuery += ` AND hs.submittedAt BETWEEN ? AND ?`;
-          params.push(startDateTime, endDateTime);
-          console.log('📅 Homework date filter:', startDateTime, '~', endDateTime);
-        }
-        
-        homeworkQuery += ` ORDER BY hs.submittedAt DESC LIMIT 50`;
-        
-        console.log('🔍 Homework query:', homeworkQuery);
-        console.log('🔍 Homework params:', params);
-        
-        const homeworkResult = await DB.prepare(homeworkQuery).bind(...params).all();
-        homeworkData = homeworkResult.results || [];
-        
-        if (homeworkData.length > 0) {
-          console.log(`✅ Found ${homeworkData.length} homework records using tables: ${tables.submissions}, ${tables.gradings}`);
-          console.log('📝 First homework date:', homeworkData[0].submittedAt);
-          console.log('📝 Last homework date:', homeworkData[homeworkData.length - 1].submittedAt);
-          break; // 성공하면 루프 종료
-        }
-      } catch (dbError: any) {
-        console.warn(`⚠️ Failed with tables ${tables.submissions}, ${tables.gradings}:`, dbError.message);
-        continue; // 다음 조합 시도
+    try {
+      let homeworkQuery = `
+        SELECT 
+          id,
+          userId as studentId,
+          submittedAt,
+          score,
+          subject,
+          feedback,
+          completion,
+          effort,
+          strengths,
+          suggestions
+        FROM homework_submissions
+        WHERE userId = ? AND score IS NOT NULL
+      `;
+      
+      const params: any[] = [parseInt(studentId)];
+      
+      // 기간 필터 추가
+      if (startDate && endDate) {
+        // ISO 날짜를 YYYY-MM-DD 00:00:00 형식으로 변환
+        const startDateTime = `${startDate} 00:00:00`;
+        const endDateTime = `${endDate} 23:59:59`;
+        homeworkQuery += ` AND submittedAt BETWEEN ? AND ?`;
+        params.push(startDateTime, endDateTime);
+        console.log('📅 Homework date filter:', startDateTime, '~', endDateTime);
       }
+      
+      homeworkQuery += ` ORDER BY submittedAt DESC LIMIT 50`;
+      
+      console.log('🔍 Homework query:', homeworkQuery);
+      console.log('🔍 Homework params:', params);
+      
+      const homeworkResult = await DB.prepare(homeworkQuery).bind(...params).all();
+      homeworkData = homeworkResult.results || [];
+      
+      if (homeworkData.length > 0) {
+        console.log(`✅ Found ${homeworkData.length} homework records`);
+        console.log('📝 First homework date:', homeworkData[0].submittedAt);
+        console.log('📝 Last homework date:', homeworkData[homeworkData.length - 1].submittedAt);
+      }
+    } catch (dbError: any) {
+      console.warn('⚠️ Failed to fetch homework data:', dbError.message);
+      homeworkData = [];
     }
     
     console.log(`📊 Final homework data count: ${homeworkData.length}`);
@@ -326,14 +316,15 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     if (homeworkData.length > 0) {
       const homeworkText = homeworkData
         .map((hw: any, idx: number) => {
-          const weaknessTypes = hw.weaknessTypes ? JSON.parse(hw.weaknessTypes) : [];
           return `
 숙제 ${idx + 1} (${hw.submittedAt}):
 - 과목: ${hw.subject || '알 수 없음'}
 - 점수: ${hw.score}점
-- 약점 유형: ${weaknessTypes.join(', ') || '없음'}
-- 상세 분석: ${hw.detailedAnalysis || '없음'}
-- 학습 방향: ${hw.studyDirection || '없음'}
+- 피드백: ${hw.feedback || '없음'}
+- 완성도: ${hw.completion || '없음'}
+- 노력도: ${hw.effort || '없음'}
+- 강점: ${hw.strengths || '없음'}
+- 개선사항: ${hw.suggestions || '없음'}
 `;
         })
         .join('\n');

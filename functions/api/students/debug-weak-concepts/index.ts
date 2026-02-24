@@ -36,42 +36,36 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     // 1. 학생의 숙제 데이터 가져오기
     let homeworkData: any[] = [];
     
-    const tableVariations = [
-      { submissions: 'homework_submissions', gradings: 'homework_gradings' },
-      { submissions: 'HomeworkSubmissions', gradings: 'HomeworkGradings' },
-      { submissions: 'homeworksubmissions', gradings: 'homeworkgradings' },
-    ];
-    
-    for (const tables of tableVariations) {
-      try {
-        const homeworkQuery = `
-          SELECT 
-            s.id,
-            s.student_id as studentId,
-            s.subject,
-            s.submitted_at as submittedAt,
-            g.score,
-            g.weakness_types as weaknessTypes,
-            g.detailed_analysis as detailedAnalysis,
-            g.study_direction as studyDirection
-          FROM ${tables.submissions} s
-          LEFT JOIN ${tables.gradings} g ON s.id = g.submission_id
-          WHERE s.student_id = ?
-          ORDER BY s.submitted_at DESC
-          LIMIT 30
-        `;
-        
-        const homeworkResult = await DB.prepare(homeworkQuery).bind(parseInt(studentId)).all();
-        homeworkData = homeworkResult.results || [];
-        
-        if (homeworkData.length > 0) {
-          logs.push(`✅ Found ${homeworkData.length} homework records using tables: ${tables.submissions}, ${tables.gradings}`);
-          break;
-        }
-      } catch (dbError: any) {
-        logs.push(`⚠️ Failed with tables ${tables.submissions}, ${tables.gradings}: ${dbError.message}`);
-        continue;
+    try {
+      const homeworkQuery = `
+        SELECT 
+          id,
+          userId as studentId,
+          submittedAt,
+          score,
+          subject,
+          feedback,
+          completion,
+          effort,
+          strengths,
+          suggestions
+        FROM homework_submissions
+        WHERE userId = ? AND score IS NOT NULL
+        ORDER BY submittedAt DESC
+        LIMIT 30
+      `;
+      
+      const homeworkResult = await DB.prepare(homeworkQuery).bind(parseInt(studentId)).all();
+      homeworkData = homeworkResult.results || [];
+      
+      if (homeworkData.length > 0) {
+        logs.push(`✅ Found ${homeworkData.length} homework records`);
+      } else {
+        logs.push(`⚠️ No homework records found for student ${studentId}`);
       }
+    } catch (dbError: any) {
+      logs.push(`❌ Failed to fetch homework data: ${dbError.message}`);
+      homeworkData = [];
     }
 
     logs.push(`📊 Total homework records: ${homeworkData.length}`);
@@ -92,14 +86,15 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     const homeworkText = homeworkData
       .slice(0, 10)  // 최대 10개만
       .map((hw: any, idx: number) => {
-        const weaknessTypes = hw.weaknessTypes ? JSON.parse(hw.weaknessTypes) : [];
         return `
 숙제 ${idx + 1} (${hw.submittedAt}):
 - 과목: ${hw.subject || '알 수 없음'}
 - 점수: ${hw.score}점
-- 약점 유형: ${weaknessTypes.join(', ') || '없음'}
-- 상세 분석: ${hw.detailedAnalysis || '없음'}
-- 학습 방향: ${hw.studyDirection || '없음'}
+- 피드백: ${hw.feedback || '없음'}
+- 완성도: ${hw.completion || '없음'}
+- 노력도: ${hw.effort || '없음'}
+- 강점: ${hw.strengths || '없음'}
+- 개선사항: ${hw.suggestions || '없음'}
 `;
       })
       .join('\n');
