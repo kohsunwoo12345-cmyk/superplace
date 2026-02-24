@@ -294,38 +294,45 @@ const AIStorePage = () => {
                   >
                     {section.products.map((product) => (
                       <div key={product.id} className="w-full md:w-1/2 lg:w-1/3 flex-shrink-0 px-2">
-                        <div className={`bg-white rounded border overflow-hidden transition-all h-full flex flex-direction-column ${
+                        <div className={`bg-white rounded-lg border overflow-hidden transition-all h-full flex flex-col ${
                           product.featured ? 'border-blue-600 shadow-md' : 'border-gray-200 hover:shadow-lg'
                         }`}>
-                          <div className="relative w-full pt-[120%] bg-gray-100">
+                          {/* 이미지 영역 - 상단 */}
+                          <div className="relative w-full pt-[100%] bg-gray-100">
                             <img
                               src={product.imageUrl}
                               alt={product.name}
                               className="absolute top-0 left-0 w-full h-full object-cover"
                               onError={(e) => {
                                 const target = e.currentTarget;
-                                target.onerror = null; // Prevent infinite loop
+                                target.onerror = null;
                                 target.src = 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image';
                               }}
                             />
                           </div>
-                          <div className="p-3 flex-grow">
-                            <h3 className="font-semibold text-sm text-gray-900 mb-2">{product.name}</h3>
-                            <p className="text-xs text-gray-600 mb-3 min-h-[36px]">{product.description}</p>
-                            <div className="text-lg font-bold text-blue-600 mb-3">{product.price}</div>
-                            <button 
-                              onClick={() => {
-                                if (product.pricePerStudent && product.pricePerStudent > 0) {
-                                  setSelectedProduct(product);
-                                  setPurchaseDialogOpen(true);
-                                } else {
-                                  alert('이 제품은 현재 구매 신청이 불가능합니다. 관리자에게 문의하세요.');
-                                }
-                              }}
-                              className="w-full bg-blue-600 text-white py-2 rounded text-sm font-semibold hover:bg-blue-700"
-                            >
-                              구매하기
-                            </button>
+                          
+                          {/* 컨텐츠 영역 - 중간 */}
+                          <div className="p-4 flex-grow flex flex-col">
+                            <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
+                            <p className="text-sm text-gray-600 mb-4 flex-grow line-clamp-2">{product.description}</p>
+                            
+                            {/* 가격 및 구매 영역 - 하단 */}
+                            <div className="mt-auto">
+                              <div className="text-2xl font-bold text-blue-600 mb-3">{product.price}</div>
+                              <button 
+                                onClick={() => {
+                                  if (product.pricePerStudent && product.pricePerStudent > 0) {
+                                    setSelectedProduct(product);
+                                    setPurchaseDialogOpen(true);
+                                  } else {
+                                    alert('이 제품은 현재 구매 신청이 불가능합니다. 관리자에게 문의하세요.');
+                                  }
+                                }}
+                                className="w-full bg-blue-600 text-white py-3 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors"
+                              >
+                                구매하기
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -370,40 +377,47 @@ const AIStorePage = () => {
               </div>
             ) : (
               /* Grid View */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {section.products.map((product) => (
-                  <div key={product.id} className={`bg-white rounded border overflow-hidden transition-all ${
+                  <div key={product.id} className={`bg-white rounded-lg border overflow-hidden transition-all flex flex-col ${
                     product.featured ? 'border-blue-600 shadow-md' : 'border-gray-200 hover:shadow-lg'
                   }`}>
-                    <div className="relative w-full pt-[120%] bg-gray-100">
+                    {/* 이미지 영역 - 상단 */}
+                    <div className="relative w-full pt-[100%] bg-gray-100">
                       <img
                         src={product.imageUrl}
                         alt={product.name}
                         className="absolute top-0 left-0 w-full h-full object-cover"
                         onError={(e) => {
                           const target = e.currentTarget;
-                          target.onerror = null; // Prevent infinite loop
+                          target.onerror = null;
                           target.src = 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image';
                         }}
                       />
                     </div>
-                    <div className="p-3">
-                      <h3 className="font-semibold text-sm text-gray-900 mb-2">{product.name}</h3>
-                      <p className="text-xs text-gray-600 mb-3 min-h-[36px]">{product.description}</p>
-                      <div className="text-lg font-bold text-blue-600 mb-3">{product.price}</div>
-                      <button 
-                        onClick={() => {
-                          if (product.pricePerStudent && product.pricePerStudent > 0) {
-                            setSelectedProduct(product);
-                            setPurchaseDialogOpen(true);
-                          } else {
-                            alert('이 제품은 현재 구매 신청이 불가능합니다. 관리자에게 문의하세요.');
-                          }
-                        }}
-                        className="w-full bg-blue-600 text-white py-2 rounded text-sm font-semibold hover:bg-blue-700"
-                      >
-                        구매하기
-                      </button>
+                    
+                    {/* 컨텐츠 영역 - 중간 */}
+                    <div className="p-4 flex-grow flex flex-col">
+                      <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
+                      <p className="text-sm text-gray-600 mb-4 flex-grow line-clamp-2">{product.description}</p>
+                      
+                      {/* 가격 및 구매 영역 - 하단 */}
+                      <div className="mt-auto">
+                        <div className="text-2xl font-bold text-blue-600 mb-3">{product.price}</div>
+                        <button 
+                          onClick={() => {
+                            if (product.pricePerStudent && product.pricePerStudent > 0) {
+                              setSelectedProduct(product);
+                              setPurchaseDialogOpen(true);
+                            } else {
+                              alert('이 제품은 현재 구매 신청이 불가능합니다. 관리자에게 문의하세요.');
+                            }
+                          }}
+                          className="w-full bg-blue-600 text-white py-3 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors"
+                        >
+                          구매하기
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
