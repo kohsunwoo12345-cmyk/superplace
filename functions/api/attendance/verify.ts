@@ -62,27 +62,6 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       isActiveType: typeof attendanceCode.isActive
     });
 
-    // isActive 값 확인 - 다양한 형태 허용 (1, "1", true, "true")
-    const isActiveValue = attendanceCode.isActive;
-    const isActive = isActiveValue === 1 || 
-                    isActiveValue === "1" || 
-                    isActiveValue === true || 
-                    isActiveValue === "true" ||
-                    isActiveValue === "TRUE";
-    
-    console.log('🔐 isActive check:', { original: isActiveValue, result: isActive });
-    
-    if (!isActive) {
-      console.error('❌ Code is inactive:', code, 'isActive value:', isActiveValue);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "비활성화된 출석 코드입니다"
-        }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
     const userId = attendanceCode.userId;
 
     // 2. 학생 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
@@ -109,6 +88,29 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       return new Response(
         JSON.stringify({ success: false, error: "학생 정보를 찾을 수 없습니다" }),
         { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // isActive 값 확인 - users 테이블에서 찾았으면 무조건 허용
+    const isActiveValue = attendanceCode.isActive;
+    const foundInUsers = student && !student.academyId; // users 테이블은 academy_id 필드 사용
+    const isActive = foundInUsers || // users 테이블에서 찾았으면 허용
+                    isActiveValue === 1 || 
+                    isActiveValue === "1" || 
+                    isActiveValue === true || 
+                    isActiveValue === "true" ||
+                    isActiveValue === "TRUE";
+    
+    console.log('🔐 isActive check:', { original: isActiveValue, result: isActive, foundInUsers });
+    
+    if (!isActive) {
+      console.error('❌ Code is inactive:', code, 'isActive value:', isActiveValue);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "비활성화된 출석 코드입니다"
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
 
