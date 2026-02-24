@@ -142,6 +142,163 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const transactions = transactionsResult.results || [];
 
+    // ===== 포인트 충전 매출 추가 =====
+    console.log('💰 Fetching Point Charge Revenue...');
+    
+    let pointQuery = `
+      SELECT 
+        pcr.id,
+        pcr.userId,
+        pcr.requestedPoints,
+        pcr.pointPrice,
+        pcr.vat,
+        pcr.totalPrice as amount,
+        'POINT_CHARGE' as type,
+        '포인트 충전' as description,
+        'completed' as status,
+        pcr.approvedAt as paidAt,
+        pcr.createdAt,
+        u.name as userName,
+        u.email as userEmail,
+        u.academyId,
+        a.name as academyName
+      FROM PointChargeRequest pcr
+      LEFT JOIN users u ON pcr.userId = u.id
+      LEFT JOIN academy a ON u.academyId = a.id
+      WHERE pcr.status = 'APPROVED'
+    `;
+
+    const pointParams: any[] = [];
+
+    if (academyId) {
+      pointQuery += ' AND u.academyId = ?';
+      pointParams.push(academyId);
+    }
+
+    if (startDate) {
+      pointQuery += ' AND date(pcr.approvedAt) >= date(?)';
+      pointParams.push(startDate);
+    }
+
+    if (endDate) {
+      pointQuery += ' AND date(pcr.approvedAt) <= date(?)';
+      pointParams.push(endDate);
+    }
+
+    if (searchQuery) {
+      pointQuery += ' AND (u.name LIKE ? OR u.email LIKE ? OR a.name LIKE ?)';
+      const searchPattern = `%${searchQuery}%`;
+      pointParams.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    pointQuery += ' ORDER BY pcr.approvedAt DESC LIMIT 20';
+
+    let pointStmt = DB.prepare(pointQuery);
+    if (pointParams.length > 0) {
+      pointStmt = pointStmt.bind(...pointParams);
+    }
+
+    const { results: pointTransactions } = await pointStmt.all();
+    console.log(`✅ Found ${pointTransactions.length} point charge transactions`);
+
+    // ===== AI 쇼핑몰 매출 추가 =====
+    console.log('🛒 Fetching AI Shopping Revenue...');
+
+    let botQuery = `
+      SELECT 
+        bpr.id,
+        bpr.userId,
+        bpr.academyId,
+        bpr.productName as description,
+        bpr.studentCount,
+        bpr.months,
+        bpr.totalPrice as amount,
+        'AI_SHOPPING' as type,
+        'AI 봇 구독' as category,
+        'completed' as status,
+        bpr.approvedAt as paidAt,
+        bpr.createdAt,
+        u.name as userName,
+        u.email as userEmail,
+        a.name as academyName
+      FROM BotPurchaseRequest bpr
+      LEFT JOIN users u ON bpr.userId = u.id
+      LEFT JOIN academy a ON bpr.academyId = a.id
+      WHERE bpr.status = 'APPROVED'
+    `;
+
+    const botParams: any[] = [];
+
+    if (academyId) {
+      botQuery += ' AND bpr.academyId = ?';
+      botParams.push(academyId);
+    }
+
+    if (startDate) {
+      botQuery += ' AND date(bpr.approvedAt) >= date(?)';
+      botParams.push(startDate);
+    }
+
+    if (endDate) {
+      botQuery += ' AND date(bpr.approvedAt) <= date(?)';
+      botParams.push(endDate);
+    }
+
+    if (searchQuery) {
+      botQuery += ' AND (u.name LIKE ? OR u.email LIKE ? OR a.name LIKE ? OR bpr.productName LIKE ?)';
+      const searchPattern = `%${searchQuery}%`;
+      botParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+    }
+
+    botQuery += ' ORDER BY bpr.approvedAt DESC LIMIT 20';
+
+    let botStmt = DB.prepare(botQuery);
+    if (botParams.length > 0) {
+      botStmt = botStmt.bind(...botParams);
+    }
+
+    const { results: botTransactions } = await botStmt.all();
+    console.log(`✅ Found ${botTransactions.length} bot shopping transactions`);
+
+    // ===== 매출 통합 및 계산 =====
+    const pointRevenue = pointTransactions.reduce((sum, p: any) => sum + (p.amount || 0), 0);
+    const pointVAT = pointTransactions.reduce((sum, p: any) => sum + (p.vat || 0), 0);
+    const pointNetRevenue = pointRevenue - pointVAT;
+
+    const botRevenue = botTransactions.reduce((sum, b: any) => sum + (b.amount || 0), 0);
+    const botVAT = Math.round(botRevenue * 0.1); // 10% VAT
+    const botNetRevenue = botRevenue - botVAT;
+
+    // 전체 매출에 포인트와 AI 쇼핑몰 매출 추가
+    totalRevenue += pointRevenue + botRevenue;
+    transactionCount += pointTransactions.length + botTransactions.length;
+
+    // 이번 달 포인트/봇 매출
+    const thisMonthPoint = pointTransactions.filter((p: any) => {
+      const date = new Date(p.paidAt || p.createdAt);
+      const now = new Date();
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).reduce((sum, p: any) => sum + (p.amount || 0), 0);
+
+    const thisMonthBot = botTransactions.filter((b: any) => {
+      const date = new Date(b.paidAt || b.createdAt);
+      const now = new Date();
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).reduce((sum, b: any) => sum + (b.amount || 0), 0);
+
+    thisMonthRevenue += thisMonthPoint + thisMonthBot;
+
+    // 전체 거래 목록 통합
+    const allTransactions = [
+      ...transactions,
+      ...pointTransactions,
+      ...botTransactions
+    ].sort((a, b) => {
+      const dateA = new Date(a.paidAt || a.createdAt);
+      const dateB = new Date(b.paidAt || b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    }).slice(0, 50); // 최신 50개만
+
     // 학원별 매출 통계
     const academyStatsResult = await DB.prepare(`
       SELECT 
@@ -173,7 +330,43 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ORDER BY month DESC
     `).bind(...(academyId ? [academyId] : [])).all();
 
-    const monthlyTrend = monthlyTrendResult.results || [];
+    let monthlyTrend = monthlyTrendResult.results || [];
+
+    // 포인트와 봇 매출을 월별 트렌드에 추가
+    const monthlyMap = new Map();
+    monthlyTrend.forEach((m: any) => {
+      monthlyMap.set(m.month, { 
+        month: m.month, 
+        total: m.total || 0, 
+        count: m.count || 0,
+        point: 0,
+        bot: 0
+      });
+    });
+
+    pointTransactions.forEach((p: any) => {
+      const month = (p.paidAt || p.createdAt).substring(0, 7);
+      if (!monthlyMap.has(month)) {
+        monthlyMap.set(month, { month, total: 0, count: 0, point: 0, bot: 0 });
+      }
+      const data = monthlyMap.get(month);
+      data.total += p.amount || 0;
+      data.count += 1;
+      data.point += p.amount || 0;
+    });
+
+    botTransactions.forEach((b: any) => {
+      const month = (b.paidAt || b.createdAt).substring(0, 7);
+      if (!monthlyMap.has(month)) {
+        monthlyMap.set(month, { month, total: 0, count: 0, point: 0, bot: 0 });
+      }
+      const data = monthlyMap.get(month);
+      data.total += b.amount || 0;
+      data.count += 1;
+      data.bot += b.amount || 0;
+    });
+
+    monthlyTrend = Array.from(monthlyMap.values()).sort((a, b) => b.month.localeCompare(a.month));
 
     // 유형별 매출
     const typeStatsResult = await DB.prepare(`
@@ -188,7 +381,36 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ORDER BY total DESC
     `).bind(...(academyId ? [academyId] : [])).all();
 
-    const typeStats = typeStatsResult.results || [];
+    let typeStats: any[] = typeStatsResult.results || [];
+
+    // 포인트 충전과 AI 쇼핑몰 매출을 유형별 통계에 추가
+    if (pointTransactions.length > 0) {
+      typeStats.push({
+        type: 'POINT_CHARGE',
+        total: pointRevenue,
+        count: pointTransactions.length
+      });
+    }
+
+    if (botTransactions.length > 0) {
+      typeStats.push({
+        type: 'AI_SHOPPING',
+        total: botRevenue,
+        count: botTransactions.length
+      });
+    }
+
+    typeStats = typeStats.sort((a, b) => b.total - a.total);
+
+    // VAT 정보 추가
+    const vatInfo = {
+      totalVAT: pointVAT + botVAT,
+      pointVAT,
+      botVAT,
+      totalNetRevenue: totalRevenue - (pointVAT + botVAT),
+      pointNetRevenue,
+      botNetRevenue
+    };
 
     return new Response(JSON.stringify({
       success: true,
@@ -198,8 +420,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         lastMonthRevenue,
         growth: parseFloat(growth),
         transactionCount,
+        pointRevenue,
+        botRevenue,
+        regularRevenue: totalRevenue - pointRevenue - botRevenue
       },
-      transactions,
+      vatInfo,
+      transactions: allTransactions,
       academyStats,
       monthlyTrend,
       typeStats,
@@ -251,41 +477,45 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 샘플 데이터 생성
-    const types = ["구독료", "추가 기능", "프리미엄", "연간 구독", "업그레이드"];
-    const amounts = [150000, 200000, 300000, 500000, 1000000];
-    
-    let insertedCount = 0;
+    const types = ['subscription', 'tuition', 'materials', 'events', 'other'];
+    const statuses = ['completed', 'pending', 'cancelled'];
+    const methods = ['card', 'transfer', 'cash'];
 
-    // 각 학원에 대해 랜덤 거래 생성 (최근 6개월)
-    for (const academy of academies) {
-      const transactionCount = Math.floor(Math.random() * 5) + 3; // 3-7 거래
-      
-      for (let i = 0; i < transactionCount; i++) {
-        const daysAgo = Math.floor(Math.random() * 180); // 0-180일 전
-        const type = types[Math.floor(Math.random() * types.length)];
-        const amount = amounts[Math.floor(Math.random() * amounts.length)];
-        
-        await DB.prepare(`
-          INSERT INTO revenue_records 
-          (academyId, amount, type, description, status, paymentMethod, createdAt, paidAt)
-          VALUES (?, ?, ?, ?, 'completed', 'card', datetime('now', '-${daysAgo} days'), datetime('now', '-${daysAgo} days'))
-        `).bind(
-          academy.id,
-          amount,
-          type,
-          `${academy.name} - ${type} 결제`
-        ).run();
-        
-        insertedCount++;
-      }
+    // 샘플 데이터 100개 생성
+    for (let i = 0; i < 100; i++) {
+      const academy = academies[Math.floor(Math.random() * academies.length)];
+      const type = types[Math.floor(Math.random() * types.length)];
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const method = methods[Math.floor(Math.random() * methods.length)];
+      const amount = Math.floor(Math.random() * 500000) + 50000;
+
+      // 랜덤 날짜 (최근 6개월)
+      const date = new Date();
+      date.setDate(date.getDate() - Math.floor(Math.random() * 180));
+
+      await DB.prepare(`
+        INSERT INTO revenue_records 
+        (academyId, amount, type, description, status, paymentMethod, transactionId, createdAt, paidAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        academy.id,
+        amount,
+        type,
+        `${type} - ${academy.name}`,
+        status,
+        method,
+        `TXN-${Date.now()}-${i}`,
+        date.toISOString(),
+        status === 'completed' ? date.toISOString() : null
+      ).run();
     }
+
+    console.log("✅ Sample data generated");
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Successfully generated ${insertedCount} sample revenue records for ${academies.length} academies`,
-      insertedCount,
-      academyCount: academies.length,
+      message: "Sample revenue data generated successfully",
+      count: 100
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

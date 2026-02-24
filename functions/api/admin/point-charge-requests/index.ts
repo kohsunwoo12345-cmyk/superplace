@@ -19,7 +19,10 @@ function parseToken(authHeader: string | null) {
   };
 }
 
-// GET: 포인트 충전 요청 목록 조회
+/**
+ * GET /api/admin/point-charge-requests
+ * 포인트 충전 요청 목록 조회 (사용자 정보 포함)
+ */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
@@ -43,71 +46,65 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // URL 파라미터에서 필터 가져오기
     const url = new URL(request.url);
-    const status = url.searchParams.get('status'); // PENDING, APPROVED, REJECTED
+    const status = url.searchParams.get('status') || 'ALL';
 
     console.log('📋 Fetching point charge requests, status filter:', status);
 
-    // 포인트 충전 요청 목록 조회 (사용자 정보 JOIN)
+    // 요청 목록 조회 (사용자 및 학원 정보 JOIN)
     let query = `
       SELECT 
         pcr.*,
         u.name as userName,
         u.email as userEmail,
         u.phone as userPhone,
-        u.academyId as userAcademyId,
         a.name as academyName
       FROM PointChargeRequest pcr
-      LEFT JOIN User u ON pcr.userId = u.id
+      LEFT JOIN users u ON pcr.userId = u.id
       LEFT JOIN Academy a ON u.academyId = a.id
-      WHERE 1=1
     `;
 
-    const params: any[] = [];
-
-    if (status && status !== 'ALL') {
-      query += ' AND pcr.status = ?';
-      params.push(status);
+    if (status !== 'ALL') {
+      query += ` WHERE pcr.status = ?`;
     }
 
     query += ' ORDER BY pcr.createdAt DESC';
 
-    let stmt = env.DB.prepare(query);
-    if (params.length > 0) {
-      stmt = stmt.bind(...params);
-    }
+    const stmt = status !== 'ALL' 
+      ? env.DB.prepare(query).bind(status)
+      : env.DB.prepare(query);
 
-    const { results: requests } = await stmt.all();
+    const { results } = await stmt.all();
 
-    console.log('✅ Found', requests.length, 'point charge requests');
+    console.log(`✅ Found ${results.length} requests`);
 
     // 통계 계산
     const stats = {
-      total: requests.length,
-      pending: requests.filter((r: any) => r.status === 'PENDING').length,
-      approved: requests.filter((r: any) => r.status === 'APPROVED').length,
-      rejected: requests.filter((r: any) => r.status === 'REJECTED').length,
-      totalAmount: requests
+      total: results.length,
+      pending: results.filter((r: any) => r.status === 'PENDING').length,
+      approved: results.filter((r: any) => r.status === 'APPROVED').length,
+      rejected: results.filter((r: any) => r.status === 'REJECTED').length,
+      totalRevenue: results
         .filter((r: any) => r.status === 'APPROVED')
         .reduce((sum: number, r: any) => sum + (r.totalPrice || 0), 0),
-      totalPoints: requests
+      totalVAT: results
         .filter((r: any) => r.status === 'APPROVED')
-        .reduce((sum: number, r: any) => sum + (r.requestedPoints || 0), 0)
+        .reduce((sum: number, r: any) => sum + (r.vat || 0), 0)
     };
 
-    return new Response(JSON.stringify({
-      success: true,
-      requests,
+    console.log('📊 Stats:', stats);
+
+    return new Response(JSON.stringify({ 
+      requests: results,
       stats
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: any) {
-    console.error('❌ Failed to fetch point charge requests:', error);
-    return new Response(JSON.stringify({
+    console.error('❌ Failed to fetch requests:', error);
+    return new Response(JSON.stringify({ 
       error: 'Failed to fetch requests',
-      message: error.message
+      message: error.message 
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }

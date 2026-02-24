@@ -42,6 +42,17 @@ interface RevenueStats {
   lastMonthRevenue: number;
   growth: number;
   transactionCount: number;
+  pointRevenue?: number;
+  botRevenue?: number;
+  regularRevenue?: number;
+  vatInfo?: {
+    totalVAT: number;
+    pointVAT: number;
+    botVAT: number;
+    totalNetRevenue: number;
+    pointNetRevenue: number;
+    botNetRevenue: number;
+  };
 }
 
 interface Transaction {
@@ -150,7 +161,10 @@ export default function RevenuePage() {
       
       if (response.ok) {
         const data = await response.json();
-        setStats(data.stats || {});
+        setStats({
+          ...data.stats,
+          vatInfo: data.vatInfo
+        });
         setTransactions(data.transactions || []);
         setAcademyStats(data.academyStats || []);
         setMonthlyTrend(data.monthlyTrend || []);
@@ -428,6 +442,96 @@ export default function RevenuePage() {
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">{stats.transactionCount}건</div>
             <p className="text-xs text-gray-500 mt-1">전체 거래</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 세부 매출 통계 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        {/* 포인트 충전 매출 */}
+        <Card className="border-amber-200 bg-amber-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">💰 포인트 충전 매출</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600">
+              {formatCurrency(stats.pointRevenue || 0)}
+            </div>
+            <p className="text-xs text-gray-600 mt-1">포인트 충전 총액</p>
+            {stats.vatInfo && (
+              <div className="mt-2 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">VAT (10%):</span>
+                  <span className="font-medium text-red-600">
+                    -{formatCurrency(stats.vatInfo.pointVAT || 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t pt-1">
+                  <span className="text-gray-600">순 매출:</span>
+                  <span className="font-semibold text-amber-700">
+                    {formatCurrency(stats.vatInfo.pointNetRevenue || 0)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* AI 쇼핑몰 매출 */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">🛒 AI 쇼핑몰 매출</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              {formatCurrency(stats.botRevenue || 0)}
+            </div>
+            <p className="text-xs text-gray-600 mt-1">AI 봇 구독 총액</p>
+            {stats.vatInfo && (
+              <div className="mt-2 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">VAT (10%):</span>
+                  <span className="font-medium text-red-600">
+                    -{formatCurrency(stats.vatInfo.botVAT || 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t pt-1">
+                  <span className="text-gray-600">순 매출:</span>
+                  <span className="font-semibold text-blue-700">
+                    {formatCurrency(stats.vatInfo.botNetRevenue || 0)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 기타 매출 */}
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">📊 기타 매출</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrency(stats.regularRevenue || 0)}
+            </div>
+            <p className="text-xs text-gray-600 mt-1">일반 매출 (수업료 등)</p>
+            {stats.vatInfo && (
+              <div className="mt-2 text-xs space-y-1">
+                <div className="flex justify-between border-t pt-1">
+                  <span className="text-gray-600">전체 VAT:</span>
+                  <span className="font-medium text-red-600">
+                    -{formatCurrency(stats.vatInfo.totalVAT || 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t pt-1">
+                  <span className="text-gray-600">전체 순 매출:</span>
+                  <span className="font-semibold text-green-700">
+                    {formatCurrency(stats.vatInfo.totalNetRevenue || 0)}
+                  </span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
