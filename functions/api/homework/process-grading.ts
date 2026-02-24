@@ -60,7 +60,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const submission = await DB.prepare(`
       SELECT s.id, s.userId, s.imageUrl, s.code, s.academyId, u.name, u.email
       FROM homework_submissions_v2 s
-      JOIN users u ON s.userId = u.id
+      JOIN User u ON s.userId = u.id
       WHERE s.id = ?
     `).bind(submissionId).first();
 
