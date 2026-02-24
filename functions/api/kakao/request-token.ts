@@ -41,16 +41,18 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     const salt = Math.random().toString(36).substring(2);
     const signature = await generateSignature(SOLAPI_API_Secret, timestamp, salt);
     
+    const requestBody = {
+      searchId: searchId,
+      phoneNumber: phoneNumber,
+    };
+    
     const response = await fetch('https://api.solapi.com/kakao/v1/plus-friends/token', {
       method: 'POST',
       headers: {
         'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${timestamp}, salt=${salt}, signature=${signature}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        searchId: searchId,
-        phoneNumber: phoneNumber,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -65,10 +67,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
             url: 'https://api.solapi.com/kakao/v1/plus-friends/token',
             timestamp,
             salt,
-            requestBody: {
-              plusFriendId: searchId,
-              phoneNumber: phoneNumber
-            }
+            actualRequestBody: requestBody
           }
         }),
         { status: response.status, headers: { 'Content-Type': 'application/json' } }
