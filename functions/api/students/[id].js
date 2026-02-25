@@ -38,18 +38,31 @@ export async function onRequestGet(context) {
 
     // 학생 정보 조회 (User 테이블 우선)
     let student = null;
+    let foundInTable = null;
     
     try {
-      student = await DB.prepare(`
+      const userResult = await DB.prepare(`
         SELECT 
           id, email, name, phone, role, academyId, 
           school, grade, createdAt
         FROM User
-        WHERE id = ? AND role = 'STUDENT'
+        WHERE id = ?
       `).bind(studentId).first();
       
-      if (student) {
-        console.log('✅ User 테이블에서 학생 조회 성공');
+      if (userResult) {
+        console.log('✅ User 테이블에서 조회 성공:', {
+          id: userResult.id,
+          role: userResult.role,
+          academyId: userResult.academyId
+        });
+        
+        // STUDENT role 확인
+        if (userResult.role === 'STUDENT') {
+          student = userResult;
+          foundInTable = 'User';
+        } else {
+          console.log('⚠️ role이 STUDENT가 아님:', userResult.role);
+        }
       }
     } catch (e) {
       console.log('⚠️ User 테이블 조회 실패:', e.message);
@@ -58,17 +71,28 @@ export async function onRequestGet(context) {
     // users 테이블 시도 (fallback)
     if (!student) {
       try {
-        student = await DB.prepare(`
+        const usersResult = await DB.prepare(`
           SELECT 
             id, email, name, phone, role, 
             CAST(academyId AS TEXT) as academyId,
             school, grade, createdAt
           FROM users
-          WHERE id = ? AND role = 'STUDENT'
+          WHERE id = ?
         `).bind(studentId).first();
         
-        if (student) {
-          console.log('✅ users 테이블에서 학생 조회 성공');
+        if (usersResult) {
+          console.log('✅ users 테이블에서 조회 성공:', {
+            id: usersResult.id,
+            role: usersResult.role,
+            academyId: usersResult.academyId
+          });
+          
+          if (usersResult.role === 'STUDENT') {
+            student = usersResult;
+            foundInTable = 'users';
+          } else {
+            console.log('⚠️ role이 STUDENT가 아님:', usersResult.role);
+          }
         }
       } catch (e) {
         console.log('⚠️ users 테이블 조회 실패:', e.message);
@@ -76,10 +100,14 @@ export async function onRequestGet(context) {
     }
 
     if (!student) {
-      console.log('❌ 학생을 찾을 수 없음:', studentId);
+      console.log('❌ 학생을 찾을 수 없음:', studentId, '- 두 테이블 모두 조회했으나 없음');
       return Response.json({ 
         success: false, 
-        error: "학생 정보를 찾을 수 없습니다" 
+        error: "학생 정보를 찾을 수 없습니다",
+        debug: {
+          studentId,
+          searchedTables: ['User', 'users']
+        }
       }, { status: 404 });
     }
 
@@ -87,7 +115,8 @@ export async function onRequestGet(context) {
       id: student.id, 
       name: student.name, 
       academyId: student.academyId,
-      academyIdType: typeof student.academyId
+      academyIdType: typeof student.academyId,
+      foundInTable
     });
 
     // 권한 확인

@@ -73,8 +73,6 @@ export async function onRequestGet(context) {
         hg.id as gradingId,
         hg.score,
         hg.feedback,
-        hg.strengths,
-        hg.improvements,
         hg.completion,
         hg.gradedAt
       FROM homework_submissions_v2 hs
