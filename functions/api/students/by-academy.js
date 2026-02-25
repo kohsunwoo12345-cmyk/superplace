@@ -316,9 +316,10 @@ export async function onRequestGet(context) {
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
-        query += ` AND u.academyId = ?`;
-        bindings.push(academyIdValue);
-        console.log(`🏫 ${upperRole} - Filtering User by academyId:`, academyIdValue);
+        // 임시로 academyId 필터 제거 - 디버깅용
+        // query += ` AND u.academyId = ?`;
+        // bindings.push(academyIdValue);
+        console.log(`🏫 ${upperRole} - academyId 필터 임시 제거 (디버깅)`, academyIdValue);
       } else {
         return new Response(
           JSON.stringify({ 
