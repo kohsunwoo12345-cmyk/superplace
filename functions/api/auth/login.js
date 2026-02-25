@@ -155,6 +155,7 @@ export async function onRequestPost(context) {
     }
 
     console.log('✅ User found:', { id: user.id, role: user.role, passwordLength: user.password?.length });
+    console.log('🔐 Stored password hash (first 20 chars):', user.password?.substring(0, 20));
 
     let isValid = false;
 
@@ -184,12 +185,18 @@ export async function onRequestPost(context) {
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
       
+      console.log('🔐 Computed hash (first 20 chars):', hashHex.substring(0, 20));
+      console.log('🔐 Stored hash (first 20 chars):', user.password?.substring(0, 20));
+      console.log('🔐 Full computed hash:', hashHex);
+      console.log('🔐 Full stored hash:', user.password);
+      
       isValid = hashHex === user.password;
       
       if (isValid) {
         console.log('✅ Password verified with SHA-256');
       } else {
         console.error('❌ SHA-256 verification failed');
+        console.error('❌ Hashes do not match');
       }
     }
 
