@@ -1,5 +1,5 @@
 // 학생 상세 정보 조회 API
-// GET /api/students/detail?id=<student_id>
+// GET /api/student/get?id=<student_id>
 
 import { getUserFromAuth } from '../../_lib/auth.js';
 
