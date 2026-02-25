@@ -27,8 +27,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 관리자는 모든 출석 조회
     const isAdmin = email === 'admin@superplace.co.kr' || role === 'ADMIN' || role === 'SUPER_ADMIN';
 
+    console.log('🔐 Is Admin:', isAdmin, 'Academy ID:', academyId);
+
     // 1. 출석 기록 조회 (attendance_records_v2)
-    // checkInTime이 "2024-01-01 09:00:00" 형식이므로 SUBSTR로 날짜 추출
+    // User 테이블과 users 테이블을 모두 확인하여 통합
     let attendanceQuery = `
       SELECT 
         ar.id,
@@ -37,15 +39,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ar.checkInTime,
         ar.status,
         ar.academyId,
-        u.name as userName,
-        u.email as userEmail,
+        COALESCE(u1.name, u2.name) as userName,
+        COALESCE(u1.email, u2.email) as userEmail,
+        COALESCE(u1.academyId, u2.academy_id) as userAcademyId,
         hs.id as homeworkId,
         hs.submittedAt as homeworkSubmittedAt,
         hg.score as homeworkScore,
         hg.feedback as homeworkFeedback,
         hg.completion as homeworkCompletion
       FROM attendance_records_v2 ar
-      LEFT JOIN users u ON u.id = ar.userId
+      LEFT JOIN User u1 ON u1.id = ar.userId
+      LEFT JOIN users u2 ON u2.id = ar.userId
       LEFT JOIN homework_submissions_v2 hs ON hs.code = ar.code
       LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
       WHERE SUBSTR(ar.checkInTime, 1, 10) = ?
@@ -53,15 +57,25 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const queryParams: any[] = [date];
 
-    // 관리자가 아니면 학원 필터링
+    // 관리자가 아니면 학원 필터링 (User 테이블과 users 테이블 모두 확인)
     if (!isAdmin && academyId) {
-      attendanceQuery += ` AND ar.academyId = ?`;
-      queryParams.push(academyId);
+      console.log('🏫 Filtering by academyId:', academyId);
+      attendanceQuery += ` AND (
+        ar.academyId = ? OR 
+        u1.academyId = ? OR 
+        u2.academy_id = ?
+      )`;
+      queryParams.push(academyId, academyId, academyId);
     }
 
     attendanceQuery += ` ORDER BY ar.checkInTime DESC`;
 
+    console.log('📝 Query:', attendanceQuery);
+    console.log('📝 Params:', queryParams);
+
     const attendanceResult = await DB.prepare(attendanceQuery).bind(...queryParams).all();
+
+    console.log('📊 Query result count:', attendanceResult.results.length);
 
     // 2. 통계 계산
     const records = attendanceResult.results;
@@ -77,12 +91,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       avgScore = Math.round(totalScore / scoredHomework.length);
     }
 
-    // 3. 출석 기록 포맷팅
+    // 3. 출석 기록 포맷팅 (academyId 정보 포함)
     const formattedRecords = records.map((r: any) => ({
       id: r.id,
       userId: r.userId,
       userName: r.userName,
       userEmail: r.userEmail,
+      userAcademyId: r.userAcademyId, // 사용자의 실제 academyId
       code: r.code,
       verifiedAt: r.checkInTime,
       status: r.status,
@@ -96,6 +111,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         subject: 'Homework'
       } : null
     }));
+
+    console.log('✅ Formatted records:', formattedRecords.length);
+    console.log('📋 Sample record:', formattedRecords[0]);
 
     return new Response(
       JSON.stringify({
