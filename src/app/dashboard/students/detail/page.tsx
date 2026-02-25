@@ -252,6 +252,15 @@ function StudentDetailContent() {
             
             console.log("📥 Received student data:", studentData);
             
+            // API 응답 정규화: academy 객체 → academyName, academy_name으로 변환
+            if (studentData.academy && typeof studentData.academy === 'object') {
+              studentData.academyName = studentData.academy.name;
+              studentData.academy_name = studentData.academy.name;
+              studentData.academyAddress = studentData.academy.address;
+              studentData.academyPhone = studentData.academy.phone;
+              console.log('✅ 학원 정보 정규화:', studentData.academyName);
+            }
+            
             // 로그인한 사용자 정보에서 학원 정보 가져오기
             const userStr = localStorage.getItem("user");
             if (userStr) {
@@ -261,6 +270,7 @@ function StudentDetailContent() {
                 if (!studentData.academyId && currentUser.academyId) {
                   studentData.academyId = currentUser.academyId;
                   studentData.academy_name = currentUser.academyName || '현재 학원';
+                  studentData.academyName = currentUser.academyName || '현재 학원';
                   console.log('✅ 학원 정보 자동 설정:', studentData.academyId);
                 }
               } catch (e) {
