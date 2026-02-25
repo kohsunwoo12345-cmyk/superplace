@@ -293,7 +293,6 @@ export async function onRequestGet(context) {
           u.status
         FROM User u
         WHERE u.role = 'STUDENT'
-          AND (u.isWithdrawn IS NULL OR u.isWithdrawn = 0)
       `;
       
       const bindings = [];
