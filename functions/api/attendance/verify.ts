@@ -85,19 +85,36 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     const userId = attendanceCode.userId;
 
-    // 2. 학생 정보 조회
-    const student = await DB.prepare(`
+    // 2. 학생 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
+    let student = await DB.prepare(`
       SELECT id, name, email, academyId FROM User WHERE id = ?
     `).bind(userId).first();
 
-    console.log('👤 Student lookup:', student);
+    console.log('👤 User 테이블 조회:', student);
+
+    // User 테이블에 없으면 users 테이블 확인 (레거시 지원)
+    if (!student) {
+      console.log('🔍 users 테이블 확인 중...');
+      const legacyStudent = await DB.prepare(`
+        SELECT id, name, email, academy_id as academyId FROM users WHERE id = ?
+      `).bind(userId).first();
+      
+      console.log('👤 users 테이블 조회:', legacyStudent);
+      
+      if (legacyStudent) {
+        student = legacyStudent;
+      }
+    }
 
     if (!student) {
+      console.error('❌ 학생을 찾을 수 없음: userId =', userId);
       return new Response(
         JSON.stringify({ success: false, error: "학생 정보를 찾을 수 없습니다" }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    console.log('✅ 학생 확인 완료:', student.name, 'academyId:', student.academyId);
 
     // 3. 오늘 날짜 확인 (한국 시간)
     const now = new Date();
