@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { User, Plus, Search, Mail, Phone, CheckCircle, XCircle, Trash2, Eye, EyeOff } from "lucide-react";
+import { 
+  User, Plus, Search, Mail, Phone, CheckCircle, XCircle, 
+  Eye, EyeOff, Settings, Users, Shield, Edit2, Save, X 
+} from "lucide-react";
 
 interface Teacher {
   id: string;
@@ -13,16 +16,28 @@ interface Teacher {
   approved: number;
   createdAt: string;
   academyId: string;
+  permissions?: string[];
+  assignedClasses?: string[];
+}
+
+interface Class {
+  id: string;
+  name: string;
+  studentCount?: number;
 }
 
 export default function TeacherManagementPage() {
   const router = useRouter();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const [showClassDialog, setShowClassDialog] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -31,8 +46,24 @@ export default function TeacherManagementPage() {
     password: ""
   });
 
+  const [permissionData, setPermissionData] = useState<string[]>([]);
+  const [classData, setClassData] = useState<string[]>([]);
+
+  // 권한 목록
+  const availablePermissions = [
+    { id: "view_students", label: "학생 조회", description: "학생 목록 및 정보 조회" },
+    { id: "edit_students", label: "학생 편집", description: "학생 정보 수정" },
+    { id: "view_attendance", label: "출결 조회", description: "출결 기록 조회" },
+    { id: "edit_attendance", label: "출결 관리", description: "출결 기록 입력/수정" },
+    { id: "view_homework", label: "숙제 조회", description: "숙제 및 과제 조회" },
+    { id: "create_homework", label: "숙제 생성", description: "숙제 생성 및 배정" },
+    { id: "grade_homework", label: "숙제 채점", description: "숙제 채점 및 피드백" },
+    { id: "view_reports", label: "리포트 조회", description: "학생 리포트 조회" },
+    { id: "create_reports", label: "리포트 작성", description: "학생 리포트 작성" },
+    { id: "send_messages", label: "메시지 발송", description: "학부모 메시지 발송" },
+  ];
+
   useEffect(() => {
-    // 사용자 인증 확인
     const userStr = localStorage.getItem("user");
     if (!userStr) {
       alert("로그인이 필요합니다.");
@@ -50,6 +81,7 @@ export default function TeacherManagementPage() {
     }
 
     loadTeachers();
+    loadClasses();
   }, [router]);
 
   const loadTeachers = async () => {
@@ -81,10 +113,30 @@ export default function TeacherManagementPage() {
     }
   };
 
+  const loadClasses = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      console.log("📚 반 목록 조회 중...");
+      
+      const response = await fetch("/api/classes", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("반 목록:", data);
+        setClasses(data.classes || []);
+      }
+    } catch (error) {
+      console.error("반 목록 로드 오류:", error);
+    }
+  };
+
   const handleAddTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 유효성 검사
     if (!formData.name.trim()) {
       alert("이름을 입력해주세요.");
       return;
@@ -109,11 +161,7 @@ export default function TeacherManagementPage() {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      console.log("📤 교사 추가 요청:");
-      console.log("- 이름:", formData.name);
-      console.log("- 전화번호:", formData.phone);
-      console.log("- 이메일:", formData.email || "(없음)");
-      console.log("- 토큰:", token ? "있음" : "없음");
+      console.log("📤 교사 추가 요청:", formData);
 
       const response = await fetch("/api/teachers/add", {
         method: "POST",
@@ -132,7 +180,6 @@ export default function TeacherManagementPage() {
       if (response.ok && data.success) {
         alert(`✅ 교사가 추가되었습니다!\n\n임시 비밀번호: ${data.tempPassword}\n\n교사에게 전달해주세요.`);
         
-        // 폼 초기화
         setFormData({
           name: "",
           email: "",
@@ -141,8 +188,6 @@ export default function TeacherManagementPage() {
         });
         
         setShowAddDialog(false);
-        
-        // 목록 새로고침
         await loadTeachers();
       } else {
         alert(`❌ 교사 추가 실패\n\n${data.error || data.message || "알 수 없는 오류"}`);
@@ -153,6 +198,104 @@ export default function TeacherManagementPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openPermissionDialog = (teacher: Teacher) => {
+    setSelectedTeacher(teacher);
+    setPermissionData(teacher.permissions || []);
+    setShowPermissionDialog(true);
+  };
+
+  const openClassDialog = (teacher: Teacher) => {
+    setSelectedTeacher(teacher);
+    setClassData(teacher.assignedClasses || []);
+    setShowClassDialog(true);
+  };
+
+  const handleSavePermissions = async () => {
+    if (!selectedTeacher) return;
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      
+      console.log("💾 권한 저장:", permissionData);
+
+      const response = await fetch(`/api/teachers/${selectedTeacher.id}/permissions`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ permissions: permissionData })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert("✅ 권한이 저장되었습니다.");
+        setShowPermissionDialog(false);
+        await loadTeachers();
+      } else {
+        alert(`❌ 권한 저장 실패\n\n${data.error || data.message || "알 수 없는 오류"}`);
+      }
+    } catch (error: any) {
+      console.error("권한 저장 오류:", error);
+      alert(`❌ 오류 발생\n\n${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveClasses = async () => {
+    if (!selectedTeacher) return;
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      
+      console.log("💾 반 배정 저장:", classData);
+
+      const response = await fetch(`/api/teachers/${selectedTeacher.id}/classes`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ classes: classData })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert("✅ 반 배정이 저장되었습니다.");
+        setShowClassDialog(false);
+        await loadTeachers();
+      } else {
+        alert(`❌ 반 배정 실패\n\n${data.error || data.message || "알 수 없는 오류"}`);
+      }
+    } catch (error: any) {
+      console.error("반 배정 오류:", error);
+      alert(`❌ 오류 발생\n\n${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const togglePermission = (permissionId: string) => {
+    setPermissionData(prev => 
+      prev.includes(permissionId)
+        ? prev.filter(p => p !== permissionId)
+        : [...prev, permissionId]
+    );
+  };
+
+  const toggleClass = (classId: string) => {
+    setClassData(prev => 
+      prev.includes(classId)
+        ? prev.filter(c => c !== classId)
+        : [...prev, classId]
+    );
   };
 
   const filteredTeachers = teachers.filter(teacher =>
@@ -172,7 +315,7 @@ export default function TeacherManagementPage() {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-800">교사 관리</h1>
-              <p className="text-gray-600">교사를 추가하고 관리하세요</p>
+              <p className="text-gray-600">교사를 추가하고 권한 및 반을 배정하세요</p>
             </div>
           </div>
         </div>
@@ -205,16 +348,14 @@ export default function TeacherManagementPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-yellow-600">
+          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-600">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm mb-1">대기 중</p>
-                <p className="text-3xl font-bold text-gray-800">
-                  {teachers.filter(t => t.approved === 0).length}
-                </p>
+                <p className="text-gray-600 text-sm mb-1">전체 반</p>
+                <p className="text-3xl font-bold text-gray-800">{classes.length}</p>
               </div>
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <XCircle className="w-6 h-6 text-yellow-600" />
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <Users className="w-6 h-6 text-purple-600" />
               </div>
             </div>
           </div>
@@ -273,7 +414,7 @@ export default function TeacherManagementPage() {
                       상태
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      등록일
+                      관리
                     </th>
                   </tr>
                 </thead>
@@ -313,8 +454,25 @@ export default function TeacherManagementPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
-                        {new Date(teacher.createdAt).toLocaleDateString('ko-KR')}
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => openPermissionDialog(teacher)}
+                            className="flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
+                            title="권한 설정"
+                          >
+                            <Shield className="w-4 h-4" />
+                            권한
+                          </button>
+                          <button
+                            onClick={() => openClassDialog(teacher)}
+                            className="flex items-center gap-1 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm"
+                            title="반 배정"
+                          >
+                            <Users className="w-4 h-4" />
+                            반 배정
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -426,6 +584,142 @@ export default function TeacherManagementPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 권한 설정 모달 */}
+      {showPermissionDialog && selectedTeacher && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-t-2xl">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <Shield className="w-6 h-6" />
+                권한 설정
+              </h2>
+              <p className="text-blue-100 mt-1">{selectedTeacher.name} 교사의 권한을 설정하세요</p>
+            </div>
+
+            <div className="p-6 space-y-3">
+              {availablePermissions.map((permission) => (
+                <div
+                  key={permission.id}
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    permissionData.includes(permission.id)
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-blue-300"
+                  }`}
+                  onClick={() => togglePermission(permission.id)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      {permissionData.includes(permission.id) ? (
+                        <CheckCircle className="w-5 h-5 text-blue-600" />
+                      ) : (
+                        <div className="w-5 h-5 border-2 border-gray-300 rounded-full" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-800">{permission.label}</h3>
+                      <p className="text-sm text-gray-600">{permission.description}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 p-6 border-t">
+              <button
+                onClick={() => setShowPermissionDialog(false)}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSavePermissions}
+                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+                disabled={loading}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <Save className="w-4 h-4" />
+                  {loading ? "저장 중..." : "저장"}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 반 배정 모달 */}
+      {showClassDialog && selectedTeacher && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 rounded-t-2xl">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <Users className="w-6 h-6" />
+                반 배정
+              </h2>
+              <p className="text-purple-100 mt-1">{selectedTeacher.name} 교사에게 반을 배정하세요</p>
+            </div>
+
+            <div className="p-6">
+              {classes.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg">등록된 반이 없습니다</p>
+                  <p className="text-sm">먼저 반을 생성해주세요</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {classes.map((classItem) => (
+                    <div
+                      key={classItem.id}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        classData.includes(classItem.id)
+                          ? "border-purple-500 bg-purple-50"
+                          : "border-gray-200 hover:border-purple-300"
+                      }`}
+                      onClick={() => toggleClass(classItem.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div>
+                          {classData.includes(classItem.id) ? (
+                            <CheckCircle className="w-5 h-5 text-purple-600" />
+                          ) : (
+                            <div className="w-5 h-5 border-2 border-gray-300 rounded-full" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-800">{classItem.name}</h3>
+                          {classItem.studentCount !== undefined && (
+                            <p className="text-sm text-gray-600">학생 {classItem.studentCount}명</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 p-6 border-t">
+              <button
+                onClick={() => setShowClassDialog(false)}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSaveClasses}
+                className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50"
+                disabled={loading || classes.length === 0}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <Save className="w-4 h-4" />
+                  {loading ? "저장 중..." : "저장"}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       )}
