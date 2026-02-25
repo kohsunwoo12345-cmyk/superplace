@@ -280,7 +280,7 @@ export async function onRequestGet(context) {
     
     // 1️⃣ User 테이블 조회 (새 학생)
     try {
-      console.log('📌 User 테이블 조회 중...');
+      console.log('📌 User 테이블 조회 중 (모든 필터 제거 - 디버깅)...');
       let query = `
         SELECT 
           u.id,
@@ -292,7 +292,6 @@ export async function onRequestGet(context) {
           u.isWithdrawn,
           u.status
         FROM User u
-        WHERE u.role = 'STUDENT'
       `;
       
       const bindings = [];
