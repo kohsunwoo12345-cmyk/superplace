@@ -335,9 +335,12 @@ export async function onRequestGet(context) {
       
       const userResult = await DB.prepare(query).bind(...bindings).all();
       console.log(`✅ User 테이블: ${userResult.results.length}명`);
+      console.log(`📝 쿼리 실행됨: ${query}`);
       allStudents.push(...(userResult.results || []));
     } catch (userErr) {
       console.log('⚠️ User 테이블 조회 실패:', userErr.message);
+      console.log('⚠️ Error stack:', userErr.stack);
+      // 에러가 발생해도 계속 진행
     }
     
     // 2️⃣ users 테이블 조회 (기존 학생)
@@ -388,7 +391,12 @@ export async function onRequestGet(context) {
         JSON.stringify({
           success: true,
           students: [],
-          message: "학생이 없습니다"
+          message: "학생이 없습니다",
+          debug: {
+            role: role,
+            academyId: tokenAcademyId,
+            email: userEmail
+          }
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
