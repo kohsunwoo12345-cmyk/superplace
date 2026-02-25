@@ -134,7 +134,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ 숙제 제출 완료: ${submissionId}, 이미지 ${imageArray.length}장 저장`);
 
-    // 6. 즉시 응답 반환 (채점은 클라이언트에서 자동 호출)
+    // 6. 백그라운드에서 자동 채점 실행 (await 없이 비동기 실행)
+    console.log(`🤖 자동 채점 시작: ${submissionId}`);
+    
+    // 채점 API를 백그라운드에서 호출 (context.waitUntil 사용)
+    const gradingPromise = fetch(new URL('/api/homework/process-grading', context.request.url).toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ submissionId })
+    }).then(response => {
+      console.log(`✅ 자동 채점 트리거 완료: ${submissionId}, status: ${response.status}`);
+      return response.json();
+    }).catch(error => {
+      console.error(`❌ 자동 채점 트리거 실패: ${submissionId}`, error);
+    });
+
+    // Cloudflare Pages의 waitUntil을 사용하여 백그라운드 작업 등록
+    if (context.waitUntil) {
+      context.waitUntil(gradingPromise);
+    }
+
+    // 7. 즉시 응답 반환 (채점은 백그라운드에서 진행)
     return new Response(
       JSON.stringify({
         success: true,
