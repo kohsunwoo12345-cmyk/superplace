@@ -44,10 +44,10 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
           status,
           academyId
         FROM attendance_records_v2
-        WHERE CAST(userId AS TEXT) = ?
+        WHERE CAST(userId AS TEXT) = ? OR userId = ?
         ORDER BY checkInTime DESC
         LIMIT ?
-      `).bind(String(studentId), limit).all();
+      `).bind(String(studentId), parseInt(studentId) || studentId, limit).all();
       
       const records = result.results || [];
       

@@ -110,12 +110,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // DIRECTOR나 TEACHER는 자신의 학원 데이터만 조회
     const isGlobalAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
     if (!isGlobalAdmin && academyId) {
-      // 문자열과 정수 모두 비교 (User와 users 테이블 모두)
+      // COALESCE로 단일 academyId 값 사용
       query += ` AND (
-        CAST(u1.academyId AS TEXT) = ? OR u1.academyId = ? OR
-        CAST(u2.academyId AS TEXT) = ? OR u2.academyId = ?
+        CAST(COALESCE(u1.academyId, u2.academyId) AS TEXT) = ? OR 
+        COALESCE(u1.academyId, u2.academyId) = ?
       )`;
-      params.push(String(academyId), parseInt(academyId), String(academyId), parseInt(academyId));
+      params.push(String(academyId), parseInt(academyId));
       console.log("🔍 Filtering statistics by academyId:", academyId, "(both User and users tables)", "for role:", role);
     } else if (isGlobalAdmin) {
       console.log("✅ Global admin - showing all statistics");
@@ -146,10 +146,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const isGlobalAdmin2 = role === 'SUPER_ADMIN' || role === 'ADMIN';
     if (!isGlobalAdmin2 && academyId) {
       todayQuery += ` AND (
-        CAST(u1.academyId AS TEXT) = ? OR u1.academyId = ? OR
-        CAST(u2.academyId AS TEXT) = ? OR u2.academyId = ?
+        CAST(COALESCE(u1.academyId, u2.academyId) AS TEXT) = ? OR 
+        COALESCE(u1.academyId, u2.academyId) = ?
       )`;
-      todayParams.push(String(academyId), parseInt(academyId), String(academyId), parseInt(academyId));
+      todayParams.push(String(academyId), parseInt(academyId));
     }
 
     let todayStmt = DB.prepare(todayQuery);
@@ -173,10 +173,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const isGlobalAdmin3 = role === 'SUPER_ADMIN' || role === 'ADMIN';
     if (!isGlobalAdmin3 && academyId) {
       monthQuery += ` AND (
-        CAST(u1.academyId AS TEXT) = ? OR u1.academyId = ? OR
-        CAST(u2.academyId AS TEXT) = ? OR u2.academyId = ?
+        CAST(COALESCE(u1.academyId, u2.academyId) AS TEXT) = ? OR 
+        COALESCE(u1.academyId, u2.academyId) = ?
       )`;
-      monthParams.push(String(academyId), parseInt(academyId), String(academyId), parseInt(academyId));
+      monthParams.push(String(academyId), parseInt(academyId));
     }
 
     let monthStmt = DB.prepare(monthQuery);
@@ -246,10 +246,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const isGlobalAdmin5 = role === 'SUPER_ADMIN' || role === 'ADMIN';
       if (!isGlobalAdmin5 && academyId) {
         dayQuery += ` AND (
-          CAST(u1.academyId AS TEXT) = ? OR u1.academyId = ? OR
-          CAST(u2.academyId AS TEXT) = ? OR u2.academyId = ?
+          CAST(COALESCE(u1.academyId, u2.academyId) AS TEXT) = ? OR 
+          COALESCE(u1.academyId, u2.academyId) = ?
         )`;
-        dayParams.push(String(academyId), parseInt(academyId), String(academyId), parseInt(academyId));
+        dayParams.push(String(academyId), parseInt(academyId));
       }
 
       let dayStmt = DB.prepare(dayQuery);
