@@ -67,34 +67,9 @@ export async function onRequestGet(context) {
 
     console.log('인증됨:', { role: tokenData.role, academyId: tokenData.academyId });
 
-    // Get user from database - try by id first, then email
-    let user = await db
-      .prepare('SELECT id, email, role, academyId FROM User WHERE id = ?')
-      .bind(tokenData.id)
-      .first();
-
-    if (!user && tokenData.email) {
-      console.log('⚠️ User not found by id, trying email');
-      user = await db
-        .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
-        .bind(tokenData.email)
-        .first();
-    }
-
-    if (!user) {
-      console.error('❌ User not found');
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'User not found'
-      }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
-    console.log('✅ User found:', { id: user.id, role: user.role, academyId: user.academyId });
-
-    const role = user.role ? user.role.toUpperCase() : '';
+    // Use token's role and academyId directly (avoid replica lag issues)
+    const role = tokenData.role ? tokenData.role.toUpperCase() : '';
+    const userAcademyId = tokenData.academyId;
 
     // Check permissions
     if (role !== 'DIRECTOR' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
@@ -109,6 +84,7 @@ export async function onRequestGet(context) {
     }
 
     console.log('✅ Permission check passed');
+    console.log('🔍 Using academyId from token:', userAcademyId);
 
     const allTeachers = [];
 
@@ -136,9 +112,9 @@ export async function onRequestGet(context) {
       const bindings = [];
 
       // Filter by academy for DIRECTOR
-      if (role === 'DIRECTOR' && user.academyId) {
+      if (role === 'DIRECTOR' && userAcademyId) {
         query += ' AND academyId = ?';
-        bindings.push(user.academyId);
+        bindings.push(userAcademyId);
       }
 
       query += ' ORDER BY createdAt DESC';
@@ -173,9 +149,9 @@ export async function onRequestGet(context) {
       const bindings = [];
 
       // Filter by academy for DIRECTOR
-      if (role === 'DIRECTOR' && user.academyId) {
+      if (role === 'DIRECTOR' && userAcademyId) {
         query += ' AND academy_id = ?';
-        bindings.push(user.academyId);
+        bindings.push(userAcademyId);
       }
 
       query += ' ORDER BY created_at DESC';
