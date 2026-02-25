@@ -23,6 +23,15 @@ import {
   Clock,
   Plus,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface Teacher {
   id: string;
@@ -45,6 +54,14 @@ export default function TeachersManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [user, setUser] = useState<any>(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addingTeacher, setAddingTeacher] = useState(false);
+  const [newTeacher, setNewTeacher] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
 
   useEffect(() => {
     // localStorage에서 사용자 정보 확인
@@ -68,15 +85,63 @@ export default function TeachersManagementPage() {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/academy/teachers");
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/teachers/list", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
-        setTeachers(data.teachers);
+        setTeachers(data.teachers || []);
+      } else {
+        console.error("교사 목록 조회 실패:", response.status);
       }
     } catch (error) {
       console.error("선생님 목록 로드 실패:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddTeacher = async () => {
+    if (!newTeacher.name || !newTeacher.phone || !newTeacher.password) {
+      alert("이름, 전화번호, 비밀번호는 필수입니다.");
+      return;
+    }
+
+    if (!confirm("교사를 추가하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      setAddingTeacher(true);
+      const token = localStorage.getItem("token");
+      
+      const response = await fetch("/api/teachers/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(newTeacher),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert(`교사가 추가되었습니다!\n\n임시 비밀번호: ${data.tempPassword}\n\n교사에게 전달해주세요.`);
+        setShowAddDialog(false);
+        setNewTeacher({ name: "", email: "", phone: "", password: "" });
+        fetchTeachers();
+      } else {
+        alert(`교사 추가 실패: ${data.error || data.message}`);
+      }
+    } catch (error) {
+      console.error("교사 추가 오류:", error);
+      alert("교사 추가 중 오류가 발생했습니다.");
+    } finally {
+      setAddingTeacher(false);
     }
   };
 
@@ -142,7 +207,7 @@ export default function TeachersManagementPage() {
           <h1 className="text-2xl sm:text-3xl font-bold mb-2">선생님 관리</h1>
           <p className="text-gray-600">학원 소속 선생님을 관리합니다</p>
         </div>
-        <Button onClick={() => alert("선생님 추가 기능은 곧 추가됩니다.")}>
+        <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="w-4 h-4 mr-2" />
           선생님 추가
         </Button>
@@ -308,6 +373,73 @@ export default function TeachersManagementPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* 교사 추가 다이얼로그 */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>교사 추가</DialogTitle>
+            <DialogDescription>
+              새로운 교사를 추가합니다. 이름, 전화번호, 비밀번호는 필수입니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">이름 *</Label>
+              <Input
+                id="name"
+                value={newTeacher.name}
+                onChange={(e) => setNewTeacher({ ...newTeacher, name: e.target.value })}
+                placeholder="이름을 입력하세요"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">전화번호 *</Label>
+              <Input
+                id="phone"
+                value={newTeacher.phone}
+                onChange={(e) => setNewTeacher({ ...newTeacher, phone: e.target.value })}
+                placeholder="010-1234-5678"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">이메일 (선택)</Label>
+              <Input
+                id="email"
+                type="email"
+                value={newTeacher.email}
+                onChange={(e) => setNewTeacher({ ...newTeacher, email: e.target.value })}
+                placeholder="teacher@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">비밀번호 *</Label>
+              <Input
+                id="password"
+                type="password"
+                value={newTeacher.password}
+                onChange={(e) => setNewTeacher({ ...newTeacher, password: e.target.value })}
+                placeholder="비밀번호를 입력하세요"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddDialog(false);
+                setNewTeacher({ name: "", email: "", phone: "", password: "" });
+              }}
+              disabled={addingTeacher}
+            >
+              취소
+            </Button>
+            <Button onClick={handleAddTeacher} disabled={addingTeacher}>
+              {addingTeacher ? "추가 중..." : "추가"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,0 +1,237 @@
+// Teacher Add API - JavaScript version
+// POST /api/teachers/add
+
+// Simple token parser
+function parseToken(authHeader) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  
+  const token = authHeader.substring(7);
+  const parts = token.split('|');
+  
+  if (parts.length < 3) {
+    return null;
+  }
+  
+  return {
+    id: parts[0],
+    email: parts[1],
+    role: parts[2],
+    academyId: parts[3] || null
+  };
+}
+
+// Simple hash function (SHA-256)
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function onRequestPost(context) {
+  try {
+    const { request, env } = context;
+    const db = env.DB;
+
+    console.log('📝 Teacher add API called');
+
+    if (!db) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Database not configured'
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Parse token and verify permissions
+    const authHeader = request.headers.get('Authorization');
+    const tokenData = parseToken(authHeader);
+
+    if (!tokenData) {
+      console.error('❌ Invalid or missing token');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Unauthorized'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get user from database
+    const user = await db
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .bind(tokenData.email)
+      .first();
+
+    if (!user) {
+      console.error('❌ User not found');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'User not found'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const role = user.role ? user.role.toUpperCase() : '';
+
+    // Check permissions (only DIRECTOR, ADMIN, SUPER_ADMIN can add teachers)
+    if (role !== 'DIRECTOR' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      console.error('❌ Insufficient permissions:', role);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Insufficient permissions'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const body = await request.json();
+    const { name, email, phone, password } = body;
+
+    console.log('📝 Teacher add data:', { name, email, phone });
+
+    // Validation
+    if (!name || !phone || !password) {
+      console.error('❌ Missing required fields');
+      return new Response(JSON.stringify({
+        success: false,
+        error: '이름, 전화번호, 비밀번호는 필수입니다'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Use requester's academyId
+    const academyId = user.academyId;
+    
+    if (!academyId) {
+      console.error('❌ Academy ID not found for user');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Academy ID not found'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('🏫 Academy ID:', academyId);
+
+    // Check for existing phone in User table
+    const existingUserByPhone = await db
+      .prepare('SELECT id FROM User WHERE phone = ?')
+      .bind(phone)
+      .first();
+
+    if (existingUserByPhone) {
+      console.error('❌ Phone already exists:', phone);
+      return new Response(JSON.stringify({
+        success: false,
+        error: '이미 존재하는 전화번호입니다'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Check for existing email if provided
+    const emailValue = email || `teacher_${phone}@temp.superplace.local`;
+    
+    if (email && !email.endsWith('@temp.superplace.local')) {
+      const existingUserByEmail = await db
+        .prepare('SELECT id FROM User WHERE email = ?')
+        .bind(email)
+        .first();
+
+      if (existingUserByEmail) {
+        console.error('❌ Email already exists:', email);
+        return new Response(JSON.stringify({
+          success: false,
+          error: '이미 존재하는 이메일입니다'
+        }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Hash password
+    console.log('🔐 Hashing password...');
+    const hashedPassword = await hashPassword(password);
+
+    // Generate teacher ID
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 15);
+    const teacherId = `teacher-${timestamp}-${randomStr}`;
+
+    const now = new Date().toISOString();
+
+    console.log('➕ Inserting new teacher into User table...');
+    console.log('Teacher ID:', teacherId);
+    console.log('Email:', emailValue);
+    console.log('Academy ID:', academyId);
+
+    // Insert into User table
+    const result = await db
+      .prepare(`
+        INSERT INTO User 
+        (id, email, password, name, phone, role, academyId, approved, isWithdrawn, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, 'TEACHER', ?, 1, 0, ?, ?)
+      `)
+      .bind(teacherId, emailValue, hashedPassword, name, phone, academyId, now, now)
+      .run();
+
+    console.log('✅ Teacher inserted, changes:', result.meta?.changes || 0);
+
+    if (result.meta?.changes === 0) {
+      console.error('❌ Insert failed - no changes');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Failed to insert teacher'
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Fetch newly created teacher
+    console.log('🔍 Fetching new teacher info...');
+    const newTeacher = await db
+      .prepare('SELECT id, email, name, phone, role, academyId, approved, createdAt FROM User WHERE id = ?')
+      .bind(teacherId)
+      .first();
+
+    console.log('✅ New teacher created:', newTeacher);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: '교사가 추가되었습니다',
+      teacher: newTeacher,
+      tempPassword: password
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('❌ Add teacher error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message,
+      message: '교사 추가 중 오류가 발생했습니다'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
