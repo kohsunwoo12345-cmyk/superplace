@@ -133,22 +133,68 @@ export async function onRequestGet(context) {
 
       console.log('✅ Found director:', director);
 
-      // 학생 목록 조회
-      const studentsQuery = `
-        SELECT 
-          ${idCol} as id,
-          ${nameCol} as name,
-          ${emailCol} as email,
-          ${phoneCol} as phone,
-          ${createdAtCol} as createdAt
-        FROM ${userTable}
-        WHERE ${academyIdCol} = ? AND ${roleCol} = ?
-        ORDER BY ${createdAtCol} DESC
-      `;
-      const studentsResult = await env.DB.prepare(studentsQuery)
-        .bind(academyId, 'STUDENT')
-        .all();
-      const students = studentsResult.results || [];
+      // 학생 목록 조회 (User + users 테이블 통합)
+      console.log('📚 Fetching students for academy:', academyId);
+      
+      let allStudents = [];
+      
+      // 1️⃣ User 테이블 조회 (신규 학생)
+      if (allTables.includes('User')) {
+        try {
+          const userStudentsQuery = `
+            SELECT 
+              id,
+              name,
+              email,
+              phone,
+              created_at as createdAt
+            FROM User
+            WHERE academy_id = ? AND role = ?
+            ORDER BY created_at DESC
+          `;
+          const userStudentsResult = await env.DB.prepare(userStudentsQuery)
+            .bind(parseInt(academyId), 'STUDENT')
+            .all();
+          const userStudents = userStudentsResult.results || [];
+          console.log(`  ✅ User 테이블: ${userStudents.length}명`);
+          allStudents.push(...userStudents);
+        } catch (err) {
+          console.log('  ⚠️ User 테이블 조회 실패:', err.message);
+        }
+      }
+      
+      // 2️⃣ users 테이블 조회 (기존 학생)
+      if (allTables.includes('users') && userTable === 'users') {
+        try {
+          const usersStudentsQuery = `
+            SELECT 
+              ${idCol} as id,
+              ${nameCol} as name,
+              ${emailCol} as email,
+              ${phoneCol} as phone,
+              ${createdAtCol} as createdAt
+            FROM users
+            WHERE ${academyIdCol} = ? AND ${roleCol} = ?
+            ORDER BY ${createdAtCol} DESC
+          `;
+          const usersStudentsResult = await env.DB.prepare(usersStudentsQuery)
+            .bind(parseInt(academyId), 'STUDENT')
+            .all();
+          const usersStudents = usersStudentsResult.results || [];
+          console.log(`  ✅ users 테이블: ${usersStudents.length}명`);
+          allStudents.push(...usersStudents);
+        } catch (err) {
+          console.log('  ⚠️ users 테이블 조회 실패:', err.message);
+        }
+      }
+      
+      // 중복 제거 (id 기준)
+      const students = Array.from(
+        new Map(allStudents.map(s => [s.id, s])).values()
+      );
+      
+      console.log(`📊 총 학생 수: ${students.length}명 (User: ${allStudents.length - students.length}명 중복 제거)`);
+
 
       // 교사 목록 조회
       const teachersQuery = `
@@ -282,16 +328,44 @@ export async function onRequestGet(context) {
         
         console.log(`📍 Processing director ${director.name} (ID: ${director.id}, Academy ID: ${directorAcademyId})`);
 
-        // 해당 학원의 학생 수 조회
-        const studentsQuery = `
-          SELECT COUNT(*) as count 
-          FROM ${userTable} 
-          WHERE ${academyIdCol} = ? AND ${roleCol} = ?
-        `;
-        const studentsResult = await env.DB.prepare(studentsQuery)
-          .bind(directorAcademyId, 'STUDENT')
-          .first();
-        const studentCount = studentsResult?.count || 0;
+        // 해당 학원의 학생 수 조회 (User + users 테이블 통합)
+        let totalStudentCount = 0;
+        
+        // User 테이블에서 학생 수
+        if (allTables.includes('User')) {
+          try {
+            const userStudentsQuery = `
+              SELECT COUNT(*) as count 
+              FROM User 
+              WHERE academy_id = ? AND role = ?
+            `;
+            const userStudentsResult = await env.DB.prepare(userStudentsQuery)
+              .bind(parseInt(directorAcademyId), 'STUDENT')
+              .first();
+            totalStudentCount += (userStudentsResult?.count || 0);
+            console.log(`  └─ User 테이블: ${userStudentsResult?.count || 0}명`);
+          } catch (err) {
+            console.log(`  └─ User 테이블 조회 오류:`, err.message);
+          }
+        }
+        
+        // users 테이블에서 학생 수
+        try {
+          const studentsQuery = `
+            SELECT COUNT(*) as count 
+            FROM ${userTable} 
+            WHERE ${academyIdCol} = ? AND ${roleCol} = ?
+          `;
+          const studentsResult = await env.DB.prepare(studentsQuery)
+            .bind(directorAcademyId, 'STUDENT')
+            .first();
+          totalStudentCount += (studentsResult?.count || 0);
+          console.log(`  └─ ${userTable} 테이블: ${studentsResult?.count || 0}명`);
+        } catch (err) {
+          console.log(`  └─ ${userTable} 테이블 조회 오류:`, err.message);
+        }
+        
+        const studentCount = totalStudentCount;
 
         // 해당 학원의 교사 수 조회
         const teachersQuery = `
