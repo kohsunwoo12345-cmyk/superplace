@@ -133,8 +133,8 @@ function getDefaultClasses() {
 // Get or initialize classes for an academy
 function getAcademyClasses(academyId) {
   if (!CLASSES_BY_ACADEMY.has(academyId)) {
-    CLASSES_BY_ACADEMY.set(academyId, getDefaultClasses());
-    console.log(`🏫 [PRODUCTION CLASSES API] Initialized classes for academy: ${academyId}`);
+    CLASSES_BY_ACADEMY.set(academyId, []); // 빈 배열로 초기화 (자동생성 제거)
+    console.log(`🏫 [PRODUCTION CLASSES API] Initialized empty classes for academy: ${academyId}`);
   }
   return CLASSES_BY_ACADEMY.get(academyId);
 }
