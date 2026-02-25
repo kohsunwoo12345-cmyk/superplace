@@ -149,6 +149,8 @@ export async function onRequestPost(context) {
     
     try {
       // Try User table first - 최소 필드만 사용 (isWithdrawn, withdrawnAt, withdrawnReason만 사용)
+      console.log('🔄 UPDATE 실행 중:', { studentId, now, withdrawalReason });
+      
       const result = await db
         .prepare(`
           UPDATE User 
@@ -158,13 +160,20 @@ export async function onRequestPost(context) {
         .bind(now, withdrawalReason, studentId)
         .run();
       
-      console.log('✅ User 테이블 업데이트 시도 완료, changes:', result.meta?.changes || 0);
+      console.log('✅ User 테이블 업데이트 완료:', {
+        changes: result.meta?.changes || 0,
+        duration: result.meta?.duration || 0,
+        last_row_id: result.meta?.last_row_id || 0
+      });
       
       if (result.meta?.changes > 0) {
         updateSuccess = true;
+        console.log('✅ UPDATE 성공 - 행이 변경되었습니다');
+      } else {
+        console.log('⚠️ UPDATE 실패 - 변경된 행이 0개입니다. 학생이 존재하지 않거나 이미 퇴원 처리되었을 수 있습니다.');
       }
     } catch (e) {
-      console.log('⚠️ User 테이블 업데이트 실패, users 테이블 시도:', e.message);
+      console.log('⚠️ User 테이블 UPDATE 중 오류 발생:', e.message, e.cause?.message || '');
       
       try {
         // Try users table
