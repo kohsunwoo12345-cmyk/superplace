@@ -180,6 +180,12 @@ export default function TeacherManagementPage() {
       if (response.ok && data.success) {
         alert(`✅ 교사가 추가되었습니다!\n\n임시 비밀번호: ${data.tempPassword}\n\n교사에게 전달해주세요.`);
         
+        // 반환된 교사 정보를 즉시 목록에 추가 (D1 replica lag 우회)
+        if (data.teacher) {
+          console.log("✅ 새 교사를 즉시 목록에 추가:", data.teacher);
+          setTeachers(prev => [data.teacher, ...prev]);
+        }
+        
         setFormData({
           name: "",
           email: "",
@@ -188,7 +194,11 @@ export default function TeacherManagementPage() {
         });
         
         setShowAddDialog(false);
-        await loadTeachers();
+        
+        // 백그라운드에서 목록 재조회 (동기화 목적)
+        setTimeout(() => {
+          loadTeachers();
+        }, 2000);
       } else {
         alert(`❌ 교사 추가 실패\n\n${data.error || data.message || "알 수 없는 오류"}`);
       }
