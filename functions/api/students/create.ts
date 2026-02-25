@@ -238,9 +238,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         .prepare(`
           INSERT INTO User (
             id, email, phone, password, name, role, 
-            school, grade, academyId, approved, createdAt, updatedAt
+            academyId, approved, createdAt, updatedAt
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
         `)
         .bind(
           `student-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -249,8 +249,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           hashedPassword,
           name || null,
           'STUDENT',
-          school || null,
-          grade || null,
           academyIdInt,
           koreanTime,
           koreanTime
