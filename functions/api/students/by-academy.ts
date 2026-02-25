@@ -45,48 +45,38 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const upperRole = role;
     
-    // 여러 스키마 패턴 시도 (실제 DB는 academy_id INTEGER를 사용하므로 패턴 1을 먼저 시도)
-    let result: any = null;
-    let successPattern = '';
+    // 🔄 User 테이블과 users 테이블 모두 조회 (UNION)
+    console.log('🔍 User + users 테이블 통합 조회 시작');
     
-    // 패턴 1 (우선): users + academy_id/academyId (숫자면 INTEGER, 문자열이면 TEXT)
+    const isStringAcademyId = tokenAcademyId && typeof tokenAcademyId === 'string' && isNaN(parseInt(tokenAcademyId));
+    const academyIdInt = typeof tokenAcademyId === 'string' ? parseInt(tokenAcademyId) : tokenAcademyId;
+    
+    let result: any = null;
+    let allStudents: any[] = [];
+    
+    // 1️⃣ User 테이블 조회 (새 학생)
     try {
-      console.log('🔍 시도 1: users 테이블 + academy_id/academyId');
-      
-      // academyId가 숫자인지 문자열인지 판단
-      const isStringAcademyId = tokenAcademyId && typeof tokenAcademyId === 'string' && isNaN(parseInt(tokenAcademyId));
-      
+      console.log('📌 User 테이블 조회 중...');
       let query = `
         SELECT 
           u.id,
           u.name,
           u.email,
           u.phone,
-          u.academy_id,
-          u.academyId,
-          u.role,
-          s.id as studentId,
-          s.grade,
-          s.status
-        FROM users u
-        LEFT JOIN students s ON u.id = s.user_id
+          u.academy_id as academyId,
+          u.role
+        FROM User u
         WHERE u.role = 'STUDENT'
       `;
-
+      
       const bindings: any[] = [];
-
+      
       if (upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN') {
         const url = new URL(context.request.url);
         const requestedAcademyId = url.searchParams.get("academyId");
         if (requestedAcademyId) {
-          const isRequestStringId = isNaN(parseInt(requestedAcademyId));
-          if (isRequestStringId) {
-            query += ` AND u.academyId = ?`;
-            bindings.push(requestedAcademyId);
-          } else {
-            query += ` AND u.academy_id = ?`;
-            bindings.push(parseInt(requestedAcademyId));
-          }
+          query += ` AND u.academy_id = ?`;
+          bindings.push(parseInt(requestedAcademyId));
         }
       } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
         if (!tokenAcademyId) {
@@ -100,18 +90,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
-        
-        // academyId가 문자열이면 TEXT 컬럼, 숫자면 INTEGER 컬럼
-        if (isStringAcademyId) {
-          query += ` AND u.academyId = ?`;
-          bindings.push(tokenAcademyId);
-          console.log(`🏫 ${upperRole} - Filtering by academyId (TEXT):`, tokenAcademyId);
-        } else {
-          query += ` AND u.academy_id = ?`;
-          const academyIdInt = typeof tokenAcademyId === 'string' ? parseInt(tokenAcademyId) : tokenAcademyId;
-          bindings.push(academyIdInt);
-          console.log(`🏫 ${upperRole} - Filtering by academy_id (INTEGER):`, academyIdInt);
-        }
+        query += ` AND u.academy_id = ?`;
+        bindings.push(academyIdInt);
+        console.log(`🏫 ${upperRole} - Filtering User by academy_id:`, academyIdInt);
       } else {
         return new Response(
           JSON.stringify({ 
@@ -123,172 +104,88 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           { status: 403, headers: { "Content-Type": "application/json" } }
         );
       }
-
+      
       query += ` ORDER BY u.id DESC`;
-
-      console.log('📊 패턴 1 Query:', query, 'Bindings:', bindings);
       
-      // isWithdrawn 필터 시도
-      try {
-        const withdrawnQuery = query.replace('WHERE u.role = \'STUDENT\'', 'WHERE u.role = \'STUDENT\' AND (u.isWithdrawn IS NULL OR u.isWithdrawn != 1)');
-        result = await DB.prepare(withdrawnQuery).bind(...bindings).all();
-        console.log('✅ 패턴 1 성공 (isWithdrawn 필터 적용):', result.results.length, '명');
-      } catch (withdrawnErr: any) {
-        console.log('⚠️ isWithdrawn 컬럼 없음, 필터 없이 조회');
-        result = await DB.prepare(query).bind(...bindings).all();
-        console.log('✅ 패턴 1 성공 (필터 없음):', result.results.length, '명');
-      }
-      
-      successPattern = 'users + academy_id/academyId';
-    } catch (e1: any) {
-      console.log('❌ 패턴 1 실패:', e1.message);
+      const userResult = await DB.prepare(query).bind(...bindings).all();
+      console.log(`✅ User 테이블: ${userResult.results.length}명`);
+      allStudents.push(...(userResult.results || []));
+    } catch (userErr: any) {
+      console.log('⚠️ User 테이블 조회 실패:', userErr.message);
     }
-
-    // 패턴 2: User + academy_id (PascalCase 테이블)
-    if (!result || result.results.length === 0) {
-      try {
-        console.log('🔍 시도 2: User 테이블 + academy_id');
-        
-        let query = `
-          SELECT 
-            u.id,
-            u.name,
-            u.email,
-            u.phone,
-            u.academy_id as academyId,
-            u.role,
-            s.id as studentId,
-            s.grade,
-            s.status
-          FROM User u
-          LEFT JOIN students s ON u.id = s.user_id
-          WHERE u.role = 'STUDENT'
-        `;
-
-        const bindings: any[] = [];
-
-        if (upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN') {
-          const url = new URL(context.request.url);
-          const requestedAcademyId = url.searchParams.get("academyId");
-          if (requestedAcademyId) {
-            query += ` AND u.academy_id = ?`;
-            bindings.push(parseInt(requestedAcademyId));
-          }
-        } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
+    
+    // 2️⃣ users 테이블 조회 (기존 학생)
+    try {
+      console.log('📌 users 테이블 조회 중...');
+      let query = `
+        SELECT 
+          u.id,
+          u.name,
+          u.email,
+          u.phone,
+          CAST(u.academy_id AS TEXT) as academyId,
+          u.role
+        FROM users u
+        WHERE u.role = 'STUDENT'
+      `;
+      
+      const bindings: any[] = [];
+      
+      if (upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN') {
+        const url = new URL(context.request.url);
+        const requestedAcademyId = url.searchParams.get("academyId");
+        if (requestedAcademyId) {
           query += ` AND u.academy_id = ?`;
-          const academyIdInt = typeof tokenAcademyId === 'string' ? parseInt(tokenAcademyId) : tokenAcademyId;
-          bindings.push(academyIdInt);
+          bindings.push(parseInt(requestedAcademyId));
         }
-
-        query += ` ORDER BY u.id DESC`;
-
-        console.log('📊 패턴 2 Query:', query, bindings);
-        
-        // isWithdrawn 필터 시도
-        try {
-          const withdrawnQuery = query.replace('WHERE u.role = \'STUDENT\'', 'WHERE u.role = \'STUDENT\' AND (u.isWithdrawn IS NULL OR u.isWithdrawn != 1)');
-          result = await DB.prepare(withdrawnQuery).bind(...bindings).all();
-          console.log('✅ 패턴 2 성공 (isWithdrawn 필터 적용):', result.results.length, '명');
-        } catch (withdrawnErr: any) {
-          console.log('⚠️ isWithdrawn 컬럼 없음, 필터 없이 조회');
-          result = await DB.prepare(query).bind(...bindings).all();
-          console.log('✅ 패턴 2 성공 (필터 없음):', result.results.length, '명');
-        }
-        
-        successPattern = 'User + academy_id';
-      } catch (e2: any) {
-        console.log('❌ 패턴 2 실패:', e2.message);
+      } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
+        query += ` AND u.academy_id = ?`;
+        bindings.push(academyIdInt);
+        console.log(`🏫 ${upperRole} - Filtering users by academy_id:`, academyIdInt);
       }
+      
+      query += ` ORDER BY u.id DESC`;
+      
+      const usersResult = await DB.prepare(query).bind(...bindings).all();
+      console.log(`✅ users 테이블: ${usersResult.results.length}명`);
+      allStudents.push(...(usersResult.results || []));
+    } catch (usersErr: any) {
+      console.log('⚠️ users 테이블 조회 실패:', usersErr.message);
     }
-
-    // 패턴 3 (최후): users + academyId (TEXT 타입 대비)
-    if (!result || result.results.length === 0) {
-      try {
-        console.log('🔍 시도 3: users 테이블 + academyId (TEXT)');
-        
-        let query = `
-          SELECT 
-            u.id,
-            u.name,
-            u.email,
-            u.phone,
-            u.academyId,
-            u.role,
-            s.id as studentId,
-            s.grade,
-            s.status
-          FROM users u
-          LEFT JOIN students s ON u.id = s.userId
-          WHERE u.role = 'STUDENT'
-        `;
-
-        const bindings: any[] = [];
-
-        if (upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN') {
-          const url = new URL(context.request.url);
-          const requestedAcademyId = url.searchParams.get("academyId");
-          if (requestedAcademyId) {
-            query += ` AND u.academyId = ?`;
-            bindings.push(requestedAcademyId);
-          }
-        } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
-          query += ` AND u.academyId = ?`;
-          bindings.push(tokenAcademyId?.toString());
-        }
-
-        query += ` ORDER BY u.id DESC`;
-
-        console.log('📊 패턴 3 Query:', query, bindings);
-        
-        // isWithdrawn 필터 시도
-        try {
-          const withdrawnQuery = query.replace('WHERE u.role = \'STUDENT\'', 'WHERE u.role = \'STUDENT\' AND (u.isWithdrawn IS NULL OR u.isWithdrawn != 1)');
-          result = await DB.prepare(withdrawnQuery).bind(...bindings).all();
-          console.log('✅ 패턴 3 성공 (isWithdrawn 필터 적용):', result.results.length, '명');
-        } catch (withdrawnErr: any) {
-          console.log('⚠️ isWithdrawn 컬럼 없음, 필터 없이 조회');
-          result = await DB.prepare(query).bind(...bindings).all();
-          console.log('✅ 패턴 3 성공 (필터 없음):', result.results.length, '명');
-        }
-        
-        successPattern = 'users + academyId (TEXT)';
-      } catch (e3: any) {
-        console.log('❌ 패턴 3 실패:', e3.message);
-      }
-    }
-
-    if (!result) {
-      console.error('❌ 모든 패턴 실패');
+    
+    if (allStudents.length === 0) {
+      console.error('❌ 두 테이블 모두 결과 없음');
       return new Response(
         JSON.stringify({
-          success: false,
-          error: "All schema patterns failed",
-          message: "데이터베이스 조회 실패",
-          students: []
+          success: true,
+          students: [],
+          message: "학생이 없습니다"
         }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
+    
+    // 중복 제거 (id 기준)
+    const uniqueStudents = Array.from(
+      new Map(allStudents.map(s => [s.id, s])).values()
+    );
 
-    console.log(`🎯 사용된 패턴: ${successPattern}`);
+    console.log('🔍 통합 결과:', JSON.stringify(uniqueStudents.slice(0, 2), null, 2));
+    console.log('🔍 중복 제거 후 총 학생 수:', uniqueStudents.length);
     
-    console.log('🔍 Raw DB result:', JSON.stringify(result.results?.slice(0, 2), null, 2));
-    console.log('🔍 Result count:', result.results?.length || 0);
-    
-    const students = (result.results || []).map((s: any) => ({
+    const students = uniqueStudents.map((s: any) => ({
       id: s.id,
       name: s.name,
       email: s.email,
       studentCode: s.id,
       grade: s.grade,
       phone: s.phone,
-      academyId: s.academyId,
+      academyId: s.academyId ? String(s.academyId) : null,
       status: s.status || 'ACTIVE'
     }));
     
     console.log('✅ Students found:', students.length);
     console.log('📝 First student:', students[0]);
-    console.log(`🎯 Success pattern: ${successPattern}`);
 
     return new Response(
       JSON.stringify({
