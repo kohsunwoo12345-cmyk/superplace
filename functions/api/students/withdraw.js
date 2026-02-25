@@ -145,9 +145,11 @@ export async function onRequestPost(context) {
     // Update student status to WITHDRAWN
     const now = new Date().toISOString();
     
+    let updateSuccess = false;
+    
     try {
       // Try User table first
-      await db
+      const result = await db
         .prepare(`
           UPDATE User 
           SET status = ?, withdrawalReason = ?, withdrawalDate = ?, isWithdrawn = 1, withdrawnAt = ?, withdrawnReason = ?
@@ -156,13 +158,17 @@ export async function onRequestPost(context) {
         .bind('WITHDRAWN', withdrawalReason, now, now, withdrawalReason, studentId)
         .run();
       
-      console.log('✅ User 테이블 업데이트 성공');
+      console.log('✅ User 테이블 업데이트 시도 완료, changes:', result.meta?.changes || 0);
+      
+      if (result.meta?.changes > 0) {
+        updateSuccess = true;
+      }
     } catch (e) {
       console.log('⚠️ User 테이블 업데이트 실패, users 테이블 시도:', e.message);
       
       try {
         // Try users table
-        await db
+        const result2 = await db
           .prepare(`
             UPDATE users 
             SET isWithdrawn = 1, withdrawnAt = ?, withdrawnReason = ?
@@ -171,18 +177,32 @@ export async function onRequestPost(context) {
           .bind(now, withdrawalReason, studentId)
           .run();
         
-        console.log('✅ users 테이블 업데이트 성공');
+        console.log('✅ users 테이블 업데이트 시도 완료, changes:', result2.meta?.changes || 0);
+        
+        if (result2.meta?.changes > 0) {
+          updateSuccess = true;
+        }
       } catch (e2) {
         console.log('⚠️ users 테이블도 실패:', e2.message);
       }
     }
 
-    console.log('✅ Student withdrawn:', { studentId, name: student.name });
+    // 업데이트 후 학생 정보 재조회하여 확인
+    const updatedStudent = await db
+      .prepare('SELECT id, name, isWithdrawn, status FROM User WHERE id = ?')
+      .bind(studentId)
+      .first();
+    
+    console.log('📝 업데이트 후 학생 상태:', updatedStudent);
+
+    console.log('✅ Student withdrawn:', { studentId, name: student.name, updateSuccess });
 
     return new Response(JSON.stringify({
       success: true,
       message: '학생이 퇴원 처리되었습니다',
-      studentId: studentId
+      studentId: studentId,
+      updateSuccess,
+      updatedStudent: updatedStudent
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
