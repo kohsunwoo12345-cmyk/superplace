@@ -200,10 +200,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // ADMIN/SUPER_ADMIN은 academy 없이도 생성 가능
     // TEACHER/DIRECTOR는 토큰에서 가져온 academyId 사용 (문자열 또는 숫자)
 
-    // academyId 처리: 문자열이면 TEXT 컬럼(academyId)에, 숫자면 INTEGER 컬럼(academy_id)에 저장
-    const isStringAcademyId = academyId && typeof academyId === 'string' && isNaN(parseInt(academyId));
-    const academyIdInt = isStringAcademyId ? null : (academyId ? (typeof academyId === 'string' ? parseInt(academyId) : academyId) : null);
-    const academyIdText = isStringAcademyId ? academyId : null;
+    // academyId 처리: 항상 정수로 변환
+    let finalAcademyId: number | null = null;
+    if (academyId) {
+      if (typeof academyId === 'number') {
+        finalAcademyId = Math.floor(academyId);  // 실수면 정수로 변환
+      } else if (typeof academyId === 'string') {
+        const parsed = parseInt(academyId);
+        finalAcademyId = isNaN(parsed) ? null : parsed;
+      }
+    }
+    
+    console.log('🔍 Academy ID processing:', { 
+      original: academyId, 
+      type: typeof academyId,
+      final: finalAcademyId,
+      finalType: typeof finalAcademyId
+    });
 
     // 이메일이 없으면 phone 기반으로 생성 (users.email이 NOT NULL 제약조건을 가지고 있음)
     const finalEmail = email || `student_${phone}@temp.superplace.local`;
@@ -233,7 +246,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         email: finalEmail,
         phone,
         name: name || null,
-        academyId: academyIdInt,
+        academyId: finalAcademyId,
         role: 'STUDENT'
       });
 
@@ -252,7 +265,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           hashedPassword,
           name || null,
           'STUDENT',
-          academyIdInt,
+          finalAcademyId,
           koreanTime,
           koreanTime
         )
@@ -298,7 +311,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         await DB.prepare(`
           INSERT INTO student_attendance_codes (id, userId, code, academyId, isActive, createdAt)
           VALUES (?, ?, ?, ?, 1, ?)
-        `).bind(codeId, userId.toString(), code, academyIdInt || null, koreanTime).run();
+        `).bind(codeId, userId.toString(), code, finalAcademyId || null, koreanTime).run();
 
         attendanceCode = code;
         console.log('✅ Attendance code generated:', code);
