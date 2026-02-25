@@ -1,10 +1,10 @@
 // 학생 상세 정보 조회 API
-// GET /api/students/[id]
+// GET /api/students/detail?id=<student_id>
 
 import { getUserFromAuth } from '../../_lib/auth.js';
 
 export async function onRequestGet(context) {
-  const { request, env, params } = context;
+  const { request, env } = context;
   const { DB } = env;
 
   if (!DB) {
@@ -25,7 +25,17 @@ export async function onRequestGet(context) {
       }, { status: 401 });
     }
 
-    const studentId = params.id;
+    // Query parameter에서 ID 추출
+    const url = new URL(request.url);
+    const studentId = url.searchParams.get('id');
+    
+    if (!studentId) {
+      return Response.json({ 
+        success: false, 
+        error: "학생 ID가 필요합니다" 
+      }, { status: 400 });
+    }
+
     const requesterRole = userPayload.role?.toUpperCase();
     const requesterAcademyId = userPayload.academyId;
     
