@@ -126,10 +126,14 @@ export async function onRequestGet(context) {
       console.log('🔍 Final Query:', query);
       console.log('📊 Bindings:', JSON.stringify(bindings));
 
-      // Execute query
+      // Execute query with IMMEDIATE consistency
+      // Force read from PRIMARY to avoid replica lag
       const stmt = db.prepare(query);
       const boundStmt = bindings.length > 0 ? stmt.bind(...bindings) : stmt;
-      const result = await boundStmt.all();
+      
+      // Use batch() with single query to force primary DB read
+      const batchResults = await db.batch([boundStmt]);
+      const result = batchResults[0];
       
       console.log(`✅ User 테이블 쿼리 실행 완료`);
       console.log(`📊 조회된 교사 수: ${result.results ? result.results.length : 0}`);
@@ -170,7 +174,11 @@ export async function onRequestGet(context) {
 
       query += ' ORDER BY created_at DESC';
 
-      const result = await db.prepare(query).bind(...bindings).all();
+      // Use batch() to force primary DB read (consistency)
+      const stmt = db.prepare(query);
+      const boundStmt = bindings.length > 0 ? stmt.bind(...bindings) : stmt;
+      const batchResults = await db.batch([boundStmt]);
+      const result = batchResults[0];
       
       console.log(`✅ users 테이블에서 ${result.results.length}명의 교사 조회`);
       
