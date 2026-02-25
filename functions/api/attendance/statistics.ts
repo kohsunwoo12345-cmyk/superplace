@@ -86,21 +86,23 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     console.log("📊 Statistics API called with:", { userId, role, academyId });
 
     // 선생님/학원장/관리자: 학생 출석 통계 - attendance_records_v2 테이블 사용
+    // User 테이블 먼저 시도하고, 없으면 users 테이블 사용 (UNION으로 병합)
     let query = `
       SELECT 
         ar.id,
         ar.userId,
-        u.name as userName,
-        u.email,
-        u.academyId,
+        COALESCE(u1.name, u2.name) as userName,
+        COALESCE(u1.email, u2.email) as email,
+        COALESCE(u1.academyId, u2.academyId) as academyId,
         a.name as academyName,
         ar.code,
         ar.checkInTime as verifiedAt,
         ar.status
       FROM attendance_records_v2 ar
-      JOIN users u ON ar.userId = u.id
-      LEFT JOIN academy a ON CAST(u.academyId AS TEXT) = CAST(a.id AS TEXT)
-      WHERE 1=1
+      LEFT JOIN User u1 ON CAST(ar.userId AS TEXT) = CAST(u1.id AS TEXT)
+      LEFT JOIN users u2 ON CAST(ar.userId AS TEXT) = CAST(u2.id AS TEXT)
+      LEFT JOIN Academy a ON CAST(COALESCE(u1.academyId, u2.academyId) AS TEXT) = CAST(a.id AS TEXT)
+      WHERE (u1.id IS NOT NULL OR u2.id IS NOT NULL)
     `;
     
     const params: any[] = [];
@@ -108,10 +110,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // DIRECTOR나 TEACHER는 자신의 학원 데이터만 조회
     const isGlobalAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
     if (!isGlobalAdmin && academyId) {
-      // 문자열과 정수 모두 비교
-      query += ` AND (CAST(u.academyId AS TEXT) = ? OR u.academyId = ?)`;
-      params.push(String(academyId), parseInt(academyId));
-      console.log("🔍 Filtering statistics by academyId:", academyId, "(both types)", "for role:", role);
+      // 문자열과 정수 모두 비교 (User와 users 테이블 모두)
+      query += ` AND (
+        CAST(u1.academyId AS TEXT) = ? OR u1.academyId = ? OR
+        CAST(u2.academyId AS TEXT) = ? OR u2.academyId = ?
+      )`;
+      params.push(String(academyId), parseInt(academyId), String(academyId), parseInt(academyId));
+      console.log("🔍 Filtering statistics by academyId:", academyId, "(both User and users tables)", "for role:", role);
     } else if (isGlobalAdmin) {
       console.log("✅ Global admin - showing all statistics");
     } else {
@@ -127,19 +132,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     
     const records = await stmt.all();
 
-    // 오늘 출석 - attendance_records_v2 테이블 사용
+    // 오늘 출석 - attendance_records_v2 테이블 사용, User와 users 테이블 모두 조회
     let todayQuery = `
       SELECT COUNT(*) as count
       FROM attendance_records_v2 ar
-      JOIN users u ON ar.userId = u.id
+      LEFT JOIN User u1 ON CAST(ar.userId AS TEXT) = CAST(u1.id AS TEXT)
+      LEFT JOIN users u2 ON CAST(ar.userId AS TEXT) = CAST(u2.id AS TEXT)
       WHERE substr(ar.checkInTime, 1, 10) = ?
+      AND (u1.id IS NOT NULL OR u2.id IS NOT NULL)
     `;
     const todayParams: any[] = [today];
 
     const isGlobalAdmin2 = role === 'SUPER_ADMIN' || role === 'ADMIN';
     if (!isGlobalAdmin2 && academyId) {
-      todayQuery += ` AND (CAST(u.academyId AS TEXT) = ? OR u.academyId = ?)`;
-      todayParams.push(String(academyId), parseInt(academyId));
+      todayQuery += ` AND (
+        CAST(u1.academyId AS TEXT) = ? OR u1.academyId = ? OR
+        CAST(u2.academyId AS TEXT) = ? OR u2.academyId = ?
+      )`;
+      todayParams.push(String(academyId), parseInt(academyId), String(academyId), parseInt(academyId));
     }
 
     let todayStmt = DB.prepare(todayQuery);
@@ -149,19 +159,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const todayResult = await todayStmt.first();
     const todayAttendance = todayResult?.count || 0;
 
-    // 이번 달 출석 - attendance_records_v2 테이블 사용
+    // 이번 달 출석 - attendance_records_v2 테이블 사용, User와 users 테이블 모두 조회
     let monthQuery = `
       SELECT COUNT(DISTINCT ar.userId) as count
       FROM attendance_records_v2 ar
-      JOIN users u ON ar.userId = u.id
+      LEFT JOIN User u1 ON CAST(ar.userId AS TEXT) = CAST(u1.id AS TEXT)
+      LEFT JOIN users u2 ON CAST(ar.userId AS TEXT) = CAST(u2.id AS TEXT)
       WHERE substr(ar.checkInTime, 1, 7) = ?
+      AND (u1.id IS NOT NULL OR u2.id IS NOT NULL)
     `;
     const monthParams: any[] = [thisMonth];
 
     const isGlobalAdmin3 = role === 'SUPER_ADMIN' || role === 'ADMIN';
     if (!isGlobalAdmin3 && academyId) {
-      monthQuery += ` AND (CAST(u.academyId AS TEXT) = ? OR u.academyId = ?)`;
-      monthParams.push(String(academyId), parseInt(academyId));
+      monthQuery += ` AND (
+        CAST(u1.academyId AS TEXT) = ? OR u1.academyId = ? OR
+        CAST(u2.academyId AS TEXT) = ? OR u2.academyId = ?
+      )`;
+      monthParams.push(String(academyId), parseInt(academyId), String(academyId), parseInt(academyId));
     }
 
     let monthStmt = DB.prepare(monthQuery);
@@ -171,19 +186,32 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const monthResult = await monthStmt.first();
     const monthAttendance = monthResult?.count || 0;
 
-    // 전체 학생 수 (실제 DB에서 조회)
+    // 전체 학생 수 (User와 users 테이블 모두 조회 - UNION으로 병합)
     let studentQuery = `
-      SELECT COUNT(*) as count
-      FROM users
-      WHERE role = 'STUDENT'
+      SELECT COUNT(*) as count FROM (
+        SELECT id FROM User WHERE role = 'STUDENT'
+        UNION
+        SELECT id FROM users WHERE role = 'STUDENT'
+      )
     `;
     const studentParams: any[] = [];
 
     const isGlobalAdmin4 = role === 'SUPER_ADMIN' || role === 'ADMIN';
     if (!isGlobalAdmin4 && academyId) {
-      studentQuery += ` AND (CAST(academyId AS TEXT) = ? OR academyId = ?)`;
-      studentParams.push(String(academyId), parseInt(academyId));
-      console.log("🔍 Counting students for academyId:", academyId);
+      // UNION 전에 필터링하도록 수정
+      studentQuery = `
+        SELECT COUNT(*) as count FROM (
+          SELECT id FROM User 
+          WHERE role = 'STUDENT' 
+          AND (CAST(academyId AS TEXT) = ? OR academyId = ?)
+          UNION
+          SELECT id FROM users 
+          WHERE role = 'STUDENT' 
+          AND (CAST(academyId AS TEXT) = ? OR academyId = ?)
+        )
+      `;
+      studentParams.push(String(academyId), parseInt(academyId), String(academyId), parseInt(academyId));
+      console.log("🔍 Counting students for academyId:", academyId, "(both User and users tables)");
     }
 
     let studentStmt = DB.prepare(studentQuery);
@@ -208,15 +236,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       let dayQuery = `
         SELECT COUNT(*) as count
         FROM attendance_records_v2 ar
-        JOIN users u ON ar.userId = u.id
+        LEFT JOIN User u1 ON CAST(ar.userId AS TEXT) = CAST(u1.id AS TEXT)
+        LEFT JOIN users u2 ON CAST(ar.userId AS TEXT) = CAST(u2.id AS TEXT)
         WHERE substr(ar.checkInTime, 1, 10) = ?
+        AND (u1.id IS NOT NULL OR u2.id IS NOT NULL)
       `;
       const dayParams: any[] = [dateStr];
 
       const isGlobalAdmin5 = role === 'SUPER_ADMIN' || role === 'ADMIN';
       if (!isGlobalAdmin5 && academyId) {
-        dayQuery += ` AND (CAST(u.academyId AS TEXT) = ? OR u.academyId = ?)`;
-        dayParams.push(String(academyId), parseInt(academyId));
+        dayQuery += ` AND (
+          CAST(u1.academyId AS TEXT) = ? OR u1.academyId = ? OR
+          CAST(u2.academyId AS TEXT) = ? OR u2.academyId = ?
+        )`;
+        dayParams.push(String(academyId), parseInt(academyId), String(academyId), parseInt(academyId));
       }
 
       let dayStmt = DB.prepare(dayQuery);
