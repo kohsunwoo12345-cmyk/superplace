@@ -1,7 +1,71 @@
 // 학생 상세 정보 조회 API
 // GET /api/student/get?id=<student_id>
 
-import { getUserFromAuth } from '../../_lib/auth.js';
+// 인라인 토큰 디코딩 함수
+function decodeToken(token) {
+  try {
+    let parts = token.split('|');
+    
+    if (parts.length === 5) {
+      const [userId, email, role, academyId, timestamp] = parts;
+      const tokenTime = parseInt(timestamp);
+      const now = Date.now();
+      const tokenAge = now - tokenTime;
+      const maxAge = 24 * 60 * 60 * 1000;
+      
+      if (tokenAge > maxAge) {
+        throw new Error('Token expired');
+      }
+      
+      return {
+        userId,
+        id: userId,
+        email,
+        role,
+        academyId: academyId || null,
+        timestamp: tokenTime,
+      };
+    }
+    
+    if (parts.length === 4) {
+      const [userId, email, role, timestamp] = parts;
+      const tokenTime = parseInt(timestamp);
+      const now = Date.now();
+      const tokenAge = now - tokenTime;
+      const maxAge = 24 * 60 * 60 * 1000;
+      
+      if (tokenAge > maxAge) {
+        throw new Error('Token expired');
+      }
+      
+      return {
+        userId,
+        id: userId,
+        email,
+        role,
+        academyId: null,
+        timestamp: tokenTime,
+      };
+    }
+    
+    throw new Error('Invalid token format');
+  } catch (error) {
+    console.error('Token decode error:', error);
+    return null;
+  }
+}
+
+function getUserFromAuth(request) {
+  const authHeader = request.headers.get("Authorization");
+  
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    console.error('No Authorization header or invalid format');
+    return null;
+  }
+  
+  const token = authHeader.substring(7);
+  return decodeToken(token);
+}
 
 export async function onRequestGet(context) {
   const { request, env } = context;
