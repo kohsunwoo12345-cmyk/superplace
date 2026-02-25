@@ -200,14 +200,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // ADMIN/SUPER_ADMIN은 academy 없이도 생성 가능
     // TEACHER/DIRECTOR는 토큰에서 가져온 academyId 사용 (문자열 또는 숫자)
 
-    // academyId 처리: 항상 정수로 변환
-    let finalAcademyId: number | null = null;
+    // academyId 처리: 문자열 ID 지원 (academy-xxx 형식)
+    let finalAcademyId: string | number | null = null;
     if (academyId) {
       if (typeof academyId === 'number') {
         finalAcademyId = Math.floor(academyId);  // 실수면 정수로 변환
       } else if (typeof academyId === 'string') {
+        // 문자열 ID (예: "academy-xxx")는 그대로 유지
+        // 숫자 문자열 (예: "123")은 정수로 변환
         const parsed = parseInt(academyId);
-        finalAcademyId = isNaN(parsed) ? null : parsed;
+        if (!isNaN(parsed) && String(parsed) === academyId) {
+          finalAcademyId = parsed;  // 순수 숫자 문자열
+        } else {
+          finalAcademyId = academyId;  // 문자열 ID 그대로 유지
+        }
       }
     }
     
@@ -248,6 +254,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         role: 'STUDENT'
       });
 
+      // academyId를 문자열로 변환하여 저장 (문자열 ID 지원)
+      const academyIdForDb = finalAcademyId !== null ? String(finalAcademyId) : null;
+      
       const userResult = await DB
         .prepare(`
           INSERT INTO User (
@@ -263,7 +272,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           hashedPassword,
           name || null,
           'STUDENT',
-          finalAcademyId,
+          academyIdForDb,
           koreanTime,
           koreanTime
         )

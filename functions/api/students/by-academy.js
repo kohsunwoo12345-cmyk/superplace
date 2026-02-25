@@ -43,9 +43,10 @@ export async function onRequestGet(context) {
     console.log('🔍 User + users 테이블 통합 조회 시작');
     console.log('🔑 Token academyId:', tokenAcademyId, 'Type:', typeof tokenAcademyId);
     
-    // academyId가 문자열이면 그대로 사용, 숫자면 정수로 변환
-    const isStringAcademyId = tokenAcademyId && typeof tokenAcademyId === 'string' && isNaN(parseInt(tokenAcademyId));
-    const academyIdValue = isStringAcademyId ? tokenAcademyId : (typeof tokenAcademyId === 'string' ? parseInt(tokenAcademyId) : tokenAcademyId);
+    // academyId 처리: 문자열은 그대로, 숫자는 정수로
+    const academyIdValue = tokenAcademyId;
+    const isStringId = typeof tokenAcademyId === 'string' && isNaN(parseInt(tokenAcademyId));
+    console.log('🔍 academyId 분석:', { value: academyIdValue, isString: isStringId });
     
     let allStudents = [];
     
