@@ -312,7 +312,6 @@ function StudentDetailContent() {
             // Fallback: 학생 목록에서 찾기
             apiSuccess = await tryFallbackFromList(token, studentId);
           }
-          }
         } catch (apiError) {
           console.log('API not available, using mock data');
         }
