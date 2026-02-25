@@ -46,67 +46,66 @@ export async function onRequestGet(context) {
       requesterId: userPayload.id || userPayload.userId
     });
 
-    // 학생 정보 조회 (User 테이블 우선) - role 조건 없이 먼저 조회
+    // 학생 정보 조회 - by-academy.js와 동일한 쿼리 사용
     let student = null;
     let foundInTable = null;
     
+    // 먼저 User 테이블 (by-academy와 동일)
     try {
-      const userResult = await DB.prepare(`
+      const userQuery = `
         SELECT 
-          id, email, name, phone, role, academyId, 
-          school, grade, createdAt
-        FROM User
-        WHERE id = ?
-      `).bind(studentId).first();
+          u.id,
+          u.name,
+          u.email,
+          u.phone,
+          u.academyId,
+          u.role,
+          u.school,
+          u.grade,
+          u.createdAt
+        FROM User u
+        WHERE u.id = ? AND u.role = 'STUDENT'
+      `;
+      
+      const userResult = await DB.prepare(userQuery).bind(studentId).first();
       
       if (userResult) {
-        console.log('✅ User 테이블에서 조회 성공:', {
-          id: userResult.id,
-          role: userResult.role,
-          roleType: typeof userResult.role,
-          academyId: userResult.academyId
-        });
-        
-        // STUDENT role 확인 (대소문자 무시)
-        const roleUpper = userResult.role ? String(userResult.role).toUpperCase() : '';
-        if (roleUpper === 'STUDENT') {
-          student = userResult;
-          foundInTable = 'User';
-        } else {
-          console.log('⚠️ role이 STUDENT가 아님:', userResult.role, '(uppercase:', roleUpper, ')');
-        }
+        console.log('✅ User 테이블에서 학생 조회 성공');
+        student = userResult;
+        foundInTable = 'User';
       } else {
-        console.log('⚠️ User 테이블에서 해당 ID 없음');
+        console.log('⚠️ User 테이블에 해당 학생 없음');
       }
     } catch (e) {
       console.log('⚠️ User 테이블 조회 실패:', e.message);
     }
 
-    // users 테이블 시도 (fallback)
+    // users 테이블 시도 (fallback) - by-academy와 동일
     if (!student) {
       try {
-        const usersResult = await DB.prepare(`
+        const usersQuery = `
           SELECT 
-            id, email, name, phone, role, 
-            CAST(academyId AS TEXT) as academyId,
-            school, grade, createdAt
-          FROM users
-          WHERE id = ?
-        `).bind(studentId).first();
+            u.id,
+            u.name,
+            u.email,
+            u.phone,
+            CAST(u.academy_id AS TEXT) as academyId,
+            u.role,
+            u.school,
+            u.grade,
+            u.createdAt
+          FROM users u
+          WHERE u.id = ? AND u.role = 'STUDENT'
+        `;
+        
+        const usersResult = await DB.prepare(usersQuery).bind(studentId).first();
         
         if (usersResult) {
-          console.log('✅ users 테이블에서 조회 성공:', {
-            id: usersResult.id,
-            role: usersResult.role,
-            academyId: usersResult.academyId
-          });
-          
-          if (usersResult.role === 'STUDENT') {
-            student = usersResult;
-            foundInTable = 'users';
-          } else {
-            console.log('⚠️ role이 STUDENT가 아님:', usersResult.role);
-          }
+          console.log('✅ users 테이블에서 학생 조회 성공');
+          student = usersResult;
+          foundInTable = 'users';
+        } else {
+          console.log('⚠️ users 테이블에 해당 학생 없음');
         }
       } catch (e) {
         console.log('⚠️ users 테이블 조회 실패:', e.message);
