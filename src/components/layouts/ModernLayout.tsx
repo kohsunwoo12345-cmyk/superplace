@@ -95,7 +95,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         { id: 'admin-system', href: '/dashboard/admin/system', icon: Settings, text: '시스템 설정' },
         // 일반 메뉴
         { id: 'students', href: '/dashboard/students', icon: Users, text: '학생 관리' },
-        { id: 'teachers', href: '/dashboard/teachers/manage', icon: GraduationCap, text: '교사 관리' },
+        { id: 'teachers', href: '/dashboard/teacher-management', icon: GraduationCap, text: '교사 관리' },
         { id: 'classes', href: '/dashboard/classes', icon: BookOpen, text: '수업 관리' },
         { id: 'attendance', href: '/dashboard/teacher-attendance', icon: Clock, text: '출석 관리' },
         { id: 'homework', href: '/dashboard/homework/teacher', icon: FileText, text: '숙제 관리' },
@@ -114,7 +114,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         return [
           { id: 'home', href: '/dashboard', icon: Home, text: '홈' },
           { id: 'students', href: '/dashboard/students', icon: Users, text: '학생 관리' },
-          { id: 'teachers', href: '/dashboard/teachers/manage', icon: GraduationCap, text: '교사 관리' },
+          { id: 'teachers', href: '/dashboard/teacher-management', icon: GraduationCap, text: '교사 관리' },
           { id: 'classes', href: '/dashboard/classes', icon: BookOpen, text: '수업 관리' },
           { id: 'attendance', href: '/dashboard/teacher-attendance', icon: Clock, text: '출석 현황' },
           { id: 'homework', href: '/dashboard/homework/teacher', icon: FileText, text: '숙제 관리' },

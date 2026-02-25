@@ -124,6 +124,8 @@ export async function onRequestGet(context) {
           academyId, 
           approved,
           isWithdrawn,
+          permissions,
+          assignedClasses,
           createdAt,
           updatedAt
         FROM User 
@@ -197,9 +199,11 @@ export async function onRequestGet(context) {
 
     console.log(`📊 총 교사 수: ${allTeachers.length}명`);
 
-    // Add counts (mock data for now)
+    // Add counts and parse JSON fields
     const teachersWithCounts = allTeachers.map(teacher => ({
       ...teacher,
+      permissions: teacher.permissions ? JSON.parse(teacher.permissions) : [],
+      assignedClasses: teacher.assignedClasses ? JSON.parse(teacher.assignedClasses) : [],
       _count: {
         createdMaterials: 0,
         createdAssignments: 0
