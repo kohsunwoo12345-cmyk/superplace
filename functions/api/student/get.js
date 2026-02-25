@@ -46,7 +46,7 @@ export async function onRequestGet(context) {
       requesterId: userPayload.id || userPayload.userId
     });
 
-    // 학생 정보 조회 (User 테이블 우선)
+    // 학생 정보 조회 (User 테이블 우선) - role 조건 없이 먼저 조회
     let student = null;
     let foundInTable = null;
     
@@ -63,16 +63,20 @@ export async function onRequestGet(context) {
         console.log('✅ User 테이블에서 조회 성공:', {
           id: userResult.id,
           role: userResult.role,
+          roleType: typeof userResult.role,
           academyId: userResult.academyId
         });
         
-        // STUDENT role 확인
-        if (userResult.role === 'STUDENT') {
+        // STUDENT role 확인 (대소문자 무시)
+        const roleUpper = userResult.role ? String(userResult.role).toUpperCase() : '';
+        if (roleUpper === 'STUDENT') {
           student = userResult;
           foundInTable = 'User';
         } else {
-          console.log('⚠️ role이 STUDENT가 아님:', userResult.role);
+          console.log('⚠️ role이 STUDENT가 아님:', userResult.role, '(uppercase:', roleUpper, ')');
         }
+      } else {
+        console.log('⚠️ User 테이블에서 해당 ID 없음');
       }
     } catch (e) {
       console.log('⚠️ User 테이블 조회 실패:', e.message);
