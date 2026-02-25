@@ -184,6 +184,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     return new Response(
       JSON.stringify({
         success: true,
+        userId: userId,
+        academyId: student.academyId || null,
         alreadyCheckedIn: alreadyCheckedIn,
         student: {
           id: student.id,
