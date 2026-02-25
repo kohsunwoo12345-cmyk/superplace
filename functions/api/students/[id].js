@@ -29,7 +29,12 @@ export async function onRequestGet(context) {
     const requesterRole = userPayload.role?.toUpperCase();
     const requesterAcademyId = userPayload.academyId;
     
-    console.log('👨‍🎓 학생 상세 조회:', { studentId, requesterRole, requesterAcademyId });
+    console.log('👨‍🎓 학생 상세 조회:', { 
+      studentId, 
+      requesterRole, 
+      requesterAcademyId,
+      requesterId: userPayload.id || userPayload.userId
+    });
 
     // 학생 정보 조회 (User 테이블 우선)
     let student = null;
@@ -71,16 +76,25 @@ export async function onRequestGet(context) {
     }
 
     if (!student) {
+      console.log('❌ 학생을 찾을 수 없음:', studentId);
       return Response.json({ 
         success: false, 
         error: "학생 정보를 찾을 수 없습니다" 
       }, { status: 404 });
     }
 
+    console.log('📋 조회된 학생 정보:', { 
+      id: student.id, 
+      name: student.name, 
+      academyId: student.academyId,
+      academyIdType: typeof student.academyId
+    });
+
     // 권한 확인
     if (requesterRole === 'STUDENT') {
       // 학생 본인만 조회 가능
       if (userPayload.id !== student.id && userPayload.userId !== student.id) {
+        console.log('❌ 권한 없음: 본인이 아님');
         return Response.json({ 
           success: false, 
           error: "본인 정보만 조회할 수 있습니다" 
@@ -88,7 +102,17 @@ export async function onRequestGet(context) {
       }
     } else if (requesterRole === 'TEACHER' || requesterRole === 'DIRECTOR') {
       // 선생님/원장은 같은 학원 학생만 조회 가능
-      if (requesterAcademyId !== student.academyId) {
+      const studentAcademyId = student.academyId ? String(student.academyId) : null;
+      const requesterAcademyIdStr = requesterAcademyId ? String(requesterAcademyId) : null;
+      
+      console.log('🔍 학원 비교:', { 
+        studentAcademyId, 
+        requesterAcademyIdStr,
+        match: studentAcademyId === requesterAcademyIdStr
+      });
+      
+      if (studentAcademyId !== requesterAcademyIdStr) {
+        console.log('❌ 권한 없음: 다른 학원');
         return Response.json({ 
           success: false, 
           error: "같은 학원 학생만 조회할 수 있습니다" 
