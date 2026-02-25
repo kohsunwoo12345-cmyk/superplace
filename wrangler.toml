@@ -6,6 +6,9 @@ compatibility_flags = ["nodejs_compat"]
 # Build output is copied to 'out' directory for Cloudflare Pages
 pages_build_output_dir = "out"
 
+# Functions directory for API endpoints
+main = "functions/**/*.js"
+
 # D1 Database (webapp-production)
 [[d1_databases]]
 binding = "DB"
