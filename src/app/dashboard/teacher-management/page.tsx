@@ -101,7 +101,44 @@ export default function TeacherManagementPage() {
       if (response.ok) {
         const data = await response.json();
         console.log("교사 목록:", data);
-        setTeachers(data.teachers || []);
+        
+        // Load pending teachers from localStorage
+        const pendingKey = `pending_teachers_${currentUser?.id || 'unknown'}`;
+        const pendingStr = localStorage.getItem(pendingKey);
+        let pendingTeachers: Teacher[] = [];
+        
+        if (pendingStr) {
+          try {
+            pendingTeachers = JSON.parse(pendingStr);
+            console.log(`📦 로컬스토리지에서 ${pendingTeachers.length}명의 대기중 교사 로드`);
+            
+            // Filter out expired pending teachers (older than 5 minutes)
+            const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+            pendingTeachers = pendingTeachers.filter((t: Teacher) => {
+              const createdTime = new Date(t.createdAt).getTime();
+              return createdTime > fiveMinutesAgo;
+            });
+            
+            // Remove teachers that now exist in DB
+            const dbTeacherIds = new Set(data.teachers.map((t: Teacher) => t.id));
+            const stillPending = pendingTeachers.filter((t: Teacher) => !dbTeacherIds.has(t.id));
+            
+            if (stillPending.length !== pendingTeachers.length) {
+              console.log(`✅ ${pendingTeachers.length - stillPending.length}명의 교사가 DB에 동기화됨`);
+              localStorage.setItem(pendingKey, JSON.stringify(stillPending));
+            }
+            
+            pendingTeachers = stillPending;
+          } catch (e) {
+            console.error("로컬스토리지 파싱 오류:", e);
+            localStorage.removeItem(pendingKey);
+          }
+        }
+        
+        // Merge DB teachers with pending teachers
+        const allTeachers = [...pendingTeachers, ...(data.teachers || [])];
+        console.log(`📊 총 교사 수: ${allTeachers.length}명 (DB: ${data.teachers.length}, 대기: ${pendingTeachers.length})`);
+        setTeachers(allTeachers);
       } else {
         const errorData = await response.json();
         console.error("교사 목록 조회 실패:", errorData);
@@ -186,6 +223,23 @@ export default function TeacherManagementPage() {
           const newTeacher = data.teacher;
           setTeachers(prev => [newTeacher, ...prev]);
           
+          // Save to localStorage as pending (until DB syncs)
+          const pendingKey = `pending_teachers_${currentUser?.id || 'unknown'}`;
+          const existingPending = localStorage.getItem(pendingKey);
+          let pendingList: Teacher[] = [];
+          
+          if (existingPending) {
+            try {
+              pendingList = JSON.parse(existingPending);
+            } catch (e) {
+              console.error("로컬스토리지 파싱 오류:", e);
+            }
+          }
+          
+          pendingList.push(newTeacher);
+          localStorage.setItem(pendingKey, JSON.stringify(pendingList));
+          console.log(`💾 로컬스토리지에 대기 교사 저장: ${newTeacher.id}`);
+          
           // 여러 번 재시도하여 D1 동기화 확인
           let retryCount = 0;
           const maxRetries = 6; // 총 6번 시도 (10s, 30s, 60s, 90s, 120s, 150s)
@@ -218,7 +272,22 @@ export default function TeacherManagementPage() {
                   const foundNewTeacher = data.teachers?.find((t: Teacher) => t.id === newTeacher.id);
                   if (foundNewTeacher) {
                     console.log("✅ D1 동기화 완료! DB에서 교사 조회됨");
-                    setTeachers(data.teachers || []);
+                    
+                    // Remove from pending
+                    const pending = localStorage.getItem(pendingKey);
+                    if (pending) {
+                      try {
+                        let pendingList = JSON.parse(pending);
+                        pendingList = pendingList.filter((t: Teacher) => t.id !== newTeacher.id);
+                        localStorage.setItem(pendingKey, JSON.stringify(pendingList));
+                        console.log(`🗑️ 로컬스토리지에서 제거: ${newTeacher.id}`);
+                      } catch (e) {
+                        console.error("로컬스토리지 업데이트 오류:", e);
+                      }
+                    }
+                    
+                    // Load complete list (includes newly synced teacher)
+                    await loadTeachers();
                   } else {
                     console.log(`⚠️ 아직 동기화 안됨 (시도 ${retryCount}/${maxRetries})`);
                     // 아직 동기화 안되면 다음 시도
