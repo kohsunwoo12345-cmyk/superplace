@@ -209,7 +209,14 @@ export async function onRequestPost(context) {
 
     // Hash password with salt (matches login.js)
     console.log('🔐 Hashing password...');
+    console.log('🔐 Input password:', password);
+    console.log('🔐 Salt:', 'superplace-salt-2024');
+    
     const hashedPassword = await hashPassword(password);
+    
+    console.log('🔐 Hashed password (first 20 chars):', hashedPassword.substring(0, 20));
+    console.log('🔐 Full hashed password:', hashedPassword);
+    console.log('🔐 Hash length:', hashedPassword.length);
 
     // Generate teacher ID
     const timestamp = Date.now();
