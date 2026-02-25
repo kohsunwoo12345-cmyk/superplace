@@ -335,7 +335,9 @@ export async function onRequestGet(context) {
       
       const userResult = await DB.prepare(query).bind(...bindings).all();
       console.log(`✅ User 테이블: ${userResult.results.length}명`);
-      console.log(`📝 쿼리 실행됨: ${query}`);
+      console.log(`📝 쿼리: ${query}`);
+      console.log(`📝 Bindings: ${JSON.stringify(bindings)}`);
+      console.log(`📝 결과 샘플:`, JSON.stringify(userResult.results.slice(0, 3)));
       allStudents.push(...(userResult.results || []));
     } catch (userErr) {
       console.log('⚠️ User 테이블 조회 실패:', userErr.message);
