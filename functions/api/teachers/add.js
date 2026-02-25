@@ -230,20 +230,33 @@ export async function onRequestPost(context) {
     console.log('  - Approved: 1');
     console.log('  - isWithdrawn: 0');
 
-    // Simple INSERT - do NOT use batch() as it may not commit properly
-    const result = await db
-      .prepare(`
-        INSERT INTO User 
-        (id, email, password, name, phone, role, academyId, approved, isWithdrawn, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, 'TEACHER', ?, 1, 0, ?, ?)
-      `)
-      .bind(teacherId, email, hashedPassword, name, phone, academyId, now, now)
-      .run();
+    // CRITICAL: Use batch() to ensure INSERT commits to PRIMARY DB before SELECT
+    // This forces a transaction-like behavior and eliminates replica lag
+    console.log('🔄 Using batch() to force PRIMARY DB write + immediate verify...');
+    
+    const insertStmt = db.prepare(`
+      INSERT INTO User 
+      (id, email, password, name, phone, role, academyId, approved, isWithdrawn, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, 'TEACHER', ?, 1, 0, ?, ?)
+    `).bind(teacherId, email, hashedPassword, name, phone, academyId, now, now);
+    
+    // Immediate SELECT after INSERT to verify it's in PRIMARY DB
+    const selectStmt = db.prepare(`
+      SELECT id, email, name, phone, role, academyId, approved, isWithdrawn, createdAt, updatedAt
+      FROM User
+      WHERE id = ?
+    `).bind(teacherId);
+    
+    const batchResults = await db.batch([insertStmt, selectStmt]);
+    
+    const result = batchResults[0];
+    const verifyUser = batchResults[1].results[0];
 
-    console.log('✅ INSERT 실행 완료');
+    console.log('✅ INSERT 실행 완료 [batch]');
     console.log('📊 Affected rows:', result.meta?.changes || 0);
     console.log('📊 Last row ID:', result.meta?.last_row_id || 'N/A');
     console.log('📊 Success:', result.success);
+    console.log('✅ Immediate verify:', verifyUser ? 'Found in PRIMARY DB' : 'NOT FOUND');
 
     if (result.meta?.changes === 0) {
       console.error('❌ Insert failed - no rows affected');
