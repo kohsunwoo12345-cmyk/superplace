@@ -1,7 +1,33 @@
 // 숙제 제출 결과 조회 API
 // GET /api/homework/results
 
-import { getUserFromAuth } from '../../_lib/auth.js';
+// 인라인 토큰 디코딩 함수
+function decodeToken(token) {
+  try {
+    let parts = token.split('|');
+    if (parts.length === 5) {
+      const [userId, email, role, academyId, timestamp] = parts;
+      const tokenTime = parseInt(timestamp);
+      if (Date.now() - tokenTime > 24 * 60 * 60 * 1000) throw new Error('Token expired');
+      return { userId, id: userId, email, role, academyId: academyId || null, timestamp: tokenTime };
+    }
+    if (parts.length === 4) {
+      const [userId, email, role, timestamp] = parts;
+      const tokenTime = parseInt(timestamp);
+      if (Date.now() - tokenTime > 24 * 60 * 60 * 1000) throw new Error('Token expired');
+      return { userId, id: userId, email, role, academyId: null, timestamp: tokenTime };
+    }
+    throw new Error('Invalid token format');
+  } catch (error) {
+    return null;
+  }
+}
+
+function getUserFromAuth(request) {
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+  return decodeToken(authHeader.substring(7));
+}
 
 export async function onRequestGet(context) {
   try {
