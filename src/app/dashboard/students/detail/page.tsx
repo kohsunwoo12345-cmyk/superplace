@@ -197,6 +197,35 @@ function StudentDetailContent() {
     }
   }, [studentId, router]);
 
+  // 🔧 Fallback: 학생 목록에서 데이터 가져오기
+  const tryFallbackFromList = async (token: string, studentId: string): Promise<boolean> => {
+    try {
+      console.log('🔄 Fallback: 학생 목록에서 데이터 가져오는 중...');
+      const listResponse = await fetch('/api/students/by-academy', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (listResponse.ok) {
+        const listData = await listResponse.json();
+        const foundStudent = listData.students?.find((s: any) => s.id === studentId);
+        
+        if (foundStudent) {
+          console.log('✅ Fallback 성공: 학생 목록에서 발견', foundStudent);
+          setStudent(foundStudent);
+          return true;
+        } else {
+          console.log('⚠️ Fallback 실패: 학생 목록에 없음');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Fallback 오류:', error);
+    }
+    return false;
+  };
+
   const fetchStudentData = async () => {
     let userData = null;
     try {
@@ -275,8 +304,14 @@ function StudentDetailContent() {
               setStudentCode(studentData.student_code);
             }
           } else if (userResponse.status === 401) {
-            console.error('❌ Unauthorized, using mock data');
-            // Don't redirect, just use mock data
+            console.error('❌ Unauthorized, trying fallback...');
+            // Fallback: 학생 목록에서 찾기
+            apiSuccess = await tryFallbackFromList(token, studentId);
+          } else {
+            console.error('❌ API failed:', userResponse.status, 'trying fallback...');
+            // Fallback: 학생 목록에서 찾기
+            apiSuccess = await tryFallbackFromList(token, studentId);
+          }
           }
         } catch (apiError) {
           console.log('API not available, using mock data');
