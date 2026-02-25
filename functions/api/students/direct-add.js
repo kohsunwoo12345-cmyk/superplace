@@ -73,8 +73,8 @@ export async function onRequestPost(context) {
     try {
       logs.push('🔄 User 테이블에 삽입 시도...');
       await DB.prepare(`
-        INSERT INTO User (id, email, name, password, phone, role, academyId, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
+        INSERT INTO User (id, email, name, password, phone, role, academyId, isWithdrawn, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, 'STUDENT', ?, 0, datetime('now'), datetime('now'))
       `).bind(studentId, tempEmail, name, hashedPassword, phone, tokenAcademyId).run();
       
       logs.push(`✅ User 테이블 삽입 성공!`);
