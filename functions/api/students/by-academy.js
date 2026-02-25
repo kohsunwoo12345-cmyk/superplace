@@ -59,7 +59,7 @@ export async function onRequestGet(context) {
           u.name,
           u.email,
           u.phone,
-          u.academy_id as academyId,
+          u.academyId,
           u.role
         FROM User u
         WHERE u.role = 'STUDENT'
@@ -71,8 +71,8 @@ export async function onRequestGet(context) {
         const url = new URL(context.request.url);
         const requestedAcademyId = url.searchParams.get("academyId");
         if (requestedAcademyId) {
-          query += ` AND u.academy_id = ?`;
-          bindings.push(parseInt(requestedAcademyId));
+          query += ` AND u.academyId = ?`;
+          bindings.push(requestedAcademyId);
         }
       } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
         if (!tokenAcademyId) {
@@ -86,9 +86,9 @@ export async function onRequestGet(context) {
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
-        query += ` AND u.academy_id = ?`;
+        query += ` AND u.academyId = ?`;
         bindings.push(academyIdValue);
-        console.log(`🏫 ${upperRole} - Filtering User by academy_id:`, academyIdValue);
+        console.log(`🏫 ${upperRole} - Filtering User by academyId:`, academyIdValue);
       } else {
         return new Response(
           JSON.stringify({ 
