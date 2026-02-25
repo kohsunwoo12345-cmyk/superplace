@@ -300,7 +300,7 @@ export async function onRequestGet(context) {
         const url = new URL(context.request.url);
         const requestedAcademyId = url.searchParams.get("academyId");
         if (requestedAcademyId) {
-          query += ` AND u.academyId = ?`;
+          query += ` WHERE u.academyId = ?`;
           bindings.push(requestedAcademyId);
         }
       } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
@@ -316,7 +316,7 @@ export async function onRequestGet(context) {
           );
         }
         // 임시로 academyId 필터 제거 - 디버깅용
-        // query += ` AND u.academyId = ?`;
+        // query += ` WHERE u.academyId = ?`;
         // bindings.push(academyIdValue);
         console.log(`🏫 ${upperRole} - academyId 필터 임시 제거 (디버깅)`, academyIdValue);
       } else {
@@ -373,9 +373,9 @@ export async function onRequestGet(context) {
           bindings.push(parseInt(requestedAcademyId));
         }
       } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
-        query += ` AND u.academy_id = ?`;
-        bindings.push(academyIdValue);
-        console.log(`🏫 ${upperRole} - Filtering users by academy_id:`, academyIdValue);
+        // query += ` AND u.academy_id = ?`;
+        // bindings.push(academyIdValue);
+        console.log(`🏫 ${upperRole} - users 테이블 academy_id 필터 임시 제거 (디버깅)`);
       }
       
       query += ` ORDER BY u.id DESC`;
