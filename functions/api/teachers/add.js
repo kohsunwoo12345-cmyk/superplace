@@ -33,10 +33,11 @@ function parseToken(authHeader) {
   return parsed;
 }
 
-// Simple hash function (SHA-256)
+// Simple hash function (SHA-256 with salt - matches login.js)
 async function hashPassword(password) {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password);
+  // IMPORTANT: Use the same salt as login.js for consistency
+  const data = encoder.encode(password + 'superplace-salt-2024');
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -131,12 +132,25 @@ export async function onRequestPost(context) {
 
     console.log('📝 Teacher add data:', { name, email, phone });
 
-    // Validation
-    if (!name || !phone || !password) {
+    // Validation - email is now REQUIRED
+    if (!name || !email || !phone || !password) {
       console.error('❌ Missing required fields');
       return new Response(JSON.stringify({
         success: false,
-        error: '이름, 전화번호, 비밀번호는 필수입니다'
+        error: '이름, 이메일, 전화번호, 비밀번호는 필수입니다'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.error('❌ Invalid email format');
+      return new Response(JSON.stringify({
+        success: false,
+        error: '올바른 이메일 형식이 아닙니다'
       }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
@@ -176,28 +190,25 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Check for existing email if provided
-    const emailValue = email || `teacher_${phone}@temp.superplace.local`;
-    
-    if (email && !email.endsWith('@temp.superplace.local')) {
-      const existingUserByEmail = await db
-        .prepare('SELECT id FROM User WHERE email = ?')
-        .bind(email)
-        .first();
+    // Check for existing email (email is now required)
+    const existingUserByEmail = await db
+      .prepare('SELECT id FROM User WHERE email = ?')
+      .bind(email)
+      .first();
 
-      if (existingUserByEmail) {
-        console.error('❌ Email already exists:', email);
-        return new Response(JSON.stringify({
-          success: false,
-          error: '이미 존재하는 이메일입니다'
-        }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
+    if (existingUserByEmail) {
+      console.error('❌ Email already exists:', email);
+      return new Response(JSON.stringify({
+        success: false,
+        error: '이미 존재하는 이메일입니다'
+      }), {
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    // Hash password
+    // Hash password with salt (matches login.js)
     console.log('🔐 Hashing password...');
     const hashedPassword = await hashPassword(password);
 
@@ -212,7 +223,7 @@ export async function onRequestPost(context) {
     console.log('📋 Teacher details:');
     console.log('  - Teacher ID:', teacherId);
     console.log('  - Name:', name);
-    console.log('  - Email:', emailValue);
+    console.log('  - Email:', email);
     console.log('  - Phone:', phone);
     console.log('  - Academy ID:', academyId);
     console.log('  - Role: TEACHER');
@@ -226,7 +237,7 @@ export async function onRequestPost(context) {
         (id, email, password, name, phone, role, academyId, approved, isWithdrawn, createdAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, 'TEACHER', ?, 1, 0, ?, ?)
       `)
-      .bind(teacherId, emailValue, hashedPassword, name, phone, academyId, now, now)
+      .bind(teacherId, email, hashedPassword, name, phone, academyId, now, now)
       .run();
 
     console.log('✅ INSERT 실행 완료');
@@ -250,7 +261,7 @@ export async function onRequestPost(context) {
     // Return the teacher data directly
     const newTeacher = {
       id: teacherId,
-      email: emailValue,
+      email: email,
       name: name,
       phone: phone,
       role: 'TEACHER',

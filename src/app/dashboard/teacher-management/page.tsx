@@ -179,6 +179,18 @@ export default function TeacherManagementPage() {
       return;
     }
 
+    if (!formData.email.trim()) {
+      alert("이메일을 입력해주세요.");
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      alert("올바른 이메일 형식이 아닙니다.");
+      return;
+    }
+
     if (!formData.phone.trim()) {
       alert("전화번호를 입력해주세요.");
       return;
@@ -731,7 +743,7 @@ export default function TeacherManagementPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  이메일 <span className="text-gray-400 text-xs">(선택)</span>
+                  이메일 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
@@ -739,6 +751,7 @@ export default function TeacherManagementPage() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="teacher@example.com"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
                 />
               </div>
 
