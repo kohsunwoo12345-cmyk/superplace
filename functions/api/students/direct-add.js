@@ -91,15 +91,21 @@ export async function onRequestPost(context) {
       );
     }
 
-    // 생성된 학생 정보 조회
-    const createdStudent = await DB.prepare('SELECT id, name, email, phone, role, academyId FROM User WHERE id = ?').bind(studentId).first();
-    logs.push(`✅ 생성된 학생 조회 성공`);
+    // INSERT한 데이터를 직접 반환 (SELECT 제거 - D1 replica lag 회피)
+    logs.push(`✅ 학생 생성 완료 - ID: ${studentId}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: '학생 추가 성공!',
-        user: createdStudent,
+        user: {
+          id: studentId,
+          email: tempEmail,
+          name: name,
+          phone: phone,
+          role: 'STUDENT',
+          academyId: tokenAcademyId
+        },
         userId: studentId,
         tempPassword: tempPasswordPlain,
         logs
