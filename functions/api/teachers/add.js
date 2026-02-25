@@ -248,7 +248,7 @@ export async function onRequestPost(context) {
     
     // Immediate SELECT after INSERT to verify it's in PRIMARY DB
     const selectStmt = db.prepare(`
-      SELECT id, email, name, phone, role, academyId, approved, isWithdrawn, createdAt, updatedAt
+      SELECT id, email, password, name, phone, role, academyId, approved, isWithdrawn, createdAt, updatedAt
       FROM User
       WHERE id = ?
     `).bind(teacherId);
@@ -263,6 +263,14 @@ export async function onRequestPost(context) {
     console.log('📊 Last row ID:', result.meta?.last_row_id || 'N/A');
     console.log('📊 Success:', result.success);
     console.log('✅ Immediate verify:', verifyUser ? 'Found in PRIMARY DB' : 'NOT FOUND');
+    
+    if (verifyUser) {
+      console.log('✅ Verified user data:', JSON.stringify(verifyUser));
+      console.log('🔐 Verified password hash (first 20 chars):', verifyUser.password?.substring(0, 20));
+      console.log('🔐 Verified password hash (full):', verifyUser.password);
+    } else {
+      console.error('❌ User NOT found immediately after INSERT - This indicates batch() failed!');
+    }
 
     if (result.meta?.changes === 0) {
       console.error('❌ Insert failed - no rows affected');
