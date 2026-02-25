@@ -228,9 +228,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       name: name || null,
       school: school || null,
       grade: grade || null,
-      academyId: academyIdText,
-      academy_id: academyIdInt,
-      isStringAcademyId,
+      academyId: finalAcademyId,
       role: 'STUDENT'
     });
 
