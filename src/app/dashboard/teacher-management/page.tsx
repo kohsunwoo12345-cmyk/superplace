@@ -359,8 +359,39 @@ export default function TeacherManagementPage() {
 
       if (response.ok && data.success) {
         alert("✅ 권한이 저장되었습니다.");
+        
+        // Immediately update UI with new permissions
+        setTeachers(prev => prev.map(t => 
+          t.id === selectedTeacher.id 
+            ? { ...t, permissions: permissionData }
+            : t
+        ));
+        
+        // Update localStorage pending teachers if exists
+        const pendingKey = `pending_teachers_${currentUser?.id || 'unknown'}`;
+        const pendingStr = localStorage.getItem(pendingKey);
+        if (pendingStr) {
+          try {
+            let pendingList = JSON.parse(pendingStr);
+            pendingList = pendingList.map((t: Teacher) => 
+              t.id === selectedTeacher.id 
+                ? { ...t, permissions: permissionData }
+                : t
+            );
+            localStorage.setItem(pendingKey, JSON.stringify(pendingList));
+            console.log("💾 로컬스토리지의 pending 교사 권한 업데이트 완료");
+          } catch (e) {
+            console.error("로컬스토리지 업데이트 오류:", e);
+          }
+        }
+        
         setShowPermissionDialog(false);
-        await loadTeachers();
+        
+        // Background reload to sync with DB (after replica lag)
+        setTimeout(() => {
+          console.log("🔄 권한 DB 동기화 확인 중...");
+          loadTeachers();
+        }, 5000);
       } else {
         alert(`❌ 권한 저장 실패\n\n${data.error || data.message || "알 수 없는 오류"}`);
       }
@@ -394,9 +425,49 @@ export default function TeacherManagementPage() {
 
       if (response.ok && data.success) {
         alert("✅ 반 배정이 저장되었습니다.");
+        
+        // Immediately update UI with new classes
+        setTeachers(prev => prev.map(t => 
+          t.id === selectedTeacher.id 
+            ? { ...t, assignedClasses: classData }
+            : t
+        ));
+        
+        // Update localStorage pending teachers if exists
+        const pendingKey = `pending_teachers_${currentUser?.id || 'unknown'}`;
+        const pendingStr = localStorage.getItem(pendingKey);
+        if (pendingStr) {
+          try {
+            let pendingList = JSON.parse(pendingStr);
+            pendingList = pendingList.map((t: Teacher) => 
+              t.id === selectedTeacher.id 
+                ? { ...t, assignedClasses: classData }
+                : t
+            );
+            localStorage.setItem(pendingKey, JSON.stringify(pendingList));
+            console.log("💾 로컬스토리지의 pending 교사 반 배정 업데이트 완료");
+          } catch (e) {
+            console.error("로컬스토리지 업데이트 오류:", e);
+          }
+        }
+        
         setShowClassDialog(false);
-        await loadTeachers();
+        
+        // Background reload to sync with DB (after replica lag)
+        setTimeout(() => {
+          console.log("🔄 반 배정 DB 동기화 확인 중...");
+          loadTeachers();
+        }, 5000);
       } else {
+        alert(`❌ 반 배정 저장 실패\n\n${data.error || data.message || "알 수 없는 오류"}`);
+      }
+    } catch (error: any) {
+      console.error("반 배정 저장 오류:", error);
+      alert(`❌ 오류 발생\n\n${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
         alert(`❌ 반 배정 실패\n\n${data.error || data.message || "알 수 없는 오류"}`);
       }
     } catch (error: any) {

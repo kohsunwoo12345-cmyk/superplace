@@ -132,18 +132,13 @@ export async function onRequestPut(context) {
       });
     }
 
-    // 업데이트된 교사 정보 조회
-    const updatedTeacher = await db
-      .prepare('SELECT id, name, email, assignedClasses FROM User WHERE id = ?')
-      .bind(teacherId)
-      .first();
-
+    // Return success immediately (avoid replica lag on SELECT)
     return new Response(JSON.stringify({
       success: true,
       message: '반 배정이 저장되었습니다',
       teacher: {
-        ...updatedTeacher,
-        assignedClasses: updatedTeacher.assignedClasses ? JSON.parse(updatedTeacher.assignedClasses) : []
+        id: teacherId,
+        assignedClasses: classes
       }
     }), {
       status: 200,
