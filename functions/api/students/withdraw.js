@@ -148,14 +148,14 @@ export async function onRequestPost(context) {
     let updateSuccess = false;
     
     try {
-      // Try User table first
+      // Try User table first (status 컬럼 제거 - 존재하지 않음)
       const result = await db
         .prepare(`
           UPDATE User 
-          SET status = ?, withdrawalReason = ?, withdrawalDate = ?, isWithdrawn = 1, withdrawnAt = ?, withdrawnReason = ?
+          SET withdrawalReason = ?, withdrawalDate = ?, isWithdrawn = 1, withdrawnAt = ?, withdrawnReason = ?
           WHERE id = ?
         `)
-        .bind('WITHDRAWN', withdrawalReason, now, now, withdrawalReason, studentId)
+        .bind(withdrawalReason, now, now, withdrawalReason, studentId)
         .run();
       
       console.log('✅ User 테이블 업데이트 시도 완료, changes:', result.meta?.changes || 0);
@@ -187,9 +187,9 @@ export async function onRequestPost(context) {
       }
     }
 
-    // 업데이트 후 학생 정보 재조회하여 확인
+    // 업데이트 후 학생 정보 재조회하여 확인 (status 컬럼 제거)
     const updatedStudent = await db
-      .prepare('SELECT id, name, isWithdrawn, status FROM User WHERE id = ?')
+      .prepare('SELECT id, name, isWithdrawn FROM User WHERE id = ?')
       .bind(studentId)
       .first();
     
