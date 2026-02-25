@@ -148,14 +148,14 @@ export async function onRequestPost(context) {
     let updateSuccess = false;
     
     try {
-      // Try User table first (status 컬럼 제거 - 존재하지 않음)
+      // Try User table first - 최소 필드만 사용 (isWithdrawn, withdrawnAt, withdrawnReason만 사용)
       const result = await db
         .prepare(`
           UPDATE User 
-          SET withdrawalReason = ?, withdrawalDate = ?, isWithdrawn = 1, withdrawnAt = ?, withdrawnReason = ?
+          SET isWithdrawn = 1, withdrawnAt = ?, withdrawnReason = ?
           WHERE id = ?
         `)
-        .bind(withdrawalReason, now, now, withdrawalReason, studentId)
+        .bind(now, withdrawalReason, studentId)
         .run();
       
       console.log('✅ User 테이블 업데이트 시도 완료, changes:', result.meta?.changes || 0);
