@@ -101,6 +101,7 @@ export async function onRequestPost(context) {
         message: '학생 추가 성공!',
         user: createdStudent,
         userId: studentId,
+        tempPassword: tempPasswordPlain,
         logs
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
