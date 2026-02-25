@@ -43,30 +43,31 @@ export async function onRequestPost(context) {
     }
 
     // 여러 패턴으로 사용자 찾기 시도
+    // CRITICAL: Use batch() to force PRIMARY DB read and avoid replica lag
     let user = null;
     
     // 패턴 1: users + academyId (camelCase)
     try {
-      console.log('🔍 시도 1: users 테이블 + academyId (camelCase)');
-      user = await db
-        .prepare(`
-          SELECT 
-            u.id,
-            u.email,
-            u.password,
-            u.name,
-            u.role,
-            u.phone,
-            u.academyId,
-            u.approved,
-            a.name as academyName,
-            a.code as academyCode
-          FROM users u
-          LEFT JOIN academy a ON u.academyId = a.id
-          WHERE u.email = ? OR u.phone = ?
-        `)
-        .bind(loginIdentifier, loginIdentifier)
-        .first();
+      console.log('🔍 시도 1: users 테이블 + academyId (camelCase) [batch]');
+      const stmt = db.prepare(`
+        SELECT 
+          u.id,
+          u.email,
+          u.password,
+          u.name,
+          u.role,
+          u.phone,
+          u.academyId,
+          u.approved,
+          a.name as academyName,
+          a.code as academyCode
+        FROM users u
+        LEFT JOIN academy a ON u.academyId = a.id
+        WHERE u.email = ? OR u.phone = ?
+      `).bind(loginIdentifier, loginIdentifier);
+      
+      const batchResults = await db.batch([stmt]);
+      user = batchResults[0].results[0];
       
       if (user) {
         console.log('✅ 패턴 1 성공 (users + academyId)');
@@ -78,26 +79,26 @@ export async function onRequestPost(context) {
     // 패턴 2: User + academyId (대문자 시작)
     if (!user) {
       try {
-        console.log('🔍 시도 2: User 테이블 + academyId');
-        user = await db
-          .prepare(`
-            SELECT 
-              u.id,
-              u.email,
-              u.password,
-              u.name,
-              u.role,
-              u.phone,
-              u.academyId,
-              u.approved,
-              a.name as academyName,
-              a.code as academyCode
-            FROM User u
-            LEFT JOIN Academy a ON u.academyId = a.id
-            WHERE u.email = ? OR u.phone = ?
-          `)
-          .bind(loginIdentifier, loginIdentifier)
-          .first();
+        console.log('🔍 시도 2: User 테이블 + academyId [batch]');
+        const stmt = db.prepare(`
+          SELECT 
+            u.id,
+            u.email,
+            u.password,
+            u.name,
+            u.role,
+            u.phone,
+            u.academyId,
+            u.approved,
+            a.name as academyName,
+            a.code as academyCode
+          FROM User u
+          LEFT JOIN Academy a ON u.academyId = a.id
+          WHERE u.email = ? OR u.phone = ?
+        `).bind(loginIdentifier, loginIdentifier);
+        
+        const batchResults = await db.batch([stmt]);
+        user = batchResults[0].results[0];
         
         if (user) {
           console.log('✅ 패턴 2 성공 (User + academyId)');
@@ -110,26 +111,26 @@ export async function onRequestPost(context) {
     // 패턴 3: users + academy_id (snake_case)
     if (!user) {
       try {
-        console.log('🔍 시도 3: users 테이블 + academy_id (snake_case)');
-        user = await db
-          .prepare(`
-            SELECT 
-              u.id,
-              u.email,
-              u.password,
-              u.name,
-              u.role,
-              u.phone,
-              u.academy_id as academyId,
-              u.approved,
-              a.name as academyName,
-              a.code as academyCode
-            FROM users u
-            LEFT JOIN academy a ON u.academy_id = a.id
-            WHERE u.email = ? OR u.phone = ?
-          `)
-          .bind(loginIdentifier, loginIdentifier)
-          .first();
+        console.log('🔍 시도 3: users 테이블 + academy_id (snake_case) [batch]');
+        const stmt = db.prepare(`
+          SELECT 
+            u.id,
+            u.email,
+            u.password,
+            u.name,
+            u.role,
+            u.phone,
+            u.academy_id as academyId,
+            u.approved,
+            a.name as academyName,
+            a.code as academyCode
+          FROM users u
+          LEFT JOIN academy a ON u.academy_id = a.id
+          WHERE u.email = ? OR u.phone = ?
+        `).bind(loginIdentifier, loginIdentifier);
+        
+        const batchResults = await db.batch([stmt]);
+        user = batchResults[0].results[0];
         
         if (user) {
           console.log('✅ 패턴 3 성공 (users + academy_id)');
