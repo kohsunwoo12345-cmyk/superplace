@@ -53,42 +53,66 @@ async function getSingleStudent(DB, studentId, userPayload) {
     
     let student = null;
     
-    // 1️⃣ User 테이블 조회
-    try {
-      const userResult = await DB.prepare(
-        `SELECT 
-          id, name, email, phone, role, academyId, school, grade,
-          createdAt, updatedAt, points, approved
-        FROM User 
-        WHERE id = ?`
-      ).bind(studentId).first();
+    // 🔄 재시도 로직 (D1 Read Replica 지연 대응)
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries && !student; attempt++) {
+      console.log(`🔄 시도 ${attempt}/${maxRetries}...`);
       
-      if (userResult && userResult.role === 'STUDENT') {
-        console.log('✅ User 테이블에서 발견');
-        student = userResult;
-      }
-    } catch (err) {
-      console.log('⚠️ User 테이블 조회 실패:', err.message);
-    }
-    
-    // 2️⃣ users 테이블 조회 (fallback)
-    if (!student) {
+      // 1️⃣ User 테이블 조회 (role 조건 제거 - 더 빠른 인덱스 사용)
       try {
-        const usersResult = await DB.prepare(
+        const userResult = await DB.prepare(
           `SELECT 
-            id, name, email, phone, role,
-            CAST(academy_id AS TEXT) as academyId,
-            school, grade, created_at as createdAt, updated_at as updatedAt
-          FROM users 
+            id, name, email, phone, role, academyId, school, grade,
+            createdAt, updatedAt, points, approved
+          FROM User 
           WHERE id = ?`
         ).bind(studentId).first();
         
-        if (usersResult && usersResult.role === 'STUDENT') {
-          console.log('✅ users 테이블에서 발견');
-          student = usersResult;
+        if (userResult) {
+          console.log(`✅ User 테이블에서 발견 (시도 ${attempt}), role: ${userResult.role}`);
+          if (userResult.role === 'STUDENT') {
+            student = userResult;
+            break;
+          } else {
+            console.log(`⚠️ 학생이 아님: role=${userResult.role}`);
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: "학생 정보가 아닙니다" 
+              }),
+              { status: 400, headers: { "Content-Type": "application/json" } }
+            );
+          }
         }
       } catch (err) {
-        console.log('⚠️ users 테이블 조회 실패:', err.message);
+        console.log(`⚠️ User 테이블 조회 실패 (시도 ${attempt}):`, err.message);
+      }
+      
+      // 2️⃣ users 테이블 조회 (fallback)
+      if (!student) {
+        try {
+          const usersResult = await DB.prepare(
+            `SELECT 
+              id, name, email, phone, role,
+              CAST(academy_id AS TEXT) as academyId,
+              school, grade, created_at as createdAt, updated_at as updatedAt
+            FROM users 
+            WHERE id = ?`
+          ).bind(studentId).first();
+          
+          if (usersResult && usersResult.role === 'STUDENT') {
+            console.log(`✅ users 테이블에서 발견 (시도 ${attempt})`);
+            student = usersResult;
+            break;
+          }
+        } catch (err) {
+          console.log(`⚠️ users 테이블 조회 실패 (시도 ${attempt}):`, err.message);
+        }
+      }
+      
+      // 마지막 시도가 아니면 잠시 대기 (100ms)
+      if (attempt < maxRetries && !student) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
     
