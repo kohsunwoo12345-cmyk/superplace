@@ -63,9 +63,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const tempEmail = `student_${phone}@temp.superplace.local`;
     logs.push(`✅ 임시 이메일 생성: ${tempEmail}`);
 
-    // 3. 임시 비밀번호 생성 (전화번호 뒷자리)
-    const tempPassword = phone.slice(-6);
-    logs.push(`✅ 임시 비밀번호 생성: ${tempPassword}`);
+    // 3. 임시 비밀번호 생성 및 해싱 (전화번호 뒷자리)
+    const tempPasswordPlain = phone.slice(-6);
+    logs.push(`✅ 임시 비밀번호 생성: ${tempPasswordPlain}`);
+    
+    // 비밀번호 해싱
+    const salt = 'superplace-salt-2024';
+    const encoder = new TextEncoder();
+    const data = encoder.encode(tempPasswordPlain + salt);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    logs.push(`✅ 비밀번호 해싱 완료`);
 
     // 4. Student ID 생성
     const timestamp = Date.now();
@@ -79,9 +88,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
       logs.push('🔄 User 테이블에 삽입 시도...');
       await DB.prepare(`
-        INSERT INTO User (id, email, name, phone, role, academyId, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
-      `).bind(studentId, tempEmail, name, phone, tokenAcademyId).run();
+        INSERT INTO User (id, email, name, password, phone, role, academyId, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
+      `).bind(studentId, tempEmail, name, hashedPassword, phone, tokenAcademyId).run();
       
       insertSuccess = true;
       logs.push(`✅ User 테이블 삽입 성공!`);
