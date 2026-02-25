@@ -224,12 +224,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
       // 🎯 User 테이블 사용 (관리자 API와 동일)
       console.log('💾 Creating student in User table...');
+      
+      // 고유한 학생 ID 생성
+      const studentId = `student-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
       console.log('📋 Student data:', {
+        id: studentId,
         email: finalEmail,
         phone,
         name: name || null,
-        school: school || null,
-        grade: grade || null,
         academyId: academyIdInt,
         role: 'STUDENT'
       });
@@ -243,7 +246,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
         `)
         .bind(
-          `student-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          studentId,
           finalEmail,
           phone,
           hashedPassword,
@@ -255,7 +258,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         )
         .run();
 
-      const userId = userResult.meta.last_row_id;
+      const userId = studentId;  // 생성한 문자열 ID 사용
       console.log('✅ User account created with ID:', userId);
 
       // Step 2: 출석 코드 자동 생성 (중요!)
