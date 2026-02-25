@@ -1,0 +1,162 @@
+/**
+ * 🔧 Academy ID 수정 API
+ * 
+ * 목적: academyId가 null인 학생들의 academyId를 업데이트
+ * 
+ * 사용법:
+ * POST /api/admin/fix-student-academy-id
+ * Body: { "studentUserId": "247", "academyId": 1 }
+ */
+
+interface Env {
+  DB: D1Database;
+}
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  try {
+    const { request, env } = context;
+    const DB = env.DB;
+
+    if (!DB) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Database not configured' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const body = await request.json() as any;
+    const { studentUserId, academyId } = body;
+
+    console.log('🔧 Fix Academy ID Request:', { studentUserId, academyId });
+
+    if (!studentUserId || !academyId) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Missing studentUserId or academyId',
+          message: 'studentUserId와 academyId를 모두 제공해야 합니다'
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const updates: any = {
+      userTable: null,
+      attendanceRecords: null,
+      attendanceCodes: null
+    };
+
+    // 1. User 테이블 업데이트
+    try {
+      console.log('📝 Updating User table...');
+      const userResult = await DB
+        .prepare(`UPDATE User SET academyId = ? WHERE id = ?`)
+        .bind(academyId, studentUserId)
+        .run();
+      
+      updates.userTable = {
+        success: true,
+        changes: userResult.meta.changes
+      };
+      console.log('✅ User table updated:', updates.userTable);
+    } catch (e: any) {
+      console.error('❌ User table update failed:', e.message);
+      updates.userTable = {
+        success: false,
+        error: e.message
+      };
+    }
+
+    // 2. attendance_records_v2 테이블 업데이트
+    try {
+      console.log('📝 Updating attendance_records_v2 table...');
+      const attendanceResult = await DB
+        .prepare(`UPDATE attendance_records_v2 SET academyId = ? WHERE userId = ?`)
+        .bind(academyId, studentUserId)
+        .run();
+      
+      updates.attendanceRecords = {
+        success: true,
+        changes: attendanceResult.meta.changes
+      };
+      console.log('✅ attendance_records_v2 updated:', updates.attendanceRecords);
+    } catch (e: any) {
+      console.error('❌ attendance_records_v2 update failed:', e.message);
+      updates.attendanceRecords = {
+        success: false,
+        error: e.message
+      };
+    }
+
+    // 3. student_attendance_codes 테이블 업데이트
+    try {
+      console.log('📝 Updating student_attendance_codes table...');
+      const codesResult = await DB
+        .prepare(`UPDATE student_attendance_codes SET academyId = ? WHERE userId = ?`)
+        .bind(academyId, studentUserId)
+        .run();
+      
+      updates.attendanceCodes = {
+        success: true,
+        changes: codesResult.meta.changes
+      };
+      console.log('✅ student_attendance_codes updated:', updates.attendanceCodes);
+    } catch (e: any) {
+      console.error('❌ student_attendance_codes update failed:', e.message);
+      updates.attendanceCodes = {
+        success: false,
+        error: e.message
+      };
+    }
+
+    // 4. 업데이트 후 학생 정보 조회
+    let studentInfo = null;
+    try {
+      studentInfo = await DB
+        .prepare(`
+          SELECT 
+            u.id, u.name, u.email, u.academyId,
+            (SELECT COUNT(*) FROM attendance_records_v2 WHERE userId = u.id) as attendanceCount,
+            (SELECT code FROM student_attendance_codes WHERE userId = u.id LIMIT 1) as attendanceCode
+          FROM User u
+          WHERE u.id = ?
+        `)
+        .bind(studentUserId)
+        .first();
+      
+      console.log('✅ Student info after update:', studentInfo);
+    } catch (e: any) {
+      console.error('❌ Failed to fetch student info:', e.message);
+    }
+
+    const allSuccess = 
+      updates.userTable?.success && 
+      updates.attendanceRecords?.success && 
+      updates.attendanceCodes?.success;
+
+    return new Response(
+      JSON.stringify({
+        success: allSuccess,
+        message: allSuccess 
+          ? `학생 ${studentUserId}의 academyId가 ${academyId}로 업데이트되었습니다` 
+          : '일부 테이블 업데이트가 실패했습니다',
+        updates,
+        studentInfo
+      }),
+      { 
+        status: allSuccess ? 200 : 207,
+        headers: { 'Content-Type': 'application/json' } 
+      }
+    );
+
+  } catch (error: any) {
+    console.error('❌ Fix Academy ID error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || 'Internal server error'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+};
