@@ -128,18 +128,7 @@ export async function onRequestPost(context) {
         );
       }
 
-      if (!academyAddress) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: '학원 위치를 입력해주세요',
-          }),
-          {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
-      }
+      const finalAddress = academyAddress || '주소 미입력';
 
       academyId = generateId('academy');
       newAcademyCode = generateAcademyCode();
@@ -155,7 +144,7 @@ export async function onRequestPost(context) {
           academyId,
           academyName,
           newAcademyCode,
-          academyAddress,
+          finalAddress,
           phone || '',
           email,
           'FREE',
