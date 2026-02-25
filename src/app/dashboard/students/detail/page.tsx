@@ -209,8 +209,8 @@ function StudentDetailContent() {
       // Try to fetch from API first
       if (token) {
         try {
-          // 1. 학생 기본 정보 (새로운 API 사용)
-          const userResponse = await fetch(`/api/students/${studentId}`, {
+          // 1. 학생 기본 정보 (작동하는 API 사용)
+          const userResponse = await fetch(`/api/students/by-academy?id=${studentId}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
