@@ -4,22 +4,31 @@
 // Simple token parser
 function parseToken(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.error('❌ Auth header invalid format');
     return null;
   }
   
   const token = authHeader.substring(7);
   const parts = token.split('|');
   
+  console.log('🔍 Token parts count:', parts.length);
+  
   if (parts.length < 3) {
+    console.error('❌ Token has less than 3 parts');
     return null;
   }
   
-  return {
+  const parsed = {
     id: parts[0],
     email: parts[1],
     role: parts[2],
-    academyId: parts[3] || null
+    academyId: parts[3] || null,
+    timestamp: parts[4] || null
   };
+  
+  console.log('✅ Token parsed:', { id: parsed.id, email: parsed.email, role: parsed.role, academyId: parsed.academyId });
+  
+  return parsed;
 }
 
 export async function onRequestGet(context) {
@@ -57,11 +66,19 @@ export async function onRequestGet(context) {
 
     console.log('인증됨:', { role: tokenData.role, academyId: tokenData.academyId });
 
-    // Get user from database
-    const user = await db
-      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
-      .bind(tokenData.email)
+    // Get user from database - try by id first, then email
+    let user = await db
+      .prepare('SELECT id, email, role, academyId FROM User WHERE id = ?')
+      .bind(tokenData.id)
       .first();
+
+    if (!user && tokenData.email) {
+      console.log('⚠️ User not found by id, trying email');
+      user = await db
+        .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    }
 
     if (!user) {
       console.error('❌ User not found');
@@ -73,6 +90,8 @@ export async function onRequestGet(context) {
         headers: { 'Content-Type': 'application/json' }
       });
     }
+
+    console.log('✅ User found:', { id: user.id, role: user.role, academyId: user.academyId });
 
     const role = user.role ? user.role.toUpperCase() : '';
 

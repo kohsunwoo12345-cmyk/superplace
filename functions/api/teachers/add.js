@@ -4,22 +4,32 @@
 // Simple token parser
 function parseToken(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.error('❌ Auth header invalid format');
     return null;
   }
   
   const token = authHeader.substring(7);
   const parts = token.split('|');
   
+  console.log('🔍 Token parts count:', parts.length);
+  console.log('🔍 Token parts:', parts.map((p, i) => `[${i}]: ${p.substring(0, 20)}...`));
+  
   if (parts.length < 3) {
+    console.error('❌ Token has less than 3 parts');
     return null;
   }
   
-  return {
+  const parsed = {
     id: parts[0],
     email: parts[1],
     role: parts[2],
-    academyId: parts[3] || null
+    academyId: parts[3] || null,
+    timestamp: parts[4] || null
   };
+  
+  console.log('✅ Token parsed successfully:', { id: parsed.id, email: parsed.email, role: parsed.role, academyId: parsed.academyId });
+  
+  return parsed;
 }
 
 // Simple hash function (SHA-256)
