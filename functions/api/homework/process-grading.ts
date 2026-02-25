@@ -56,13 +56,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // 2. 제출 정보 조회
-    const submission = await DB.prepare(`
+    // 2. 제출 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
+    let submission = await DB.prepare(`
       SELECT s.id, s.userId, s.imageUrl, s.code, s.academyId, u.name, u.email
       FROM homework_submissions_v2 s
       JOIN User u ON s.userId = u.id
       WHERE s.id = ?
     `).bind(submissionId).first();
+
+    // User 테이블에 없으면 users 테이블 확인 (레거시 지원)
+    if (!submission) {
+      console.log(`🔍 User 테이블 JOIN 실패, users 테이블로 재시도...`);
+      submission = await DB.prepare(`
+        SELECT s.id, s.userId, s.imageUrl, s.code, s.academyId, u.name, u.email
+        FROM homework_submissions_v2 s
+        JOIN users u ON s.userId = u.id
+        WHERE s.id = ?
+      `).bind(submissionId).first();
+    }
 
     if (!submission) {
       console.log(`⚠️ 제출 정보 없음: ${submissionId}`);
@@ -71,6 +82,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`✅ 제출 정보 확인: ${submission.name} (userId: ${submission.userId})`);
 
     // 제출 상태가 이미 graded인 경우 (중복 호출 방지)
     const submissionStatus = await DB.prepare(`
