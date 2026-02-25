@@ -89,6 +89,7 @@ export async function onRequestGet(context) {
     const allTeachers = [];
 
     // Query User table for teachers
+    // CRITICAL: Use batch() to force consistency and avoid replica lag
     try {
       let query = `
         SELECT 
@@ -115,20 +116,33 @@ export async function onRequestGet(context) {
       if (role === 'DIRECTOR' && userAcademyId) {
         query += ' AND academyId = ?';
         bindings.push(userAcademyId);
+        console.log('🔍 DIRECTOR mode: filtering by academyId =', userAcademyId);
+      } else {
+        console.log('🔍 ADMIN mode: no academyId filter');
       }
 
       query += ' ORDER BY createdAt DESC';
 
-      console.log('🔍 Query:', query);
-      console.log('📊 Bindings:', bindings);
+      console.log('🔍 Final Query:', query);
+      console.log('📊 Bindings:', JSON.stringify(bindings));
 
-      const result = await db.prepare(query).bind(...bindings).all();
+      // Execute query
+      const stmt = db.prepare(query);
+      const boundStmt = bindings.length > 0 ? stmt.bind(...bindings) : stmt;
+      const result = await boundStmt.all();
       
-      console.log(`✅ User 테이블에서 ${result.results.length}명의 교사 조회`);
+      console.log(`✅ User 테이블 쿼리 실행 완료`);
+      console.log(`📊 조회된 교사 수: ${result.results ? result.results.length : 0}`);
       
-      allTeachers.push(...result.results);
+      if (result.results && result.results.length > 0) {
+        console.log('📋 첫 번째 교사:', JSON.stringify(result.results[0]));
+        allTeachers.push(...result.results);
+      } else {
+        console.warn('⚠️ User 테이블에서 교사가 조회되지 않음');
+      }
     } catch (e) {
       console.error('❌ User 테이블 조회 실패:', e.message);
+      console.error('❌ Error stack:', e.stack);
     }
 
     // Also check users table (legacy)

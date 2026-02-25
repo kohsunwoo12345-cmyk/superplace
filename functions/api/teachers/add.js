@@ -209,9 +209,15 @@ export async function onRequestPost(context) {
     const now = new Date().toISOString();
 
     console.log('➕ Inserting new teacher into User table...');
-    console.log('Teacher ID:', teacherId);
-    console.log('Email:', emailValue);
-    console.log('Academy ID:', academyId);
+    console.log('📋 Teacher details:');
+    console.log('  - Teacher ID:', teacherId);
+    console.log('  - Name:', name);
+    console.log('  - Email:', emailValue);
+    console.log('  - Phone:', phone);
+    console.log('  - Academy ID:', academyId);
+    console.log('  - Role: TEACHER');
+    console.log('  - Approved: 1');
+    console.log('  - isWithdrawn: 0');
 
     // Insert into User table
     const result = await db
@@ -223,20 +229,24 @@ export async function onRequestPost(context) {
       .bind(teacherId, emailValue, hashedPassword, name, phone, academyId, now, now)
       .run();
 
-    console.log('✅ Teacher inserted, changes:', result.meta?.changes || 0);
+    console.log('✅ INSERT 실행 완료');
+    console.log('📊 Affected rows:', result.meta?.changes || 0);
+    console.log('📊 Last row ID:', result.meta?.last_row_id || 'N/A');
 
     if (result.meta?.changes === 0) {
-      console.error('❌ Insert failed - no changes');
+      console.error('❌ Insert failed - no rows affected');
       return new Response(JSON.stringify({
         success: false,
-        error: 'Failed to insert teacher'
+        error: 'Failed to insert teacher - no rows affected'
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // Fetch newly created teacher
+    console.log('✅ Teacher successfully inserted into database');
+
+    // Fetch newly created teacher to verify
     console.log('🔍 Fetching new teacher info...');
     const newTeacher = await db
       .prepare('SELECT id, email, name, phone, role, academyId, approved, createdAt FROM User WHERE id = ?')
