@@ -140,20 +140,26 @@ export default function TeachersManagementPage() {
       });
       
       console.log("📥 Response status:", response.status);
-      console.log("📥 Response status:", response.status);
+      console.log("📥 Response ok:", response.ok);
 
       const data = await response.json();
       
-      console.log("📦 Response data:", data);
+      console.log("📦 Response data:", JSON.stringify(data, null, 2));
+      console.log("🔍 data.success:", data.success);
+      console.log("🔍 data.tempPassword:", data.tempPassword);
 
       if (response.ok && data.success) {
-        alert(`교사가 추가되었습니다!\n\n임시 비밀번호: ${data.tempPassword}\n\n교사에게 전달해주세요.`);
+        console.log("✅ 교사 추가 성공!");
+        alert(`교사 추가가 성공하였습니다!\n\n임시 비밀번호: ${data.tempPassword}\n\n교사에게 전달해주세요.`);
         setShowAddDialog(false);
         setNewTeacher({ name: "", email: "", phone: "", password: "" });
         fetchTeachers();
       } else {
-        console.error("❌ 교사 추가 실패:", data);
-        alert(`교사 추가 실패: ${data.error || data.message}`);
+        console.error("❌ 교사 추가 실패");
+        console.error("❌ response.ok:", response.ok);
+        console.error("❌ data.success:", data.success);
+        console.error("❌ Full response:", data);
+        alert(`교사 추가 실패: ${data.error || data.message || "알 수 없는 오류"}`);
       }
     } catch (error) {
       console.error("교사 추가 오류:", error);
