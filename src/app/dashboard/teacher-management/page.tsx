@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
   User, Plus, Search, Mail, Phone, CheckCircle, XCircle, 
-  Eye, EyeOff, Settings, Users, Shield, Edit2, Save, X 
+  Eye, EyeOff, Settings, Users, Shield, Edit2, Save, X, RefreshCw 
 } from "lucide-react";
 
 interface Teacher {
@@ -374,6 +374,15 @@ export default function TeacherManagementPage() {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
+            <button
+              onClick={loadTeachers}
+              disabled={loading}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md disabled:opacity-50"
+              title="목록 새로고침"
+            >
+              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+              새로고침
+            </button>
             <button
               onClick={() => setShowAddDialog(true)}
               className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md"
