@@ -72,12 +72,20 @@ export async function onRequestPost(context) {
     // User 테이블에 삽입
     try {
       logs.push('🔄 User 테이블에 삽입 시도...');
-      await DB.prepare(`
+      const insertResult = await DB.prepare(`
         INSERT INTO User (id, email, name, password, phone, role, academyId, isWithdrawn, createdAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, 'STUDENT', ?, 0, datetime('now'), datetime('now'))
       `).bind(studentId, tempEmail, name, hashedPassword, phone, tokenAcademyId).run();
       
-      logs.push(`✅ User 테이블 삽입 성공!`);
+      logs.push(`✅ User 테이블 삽입 성공! changes: ${insertResult.meta?.changes || 0}`);
+      
+      // 즉시 조회해서 확인
+      const checkResult = await DB.prepare('SELECT * FROM User WHERE id = ?').bind(studentId).first();
+      if (checkResult) {
+        logs.push(`✅ 즉시 조회 성공: ${checkResult.name}, role: ${checkResult.role}`);
+      } else {
+        logs.push(`❌ 즉시 조회 실패: 데이터가 없음!`);
+      }
     } catch (e) {
       logs.push(`❌ User 테이블 삽입 실패: ${e.message}`);
       return new Response(
