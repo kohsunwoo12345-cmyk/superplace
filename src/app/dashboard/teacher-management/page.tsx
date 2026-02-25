@@ -186,35 +186,55 @@ export default function TeacherManagementPage() {
           const newTeacher = data.teacher;
           setTeachers(prev => [newTeacher, ...prev]);
           
-          // 10초 후 재조회 (D1 동기화 대기) - 새 교사 ID 보존
-          setTimeout(async () => {
-            console.log("🔄 10초 후 목록 재조회 (동기화 확인)...");
-            try {
-              const token = localStorage.getItem("token");
-              const response = await fetch("/api/teachers/list", {
-                headers: {
-                  "Authorization": `Bearer ${token}`
-                }
-              });
-              
-              if (response.ok) {
-                const data = await response.json();
-                console.log("📊 재조회된 교사 목록:", data);
-                
-                // 재조회 결과에 새 교사가 포함되어 있으면 전체 목록 교체
-                const foundNewTeacher = data.teachers?.find((t: Teacher) => t.id === newTeacher.id);
-                if (foundNewTeacher) {
-                  console.log("✅ D1 동기화 완료 - 새 교사가 DB에서 조회됨");
-                  setTeachers(data.teachers || []);
-                } else {
-                  console.log("⚠️ D1 아직 동기화 안됨 - 기존 UI 유지");
-                  // 새 교사가 아직 DB에 없으면 기존 UI 상태 유지 (덮어쓰지 않음)
-                }
-              }
-            } catch (e) {
-              console.error("재조회 실패:", e);
+          // 여러 번 재시도하여 D1 동기화 확인
+          let retryCount = 0;
+          const maxRetries = 6; // 총 6번 시도 (10s, 30s, 60s, 90s, 120s, 150s)
+          const retryIntervals = [10000, 20000, 30000, 30000, 30000, 30000]; // 간격
+          
+          const checkSync = async () => {
+            if (retryCount >= maxRetries) {
+              console.log("⚠️ 최대 재시도 횟수 도달 - UI 상태 유지");
+              return;
             }
-          }, 10000);
+            
+            const nextInterval = retryIntervals[retryCount];
+            retryCount++;
+            
+            setTimeout(async () => {
+              console.log(`🔄 재조회 시도 ${retryCount}/${maxRetries} (${nextInterval/1000}초 후)...`);
+              try {
+                const token = localStorage.getItem("token");
+                const response = await fetch("/api/teachers/list", {
+                  headers: {
+                    "Authorization": `Bearer ${token}`
+                  }
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  console.log(`📊 재조회 결과 (시도 ${retryCount}):`, data.total, "명");
+                  
+                  // 새 교사가 DB에 있는지 확인
+                  const foundNewTeacher = data.teachers?.find((t: Teacher) => t.id === newTeacher.id);
+                  if (foundNewTeacher) {
+                    console.log("✅ D1 동기화 완료! DB에서 교사 조회됨");
+                    setTeachers(data.teachers || []);
+                  } else {
+                    console.log(`⚠️ 아직 동기화 안됨 (시도 ${retryCount}/${maxRetries})`);
+                    // 아직 동기화 안되면 다음 시도
+                    checkSync();
+                  }
+                }
+              } catch (e) {
+                console.error("재조회 실패:", e);
+                // 오류 발생 시에도 다음 시도
+                checkSync();
+              }
+            }, nextInterval);
+          };
+          
+          // 첫 번째 재조회 시작
+          checkSync();
         }
         
         setFormData({
