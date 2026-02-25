@@ -219,21 +219,30 @@ export async function onRequestPost(context) {
     console.log('  - Approved: 1');
     console.log('  - isWithdrawn: 0');
 
-    // Insert into User table
-    const result = await db
-      .prepare(`
-        INSERT INTO User 
-        (id, email, password, name, phone, role, academyId, approved, isWithdrawn, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, 'TEACHER', ?, 1, 0, ?, ?)
-      `)
-      .bind(teacherId, emailValue, hashedPassword, name, phone, academyId, now, now)
-      .run();
+    // Use batch() to INSERT and verify in ONE atomic operation
+    // This forces consistency and eliminates replica lag
+    const insertStmt = db.prepare(`
+      INSERT INTO User 
+      (id, email, password, name, phone, role, academyId, approved, isWithdrawn, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, 'TEACHER', ?, 1, 0, ?, ?)
+    `).bind(teacherId, emailValue, hashedPassword, name, phone, academyId, now, now);
 
-    console.log('✅ INSERT 실행 완료');
-    console.log('📊 Affected rows:', result.meta?.changes || 0);
-    console.log('📊 Last row ID:', result.meta?.last_row_id || 'N/A');
+    const selectStmt = db.prepare(`
+      SELECT id, email, name, phone, role, academyId, approved, isWithdrawn, createdAt, updatedAt 
+      FROM User 
+      WHERE id = ?
+    `).bind(teacherId);
 
-    if (result.meta?.changes === 0) {
+    // Execute both in a batch for immediate consistency
+    const batchResults = await db.batch([insertStmt, selectStmt]);
+    const insertResult = batchResults[0];
+    const selectResult = batchResults[1];
+
+    console.log('✅ BATCH 실행 완료');
+    console.log('📊 INSERT affected rows:', insertResult.meta?.changes || 0);
+    console.log('📊 SELECT rows:', selectResult.results?.length || 0);
+
+    if (insertResult.meta?.changes === 0) {
       console.error('❌ Insert failed - no rows affected');
       return new Response(JSON.stringify({
         success: false,
@@ -246,19 +255,21 @@ export async function onRequestPost(context) {
 
     console.log('✅ Teacher successfully inserted into database');
 
-    // Return the teacher data directly (avoid replica lag on SELECT)
-    const newTeacher = {
-      id: teacherId,
-      email: emailValue,
-      name: name,
-      phone: phone,
-      role: 'TEACHER',
-      academyId: academyId,
-      approved: 1,
-      isWithdrawn: 0,
-      createdAt: now,
-      updatedAt: now
-    };
+    // Use the SELECT result from batch (guaranteed consistency)
+    const newTeacher = selectResult.results && selectResult.results.length > 0
+      ? selectResult.results[0]
+      : {
+          id: teacherId,
+          email: emailValue,
+          name: name,
+          phone: phone,
+          role: 'TEACHER',
+          academyId: academyId,
+          approved: 1,
+          isWithdrawn: 0,
+          createdAt: now,
+          updatedAt: now
+        };
 
     console.log('✅ Returning teacher data:', newTeacher);
 
