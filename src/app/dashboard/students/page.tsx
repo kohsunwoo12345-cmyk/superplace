@@ -105,10 +105,17 @@ export default function StudentsPage() {
     }
   };
 
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredStudents = students
+    .filter(student => {
+      // student-로 시작하는 ID만 허용 (user-, director- 등 제외)
+      const isValidStudentId = typeof student.id === 'string' && student.id.startsWith('student-');
+      if (!isValidStudentId) {
+        console.warn('⚠️ Invalid student ID detected:', student.id, 'Name:', student.name);
+        return false;
+      }
+      return student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.email.toLowerCase().includes(searchQuery.toLowerCase());
+    });
 
   if (loading) {
     return (
