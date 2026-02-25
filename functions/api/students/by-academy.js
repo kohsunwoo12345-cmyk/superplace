@@ -41,9 +41,11 @@ export async function onRequestGet(context) {
     
     // 🔄 User 테이블과 users 테이블 모두 조회 (UNION)
     console.log('🔍 User + users 테이블 통합 조회 시작');
+    console.log('🔑 Token academyId:', tokenAcademyId, 'Type:', typeof tokenAcademyId);
     
+    // academyId가 문자열이면 그대로 사용, 숫자면 정수로 변환
     const isStringAcademyId = tokenAcademyId && typeof tokenAcademyId === 'string' && isNaN(parseInt(tokenAcademyId));
-    const academyIdInt = typeof tokenAcademyId === 'string' ? parseInt(tokenAcademyId) : tokenAcademyId;
+    const academyIdValue = isStringAcademyId ? tokenAcademyId : (typeof tokenAcademyId === 'string' ? parseInt(tokenAcademyId) : tokenAcademyId);
     
     let allStudents = [];
     
@@ -84,8 +86,8 @@ export async function onRequestGet(context) {
           );
         }
         query += ` AND u.academy_id = ?`;
-        bindings.push(academyIdInt);
-        console.log(`🏫 ${upperRole} - Filtering User by academy_id:`, academyIdInt);
+        bindings.push(academyIdValue);
+        console.log(`🏫 ${upperRole} - Filtering User by academy_id:`, academyIdValue);
       } else {
         return new Response(
           JSON.stringify({ 
@@ -133,8 +135,8 @@ export async function onRequestGet(context) {
         }
       } else if (upperRole === 'DIRECTOR' || upperRole === 'TEACHER') {
         query += ` AND u.academy_id = ?`;
-        bindings.push(academyIdInt);
-        console.log(`🏫 ${upperRole} - Filtering users by academy_id:`, academyIdInt);
+        bindings.push(academyIdValue);
+        console.log(`🏫 ${upperRole} - Filtering users by academy_id:`, academyIdValue);
       }
       
       query += ` ORDER BY u.id DESC`;
