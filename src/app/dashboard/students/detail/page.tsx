@@ -238,8 +238,8 @@ function StudentDetailContent() {
       // Try to fetch from API first
       if (token) {
         try {
-          // 1. 학생 기본 정보 (새 엔드포인트 사용 - 캐시 우회)
-          const userResponse = await fetch(`/api/students/get-detail?id=${studentId}`, {
+          // 1. 학생 기본 정보 (by-academy 엔드포인트 사용 - 단일 학생 조회 지원)
+          const userResponse = await fetch(`/api/students/by-academy?id=${studentId}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
