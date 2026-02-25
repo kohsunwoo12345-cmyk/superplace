@@ -71,7 +71,10 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   const { DB } = env;
 
+  console.log('🔍 GET /api/student/get 호출됨');
+
   if (!DB) {
+    console.error('❌ DB not configured');
     return Response.json({ 
       success: false, 
       error: "Database not configured" 
@@ -80,12 +83,22 @@ export async function onRequestGet(context) {
 
   try {
     // 인증 확인
+    console.log('🔐 인증 확인 시작...');
+    const authHeader = request.headers.get("Authorization");
+    console.log('📋 Authorization 헤더:', authHeader ? authHeader.substring(0, 20) + '...' : 'MISSING');
+    
     const userPayload = getUserFromAuth(request);
+    console.log('👤 userPayload:', userPayload ? 'OK' : 'NULL');
     
     if (!userPayload) {
+      console.error('❌ 인증 실패: userPayload is null');
       return Response.json({ 
         success: false, 
-        error: "인증이 필요합니다" 
+        error: "인증이 필요합니다",
+        debug: {
+          authHeaderExists: !!authHeader,
+          authHeaderPrefix: authHeader ? authHeader.substring(0, 7) : 'N/A'
+        }
       }, { status: 401 });
     }
 
