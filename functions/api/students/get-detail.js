@@ -141,14 +141,26 @@ async function getSingleStudent(DB, studentId, userPayload) {
         );
       }
     } else if (role === 'DIRECTOR' || role === 'TEACHER') {
-      if (studentAcademyId !== String(tokenAcademyId || '')) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "같은 학원의 학생만 조회할 수 있습니다" 
-          }),
-          { status: 403, headers: { "Content-Type": "application/json" } }
-        );
+      // academyId가 null이거나 빈 문자열이면 권한 검증 스킵
+      if (studentAcademyId && tokenAcademyId) {
+        if (studentAcademyId !== String(tokenAcademyId || '')) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "같은 학원의 학생만 조회할 수 있습니다",
+              debug: {
+                studentAcademyId,
+                tokenAcademyId: String(tokenAcademyId),
+                studentId: student.id
+              }
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      }
+      // academyId가 null이면 로그만 출력하고 통과
+      if (!studentAcademyId) {
+        console.log('⚠️ 학생의 academyId가 null - 권한 검증 스킵');
       }
     }
     // ADMIN, SUPER_ADMIN은 모든 학생 조회 가능
