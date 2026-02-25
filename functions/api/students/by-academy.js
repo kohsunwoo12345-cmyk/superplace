@@ -99,26 +99,20 @@ export async function onRequestGet(context) {
     
     // User 테이블 조회
     try {
-      const result = await DB.prepare('SELECT * FROM User').all();
-      console.log(`User 테이블 전체: ${result.results.length}명`);
+      const result = await DB.prepare('SELECT * FROM User WHERE role = ? AND (isWithdrawn IS NULL OR isWithdrawn = 0)').bind('STUDENT').all();
+      console.log(`User 테이블 전체: ${result.results.length}명 (퇴원 제외)`);
       
-      const students = result.results.filter(r => r.role === 'STUDENT');
-      console.log(`STUDENT 필터: ${students.length}명`);
-      
-      allStudents.push(...students);
+      allStudents.push(...result.results);
     } catch (e) {
       console.log('User 조회 실패:', e.message);
     }
     
     // users 테이블 조회
     try {
-      const result = await DB.prepare('SELECT * FROM users').all();
-      console.log(`users 테이블 전체: ${result.results.length}명`);
+      const result = await DB.prepare('SELECT * FROM users WHERE role = ? AND (isWithdrawn IS NULL OR isWithdrawn = 0)').bind('STUDENT').all();
+      console.log(`users 테이블 전체: ${result.results.length}명 (퇴원 제외)`);
       
-      const students = result.results.filter(r => r.role === 'STUDENT');
-      console.log(`users STUDENT 필터: ${students.length}명`);
-      
-      allStudents.push(...students);
+      allStudents.push(...result.results);
     } catch (e) {
       console.log('users 조회 실패:', e.message);
     }
