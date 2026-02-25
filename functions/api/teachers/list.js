@@ -199,16 +199,47 @@ export async function onRequestGet(context) {
 
     console.log(`📊 총 교사 수: ${allTeachers.length}명`);
 
-    // Add counts and parse JSON fields
-    const teachersWithCounts = allTeachers.map(teacher => ({
-      ...teacher,
-      permissions: teacher.permissions ? JSON.parse(teacher.permissions) : [],
-      assignedClasses: teacher.assignedClasses ? JSON.parse(teacher.assignedClasses) : [],
-      _count: {
-        createdMaterials: 0,
-        createdAssignments: 0
+    // Add counts and safely parse JSON fields
+    const teachersWithCounts = allTeachers.map(teacher => {
+      let permissions = [];
+      let assignedClasses = [];
+      
+      // Safely parse permissions
+      if (teacher.permissions) {
+        try {
+          if (typeof teacher.permissions === 'string') {
+            permissions = JSON.parse(teacher.permissions);
+          } else if (Array.isArray(teacher.permissions)) {
+            permissions = teacher.permissions;
+          }
+        } catch (e) {
+          console.error('❌ Failed to parse permissions:', e.message);
+        }
       }
-    }));
+      
+      // Safely parse assignedClasses
+      if (teacher.assignedClasses) {
+        try {
+          if (typeof teacher.assignedClasses === 'string') {
+            assignedClasses = JSON.parse(teacher.assignedClasses);
+          } else if (Array.isArray(teacher.assignedClasses)) {
+            assignedClasses = teacher.assignedClasses;
+          }
+        } catch (e) {
+          console.error('❌ Failed to parse assignedClasses:', e.message);
+        }
+      }
+      
+      return {
+        ...teacher,
+        permissions,
+        assignedClasses,
+        _count: {
+          createdMaterials: 0,
+          createdAssignments: 0
+        }
+      };
+    });
 
     return new Response(JSON.stringify({
       success: true,
