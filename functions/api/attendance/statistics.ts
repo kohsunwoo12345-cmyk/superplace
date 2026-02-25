@@ -186,41 +186,44 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const monthResult = await monthStmt.first();
     const monthAttendance = monthResult?.count || 0;
 
-    // 전체 학생 수 (User와 users 테이블 모두 조회 - UNION으로 병합)
-    let studentQuery = `
-      SELECT COUNT(*) as count FROM (
-        SELECT id FROM User WHERE role = 'STUDENT'
-        UNION
-        SELECT id FROM users WHERE role = 'STUDENT'
-      )
-    `;
-    const studentParams: any[] = [];
-
+    // 전체 학생 수 (User와 users 테이블 모두 조회)
+    let studentCount1 = 0;
+    let studentCount2 = 0;
+    
     const isGlobalAdmin4 = role === 'SUPER_ADMIN' || role === 'ADMIN';
+    
+    // User 테이블에서 카운트
+    let userQuery = `SELECT COUNT(*) as count FROM User WHERE role = 'STUDENT'`;
+    const userParams: any[] = [];
     if (!isGlobalAdmin4 && academyId) {
-      // UNION 전에 필터링하도록 수정
-      studentQuery = `
-        SELECT COUNT(*) as count FROM (
-          SELECT id FROM User 
-          WHERE role = 'STUDENT' 
-          AND (CAST(academyId AS TEXT) = ? OR academyId = ?)
-          UNION
-          SELECT id FROM users 
-          WHERE role = 'STUDENT' 
-          AND (CAST(academyId AS TEXT) = ? OR academyId = ?)
-        )
-      `;
-      studentParams.push(String(academyId), parseInt(academyId), String(academyId), parseInt(academyId));
-      console.log("🔍 Counting students for academyId:", academyId, "(both User and users tables)");
+      userQuery += ` AND (CAST(academyId AS TEXT) = ? OR academyId = ?)`;
+      userParams.push(String(academyId), parseInt(academyId));
     }
-
-    let studentStmt = DB.prepare(studentQuery);
-    studentParams.forEach(param => {
-      studentStmt = studentStmt.bind(param);
+    
+    let userStmt = DB.prepare(userQuery);
+    userParams.forEach(param => {
+      userStmt = userStmt.bind(param);
     });
-    const studentResult = await studentStmt.first();
-    const totalStudents = studentResult?.count || 0;
-    console.log("✅ Total students found:", totalStudents, "for academyId:", academyId);
+    const userResult = await userStmt.first();
+    studentCount1 = userResult?.count || 0;
+    
+    // users 테이블에서 카운트
+    let usersQuery = `SELECT COUNT(*) as count FROM users WHERE role = 'STUDENT'`;
+    const usersParams: any[] = [];
+    if (!isGlobalAdmin4 && academyId) {
+      usersQuery += ` AND (CAST(academyId AS TEXT) = ? OR academyId = ?)`;
+      usersParams.push(String(academyId), parseInt(academyId));
+    }
+    
+    let usersStmt = DB.prepare(usersQuery);
+    usersParams.forEach(param => {
+      usersStmt = usersStmt.bind(param);
+    });
+    const usersResult = await usersStmt.first();
+    studentCount2 = usersResult?.count || 0;
+    
+    const totalStudents = studentCount1 + studentCount2;
+    console.log("✅ Total students found:", totalStudents, "(User:", studentCount1, ", users:", studentCount2, ")", "for academyId:", academyId);
 
     const attendanceRate = totalStudents > 0
       ? Math.round((todayAttendance / totalStudents) * 100)
