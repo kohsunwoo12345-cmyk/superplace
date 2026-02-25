@@ -288,7 +288,9 @@ export async function onRequestGet(context) {
           u.email,
           u.phone,
           u.academyId,
-          u.role
+          u.role,
+          u.isWithdrawn,
+          u.status
         FROM User u
         WHERE u.role = 'STUDENT'
           AND (u.isWithdrawn IS NULL OR u.isWithdrawn = 0)
@@ -349,7 +351,9 @@ export async function onRequestGet(context) {
           u.email,
           u.phone,
           CAST(u.academy_id AS TEXT) as academyId,
-          u.role
+          u.role,
+          u.isWithdrawn,
+          u.status
         FROM users u
         WHERE u.role = 'STUDENT'
           AND (u.isWithdrawn IS NULL OR u.isWithdrawn = 0)
