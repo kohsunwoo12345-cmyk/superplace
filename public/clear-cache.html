@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>캐시 클리어 - 슈퍼플레이스</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #667eea;
+      margin-bottom: 20px;
+    }
+    .button {
+      background: #667eea;
+      color: white;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 5px;
+      transition: background 0.3s;
+    }
+    .button:hover {
+      background: #5568d3;
+    }
+    .button.success {
+      background: #48bb78;
+    }
+    .button.success:hover {
+      background: #38a169;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 5px;
+      background: #f7fafc;
+    }
+    .success-msg {
+      color: #48bb78;
+      font-weight: bold;
+    }
+    .error-msg {
+      color: #f56565;
+      font-weight: bold;
+    }
+    .code-block {
+      background: #2d3748;
+      color: #48bb78;
+      padding: 15px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      margin: 10px 0;
+      overflow-x: auto;
+    }
+    ol {
+      line-height: 2;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 교사 추가 문제 해결</h1>
+    
+    <p><strong>문제:</strong> "교사 추가 실패: Unauthorized" 오류가 발생합니다.</p>
+    <p><strong>원인:</strong> 브라우저에 오래된 토큰이 저장되어 있습니다.</p>
+    
+    <h2>해결 방법</h2>
+    
+    <h3>방법 1: 자동 클리어 (권장)</h3>
+    <button class="button" onclick="clearAll()">🗑️ 모든 캐시 및 토큰 클리어</button>
+    
+    <div id="status" class="status" style="display: none;"></div>
+    
+    <h3>방법 2: 수동 클리어</h3>
+    <ol>
+      <li><strong>F12</strong>를 눌러 개발자 도구를 엽니다</li>
+      <li><strong>Console</strong> 탭으로 이동합니다</li>
+      <li>아래 코드를 복사하여 붙여넣고 <strong>Enter</strong>를 누릅니다:</li>
+    </ol>
+    
+    <div class="code-block">
+localStorage.clear();<br>
+sessionStorage.clear();<br>
+console.log('✅ 캐시 클리어 완료!');<br>
+location.href = '/login';
+    </div>
+    
+    <h3>이후 단계</h3>
+    <ol>
+      <li>로그인 페이지로 이동됩니다</li>
+      <li>DIRECTOR 계정으로 <strong>다시 로그인</strong>합니다</li>
+      <li><strong>/dashboard/teachers</strong> 페이지로 이동합니다</li>
+      <li>"교사 추가" 버튼을 클릭하여 테스트합니다</li>
+    </ol>
+    
+    <button class="button success" onclick="goToLogin()">✅ 로그인 페이지로 이동</button>
+  </div>
+  
+  <script>
+    function clearAll() {
+      const status = document.getElementById('status');
+      status.style.display = 'block';
+      
+      try {
+        // 모든 localStorage 클리어
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // 쿠키 클리어
+        document.cookie.split(";").forEach(function(c) { 
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+        });
+        
+        status.innerHTML = '<span class="success-msg">✅ 모든 캐시가 클리어되었습니다!</span><br><br>이제 로그인 페이지로 이동합니다...';
+        
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      } catch (error) {
+        status.innerHTML = '<span class="error-msg">❌ 오류: ' + error.message + '</span>';
+      }
+    }
+    
+    function goToLogin() {
+      window.location.href = '/login';
+    }
+    
+    // 페이지 로드 시 토큰 상태 확인
+    window.onload = function() {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const parts = token.split('|').length;
+        console.log('현재 토큰 파트 수:', parts);
+        if (parts < 5) {
+          console.warn('⚠️ 오래된 토큰 형식 감지! 클리어가 필요합니다.');
+        }
+      }
+    };
+  </script>
+</body>
+</html>
