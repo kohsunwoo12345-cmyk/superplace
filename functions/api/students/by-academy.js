@@ -94,23 +94,44 @@ export async function onRequestGet(context) {
     
     // 전체 학생 목록 조회
     console.log('전체 학생 목록 조회');
+    console.log('요청자 Role:', tokenData.role, 'Academy ID:', tokenData.academyId);
     
     const allStudents = [];
     
-    // User 테이블 조회
+    // User 테이블 조회 (academyId 필터링 추가)
     try {
-      const result = await DB.prepare('SELECT * FROM User WHERE role = ? AND (isWithdrawn IS NULL OR isWithdrawn = 0)').bind('STUDENT').all();
-      console.log(`User 테이블 전체: ${result.results.length}명 (퇴원 제외)`);
+      let query = 'SELECT * FROM User WHERE role = ? AND (isWithdrawn IS NULL OR isWithdrawn = 0)';
+      const bindings = ['STUDENT'];
+      
+      // DIRECTOR는 자기 학원 학생만 조회
+      if (tokenData.role === 'DIRECTOR' && tokenData.academyId) {
+        query += ' AND academyId = ?';
+        bindings.push(tokenData.academyId);
+        console.log('🏫 DIRECTOR 필터: academyId =', tokenData.academyId);
+      }
+      
+      const result = await DB.prepare(query).bind(...bindings).all();
+      console.log(`User 테이블: ${result.results.length}명 (퇴원 제외, academyId 필터 적용)`);
       
       allStudents.push(...result.results);
     } catch (e) {
       console.log('User 조회 실패:', e.message);
     }
     
-    // users 테이블 조회
+    // users 테이블 조회 (academyId 필터링 추가)
     try {
-      const result = await DB.prepare('SELECT * FROM users WHERE role = ? AND (isWithdrawn IS NULL OR isWithdrawn = 0)').bind('STUDENT').all();
-      console.log(`users 테이블 전체: ${result.results.length}명 (퇴원 제외)`);
+      let query = 'SELECT * FROM users WHERE role = ? AND (isWithdrawn IS NULL OR isWithdrawn = 0)';
+      const bindings = ['STUDENT'];
+      
+      // DIRECTOR는 자기 학원 학생만 조회
+      if (tokenData.role === 'DIRECTOR' && tokenData.academyId) {
+        query += ' AND academy_id = ?';
+        bindings.push(tokenData.academyId);
+        console.log('🏫 DIRECTOR 필터 (users): academy_id =', tokenData.academyId);
+      }
+      
+      const result = await DB.prepare(query).bind(...bindings).all();
+      console.log(`users 테이블: ${result.results.length}명 (퇴원 제외, academyId 필터 적용)`);
       
       allStudents.push(...result.results);
     } catch (e) {

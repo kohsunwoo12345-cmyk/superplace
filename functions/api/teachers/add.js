@@ -50,35 +50,56 @@ export async function onRequestPost(context) {
 
     // Parse token and verify permissions
     const authHeader = request.headers.get('Authorization');
+    
+    console.log('🔐 Auth header present:', !!authHeader);
+    console.log('🔐 Auth header value:', authHeader ? `${authHeader.substring(0, 50)}...` : 'NULL');
+    
     const tokenData = parseToken(authHeader);
 
     if (!tokenData) {
       console.error('❌ Invalid or missing token');
+      console.error('❌ Auth header:', authHeader);
       return new Response(JSON.stringify({
         success: false,
-        error: 'Unauthorized'
+        error: 'Unauthorized',
+        message: '인증 토큰이 유효하지 않습니다'
       }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
     }
+    
+    console.log('✅ Token parsed:', { id: tokenData.id, email: tokenData.email, role: tokenData.role });
 
-    // Get user from database
-    const user = await db
-      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
-      .bind(tokenData.email)
+    // Get user from database - try by id first, then email
+    let user = await db
+      .prepare('SELECT id, email, role, academyId FROM User WHERE id = ?')
+      .bind(tokenData.id)
       .first();
+    
+    if (!user && tokenData.email) {
+      console.log('⚠️ User not found by id, trying email:', tokenData.email);
+      user = await db
+        .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    }
 
     if (!user) {
-      console.error('❌ User not found');
+      console.error('❌ User not found in database');
+      console.error('❌ Searched by id:', tokenData.id);
+      console.error('❌ Searched by email:', tokenData.email);
       return new Response(JSON.stringify({
         success: false,
-        error: 'User not found'
+        error: 'User not found',
+        message: '사용자를 찾을 수 없습니다'
       }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       });
     }
+    
+    console.log('✅ User found:', { id: user.id, email: user.email, role: user.role, academyId: user.academyId });
 
     const role = user.role ? user.role.toUpperCase() : '';
 

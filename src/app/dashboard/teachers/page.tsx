@@ -118,6 +118,18 @@ export default function TeachersManagementPage() {
       setAddingTeacher(true);
       const token = localStorage.getItem("token");
       
+      // 토큰 디버깅
+      console.log("🔍 Token check:", token ? `${token.substring(0, 50)}...` : "NULL");
+      
+      if (!token) {
+        alert("로그인 토큰이 없습니다. 다시 로그인해주세요.");
+        router.push("/login");
+        return;
+      }
+      
+      console.log("📤 Sending request to /api/teachers/add");
+      console.log("📦 Request data:", { name: newTeacher.name, phone: newTeacher.phone });
+      
       const response = await fetch("/api/teachers/add", {
         method: "POST",
         headers: {
@@ -126,8 +138,13 @@ export default function TeachersManagementPage() {
         },
         body: JSON.stringify(newTeacher),
       });
+      
+      console.log("📥 Response status:", response.status);
+      console.log("📥 Response status:", response.status);
 
       const data = await response.json();
+      
+      console.log("📦 Response data:", data);
 
       if (response.ok && data.success) {
         alert(`교사가 추가되었습니다!\n\n임시 비밀번호: ${data.tempPassword}\n\n교사에게 전달해주세요.`);
@@ -135,6 +152,7 @@ export default function TeachersManagementPage() {
         setNewTeacher({ name: "", email: "", phone: "", password: "" });
         fetchTeachers();
       } else {
+        console.error("❌ 교사 추가 실패:", data);
         alert(`교사 추가 실패: ${data.error || data.message}`);
       }
     } catch (error) {
