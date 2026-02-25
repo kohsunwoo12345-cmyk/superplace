@@ -132,18 +132,13 @@ export async function onRequestPut(context) {
       });
     }
 
-    // 업데이트된 교사 정보 조회
-    const updatedTeacher = await db
-      .prepare('SELECT id, name, email, permissions FROM User WHERE id = ?')
-      .bind(teacherId)
-      .first();
-
+    // Return success immediately (avoid replica lag on SELECT)
     return new Response(JSON.stringify({
       success: true,
       message: '권한이 저장되었습니다',
       teacher: {
-        ...updatedTeacher,
-        permissions: updatedTeacher.permissions ? JSON.parse(updatedTeacher.permissions) : []
+        id: teacherId,
+        permissions: permissions
       }
     }), {
       status: 200,

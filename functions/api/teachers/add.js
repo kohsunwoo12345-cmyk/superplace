@@ -246,14 +246,21 @@ export async function onRequestPost(context) {
 
     console.log('✅ Teacher successfully inserted into database');
 
-    // Fetch newly created teacher to verify
-    console.log('🔍 Fetching new teacher info...');
-    const newTeacher = await db
-      .prepare('SELECT id, email, name, phone, role, academyId, approved, createdAt FROM User WHERE id = ?')
-      .bind(teacherId)
-      .first();
+    // Return the teacher data directly (avoid replica lag on SELECT)
+    const newTeacher = {
+      id: teacherId,
+      email: emailValue,
+      name: name,
+      phone: phone,
+      role: 'TEACHER',
+      academyId: academyId,
+      approved: 1,
+      isWithdrawn: 0,
+      createdAt: now,
+      updatedAt: now
+    };
 
-    console.log('✅ New teacher created:', newTeacher);
+    console.log('✅ Returning teacher data:', newTeacher);
 
     return new Response(JSON.stringify({
       success: true,
