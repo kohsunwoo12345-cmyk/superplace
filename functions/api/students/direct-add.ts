@@ -24,79 +24,85 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const body = await context.request.json();
     logs.push(`✅ 요청 데이터: ${JSON.stringify(body)}`);
 
-    const { name, email, phone, password, academyId } = body;
+    const { name, phone, academyId } = body;
 
-    // 1. users 테이블 스키마 확인
+    // 필수 필드 검증
+    if (!name || !phone) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: '이름과 연락처는 필수입니다',
+          logs 
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Authorization 헤더에서 사용자 정보 추출
+    const authHeader = context.request.headers.get('Authorization');
+    let tokenAcademyId = academyId;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const parts = token.split('|');
+      if (parts.length >= 4) {
+        tokenAcademyId = parts[3] || academyId; // 토큰에서 academyId 추출
+        logs.push(`✅ 토큰에서 academyId 추출: ${tokenAcademyId}`);
+      }
+    }
+
+    // 1. User 테이블 스키마 확인
     try {
-      const schema = await DB.prepare('PRAGMA table_info(users)').all();
-      logs.push(`✅ users 테이블 컬럼: ${JSON.stringify(schema.results?.map((r: any) => r.name))}`);
+      const schema = await DB.prepare('PRAGMA table_info(User)').all();
+      logs.push(`✅ User 테이블 컬럼: ${JSON.stringify(schema.results?.map((r: any) => r.name))}`);
     } catch (e: any) {
       logs.push(`❌ 스키마 조회 실패: ${e.message}`);
     }
 
-    // 2. 비밀번호 해싱
-    const salt = 'superplace-salt-2024';
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password + salt);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    logs.push('✅ 비밀번호 해싱 완료');
+    // 2. 임시 이메일 생성 (전화번호 기반)
+    const tempEmail = `student_${phone}@temp.superplace.local`;
+    logs.push(`✅ 임시 이메일 생성: ${tempEmail}`);
 
-    // 3. users 테이블에 삽입 시도 (여러 패턴 시도)
-    let userId: any = null;
+    // 3. 임시 비밀번호 생성 (전화번호 뒷자리)
+    const tempPassword = phone.slice(-6);
+    logs.push(`✅ 임시 비밀번호 생성: ${tempPassword}`);
+
+    // 4. Student ID 생성
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 15);
+    const studentId = `student-${timestamp}-${randomStr}`;
+    logs.push(`✅ Student ID 생성: ${studentId}`);
+
+    // 5. User 테이블에 삽입
     let insertSuccess = false;
 
-    // 패턴 1: camelCase 시도
     try {
-      logs.push('🔄 시도 1: camelCase (academyId, createdAt)');
-      const result = await DB.prepare(`
-        INSERT INTO users (email, phone, password, name, role, academyId, createdAt)
-        VALUES (?, ?, ?, ?, 'STUDENT', ?, datetime('now'))
-      `).bind(email, phone, hashedPassword, name, academyId).run();
+      logs.push('🔄 User 테이블에 삽입 시도...');
+      await DB.prepare(`
+        INSERT INTO User (id, email, name, phone, role, academyId, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
+      `).bind(studentId, tempEmail, name, phone, tokenAcademyId).run();
       
-      userId = result.meta.last_row_id;
       insertSuccess = true;
-      logs.push(`✅ 패턴 1 성공! userId: ${userId}`);
+      logs.push(`✅ User 테이블 삽입 성공!`);
     } catch (e: any) {
-      logs.push(`❌ 패턴 1 실패: ${e.message}`);
-      
-      // 패턴 2: snake_case 시도
-      try {
-        logs.push('🔄 시도 2: snake_case (academy_id, created_at)');
-        const result = await DB.prepare(`
-          INSERT INTO users (email, phone, password, name, role, academy_id, created_at)
-          VALUES (?, ?, ?, ?, 'STUDENT', ?, datetime('now'))
-        `).bind(email, phone, hashedPassword, name, academyId).run();
-        
-        userId = result.meta.last_row_id;
-        insertSuccess = true;
-        logs.push(`✅ 패턴 2 성공! userId: ${userId}`);
-      } catch (e2: any) {
-        logs.push(`❌ 패턴 2 실패: ${e2.message}`);
-        
-        // 패턴 3: 최소 필드만
-        try {
-          logs.push('🔄 시도 3: 최소 필드 (email, password, name, role만)');
-          const result = await DB.prepare(`
-            INSERT INTO users (email, password, name, role)
-            VALUES (?, ?, ?, 'STUDENT')
-          `).bind(email, hashedPassword, name).run();
-          
-          userId = result.meta.last_row_id;
-          insertSuccess = true;
-          logs.push(`✅ 패턴 3 성공! userId: ${userId}`);
-        } catch (e3: any) {
-          logs.push(`❌ 패턴 3 실패: ${e3.message}`);
-        }
-      }
-    }
-
-    if (!insertSuccess || !userId) {
+      logs.push(`❌ User 테이블 삽입 실패: ${e.message}`);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: '모든 INSERT 패턴 실패',
+          error: 'User 테이블 삽입 실패',
+          message: e.message,
+          logs 
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!insertSuccess) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: '학생 생성 실패',
           logs 
         }),
         { status: 500, headers: { "Content-Type": "application/json" } }
@@ -156,21 +162,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 6. 결과 조회
-    const user = await DB.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first();
-    logs.push(`✅ 생성된 user: ${JSON.stringify(user)}`);
-
-    const student = await DB.prepare('SELECT * FROM students WHERE userId = ? OR user_id = ?').bind(userId, userId).first();
-    logs.push(`✅ 생성된 student: ${JSON.stringify(student)}`);
+    // 6. 생성된 학생 정보 조회
+    const createdStudent = await DB.prepare('SELECT * FROM User WHERE id = ?').bind(studentId).first();
+    logs.push(`✅ 생성된 학생: ${JSON.stringify(createdStudent)}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: '학생 추가 성공!',
-        userId,
-        studentInsertSuccess,
-        user,
-        student,
+        student: {
+          id: studentId,
+          name: name,
+          email: tempEmail,
+          phone: phone,
+          role: 'STUDENT',
+          academyId: tokenAcademyId,
+          password: tempPassword
+        },
         logs
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
