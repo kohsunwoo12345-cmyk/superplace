@@ -51,17 +51,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 1. 사용자 정보 조회
-    const user = await DB.prepare(
-      "SELECT id, name, email, academyId FROM users WHERE id = ?"
+    // 1. 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
+    let user = await DB.prepare(
+      "SELECT id, name, email, academyId FROM User WHERE id = ?"
     ).bind(userId).first();
 
+    // User 테이블에 없으면 users 테이블 확인 (레거시 지원)
     if (!user) {
+      console.log(`🔍 User 테이블에 없음, users 테이블 확인 중... (userId: ${userId})`);
+      const legacyUser = await DB.prepare(
+        "SELECT id, name, email, academy_id as academyId FROM users WHERE id = ?"
+      ).bind(userId).first();
+      
+      if (legacyUser) {
+        console.log(`✅ users 테이블에서 발견: ${legacyUser.name}`);
+        user = legacyUser;
+      }
+    }
+
+    if (!user) {
+      console.error(`❌ 사용자를 찾을 수 없음: userId=${userId}`);
       return new Response(
         JSON.stringify({ error: "User not found" }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`✅ 사용자 확인: ${user.name} (${user.email})`);
 
     // 2. homework_submissions_v2 테이블 생성
     await DB.prepare(`
