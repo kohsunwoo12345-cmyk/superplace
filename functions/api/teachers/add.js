@@ -202,7 +202,6 @@ export async function onRequestPost(context) {
         success: false,
         error: '이미 존재하는 이메일입니다'
       }), {
-      }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
