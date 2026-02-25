@@ -31,7 +31,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    console.log(`📚 처리할 이미지 수: ${imageArray.length}장`);
+    console.log(`📚 숙제 제출 시작: userId=${userId}, type=${typeof userId}, imageCount=${imageArray.length}`);
     
     // 이미지 크기 검증 (각 이미지 최대 2MB - Base64 인코딩 고려)
     const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
@@ -52,16 +52,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 1. 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
+    console.log(`🔍 User 테이블 조회 시작: userId=${userId}`);
     let user = await DB.prepare(
       "SELECT id, name, email, academyId FROM User WHERE id = ?"
     ).bind(userId).first();
 
+    console.log(`📊 User 테이블 결과:`, user);
+
     // User 테이블에 없으면 users 테이블 확인 (레거시 지원)
     if (!user) {
-      console.log(`🔍 User 테이블에 없음, users 테이블 확인 중... (userId: ${userId})`);
+      console.log(`🔍 users 테이블 확인 중... (userId: ${userId})`);
       const legacyUser = await DB.prepare(
         "SELECT id, name, email, academy_id as academyId FROM users WHERE id = ?"
       ).bind(userId).first();
+      
+      console.log(`📊 users 테이블 결과:`, legacyUser);
       
       if (legacyUser) {
         console.log(`✅ users 테이블에서 발견: ${legacyUser.name}`);
