@@ -56,13 +56,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
+    console.log(`📝 제출 정보 조회 시작: ${submissionId}`);
+
     // 2. 제출 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
     let submission = await DB.prepare(`
       SELECT s.id, s.userId, s.imageUrl, s.code, s.academyId, u.name, u.email
       FROM homework_submissions_v2 s
-      JOIN users u ON s.userId = u.id
+      JOIN User u ON s.userId = u.id
       WHERE s.id = ?
     `).bind(submissionId).first();
+
+    console.log(`📊 User 테이블 JOIN 결과:`, submission);
 
     // User 테이블에 없으면 users 테이블 확인 (레거시 지원)
     if (!submission) {
@@ -73,6 +77,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         JOIN users u ON s.userId = u.id
         WHERE s.id = ?
       `).bind(submissionId).first();
+      
+      console.log(`📊 users 테이블 JOIN 결과:`, submission);
     }
 
     if (!submission) {

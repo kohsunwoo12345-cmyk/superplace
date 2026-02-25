@@ -51,10 +51,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
+    console.log(`🔍 사용자 조회 시작: userId=${userId}, type=${typeof userId}`);
+
     // 1. 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
     let user = await DB.prepare(
       "SELECT id, name, email, academyId FROM User WHERE id = ?"
     ).bind(userId).first();
+
+    console.log(`📊 User 테이블 조회 결과:`, user);
 
     // User 테이블에 없으면 users 테이블 확인 (레거시 지원)
     if (!user) {
@@ -62,6 +66,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const legacyUser = await DB.prepare(
         "SELECT id, name, email, academy_id as academyId FROM users WHERE id = ?"
       ).bind(userId).first();
+      
+      console.log(`📊 users 테이블 조회 결과:`, legacyUser);
       
       if (legacyUser) {
         console.log(`✅ users 테이블에서 발견: ${legacyUser.name}`);
