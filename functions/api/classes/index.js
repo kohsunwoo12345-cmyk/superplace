@@ -243,17 +243,22 @@ export async function onRequestGet(context) {
       
       const beforeFilter = classes.length;
       classes = classes.filter(cls => {
-        const clsAcademyIdStr = String(cls.academyId);
+        // 클래스의 academy_id (DB에서 academyId로 매핑됨)
+        const clsAcademyId = cls.academyId || cls.academy_id;
+        const clsAcademyIdStr = String(clsAcademyId);
         const clsAcademyIdInt = parseInt(clsAcademyIdStr.split('.')[0]);
         
         // 문자열 비교, 숫자 비교, loose 비교 모두 시도
-        const match = 
-          clsAcademyIdStr === userAcademyIdStr ||
-          clsAcademyIdInt === userAcademyIdInt ||
-          cls.academyId == academyId;
+        const stringMatch = clsAcademyIdStr === userAcademyIdStr;
+        const intMatch = !isNaN(clsAcademyIdInt) && !isNaN(userAcademyIdInt) && clsAcademyIdInt === userAcademyIdInt;
+        const looseMatch = clsAcademyId == academyId;
+        
+        const match = stringMatch || intMatch || looseMatch;
         
         if (match) {
-          console.log(`✅ MATCH: Class ${cls.id} (${cls.name}) academy_id=${cls.academyId}`);
+          console.log(`✅ MATCH: Class ${cls.id} (${cls.name}) academy_id=${clsAcademyId} (string:${stringMatch}, int:${intMatch}, loose:${looseMatch})`);
+        } else {
+          console.log(`❌ NO MATCH: Class ${cls.id} academy_id=${clsAcademyId} vs user academyId=${academyId}`);
         }
         
         return match;
