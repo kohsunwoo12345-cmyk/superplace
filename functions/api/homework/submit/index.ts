@@ -12,7 +12,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
     const body = await context.request.json();
-    const { userId, code, images, image } = body;
+    const { userId, code, images, image, imageUrl } = body;
 
     if (!DB) {
       return new Response(
@@ -21,8 +21,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // 다중 이미지 또는 단일 이미지 처리
-    const imageArray = images || (image ? [image] : []);
+    // 다중 이미지 또는 단일 이미지 처리 (imageUrl도 지원)
+    const imageArray = images || (image ? [image] : (imageUrl ? [imageUrl] : []));
 
     if (!userId || imageArray.length === 0) {
       return new Response(
