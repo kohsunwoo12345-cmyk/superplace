@@ -432,3 +432,5 @@ AI 기반 학원 관리 시스템으로 교육을 혁신하세요! 🚀
 # 자동 배포 테스트 - Mon Feb  2 11:08:24 UTC 2026
 # Redeploy 1770230323
 # Force redeploy Tue Feb 10 10:22:09 UTC 2026
+
+<!-- Build trigger: Thu Feb 26 11:53:49 UTC 2026 -->
