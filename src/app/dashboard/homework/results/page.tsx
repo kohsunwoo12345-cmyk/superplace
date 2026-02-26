@@ -86,9 +86,9 @@ export default function TeacherHomeworkResultsPage() {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     return (
-      submission.userName.toLowerCase().includes(search) ||
-      submission.userEmail.toLowerCase().includes(search) ||
-      submission.subject.toLowerCase().includes(search)
+      submission.userName?.toLowerCase().includes(search) ||
+      submission.userEmail?.toLowerCase().includes(search) ||
+      submission.subject?.toLowerCase().includes(search)
     );
   });
 
@@ -221,27 +221,45 @@ export default function TeacherHomeworkResultsPage() {
       if (data.success) {
         // API는 results를 반환하므로 results를 submissions로 설정
         // grading 정보를 최상위 레벨로 끌어올림
-        const formattedResults = (data.results || []).map((result: any) => ({
-          ...result,
-          id: result.submissionId,
-          // grading 정보를 최상위로 복사
-          score: result.grading?.score || 0,
-          feedback: result.grading?.feedback || '',
-          subject: result.grading?.subject || '미지정',
-          completion: result.grading?.completion || 'pending',
-          effort: result.grading?.effort || 'submitted',
-          gradedAt: result.grading?.gradedAt || null,
-          totalQuestions: result.grading?.totalQuestions || 0,
-          correctAnswers: result.grading?.correctAnswers || 0,
-          strengths: result.grading?.strengths || '',
-          improvements: result.grading?.improvements || '',
-          weaknessTypes: result.grading?.weaknessTypes || '',
-          detailedAnalysis: result.grading?.detailedAnalysis || '',
-          studyDirection: result.grading?.studyDirection || '',
-          problemAnalysis: result.grading?.problemAnalysis || '',
-          // 원본 grading도 유지
-          grading: result.grading
-        }));
+        const formattedResults = (data.results || []).map((result: any) => {
+          // JSON 문자열을 안전하게 파싱하는 헬퍼 함수
+          const safeJsonParse = (value: any, defaultValue: any = null) => {
+            if (!value) return defaultValue;
+            if (typeof value === 'string') {
+              try {
+                return JSON.parse(value);
+              } catch {
+                return defaultValue;
+              }
+            }
+            return value;
+          };
+
+          return {
+            ...result,
+            id: result.submissionId,
+            // grading 정보를 최상위로 복사
+            score: result.grading?.score || 0,
+            feedback: result.grading?.feedback || '',
+            subject: result.grading?.subject || '미지정',
+            completion: result.grading?.completion || 'pending',
+            effort: result.grading?.effort || 'submitted',
+            gradedAt: result.grading?.gradedAt || null,
+            totalQuestions: result.grading?.totalQuestions || 0,
+            correctAnswers: result.grading?.correctAnswers || 0,
+            strengths: result.grading?.strengths || '',
+            improvements: result.grading?.improvements || '',
+            weaknessTypes: safeJsonParse(result.grading?.weaknessTypes, []),
+            detailedAnalysis: result.grading?.detailedAnalysis || '',
+            studyDirection: result.grading?.studyDirection || '',
+            problemAnalysis: safeJsonParse(result.grading?.problemAnalysis, []),
+            conceptsNeeded: safeJsonParse(result.grading?.conceptsNeeded, []),
+            mistakes: safeJsonParse(result.grading?.mistakes, []),
+            suggestionsArray: safeJsonParse(result.grading?.suggestionsArray || result.grading?.suggestions, []),
+            // 원본 grading도 유지
+            grading: result.grading
+          };
+        });
         
         setSubmissions(formattedResults);
         setStats(data.statistics ? {
@@ -541,7 +559,7 @@ export default function TeacherHomeworkResultsPage() {
                       </div>
                       <div className="text-right">
                         <Badge variant="outline" className="mb-2">
-                          {submission.subject}
+                          {submission.subject || '미지정'}
                         </Badge>
                         {submission.score > 0 && (
                           <Badge className="bg-green-100 text-green-800 mb-2 ml-2">
@@ -644,7 +662,7 @@ export default function TeacherHomeworkResultsPage() {
                           {submission.userEmail}
                         </CardDescription>
                       </div>
-                      <Badge variant="outline">{submission.subject}</Badge>
+                      <Badge variant="outline">{submission.subject || '미지정'}</Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -682,7 +700,7 @@ export default function TeacherHomeworkResultsPage() {
                           {submission.userEmail}
                         </CardDescription>
                       </div>
-                      <Badge variant="outline">{submission.subject}</Badge>
+                      <Badge variant="outline">{submission.subject || '미지정'}</Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -738,7 +756,7 @@ export default function TeacherHomeworkResultsPage() {
                   </Badge>
                 )}
                 <Badge variant="outline" className="text-lg py-2 px-3">
-                  {selectedSubmission.subject}
+                  {selectedSubmission.subject || '미지정'}
                 </Badge>
                 <Badge variant="outline" className="text-lg py-2 px-3">
                   완성도: {selectedSubmission.completion}
@@ -846,7 +864,7 @@ export default function TeacherHomeworkResultsPage() {
               )}
 
               {/* 문제별 분석 */}
-              {selectedSubmission.problemAnalysis && selectedSubmission.problemAnalysis.length > 0 && (
+              {selectedSubmission.problemAnalysis && Array.isArray(selectedSubmission.problemAnalysis) && selectedSubmission.problemAnalysis.length > 0 && (
                 <Card className="border-2 border-purple-200">
                   <CardHeader className="bg-purple-50">
                     <CardTitle className="flex items-center gap-2 text-purple-700">
@@ -891,7 +909,7 @@ export default function TeacherHomeworkResultsPage() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 {/* 약점 유형 */}
-                {selectedSubmission.weaknessTypes &&
+                {selectedSubmission.weaknessTypes && Array.isArray(selectedSubmission.weaknessTypes) &&
                   selectedSubmission.weaknessTypes.length > 0 && (
                     <Card className="border-2 border-orange-200 bg-orange-50">
                       <CardHeader>
@@ -919,7 +937,7 @@ export default function TeacherHomeworkResultsPage() {
                   )}
 
                 {/* 필요한 개념 */}
-                {selectedSubmission.conceptsNeeded &&
+                {selectedSubmission.conceptsNeeded && Array.isArray(selectedSubmission.conceptsNeeded) &&
                   selectedSubmission.conceptsNeeded.length > 0 && (
                     <Card className="border-2 border-blue-200 bg-blue-50">
                       <CardHeader>
@@ -950,7 +968,7 @@ export default function TeacherHomeworkResultsPage() {
               </div>
 
               {/* 발견된 실수 */}
-              {selectedSubmission.mistakes &&
+              {selectedSubmission.mistakes && Array.isArray(selectedSubmission.mistakes) &&
                 selectedSubmission.mistakes.length > 0 && (
                   <Card className="border-2 border-red-200 bg-red-50">
                     <CardHeader>
@@ -978,7 +996,7 @@ export default function TeacherHomeworkResultsPage() {
                 )}
 
               {/* 개선 방법 */}
-              {selectedSubmission.suggestionsArray &&
+              {selectedSubmission.suggestionsArray && Array.isArray(selectedSubmission.suggestionsArray) &&
                 selectedSubmission.suggestionsArray.length > 0 && (
                   <Card className="border-2 border-green-200 bg-green-50">
                     <CardHeader>
