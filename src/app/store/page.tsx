@@ -34,6 +34,7 @@ const AIStorePage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   // API에서 제품 로드 (D1 database)
   useEffect(() => {
@@ -426,6 +427,22 @@ const AIStorePage = () => {
           <p className="text-sm text-gray-400">© 2024 SUPER PLACE. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* 상세 페이지 다이얼로그 */}
+      {selectedProduct && (
+        <ProductDetailDialog
+          open={detailDialogOpen}
+          onClose={() => {
+            setDetailDialogOpen(false);
+            setSelectedProduct(null);
+          }}
+          product={selectedProduct}
+          onPurchase={() => {
+            setDetailDialogOpen(false);
+            setPurchaseDialogOpen(true);
+          }}
+        />
+      )}
 
       {/* 구매 신청 다이얼로그 */}
       {selectedProduct && selectedProduct.pricePerStudent && (
