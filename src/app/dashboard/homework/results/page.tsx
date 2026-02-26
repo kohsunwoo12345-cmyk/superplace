@@ -219,8 +219,14 @@ export default function TeacherHomeworkResultsPage() {
       console.log('📦 받은 데이터:', data);
 
       if (data.success) {
-        setSubmissions(data.submissions || []);
-        setStats(data.stats || null);
+        // API는 results를 반환하므로 results를 submissions로 설정
+        setSubmissions(data.results || []);
+        setStats(data.statistics ? {
+          totalSubmissions: data.statistics.total || 0,
+          averageScore: data.statistics.averageScore || 0,
+          todaySubmissions: data.statistics.total || 0,
+          pendingReview: data.statistics.pending || 0,
+        } : null);
       } else {
         console.error('❌ API 오류:', data.error);
       }
