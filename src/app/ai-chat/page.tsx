@@ -752,7 +752,7 @@ export default function ModernAIChatPage() {
     console.log('📝 전체 메시지 개수:', messages.length);
 
     // Extract problems from AI assistant messages
-    // 더 정교한 문제 추출 로직: 번호가 있는 문제, 질문 형태, 또는 "문제" 키워드가 있는 응답
+    // 정확한 문제만 추출: 명시적으로 번호가 매겨진 문제만 추출
     const assistantMessages = messages.filter(m => m.role === 'assistant');
     console.log('🤖 AI 응답 메시지 개수:', assistantMessages.length);
 
@@ -761,43 +761,52 @@ export default function ModernAIChatPage() {
     assistantMessages.forEach((msg, index) => {
       const content = msg.content;
       
-      // 문제 출제와 관련된 응답만 필터링
-      const isProblemRelated = 
-        content.includes('문제') || 
-        content.includes('?') || 
-        content.includes('풀이') ||
-        content.includes('답') ||
-        /\d+\.\s/.test(content) || // "1. " 형태의 번호
-        /\d+\)\s/.test(content) || // "1) " 형태의 번호
-        content.includes('계산') ||
-        content.includes('구하') ||
-        content.includes('식') ||
-        content.includes('해결');
-
-      if (isProblemRelated) {
-        // 문제와 풀이 분리 시도
-        let problemText = content;
-        let hasAnswer = false;
-
-        // "풀이", "답", "해설" 등의 키워드 이후를 분리
-        const answerKeywords = ['[풀이]', '[답]', '[해설]', '풀이:', '답:', '해설:', '정답:', '\n답:'];
-        for (const keyword of answerKeywords) {
-          if (content.includes(keyword)) {
-            hasAnswer = true;
-            const parts = content.split(keyword);
-            problemText = parts[0].trim();
-            break;
+      // 1. 먼저 번호가 있는 문제 형식인지 확인 (1. 또는 1) 또는 **1.** 형태)
+      const numberedProblemRegex = /(?:^|\n)(?:\*\*)?(\d+)[\.\)]\s*(?:\*\*)?(.+?)(?=(?:\n(?:\*\*)?(?:\d+)[\.\)]|\n\n|$))/gs;
+      const matches = [...content.matchAll(numberedProblemRegex)];
+      
+      if (matches.length > 0) {
+        // 번호가 매겨진 문제들만 추출
+        matches.forEach((match) => {
+          const problemNumber = match[1];
+          let problemContent = match[2].trim();
+          
+          // "문제:", "[문제]" 등의 레이블 제거
+          problemContent = problemContent.replace(/^(?:\[문제\]|\*\*문제\*\*|문제:)\s*/i, '');
+          
+          // 풀이, 답, 해설 등이 포함되어 있으면 그 부분 제거
+          let hasAnswer = false;
+          const answerKeywords = [
+            '\n풀이:', '\n답:', '\n해설:', '\n정답:', 
+            '\n[풀이]', '\n[답]', '\n[해설]', '\n[정답]',
+            '\n**풀이**', '\n**답**', '\n**해설**', '\n**정답**'
+          ];
+          
+          for (const keyword of answerKeywords) {
+            if (problemContent.includes(keyword)) {
+              hasAnswer = true;
+              const parts = problemContent.split(keyword);
+              problemContent = parts[0].trim();
+              break;
+            }
           }
-        }
-
-        // 내용이 너무 짧으면 제외 (최소 10자)
-        if (problemText.length > 10) {
-          extractedProblems.push({
-            number: extractedProblems.length + 1,
-            content: problemText,
-            hasAnswer: hasAnswer
-          });
-        }
+          
+          // 문제만 추출 (설명, 도입부 제외)
+          // "다음을 계산하시오", "다음 문제를 풀어보세요" 같은 순수한 문제 형식만 허용
+          const isPureProbl = 
+            /계산하시오|구하시오|풀이하시오|풀어보세요|답하시오|풀어라|구하세요|계산하세요|구해보세요/.test(problemContent) ||
+            problemContent.includes('=') ||
+            problemContent.includes('?');
+          
+          // 순수 문제 형식이고, 길이가 적당하면 추가 (너무 길면 설명이 섞인 것)
+          if (isPureProbl && problemContent.length > 5 && problemContent.length < 500) {
+            extractedProblems.push({
+              number: parseInt(problemNumber),
+              content: problemContent,
+              hasAnswer: hasAnswer
+            });
+          }
+        });
       }
     });
 
