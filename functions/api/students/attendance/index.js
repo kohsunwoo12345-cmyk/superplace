@@ -24,7 +24,7 @@ export async function onRequestGet(context) {
 
     console.log('📊 Fetching attendance for student:', studentId);
 
-    // attendance_records_v3에서 조회 (문자열 비교만)
+    // attendance_records_v3에서 모든 기록 조회 후 JavaScript 필터링
     const result = await DB.prepare(`
       SELECT 
         id,
@@ -34,12 +34,15 @@ export async function onRequestGet(context) {
         status,
         academyId
       FROM attendance_records_v3
-      WHERE CAST(userId AS TEXT) = ?
       ORDER BY checkInTime DESC
-      LIMIT ?
-    `).bind(String(studentId), limit).all();
+      LIMIT 1000
+    `).all();
     
-    const records = result.results || [];
+    // JavaScript에서 필터링
+    const records = (result.results || [])
+      .filter(r => String(r.userId) === String(studentId))
+      .slice(0, limit);
+    
     console.log(`✅ Found ${records.length} records for student ${studentId}`);
     
     // 형식 변환
