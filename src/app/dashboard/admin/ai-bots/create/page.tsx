@@ -251,13 +251,28 @@ export default function CreateAIBotPage() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("token");
+    
+    console.log('🔍 페이지 로드 - localStorage 확인');
+    console.log('  user:', storedUser ? '존재' : '없음');
+    console.log('  token:', storedToken ? '존재' : '없음');
+    
     if (!storedUser) {
+      console.error('❌ user 없음 - 로그인 페이지로 이동');
+      router.push("/login");
+      return;
+    }
+
+    if (!storedToken) {
+      console.error('❌ token 없음 - 로그인 페이지로 이동');
+      alert('세션이 만료되었습니다. 다시 로그인해주세요.');
       router.push("/login");
       return;
     }
 
     const userData = JSON.parse(storedUser);
     setCurrentUser(userData);
+    console.log('✅ 사용자 정보 로드 완료:', userData.name, userData.role);
   }, [router]);
 
   useEffect(() => {
@@ -441,6 +456,10 @@ export default function CreateAIBotPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('📝 AI 봇 생성 시작');
+    console.log('  이름:', formData.name);
+    console.log('  시스템 프롬프트:', formData.systemPrompt.substring(0, 50) + '...');
+    
     if (!formData.name || !formData.systemPrompt) {
       alert("봇 이름과 시스템 프롬프트는 필수입니다.");
       return;
@@ -452,11 +471,29 @@ export default function CreateAIBotPage() {
       // localStorage에서 토큰 가져오기
       const token = localStorage.getItem("token");
       
+      console.log('🔑 토큰 확인:', token ? `존재 (${token.substring(0, 30)}...)` : '없음');
+      
       if (!token) {
+        console.error('❌ 토큰 없음');
         alert("로그인이 필요합니다. 다시 로그인해주세요.");
         router.push("/login");
         return;
       }
+
+      const requestBody = {
+        ...formData,
+        temperature: parseFloat(formData.temperature),
+        maxTokens: parseInt(formData.maxTokens),
+        topK: parseInt(formData.topK),
+        topP: parseFloat(formData.topP),
+      };
+      
+      console.log('📤 요청 데이터:', {
+        name: requestBody.name,
+        model: requestBody.model,
+        temperature: requestBody.temperature,
+        maxTokens: requestBody.maxTokens
+      });
 
       const response = await fetch("/api/admin/ai-bots", {
         method: "POST",
@@ -464,18 +501,16 @@ export default function CreateAIBotPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...formData,
-          temperature: parseFloat(formData.temperature),
-          maxTokens: parseInt(formData.maxTokens),
-          topK: parseInt(formData.topK),
-          topP: parseFloat(formData.topP),
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('📥 응답 상태:', response.status, response.statusText);
+      
       const data = await response.json();
+      console.log('📥 응답 데이터:', data);
       
       if (response.ok) {
+        console.log('✅ 봇 생성 성공:', data.botId);
         alert("✨ AI Gem이 생성되었습니다!");
         router.push("/dashboard/admin/ai-bots");
       } else {
