@@ -59,6 +59,18 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
+    // 방어적 체크: attendanceCodeRecord가 유효한지 확인
+    if (!attendanceCodeRecord || !attendanceCodeRecord.userId) {
+      console.error('❌ Invalid attendance code record:', attendanceCodeRecord);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "출석 코드 정보가 올바르지 않습니다" 
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     console.log('✅ Code found!', {
       userId: attendanceCodeRecord.userId,
       isActive: attendanceCodeRecord.isActive,
