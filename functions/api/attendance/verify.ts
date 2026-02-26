@@ -19,26 +19,29 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
   try {
     const body = await request.json();
-    const { code, classId } = body;
+    const { code, attendanceCode, classId } = body;
+    
+    // code 또는 attendanceCode 둘 다 허용
+    const verifyCode = code || attendanceCode;
 
-    if (!code) {
+    if (!verifyCode) {
       return new Response(
         JSON.stringify({ success: false, error: "출석 코드를 입력해주세요" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    console.log('🔍 Verifying attendance code:', code);
+    console.log('🔍 Verifying attendance code:', verifyCode);
 
     // 1. 출석 코드로 학생 찾기 - 모든 필드 조회
-    const attendanceCode = await DB.prepare(`
+    const attendanceCodeRecord = await DB.prepare(`
       SELECT * FROM student_attendance_codes WHERE code = ?
-    `).bind(code).first();
+    `).bind(verifyCode).first();
 
-    console.log('📋 Code lookup result:', JSON.stringify(attendanceCode));
+    console.log('📋 Code lookup result:', JSON.stringify(attendanceCodeRecord));
 
-    if (!attendanceCode) {
-      console.error('❌ Code not found in database:', code);
+    if (!attendanceCodeRecord) {
+      console.error('❌ Code not found in database:', verifyCode);
       
       // 데이터베이스에 코드가 있는지 전체 확인
       const allCodes = await DB.prepare(`
@@ -62,7 +65,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       isActiveType: typeof attendanceCode.isActive
     });
 
-    const userId = attendanceCode.userId;
+    const userId = attendanceCodeRecord.userId;
 
     // 2. 학생 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
     let student = await DB.prepare(`
@@ -95,7 +98,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     }
 
     // isActive 값 확인 - users 테이블에서 찾았으면 무조건 허용
-    const isActiveValue = attendanceCode.isActive;
+    const isActiveValue = attendanceCodeRecord.isActive;
     const isActive = foundInUsersTable || // users 테이블에서 찾았으면 허용
                     isActiveValue === 1 || 
                     isActiveValue === "1" || 
@@ -106,7 +109,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     console.log('🔐 isActive check:', { original: isActiveValue, result: isActive, foundInUsersTable });
     
     if (!isActive) {
-      console.error('❌ Code is inactive:', code, 'isActive value:', isActiveValue);
+      console.error('❌ Code is inactive:', verifyCode, 'isActive value:', isActiveValue);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -173,7 +176,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     `).bind(
       attendanceId,
       userId,
-      code,
+      verifyCode,
       currentTime,
       status,
       student.academyId || null
