@@ -1065,7 +1065,7 @@ export default function CreateAIBotPage() {
                         min="1"
                         max="100"
                         value={formData.topK}
-                        onChange={(e) => setFormData({ ...formData, topK: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, topK: e.target.value || "40" })}
                         className="mt-2"
                         required
                       />
@@ -1085,7 +1085,7 @@ export default function CreateAIBotPage() {
                         min="100"
                         max="100000"
                         value={formData.maxTokens}
-                        onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value || "2000" })}
                         className="mt-2"
                         required
                       />
