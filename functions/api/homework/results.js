@@ -78,10 +78,12 @@ export async function onRequestGet(context) {
       dateFilter = `AND SUBSTR(hs.submittedAt, 1, 10) = '${today}'`;
     }
 
-    // academyId 필터 (관리자가 아닌 경우)
+    // academyId 필터 (관리자가 아닌 경우) - DIRECTOR와 TEACHER는 자신의 학원 학생만 조회
     let academyFilter = '';
-    if (!isAdmin && academyId) {
-      academyFilter = `AND (u1.academyId = '${academyId}' OR u2.academyId = '${academyId}')`;
+    if (!isAdmin && academyId && (role === 'DIRECTOR' || role === 'TEACHER')) {
+      // TEXT 타입과 INTEGER 타입 모두 비교
+      academyFilter = `AND (CAST(u1.academyId AS TEXT) = '${academyId}' OR CAST(u2.academyId AS TEXT) = '${academyId}' OR u1.academyId = '${academyId}' OR u2.academyId = '${academyId}')`;
+      console.log('🔒 학원 필터 적용:', academyFilter);
     }
 
     // 숙제 제출 및 채점 결과 조회 - User와 users 테이블 모두 조회
@@ -118,6 +120,33 @@ export async function onRequestGet(context) {
 
     console.log(`✅ 조회 결과: ${results.length}건`);
 
+    // 각 제출에 대한 이미지 조회
+    const submissionIds = results.map(r => r.submissionId);
+    const imagesMap = {};
+    
+    if (submissionIds.length > 0) {
+      // 모든 제출의 이미지를 한 번에 조회
+      const placeholders = submissionIds.map(() => '?').join(',');
+      const imagesQuery = `
+        SELECT submissionId, imageData, imageIndex
+        FROM homework_images
+        WHERE submissionId IN (${placeholders})
+        ORDER BY submissionId, imageIndex
+      `;
+      
+      const imagesResult = await DB.prepare(imagesQuery).bind(...submissionIds).all();
+      
+      // submissionId별로 이미지 그룹화
+      for (const img of imagesResult.results || []) {
+        if (!imagesMap[img.submissionId]) {
+          imagesMap[img.submissionId] = [];
+        }
+        imagesMap[img.submissionId].push(img.imageData);
+      }
+      
+      console.log(`📷 이미지 조회 완료: ${Object.keys(imagesMap).length}개 제출에 대한 이미지`);
+    }
+
     // 통계 계산
     const totalSubmissions = results.length;
     const gradedCount = results.filter(r => r.gradingId).length;
@@ -136,6 +165,8 @@ export async function onRequestGet(context) {
       submittedAt: r.submittedAt,
       code: r.code,
       imageUrl: r.imageUrl,
+      images: imagesMap[r.submissionId] || [], // 실제 이미지 데이터 배열
+      imageCount: (imagesMap[r.submissionId] || []).length,
       grading: r.gradingId ? {
         id: r.gradingId,
         score: r.score,
