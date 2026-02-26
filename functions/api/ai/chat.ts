@@ -37,8 +37,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // Gemini API 호출
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
+    // Gemini API 호출 - 모델에 따라 적절한 API 버전 선택
+    const isBetaModel = model.includes('2.0') || model.includes('2.5') || 
+                        model.includes('3-') || model.includes('exp') || 
+                        model.includes('thinking');
+    const apiVersion = isBetaModel ? 'v1beta' : 'v1';
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
 
     const requestBody = {
       contents: [
