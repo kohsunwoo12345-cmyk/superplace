@@ -187,9 +187,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 각 요금제별 구독 중인 학원 수 조회 - user_subscriptions 테이블 사용
     const statsPromises = plans.map(async (plan: any) => {
       const result = await DB.prepare(`
-        SELECT COUNT(DISTINCT academyId) as count
+        SELECT COUNT(DISTINCT userId) as count
         FROM user_subscriptions
-        WHERE planId = ? AND isActive = 1
+        WHERE planId = ? AND status = 'active'
       `).bind(plan.id).first();
 
       return {
