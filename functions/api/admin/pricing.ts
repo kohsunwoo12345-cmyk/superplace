@@ -32,34 +32,25 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const url = new URL(context.request.url);
     const id = url.searchParams.get("id");
 
-    // 요금제 테이블이 없으면 생성
-    try {
-      await DB.prepare(`
-        CREATE TABLE IF NOT EXISTS pricing_plans (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          description TEXT,
-          monthlyPrice REAL NOT NULL,
-          yearlyPrice REAL NOT NULL,
-          maxStudents INTEGER DEFAULT 10,
-          maxTeachers INTEGER DEFAULT 2,
-          features TEXT,
-          isPopular INTEGER DEFAULT 0,
-          isActive INTEGER DEFAULT 1,
-          htmlContent TEXT,
-          createdAt TEXT DEFAULT (datetime('now')),
-          updatedAt TEXT DEFAULT (datetime('now'))
-        )
-      `).run();
-      console.log("✅ Pricing plans table checked/created");
-    } catch (e) {
-      console.log("⚠️ Pricing plans table already exists or error:", e);
-    }
-
-    // 특정 요금제 조회
+    // 특정 요금제 조회 - 새 구독 시스템 사용
     if (id) {
       const plan = await DB.prepare(`
-        SELECT * FROM pricing_plans WHERE id = ?
+        SELECT 
+          id,
+          name,
+          description,
+          price_1month as monthlyPrice,
+          price_12month as yearlyPrice,
+          maxStudents,
+          maxHomeworkChecks,
+          maxAIAnalysis,
+          maxSimilarProblems,
+          maxLandingPages,
+          isActive,
+          createdAt,
+          updatedAt
+        FROM pricing_plans 
+        WHERE id = ?
       `).bind(id).first();
 
       if (!plan) {
@@ -72,11 +63,44 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         });
       }
 
+      // 기능 목록 생성
+      const features = [];
+      if (plan.maxStudents === -1) {
+        features.push('무제한 학생 등록');
+      } else {
+        features.push(`최대 ${plan.maxStudents}명의 학생 관리`);
+      }
+      
+      if (plan.maxHomeworkChecks === -1) {
+        features.push('무제한 숙제 검사');
+      } else {
+        features.push(`월 ${plan.maxHomeworkChecks}회 숙제 검사`);
+      }
+      
+      if (plan.maxAIAnalysis === -1) {
+        features.push('무제한 AI 역량 분석');
+      } else {
+        features.push(`월 ${plan.maxAIAnalysis}회 AI 역량 분석`);
+      }
+      
+      if (plan.maxSimilarProblems === -1) {
+        features.push('무제한 유사문제 출제');
+      } else {
+        features.push(`월 ${plan.maxSimilarProblems}회 유사문제 출제`);
+      }
+      
+      if (plan.maxLandingPages === -1) {
+        features.push('무제한 랜딩페이지 제작');
+      } else {
+        features.push(`최대 ${plan.maxLandingPages}개 랜딩페이지`);
+      }
+
       return new Response(JSON.stringify({
         success: true,
         plan: {
           ...plan,
-          features: plan.features ? JSON.parse(plan.features) : []
+          features: features,
+          maxTeachers: 10
         }
       }), {
         status: 200,
@@ -84,23 +108,91 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 모든 요금제 조회
+    // 모든 요금제 조회 - 새 구독 시스템 테이블 사용
     const plansResult = await DB.prepare(`
-      SELECT * FROM pricing_plans ORDER BY monthlyPrice ASC
+      SELECT 
+        id,
+        name,
+        description,
+        price_1month as monthlyPrice,
+        price_6month / 6 as monthlyPrice6,
+        price_12month / 12 as monthlyPrice12,
+        price_6month as price6month,
+        price_12month as price12month,
+        maxStudents,
+        maxHomeworkChecks,
+        maxAIAnalysis,
+        maxSimilarProblems,
+        maxLandingPages,
+        isActive,
+        createdAt,
+        updatedAt
+      FROM pricing_plans 
+      WHERE isActive = 1
+      ORDER BY price_1month ASC
     `).all();
 
-    const plans = (plansResult.results || []).map((plan: any) => ({
-      ...plan,
-      features: plan.features ? JSON.parse(plan.features) : []
-    }));
+    const plans = (plansResult.results || []).map((plan: any) => {
+      // 기능 목록을 동적으로 생성
+      const features = [];
+      
+      if (plan.maxStudents === -1) {
+        features.push('무제한 학생 등록');
+      } else {
+        features.push(`최대 ${plan.maxStudents}명의 학생 관리`);
+      }
+      
+      if (plan.maxHomeworkChecks === -1) {
+        features.push('무제한 숙제 검사');
+      } else {
+        features.push(`월 ${plan.maxHomeworkChecks}회 숙제 검사`);
+      }
+      
+      if (plan.maxAIAnalysis === -1) {
+        features.push('무제한 AI 역량 분석');
+      } else {
+        features.push(`월 ${plan.maxAIAnalysis}회 AI 역량 분석`);
+      }
+      
+      if (plan.maxSimilarProblems === -1) {
+        features.push('무제한 유사문제 출제');
+      } else {
+        features.push(`월 ${plan.maxSimilarProblems}회 유사문제 출제`);
+      }
+      
+      if (plan.maxLandingPages === -1) {
+        features.push('무제한 랜딩페이지 제작');
+      } else {
+        features.push(`최대 ${plan.maxLandingPages}개 랜딩페이지`);
+      }
 
-    // 각 요금제별 구독 중인 학원 수 조회
+      return {
+        id: plan.id,
+        name: plan.name,
+        description: plan.description || '',
+        monthlyPrice: plan.monthlyPrice || 0,
+        yearlyPrice: plan.price12month || 0,
+        maxStudents: plan.maxStudents,
+        maxTeachers: 10, // 기본값
+        features: features,
+        isPopular: plan.name === 'Pro' ? 1 : 0,
+        isActive: plan.isActive,
+        htmlContent: '',
+        // 추가 정보
+        maxHomeworkChecks: plan.maxHomeworkChecks,
+        maxAIAnalysis: plan.maxAIAnalysis,
+        maxSimilarProblems: plan.maxSimilarProblems,
+        maxLandingPages: plan.maxLandingPages,
+      };
+    });
+
+    // 각 요금제별 구독 중인 학원 수 조회 - user_subscriptions 테이블 사용
     const statsPromises = plans.map(async (plan: any) => {
       const result = await DB.prepare(`
-        SELECT COUNT(*) as count
-        FROM academy
-        WHERE subscriptionPlan = ? AND isActive = 1
-      `).bind(plan.name).first();
+        SELECT COUNT(DISTINCT academyId) as count
+        FROM user_subscriptions
+        WHERE planId = ? AND isActive = 1
+      `).bind(plan.id).first();
 
       return {
         planId: plan.id,
@@ -132,192 +224,44 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 };
 
-// 요금제 생성
+// 요금제 생성 - 새 구독 시스템으로 이동
+// 이제 /api/admin/pricing-plans POST를 사용하세요
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  try {
-    const { DB } = context.env;
-
-    if (!DB) {
-      return new Response(JSON.stringify({ error: "Database not configured" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const body = await context.request.json() as PricingPlan;
-
-    const { name, description, monthlyPrice, yearlyPrice, maxStudents, maxTeachers, features, isPopular, htmlContent } = body;
-
-    // 필수 필드 검증
-    if (!name || monthlyPrice === undefined || yearlyPrice === undefined) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: "Missing required fields: name, monthlyPrice, yearlyPrice"
-      }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    // features를 JSON 문자열로 변환
-    const featuresJson = Array.isArray(features) ? JSON.stringify(features) : features;
-
-    const result = await DB.prepare(`
-      INSERT INTO pricing_plans (name, description, monthlyPrice, yearlyPrice, maxStudents, maxTeachers, features, isPopular, htmlContent)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      name,
-      description || '',
-      monthlyPrice,
-      yearlyPrice,
-      maxStudents || 10,
-      maxTeachers || 2,
-      featuresJson,
-      isPopular ? 1 : 0,
-      htmlContent || ''
-    ).run();
-
-    return new Response(JSON.stringify({
-      success: true,
-      message: "Pricing plan created successfully",
-      planId: result.meta.last_row_id
-    }), {
-      status: 201,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error: any) {
-    console.error("❌ Create pricing plan error:", error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: "Failed to create pricing plan",
-      message: error.message,
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  return new Response(JSON.stringify({
+    success: false,
+    error: "This endpoint is deprecated",
+    message: "Please use /api/admin/pricing-plans POST instead",
+    newEndpoint: "/api/admin/pricing-plans"
+  }), {
+    status: 410,
+    headers: { "Content-Type": "application/json" },
+  });
 };
 
-// 요금제 수정
+// 요금제 수정 - 새 구독 시스템으로 이동
+// 이제 /api/admin/pricing-plans PUT을 사용하세요
 export const onRequestPut: PagesFunction<Env> = async (context) => {
-  try {
-    const { DB } = context.env;
-
-    if (!DB) {
-      return new Response(JSON.stringify({ error: "Database not configured" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const url = new URL(context.request.url);
-    const id = url.searchParams.get("id");
-
-    if (!id) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: "Missing plan ID"
-      }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const body = await context.request.json() as PricingPlan;
-
-    const { name, description, monthlyPrice, yearlyPrice, maxStudents, maxTeachers, features, isPopular, isActive, htmlContent } = body;
-
-    // features를 JSON 문자열로 변환
-    const featuresJson = Array.isArray(features) ? JSON.stringify(features) : features;
-
-    await DB.prepare(`
-      UPDATE pricing_plans
-      SET name = ?, description = ?, monthlyPrice = ?, yearlyPrice = ?, 
-          maxStudents = ?, maxTeachers = ?, features = ?, isPopular = ?, 
-          isActive = ?, htmlContent = ?, updatedAt = datetime('now')
-      WHERE id = ?
-    `).bind(
-      name,
-      description || '',
-      monthlyPrice,
-      yearlyPrice,
-      maxStudents || 10,
-      maxTeachers || 2,
-      featuresJson,
-      isPopular ? 1 : 0,
-      isActive ? 1 : 0,
-      htmlContent || '',
-      id
-    ).run();
-
-    return new Response(JSON.stringify({
-      success: true,
-      message: "Pricing plan updated successfully"
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error: any) {
-    console.error("❌ Update pricing plan error:", error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: "Failed to update pricing plan",
-      message: error.message,
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  return new Response(JSON.stringify({
+    success: false,
+    error: "This endpoint is deprecated",
+    message: "Please use /api/admin/pricing-plans PUT instead",
+    newEndpoint: "/api/admin/pricing-plans"
+  }), {
+    status: 410,
+    headers: { "Content-Type": "application/json" },
+  });
 };
 
-// 요금제 삭제
+// 요금제 삭제 - 새 구독 시스템으로 이동
+// 이제 /api/admin/pricing-plans DELETE를 사용하세요
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
-  try {
-    const { DB } = context.env;
-
-    if (!DB) {
-      return new Response(JSON.stringify({ error: "Database not configured" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const url = new URL(context.request.url);
-    const id = url.searchParams.get("id");
-
-    if (!id) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: "Missing plan ID"
-      }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    // 소프트 삭제 (isActive = 0)
-    await DB.prepare(`
-      UPDATE pricing_plans
-      SET isActive = 0, updatedAt = datetime('now')
-      WHERE id = ?
-    `).bind(id).run();
-
-    return new Response(JSON.stringify({
-      success: true,
-      message: "Pricing plan deleted successfully"
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error: any) {
-    console.error("❌ Delete pricing plan error:", error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: "Failed to delete pricing plan",
-      message: error.message,
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  return new Response(JSON.stringify({
+    success: false,
+    error: "This endpoint is deprecated",
+    message: "Please use /api/admin/pricing-plans DELETE instead",
+    newEndpoint: "/api/admin/pricing-plans"
+  }), {
+    status: 410,
+    headers: { "Content-Type": "application/json" },
+  });
 };
