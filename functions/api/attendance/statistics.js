@@ -108,12 +108,21 @@ export async function onRequestGet(context) {
     const uniqueUsers = [...new Set(thisMonthRecords.map(r => r.userId))];
     const monthAttendance = uniqueUsers.length;
 
-    // 5. 전체 학생 수 (간단하게)
+    // 5. 전체 학생 수 (academyId 필터링 포함)
     let totalStudents = 0;
     try {
-      const userCount = await DB.prepare(`SELECT COUNT(*) as count FROM User WHERE role = 'STUDENT'`).first();
-      const usersCount = await DB.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'STUDENT'`).first();
-      totalStudents = (userCount?.count || 0) + (usersCount?.count || 0);
+      if (role === 'SUPER_ADMIN' || role === 'ADMIN' || !academyId) {
+        // 전체 관리자는 모든 학생 조회
+        const userCount = await DB.prepare(`SELECT COUNT(*) as count FROM User WHERE role = 'STUDENT'`).first();
+        const usersCount = await DB.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'STUDENT'`).first();
+        totalStudents = (userCount?.count || 0) + (usersCount?.count || 0);
+      } else {
+        // 학원장/교사는 자기 학원 학생만
+        const userCount = await DB.prepare(`SELECT COUNT(*) as count FROM User WHERE role = 'STUDENT' AND academyId = ?`).bind(academyId).first();
+        const usersCount = await DB.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'STUDENT' AND CAST(academyId AS TEXT) = ?`).bind(String(academyId)).first();
+        totalStudents = (userCount?.count || 0) + (usersCount?.count || 0);
+      }
+      console.log("📊 Total students for academyId", academyId, ":", totalStudents);
     } catch (e) {
       console.error("Error counting students:", e);
       totalStudents = 0;
