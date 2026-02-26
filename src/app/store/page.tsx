@@ -323,7 +323,7 @@ const AIStorePage = () => {
                               <button 
                                 onClick={() => {
                                   setSelectedProduct(product);
-                                  setPurchaseDialogOpen(true);
+                                  setDetailDialogOpen(true);
                                 }}
                                 className="w-full bg-blue-600 text-white py-3 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors"
                               >
