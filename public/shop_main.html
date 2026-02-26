@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUPER PLACE | AI 쇼핑몰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #f3f4f6; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="flex justify-center min-h-screen">
+    <div class="w-full max-w-[448px] bg-white shadow-xl relative flex flex-col min-h-screen pb-[74px]">
+        <!-- 헤더 -->
+        <header class="fixed top-0 z-50 w-full max-w-[448px] bg-white border-b border-gray-200 shadow-sm h-12 flex items-center justify-between px-4">
+            <a href="/" class="p-2 -ml-2 text-gray-800 hover:text-green-600 transition text-xl font-bold">←</a>
+            <h1 class="font-bold text-base flex-1 text-center truncate px-2 text-gray-900">SUPER PLACE</h1>
+            <div class="w-10"></div>
+        </header>
+
+        <main class="pt-12 flex-1 bg-white">
+            <!-- 메인 이미지 -->
+            <div class="relative w-full bg-slate-100 border-b border-slate-200 overflow-hidden aspect-square">
+                <img src="data:image/webp;base64,UklGRoa0AABXRUJQVlA4WAoAAAAgAAAANwQANwQASUNDUMgBAAAAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADZWUDggmLIAADBwBJ0BKjgEOAQ+USSQRiOqqakjcFn5UAoJZ27YxXpC1agFyL9JvuBrjWJcTf13pD5AXzAM32k3/5/TU/VufP1yv0mFFk/+VP7/8Tb5n+X/0f7Bf279xvsW4z9EvXfer8hfvi0l+ec1foZ/I/2v93P8b/////9uv+r/h/zZ+dP3We4P/SP5p/kP7p/k//Z/le9B5lf6H/Zv95/e/36+X7+9/8T++fv/82/2M/7v+N/w/yAfzj+2/+X2wf+T7Jf+C/8nsF/yn+8/+31w/2q+F79qv/h/rPaO/+HsAegB1A/iP6+/r1/ff3D+mvnd+e/K/+8f+H3j7D3tZ/gPnTy59wOqD8y/FH53+/f4v/df4H9sPuZ9335Beu/zT/z/zS/yXyKfkP86/w391/bL+9/t59g0kfrr+N/4fUR9p/qv+o/xX+Y/8f+V+S77n/b/mB7/fvv+V/5n5r/QD/Tf67/uP75++H+N9s7/b+Vx+S/6f7XfAF/Kv7T/0/8B/p/2f+RX/j/zf+l/cv3l/on+a/8f+a/2vyJ/zb+0f8z/Cfvt+////+7//8e4/9yf/37pH7F//Ue4obu7u7u7u7u7Yj3fTuGpRz7u7u7u71Am7u71A//WYzrj5mFnBrYvRWjYzF5rg9SjKearEVS+pJRmwd6sWjn4owIaVVVVVVYQfoiIiIiH62YCVmZmZmZmZnDbiZUQLHfDNfqSxfMfq30ifvY6Nwu0Q47eOcNnhLW5CoNW6SqWX0Iitbu/zjqObBpmaIO8zTSqHkDpHIWZmaAg9s7u8ChkL2knYmyLFeG7I8DPf3Qc+aaZLSOpIRB/LG4PoGBfquU5pmethhsZTBugac1mc+n1Xn/Au0s0oQXiaE61I6TMy+qqoeRmYOjiKHldsAAAFwgb3f+K8wb+GRMdPZgzE+RCJ62Jko9n6zdCDTb4BlQs4jFGC3ikKuMORxOauf4fTrBYe4Ztu7xuIbTkiIi0O7u7u7xHeGz6W5WGD2n6X8jFKY+3cioqAczUCZt1UWIQAUu+5REH0ouO+xZSg94iRQrc6zD2mqDVVVVVVDyNLIFVO7s36JQgSg0Zr9pbX91zMbx/XQ8RXxiCjppT009BwwSenZzX+PBN0wnmldT/jKmWOoWKZPWgyltM7u+Hd3d2sjZ5LUEzazHg73lvCQIPYI4Qs84meZdDPyE+mO66SsqNKo6OfBe6e5dtvUvnynAPR/RgqlUcJAPdx4rH2hLZ5YFBMzMyzHfVoQIeCjV6MaRxoDLzT7aHRRuPbka1..." 
+                    class="w-full h-full object-cover"
+                    alt="상품 이미지">
+            </div>
+
+            <!-- 상품 정보 -->
+            <div class="p-5 border-b border-gray-100">
+                <div class="flex items-center gap-2 text-xs text-gray-500 mb-3">
+                    <span class="text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded">공식판매처</span>
+                    <span class="text-gray-300">|</span>
+                    <span>(주)우리는 슈퍼플레이스다</span>
+                </div>
+                <h1 class="text-xl font-bold leading-snug text-gray-900 mb-4">[상위노출] 스마트 플레이스 상위노출 진단 및 키워드 분석 봇</h1>
+                <div class="flex items-end gap-2 mb-3">
+                    <span class="text-red-500 font-bold text-3xl">65%</span>
+                    <span class="font-bold text-3xl text-gray-900">69,900<span class="text-xl font-normal">원</span></span>
+                </div>
+                <div class="text-gray-400 text-sm line-through mb-4">정가 199,000원</div>
+                <div class="flex flex-wrap gap-2">
+                    <span class="px-2 py-1 rounded border border-gray-200 bg-gray-50 text-xs font-medium text-gray-600">무이자할부</span>
+                    <span class="px-2 py-1 rounded border border-green-200 bg-green-50 text-xs font-bold text-green-600">업계최초 기능</span>
+                    <span class="px-2 py-1 rounded border border-blue-200 bg-blue-50 text-xs font-bold text-blue-600">평생무료업데이트</span>
+                </div>
+            </div>
+
+            <!-- 배송/혜택 정보 -->
+            <div class="p-5 border-b border-gray-100 text-sm">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="text-gray-400 w-16 flex-shrink-0">배송</span>
+                    <span class="text-gray-800 font-medium">결제 즉시 문자 발송 (디지털 상품)</span>
+                </div>
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="text-gray-400 w-16 flex-shrink-0">혜택</span>
+                    <span class="text-gray-800">평생 무료 업데이트 지원</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-gray-400 w-16 flex-shrink-0">문의</span>
+                    <span class="text-green-600 font-medium">010-8739-9697</span>
+                </div>
+            </div>
+
+            <!-- 간단한 설명 -->
+            <div class="p-5 bg-gray-50">
+                <h3 class="font-bold text-gray-900 mb-3">이런 분들께 추천합니다</h3>
+                <ul class="space-y-2 text-sm text-gray-600">
+                    <li class="flex items-start gap-2">
+                        <span class="text-green-600 mt-0.5">✓</span>
+                        <span>네이버 플레이스 순위를 올리고 싶은 사장님</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-green-600 mt-0.5">✓</span>
+                        <span>비싼 마케팅 대행사 비용이 부담되는 분</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-green-600 mt-0.5">✓</span>
+                        <span>AI 기술로 빠르고 정확한 진단을 받고 싶은 분</span>
+                    </li>
+                </ul>
+            </div>
+        </main>
+
+        <!-- 하단 고정 버튼 -->
+        <div class="fixed bottom-0 z-50 w-full max-w-[448px] bg-white border-t border-gray-200 p-3 flex gap-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <button onclick="if(navigator.share){navigator.share({title:'SUPER PLACE',text:'스마트 플레이스 상위노출 진단 솔루션',url:window.location.href})}else{alert('공유하기가 지원되지 않는 브라우저입니다.')}" 
+                class="w-12 h-12 border border-gray-300 rounded-lg flex items-center justify-center text-gray-500 bg-white hover:bg-gray-50 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+            </button>
+            <!-- 자세히보기 버튼으로 변경 -->
+            <a href="./product_detail.html" class="flex-1 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold text-lg rounded-lg flex items-center justify-center shadow-lg hover:from-green-700 hover:to-green-600 transition">
+                자세히보기
+            </a>
+        </div>
+    </div>
+</body>
+</html>
