@@ -1,4 +1,4 @@
-// 출석 통계 API - 완전 재작성 (바인딩 없음)
+// 출석 통계 API - 초간단 버전
 function getKoreanDate() {
   const now = new Date();
   const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
@@ -24,7 +24,7 @@ export async function onRequestGet(context) {
     const role = url.searchParams.get("role");
     const academyId = url.searchParams.get("academyId");
 
-    console.log("📊 Stats API v2:", { userId, role, academyId });
+    console.log("📊 Statistics API - Simple version:", { userId, role, academyId });
 
     if (!DB) {
       return new Response(JSON.stringify({ error: "Database not configured" }), {
@@ -38,72 +38,55 @@ export async function onRequestGet(context) {
 
     // 학생용
     if (role === "STUDENT") {
-      try {
-        const allMyAttendance = await DB.prepare(`
-          SELECT substr(checkInTime, 1, 10) as date, status, userId
-          FROM attendance_records_v3
-          WHERE substr(checkInTime, 1, 7) = '${thisMonth}'
-        `).all();
+      // 모든 기록 가져온 후 JavaScript에서 필터링
+      const allMyAttendance = await DB.prepare(`
+        SELECT substr(checkInTime, 1, 10) as date, status, userId
+        FROM attendance_records_v3
+        WHERE substr(checkInTime, 1, 7) = '${thisMonth}'
+      `).all();
 
-        const calendarData = {};
-        if (allMyAttendance.results) {
-          allMyAttendance.results
-            .filter(r => String(r.userId) === String(userId))
-            .forEach(r => {
-              if (!calendarData[r.date]) calendarData[r.date] = r.status;
-            });
-        }
-
-        return new Response(JSON.stringify({
-          success: true,
-          role: "STUDENT",
-          calendar: calendarData,
-          attendanceDays: Object.keys(calendarData).length,
-          thisMonth: thisMonth,
-        }), { status: 200, headers: { "Content-Type": "application/json" } });
-      } catch (e) {
-        console.error("Student stats error:", e);
-        return new Response(JSON.stringify({
-          success: true,
-          role: "STUDENT",
-          calendar: {},
-          attendanceDays: 0,
-          thisMonth: thisMonth,
-        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      const calendarData = {};
+      if (allMyAttendance.results) {
+        allMyAttendance.results
+          .filter(r => String(r.userId) === String(userId))
+          .forEach(r => {
+            if (!calendarData[r.date]) calendarData[r.date] = r.status;
+          });
       }
+
+      return new Response(JSON.stringify({
+        success: true,
+        role: "STUDENT",
+        calendar: calendarData,
+        attendanceDays: Object.keys(calendarData).length,
+        thisMonth: thisMonth,
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
 
     // 선생님/학원장/관리자용
-    let records = [];
-    let allUsers = [];
-    
-    try {
-      // 1. 전체 출석 기록 조회
-      const allRecords = await DB.prepare(`
-        SELECT id, userId, code, checkInTime, status, academyId
-        FROM attendance_records_v3
-        ORDER BY checkInTime DESC
-        LIMIT 200
-      `).all();
+    // 1. 전체 출석 기록 (academyId 필터링 없이 일단 모두 가져오기)
+    const allRecords = await DB.prepare(`
+      SELECT id, userId, code, checkInTime, status, academyId
+      FROM attendance_records_v3
+      ORDER BY checkInTime DESC
+      LIMIT 100
+    `).all();
 
-      records = allRecords.results || [];
-      console.log("📊 Total attendance records:", records.length);
+    console.log("📊 Total records in DB:", allRecords.results?.length || 0);
 
-      // academyId로 필터링 (JavaScript에서)
-      if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && academyId) {
-        records = records.filter(r => String(r.academyId) === String(academyId));
-        console.log("📊 Filtered for academy", academyId, ":", records.length);
-      }
-    } catch (e) {
-      console.error("Error fetching attendance:", e);
+    // academyId로 필터링 (JavaScript에서)
+    let records = allRecords.results || [];
+    if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && academyId) {
+      records = records.filter(r => r.academyId === academyId);
+      console.log("📊 Filtered records for academyId", academyId, ":", records.length);
     }
 
+    // 2. 사용자 정보 추가 - 한 번에 모든 사용자 조회 후 맵핑
+    let allUsers = [];
     try {
-      // 2. 모든 사용자 조회
-      const userResults = await DB.prepare(`SELECT id, name, email, role, academyId FROM User`).all();
-      const usersResults = await DB.prepare(`SELECT id, name, email, role, academyId FROM users`).all();
+      const userResults = await DB.prepare(`SELECT id, name, email FROM User`).all();
+      const usersResults = await DB.prepare(`SELECT id, name, email FROM users`).all();
       allUsers = [...(userResults.results || []), ...(usersResults.results || [])];
-      console.log("📊 Total users loaded:", allUsers.length);
     } catch (e) {
       console.error("Error fetching users:", e);
     }
@@ -113,9 +96,8 @@ export async function onRequestGet(context) {
       userMap[u.id] = u;
     });
     
-    // 3. 사용자 정보와 결합
     const enrichedRecords = [];
-    for (const record of records.slice(0, 20)) {
+    for (const record of records.slice(0, 20)) { // 상위 20개만
       const user = userMap[record.userId];
       if (user) {
         enrichedRecords.push({
@@ -129,38 +111,52 @@ export async function onRequestGet(context) {
       }
     }
 
-    // 4. 오늘 출석 수
-    const todayRecords = records.filter(r => r.checkInTime && r.checkInTime.substring(0, 10) === today);
+    // 3. 오늘 출석 수
+    const todayRecords = records.filter(r => r.checkInTime?.substring(0, 10) === today);
     const todayAttendance = todayRecords.length;
 
-    // 5. 이번 달 출석한 학생 수
-    const thisMonthRecords = records.filter(r => r.checkInTime && r.checkInTime.substring(0, 7) === thisMonth);
+    // 4. 이번 달 출석한 학생 수
+    const thisMonthRecords = records.filter(r => r.checkInTime?.substring(0, 7) === thisMonth);
     const uniqueUsers = [...new Set(thisMonthRecords.map(r => r.userId))];
     const monthAttendance = uniqueUsers.length;
 
-    // 6. 전체 학생 수
+    // 5. 전체 학생 수 (JavaScript에서 직접 카운트)
     let totalStudents = 0;
-    const students = allUsers.filter(u => u.role === 'STUDENT');
-    
-    if (role === 'SUPER_ADMIN' || role === 'ADMIN' || !academyId) {
-      totalStudents = students.length;
-    } else {
-      totalStudents = students.filter(s => String(s.academyId) === String(academyId)).length;
+    try {
+      if (role === 'SUPER_ADMIN' || role === 'ADMIN' || !academyId) {
+        // 전체 관리자는 모든 학생 조회
+        const userResults = await DB.prepare(`SELECT id FROM User WHERE role = 'STUDENT'`).all();
+        const usersResults = await DB.prepare(`SELECT id FROM users WHERE role = 'STUDENT'`).all();
+        totalStudents = (userResults.results?.length || 0) + (usersResults.results?.length || 0);
+      } else {
+        // 학원장/교사는 자기 학원 학생만 (JavaScript 필터링)
+        const userResults = await DB.prepare(`SELECT id, academyId FROM User WHERE role = 'STUDENT'`).all();
+        const usersResults = await DB.prepare(`SELECT id, academyId FROM users WHERE role = 'STUDENT'`).all();
+        
+        const userFiltered = (userResults.results || []).filter(u => String(u.academyId) === String(academyId));
+        const usersFiltered = (usersResults.results || []).filter(u => String(u.academyId) === String(academyId));
+        
+        totalStudents = userFiltered.length + usersFiltered.length;
+      }
+      console.log("📊 Total students for academyId", academyId, ":", totalStudents);
+    } catch (e) {
+      console.error("Error counting students:", e);
+      totalStudents = 0;
     }
-    
-    console.log("📊 Total students:", totalStudents);
 
     const attendanceRate = totalStudents > 0 ? Math.round((todayAttendance / totalStudents) * 100) : 0;
 
-    // 7. 주간 데이터
+    // 6. 주간 데이터 (간단하게)
     const weeklyData = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const count = records.filter(r => r.checkInTime && r.checkInTime.substring(0, 10) === dateStr).length;
+      const count = records.filter(r => r.checkInTime?.substring(0, 10) === dateStr).length;
       weeklyData.push({ date: dateStr, count: count });
     }
+
+    console.log("📊 Stats:", { totalStudents, todayAttendance, monthAttendance, recordCount: records.length });
 
     return new Response(JSON.stringify({
       success: true,
@@ -182,7 +178,7 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify({
       error: "Failed to fetch attendance statistics",
       message: error.message,
-      details: error.toString(),
+      stack: error.stack,
     }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 }
