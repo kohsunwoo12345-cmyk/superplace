@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import Link from 'next/link';
 
 interface Product {
@@ -14,6 +14,8 @@ interface Product {
   imageUrl: string;
   keywords: string[];
   featured?: boolean;
+  rating?: number;        // 평균 별점 (0-5)
+  reviewCount?: number;   // 리뷰 개수
 }
 
 const AIStorePage = () => {
@@ -391,6 +393,26 @@ const AIStorePage = () => {
                     {/* 컨텐츠 영역 - 중간 */}
                     <div className="p-4 flex-grow flex flex-col">
                       <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
+                      
+                      {/* 별점 */}
+                      <div className="flex items-center gap-1 mb-2">
+                        <div className="flex items-center">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`w-4 h-4 ${
+                                star <= Math.round(product.rating || 0)
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs text-gray-600">
+                          {product.rating?.toFixed(1) || '0.0'} ({product.reviewCount || 0})
+                        </span>
+                      </div>
+                      
                       <p className="text-sm text-gray-600 mb-4 flex-grow line-clamp-2">{product.description}</p>
                       
                       {/* 가격 및 버튼 영역 - 하단 */}

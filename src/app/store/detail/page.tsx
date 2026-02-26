@@ -28,6 +28,8 @@ interface Product {
   detailHtml?: string;
   features?: string;
   keywords?: string;
+  rating?: number;        // 평균 별점 (0-5)
+  reviewCount?: number;   // 리뷰 개수
 }
 
 function ProductDetailPageContent() {
@@ -200,7 +202,29 @@ function ProductDetailPageContent() {
           )}
 
           {/* Product Name */}
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">{product.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{product.name}</h1>
+
+          {/* Rating */}
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  className={`w-5 h-5 ${
+                    star <= Math.round(product.rating || 0)
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : 'text-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-sm font-medium text-gray-700">
+              {product.rating?.toFixed(1) || '0.0'}
+            </span>
+            <span className="text-sm text-gray-500">
+              ({product.reviewCount || 0}개 리뷰)
+            </span>
+          </div>
 
           {/* Price Section */}
           <div className="mb-4">
