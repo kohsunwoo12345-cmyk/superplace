@@ -217,9 +217,9 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // 5. 반 정보 조회하여 출석 시간 기준 확인
     let status = 'PRESENT'; // 기본값
-    let classStartTime = '09:00'; // 기본 수업 시작 시간
 
     if (student.classId) {
+      // 반에 배정된 학생만 시간 비교
       const classInfo = await DB.prepare(`
         SELECT id, name, startTime 
         FROM classes 
@@ -227,22 +227,26 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       `).bind(student.classId).first();
 
       if (classInfo && classInfo.startTime) {
-        classStartTime = classInfo.startTime as string;
+        const classStartTime = classInfo.startTime as string;
         console.log('📚 반 정보:', classInfo.name, '시작 시간:', classStartTime);
+        
+        // 현재 시간과 수업 시작 시간 비교
+        const currentHHMM = kstDate.toTimeString().substring(0, 5); // HH:MM 형식
+        console.log('⏰ 현재 시간:', currentHHMM, '수업 시작:', classStartTime);
+
+        // 수업 시작 시간 이후면 지각
+        if (currentHHMM > classStartTime) {
+          status = 'LATE';
+          console.log('⚠️ 지각 처리:', currentHHMM, '>', classStartTime);
+        } else {
+          status = 'PRESENT';
+          console.log('✅ 출석 처리:', currentHHMM, '<=', classStartTime);
+        }
+      } else {
+        console.log('ℹ️ 반 시작 시간이 없어 기본 출석 처리');
       }
-    }
-
-    // 현재 시간과 수업 시작 시간 비교
-    const currentHHMM = kstDate.toTimeString().substring(0, 5); // HH:MM 형식
-    console.log('⏰ 현재 시간:', currentHHMM, '수업 시작:', classStartTime);
-
-    // 수업 시작 시간 이후면 지각
-    if (currentHHMM > classStartTime) {
-      status = 'LATE';
-      console.log('⚠️ 지각 처리:', currentHHMM, '>', classStartTime);
     } else {
-      status = 'PRESENT';
-      console.log('✅ 출석 처리:', currentHHMM, '<=', classStartTime);
+      console.log('ℹ️ 반 배정 없음 - 기본 출석 처리');
     }
 
     // 6. 출석 기록 생성 (attendance_records_v3에 저장)
