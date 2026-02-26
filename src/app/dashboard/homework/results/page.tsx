@@ -220,7 +220,22 @@ export default function TeacherHomeworkResultsPage() {
 
       if (data.success) {
         // API는 results를 반환하므로 results를 submissions로 설정
-        setSubmissions(data.results || []);
+        // grading 정보를 최상위 레벨로 끌어올림
+        const formattedResults = (data.results || []).map((result: any) => ({
+          ...result,
+          id: result.submissionId,
+          // grading 정보를 최상위로 복사
+          score: result.grading?.score || 0,
+          feedback: result.grading?.feedback || '',
+          subject: result.grading?.subject || '미지정',
+          completion: result.grading?.completion || 'pending',
+          effort: result.grading?.effort || 'submitted',
+          gradedAt: result.grading?.gradedAt || null,
+          // 원본 grading도 유지
+          grading: result.grading
+        }));
+        
+        setSubmissions(formattedResults);
         setStats(data.statistics ? {
           totalSubmissions: data.statistics.total || 0,
           averageScore: data.statistics.averageScore || 0,

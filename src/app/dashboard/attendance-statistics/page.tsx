@@ -353,11 +353,11 @@ export default function AttendanceStatisticsPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge variant={record.status === "VERIFIED" ? "default" : "secondary"}>
-                      {record.status === "VERIFIED" ? "출석" : record.status}
+                    <Badge variant={record.status === "PRESENT" || record.status === "VERIFIED" ? "default" : record.status === "LATE" ? "secondary" : "outline"}>
+                      {record.status === "PRESENT" ? "출석" : record.status === "LATE" ? "지각" : record.status}
                     </Badge>
                     <p className="text-xs text-gray-500 mt-1">
-                      {format(new Date(record.verifiedAt), "MM/dd HH:mm", { locale: ko })}
+                      {record.verifiedAt ? format(new Date(record.verifiedAt), "MM/dd HH:mm", { locale: ko }) : ''}
                     </p>
                   </div>
                 </div>
