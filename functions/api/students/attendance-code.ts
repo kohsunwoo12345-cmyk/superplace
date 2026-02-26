@@ -27,9 +27,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS student_attendance_codes (
         id TEXT PRIMARY KEY,
-        userId INTEGER NOT NULL UNIQUE,
+        userId TEXT NOT NULL UNIQUE,
         code TEXT NOT NULL UNIQUE,
-        academyId INTEGER,
+        academyId TEXT,
         isActive INTEGER DEFAULT 1,
         createdAt TEXT DEFAULT (datetime('now')),
         updatedAt TEXT DEFAULT (datetime('now'))

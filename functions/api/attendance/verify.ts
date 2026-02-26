@@ -130,11 +130,11 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       await DB.prepare(`
         CREATE TABLE IF NOT EXISTS attendance_records_v2 (
           id TEXT PRIMARY KEY,
-          userId INTEGER NOT NULL,
+          userId TEXT NOT NULL,
           code TEXT NOT NULL,
           checkInTime TEXT NOT NULL,
           status TEXT NOT NULL,
-          academyId INTEGER
+          academyId TEXT
         )
       `).run();
     } catch (createError) {
