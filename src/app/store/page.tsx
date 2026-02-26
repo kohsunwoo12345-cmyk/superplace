@@ -17,6 +17,7 @@ interface Product {
 }
 
 const AIStorePage = () => {
+  // Store page - 2026-02-26 update
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
