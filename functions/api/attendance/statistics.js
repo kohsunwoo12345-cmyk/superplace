@@ -108,19 +108,23 @@ export async function onRequestGet(context) {
     const uniqueUsers = [...new Set(thisMonthRecords.map(r => r.userId))];
     const monthAttendance = uniqueUsers.length;
 
-    // 5. 전체 학생 수 (academyId 필터링 포함)
+    // 5. 전체 학생 수 (JavaScript에서 직접 카운트)
     let totalStudents = 0;
     try {
       if (role === 'SUPER_ADMIN' || role === 'ADMIN' || !academyId) {
         // 전체 관리자는 모든 학생 조회
-        const userCount = await DB.prepare(`SELECT COUNT(*) as count FROM User WHERE role = 'STUDENT'`).first();
-        const usersCount = await DB.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'STUDENT'`).first();
-        totalStudents = (userCount?.count || 0) + (usersCount?.count || 0);
+        const userResults = await DB.prepare(`SELECT id FROM User WHERE role = 'STUDENT'`).all();
+        const usersResults = await DB.prepare(`SELECT id FROM users WHERE role = 'STUDENT'`).all();
+        totalStudents = (userResults.results?.length || 0) + (usersResults.results?.length || 0);
       } else {
-        // 학원장/교사는 자기 학원 학생만
-        const userCount = await DB.prepare(`SELECT COUNT(*) as count FROM User WHERE role = 'STUDENT' AND academyId = ?`).bind(academyId).first();
-        const usersCount = await DB.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'STUDENT' AND CAST(academyId AS TEXT) = ?`).bind(String(academyId)).first();
-        totalStudents = (userCount?.count || 0) + (usersCount?.count || 0);
+        // 학원장/교사는 자기 학원 학생만 (JavaScript 필터링)
+        const userResults = await DB.prepare(`SELECT id, academyId FROM User WHERE role = 'STUDENT'`).all();
+        const usersResults = await DB.prepare(`SELECT id, academyId FROM users WHERE role = 'STUDENT'`).all();
+        
+        const userFiltered = (userResults.results || []).filter(u => String(u.academyId) === String(academyId));
+        const usersFiltered = (usersResults.results || []).filter(u => String(u.academyId) === String(academyId));
+        
+        totalStudents = userFiltered.length + usersFiltered.length;
       }
       console.log("📊 Total students for academyId", academyId, ":", totalStudents);
     } catch (e) {
