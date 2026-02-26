@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, ChevronLeft, ChevronRight, Star, Sparkles, TrendingUp, Award } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Search, ChevronLeft, ChevronRight, Star, Sparkles, TrendingUp, Award, Grid3x3, List } from 'lucide-react';
 import Link from 'next/link';
 
 interface Product {
@@ -22,18 +22,12 @@ const AIStorePage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [sliderPositions, setSliderPositions] = useState<{ [key: string]: number }>({
-    section1: 0,
-    section2: 0,
-    section3: 0,
-  });
-  const [viewAll, setViewAll] = useState<{ [key: string]: boolean }>({
-    section1: false,
-    section2: false,
-    section3: false,
-  });
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  
+  // 각 섹션별 슬라이더 위치
+  const [sliderPositions, setSliderPositions] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -80,6 +74,24 @@ const AIStorePage = () => {
     loadProducts();
   }, []);
 
+  // 카테고리 목록
+  const categories = useMemo(() => {
+    const cats = [
+      { id: 'all', name: '전체', icon: Grid3x3 },
+      { id: '학원 운영', name: '학원 운영', icon: TrendingUp },
+      { id: '마케팅 & 블로그', name: '마케팅 & 블로그', icon: Sparkles },
+      { id: '전문가용', name: '전문가용', icon: Award },
+    ];
+    return cats;
+  }, []);
+
+  // 필터링된 상품
+  const filteredProducts = useMemo(() => {
+    if (selectedCategory === 'all') return products;
+    return products.filter(p => p.category === selectedCategory);
+  }, [products, selectedCategory]);
+
+  // 섹션별 상품 그룹
   const sections = useMemo(() => [
     {
       id: 'section1',
@@ -104,6 +116,29 @@ const AIStorePage = () => {
     },
   ], [products]);
 
+  // 자동 슬라이드
+  useEffect(() => {
+    const intervals: NodeJS.Timeout[] = [];
+    
+    sections.forEach(section => {
+      if (section.products.length > 1) {
+        const interval = setInterval(() => {
+          setSliderPositions(prev => {
+            const currentPos = prev[section.id] || 0;
+            const nextPos = (currentPos + 1) % section.products.length;
+            return { ...prev, [section.id]: nextPos };
+          });
+        }, 5000); // 5초마다 자동 슬라이드
+        
+        intervals.push(interval);
+      }
+    });
+
+    return () => {
+      intervals.forEach(interval => clearInterval(interval));
+    };
+  }, [sections]);
+
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (!query.trim()) {
@@ -124,23 +159,101 @@ const AIStorePage = () => {
 
   const moveSlider = (sectionId: string, direction: 'left' | 'right') => {
     const section = sections.find(s => s.id === sectionId);
-    if (!section) return;
+    if (!section || section.products.length === 0) return;
 
-    const currentPos = sliderPositions[sectionId] || 0;
-    let newPos = currentPos;
+    setSliderPositions(prev => {
+      const currentPos = prev[sectionId] || 0;
+      let newPos = currentPos;
 
-    if (direction === 'left') {
-      newPos = Math.max(0, currentPos - 1);
-    } else {
-      newPos = Math.min(section.products.length - 1, currentPos + 1);
-    }
+      if (direction === 'left') {
+        newPos = currentPos === 0 ? section.products.length - 1 : currentPos - 1;
+      } else {
+        newPos = (currentPos + 1) % section.products.length;
+      }
 
-    setSliderPositions(prev => ({ ...prev, [sectionId]: newPos }));
+      return { ...prev, [sectionId]: newPos };
+    });
   };
 
-  const toggleView = (sectionId: string) => {
-    setViewAll(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
-  };
+  const ProductCard = ({ product }: { product: Product }) => (
+    <div
+      className={`group bg-white rounded-2xl overflow-hidden transition-all hover:shadow-2xl ${
+        product.featured
+          ? 'ring-2 ring-blue-500 shadow-xl'
+          : 'border border-gray-200 hover:border-blue-300'
+      }`}
+    >
+      {/* Image */}
+      <div className="relative w-full pt-[75%] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+        {product.featured && (
+          <div className="absolute top-4 left-4 z-10">
+            <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
+              <Award className="w-3 h-3" />
+              BEST
+            </span>
+          </div>
+        )}
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          className="absolute top-0 left-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          onError={(e) => {
+            const target = e.currentTarget;
+            target.onerror = null;
+            target.src = 'https://placehold.co/400x300/e2e8f0/94a3b8?text=No+Image';
+          }}
+        />
+      </div>
+
+      {/* Content */}
+      <div className="p-6">
+        <h3 className="font-bold text-xl text-gray-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">
+          {product.name}
+        </h3>
+
+        {/* Rating */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                className={`w-4 h-4 ${
+                  star <= Math.round(product.rating || 0)
+                    ? 'fill-yellow-400 text-yellow-400'
+                    : 'text-gray-300'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-sm font-semibold text-gray-700">
+            {product.rating?.toFixed(1) || '0.0'}
+          </span>
+          <span className="text-xs text-gray-500">
+            ({product.reviewCount || 0}개 리뷰)
+          </span>
+        </div>
+
+        <p className="text-sm text-gray-600 mb-6 line-clamp-2 leading-relaxed">
+          {product.description}
+        </p>
+
+        {/* Price & Button */}
+        <div className="space-y-3">
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              {product.price}
+            </span>
+          </div>
+          <Link
+            href={`/store/detail?id=${product.id}`}
+            className="block w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl text-base font-bold hover:shadow-xl hover:scale-105 transition-all text-center"
+          >
+            자세히 보기
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -184,7 +297,6 @@ const AIStorePage = () => {
 
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">
-        {/* Animated background */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob"></div>
           <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob animation-delay-2000"></div>
@@ -282,11 +394,44 @@ const AIStorePage = () => {
         </div>
       </section>
 
+      {/* Category Filter */}
+      <div className="max-w-7xl mx-auto px-4 mb-8">
+        <div className="flex items-center gap-3 overflow-x-auto pb-2">
+          {categories.map((cat) => {
+            const Icon = cat.icon;
+            const count = cat.id === 'all' ? products.length : products.filter(p => p.category === cat.id).length;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap ${
+                  selectedCategory === cat.id
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span>{cat.name}</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs ${
+                  selectedCategory === cat.id
+                    ? 'bg-white/20'
+                    : 'bg-gray-100'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Products Sections */}
       <div className="max-w-7xl mx-auto px-4 py-12 space-y-16">
         {sections.map((section) => {
           const Icon = section.icon;
-          return section.products.length > 0 && (
+          const currentPos = sliderPositions[section.id] || 0;
+          
+          return section.products.length > 0 && (selectedCategory === 'all' || selectedCategory === section.products[0]?.category) && (
             <section key={section.id} className="relative">
               {/* Section Header */}
               <div className="flex items-center justify-between mb-8">
@@ -299,98 +444,58 @@ const AIStorePage = () => {
                     <p className="text-gray-600">{section.subtitle}</p>
                   </div>
                 </div>
-                {section.products.length > 3 && (
-                  <button
-                    onClick={() => toggleView(section.id)}
-                    className="px-6 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600 transition-all"
-                  >
-                    {viewAll[section.id] ? '접기' : `전체보기 (${section.products.length})`}
-                  </button>
-                )}
               </div>
 
-              {/* Products Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {(viewAll[section.id] ? section.products : section.products.slice(0, 3)).map((product) => (
-                  <div
-                    key={product.id}
-                    className={`group bg-white rounded-2xl overflow-hidden transition-all hover:shadow-2xl ${
-                      product.featured
-                        ? 'ring-2 ring-blue-500 shadow-xl'
-                        : 'border border-gray-200 hover:border-blue-300'
-                    }`}
+              {/* Slider Container */}
+              <div className="relative">
+                {/* Slider */}
+                <div className="overflow-hidden rounded-2xl">
+                  <div 
+                    className="flex transition-transform duration-500 ease-out"
+                    style={{ transform: `translateX(-${currentPos * 100}%)` }}
                   >
-                    {/* Image */}
-                    <div className="relative w-full pt-[75%] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-                      {product.featured && (
-                        <div className="absolute top-4 left-4 z-10">
-                          <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
-                            <Award className="w-3 h-3" />
-                            BEST
-                          </span>
-                        </div>
-                      )}
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="absolute top-0 left-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        onError={(e) => {
-                          const target = e.currentTarget;
-                          target.onerror = null;
-                          target.src = 'https://placehold.co/400x300/e2e8f0/94a3b8?text=No+Image';
-                        }}
-                      />
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-6">
-                      <h3 className="font-bold text-xl text-gray-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                        {product.name}
-                      </h3>
-
-                      {/* Rating */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="flex items-center gap-0.5">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                              key={star}
-                              className={`w-4 h-4 ${
-                                star <= Math.round(product.rating || 0)
-                                  ? 'fill-yellow-400 text-yellow-400'
-                                  : 'text-gray-300'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm font-semibold text-gray-700">
-                          {product.rating?.toFixed(1) || '0.0'}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          ({product.reviewCount || 0}개 리뷰)
-                        </span>
+                    {section.products.map((product) => (
+                      <div key={product.id} className="w-full flex-shrink-0 px-2">
+                        <ProductCard product={product} />
                       </div>
-
-                      <p className="text-sm text-gray-600 mb-6 line-clamp-2 leading-relaxed">
-                        {product.description}
-                      </p>
-
-                      {/* Price & Button */}
-                      <div className="space-y-3">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            {product.price}
-                          </span>
-                        </div>
-                        <Link
-                          href={`/store/detail?id=${product.id}`}
-                          className="block w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl text-base font-bold hover:shadow-xl hover:scale-105 transition-all text-center"
-                        >
-                          자세히 보기
-                        </Link>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                {/* Navigation Arrows */}
+                {section.products.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => moveSlider(section.id, 'left')}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full shadow-xl hover:bg-white transition-all flex items-center justify-center group"
+                    >
+                      <ChevronLeft className="w-6 h-6 text-gray-700 group-hover:text-blue-600" />
+                    </button>
+                    <button
+                      onClick={() => moveSlider(section.id, 'right')}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full shadow-xl hover:bg-white transition-all flex items-center justify-center group"
+                    >
+                      <ChevronRight className="w-6 h-6 text-gray-700 group-hover:text-blue-600" />
+                    </button>
+                  </>
+                )}
+
+                {/* Dots Indicator */}
+                {section.products.length > 1 && (
+                  <div className="flex justify-center gap-2 mt-6">
+                    {section.products.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSliderPositions(prev => ({ ...prev, [section.id]: idx }))}
+                        className={`transition-all rounded-full ${
+                          currentPos === idx
+                            ? 'w-8 h-3 bg-gradient-to-r from-blue-600 to-purple-600'
+                            : 'w-3 h-3 bg-gray-300 hover:bg-gray-400'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
           );
