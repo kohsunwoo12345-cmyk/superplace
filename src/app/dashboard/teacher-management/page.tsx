@@ -480,15 +480,6 @@ export default function TeacherManagementPage() {
       setLoading(false);
     }
   };
-        alert(`❌ 반 배정 실패\n\n${data.error || data.message || "알 수 없는 오류"}`);
-      }
-    } catch (error: any) {
-      console.error("반 배정 오류:", error);
-      alert(`❌ 오류 발생\n\n${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const togglePermission = (permissionId: string) => {
     setPermissionData(prev => 
