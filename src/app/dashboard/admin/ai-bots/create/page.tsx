@@ -1081,7 +1081,7 @@ export default function CreateAIBotPage() {
                       <Input
                         id="maxTokens"
                         type="number"
-                        step="1000"
+                        step="1"
                         min="100"
                         max="100000"
                         value={formData.maxTokens}
