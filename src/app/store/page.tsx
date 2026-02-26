@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import ProductDetailDialog from '@/components/ProductDetailDialog';
+import Link from 'next/link';
 
 interface Product {
   id: string;
@@ -33,8 +33,6 @@ const AIStorePage = () => {
   });
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   // API에서 제품 로드 (D1 database)
   useEffect(() => {
@@ -320,15 +318,12 @@ const AIStorePage = () => {
                             {/* 가격 및 버튼 영역 - 하단 */}
                             <div className="mt-auto">
                               <div className="text-2xl font-bold text-blue-600 mb-3">{product.price}</div>
-                              <button 
-                                onClick={() => {
-                                  setSelectedProduct(product);
-                                  setDetailDialogOpen(true);
-                                }}
-                                className="w-full bg-blue-600 text-white py-3 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors"
+                              <Link 
+                                href={`/store/detail?id=${product.id}`}
+                                className="block w-full bg-blue-600 text-white py-3 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors text-center"
                               >
                                 자세히보기
-                              </button>
+                              </Link>
                             </div>
                           </div>
                         </div>
@@ -401,15 +396,12 @@ const AIStorePage = () => {
                       {/* 가격 및 버튼 영역 - 하단 */}
                       <div className="mt-auto">
                         <div className="text-2xl font-bold text-blue-600 mb-3">{product.price}</div>
-                        <button 
-                          onClick={() => {
-                            setSelectedProduct(product);
-                            setDetailDialogOpen(true);
-                          }}
-                          className="w-full bg-blue-600 text-white py-3 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors"
+                        <Link 
+                          href={`/store/detail?id=${product.id}`}
+                          className="block w-full bg-blue-600 text-white py-3 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors text-center"
                         >
                           자세히보기
-                        </button>
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -427,18 +419,6 @@ const AIStorePage = () => {
           <p className="text-sm text-gray-400">© 2024 SUPER PLACE. All rights reserved.</p>
         </div>
       </footer>
-
-      {/* 상세 페이지 다이얼로그 */}
-      {selectedProduct && (
-        <ProductDetailDialog
-          open={detailDialogOpen}
-          onClose={() => {
-            setDetailDialogOpen(false);
-            setSelectedProduct(null);
-          }}
-          product={selectedProduct}
-        />
-      )}
     </div>
   );
 };

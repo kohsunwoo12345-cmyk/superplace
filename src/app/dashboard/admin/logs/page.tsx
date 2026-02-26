@@ -1,15 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Search, Filter, Download, AlertCircle, CheckCircle, Info, XCircle, UserPlus, LogIn, Bot, Users, CreditCard, Package } from "lucide-react";
+import { ClipboardList, Search, Filter, Download, AlertCircle, CheckCircle, Info, XCircle, UserPlus, LogIn, Bot, Users, CreditCard, Package, Eye } from "lucide-react";
 
 export default function LogsPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [levelFilter, setLevelFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [productViewLogs, setProductViewLogs] = useState<any[]>([]);
+  const [viewStats, setViewStats] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Load product view logs
+  useEffect(() => {
+    loadProductViewLogs();
+  }, []);
+
+  const loadProductViewLogs = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/product-view-logs', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setProductViewLogs(data.logs || []);
+        setViewStats(data.stats || null);
+      }
+    } catch (error) {
+      console.error('Failed to load product view logs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const logs = [
     {
@@ -111,6 +141,7 @@ export default function LogsPage() {
 
   const categories = [
     { id: "all", label: "전체", icon: ClipboardList },
+    { id: "상품조회", label: "상품조회", icon: Eye },
     { id: "회원가입", label: "회원가입", icon: UserPlus },
     { id: "로그인", label: "로그인", icon: LogIn },
     { id: "봇 할당", label: "봇 할당", icon: Bot },
@@ -120,7 +151,8 @@ export default function LogsPage() {
   ];
 
   const getCategoryStats = (category: string) => {
-    if (category === "all") return logs.length;
+    if (category === "all") return logs.length + productViewLogs.length;
+    if (category === "상품조회") return productViewLogs.length;
     return logs.filter(l => l.category === category).length;
   };
 
@@ -290,39 +322,140 @@ export default function LogsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {filteredLogs.map((log) => (
-              <div
-                key={log.id}
-                className="flex items-start gap-4 p-4 border rounded-lg hover:bg-gray-50"
-              >
-                <div className="mt-1">{getLevelIcon(log.level)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${getLevelColor(log.level)}`}>
-                      {log.level.toUpperCase()}
-                    </span>
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
-                      {log.category}
-                    </span>
-                    <span className="text-xs text-gray-500">{log.timestamp}</span>
+          {/* Product View Logs Section */}
+          {(categoryFilter === "all" || categoryFilter === "상품조회") && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Eye className="w-5 h-5" />
+                상품 조회 로그
+              </h3>
+              
+              {/* View Stats */}
+              {viewStats && (
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-600">총 조회수</div>
+                    <div className="text-2xl font-bold text-blue-600">{viewStats.totalViews}</div>
                   </div>
-                  <p className="font-medium text-sm">{log.action}</p>
-                  <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
-                    <span className="font-medium">사용자: {log.userName || log.user}</span>
-                    <span className="text-gray-400">({log.user})</span>
-                    <Badge variant="outline" className="text-xs">
-                      IP: {log.ip}
-                    </Badge>
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-600">고유 사용자</div>
+                    <div className="text-2xl font-bold text-green-600">{viewStats.uniqueUsers}</div>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{log.details}</p>
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-600">조회된 상품</div>
+                    <div className="text-2xl font-bold text-purple-600">{viewStats.uniqueProducts}</div>
+                  </div>
                 </div>
+              )}
+
+              {/* Top Products */}
+              {viewStats?.topProducts && viewStats.topProducts.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium mb-2">인기 상품</h4>
+                  <div className="space-y-2">
+                    {viewStats.topProducts.slice(0, 5).map((product: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <span className="text-sm">{product.productName}</span>
+                        <Badge>{product.viewCount}회</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {loading ? (
+                <div className="text-center py-8 text-gray-500">로딩 중...</div>
+              ) : (
+                <div className="space-y-2">
+                  {productViewLogs
+                    .filter(log => {
+                      if (search) {
+                        return JSON.stringify(log).toLowerCase().includes(search.toLowerCase());
+                      }
+                      return true;
+                    })
+                    .slice(0, 20)
+                    .map((log) => (
+                      <div
+                        key={log.id}
+                        className="flex items-start gap-4 p-4 border rounded-lg hover:bg-gray-50"
+                      >
+                        <div className="mt-1">
+                          <Eye className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                              상품조회
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(log.createdAt).toLocaleString('ko-KR')}
+                            </span>
+                          </div>
+                          <p className="font-medium text-sm">{log.productName} 조회</p>
+                          <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
+                            <span className="font-medium">
+                              사용자: {log.userName || log.userEmail || '익명'}
+                            </span>
+                            {log.userEmail && (
+                              <span className="text-gray-400">({log.userEmail})</span>
+                            )}
+                            <Badge variant="outline" className="text-xs">
+                              IP: {log.ipAddress}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+              {!loading && productViewLogs.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  아직 상품 조회 로그가 없습니다
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* System Logs Section */}
+          {categoryFilter !== "상품조회" && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">시스템 로그</h3>
+              <div className="space-y-2">
+                {filteredLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="flex items-start gap-4 p-4 border rounded-lg hover:bg-gray-50"
+                  >
+                    <div className="mt-1">{getLevelIcon(log.level)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${getLevelColor(log.level)}`}>
+                          {log.level.toUpperCase()}
+                        </span>
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                          {log.category}
+                        </span>
+                        <span className="text-xs text-gray-500">{log.timestamp}</span>
+                      </div>
+                      <p className="font-medium text-sm">{log.action}</p>
+                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
+                        <span className="font-medium">사용자: {log.userName || log.user}</span>
+                        <span className="text-gray-400">({log.user})</span>
+                        <Badge variant="outline" className="text-xs">
+                          IP: {log.ip}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{log.details}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          {filteredLogs.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              검색 결과가 없습니다
+              {filteredLogs.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  검색 결과가 없습니다
+                </div>
+              )}
             </div>
           )}
         </CardContent>
