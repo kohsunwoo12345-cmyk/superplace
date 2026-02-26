@@ -24,7 +24,7 @@ export async function onRequestGet(context) {
 
     console.log('📊 Fetching attendance for student:', studentId);
 
-    // attendance_records_v2에서 조회 (문자열 비교만)
+    // attendance_records_v3에서 조회 (문자열 비교만)
     const result = await DB.prepare(`
       SELECT 
         id,
@@ -33,7 +33,7 @@ export async function onRequestGet(context) {
         checkInTime,
         status,
         academyId
-      FROM attendance_records_v2
+      FROM attendance_records_v3
       WHERE CAST(userId AS TEXT) = ?
       ORDER BY checkInTime DESC
       LIMIT ?

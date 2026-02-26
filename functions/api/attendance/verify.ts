@@ -128,7 +128,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     // 출석 테이블 생성 (attendance_records_v2 사용)
     try {
       await DB.prepare(`
-        CREATE TABLE IF NOT EXISTS attendance_records_v2 (
+        CREATE TABLE IF NOT EXISTS attendance_records_v3 (
           id TEXT PRIMARY KEY,
           userId TEXT NOT NULL,
           code TEXT NOT NULL,
@@ -141,9 +141,9 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       console.warn('⚠️ Table already exists or creation failed');
     }
 
-    // 4. 오늘 이미 출석했는지 확인 (attendance_records_v2 사용)
+    // 4. 오늘 이미 출석했는지 확인 (attendance_records_v3 사용)
     const existingAttendance = await DB.prepare(`
-      SELECT id, status FROM attendance_records_v2
+      SELECT id, status FROM attendance_records_v3
       WHERE userId = ? AND SUBSTR(checkInTime, 1, 10) = ?
     `).bind(userId, today).first();
 
@@ -153,7 +153,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       console.log('⚠️ 중복 출석 허용: 기존 출석을 업데이트합니다.', existingAttendance);
       // 중복 출석 허용: 기존 레코드를 삭제하고 새로 생성
       await env.DB.prepare(`
-        DELETE FROM attendance_records_v2
+        DELETE FROM attendance_records_v3
         WHERE userId = ? AND SUBSTR(checkInTime, 1, 10) = ?
       `).bind(userId, today).run();
       console.log('✅ 기존 출석 레코드 삭제 완료');
@@ -163,11 +163,11 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     const hour = kstDate.getHours();
     const status = hour < 9 ? 'PRESENT' : 'LATE';
 
-    // 6. 출석 기록 생성 (attendance_records_v2에 저장)
+    // 6. 출석 기록 생성 (attendance_records_v3에 저장)
     const attendanceId = `attendance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     await DB.prepare(`
-      INSERT INTO attendance_records_v2 (
+      INSERT INTO attendance_records_v3 (
         id, userId, code, checkInTime, status, academyId
       ) VALUES (?, ?, ?, ?, ?, ?)
     `).bind(

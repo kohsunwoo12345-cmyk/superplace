@@ -40,7 +40,7 @@ export async function onRequestGet(context) {
     if (role === "STUDENT") {
       const myAttendance = await DB.prepare(`
         SELECT substr(checkInTime, 1, 10) as date, status
-        FROM attendance_records_v2
+        FROM attendance_records_v3
         WHERE CAST(userId AS TEXT) = ?
         AND substr(checkInTime, 1, 7) = ?
       `).bind(String(userId), thisMonth).all();
@@ -65,7 +65,7 @@ export async function onRequestGet(context) {
     // 1. 전체 출석 기록 (academyId 필터링 없이 일단 모두 가져오기)
     const allRecords = await DB.prepare(`
       SELECT id, userId, code, checkInTime, status, academyId
-      FROM attendance_records_v2
+      FROM attendance_records_v3
       ORDER BY checkInTime DESC
       LIMIT 100
     `).all();
