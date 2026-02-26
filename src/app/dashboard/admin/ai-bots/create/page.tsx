@@ -29,16 +29,9 @@ import {
 } from "lucide-react";
 
 const GEMINI_MODELS = [
-  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (추천)", description: "최신 2.0 실험 모델, 빠른 응답", recommended: true },
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash", description: "최신 2.5 Flash 모델, 향상된 성능", recommended: true },
-  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "최신 2.5 Pro 모델, 최고 성능", recommended: false },
-  { value: "gemini-exp-1206", label: "Gemini 3.1 Pro", description: "실험적 3.1 Pro 모델", recommended: false },
-  { value: "gemini-3-flash", label: "Gemini 3 Flash", description: "Gemini 3세대 고속 모델", recommended: false },
-  { value: "gemini-3-pro", label: "Gemini 3 Pro", description: "Gemini 3세대 프로 모델", recommended: false },
-  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash", description: "안정적인 빠른 모델", recommended: false },
-  { value: "gemini-1.5-flash-latest", label: "Gemini 1.5 Flash (Latest)", description: "최신 1.5 안정 버전", recommended: false },
-  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro", description: "고급 추론 능력, 복잡한 작업 최적", recommended: false },
-  { value: "gemini-1.5-pro-latest", label: "Gemini 1.5 Pro (Latest)", description: "최신 1.5 Pro 버전", recommended: false },
+  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (추천)", description: "최신 실험 모델, 빠른 응답", recommended: true },
+  { value: "gemini-1.5-flash-latest", label: "Gemini 1.5 Flash", description: "안정적인 빠른 모델", recommended: false },
+  { value: "gemini-1.5-pro-latest", label: "Gemini 1.5 Pro", description: "고급 추론 능력, 복잡한 작업에 최적", recommended: false },
   { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash-8B", description: "초고속, 비용 효율적", recommended: false },
 ];
 
@@ -1243,4 +1236,143 @@ export default function CreateAIBotPage() {
                             )}
                             {formData.starterMessage2 && (
                               <button
-                              
+                                type="button"
+                                onClick={() => handleStarterMessage(formData.starterMessage2)}
+                                className="block w-full text-left text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition"
+                                disabled={testLoading}
+                              >
+                                💬 {formData.starterMessage2}
+                              </button>
+                            )}
+                            {formData.starterMessage3 && (
+                              <button
+                                type="button"
+                                onClick={() => handleStarterMessage(formData.starterMessage3)}
+                                className="block w-full text-left text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition"
+                                disabled={testLoading}
+                              >
+                                💬 {formData.starterMessage3}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 채팅 메시지 */}
+                  <div className="max-h-96 overflow-y-auto space-y-3">
+                    {chatMessages.map((msg, idx) => (
+                      <div key={idx} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
+                        {msg.role === "assistant" && (
+                          <div className="text-2xl">{formData.profileIcon}</div>
+                        )}
+                        <div className={`flex-1 max-w-[85%] ${msg.role === "user" ? "text-right" : ""}`}>
+                          <div
+                            className={`rounded-lg p-3 ${
+                              msg.role === "user"
+                                ? "bg-blue-600 text-white ml-auto"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {msg.timestamp.toLocaleTimeString()}
+                          </p>
+                        </div>
+                        {msg.role === "user" && (
+                          <div className="text-2xl">👤</div>
+                        )}
+                      </div>
+                    ))}
+                    {testLoading && (
+                      <div className="flex gap-3">
+                        <div className="text-2xl">{formData.profileIcon}</div>
+                        <div className="bg-gray-100 rounded-lg p-3">
+                          <div className="flex gap-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* 입력 영역 */}
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        value={testMessage}
+                        onChange={(e) => setTestMessage(e.target.value)}
+                        placeholder="메시지를 입력하세요..."
+                        onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleTest()}
+                        disabled={testLoading || !formData.systemPrompt}
+                      />
+                      <Button
+                        type="button"
+                        onClick={() => handleTest()}
+                        disabled={testLoading || !formData.systemPrompt}
+                        size="icon"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {chatMessages.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearChat}
+                        className="w-full"
+                      >
+                        대화 초기화
+                      </Button>
+                    )}
+                  </div>
+
+                  {!formData.systemPrompt && (
+                    <p className="text-xs text-amber-600 text-center">
+                      ⚠️ 테스트하려면 먼저 시스템 프롬프트를 입력하세요
+                    </p>
+                  )}
+
+                  <div className="pt-3 border-t">
+                    <p className="text-xs text-gray-500">
+                      🔍 <strong>현재 모델:</strong> {GEMINI_MODELS.find(m => m.value === formData.model)?.label}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      🌡️ <strong>Temperature:</strong> {formData.temperature} | 
+                      <strong> Top-P:</strong> {formData.topP}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* 제출 버튼 */}
+        <div className="flex justify-end gap-3 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/dashboard/admin/ai-bots")}
+          >
+            취소
+          </Button>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            {loading ? "생성 중..." : "Gem 생성하기"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
