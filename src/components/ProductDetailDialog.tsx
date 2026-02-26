@@ -22,9 +22,10 @@ interface ProductDetailDialogProps {
   open: boolean;
   onClose: () => void;
   product: Product | null;
+  onPurchase?: () => void;
 }
 
-export default function ProductDetailDialog({ open, onClose, product }: ProductDetailDialogProps) {
+export default function ProductDetailDialog({ open, onClose, product, onPurchase }: ProductDetailDialogProps) {
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'detail' | 'reviews' | 'qna'>('detail');
 

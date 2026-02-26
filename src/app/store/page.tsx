@@ -33,7 +33,6 @@ const AIStorePage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   // API에서 제품 로드 (D1 database)
@@ -437,26 +436,6 @@ const AIStorePage = () => {
             setSelectedProduct(null);
           }}
           product={selectedProduct}
-          onPurchase={() => {
-            setDetailDialogOpen(false);
-            setPurchaseDialogOpen(true);
-          }}
-        />
-      )}
-
-      {/* 구매 신청 다이얼로그 */}
-      {selectedProduct && selectedProduct.pricePerStudent && (
-        <BotPurchaseDialog
-          open={purchaseDialogOpen}
-          onClose={() => {
-            setPurchaseDialogOpen(false);
-            setSelectedProduct(null);
-          }}
-          product={{
-            id: selectedProduct.id,
-            name: selectedProduct.name,
-            pricePerStudent: selectedProduct.pricePerStudent
-          }}
         />
       )}
     </div>
