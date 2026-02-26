@@ -20,7 +20,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const {
       message,
       systemPrompt,
-      model = "gemini-2.5-flash",
+      model = "gemini-2.0-flash-exp",
       temperature = 0.7,
       maxTokens = 2000,
       topK = 40,
