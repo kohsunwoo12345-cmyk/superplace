@@ -231,6 +231,41 @@ export async function onRequestGet(context) {
         }
       }
 
+      // 구독 정보 조회
+      let subscriptionInfo = null;
+      let planInfo = null;
+      
+      if (allTables.includes('user_subscriptions') && allTables.includes('pricing_plans')) {
+        try {
+          const subscriptionQuery = `
+            SELECT 
+              us.*,
+              pp.name as plan_name,
+              pp.maxStudents,
+              pp.maxHomeworkChecks,
+              pp.maxAIAnalysis,
+              pp.maxSimilarProblems,
+              pp.maxLandingPages
+            FROM user_subscriptions us
+            LEFT JOIN pricing_plans pp ON us.planId = pp.id
+            WHERE us.academyId = ? AND us.isActive = 1
+            ORDER BY us.createdAt DESC
+            LIMIT 1
+          `;
+          subscriptionInfo = await env.DB.prepare(subscriptionQuery)
+            .bind(academyId)
+            .first();
+          
+          if (subscriptionInfo) {
+            console.log('💳 Found active subscription:', subscriptionInfo.plan_name);
+          } else {
+            console.log('💳 No active subscription found');
+          }
+        } catch (err) {
+          console.warn('  └─ Could not fetch subscription info:', err.message);
+        }
+      }
+
       // 학원 상세 정보 구성
       const academyDetail = {
         id: academyId,
@@ -241,8 +276,24 @@ export async function onRequestGet(context) {
         phone: academyInfo?.phone || academyInfo?.phone_number || director.phone || '',
         email: academyInfo?.email || academyInfo?.academy_email || director.email || '',
         logoUrl: academyInfo?.logo_url || academyInfo?.logoUrl || '',
-        subscriptionPlan: academyInfo?.subscription_plan || academyInfo?.subscriptionPlan || 'STANDARD',
-        maxStudents: academyInfo?.max_students || academyInfo?.maxStudents || 100,
+        subscriptionPlan: subscriptionInfo?.plan_name || academyInfo?.subscription_plan || academyInfo?.subscriptionPlan || 'Free',
+        currentPlan: subscriptionInfo ? {
+          name: subscriptionInfo.plan_name || 'Free',
+          maxStudents: subscriptionInfo.maxStudents || 0,
+          maxHomeworkChecks: subscriptionInfo.maxHomeworkChecks || 0,
+          maxAIAnalysis: subscriptionInfo.maxAIAnalysis || 0,
+          maxSimilarProblems: subscriptionInfo.maxSimilarProblems || 0,
+          maxLandingPages: subscriptionInfo.maxLandingPages || 0,
+          usedStudents: subscriptionInfo.usedStudents || 0,
+          usedHomeworkChecks: subscriptionInfo.usedHomeworkChecks || 0,
+          usedAIAnalysis: subscriptionInfo.usedAIAnalysis || 0,
+          usedSimilarProblems: subscriptionInfo.usedSimilarProblems || 0,
+          usedLandingPages: subscriptionInfo.usedLandingPages || 0,
+          startDate: subscriptionInfo.startDate || null,
+          endDate: subscriptionInfo.endDate || null,
+          isActive: subscriptionInfo.isActive === 1,
+        } : null,
+        maxStudents: subscriptionInfo?.maxStudents || academyInfo?.max_students || academyInfo?.maxStudents || 5,
         maxTeachers: academyInfo?.max_teachers || academyInfo?.maxTeachers || 10,
         isActive: academyInfo?.is_active !== false && academyInfo?.isActive !== false ? 1 : 0,
         createdAt: director.created_at || new Date().toISOString(),
@@ -403,6 +454,37 @@ export async function onRequestGet(context) {
           }
         }
 
+        // 구독 정보 조회
+        let subscriptionInfo = null;
+        if (allTables.includes('user_subscriptions') && allTables.includes('pricing_plans')) {
+          try {
+            const subscriptionQuery = `
+              SELECT 
+                us.*,
+                pp.name as plan_name,
+                pp.maxStudents,
+                pp.maxHomeworkChecks,
+                pp.maxAIAnalysis,
+                pp.maxSimilarProblems,
+                pp.maxLandingPages
+              FROM user_subscriptions us
+              LEFT JOIN pricing_plans pp ON us.planId = pp.id
+              WHERE us.academyId = ? AND us.isActive = 1
+              ORDER BY us.createdAt DESC
+              LIMIT 1
+            `;
+            subscriptionInfo = await env.DB.prepare(subscriptionQuery)
+              .bind(directorAcademyId)
+              .first();
+            
+            if (subscriptionInfo) {
+              console.log(`  └─ 💳 Subscription: ${subscriptionInfo.plan_name}`);
+            }
+          } catch (err) {
+            console.log(`  └─ Could not fetch subscription:`, err.message);
+          }
+        }
+
         // 학원 정보 구성
         const academyName = academyInfo?.name || academyInfo?.academy_name || `${director.name}의 학원`;
         const academyAddress = academyInfo?.address || academyInfo?.academy_address || '';
@@ -422,7 +504,43 @@ export async function onRequestGet(context) {
           teacherCount: teacherCount,
           directorCount: 1,
           isActive: academyInfo?.is_active !== false && academyInfo?.isActive !== false,
-          createdAt: director.created_at || new Date().toISOString()
+          createdAt: director.created_at || new Date().toISOString(),
+          // 구독 정보 추가
+          subscriptionPlan: subscriptionInfo?.plan_name || 'Free',
+          currentPlan: subscriptionInfo ? {
+            name: subscriptionInfo.plan_name || 'Free',
+            maxStudents: subscriptionInfo.maxStudents || 0,
+            usedStudents: subscriptionInfo.usedStudents || 0,
+            maxHomeworkChecks: subscriptionInfo.maxHomeworkChecks || 0,
+            usedHomeworkChecks: subscriptionInfo.usedHomeworkChecks || 0,
+            maxAIAnalysis: subscriptionInfo.maxAIAnalysis || 0,
+            usedAIAnalysis: subscriptionInfo.usedAIAnalysis || 0,
+            maxSimilarProblems: subscriptionInfo.maxSimilarProblems || 0,
+            usedSimilarProblems: subscriptionInfo.usedSimilarProblems || 0,
+            maxLandingPages: subscriptionInfo.maxLandingPages || 0,
+            usedLandingPages: subscriptionInfo.usedLandingPages || 0,
+            startDate: subscriptionInfo.startDate || null,
+            endDate: subscriptionInfo.endDate || null,
+            daysRemaining: subscriptionInfo.endDate ? 
+              Math.ceil((new Date(subscriptionInfo.endDate) - new Date()) / (1000 * 60 * 60 * 24)) : 0,
+            isActive: subscriptionInfo.isActive === 1,
+          } : {
+            name: 'Free',
+            maxStudents: 5,
+            usedStudents: studentCount,
+            maxHomeworkChecks: 10,
+            usedHomeworkChecks: 0,
+            maxAIAnalysis: 5,
+            usedAIAnalysis: 0,
+            maxSimilarProblems: 10,
+            usedSimilarProblems: 0,
+            maxLandingPages: 1,
+            usedLandingPages: 0,
+            startDate: null,
+            endDate: null,
+            daysRemaining: 999,
+            isActive: true,
+          }
         };
       } catch (error) {
         console.error('❌ Error processing director:', director.id, error);
