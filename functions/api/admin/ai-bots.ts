@@ -81,6 +81,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
+    
+    if (!DB) {
+      console.error('❌ Database not configured');
+      return new Response(
+        JSON.stringify({ 
+          error: "Database not configured",
+          message: "데이터베이스가 설정되지 않았습니다."
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const body = await context.request.json() as any;
 
     const {
@@ -113,7 +125,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     if (!name || !systemPrompt) {
       return new Response(
-        JSON.stringify({ error: "Name and systemPrompt are required" }),
+        JSON.stringify({ 
+          error: "Name and systemPrompt are required",
+          message: "봇 이름과 시스템 프롬프트는 필수입니다."
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
