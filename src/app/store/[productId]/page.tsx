@@ -25,6 +25,13 @@ interface Product {
   keywords: string;
 }
 
+// Static params generation for build time
+export async function generateStaticParams() {
+  // This will be called at build time to generate static pages
+  // Return empty array to generate pages on-demand
+  return [];
+}
+
 const ProductDetailPage = () => {
   const params = useParams();
   const router = useRouter();

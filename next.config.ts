@@ -1,7 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // Cloudflare Pages에서 동적 라우트를 지원하기 위해 export 모드 비활성화
+  // Cloudflare Pages를 위한 static export
+  output: 'export',
+  distDir: 'out',
   images: {
     unoptimized: true,
   },

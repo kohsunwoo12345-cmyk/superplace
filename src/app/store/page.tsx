@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import ProductDetailDialog from '@/components/ProductDetailDialog';
 
 interface Product {
   id: string;
@@ -31,6 +32,8 @@ const AIStorePage = () => {
   });
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
 
   // API에서 제품 로드 (D1 database)
   useEffect(() => {
@@ -317,7 +320,10 @@ const AIStorePage = () => {
                             <div className="mt-auto">
                               <div className="text-2xl font-bold text-blue-600 mb-3">{product.price}</div>
                               <button 
-                                onClick={() => window.location.href = `/store/${product.id}`}
+                                onClick={() => {
+                                  setSelectedProduct(product);
+                                  setPurchaseDialogOpen(true);
+                                }}
                                 className="w-full bg-blue-600 text-white py-3 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors"
                               >
                                 자세히보기
@@ -395,7 +401,10 @@ const AIStorePage = () => {
                       <div className="mt-auto">
                         <div className="text-2xl font-bold text-blue-600 mb-3">{product.price}</div>
                         <button 
-                          onClick={() => window.location.href = `/store/${product.id}`}
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setDetailDialogOpen(true);
+                          }}
                           className="w-full bg-blue-600 text-white py-3 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors"
                         >
                           자세히보기
@@ -417,6 +426,22 @@ const AIStorePage = () => {
           <p className="text-sm text-gray-400">© 2024 SUPER PLACE. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* 구매 신청 다이얼로그 */}
+      {selectedProduct && selectedProduct.pricePerStudent && (
+        <BotPurchaseDialog
+          open={purchaseDialogOpen}
+          onClose={() => {
+            setPurchaseDialogOpen(false);
+            setSelectedProduct(null);
+          }}
+          product={{
+            id: selectedProduct.id,
+            name: selectedProduct.name,
+            pricePerStudent: selectedProduct.pricePerStudent
+          }}
+        />
+      )}
     </div>
   );
 };
