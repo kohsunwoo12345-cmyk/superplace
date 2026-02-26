@@ -140,8 +140,9 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     console.log('📅 Today:', today, 'Current time:', currentTime);
 
-    // 출석 테이블 생성 (attendance_records_v2 사용)
+    // 출석 테이블 생성 및 업데이트 (attendance_records_v3)
     try {
+      // 기본 테이블 생성
       await DB.prepare(`
         CREATE TABLE IF NOT EXISTS attendance_records_v3 (
           id TEXT PRIMARY KEY,
@@ -149,17 +150,57 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           code TEXT NOT NULL,
           checkInTime TEXT NOT NULL,
           status TEXT NOT NULL,
-          academyId TEXT
+          academyId TEXT,
+          date TEXT,
+          reason TEXT,
+          updatedBy TEXT,
+          createdAt TEXT,
+          updatedAt TEXT
         )
       `).run();
+      
+      // date 컬럼이 없으면 추가
+      try {
+        await DB.prepare(`
+          ALTER TABLE attendance_records_v3 ADD COLUMN date TEXT
+        `).run();
+      } catch (e) {
+        // 컬럼이 이미 존재하면 무시
+      }
+      
+      // reason, updatedBy 등 추가 컬럼도 확인
+      try {
+        await DB.prepare(`
+          ALTER TABLE attendance_records_v3 ADD COLUMN reason TEXT
+        `).run();
+      } catch (e) {}
+      
+      try {
+        await DB.prepare(`
+          ALTER TABLE attendance_records_v3 ADD COLUMN updatedBy TEXT
+        `).run();
+      } catch (e) {}
+      
+      try {
+        await DB.prepare(`
+          ALTER TABLE attendance_records_v3 ADD COLUMN createdAt TEXT
+        `).run();
+      } catch (e) {}
+      
+      try {
+        await DB.prepare(`
+          ALTER TABLE attendance_records_v3 ADD COLUMN updatedAt TEXT
+        `).run();
+      } catch (e) {}
+      
     } catch (createError) {
       console.warn('⚠️ Table already exists or creation failed');
     }
 
-    // 4. 오늘 이미 출석했는지 확인 (attendance_records_v3 사용)
+    // 4. 오늘 이미 출석했는지 확인 (date 필드 사용)
     const existingAttendance = await DB.prepare(`
       SELECT id, status FROM attendance_records_v3
-      WHERE userId = ? AND SUBSTR(checkInTime, 1, 10) = ?
+      WHERE userId = ? AND date = ?
     `).bind(userId, today).first();
 
     const alreadyCheckedIn = !!existingAttendance;
@@ -169,29 +210,58 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       // 중복 출석 허용: 기존 레코드를 삭제하고 새로 생성
       await env.DB.prepare(`
         DELETE FROM attendance_records_v3
-        WHERE userId = ? AND SUBSTR(checkInTime, 1, 10) = ?
+        WHERE userId = ? AND date = ?
       `).bind(userId, today).run();
       console.log('✅ 기존 출석 레코드 삭제 완료');
     }
 
-    // 5. 출석 상태 결정 (9시 이전: PRESENT, 9시 이후: LATE)
-    const hour = kstDate.getHours();
-    const status = hour < 9 ? 'PRESENT' : 'LATE';
+    // 5. 반 정보 조회하여 출석 시간 기준 확인
+    let status = 'PRESENT'; // 기본값
+    let classStartTime = '09:00'; // 기본 수업 시작 시간
+
+    if (student.classId) {
+      const classInfo = await DB.prepare(`
+        SELECT id, name, startTime 
+        FROM classes 
+        WHERE id = ?
+      `).bind(student.classId).first();
+
+      if (classInfo && classInfo.startTime) {
+        classStartTime = classInfo.startTime as string;
+        console.log('📚 반 정보:', classInfo.name, '시작 시간:', classStartTime);
+      }
+    }
+
+    // 현재 시간과 수업 시작 시간 비교
+    const currentHHMM = kstDate.toTimeString().substring(0, 5); // HH:MM 형식
+    console.log('⏰ 현재 시간:', currentHHMM, '수업 시작:', classStartTime);
+
+    // 수업 시작 시간 이후면 지각
+    if (currentHHMM > classStartTime) {
+      status = 'LATE';
+      console.log('⚠️ 지각 처리:', currentHHMM, '>', classStartTime);
+    } else {
+      status = 'PRESENT';
+      console.log('✅ 출석 처리:', currentHHMM, '<=', classStartTime);
+    }
 
     // 6. 출석 기록 생성 (attendance_records_v3에 저장)
     const attendanceId = `attendance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     await DB.prepare(`
       INSERT INTO attendance_records_v3 (
-        id, userId, code, checkInTime, status, academyId
-      ) VALUES (?, ?, ?, ?, ?, ?)
+        id, userId, code, checkInTime, status, academyId, date, createdAt, updatedBy
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       attendanceId,
       userId,
       verifyCode,
       currentTime,
       status,
-      student.academyId || null
+      student.academyId || null,
+      today,
+      currentTime,
+      'student'
     ).run();
 
     console.log('✅ Attendance recorded:', attendanceId, status);
