@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Star, Sparkles, TrendingUp, Award } from 'lucide-react';
 import Link from 'next/link';
 
 interface Product {
@@ -9,17 +9,16 @@ interface Product {
   name: string;
   description: string;
   price: string;
-  pricePerStudent?: number;  // 🆕 학생당 월 가격
+  pricePerStudent?: number;
   category: string;
   imageUrl: string;
   keywords: string[];
   featured?: boolean;
-  rating?: number;        // 평균 별점 (0-5)
-  reviewCount?: number;   // 리뷰 개수
+  rating?: number;
+  reviewCount?: number;
 }
 
 const AIStorePage = () => {
-  // Store page - 2026-02-26 update
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -36,7 +35,6 @@ const AIStorePage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // API에서 제품 로드 (D1 database)
   useEffect(() => {
     const loadProducts = async () => {
       try {
@@ -47,7 +45,6 @@ const AIStorePage = () => {
           const data = await response.json();
           console.log('✅ Products loaded:', data.products?.length || 0);
           
-          // Transform products to match display format
           const transformedProducts = (data.products || []).map((p: any) => ({
             id: p.id,
             name: p.name,
@@ -59,71 +56,22 @@ const AIStorePage = () => {
                 : p.yearlyPrice 
                   ? `₩${p.yearlyPrice.toLocaleString()}/년`
                   : '문의',
-            pricePerStudent: p.pricePerStudent || 0,  // 🆕 추가
+            pricePerStudent: p.pricePerStudent || 0,
             category: p.category === 'academy_operation' ? '학원 운영' 
                      : p.category === 'marketing_blog' ? '마케팅 & 블로그'
                      : p.category === 'expert' ? '전문가용' : p.category,
             imageUrl: p.imageUrl || 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image',
             keywords: p.keywords ? p.keywords.split(',').map((k: string) => k.trim()) : [],
             featured: p.isFeatured === 1,
+            rating: p.rating || 4.5,
+            reviewCount: p.reviewCount || 0,
           }));
           
           setProducts(transformedProducts);
           console.log('📦 Transformed products:', transformedProducts.length);
-          console.log('📦 Products by category:', {
-            '학원 운영': transformedProducts.filter(p => p.category === '학원 운영').length,
-            '마케팅 & 블로그': transformedProducts.filter(p => p.category === '마케팅 & 블로그').length,
-            '전문가용': transformedProducts.filter(p => p.category === '전문가용').length,
-          });
-        } else {
-          console.warn('⚠️ Failed to load products from API, using fallback');
-          // Fallback to default products
-          setProducts([
-            {
-              id: '1',
-              name: '학교/학년 별 내신 대비 봇',
-              description: '학년별로 맞춤화된 내신 대비 학습 지원',
-              price: '문의',
-              category: '학원 운영',
-              imageUrl: 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image',
-              keywords: ['내신', '학교', '학년', '시험'],
-            },
-            {
-              id: '2',
-              name: '영어 내신 클리닉 마스터 봇',
-              description: '학년별 영어내신 클리닉 마스터 - 24시간 AI 숙제 도우미 & 음성 튜터',
-              price: '문의',
-              category: '학원 운영',
-              imageUrl: 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image',
-              keywords: ['영어', '내신', '클리닉', '숙제', '튜터'],
-              featured: true,
-            },
-            {
-              id: '3',
-              name: '블로그 SEO 사진 제작 봇',
-              description: '네이버 블로그 상위노출을 위한 AI 사진 생성',
-              price: '문의',
-              category: '마케팅 & 블로그',
-              imageUrl: 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image',
-              keywords: ['블로그', 'SEO', '사진', '네이버', '상위노출'],
-              featured: true,
-            },
-          ]);
         }
       } catch (error) {
         console.error('❌ Error loading products:', error);
-        // Load minimal fallback products on error
-        setProducts([
-          {
-            id: '1',
-            name: '학교/학년 별 내신 대비 봇',
-            description: '학년별로 맞춤화된 내신 대비 학습 지원',
-            price: '문의',
-            category: '학원 운영',
-            imageUrl: '/api/placeholder/400/480',
-            keywords: ['내신', '학교', '학년', '시험'],
-          },
-        ]);
       } finally {
         setLoading(false);
       }
@@ -137,266 +85,272 @@ const AIStorePage = () => {
       id: 'section1',
       title: '학원 운영 봇',
       subtitle: '학원 운영의 효율성을 높이는 AI 봇',
+      icon: TrendingUp,
       products: products.filter(p => p.category === '학원 운영'),
     },
     {
       id: 'section2',
       title: '마케팅 & 블로그 봇',
       subtitle: '비즈니스 성장을 위한 스마트 마케팅 도구',
+      icon: Sparkles,
       products: products.filter(p => p.category === '마케팅 & 블로그'),
     },
     {
       id: 'section3',
       title: '전문가용 봇',
-      subtitle: '맞춤형 AI 솔루션으로 경쟁력 강화',
+      subtitle: '고급 사용자를 위한 전문 솔루션',
+      icon: Award,
       products: products.filter(p => p.category === '전문가용'),
     },
   ], [products]);
 
-  // 검색 기능
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (query.trim() === '') {
+    if (!query.trim()) {
       setSearchResults([]);
       setShowSearchResults(false);
       return;
     }
 
-    const filtered = products.filter(p => {
-      const lowerQuery = query.toLowerCase();
-      return (
-        p.name.toLowerCase().includes(lowerQuery) ||
-        p.description.toLowerCase().includes(lowerQuery) ||
-        p.keywords.some(k => k.toLowerCase().includes(lowerQuery))
-      );
-    });
+    const filtered = products.filter(product =>
+      product.name.toLowerCase().includes(query.toLowerCase()) ||
+      product.description.toLowerCase().includes(query.toLowerCase()) ||
+      product.keywords.some(k => k.toLowerCase().includes(query.toLowerCase()))
+    );
 
     setSearchResults(filtered);
     setShowSearchResults(true);
   };
 
-  // 슬라이더 이동
-  const slideMove = (sectionId: string, direction: 'left' | 'right') => {
+  const moveSlider = (sectionId: string, direction: 'left' | 'right') => {
     const section = sections.find(s => s.id === sectionId);
     if (!section) return;
 
     const currentPos = sliderPositions[sectionId] || 0;
-    const maxSlides = section.products.length;
-    
     let newPos = currentPos;
-    if (direction === 'left' && currentPos > 0) {
-      newPos = currentPos - 1;
-    } else if (direction === 'right' && currentPos < maxSlides - 1) {
-      newPos = currentPos + 1;
+
+    if (direction === 'left') {
+      newPos = Math.max(0, currentPos - 1);
+    } else {
+      newPos = Math.min(section.products.length - 1, currentPos + 1);
     }
 
     setSliderPositions(prev => ({ ...prev, [sectionId]: newPos }));
   };
 
-  // 전체보기 토글
   const toggleView = (sectionId: string) => {
     setViewAll(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="text-xl font-bold text-blue-600">
-            SUPER PLACE <span className="text-gray-900">AI</span>
+      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity group">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                <span className="text-white font-bold text-xl">SP</span>
+              </div>
+              <div>
+                <div className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  SUPER PLACE AI
+                </div>
+                <div className="text-xs text-gray-500 font-medium">AI 쇼핑몰</div>
+              </div>
+            </Link>
+            <div className="flex items-center gap-4">
+              <Link 
+                href="/dashboard" 
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all hover:scale-105"
+              >
+                대시보드로 이동
+              </Link>
+            </div>
           </div>
-          <nav className="flex gap-4">
-            <a href="https://geru.kr/ln/40779" className="text-sm text-gray-600 hover:text-gray-900">소개</a>
-            <a href="https://geru.kr/ln/44060" className="text-sm text-gray-600 hover:text-gray-900">FAQ</a>
-            <a href="https://geru.kr/ln/40582" className="text-sm text-gray-600 hover:text-gray-900">문의</a>
-          </nav>
         </div>
       </header>
 
-      {/* Banner */}
-      <section className="bg-gradient-to-br from-blue-50 to-blue-100 py-12 text-center">
-        <div className="max-w-7xl mx-auto px-4">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">AI 교육 봇 쇼핑</h1>
-          <p className="text-gray-600 mb-6">학원의 효율성을 높이는 스마트한 AI 솔루션</p>
+      {/* Hero Section */}
+      <section className="relative py-20 overflow-hidden">
+        {/* Animated background */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob"></div>
+          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob animation-delay-2000"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob animation-delay-4000"></div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 text-center relative z-10">
+          <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm px-5 py-2 rounded-full text-sm text-gray-700 mb-8 shadow-lg border border-gray-200">
+            <Sparkles className="w-4 h-4 text-blue-600" />
+            <span className="font-semibold">신상품 입고</span>
+          </div>
           
-          {/* Search Box */}
-          <div className="relative max-w-md mx-auto">
-            <div className="flex bg-white border-2 border-blue-600 rounded overflow-hidden">
+          <h1 className="text-6xl md:text-7xl font-extrabold mb-6 leading-tight">
+            <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              AI 학습 관리
+            </span>
+            <br />
+            <span className="text-gray-800">솔루션</span>
+          </h1>
+          
+          <p className="text-xl text-gray-700 mb-10 max-w-2xl mx-auto leading-relaxed">
+            학원 운영을 스마트하게, AI로 더 쉽게 관리하세요
+          </p>
+          
+          {/* Stats */}
+          <div className="flex flex-wrap items-center justify-center gap-6 mb-12">
+            <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-5 py-3 rounded-full text-sm shadow-lg border border-gray-200">
+              <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+              <span className="font-bold text-gray-800">4.8</span>
+              <span className="text-gray-600">평균 별점</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-5 py-3 rounded-full text-sm shadow-lg border border-gray-200">
+              <span className="font-bold text-blue-600">{products.length}개</span>
+              <span className="text-gray-600">상품</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-5 py-3 rounded-full text-sm shadow-lg border border-gray-200">
+              <TrendingUp className="w-5 h-5 text-green-500" />
+              <span className="font-bold text-gray-800">1,000+</span>
+              <span className="text-gray-600">고객사</span>
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="max-w-2xl mx-auto">
+            <div className="relative">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 w-6 h-6" />
               <input
                 type="text"
+                placeholder="어떤 AI 솔루션을 찾으시나요?"
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 onFocus={() => searchQuery && setShowSearchResults(true)}
-                placeholder="찾는 봇을 검색해보세요"
-                className="flex-1 px-4 py-2 text-sm outline-none"
+                className="w-full pl-16 pr-6 py-5 bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-lg shadow-xl"
               />
-              <button
-                onClick={() => handleSearch(searchQuery)}
-                className="px-4 py-2 bg-blue-600 text-white font-semibold hover:bg-blue-700"
-              >
-                <Search className="w-4 h-4" />
-              </button>
             </div>
 
             {/* Search Results */}
-            {showSearchResults && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-96 overflow-y-auto z-50">
-                {searchResults.length > 0 ? (
-                  searchResults.map(product => (
-                    <div
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="mt-4 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+                <div className="p-4 bg-gray-50 border-b border-gray-200">
+                  <p className="text-sm font-semibold text-gray-700">
+                    검색 결과 {searchResults.length}개
+                  </p>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {searchResults.map((product) => (
+                    <Link
                       key={product.id}
-                      className="p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 cursor-pointer"
+                      href={`/store/detail?id=${product.id}`}
+                      className="flex items-center gap-4 p-4 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
+                      onClick={() => setShowSearchResults(false)}
                     >
-                      <div className="font-semibold text-sm">{product.name}</div>
-                      <div className="text-xs text-gray-500">{product.description}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-4 text-center text-gray-500 text-sm">
-                    검색 결과가 없습니다.
-                  </div>
-                )}
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-16 h-16 object-cover rounded-lg"
+                      />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900">{product.name}</h3>
+                        <p className="text-sm text-gray-600">{product.description}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-blue-600">{product.price}</div>
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                          {product.rating?.toFixed(1)}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </div>
       </section>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-10">
-        {sections.map((section) => (
-          <section key={section.id} className="mb-16">
-            {/* Section Header */}
-            <div className="flex justify-between items-center mb-6 pb-3 border-b-2 border-gray-900">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{section.title}</h2>
-                <p className="text-sm text-gray-400">{section.subtitle}</p>
-              </div>
-              <button
-                onClick={() => toggleView(section.id)}
-                className="text-sm text-gray-900 flex items-center gap-1 hover:text-blue-600"
-              >
-                <span>{viewAll[section.id] ? '접기' : '전체보기'}</span>
-                <span>→</span>
-              </button>
-            </div>
-
-            {/* Products */}
-            {!viewAll[section.id] ? (
-              /* Slider View */
-              <div className="relative">
-                <div className="overflow-hidden">
-                  <div
-                    className="flex transition-transform duration-500 ease-in-out"
-                    style={{
-                      transform: `translateX(-${(sliderPositions[section.id] || 0) * 100}%)`,
-                    }}
-                  >
-                    {section.products.map((product) => (
-                      <div key={product.id} className="w-full md:w-1/2 lg:w-1/3 flex-shrink-0 px-2">
-                        <div className={`bg-white rounded-lg border overflow-hidden transition-all h-full flex flex-col ${
-                          product.featured ? 'border-blue-600 shadow-md' : 'border-gray-200 hover:shadow-lg'
-                        }`}>
-                          {/* 이미지 영역 - 상단 */}
-                          <div className="relative w-full pt-[100%] bg-gray-100">
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="absolute top-0 left-0 w-full h-full object-cover"
-                              onError={(e) => {
-                                const target = e.currentTarget;
-                                target.onerror = null;
-                                target.src = 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image';
-                              }}
-                            />
-                          </div>
-                          
-                          {/* 컨텐츠 영역 - 중간 */}
-                          <div className="p-4 flex-grow flex flex-col">
-                            <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
-                            <p className="text-sm text-gray-600 mb-4 flex-grow line-clamp-2">{product.description}</p>
-                            
-                            {/* 가격 및 버튼 영역 - 하단 */}
-                            <div className="mt-auto">
-                              <div className="text-2xl font-bold text-blue-600 mb-3">{product.price}</div>
-                              <Link 
-                                href={`/store/detail?id=${product.id}`}
-                                className="block w-full bg-blue-600 text-white py-3 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors text-center"
-                              >
-                                자세히보기
-                              </Link>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+      {/* Products Sections */}
+      <div className="max-w-7xl mx-auto px-4 py-12 space-y-16">
+        {sections.map((section) => {
+          const Icon = section.icon;
+          return section.products.length > 0 && (
+            <section key={section.id} className="relative">
+              {/* Section Header */}
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-900">{section.title}</h2>
+                    <p className="text-gray-600">{section.subtitle}</p>
                   </div>
                 </div>
-
-                {/* Slider Controls */}
-                {section.products.length > 1 && (
-                  <>
-                    <button
-                      onClick={() => slideMove(section.id, 'left')}
-                      disabled={(sliderPositions[section.id] || 0) === 0}
-                      className="absolute left-0 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                    >
-                      <ChevronLeft className="w-6 h-6" />
-                    </button>
-                    <button
-                      onClick={() => slideMove(section.id, 'right')}
-                      disabled={(sliderPositions[section.id] || 0) >= section.products.length - 1}
-                      className="absolute right-0 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                    >
-                      <ChevronRight className="w-6 h-6" />
-                    </button>
-                  </>
+                {section.products.length > 3 && (
+                  <button
+                    onClick={() => toggleView(section.id)}
+                    className="px-6 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600 transition-all"
+                  >
+                    {viewAll[section.id] ? '접기' : `전체보기 (${section.products.length})`}
+                  </button>
                 )}
-
-                {/* Dots */}
-                <div className="flex justify-center gap-2 mt-4">
-                  {section.products.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSliderPositions(prev => ({ ...prev, [section.id]: idx }))}
-                      className={`w-2 h-2 rounded-full transition-all ${
-                        (sliderPositions[section.id] || 0) === idx
-                          ? 'bg-blue-600 w-4'
-                          : 'bg-gray-300'
-                      }`}
-                    />
-                  ))}
-                </div>
               </div>
-            ) : (
-              /* Grid View */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {section.products.map((product) => (
-                  <div key={product.id} className={`bg-white rounded-lg border overflow-hidden transition-all flex flex-col ${
-                    product.featured ? 'border-blue-600 shadow-md' : 'border-gray-200 hover:shadow-lg'
-                  }`}>
-                    {/* 이미지 영역 - 상단 */}
-                    <div className="relative w-full pt-[100%] bg-gray-100">
+
+              {/* Products Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {(viewAll[section.id] ? section.products : section.products.slice(0, 3)).map((product) => (
+                  <div
+                    key={product.id}
+                    className={`group bg-white rounded-2xl overflow-hidden transition-all hover:shadow-2xl ${
+                      product.featured
+                        ? 'ring-2 ring-blue-500 shadow-xl'
+                        : 'border border-gray-200 hover:border-blue-300'
+                    }`}
+                  >
+                    {/* Image */}
+                    <div className="relative w-full pt-[75%] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                      {product.featured && (
+                        <div className="absolute top-4 left-4 z-10">
+                          <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
+                            <Award className="w-3 h-3" />
+                            BEST
+                          </span>
+                        </div>
+                      )}
                       <img
                         src={product.imageUrl}
                         alt={product.name}
-                        className="absolute top-0 left-0 w-full h-full object-cover"
+                        className="absolute top-0 left-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         onError={(e) => {
                           const target = e.currentTarget;
                           target.onerror = null;
-                          target.src = 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image';
+                          target.src = 'https://placehold.co/400x300/e2e8f0/94a3b8?text=No+Image';
                         }}
                       />
                     </div>
-                    
-                    {/* 컨텐츠 영역 - 중간 */}
-                    <div className="p-4 flex-grow flex flex-col">
-                      <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
-                      
-                      {/* 별점 */}
-                      <div className="flex items-center gap-1 mb-2">
-                        <div className="flex items-center">
+
+                    {/* Content */}
+                    <div className="p-6">
+                      <h3 className="font-bold text-xl text-gray-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                        {product.name}
+                      </h3>
+
+                      {/* Rating */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-0.5">
                           {[1, 2, 3, 4, 5].map((star) => (
                             <Star
                               key={star}
@@ -408,42 +362,96 @@ const AIStorePage = () => {
                             />
                           ))}
                         </div>
-                        <span className="text-xs text-gray-600">
-                          {product.rating?.toFixed(1) || '0.0'} ({product.reviewCount || 0})
+                        <span className="text-sm font-semibold text-gray-700">
+                          {product.rating?.toFixed(1) || '0.0'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          ({product.reviewCount || 0}개 리뷰)
                         </span>
                       </div>
-                      
-                      <p className="text-sm text-gray-600 mb-4 flex-grow line-clamp-2">{product.description}</p>
-                      
-                      {/* 가격 및 버튼 영역 - 하단 */}
-                      <div className="mt-auto">
-                        <div className="text-2xl font-bold text-blue-600 mb-3">{product.price}</div>
-                        <Link 
+
+                      <p className="text-sm text-gray-600 mb-6 line-clamp-2 leading-relaxed">
+                        {product.description}
+                      </p>
+
+                      {/* Price & Button */}
+                      <div className="space-y-3">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            {product.price}
+                          </span>
+                        </div>
+                        <Link
                           href={`/store/detail?id=${product.id}`}
-                          className="block w-full bg-blue-600 text-white py-3 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors text-center"
+                          className="block w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl text-base font-bold hover:shadow-xl hover:scale-105 transition-all text-center"
                         >
-                          자세히보기
+                          자세히 보기
                         </Link>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
-          </section>
-        ))}
+            </section>
+          );
+        })}
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8 mt-16">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <div className="text-lg font-bold mb-2">SUPER PLACE AI</div>
-          <p className="text-sm text-gray-400">© 2024 SUPER PLACE. All rights reserved.</p>
+      <footer className="bg-gray-900 text-white py-12 mt-20">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold">SP</span>
+              </div>
+              <div>
+                <div className="text-xl font-bold">SUPER PLACE AI</div>
+                <div className="text-sm text-gray-400">© 2024 All rights reserved.</div>
+              </div>
+            </div>
+            <div className="flex gap-8">
+              <a href="https://geru.kr/ln/40779" className="text-gray-400 hover:text-white transition-colors">
+                소개
+              </a>
+              <a href="https://geru.kr/ln/44060" className="text-gray-400 hover:text-white transition-colors">
+                FAQ
+              </a>
+              <a href="https://geru.kr/ln/40582" className="text-gray-400 hover:text-white transition-colors">
+                문의
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
+
+      <style jsx>{`
+        @keyframes blob {
+          0% {
+            transform: translate(0px, 0px) scale(1);
+          }
+          33% {
+            transform: translate(30px, -50px) scale(1.1);
+          }
+          66% {
+            transform: translate(-20px, 20px) scale(0.9);
+          }
+          100% {
+            transform: translate(0px, 0px) scale(1);
+          }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+      `}</style>
     </div>
   );
 };
 
 export default AIStorePage;
-
