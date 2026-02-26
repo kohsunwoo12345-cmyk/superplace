@@ -204,8 +204,14 @@ export default function TeacherHomeworkResultsPage() {
         params.append('academyId', academyId.toString());
       }
 
+      const token = localStorage.getItem("token");
       const response = await fetch(
-        `/api/homework/results?${params.toString()}`
+        `/api/homework/results?${params.toString()}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        }
       );
       
       console.log('✅ API 응답 상태:', response.status);
