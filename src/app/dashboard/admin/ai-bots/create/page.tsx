@@ -462,8 +462,8 @@ export default function CreateAIBotPage() {
       alert("온도 값은 0에서 2 사이여야 합니다.");
       return;
     }
-    if (maxTokens < 100 || maxTokens > 20000) {
-      alert("최대 토큰은 100에서 20000 사이여야 합니다.");
+    if (maxTokens < 100 || maxTokens > 100000) {
+      alert("최대 토큰은 100에서 100000 사이여야 합니다.");
       return;
     }
 
@@ -1080,9 +1080,9 @@ export default function CreateAIBotPage() {
                       <Input
                         id="maxTokens"
                         type="number"
-                        step="500"
+                        step="1000"
                         min="100"
-                        max="20000"
+                        max="100000"
                         value={formData.maxTokens}
                         onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
                         className="mt-2"
@@ -1092,7 +1092,8 @@ export default function CreateAIBotPage() {
                          parseInt(formData.maxTokens) < 3000 ? "짧은 답변 (~1500자)" :
                          parseInt(formData.maxTokens) < 8000 ? "중간 길이 (~4000자)" :
                          parseInt(formData.maxTokens) < 15000 ? "긴 답변 (~7500자)" :
-                         "매우 긴 답변 (~10000자)"} · 기본: 2000 · 최대: 20000
+                         parseInt(formData.maxTokens) < 30000 ? "매우 긴 답변 (~15000자)" :
+                         "초장문 답변 (~50000자+)"} · 기본: 2000 · 최대: 100000
                       </p>
                     </div>
                   </div>
