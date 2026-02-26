@@ -29,12 +29,8 @@ import {
 } from "lucide-react";
 
 const GEMINI_MODELS = [
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (추천)", description: "최신 2.5 Flash 모델, 향상된 성능", recommended: true },
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (추천)", description: "최신 2.5 Flash 모델, 빠르고 효율적", recommended: true },
   { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "최신 2.5 Pro 모델, 최고 성능", recommended: true },
-  { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash", description: "2.0 Flash 모델, 빠른 응답", recommended: false },
-  { value: "gemini-2.0-pro", label: "Gemini 2.0 Pro", description: "2.0 Pro 모델, 고급 추론", recommended: false },
-  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash", description: "안정적인 1.5 Flash 모델", recommended: false },
-  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro", description: "안정적인 1.5 Pro 모델", recommended: false },
 ];
 
 const PRESET_PROMPTS = [
