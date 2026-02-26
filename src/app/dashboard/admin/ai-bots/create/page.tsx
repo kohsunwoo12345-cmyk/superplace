@@ -451,15 +451,31 @@ export default function CreateAIBotPage() {
       return;
     }
 
+    // 숫자 필드 검증 및 기본값 설정
+    const temperature = parseFloat(formData.temperature) || 0.7;
+    const maxTokens = parseInt(formData.maxTokens) || 2000;
+    const topK = parseInt(formData.topK) || 40;
+    const topP = parseFloat(formData.topP) || 0.95;
+
+    // 범위 검증
+    if (temperature < 0 || temperature > 2) {
+      alert("온도 값은 0에서 2 사이여야 합니다.");
+      return;
+    }
+    if (maxTokens < 100 || maxTokens > 20000) {
+      alert("최대 토큰은 100에서 20000 사이여야 합니다.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const requestBody = {
         ...formData,
-        temperature: parseFloat(formData.temperature),
-        maxTokens: parseInt(formData.maxTokens),
-        topK: parseInt(formData.topK),
-        topP: parseFloat(formData.topP),
+        temperature,
+        maxTokens,
+        topK,
+        topP,
       };
       
       console.log('📤 요청 데이터:', {
