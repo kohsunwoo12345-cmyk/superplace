@@ -251,28 +251,14 @@ export default function CreateAIBotPage() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-    
-    console.log('🔍 페이지 로드 - localStorage 확인');
-    console.log('  user:', storedUser ? '존재' : '없음');
-    console.log('  token:', storedToken ? '존재' : '없음');
     
     if (!storedUser) {
-      console.error('❌ user 없음 - 로그인 페이지로 이동');
-      router.push("/login");
-      return;
-    }
-
-    if (!storedToken) {
-      console.error('❌ token 없음 - 로그인 페이지로 이동');
-      alert('세션이 만료되었습니다. 다시 로그인해주세요.');
       router.push("/login");
       return;
     }
 
     const userData = JSON.parse(storedUser);
     setCurrentUser(userData);
-    console.log('✅ 사용자 정보 로드 완료:', userData.name, userData.role);
   }, [router]);
 
   useEffect(() => {
@@ -468,18 +454,6 @@ export default function CreateAIBotPage() {
     setLoading(true);
 
     try {
-      // localStorage에서 토큰 가져오기
-      const token = localStorage.getItem("token");
-      
-      console.log('🔑 토큰 확인:', token ? `존재 (${token.substring(0, 30)}...)` : '없음');
-      
-      if (!token) {
-        console.error('❌ 토큰 없음');
-        alert("로그인이 필요합니다. 다시 로그인해주세요.");
-        router.push("/login");
-        return;
-      }
-
       const requestBody = {
         ...formData,
         temperature: parseFloat(formData.temperature),
@@ -498,8 +472,7 @@ export default function CreateAIBotPage() {
       const response = await fetch("/api/admin/ai-bots", {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify(requestBody),
       });
