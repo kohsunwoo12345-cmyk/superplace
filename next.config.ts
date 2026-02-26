@@ -1,11 +1,7 @@
 import type { NextConfig } from 'next';
 
-const isProduction = process.env.NODE_ENV === 'production';
-
 const nextConfig: NextConfig = {
-  // 개발 환경에서는 비활성화, 프로덕션에서만 활성화
-  ...(isProduction && { output: 'export' }),
-  ...(isProduction && { trailingSlash: true }),
+  // Cloudflare Pages에서 동적 라우트를 지원하기 위해 export 모드 비활성화
   images: {
     unoptimized: true,
   },
