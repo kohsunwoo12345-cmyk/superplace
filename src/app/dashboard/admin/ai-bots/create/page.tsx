@@ -449,9 +449,21 @@ export default function CreateAIBotPage() {
     setLoading(true);
 
     try {
+      // localStorage에서 토큰 가져오기
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        alert("로그인이 필요합니다. 다시 로그인해주세요.");
+        router.push("/login");
+        return;
+      }
+
       const response = await fetch("/api/admin/ai-bots", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           ...formData,
           temperature: parseFloat(formData.temperature),
