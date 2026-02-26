@@ -5,9 +5,20 @@ export const onRequest: PagesFunction = async (context) => {
   try {
     console.log('Starting subscription system migration...');
     
+    // 기존 테이블 삭제 (안전하게)
+    try {
+      await env.DB.prepare(`DROP TABLE IF EXISTS pricing_plans`).run();
+      await env.DB.prepare(`DROP TABLE IF EXISTS subscription_requests`).run();
+      await env.DB.prepare(`DROP TABLE IF EXISTS user_subscriptions`).run();
+      await env.DB.prepare(`DROP TABLE IF EXISTS usage_logs`).run();
+      console.log('✅ Old tables dropped');
+    } catch (e) {
+      console.log('⚠️ No old tables to drop');
+    }
+    
     // 1. pricing_plans 테이블 생성
     await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS pricing_plans (
+      CREATE TABLE pricing_plans (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
@@ -33,7 +44,7 @@ export const onRequest: PagesFunction = async (context) => {
     
     // 2. subscription_requests 테이블 생성
     await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS subscription_requests (
+      CREATE TABLE subscription_requests (
         id TEXT PRIMARY KEY,
         userId TEXT NOT NULL,
         userEmail TEXT NOT NULL,
@@ -59,7 +70,7 @@ export const onRequest: PagesFunction = async (context) => {
     
     // 3. user_subscriptions 테이블 생성
     await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS user_subscriptions (
+      CREATE TABLE user_subscriptions (
         id TEXT PRIMARY KEY,
         userId TEXT NOT NULL UNIQUE,
         planId TEXT NOT NULL,
@@ -91,7 +102,7 @@ export const onRequest: PagesFunction = async (context) => {
     
     // 4. usage_logs 테이블 생성
     await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS usage_logs (
+      CREATE TABLE usage_logs (
         id TEXT PRIMARY KEY,
         userId TEXT NOT NULL,
         subscriptionId TEXT NOT NULL,
