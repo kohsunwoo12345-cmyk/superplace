@@ -38,18 +38,20 @@ export async function onRequestGet(context) {
 
     // 학생용
     if (role === "STUDENT") {
-      const myAttendance = await DB.prepare(`
-        SELECT substr(checkInTime, 1, 10) as date, status
+      // 모든 기록 가져온 후 JavaScript에서 필터링
+      const allMyAttendance = await DB.prepare(`
+        SELECT substr(checkInTime, 1, 10) as date, status, userId
         FROM attendance_records_v3
-        WHERE CAST(userId AS TEXT) = ?
-        AND substr(checkInTime, 1, 7) = ?
-      `).bind(String(userId), thisMonth).all();
+        WHERE substr(checkInTime, 1, 7) = '${thisMonth}'
+      `).all();
 
       const calendarData = {};
-      if (myAttendance.results) {
-        myAttendance.results.forEach(r => {
-          if (!calendarData[r.date]) calendarData[r.date] = r.status;
-        });
+      if (allMyAttendance.results) {
+        allMyAttendance.results
+          .filter(r => String(r.userId) === String(userId))
+          .forEach(r => {
+            if (!calendarData[r.date]) calendarData[r.date] = r.status;
+          });
       }
 
       return new Response(JSON.stringify({
@@ -79,14 +81,24 @@ export async function onRequestGet(context) {
       console.log("📊 Filtered records for academyId", academyId, ":", records.length);
     }
 
-    // 2. 사용자 정보 추가
+    // 2. 사용자 정보 추가 - 한 번에 모든 사용자 조회 후 맵핑
+    let allUsers = [];
+    try {
+      const userResults = await DB.prepare(`SELECT id, name, email FROM User`).all();
+      const usersResults = await DB.prepare(`SELECT id, name, email FROM users`).all();
+      allUsers = [...(userResults.results || []), ...(usersResults.results || [])];
+    } catch (e) {
+      console.error("Error fetching users:", e);
+    }
+    
+    const userMap = {};
+    allUsers.forEach(u => {
+      userMap[u.id] = u;
+    });
+    
     const enrichedRecords = [];
     for (const record of records.slice(0, 20)) { // 상위 20개만
-      let user = await DB.prepare(`SELECT id, name, email FROM User WHERE id = ?`).bind(record.userId).first();
-      if (!user) {
-        user = await DB.prepare(`SELECT id, name, email FROM users WHERE id = ?`).bind(record.userId).first();
-      }
-      
+      const user = userMap[record.userId];
       if (user) {
         enrichedRecords.push({
           id: record.id,
