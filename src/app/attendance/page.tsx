@@ -36,7 +36,10 @@ export default function AttendanceCheckPage() {
       const data = await response.json();
 
       if (data.success) {
-        setResult(data);
+        setResult({
+          ...data,
+          message: "✅ 출석이 정상적으로 처리되었습니다!"
+        });
         setCode("");
       } else {
         setError(data.error || data.message || "출석 인증에 실패했습니다");

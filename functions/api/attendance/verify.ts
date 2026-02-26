@@ -60,9 +60,9 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     }
 
     console.log('✅ Code found!', {
-      userId: attendanceCode.userId,
-      isActive: attendanceCode.isActive,
-      isActiveType: typeof attendanceCode.isActive
+      userId: attendanceCodeRecord.userId,
+      isActive: attendanceCodeRecord.isActive,
+      isActiveType: typeof attendanceCodeRecord.isActive
     });
 
     const userId = attendanceCodeRecord.userId;
