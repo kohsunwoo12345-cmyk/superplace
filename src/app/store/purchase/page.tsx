@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 
@@ -12,7 +12,7 @@ interface Product {
   imageUrl: string;
 }
 
-export default function PurchasePage() {
+function PurchasePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const productId = searchParams.get('id');
@@ -359,5 +359,17 @@ export default function PurchasePage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function PurchasePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">로딩 중...</div>
+      </div>
+    }>
+      <PurchasePageContent />
+    </Suspense>
   );
 }

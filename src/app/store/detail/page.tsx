@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Star, Share2, Heart, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
@@ -30,7 +30,7 @@ interface Product {
   keywords?: string;
 }
 
-export default function ProductDetailPage() {
+function ProductDetailPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const productId = searchParams.get('id');
@@ -354,5 +354,17 @@ export default function ProductDetailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProductDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">로딩 중...</div>
+      </div>
+    }>
+      <ProductDetailPageContent />
+    </Suspense>
   );
 }
