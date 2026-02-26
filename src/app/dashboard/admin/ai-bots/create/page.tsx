@@ -29,17 +29,12 @@ import {
 } from "lucide-react";
 
 const GEMINI_MODELS = [
-  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (추천)", description: "최신 2.0 실험 모델, 빠른 응답", recommended: true },
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash", description: "최신 2.5 Flash 모델, 향상된 성능", recommended: true },
-  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "최신 2.5 Pro 모델, 최고 성능", recommended: false },
-  { value: "gemini-exp-1206", label: "Gemini 3.1 Pro", description: "실험적 3.1 Pro 모델", recommended: false },
-  { value: "gemini-3-flash", label: "Gemini 3 Flash", description: "Gemini 3세대 고속 모델", recommended: false },
-  { value: "gemini-3-pro", label: "Gemini 3 Pro", description: "Gemini 3세대 프로 모델", recommended: false },
-  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash", description: "안정적인 빠른 모델", recommended: false },
-  { value: "gemini-1.5-flash-latest", label: "Gemini 1.5 Flash (Latest)", description: "최신 1.5 안정 버전", recommended: false },
-  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro", description: "고급 추론 능력, 복잡한 작업 최적", recommended: false },
-  { value: "gemini-1.5-pro-latest", label: "Gemini 1.5 Pro (Latest)", description: "최신 1.5 Pro 버전", recommended: false },
-  { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash-8B", description: "초고속, 비용 효율적", recommended: false },
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (추천)", description: "최신 2.5 Flash 모델, 향상된 성능", recommended: true },
+  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "최신 2.5 Pro 모델, 최고 성능", recommended: true },
+  { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash", description: "2.0 Flash 모델, 빠른 응답", recommended: false },
+  { value: "gemini-2.0-pro", label: "Gemini 2.0 Pro", description: "2.0 Pro 모델, 고급 추론", recommended: false },
+  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash", description: "안정적인 1.5 Flash 모델", recommended: false },
+  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro", description: "안정적인 1.5 Pro 모델", recommended: false },
 ];
 
 const PRESET_PROMPTS = [
