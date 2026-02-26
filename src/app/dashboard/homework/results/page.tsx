@@ -231,6 +231,14 @@ export default function TeacherHomeworkResultsPage() {
           completion: result.grading?.completion || 'pending',
           effort: result.grading?.effort || 'submitted',
           gradedAt: result.grading?.gradedAt || null,
+          totalQuestions: result.grading?.totalQuestions || 0,
+          correctAnswers: result.grading?.correctAnswers || 0,
+          strengths: result.grading?.strengths || '',
+          improvements: result.grading?.improvements || '',
+          weaknessTypes: result.grading?.weaknessTypes || '',
+          detailedAnalysis: result.grading?.detailedAnalysis || '',
+          studyDirection: result.grading?.studyDirection || '',
+          problemAnalysis: result.grading?.problemAnalysis || '',
           // 원본 grading도 유지
           grading: result.grading
         }));

@@ -101,7 +101,18 @@ export async function onRequestGet(context) {
         hg.id as gradingId,
         hg.score,
         hg.feedback,
+        hg.strengths,
+        hg.suggestions as improvements,
+        hg.subject,
         hg.completion,
+        hg.effort,
+        hg.pageCount,
+        hg.totalQuestions,
+        hg.correctAnswers,
+        hg.problemAnalysis,
+        hg.weaknessTypes,
+        hg.detailedAnalysis,
+        hg.studyDirection,
         hg.gradedAt
       FROM homework_submissions_v2 hs
       LEFT JOIN User u1 ON u1.id = hs.userId
@@ -173,7 +184,16 @@ export async function onRequestGet(context) {
         feedback: r.feedback,
         strengths: r.strengths,
         improvements: r.improvements,
+        subject: r.subject,
         completion: r.completion,
+        effort: r.effort,
+        pageCount: r.pageCount,
+        totalQuestions: r.totalQuestions,
+        correctAnswers: r.correctAnswers,
+        problemAnalysis: r.problemAnalysis,
+        weaknessTypes: r.weaknessTypes,
+        detailedAnalysis: r.detailedAnalysis,
+        studyDirection: r.studyDirection,
         gradedAt: r.gradedAt
       } : null
     }));
