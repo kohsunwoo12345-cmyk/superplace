@@ -1067,6 +1067,7 @@ export default function CreateAIBotPage() {
                         value={formData.topK}
                         onChange={(e) => setFormData({ ...formData, topK: e.target.value })}
                         className="mt-2"
+                        required
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         상위 K개 단어만 고려 (낮을수록 일관적, 기본: 40)
@@ -1086,6 +1087,7 @@ export default function CreateAIBotPage() {
                         value={formData.maxTokens}
                         onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
                         className="mt-2"
+                        required
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         {parseInt(formData.maxTokens) < 1000 ? "매우 짧은 답변 (~500자)" :
