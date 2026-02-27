@@ -23,6 +23,8 @@ export default function AddStudentPage() {
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
+  const [academyName, setAcademyName] = useState<string>("");
+  const [loadingAcademy, setLoadingAcademy] = useState(true);
   
   // 학생 정보
   const [name, setName] = useState("");
@@ -31,6 +33,8 @@ export default function AddStudentPage() {
   const [phone, setPhone] = useState("");
   const [school, setSchool] = useState("");
   const [grade, setGrade] = useState("");
+  const [classField, setClassField] = useState(""); // 소속반 필드 추가
+  const [parentPhone, setParentPhone] = useState(""); // 학부모 연락처 추가
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
 
   useEffect(() => {
@@ -58,9 +62,45 @@ export default function AddStudentPage() {
       return;
     }
 
+    // 학원 정보 로드
+    loadAcademyInfo(userData);
+    
     // 반 목록 로드
     loadClasses();
   }, [router]);
+
+  const loadAcademyInfo = async (userData: any) => {
+    try {
+      setLoadingAcademy(true);
+      const academyId = userData.academyId || userData.academy_id;
+      
+      if (!academyId) {
+        console.log('⚠️ No academy ID found');
+        setAcademyName("소속 학원 없음");
+        return;
+      }
+
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/academies/${academyId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAcademyName(data.name || "학원명 없음");
+      } else {
+        setAcademyName("학원 정보 로드 실패");
+      }
+    } catch (error) {
+      console.error("Failed to load academy info:", error);
+      setAcademyName("학원 정보 로드 실패");
+    } finally {
+      setLoadingAcademy(false);
+    }
+  };
 
   const loadClasses = async () => {
     try {
@@ -154,8 +194,10 @@ export default function AddStudentPage() {
           email: email.trim() || null,
           password: password,
           phone: phone.trim(),
+          parentPhone: parentPhone.trim() || null,
           school: school.trim() || null,
           grade: grade || null,
+          class: classField.trim() || null,
           classIds: selectedClasses,
           academyId: academyId,
           role: user.role
@@ -266,6 +308,19 @@ export default function AddStudentPage() {
             </div>
 
             <div>
+              <Label htmlFor="academy">소속 학원</Label>
+              <Input
+                id="academy"
+                value={loadingAcademy ? "로딩 중..." : academyName}
+                disabled
+                className="bg-gray-100 cursor-not-allowed"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                학원장의 학원이 자동으로 설정됩니다
+              </p>
+            </div>
+
+            <div>
               <Label htmlFor="school">학교</Label>
               <Input
                 id="school"
@@ -296,6 +351,30 @@ export default function AddStudentPage() {
                   <SelectItem value="고3">고등 3학년</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="classField">소속반</Label>
+              <Input
+                id="classField"
+                value={classField}
+                onChange={(e) => setClassField(e.target.value)}
+                placeholder="예: A반, 수학반"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                학생의 학교 소속반을 입력하세요
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="parentPhone">학부모 연락처</Label>
+              <Input
+                id="parentPhone"
+                type="tel"
+                value={parentPhone}
+                onChange={(e) => setParentPhone(e.target.value)}
+                placeholder="010-1234-5678"
+              />
             </div>
           </CardContent>
         </Card>

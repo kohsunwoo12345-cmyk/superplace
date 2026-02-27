@@ -304,20 +304,8 @@ export default function AddClassPage() {
         endTime: s.endTime,
       }));
 
-      // 선택된 학생들을 API가 기대하는 형식으로 변환
-      const formattedStudents = Array.from(selectedStudentIds).map((studentId, index) => {
-        const student = students.find(s => s.id === studentId);
-        return {
-          id: String(index + 1),
-          student: {
-            id: studentId,
-            name: student?.name || '',
-            email: student?.email || '',
-            studentCode: student?.studentCode || '',
-            grade: student?.grade || '',
-          }
-        };
-      });
+      // 선택된 학생 ID 배열 (문자열 배열로 전송)
+      const studentIds = Array.from(selectedStudentIds);
 
       const payload = {
         name: name.trim(),
@@ -326,7 +314,7 @@ export default function AddClassPage() {
         color: color,
         capacity: 30, // 기본 정원
         isActive: true,
-        students: formattedStudents,
+        students: studentIds, // 단순 문자열 배열
         schedules: formattedSchedules,
       };
 
