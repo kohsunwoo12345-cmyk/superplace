@@ -205,15 +205,30 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const createdByUser = userIdStr || null;  // TEXT 또는 NULL
     console.log("✅ Using createdBy:", createdByUser, "(TEXT, can be NULL)");
     
-    // Insert landing page - user_id is NOT NULL (must provide)
-    // But user_id has FK to User.id which is TEXT, causing type mismatch
-    // Solution: Insert a dummy value -999 (invalid ID, but satisfies NOT NULL)
-    console.log("📝 Inserting landing page with user_id = -999...");
+    // 더미 사용자 ID 생성 - User 테이블에 존재하는 ID 확인/생성
+    console.log("🔍 Checking for dummy user...");
+    
+    // User 테이블에서 아무 사용자나 하나 가져오기
+    let dummyUserId = -999;
+    try {
+      const anyUser = await db.prepare(`SELECT id FROM User LIMIT 1`).first();
+      if (anyUser) {
+        dummyUserId = anyUser.id;
+        console.log("✅ Using existing user ID:", dummyUserId);
+      } else {
+        console.log("⚠️ No users found in User table");
+      }
+    } catch (e: any) {
+      console.log("⚠️ Could not query User table:", e.message);
+    }
+
+    // Insert landing page
+    console.log("📝 Inserting landing page with user_id =", dummyUserId);
     console.log("📝 Values:", { slug, title });
     
     const insertResult = await db
       .prepare(`INSERT INTO landing_pages (slug, title, user_id, template_type, content_json, html_content) VALUES (?, ?, ?, ?, ?, ?)`)
-      .bind(slug, title, -999, templateType || 'basic', defaultContentJson, defaultHtmlContent)
+      .bind(slug, title, dummyUserId, templateType || 'basic', defaultContentJson, defaultHtmlContent)
       .run();
 
     console.log("✅ Landing page inserted successfully");
