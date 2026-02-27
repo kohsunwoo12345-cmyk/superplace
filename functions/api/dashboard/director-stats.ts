@@ -87,7 +87,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         AND date(createdAt) >= date('now', '-7 days')
     `).bind(parseInt(academyId)).first();
 
-    // 8. 숙제 통계
+    // 8. 숙제 통계 (오늘 제출, 기한 지난 미제출만 포함)
     const homeworkStats = await DB.prepare(`
       SELECT 
         COUNT(DISTINCT h.id) as totalHomework,
@@ -98,6 +98,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       FROM homework h
       LEFT JOIN homework_submissions hs ON h.id = hs.homeworkId
       WHERE h.academyId = ?
+    `).bind(parseInt(academyId)).first();
+
+    // 8-1. 오늘 제출된 숙제 수
+    const todaySubmittedHomework = await DB.prepare(`
+      SELECT COUNT(DISTINCT hs.id) as count
+      FROM homework_submissions hs
+      JOIN homework h ON hs.homeworkId = h.id
+      WHERE h.academyId = ?
+        AND date(hs.submittedAt) = date('now')
+        AND hs.status IN ('submitted', 'graded')
     `).bind(parseInt(academyId)).first();
 
     // 9. 이번 주 숙제 제출률
@@ -143,6 +153,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       thisWeekStudents: thisWeekStudents?.count || 0,
       totalHomework: homeworkStats?.totalHomework || 0,
       submittedHomework: homeworkStats?.submittedCount || 0,
+      todaySubmittedHomework: todaySubmittedHomework?.count || 0,
       gradedHomework: homeworkStats?.gradedCount || 0,
       activeHomework: homeworkStats?.activeHomework || 0,
       overdueHomework: homeworkStats?.overdueCount || 0,

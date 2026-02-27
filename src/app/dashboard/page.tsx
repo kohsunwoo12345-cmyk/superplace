@@ -459,16 +459,16 @@ export default function DashboardPage() {
           <Card className="border-2 border-purple-100 hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                숙제 제출
+                오늘 숙제 제출
               </CardTitle>
               <FileText className="h-5 w-5 text-purple-600" />
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-purple-600">
-                {stats?.submittedHomework || 0}개
+                {stats?.todaySubmittedHomework || 0}개
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                전체 {stats?.totalHomework || 0}개
+                오늘 제출됨
               </p>
             </CardContent>
           </Card>
@@ -485,7 +485,7 @@ export default function DashboardPage() {
                 {stats?.overdueHomework || 0}개
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                기한 경과
+                기한 경과 (미제출)
               </p>
             </CardContent>
           </Card>
@@ -578,7 +578,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* AI 봇 사용 통계 */}
+          {/* AI 봇 활동만 표시 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -602,17 +602,7 @@ export default function DashboardPage() {
                     <p className="font-medium text-sm">활성 봇</p>
                     <span className="text-lg font-bold text-blue-600">{stats?.activeAIBots || 0}개</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <span className="bg-gray-100 px-2 py-1 rounded">전체: {stats?.totalAIBots || 0}개</span>
-                  </div>
-                </div>
-
-                <div className="p-3 border rounded-lg hover:bg-purple-50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-sm">오늘 대화</p>
-                    <span className="text-lg font-bold text-purple-600">{stats?.todayAIConversations || 0}회</span>
-                  </div>
-                  <p className="text-xs text-gray-600">오늘 활동량</p>
+                  <p className="text-xs text-gray-600">현재 사용 가능</p>
                 </div>
               </div>
             </CardContent>
