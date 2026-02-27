@@ -175,13 +175,16 @@ export async function onRequestPost(context) {
 
     // Insert students if provided
     if (body.students && body.students.length > 0) {
+      console.log(`📝 [DB CLASSES API] Adding ${body.students.length} students to class ${classId}`);
       for (const studentId of body.students) {
         const csId = `cs-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        console.log(`  - Adding student: ${studentId}`);
         await DB.prepare(`
-          INSERT INTO ClassStudent (id, classId, studentId)
-          VALUES (?, ?, ?)
+          INSERT INTO ClassStudent (id, classId, studentId, enrolledAt)
+          VALUES (?, ?, ?, datetime('now'))
         `).bind(csId, classId, studentId).run();
       }
+      console.log(`✅ [DB CLASSES API] Successfully added all students`);
     }
 
     // Fetch the created class with details
@@ -193,7 +196,26 @@ export async function onRequestPost(context) {
       SELECT * FROM ClassSchedule WHERE classId = ?
     `).bind(classId).all();
 
-    console.log(`✅ [DB CLASSES API] Class created: ${classId}`);
+    // Fetch students with details
+    const studentsResult = await DB.prepare(`
+      SELECT cs.id, cs.studentId, u.name, u.email, u.studentId as studentCode, u.grade
+      FROM ClassStudent cs
+      JOIN User u ON cs.studentId = u.id
+      WHERE cs.classId = ?
+    `).bind(classId).all();
+
+    const students = (studentsResult.results || []).map(s => ({
+      id: s.id,
+      student: {
+        id: s.studentId,
+        name: s.name,
+        email: s.email,
+        studentCode: s.studentCode || '',
+        grade: s.grade,
+      }
+    }));
+
+    console.log(`✅ [DB CLASSES API] Class created: ${classId} with ${students.length} students`);
 
     return jsonResponse(
       {
@@ -202,8 +224,8 @@ export async function onRequestPost(context) {
           ...classResult,
           isActive: classResult.isActive === 1,
           schedules: schedulesResult.results || [],
-          students: [],
-          _count: { students: 0 },
+          students: students,
+          _count: { students: students.length },
         },
         message: '클래스가 생성되었습니다',
       },
@@ -288,11 +310,55 @@ export async function onRequestPut(context) {
       }
     }
 
+    // Update students if provided
+    if (students !== undefined) {
+      console.log(`📝 [DB CLASSES API] Updating students for class ${id}`);
+      
+      // Delete existing student associations
+      await DB.prepare(`DELETE FROM ClassStudent WHERE classId = ?`).bind(id).run();
+      console.log(`  - Removed existing student associations`);
+      
+      // Insert new student associations
+      if (students && students.length > 0) {
+        console.log(`  - Adding ${students.length} students`);
+        for (const studentId of students) {
+          const csId = `cs-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+          console.log(`    * Adding student: ${studentId}`);
+          await DB.prepare(`
+            INSERT INTO ClassStudent (id, classId, studentId, enrolledAt)
+            VALUES (?, ?, ?, datetime('now'))
+          `).bind(csId, id, studentId).run();
+        }
+        console.log(`✅ [DB CLASSES API] Successfully added all students`);
+      } else {
+        console.log(`  - No students to add`);
+      }
+    }
+
     console.log(`✅ [DB CLASSES API] Class updated: ${id}`);
 
-    // Fetch updated class
+    // Fetch updated class with students
     const updatedClass = await DB.prepare(`SELECT * FROM Class WHERE id = ?`).bind(id).first();
     const schedulesResult = await DB.prepare(`SELECT * FROM ClassSchedule WHERE classId = ?`).bind(id).all();
+    
+    // Fetch students with details
+    const studentsResult = await DB.prepare(`
+      SELECT cs.id, cs.studentId, u.name, u.email, u.studentId as studentCode, u.grade
+      FROM ClassStudent cs
+      JOIN User u ON cs.studentId = u.id
+      WHERE cs.classId = ?
+    `).bind(id).all();
+
+    const studentsWithDetails = (studentsResult.results || []).map(s => ({
+      id: s.id,
+      student: {
+        id: s.studentId,
+        name: s.name,
+        email: s.email,
+        studentCode: s.studentCode || '',
+        grade: s.grade,
+      }
+    }));
 
     return jsonResponse({
       success: true,
@@ -300,6 +366,8 @@ export async function onRequestPut(context) {
         ...updatedClass,
         isActive: updatedClass.isActive === 1,
         schedules: schedulesResult.results || [],
+        students: studentsWithDetails,
+        _count: { students: studentsWithDetails.length },
       },
       message: '클래스가 수정되었습니다',
     });
