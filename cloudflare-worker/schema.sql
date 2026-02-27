@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS User (
   phone TEXT,
   role TEXT NOT NULL DEFAULT 'STUDENT', -- SUPER_ADMIN, DIRECTOR, TEACHER, STUDENT
   academyId TEXT,
+  school TEXT,
   grade TEXT,
   class TEXT,
   studentId TEXT UNIQUE,
@@ -33,6 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_user_email ON User(email);
 CREATE INDEX IF NOT EXISTS idx_user_role ON User(role);
 CREATE INDEX IF NOT EXISTS idx_user_academy ON User(academyId);
 CREATE INDEX IF NOT EXISTS idx_user_approved ON User(approved);
+CREATE INDEX IF NOT EXISTS idx_user_school ON User(school);
 
 -- Academy Table
 CREATE TABLE IF NOT EXISTS Academy (

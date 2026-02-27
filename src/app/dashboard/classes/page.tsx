@@ -215,21 +215,6 @@ export default function ClassesPage() {
         </div>
       </div>
 
-      {/* 에러 메시지 */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-800">⚠️ {error}</p>
-          <Button 
-            onClick={loadClasses} 
-            variant="outline" 
-            size="sm" 
-            className="mt-2"
-          >
-            다시 시도
-          </Button>
-        </div>
-      )}
-
       {/* 검색 */}
       <div className="mb-6">
         <div className="relative">
