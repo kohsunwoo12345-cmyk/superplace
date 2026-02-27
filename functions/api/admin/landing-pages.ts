@@ -206,12 +206,16 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     console.log("✅ Using createdBy:", createdByUser, "(TEXT, can be NULL)");
     
     // Insert landing page - 실제 마이그레이션 스키마 사용
-    // 컬럼: id, slug, title, subtitle, description, templateType, templateHtml,
-    // inputData, ogTitle, ogDescription, thumbnail, folderId, showQrCode,
-    // qrCodePosition, qrCodeUrl, views, submissions, isActive, createdBy
     console.log("📝 Inserting landing page with migration schema...");
+    console.log("📝 Values:", {
+      id,
+      slug,
+      title,
+      templateType,
+      createdByUser
+    });
     
-    await db
+    const insertResult = await db
       .prepare(
         `INSERT INTO landing_pages (
           id, slug, title, subtitle, description,
@@ -222,37 +226,51 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
-        id,  // TEXT PRIMARY KEY (이미 생성함: lp_123_abc)
+        id,
         slug,
         title,
         subtitle || null,
         description || null,
         templateType || 'basic',
-        defaultHtmlContent,  // templateHtml
-        JSON.stringify(inputData || []),  // inputData
+        defaultHtmlContent,
+        JSON.stringify(inputData || []),
         ogTitle || null,
         ogDescription || null,
         thumbnail || null,
-        folderIdInt ? String(folderIdInt) : null,  // TEXT type
+        folderIdInt ? String(folderIdInt) : null,
         showQrCode ? 1 : 0,
         qrCodeUrl,
-        0,  // views
-        0,  // submissions
-        1,  // isActive
-        createdByUser  // createdBy (TEXT, FK to users.id, can be NULL)
+        0,
+        0,
+        1,
+        createdByUser
       )
       .run();
 
     console.log("✅ Landing page inserted successfully");
+    console.log("📊 Insert result:", JSON.stringify(insertResult));
+
+    // Wait a tiny bit for consistency
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // 생성된 ID 가져오기 - 반드시 성공해야 함!
+    console.log("🔍 Querying for inserted row...");
     const result = await db
-      .prepare(`SELECT id FROM landing_pages WHERE slug = ?`)
+      .prepare(`SELECT id, slug, title FROM landing_pages WHERE slug = ? LIMIT 1`)
       .bind(slug)
       .first();
     
+    console.log("📊 Select result:", JSON.stringify(result));
+    
     if (!result) {
-      throw new Error(`INSERT succeeded but cannot find row with slug: ${slug}`);
+      // Try to list recent rows
+      console.log("⚠️ Row not found! Listing recent entries...");
+      const recentRows = await db
+        .prepare(`SELECT id, slug, title, createdAt FROM landing_pages ORDER BY createdAt DESC LIMIT 5`)
+        .all();
+      console.log("📊 Recent rows:", JSON.stringify(recentRows.results));
+      
+      throw new Error(`INSERT succeeded but cannot find row with slug: ${slug}. Recent rows: ${recentRows.results?.length || 0}`);
     }
     
     const insertedId = result.id;
