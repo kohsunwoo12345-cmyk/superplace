@@ -45,6 +45,12 @@ export default function PricingManagePage() {
     yearlyPrice: 0,
     maxStudents: 10,
     maxTeachers: 2,
+    maxHomeworkChecks: 100,
+    maxAIGrading: 100,
+    maxCapabilityAnalysis: 50,
+    maxConceptAnalysis: 50,
+    maxSimilarProblems: 100,
+    maxLandingPages: 3,
     features: "",
     isPopular: false,
     htmlContent: ""
@@ -96,6 +102,12 @@ export default function PricingManagePage() {
       yearlyPrice: 0,
       maxStudents: 10,
       maxTeachers: 2,
+      maxHomeworkChecks: 100,
+      maxAIGrading: 100,
+      maxCapabilityAnalysis: 50,
+      maxConceptAnalysis: 50,
+      maxSimilarProblems: 100,
+      maxLandingPages: 3,
       features: "",
       isPopular: false,
       htmlContent: ""
@@ -112,6 +124,12 @@ export default function PricingManagePage() {
       yearlyPrice: plan.yearlyPrice,
       maxStudents: plan.maxStudents,
       maxTeachers: plan.maxTeachers,
+      maxHomeworkChecks: (plan as any).maxHomeworkChecks || 100,
+      maxAIGrading: (plan as any).maxAIGrading || 100,
+      maxCapabilityAnalysis: (plan as any).maxCapabilityAnalysis || 50,
+      maxConceptAnalysis: (plan as any).maxConceptAnalysis || 50,
+      maxSimilarProblems: (plan as any).maxSimilarProblems || 100,
+      maxLandingPages: (plan as any).maxLandingPages || 3,
       features: plan.features.join("\n"),
       isPopular: plan.isPopular === 1,
       htmlContent: plan.htmlContent || ""
@@ -142,13 +160,26 @@ export default function PricingManagePage() {
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        monthlyPrice: Number(formData.monthlyPrice),
-        yearlyPrice: Number(formData.yearlyPrice),
-        maxStudents: Number(formData.maxStudents),
-        maxTeachers: Number(formData.maxTeachers),
+        pricing: {
+          '1month': Number(formData.monthlyPrice),
+          '6months': Number(formData.yearlyPrice) > 0 ? Number(formData.yearlyPrice) / 2 : Number(formData.monthlyPrice) * 6,
+          '12months': Number(formData.yearlyPrice) || Number(formData.monthlyPrice) * 12
+        },
+        limits: {
+          maxStudents: Number(formData.maxStudents),
+          maxTeachers: Number(formData.maxTeachers),
+          maxHomeworkChecks: Number(formData.maxHomeworkChecks),
+          maxAIAnalysis: Number(formData.maxCapabilityAnalysis),
+          maxAIGrading: Number(formData.maxAIGrading),
+          maxCapabilityAnalysis: Number(formData.maxCapabilityAnalysis),
+          maxConceptAnalysis: Number(formData.maxConceptAnalysis),
+          maxSimilarProblems: Number(formData.maxSimilarProblems),
+          maxLandingPages: Number(formData.maxLandingPages)
+        },
         features: featuresArray,
         isPopular: formData.isPopular,
-        htmlContent: formData.htmlContent
+        color: '#3b82f6',
+        order: 0
       };
 
       console.log("Sending payload:", payload);
@@ -156,14 +187,14 @@ export default function PricingManagePage() {
       let response;
       if (editingPlan) {
         // 수정
-        response = await fetch(`/api/admin/pricing?id=${editingPlan.id}`, {
+        response = await fetch(`/api/admin/pricing-plans`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...payload, isActive: 1 })
+          body: JSON.stringify({ ...payload, id: editingPlan.id, isActive: true })
         });
       } else {
         // 생성
-        response = await fetch("/api/admin/pricing", {
+        response = await fetch("/api/admin/pricing-plans", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -318,20 +349,82 @@ export default function PricingManagePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">최대 학생 수</label>
+                <label className="block text-sm font-medium mb-2">최대 학생 수 (-1 = 무제한)</label>
                 <Input
                   type="number"
                   value={formData.maxStudents}
                   onChange={(e) => setFormData({ ...formData, maxStudents: parseInt(e.target.value) || 10 })}
+                  placeholder="10"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">최대 선생님 수</label>
+                <label className="block text-sm font-medium mb-2">최대 선생님 수 (-1 = 무제한)</label>
                 <Input
                   type="number"
                   value={formData.maxTeachers}
                   onChange={(e) => setFormData({ ...formData, maxTeachers: parseInt(e.target.value) || 2 })}
+                  placeholder="2"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">월별 숙제 검사 횟수 (-1 = 무제한)</label>
+                <Input
+                  type="number"
+                  value={formData.maxHomeworkChecks}
+                  onChange={(e) => setFormData({ ...formData, maxHomeworkChecks: parseInt(e.target.value) || 100 })}
+                  placeholder="100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">월별 AI 채점 횟수 (-1 = 무제한)</label>
+                <Input
+                  type="number"
+                  value={formData.maxAIGrading}
+                  onChange={(e) => setFormData({ ...formData, maxAIGrading: parseInt(e.target.value) || 100 })}
+                  placeholder="100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">월별 역량 분석 횟수 (-1 = 무제한)</label>
+                <Input
+                  type="number"
+                  value={formData.maxCapabilityAnalysis}
+                  onChange={(e) => setFormData({ ...formData, maxCapabilityAnalysis: parseInt(e.target.value) || 50 })}
+                  placeholder="50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">월별 개념 분석 횟수 (-1 = 무제한)</label>
+                <Input
+                  type="number"
+                  value={formData.maxConceptAnalysis}
+                  onChange={(e) => setFormData({ ...formData, maxConceptAnalysis: parseInt(e.target.value) || 50 })}
+                  placeholder="50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">월별 유사문제 생성 (-1 = 무제한)</label>
+                <Input
+                  type="number"
+                  value={formData.maxSimilarProblems}
+                  onChange={(e) => setFormData({ ...formData, maxSimilarProblems: parseInt(e.target.value) || 100 })}
+                  placeholder="100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">랜딩페이지 제작 수 (-1 = 무제한)</label>
+                <Input
+                  type="number"
+                  value={formData.maxLandingPages}
+                  onChange={(e) => setFormData({ ...formData, maxLandingPages: parseInt(e.target.value) || 3 })}
+                  placeholder="3"
                 />
               </div>
             </div>
