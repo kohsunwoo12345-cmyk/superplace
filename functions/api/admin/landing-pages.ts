@@ -205,26 +205,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const createdByUser = userIdStr || null;  // TEXT 또는 NULL
     console.log("✅ Using createdBy:", createdByUser, "(TEXT, can be NULL)");
     
-    // Insert landing page - MINIMAL columns to avoid ALL FK constraints
-    // Only use: slug, title, template_type, content_json, html_content
-    // Skip: user_id (FK), folder_id (FK), qr_code_url, thumbnail_url, og_title, og_description
-    console.log("📝 Inserting landing page with MINIMAL schema (no FK columns)...");
+    // Insert landing page - ABSOLUTE MINIMUM (slug + title only)
+    console.log("📝 Inserting landing page with BARE MINIMUM (slug, title)...");
     console.log("📝 Values:", { slug, title });
     
     const insertResult = await db
-      .prepare(
-        `INSERT INTO landing_pages (
-          slug, title, template_type, 
-          content_json, html_content
-        ) VALUES (?, ?, ?, ?, ?)`
-      )
-      .bind(
-        slug,
-        title,
-        templateType || 'basic',
-        defaultContentJson,  // ALL data goes here (subtitle, studentId, thumbnail, etc.)
-        defaultHtmlContent
-      )
+      .prepare(`INSERT INTO landing_pages (slug, title) VALUES (?, ?)`)
+      .bind(slug, title)
       .run();
 
     console.log("✅ Landing page inserted successfully");
