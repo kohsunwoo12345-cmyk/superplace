@@ -141,17 +141,20 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         )}`
       : null;
 
-    // Insert landing page - id를 NULL로 설정하여 AUTOINCREMENT 사용
+    // Insert landing page - 모든 필수 컬럼 포함
     await db
       .prepare(
         `INSERT INTO landing_pages (
-          slug, title, user_id, created_at, updated_at
-        ) VALUES (?, ?, ?, datetime('now'), datetime('now'))`
+          slug, title, user_id, template_type, 
+          html_template, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
       )
       .bind(
         slug,
         title,
-        studentId
+        studentId,
+        templateType || 'basic',
+        templateHtml || '<div>랜딩페이지</div>'
       )
       .run();
 
