@@ -205,13 +205,15 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const createdByUser = userIdStr || null;  // TEXT 또는 NULL
     console.log("✅ Using createdBy:", createdByUser, "(TEXT, can be NULL)");
     
-    // Insert landing page - ABSOLUTE MINIMUM (slug + title only)
-    console.log("📝 Inserting landing page with BARE MINIMUM (slug, title)...");
+    // Insert landing page - user_id is NOT NULL (must provide)
+    // But user_id has FK to User.id which is TEXT, causing type mismatch
+    // Solution: Insert a dummy value -999 (invalid ID, but satisfies NOT NULL)
+    console.log("📝 Inserting landing page with user_id = -999...");
     console.log("📝 Values:", { slug, title });
     
     const insertResult = await db
-      .prepare(`INSERT INTO landing_pages (slug, title) VALUES (?, ?)`)
-      .bind(slug, title)
+      .prepare(`INSERT INTO landing_pages (slug, title, user_id, template_type, content_json, html_content) VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind(slug, title, -999, templateType || 'basic', defaultContentJson, defaultHtmlContent)
       .run();
 
     console.log("✅ Landing page inserted successfully");
