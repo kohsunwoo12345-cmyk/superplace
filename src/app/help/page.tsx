@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { HelpCircle, Book, Video, FileText, Search, ChevronDown, ChevronRight, ArrowLeft, MessageCircle } from 'lucide-react';
+import { HelpCircle, Book, Video, FileText, Search, ChevronDown, ChevronRight, ArrowLeft, MessageCircle, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 
 export default function HelpPage() {
