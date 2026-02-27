@@ -16,6 +16,9 @@ function PricingDetailContent() {
   const [loading, setLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<"card" | "transfer">("card");
   const [submitting, setSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const bankAccount = "746-910023-17004"; // 하나은행 계좌번호
 
   const [formData, setFormData] = useState({
     name: "",
@@ -275,10 +278,34 @@ function PricingDetailContent() {
                       관리자 확인 후 카드 결제 링크를 보내드립니다.
                     </>
                   ) : (
-                    <>
-                      <Check className="w-4 h-4 inline mr-1" />
-                      관리자 확인 후 입금 계좌를 안내드립니다.
-                    </>
+                    <div className="space-y-3">
+                      <div>
+                        <Check className="w-4 h-4 inline mr-1" />
+                        아래 계좌로 입금해주시면 관리자가 확인 후 승인해드립니다.
+                      </div>
+                      <div className="bg-white p-3 rounded border border-yellow-300">
+                        <div className="text-xs font-semibold mb-1">입금 계좌</div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <div className="font-bold text-lg">하나은행</div>
+                            <div className="font-mono text-lg">{bankAccount}</div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={copied ? "secondary" : "outline"}
+                            onClick={() => {
+                              navigator.clipboard.writeText(bankAccount);
+                              setCopied(true);
+                              setTimeout(() => setCopied(false), 2000);
+                            }}
+                            className="whitespace-nowrap"
+                          >
+                            {copied ? "복사완료!" : "계좌복사"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
 
