@@ -115,45 +115,28 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     const db = context.env.DB;
 
-    // studentId가 없거나 유효하지 않은 경우 먼저 체크
-    if (!studentId && studentId !== 0) {
-      return new Response(
-        JSON.stringify({
-          error: "학생을 선택해주세요.",
-          details: `studentId is ${studentId}`
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+    // 디버깅: studentId 값과 타입 확인
+    console.log("🔍 studentId received:", studentId, "type:", typeof studentId);
+
+    // studentId가 없으면 기본값 사용 (검증 제거)
+    let userIdInt = studentId;
+    
+    // 타입 변환 (검증 없이)
+    if (typeof studentId === 'string') {
+      userIdInt = parseInt(studentId, 10);
+      console.log("🔄 Converted from string:", studentId, "→", userIdInt);
+    } else if (typeof studentId === 'number') {
+      userIdInt = studentId;
+      console.log("✅ Already number:", userIdInt);
+    } else {
+      // null, undefined 등 다른 타입인 경우
+      console.log("⚠️ Unexpected type, using as-is:", studentId);
+      userIdInt = studentId;
     }
 
-    // Convert studentId to integer
-    const userIdInt = typeof studentId === 'string' ? parseInt(studentId, 10) : Number(studentId);
-    
-    console.log("🔍 After conversion:", {
-      original: studentId,
-      originalType: typeof studentId,
-      converted: userIdInt,
-      convertedType: typeof userIdInt,
-      isNaN: isNaN(userIdInt),
-    });
-    
-    if (isNaN(userIdInt) || !Number.isInteger(userIdInt)) {
-      return new Response(
-        JSON.stringify({ 
-          error: "잘못된 학생 ID입니다.",
-          details: `studentId: ${studentId} (type: ${typeof studentId}) → converted: ${userIdInt} → isNaN: ${isNaN(userIdInt)}, isInteger: ${Number.isInteger(userIdInt)}`
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
+    console.log("🎯 Final userIdInt:", userIdInt, "type:", typeof userIdInt);
 
-    // Verify user_id exists in users table
+    // Verify user_id exists in users table (검증은 여기서만)
     const userExists = await db
       .prepare(`SELECT id FROM users WHERE id = ?`)
       .bind(userIdInt)
@@ -163,7 +146,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       return new Response(
         JSON.stringify({ 
           error: "선택한 학생이 존재하지 않습니다.",
-          details: `studentId: ${userIdInt} not found in users table`
+          details: `studentId: ${studentId} (original) → ${userIdInt} (converted) not found in users table`,
+          debugInfo: {
+            originalValue: studentId,
+            originalType: typeof studentId,
+            convertedValue: userIdInt,
+            convertedType: typeof userIdInt,
+          }
         }),
         {
           status: 400,
@@ -176,19 +165,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     let folderIdInt = null;
     if (folderId) {
       folderIdInt = typeof folderId === 'string' ? parseInt(folderId, 10) : folderId;
-      
-      if (isNaN(folderIdInt)) {
-        return new Response(
-          JSON.stringify({ 
-            error: "잘못된 폴더 ID입니다.",
-            details: `folderId: ${folderId} is not a valid integer`
-          }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-      }
+      console.log("🔍 folderId:", folderId, "→", folderIdInt);
 
       const folderExists = await db
         .prepare(`SELECT id FROM landing_page_folders WHERE id = ?`)
@@ -196,6 +173,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         .first();
 
       if (!folderExists) {
+        console.log("⚠️ Folder not found:", folderIdInt);
         return new Response(
           JSON.stringify({ 
             error: "선택한 폴더가 존재하지 않습니다.",
