@@ -117,6 +117,78 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     const db = context.env.DB;
 
+    // Convert studentId to integer
+    const userIdInt = typeof studentId === 'string' ? parseInt(studentId, 10) : studentId;
+    
+    if (isNaN(userIdInt)) {
+      return new Response(
+        JSON.stringify({ 
+          error: "잘못된 학생 ID입니다.",
+          details: `studentId: ${studentId} is not a valid integer`
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Verify user_id exists in users table
+    const userExists = await db
+      .prepare(`SELECT id FROM users WHERE id = ?`)
+      .bind(userIdInt)
+      .first();
+
+    if (!userExists) {
+      return new Response(
+        JSON.stringify({ 
+          error: "선택한 학생이 존재하지 않습니다.",
+          details: `studentId: ${userIdInt} not found in users table`
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Convert and verify folder_id if provided
+    let folderIdInt = null;
+    if (folderId) {
+      folderIdInt = typeof folderId === 'string' ? parseInt(folderId, 10) : folderId;
+      
+      if (isNaN(folderIdInt)) {
+        return new Response(
+          JSON.stringify({ 
+            error: "잘못된 폴더 ID입니다.",
+            details: `folderId: ${folderId} is not a valid integer`
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const folderExists = await db
+        .prepare(`SELECT id FROM landing_page_folders WHERE id = ?`)
+        .bind(folderIdInt)
+        .first();
+
+      if (!folderExists) {
+        return new Response(
+          JSON.stringify({ 
+            error: "선택한 폴더가 존재하지 않습니다.",
+            details: `folderId: ${folderIdInt} not found in landing_page_folders table`
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
     // Check if slug already exists
     const existing = await db
       .prepare(`SELECT id FROM landing_pages WHERE slug = ?`)
@@ -182,12 +254,12 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       .bind(
         slug,
         title,
-        studentId,
+        userIdInt,
         templateType || 'basic',
         defaultContentJson,
         defaultHtmlContent,
         qrCodeUrl,
-        folderId || null,
+        folderIdInt,
         thumbnail || null,
         ogTitle || null,
         ogDescription || null
@@ -237,9 +309,21 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     );
   } catch (error: any) {
     console.error("랜딩페이지 생성 오류:", error);
+    
+    // FOREIGN KEY 제약 조건 오류 상세 처리
+    let errorMessage = error.message || "랜딩페이지 생성 중 오류가 발생했습니다.";
+    
+    if (error.message && error.message.includes('FOREIGN KEY constraint failed')) {
+      errorMessage = "데이터베이스 참조 오류가 발생했습니다. 학생 또는 폴더 정보를 확인해주세요.";
+    } else if (error.message && error.message.includes('NOT NULL constraint failed')) {
+      errorMessage = `필수 항목이 누락되었습니다: ${error.message}`;
+    }
+    
     return new Response(
       JSON.stringify({
-        error: error.message || "랜딩페이지 생성 중 오류가 발생했습니다.",
+        error: errorMessage,
+        details: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       }),
       {
         status: 500,
