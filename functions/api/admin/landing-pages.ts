@@ -118,23 +118,23 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // 디버깅: studentId 값과 타입 확인
     console.log("🔍 studentId received:", studentId, "type:", typeof studentId);
 
-    // studentId가 없으면 기본값 사용 (검증 제거)
-    let userIdInt = studentId;
+    // ⚠️ User 테이블의 id는 TEXT 타입! (예: 'user-1234567890-abc')
+    // parseInt 하지 말고 그대로 사용해야 함!
+    let userIdStr = studentId;
     
-    // 타입 변환 (검증 없이)
-    if (typeof studentId === 'string') {
-      userIdInt = parseInt(studentId, 10);
-      console.log("🔄 Converted from string:", studentId, "→", userIdInt);
-    } else if (typeof studentId === 'number') {
-      userIdInt = studentId;
-      console.log("✅ Already number:", userIdInt);
+    if (typeof studentId === 'number') {
+      // number면 string으로 변환
+      userIdStr = String(studentId);
+      console.log("🔄 Converted number to string:", studentId, "→", userIdStr);
+    } else if (typeof studentId === 'string') {
+      userIdStr = studentId;
+      console.log("✅ Already string:", userIdStr);
     } else {
-      // null, undefined 등 다른 타입인 경우
-      console.log("⚠️ Unexpected type, using as-is:", studentId);
-      userIdInt = studentId;
+      console.log("⚠️ Unexpected type:", typeof studentId, "value:", studentId);
+      userIdStr = String(studentId);
     }
 
-    console.log("🎯 Final userIdInt:", userIdInt, "type:", typeof userIdInt);
+    console.log("🎯 Final userIdStr:", userIdStr, "type:", typeof userIdStr);
 
     // 🔍 디버깅: User 테이블에 어떤 데이터가 있는지 먼저 확인
     console.log("🔍 Checking all users in User table...");
@@ -149,11 +149,11 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       .all();
     console.log("🎓 All students:", JSON.stringify(allStudents.results || []));
 
-    // Verify user_id exists in User table (대문자 U - 실제 테이블 이름)
-    console.log("🔍 Looking for user with id:", userIdInt);
+    // Verify user_id exists in User table (id는 TEXT 타입!)
+    console.log("🔍 Looking for user with id:", userIdStr);
     const userExists = await db
       .prepare(`SELECT id, name, role FROM User WHERE id = ?`)
-      .bind(userIdInt)
+      .bind(userIdStr)
       .first();
 
     console.log("🔍 Query result:", JSON.stringify(userExists));
@@ -162,13 +162,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       return new Response(
         JSON.stringify({ 
           error: "선택한 학생이 존재하지 않습니다.",
-          details: `studentId: ${studentId} (original) → ${userIdInt} (converted) not found in User table`,
+          details: `studentId: ${studentId} (original) → ${userIdStr} (converted) not found in User table`,
           debugInfo: {
             originalValue: studentId,
             originalType: typeof studentId,
-            convertedValue: userIdInt,
-            convertedType: typeof userIdInt,
-            tableName: "User (대문자)",
+            convertedValue: userIdStr,
+            convertedType: typeof userIdStr,
+            tableName: "User (TEXT id)",
             allUsersCount: allUsers.results?.length || 0,
             allStudentsCount: allStudents.results?.length || 0,
             sampleUsers: allUsers.results?.slice(0, 3) || [],
@@ -275,7 +275,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       .bind(
         slug,
         title,
-        userIdInt,
+        userIdStr,  // ← TEXT 타입으로 저장 (예: 'user-1234567890-abc')
         templateType || 'basic',
         defaultContentJson,
         defaultHtmlContent,
