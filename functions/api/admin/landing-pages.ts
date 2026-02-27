@@ -91,6 +91,16 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       studentId,
     } = body;
 
+    // 디버깅: 받은 데이터 확인
+    console.log("🔍 API Received Data:", {
+      studentId,
+      studentIdType: typeof studentId,
+      folderId,
+      folderIdType: typeof folderId,
+      slug,
+      title,
+    });
+
     if (!slug || !title) {
       return new Response(
         JSON.stringify({
@@ -120,11 +130,17 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // Convert studentId to integer
     const userIdInt = typeof studentId === 'string' ? parseInt(studentId, 10) : studentId;
     
+    console.log("🔍 After parseInt:", {
+      original: studentId,
+      converted: userIdInt,
+      isNaN: isNaN(userIdInt),
+    });
+    
     if (isNaN(userIdInt)) {
       return new Response(
         JSON.stringify({ 
           error: "잘못된 학생 ID입니다.",
-          details: `studentId: ${studentId} is not a valid integer`
+          details: `studentId: ${studentId} (type: ${typeof studentId}) → ${userIdInt} → isNaN: ${isNaN(userIdInt)}`
         }),
         {
           status: 400,

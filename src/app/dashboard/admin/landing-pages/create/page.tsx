@@ -206,6 +206,14 @@ export default function CreateLandingPagePage() {
       
       const slug = `lp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       
+      // 디버깅: 전송할 데이터 확인
+      console.log("🔍 Sending to API:", {
+        studentId: selectedStudent,
+        studentIdType: typeof selectedStudent,
+        folderId: selectedFolder,
+        folderIdType: typeof selectedFolder,
+      });
+      
       const response = await fetch("/api/admin/landing-pages", {
         method: "POST",
         headers: {
@@ -230,12 +238,14 @@ export default function CreateLandingPagePage() {
 
       if (response.ok) {
         const result = await response.json();
+        console.log("✅ API Success Response:", result);
         const pageUrl = result.landingPage?.url || result.url || `/lp/${slug}`;
         alert(`랜딩페이지가 생성되었습니다!\n\nURL: ${window.location.origin}${pageUrl}`);
         router.push("/dashboard/admin/landing-pages");
       } else {
         const error = await response.json();
-        console.error("생성 실패:", error);
+        console.error("❌ API Error Response:", error);
+        console.error("❌ Error details:", error.details);
         alert(error.error || error.message || "생성 중 오류가 발생했습니다.");
       }
     } catch (error: any) {
