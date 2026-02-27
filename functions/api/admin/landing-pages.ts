@@ -129,20 +129,26 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         )}`
       : null;
 
-    // Insert landing page
-    // Note: Using minimal columns that exist in the table
+    // Insert landing page - id를 NULL로 설정하여 AUTOINCREMENT 사용
     await db
       .prepare(
         `INSERT INTO landing_pages (
-          id, slug, title
-        ) VALUES (?, ?, ?)`
+          slug, title
+        ) VALUES (?, ?)`
       )
       .bind(
-        id,
         slug,
         title
       )
       .run();
+
+    // 생성된 ID 가져오기
+    const result = await db
+      .prepare(`SELECT id FROM landing_pages WHERE slug = ?`)
+      .bind(slug)
+      .first();
+    
+    const insertedId = result?.id;
 
     // Insert pixel scripts if provided
     if (pixelScripts && Array.isArray(pixelScripts) && pixelScripts.length > 0) {
@@ -156,7 +162,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
             (id, landingPageId, name, scriptType, scriptCode, isActive, createdAt, updatedAt)
             VALUES (?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`
           )
-          .bind(scriptId, id, script.name, script.scriptType, script.scriptCode)
+          .bind(scriptId, insertedId, script.name, script.scriptType, script.scriptCode)
           .run();
       }
     }
@@ -166,7 +172,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         success: true,
         message: "랜딩페이지가 생성되었습니다.",
         landingPage: {
-          id,
+          id: insertedId,
           slug,
           url: `/lp/${slug}`,
           qrCodeUrl,
