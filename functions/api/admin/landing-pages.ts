@@ -354,9 +354,40 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       // Try to list recent rows
       console.log("⚠️ Row not found! Listing recent entries...");
       const recentRows = await db
-        .prepare(`SELECT id, slug, title, createdAt FROM landing_pages ORDER BY createdAt DESC LIMIT 5`)
+        .prepare(`SELECT id, slug, title, created_at FROM landing_pages ORDER BY id DESC LIMIT 5`)
         .all();
       console.log("📊 Recent rows:", JSON.stringify(recentRows.results));
+      
+      // Try selecting by id (last inserted)
+      const lastId = insertResult.meta?.last_row_id;
+      if (lastId) {
+        console.log("🔍 Trying to select by ID:", lastId);
+        const resultById = await db
+          .prepare(`SELECT id, slug, title FROM landing_pages WHERE id = ?`)
+          .bind(lastId)
+          .first();
+        console.log("📊 Result by ID:", JSON.stringify(resultById));
+        
+        if (resultById) {
+          // Use this result instead
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: "랜딩페이지가 생성되었습니다.",
+              landingPage: {
+                id: resultById.id,
+                slug: resultById.slug,
+                url: `/lp/${resultById.slug}`,
+                qrCodeUrl,
+              },
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
+      }
       
       throw new Error(`INSERT succeeded but cannot find row with slug: ${slug}. Recent rows: ${recentRows.results?.length || 0}`);
     }
