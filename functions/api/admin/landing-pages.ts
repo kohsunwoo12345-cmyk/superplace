@@ -319,14 +319,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 </body>
 </html>`;
 
-    // ⚠️ 실제 마이그레이션 스키마에는 user_id가 없고 createdBy (TEXT) 있음!
-    // FK: FOREIGN KEY (createdBy) REFERENCES users(id)
-    const createdByUser = userIdStr || null;  // TEXT 또는 NULL
-    console.log("✅ Using createdBy:", createdByUser, "(TEXT, can be NULL)");
-    
-    // Insert landing page - 생성자 ID를 user_id로 저장
+    // Insert landing page - 생성자의 실제 user.id 사용 (FK 제약 충족)
     console.log("📝 Inserting landing page with user_id:", userIdForDb, "type:", typeof userIdForDb);
-    console.log("📝 Values:", { slug, title, userIdForDb });
+    console.log("📝 Creator info:", { creatorUserId, userIdForDb, slug, title });
     
     const insertResult = await db
       .prepare(`INSERT INTO landing_pages (slug, title, user_id, template_type, content_json, html_content) VALUES (?, ?, ?, ?, ?, ?)`)
