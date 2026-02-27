@@ -205,34 +205,25 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const createdByUser = userIdStr || null;  // TEXT 또는 NULL
     console.log("✅ Using createdBy:", createdByUser, "(TEXT, can be NULL)");
     
-    // Insert landing page - USE ACTUAL PRODUCTION SCHEMA!
-    // Production has: id, user_id, slug, title, template_type, content_json, html_content,
-    // qr_code_url, view_count, status, created_at, updated_at, folder_id, thumbnail_url,
-    // og_title, og_description, form_template_id, form_id, header_pixel, body_pixel, conversion_pixel
-    console.log("📝 Inserting landing page with PRODUCTION schema...");
-    console.log("📝 Values:", { id, slug, title });
+    // Insert landing page - MINIMAL columns to avoid ALL FK constraints
+    // Only use: slug, title, template_type, content_json, html_content
+    // Skip: user_id (FK), folder_id (FK), qr_code_url, thumbnail_url, og_title, og_description
+    console.log("📝 Inserting landing page with MINIMAL schema (no FK columns)...");
+    console.log("📝 Values:", { slug, title });
     
     const insertResult = await db
       .prepare(
         `INSERT INTO landing_pages (
-          slug, title, user_id, template_type, 
-          content_json, html_content,
-          qr_code_url, folder_id, thumbnail_url,
-          og_title, og_description
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          slug, title, template_type, 
+          content_json, html_content
+        ) VALUES (?, ?, ?, ?, ?)`
       )
       .bind(
         slug,
         title,
-        0,  // user_id (INTEGER, 사용안함)
         templateType || 'basic',
-        defaultContentJson,  // 가장 중요! subtitle, studentId 등 여기 저장
-        defaultHtmlContent,
-        qrCodeUrl,
-        null,  // folder_id NULL (FK 제약 우회)
-        thumbnail || null,
-        ogTitle || null,
-        ogDescription || null
+        defaultContentJson,  // ALL data goes here (subtitle, studentId, thumbnail, etc.)
+        defaultHtmlContent
       )
       .run();
 
