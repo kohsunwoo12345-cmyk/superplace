@@ -43,8 +43,14 @@ export async function onRequestPost(context) {
       );
     }
     
+    // Student ID 생성을 먼저 (timestamp 필요)
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 15);
+    const studentId = `student-${timestamp}-${randomStr}`;
+    logs.push(`✅ Student ID 생성: ${studentId}`);
+    
     // 이메일이 없으면 임시 이메일 생성
-    const finalEmail = email || `student_${timestamp || Date.now()}@temp.superplace.local`;
+    const finalEmail = email || `student_${timestamp}@temp.superplace.local`;
     logs.push(`✅ 사용할 이메일: ${finalEmail}`);
 
     // Authorization 헤더에서 사용자 정보 추출
@@ -68,12 +74,6 @@ export async function onRequestPost(context) {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     logs.push(`✅ 비밀번호 해싱 완료`);
-
-    // Student ID 생성
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(2, 15);
-    const studentId = `student-${timestamp}-${randomStr}`;
-    logs.push(`✅ Student ID 생성: ${studentId}`);
 
     // User 테이블에 삽입
     try {
