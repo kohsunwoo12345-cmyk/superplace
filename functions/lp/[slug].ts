@@ -12,22 +12,59 @@ export async function onRequest(context: {
     const { slug } = context.params;
     const db = context.env.DB;
 
-    // Get landing page
-    const landingPage = await db
-      .prepare(
-        `SELECT 
-          lp.*,
-          u.name as studentName,
-          f.name as folderName
-        FROM landing_pages lp
-        LEFT JOIN User u ON lp.createdBy = u.id
-        LEFT JOIN landing_page_folders f ON lp.folderId = f.id
-        WHERE lp.slug = ? AND lp.isActive = 1`
-      )
-      .bind(slug)
-      .first();
+    console.log("🔍 Trying to fetch landing page:", slug);
+
+    // Try multiple table name variations
+    let landingPage = null;
+    let queryError = null;
+    
+    // Try lowercase first
+    try {
+      console.log("🔍 Trying lowercase table: landing_pages");
+      landingPage = await db
+        .prepare(
+          `SELECT 
+            lp.*,
+            u.name as studentName,
+            f.name as folderName
+          FROM landing_pages lp
+          LEFT JOIN User u ON lp.createdBy = u.id
+          LEFT JOIN landing_page_folders f ON lp.folderId = f.id
+          WHERE lp.slug = ? AND lp.isActive = 1`
+        )
+        .bind(slug)
+        .first();
+      console.log("✅ Found with lowercase:", !!landingPage);
+    } catch (e1: any) {
+      console.log("❌ Lowercase failed:", e1.message);
+      queryError = e1.message;
+      
+      // Try uppercase
+      try {
+        console.log("🔍 Trying uppercase table: LandingPage");
+        landingPage = await db
+          .prepare(
+            `SELECT 
+              lp.*,
+              u.name as studentName,
+              f.name as folderName
+            FROM LandingPage lp
+            LEFT JOIN User u ON lp.studentId = u.id
+            LEFT JOIN LandingPageFolder f ON lp.folderId = f.id
+            WHERE lp.slug = ? AND lp.isActive = 1`
+          )
+          .bind(slug)
+          .first();
+        console.log("✅ Found with uppercase:", !!landingPage);
+      } catch (e2: any) {
+        console.log("❌ Uppercase also failed:", e2.message);
+        queryError = e2.message;
+      }
+    }
 
     if (!landingPage) {
+      console.log("❌ Landing page not found for slug:", slug);
+      console.log("❌ Query error:", queryError);
       return new Response(
         `<!DOCTYPE html>
 <html lang="ko">
@@ -58,21 +95,48 @@ export async function onRequest(context: {
       );
     }
 
-    // Increment view count
-    await db
-      .prepare(`UPDATE landing_pages SET views = views + 1 WHERE slug = ?`)
-      .bind(slug)
-      .run();
+    // Increment view count (try both table names)
+    try {
+      await db
+        .prepare(`UPDATE landing_pages SET views = views + 1 WHERE slug = ?`)
+        .bind(slug)
+        .run();
+    } catch {
+      try {
+        await db
+          .prepare(`UPDATE LandingPage SET viewCount = viewCount + 1 WHERE slug = ?`)
+          .bind(slug)
+          .run();
+      } catch (e: any) {
+        console.log("⚠️ Could not update view count:", e.message);
+      }
+    }
 
-    // Get pixel scripts
-    const pixelScripts = await db
-      .prepare(
-        `SELECT * FROM landing_page_pixel_scripts 
+    // Get pixel scripts (try both table names)
+    let pixelScripts: any = { results: [] };
+    try {
+      pixelScripts = await db
+        .prepare(
+          `SELECT * FROM landing_page_pixel_scripts 
         WHERE landingPageId = ? AND isActive = 1
         ORDER BY scriptType`
-      )
-      .bind(landingPage.id)
-      .all();
+        )
+        .bind(landingPage.id)
+        .all();
+    } catch {
+      try {
+        pixelScripts = await db
+          .prepare(
+            `SELECT * FROM LandingPagePixelScript 
+          WHERE landingPageId = ? AND isActive = 1
+          ORDER BY scriptType`
+          )
+          .bind(landingPage.id)
+          .all();
+      } catch (e: any) {
+        console.log("⚠️ Could not fetch pixel scripts:", e.message);
+      }
+    }
 
     // Parse data
     const inputData = landingPage.inputData
