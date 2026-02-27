@@ -88,6 +88,29 @@ export async function onRequest(context: {
       );
     }
 
+    // Check if html_content exists and use it
+    if (landingPage.html_content) {
+      console.log("✅ Using stored html_content");
+      
+      // Increment view count first
+      try {
+        await db
+          .prepare(`UPDATE landing_pages SET view_count = view_count + 1 WHERE slug = ?`)
+          .bind(slug)
+          .run();
+      } catch (e: any) {
+        console.log("⚠️ Could not update view count:", e.message);
+      }
+      
+      // Return stored HTML directly
+      return new Response(landingPage.html_content as string, {
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+    
+    console.log("⚠️ No html_content found, generating default HTML");
+
     // Increment view count (try both table names)
     try {
       await db
