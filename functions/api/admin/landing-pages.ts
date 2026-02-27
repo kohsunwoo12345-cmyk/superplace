@@ -3,6 +3,26 @@ interface Env {
   DB: D1Database;
 }
 
+// 토큰 파싱 함수
+function parseToken(authHeader: string | null): { id: string; email: string; role: string } | null {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  
+  const token = authHeader.substring(7);
+  const parts = token.split('|');
+  
+  if (parts.length < 3) {
+    return null;
+  }
+  
+  return {
+    id: parts[0],
+    email: parts[1],
+    role: parts[2]
+  };
+}
+
 export async function onRequestGet(context: { request: Request; env: Env }) {
   try {
     const authHeader = context.request.headers.get("authorization");
@@ -13,17 +33,69 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
       });
     }
 
+    const tokenData = parseToken(authHeader);
+    if (!tokenData) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const db = context.env.DB;
 
-    // Get all landing pages with additional info
-    const landingPages = await db
-      .prepare(
-        `SELECT 
-          lp.id, lp.slug, lp.title
+    // 사용자 정보 조회
+    const user = await db
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .bind(tokenData.email)
+      .first();
+
+    if (!user) {
+      return new Response(JSON.stringify({ error: "User not found" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const role = user.role ? user.role.toUpperCase() : '';
+    const userAcademyId = user.academyId;
+    const userId = user.id;
+
+    console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId, userId });
+
+    // 역할별 쿼리 생성
+    let query = '';
+    let queryParams: any[] = [];
+
+    if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+      // 관리자는 모든 랜딩페이지 조회
+      query = `
+        SELECT 
+          lp.id, lp.slug, lp.title, lp.created_at, lp.user_id,
+          u.name as creatorName
         FROM landing_pages lp
-        ORDER BY lp.id DESC`
-      )
-      .all();
+        LEFT JOIN User u ON lp.user_id = u.id
+        ORDER BY lp.id DESC
+      `;
+    } else if (role === 'DIRECTOR' || role === 'TEACHER') {
+      // 학원장/교사는 자신이 만든 것만 조회
+      query = `
+        SELECT 
+          lp.id, lp.slug, lp.title, lp.created_at, lp.user_id,
+          u.name as creatorName
+        FROM landing_pages lp
+        LEFT JOIN User u ON lp.user_id = u.id
+        WHERE lp.user_id = ?
+        ORDER BY lp.id DESC
+      `;
+      queryParams = [userId];
+    } else {
+      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const landingPages = await db.prepare(query).bind(...queryParams).all();
 
     // Parse results
     const results = (landingPages.results || []).map((lp: any) => ({
@@ -71,6 +143,33 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         headers: { "Content-Type": "application/json" },
       });
     }
+
+    // 토큰 파싱
+    const tokenData = parseToken(authHeader);
+    if (!tokenData) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const db = context.env.DB;
+
+    // 사용자 정보 조회
+    const user = await db
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .bind(tokenData.email)
+      .first();
+
+    if (!user) {
+      return new Response(JSON.stringify({ error: "User not found" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const creatorUserId = user.id; // 생성자 ID
+    console.log('✅ Creator:', { id: creatorUserId, email: user.email, role: user.role });
 
     const body = await context.request.json();
     const {
@@ -205,30 +304,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const createdByUser = userIdStr || null;  // TEXT 또는 NULL
     console.log("✅ Using createdBy:", createdByUser, "(TEXT, can be NULL)");
     
-    // 더미 사용자 ID 생성 - User 테이블에 존재하는 ID 확인/생성
-    console.log("🔍 Checking for dummy user...");
-    
-    // User 테이블에서 아무 사용자나 하나 가져오기
-    let dummyUserId = -999;
-    try {
-      const anyUser = await db.prepare(`SELECT id FROM User LIMIT 1`).first();
-      if (anyUser) {
-        dummyUserId = anyUser.id;
-        console.log("✅ Using existing user ID:", dummyUserId);
-      } else {
-        console.log("⚠️ No users found in User table");
-      }
-    } catch (e: any) {
-      console.log("⚠️ Could not query User table:", e.message);
-    }
-
-    // Insert landing page
-    console.log("📝 Inserting landing page with user_id =", dummyUserId);
-    console.log("📝 Values:", { slug, title });
+    // Insert landing page - 생성자 ID를 user_id로 저장
+    console.log("📝 Inserting landing page with creator ID:", creatorUserId);
+    console.log("📝 Values:", { slug, title, creatorUserId });
     
     const insertResult = await db
       .prepare(`INSERT INTO landing_pages (slug, title, user_id, template_type, content_json, html_content) VALUES (?, ?, ?, ?, ?, ?)`)
-      .bind(slug, title, dummyUserId, templateType || 'basic', defaultContentJson, defaultHtmlContent)
+      .bind(slug, title, creatorUserId, templateType || 'basic', defaultContentJson, defaultHtmlContent)
       .run();
 
     console.log("✅ Landing page inserted successfully");
