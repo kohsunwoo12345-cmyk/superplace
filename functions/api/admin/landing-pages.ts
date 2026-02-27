@@ -212,8 +212,6 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    const db = context.env.DB;
-
     // 디버깅: studentId 값과 타입 확인
     console.log("🔍 studentId received:", studentId, "type:", typeof studentId);
 
