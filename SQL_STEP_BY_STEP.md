@@ -1,166 +1,191 @@
-# Cloudflare D1 Console SQL 실행 가이드
+# 🔧 Cloudflare D1 Console SQL 실행 가이드 (단계별)
 
-## 접속 방법
-1. https://dash.cloudflare.com 접속
-2. 왼쪽 메뉴에서 **Workers & Pages** 클릭
-3. **D1** 탭 클릭
-4. **superplace-db** 데이터베이스 클릭
-5. **Console** 탭 클릭
+⚠️ **중요**: Cloudflare D1 Console은 한 번에 하나의 SQL만 실행 가능!
+아래 명령어를 **순서대로 하나씩** 복사해서 실행하세요.
 
 ---
 
-## ⚠️ 중요: 실행 방법
-
-**한 번에 하나의 SQL만 실행하세요!**
-
-각 SQL을 복사 → Console에 붙여넣기 → Execute 버튼 클릭
-
----
-
-## SQL 1 - school 컬럼 추가
+## Step 1: 백업 생성
 
 ```sql
-ALTER TABLE User ADD COLUMN school TEXT
+CREATE TABLE landing_pages_backup AS SELECT * FROM landing_pages;
 ```
 
-**실행 후**: "Query executed successfully" 또는 "Success" 메시지 확인
+**예상 결과**: `Query executed successfully` (또는 데이터 개수 표시)
 
 ---
 
-## SQL 2 - class 컬럼 추가
+## Step 2: FK 제약 일시 해제
 
 ```sql
-ALTER TABLE User ADD COLUMN class TEXT
+PRAGMA foreign_keys = OFF;
 ```
 
-**실행 후**: "Query executed successfully" 또는 "Success" 메시지 확인
+**예상 결과**: `Success` 또는 아무 출력 없음
 
 ---
 
-## SQL 3 - school 인덱스 생성
+## Step 3: 기존 테이블 삭제
 
 ```sql
-CREATE INDEX idx_user_school ON User(school)
+DROP TABLE IF EXISTS landing_pages;
 ```
 
-**실행 후**: "Query executed successfully" 메시지 확인
+**예상 결과**: `Query executed successfully`
 
 ---
 
-## SQL 4 - class 인덱스 생성
+## Step 4: 새 테이블 생성 (user_id를 TEXT로)
+
+**⚠️ 이 명령어는 길지만 하나의 SQL이므로 전체를 한 번에 실행**:
 
 ```sql
-CREATE INDEX idx_user_class ON User(class)
+CREATE TABLE landing_pages (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, template_type TEXT NOT NULL, content_json TEXT NOT NULL, html_content TEXT NOT NULL, qr_code_url TEXT, view_count INTEGER DEFAULT 0, status TEXT DEFAULT 'active', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, folder_id INTEGER, thumbnail_url TEXT, og_title TEXT, og_description TEXT, form_template_id INTEGER, form_id INTEGER, header_pixel TEXT, body_pixel TEXT, conversion_pixel TEXT, FOREIGN KEY (user_id) REFERENCES User(id), FOREIGN KEY (folder_id) REFERENCES landing_folders(id));
 ```
 
-**실행 후**: "Query executed successfully" 메시지 확인
+**예상 결과**: `Query executed successfully`
 
 ---
 
-## SQL 5 - Class 테이블 생성
+## Step 5: 인덱스 생성 (slug)
 
 ```sql
-CREATE TABLE Class (id TEXT PRIMARY KEY, name TEXT NOT NULL, grade TEXT, description TEXT, color TEXT, capacity INTEGER DEFAULT 20, isActive INTEGER DEFAULT 1, academyId TEXT NOT NULL, teacherId TEXT, createdAt TEXT NOT NULL DEFAULT (datetime('now')), updatedAt TEXT NOT NULL DEFAULT (datetime('now')))
+CREATE INDEX idx_landing_pages_slug ON landing_pages(slug);
 ```
 
-**실행 후**: "Query executed successfully" 메시지 확인
+**예상 결과**: `Query executed successfully`
 
 ---
 
-## SQL 6 - Class 인덱스 생성 (1)
+## Step 6: 인덱스 생성 (user_id)
 
 ```sql
-CREATE INDEX idx_class_academy ON Class(academyId)
+CREATE INDEX idx_landing_pages_user_id ON landing_pages(user_id);
 ```
 
+**예상 결과**: `Query executed successfully`
+
 ---
 
-## SQL 7 - Class 인덱스 생성 (2)
+## Step 7: FK 제약 다시 활성화
 
 ```sql
-CREATE INDEX idx_class_teacher ON Class(teacherId)
+PRAGMA foreign_keys = ON;
 ```
 
+**예상 결과**: `Success` 또는 아무 출력 없음
+
 ---
 
-## SQL 8 - Class 인덱스 생성 (3)
+## Step 8: 확인 (테이블 구조 조회)
 
 ```sql
-CREATE INDEX idx_class_active ON Class(isActive)
+PRAGMA table_info(landing_pages);
 ```
 
----
-
-## SQL 9 - ClassSchedule 테이블 생성
-
-```sql
-CREATE TABLE ClassSchedule (id TEXT PRIMARY KEY, classId TEXT NOT NULL, subject TEXT NOT NULL, dayOfWeek INTEGER NOT NULL, startTime TEXT NOT NULL, endTime TEXT NOT NULL, createdAt TEXT NOT NULL DEFAULT (datetime('now')), FOREIGN KEY (classId) REFERENCES Class(id) ON DELETE CASCADE)
+**예상 결과**: 
+```
+cid | name          | type     | notnull | dflt_value | pk
+----|---------------|----------|---------|------------|----
+0   | id            | INTEGER  | 0       | NULL       | 1
+1   | user_id       | TEXT     | 1       | NULL       | 0  ✅ TEXT로 변경됨!
+2   | slug          | TEXT     | 1       | NULL       | 0
+...
 ```
 
 ---
 
-## SQL 10 - ClassSchedule 인덱스 생성
+## Step 9: FK 확인
 
 ```sql
-CREATE INDEX idx_schedule_class ON ClassSchedule(classId)
+PRAGMA foreign_key_list(landing_pages);
+```
+
+**예상 결과**:
+```
+id | seq | table           | from      | to
+---|-----|-----------------|-----------|----
+0  | 0   | User            | user_id   | id
+1  | 0   | landing_folders | folder_id | id
 ```
 
 ---
 
-## SQL 11 - ClassStudent 테이블 생성
+## Step 10: 데이터 개수 확인
 
 ```sql
-CREATE TABLE ClassStudent (id TEXT PRIMARY KEY, classId TEXT NOT NULL, studentId TEXT NOT NULL, enrolledAt TEXT NOT NULL DEFAULT (datetime('now')), UNIQUE(classId, studentId), FOREIGN KEY (classId) REFERENCES Class(id) ON DELETE CASCADE, FOREIGN KEY (studentId) REFERENCES User(id) ON DELETE CASCADE)
+SELECT COUNT(*) as count FROM landing_pages;
+```
+
+**예상 결과**: `count: 0` (새 테이블이므로 데이터 없음)
+
+---
+
+## ✅ 완료!
+
+모든 단계가 성공하면:
+
+### 다음 작업
+1. 브라우저에서 로그인
+2. 랜딩페이지 메뉴 클릭
+3. 새 페이지 생성 시도
+4. ✅ 성공 예상!
+
+---
+
+## 🚨 오류 발생 시
+
+### "table landing_pages_backup already exists"
+- Step 1을 이미 실행했음
+- Step 2부터 계속 진행
+
+### "no such table: landing_pages"
+- Step 3을 이미 실행했음
+- Step 4부터 계속 진행
+
+### "table landing_pages already exists" (Step 4에서)
+- Step 3이 실행 안 됨
+- Step 3 다시 실행 후 Step 4 재시도
+
+### "foreign key mismatch" 
+- User 또는 landing_folders 테이블 없음
+- 무시하고 계속 진행 (나중에 데이터 입력 시 확인)
+
+---
+
+## 📋 빠른 실행용 (복사하기 쉽게)
+
+**Console에 하나씩 붙여넣으세요**:
+
+```
+CREATE TABLE landing_pages_backup AS SELECT * FROM landing_pages;
+```
+```
+PRAGMA foreign_keys = OFF;
+```
+```
+DROP TABLE IF EXISTS landing_pages;
+```
+```
+CREATE TABLE landing_pages (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, template_type TEXT NOT NULL, content_json TEXT NOT NULL, html_content TEXT NOT NULL, qr_code_url TEXT, view_count INTEGER DEFAULT 0, status TEXT DEFAULT 'active', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, folder_id INTEGER, thumbnail_url TEXT, og_title TEXT, og_description TEXT, form_template_id INTEGER, form_id INTEGER, header_pixel TEXT, body_pixel TEXT, conversion_pixel TEXT, FOREIGN KEY (user_id) REFERENCES User(id), FOREIGN KEY (folder_id) REFERENCES landing_folders(id));
+```
+```
+CREATE INDEX idx_landing_pages_slug ON landing_pages(slug);
+```
+```
+CREATE INDEX idx_landing_pages_user_id ON landing_pages(user_id);
+```
+```
+PRAGMA foreign_keys = ON;
+```
+```
+PRAGMA table_info(landing_pages);
+```
+```
+SELECT COUNT(*) FROM landing_pages;
 ```
 
 ---
 
-## SQL 12 - ClassStudent 인덱스 생성 (1)
-
-```sql
-CREATE INDEX idx_class_student_class ON ClassStudent(classId)
-```
-
----
-
-## SQL 13 - ClassStudent 인덱스 생성 (2)
-
-```sql
-CREATE INDEX idx_class_student_student ON ClassStudent(studentId)
-```
-
----
-
-## 확인 SQL
-
-모든 SQL 실행 후 아래 명령으로 확인:
-
-```sql
-PRAGMA table_info(User)
-```
-
-결과에서 `school`, `class` 컬럼이 보여야 합니다.
-
-```sql
-SELECT name FROM sqlite_master WHERE type='table'
-```
-
-결과에서 `Class`, `ClassSchedule`, `ClassStudent` 테이블이 보여야 합니다.
-
----
-
-## 오류 발생 시
-
-### "duplicate column name: school" 또는 "duplicate column name: class"
-→ **해결**: 이미 컬럼이 있습니다. 다음 SQL로 넘어가세요.
-
-### "index already exists"
-→ **해결**: 이미 인덱스가 있습니다. 다음 SQL로 넘어가세요.
-
-### "table Class already exists"
-→ **해결**: 이미 테이블이 있습니다. 다음 SQL로 넘어가세요.
-
----
-
-**작성일**: 2026-02-27  
-**총 실행 시간**: 약 5분
+**작성**: 2026-02-27
+**목적**: Cloudflare D1 Console 단계별 실행 가이드
