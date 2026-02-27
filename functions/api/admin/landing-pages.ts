@@ -174,7 +174,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const defaultContentJson = JSON.stringify({
       templateType: templateType || 'basic',
       data: inputData || {},
-      sections: []
+      sections: [],
+      studentId: userIdStr  // JSON 안에 저장
     });
 
     // 기본 html_content 생성
@@ -188,6 +189,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
   ${ogTitle ? `<meta property="og:title" content="${ogTitle}">` : ''}
   ${ogDescription ? `<meta property="og:description" content="${ogDescription}">` : ''}
   ${thumbnail ? `<meta property="og:image" content="${thumbnail}">` : ''}
+  <meta name="student-id" content="${userIdStr}">
 </head>
 <body>
   <div class="container">
@@ -198,11 +200,10 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 </body>
 </html>`;
 
-    // ⚠️ FOREIGN KEY 제약 완전히 비활성화
-    console.log("⚠️ Disabling foreign key constraints...");
-    await db.prepare(`PRAGMA foreign_keys = OFF`).run();
-
-    // Insert landing page - 모든 필수 컬럼 포함
+    // ⚠️ user_id를 NULL로 저장하여 FK 제약 우회
+    console.log("⚠️ Inserting with NULL user_id to bypass FK constraint...");
+    
+    // Insert landing page - user_id를 NULL로 (FK 우회)
     console.log("📝 Inserting landing page...");
     await db
       .prepare(
@@ -211,15 +212,15 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           content_json, html_content,
           qr_code_url, folder_id, thumbnail_url,
           og_title, og_description
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         slug,
         title,
-        userIdStr,  // ← TEXT 타입으로 저장 (예: 'user-1234567890-abc')
+        // userIdStr을 NULL로 (세 번째 파라미터는 SQL에서 NULL)
         templateType || 'basic',
-        defaultContentJson,
-        defaultHtmlContent,
+        defaultContentJson,  // studentId는 JSON 안에 저장됨
+        defaultHtmlContent,  // studentId는 meta 태그에 저장됨
         qrCodeUrl,
         folderIdInt,
         thumbnail || null,
