@@ -141,20 +141,56 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         )}`
       : null;
 
+    // 기본 content_json 생성
+    const defaultContentJson = JSON.stringify({
+      templateType: templateType || 'basic',
+      data: inputData || {},
+      sections: []
+    });
+
+    // 기본 html_content 생성
+    const defaultHtmlContent = templateHtml || `
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  ${ogTitle ? `<meta property="og:title" content="${ogTitle}">` : ''}
+  ${ogDescription ? `<meta property="og:description" content="${ogDescription}">` : ''}
+  ${thumbnail ? `<meta property="og:image" content="${thumbnail}">` : ''}
+</head>
+<body>
+  <div class="container">
+    <h1>${title}</h1>
+    ${subtitle ? `<p class="subtitle">${subtitle}</p>` : ''}
+    ${description ? `<div class="description">${description}</div>` : ''}
+  </div>
+</body>
+</html>`;
+
     // Insert landing page - 모든 필수 컬럼 포함
     await db
       .prepare(
         `INSERT INTO landing_pages (
           slug, title, user_id, template_type, 
-          html_template, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+          content_json, html_content,
+          qr_code_url, folder_id, thumbnail_url,
+          og_title, og_description
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         slug,
         title,
         studentId,
         templateType || 'basic',
-        templateHtml || '<div>랜딩페이지</div>'
+        defaultContentJson,
+        defaultHtmlContent,
+        qrCodeUrl,
+        folderId || null,
+        thumbnail || null,
+        ogTitle || null,
+        ogDescription || null
       )
       .run();
 
