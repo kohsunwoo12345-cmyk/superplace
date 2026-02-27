@@ -60,9 +60,18 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     const userAcademyId = user.academyId;
     const userId = user.id; // User.id는 TEXT 타입 (예: "admin-001")
 
-    // userId는 항상 TEXT로 사용 (User.id가 TEXT이므로)
-    const userIdForQuery = String(userId);
-    console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId, userId: userIdForQuery });
+    // userId를 INTEGER 해시로 변환 (landing_pages.user_id가 INTEGER이므로)
+    function hashStringToInt(str: string): number {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash = hash & hash;
+      }
+      return Math.abs(hash);
+    }
+    
+    const userIdForQuery = hashStringToInt(String(userId));
+    console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId, userIdHash: userIdForQuery, originalUserId: userId });
 
     // 역할별 쿼리 생성
     let query = '';
@@ -173,10 +182,22 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const creatorUserId = user.id; // 생성자 ID (User.id는 TEXT!)
     console.log('✅ Creator:', { id: creatorUserId, email: user.email, role: user.role, idType: typeof creatorUserId });
 
-    // user_id는 User.id와 같은 타입(TEXT)을 사용해야 FK가 작동함!
-    // ⚠️ landing_pages.user_id가 현재 INTEGER라면 DB 스키마를 TEXT로 변경해야 함!
-    const userIdForDb = String(creatorUserId); // 항상 TEXT로 저장
-    console.log('✅ user_id for DB:', userIdForDb, 'type:', typeof userIdForDb);
+    // ⚠️ landing_pages.user_id가 INTEGER인 경우: TEXT ID를 숫자 해시로 변환
+    // User.id (TEXT)를 간단한 해시 함수로 INTEGER로 변환
+    function hashStringToInt(str: string): number {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      return Math.abs(hash);
+    }
+    
+    const userIdForDb = hashStringToInt(String(creatorUserId));
+    console.log('✅ user_id for DB (INTEGER hash):', userIdForDb, 'from:', creatorUserId);
+    
+    // content_json에 실제 User.id를 저장 (추적용)
+    const userIdOriginal = String(creatorUserId);
 
     const body = await context.request.json();
     const {
@@ -279,7 +300,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       templateType: templateType || 'basic',
       data: inputData || {},
       sections: [],
-      studentId: userIdStr  // JSON 안에 저장
+      studentId: userIdStr,  // JSON 안에 저장
+      creatorUserId: userIdOriginal // 실제 User.id 저장 (추적용)
     });
 
     // 기본 html_content 생성
