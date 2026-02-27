@@ -205,45 +205,34 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const createdByUser = userIdStr || null;  // TEXT 또는 NULL
     console.log("✅ Using createdBy:", createdByUser, "(TEXT, can be NULL)");
     
-    // Insert landing page - 실제 마이그레이션 스키마 사용
-    console.log("📝 Inserting landing page with migration schema...");
-    console.log("📝 Values:", {
-      id,
-      slug,
-      title,
-      templateType,
-      createdByUser
-    });
+    // Insert landing page - USE ACTUAL PRODUCTION SCHEMA!
+    // Production has: id, user_id, slug, title, template_type, content_json, html_content,
+    // qr_code_url, view_count, status, created_at, updated_at, folder_id, thumbnail_url,
+    // og_title, og_description, form_template_id, form_id, header_pixel, body_pixel, conversion_pixel
+    console.log("📝 Inserting landing page with PRODUCTION schema...");
+    console.log("📝 Values:", { id, slug, title });
     
     const insertResult = await db
       .prepare(
         `INSERT INTO landing_pages (
-          id, slug, title, subtitle, description,
-          templateType, templateHtml, inputData,
-          ogTitle, ogDescription, thumbnail,
-          folderId, showQrCode, qrCodeUrl,
-          views, submissions, isActive, createdBy
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          slug, title, user_id, template_type, 
+          content_json, html_content,
+          qr_code_url, folder_id, thumbnail_url,
+          og_title, og_description
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
-        id,
         slug,
         title,
-        subtitle || null,
-        description || null,
+        0,  // user_id (INTEGER, 사용안함)
         templateType || 'basic',
+        defaultContentJson,  // 가장 중요! subtitle, studentId 등 여기 저장
         defaultHtmlContent,
-        JSON.stringify(inputData || []),
-        ogTitle || null,
-        ogDescription || null,
-        thumbnail || null,
-        folderIdInt ? String(folderIdInt) : null,
-        showQrCode ? 1 : 0,
         qrCodeUrl,
-        0,
-        0,
-        1,
-        createdByUser
+        folderIdInt || null,
+        thumbnail || null,
+        ogTitle || null,
+        ogDescription || null
       )
       .run();
 
