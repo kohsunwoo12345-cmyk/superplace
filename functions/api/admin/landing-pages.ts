@@ -229,7 +229,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         defaultContentJson,  // 가장 중요! subtitle, studentId 등 여기 저장
         defaultHtmlContent,
         qrCodeUrl,
-        folderIdInt || null,
+        null,  // folder_id NULL (FK 제약 우회)
         thumbnail || null,
         ogTitle || null,
         ogDescription || null
