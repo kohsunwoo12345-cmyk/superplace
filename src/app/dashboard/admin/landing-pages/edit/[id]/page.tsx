@@ -31,6 +31,11 @@ interface LandingPage {
   status: string;
 }
 
+// Required for static export with dynamic routes
+export function generateStaticParams() {
+  return [];
+}
+
 export default function EditLandingPagePage() {
   const router = useRouter();
   const params = useParams();
