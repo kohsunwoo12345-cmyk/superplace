@@ -42,6 +42,7 @@ export default function CreateStudentDialog({
     parentPhone: "",
     school: "",
     grade: "",
+    class: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,6 +82,7 @@ export default function CreateStudentDialog({
         parentPhone: "",
         school: "",
         grade: "",
+        class: "",
       });
       onOpenChange(false);
       onSuccess();
@@ -189,6 +191,17 @@ export default function CreateStudentDialog({
                   <SelectItem value="고3">고등학교 3학년</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="class">소속반</Label>
+              <Input
+                id="class"
+                value={formData.class}
+                onChange={(e) => setFormData({ ...formData, class: e.target.value })}
+                placeholder="A반"
+                disabled={loading}
+              />
             </div>
 
             <div className="grid gap-2">

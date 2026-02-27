@@ -19,14 +19,24 @@ export async function onRequestPost(context) {
     const body = await context.request.json();
     logs.push(`✅ 요청 데이터: ${JSON.stringify(body)}`);
 
-    const { name, phone, academyId } = body;
+    const { 
+      name, 
+      email, 
+      password, 
+      phone, 
+      parentPhone, 
+      school, 
+      grade, 
+      class: studentClass,
+      academyId 
+    } = body;
 
     // 필수 필드 검증
-    if (!name || !phone) {
+    if (!name || !email || !password) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: '이름과 연락처는 필수입니다',
+          error: '이름, 이메일, 비밀번호는 필수입니다',
           logs 
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -46,18 +56,12 @@ export async function onRequestPost(context) {
       }
     }
 
-    // 임시 이메일 생성 (전화번호 기반)
-    const tempEmail = `student_${phone}@temp.superplace.local`;
-    logs.push(`✅ 임시 이메일 생성: ${tempEmail}`);
+    logs.push(`✅ 사용할 이메일: ${email}`);
 
-    // 임시 비밀번호 생성 및 해싱 (전화번호 뒷자리)
-    const tempPasswordPlain = phone.slice(-6);
-    logs.push(`✅ 임시 비밀번호 생성: ${tempPasswordPlain}`);
-    
     // 비밀번호 해싱
     const salt = 'superplace-salt-2024';
     const encoder = new TextEncoder();
-    const data = encoder.encode(tempPasswordPlain + salt);
+    const data = encoder.encode(password + salt);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -72,10 +76,31 @@ export async function onRequestPost(context) {
     // User 테이블에 삽입
     try {
       logs.push('🔄 User 테이블에 삽입 시도...');
-      await DB.prepare(`
-        INSERT INTO User (id, email, name, password, phone, role, academyId, isWithdrawn, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, 'STUDENT', ?, 0, datetime('now'), datetime('now'))
-      `).bind(studentId, tempEmail, name, hashedPassword, phone, tokenAcademyId).run();
+      
+      // school 필드 처리 (있을 경우만 추가)
+      let query = `
+        INSERT INTO User (
+          id, email, name, password, phone, parentPhone, 
+          grade, class, role, academyId, createdAt, updatedAt
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
+      `;
+      
+      const params = [
+        studentId, 
+        email, 
+        name, 
+        hashedPassword, 
+        phone || null, 
+        parentPhone || null,
+        grade || null,
+        studentClass || null,
+        tokenAcademyId
+      ];
+      
+      logs.push(`📝 SQL 파라미터: ${JSON.stringify(params)}`);
+      
+      await DB.prepare(query).bind(...params).run();
       
       logs.push(`✅ User 테이블 삽입 성공!`);
     } catch (e) {
@@ -100,14 +125,16 @@ export async function onRequestPost(context) {
         message: '학생 추가 성공!',
         user: {
           id: studentId,
-          email: tempEmail,
+          email: email,
           name: name,
           phone: phone,
+          parentPhone: parentPhone,
+          grade: grade,
+          class: studentClass,
           role: 'STUDENT',
           academyId: tokenAcademyId
         },
         userId: studentId,
-        tempPassword: tempPasswordPlain,
         logs
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
