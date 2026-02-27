@@ -79,13 +79,13 @@ export async function onRequestPost(context) {
     try {
       logs.push('🔄 User 테이블에 삽입 시도...');
       
-      // 먼저 school 컬럼 포함해서 시도
+      // 최소 필드만으로 삽입 (school, class 제외)
       let query = `
         INSERT INTO User (
           id, email, name, password, phone, parentPhone, 
-          school, grade, class, role, academyId, createdAt, updatedAt
+          grade, role, academyId, createdAt, updatedAt
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
       `;
       
       const params = [
@@ -95,48 +95,15 @@ export async function onRequestPost(context) {
         hashedPassword, 
         phone || null, 
         parentPhone || null,
-        school || null,
         grade || null,
-        studentClass || null,
         tokenAcademyId
       ];
       
       logs.push(`📝 SQL 파라미터: ${JSON.stringify(params)}`);
+      logs.push(`⚠️ 참고: school, class 필드는 마이그레이션 후 사용 가능합니다.`);
       
-      try {
-        await DB.prepare(query).bind(...params).run();
-        logs.push(`✅ User 테이블 삽입 성공! (school 포함)`);
-      } catch (schoolError) {
-        // school 컬럼이 없으면 school 제외하고 재시도
-        if (schoolError.message.includes('no column named school')) {
-          logs.push(`⚠️ school 컬럼 없음, school 제외하고 재시도...`);
-          
-          query = `
-            INSERT INTO User (
-              id, email, name, password, phone, parentPhone, 
-              grade, class, role, academyId, createdAt, updatedAt
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
-          `;
-          
-          const paramsWithoutSchool = [
-            studentId, 
-            finalEmail, 
-            name, 
-            hashedPassword, 
-            phone || null, 
-            parentPhone || null,
-            grade || null,
-            studentClass || null,
-            tokenAcademyId
-          ];
-          
-          await DB.prepare(query).bind(...paramsWithoutSchool).run();
-          logs.push(`✅ User 테이블 삽입 성공! (school 제외)`);
-        } else {
-          throw schoolError;
-        }
-      }
+      await DB.prepare(query).bind(...params).run();
+      logs.push(`✅ User 테이블 삽입 성공!`);
       
     } catch (e) {
       logs.push(`❌ User 테이블 삽입 실패: ${e.message}`);
