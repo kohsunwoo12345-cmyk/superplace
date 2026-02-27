@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   },
   verification: {
     other: {
-      "naver-site-verification": "f0716e4a61fc6144eec195ebe09f93fe452ada21",
+      "naver-site-verification": "6817ba67ed17ecfd7f621742b503a0b5cff117cf",
     },
   },
   openGraph: {
