@@ -119,6 +119,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'attendance', href: '/dashboard/attendance-statistics', icon: Clock, text: '출석 현황' },
           { id: 'homework', href: '/dashboard/homework/teacher', icon: FileText, text: '숙제 관리' },
           { id: 'homework-results', href: '/dashboard/homework/results', icon: Award, text: '숙제 검사 결과' },
+          { id: 'landing-pages', href: '/dashboard/admin/landing-pages', icon: Layout, text: '랜딩페이지' },
           { id: 'kakao-channel', href: '/dashboard/kakao-channel', icon: MessageCircle, text: '카카오 채널' },
           { id: 'point-charge', href: '/dashboard/point-charge', icon: CreditCard, text: '포인트 충전' },
           { id: 'ai-bots', href: '/dashboard/admin/ai-bots/assign', icon: Bot, text: 'AI 봇 할당' },
