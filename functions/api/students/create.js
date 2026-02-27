@@ -56,14 +56,84 @@ export async function onRequestPost(context) {
     // Authorization 헤더에서 사용자 정보 추출
     const authHeader = context.request.headers.get('Authorization');
     let tokenAcademyId = academyId;
+    let tokenUserId = null;
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const parts = token.split('|');
       if (parts.length >= 4) {
+        tokenUserId = parts[0];
         tokenAcademyId = parts[3] || academyId;
-        logs.push(`✅ 토큰에서 academyId 추출: ${tokenAcademyId}`);
+        logs.push(`✅ 토큰에서 userId: ${tokenUserId}, academyId: ${tokenAcademyId}`);
       }
+    }
+
+    // 🔒 구독 확인 및 사용량 체크
+    logs.push('🔒 구독 확인 중...');
+    
+    // academyId로 구독 확인
+    const subscription = await DB.prepare(`
+      SELECT us.* FROM user_subscriptions us
+      JOIN User u ON us.userId = u.id
+      WHERE u.academyId = ? AND u.role = 'DIRECTOR' AND us.status = 'active'
+      ORDER BY us.endDate DESC LIMIT 1
+    `).bind(parseInt(tokenAcademyId)).first();
+
+    if (!subscription) {
+      logs.push('❌ 활성화된 구독이 없습니다');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'NO_SUBSCRIPTION',
+          message: '활성화된 구독이 없습니다. 요금제를 선택해주세요.',
+          redirectTo: '/pricing',
+          logs 
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // 만료 확인
+    const now = new Date();
+    const endDate = new Date(subscription.endDate);
+    if (now > endDate) {
+      logs.push('❌ 구독이 만료되었습니다');
+      await DB.prepare(`
+        UPDATE user_subscriptions SET status = 'expired', updatedAt = datetime('now')
+        WHERE id = ?
+      `).bind(subscription.id).run();
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'SUBSCRIPTION_EXPIRED',
+          message: '구독이 만료되었습니다. 요금제를 갱신해주세요.',
+          redirectTo: '/pricing',
+          logs 
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // 학생 수 제한 체크
+    const currentStudents = subscription.current_students || 0;
+    const maxStudents = subscription.max_students;
+    logs.push(`📊 현재 학생 수: ${currentStudents}/${maxStudents}`);
+    
+    if (maxStudents !== -1 && currentStudents >= maxStudents) {
+      logs.push('❌ 학생 수 제한 초과');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'STUDENT_LIMIT_EXCEEDED',
+          message: `학생 수 제한을 초과했습니다. (${currentStudents}/${maxStudents}) 상위 플랜으로 업그레이드해주세요.`,
+          currentUsage: currentStudents,
+          maxLimit: maxStudents,
+          redirectTo: '/pricing',
+          logs 
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     // 비밀번호 해싱
@@ -131,11 +201,32 @@ export async function onRequestPost(context) {
           ];
           
           await DB.prepare(query).bind(...minimalParams).run();
-          logs.push(`✅ User 테이블 삽입 성공! (school/class 제외)`);
-        } else {
-          throw columnError;
+      logs.push(`✅ User 테이블 삽입 성공! (school/class 제외)`);
         }
       }
+      
+      // ✅ 사용량 증가
+      logs.push('🔄 사용량 증가 중...');
+      await DB.prepare(`
+        UPDATE user_subscriptions 
+        SET current_students = current_students + 1,
+            updatedAt = datetime('now')
+        WHERE id = ?
+      `).bind(subscription.id).run();
+      logs.push(`✅ 사용량 증가 완료: ${currentStudents + 1}/${maxStudents}`);
+
+      // 사용량 로그 기록
+      const logId = `log-${timestamp}-${randomStr}-usage`;
+      await DB.prepare(`
+        INSERT INTO usage_logs (id, userId, subscriptionId, type, action, metadata, createdAt)
+        VALUES (?, ?, ?, 'student', 'create', ?, datetime('now'))
+      `).bind(
+        logId,
+        subscription.userId,
+        subscription.id,
+        JSON.stringify({ studentId, name, grade })
+      ).run();
+      logs.push(`✅ 사용량 로그 기록 완료`);
       
     } catch (e) {
       logs.push(`❌ User 테이블 삽입 실패: ${e.message}`);
