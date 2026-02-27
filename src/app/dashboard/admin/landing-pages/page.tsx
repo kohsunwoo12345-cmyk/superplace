@@ -54,8 +54,19 @@ export default function LandingPagesPage() {
   const [selectedFolder, setSelectedFolder] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>("");
 
   useEffect(() => {
+    // 사용자 역할 확인
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        const userData = JSON.parse(userStr);
+        setUserRole(userData.role || "");
+      } catch (error) {
+        console.error("사용자 정보 파싱 실패:", error);
+      }
+    }
     fetchLandingPages();
     fetchFolders();
   }, []);
@@ -199,15 +210,18 @@ export default function LandingPagesPage() {
                 <FolderOpen className="w-5 h-5 mr-2" />
                 📁 폴더 관리
               </Button>
-              <Button
-                onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
-                variant="outline"
-                size="lg"
-                className="border-2 border-purple-300 hover:border-purple-500 hover:bg-purple-50"
-              >
-                <FileCode className="w-5 h-5 mr-2" />
-                📄 HTML 템플릿 관리
-              </Button>
+              {/* 템플릿 관리는 ADMIN만 표시 */}
+              {userRole !== "DIRECTOR" && (
+                <Button
+                  onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
+                  variant="outline"
+                  size="lg"
+                  className="border-2 border-purple-300 hover:border-purple-500 hover:bg-purple-50"
+                >
+                  <FileCode className="w-5 h-5 mr-2" />
+                  📄 HTML 템플릿 관리
+                </Button>
+              )}
               <Button
                 onClick={() => router.push("/dashboard/admin/landing-pages/create")}
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg"
