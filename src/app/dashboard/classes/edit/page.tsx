@@ -345,7 +345,11 @@ export default function ClassEditPage() {
       alert("학생이 추가되었습니다");
       setSelectedStudentIds(new Set());
       setShowAddStudent(false);
-      if (classId) loadAssignedStudents(classId);
+      
+      // 클래스 데이터 전체 다시 로드
+      if (classId && user) {
+        await loadClassData(classId, user);
+      }
     } catch (error) {
       console.error("Failed to add students:", error);
       alert("학생 추가에 실패했습니다");
@@ -364,7 +368,11 @@ export default function ClassEditPage() {
       if (!response.ok) throw new Error("Failed to remove student");
 
       alert("학생이 제외되었습니다");
-      if (classId) loadAssignedStudents(classId);
+      
+      // 클래스 데이터 전체 다시 로드
+      if (classId && user) {
+        await loadClassData(classId, user);
+      }
     } catch (error) {
       console.error("Failed to remove student:", error);
       alert("학생 제외에 실패했습니다");
@@ -404,17 +412,8 @@ export default function ClassEditPage() {
         }))
       );
 
-      // API가 기대하는 형식으로 학생 변환
-      const formattedStudents = assignedStudents.map((student, index) => ({
-        id: String(index + 1),
-        student: {
-          id: String(student.id),
-          name: student.name,
-          email: student.email,
-          studentCode: '',
-          grade: grade.trim() || '',
-        }
-      }));
+      // 학생 ID 배열 (문자열 배열로 전송)
+      const studentIds = assignedStudents.map((student) => String(student.id));
 
       // 토큰 가져오기
       const storedUser = localStorage.getItem("user");
@@ -440,7 +439,7 @@ export default function ClassEditPage() {
           color: color,
           capacity: 30,
           isActive: true,
-          students: formattedStudents,
+          students: studentIds,
           schedules: formattedSchedules,
         })
       });
@@ -448,6 +447,22 @@ export default function ClassEditPage() {
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to update class");
+      }
+
+      const result = await response.json();
+      console.log('✅ Class updated:', result);
+
+      // 업데이트된 학생 목록을 응답에서 가져와서 상태 업데이트
+      if (result.class && result.class.students) {
+        const students = result.class.students.map((s: any) => ({
+          id: Number(s.student?.id || s.id),
+          name: s.student?.name || '',
+          email: s.student?.email || '',
+          phone: '',
+          academyId: user?.academyId
+        }));
+        setAssignedStudents(students);
+        console.log('✅ Students updated in state:', students.length);
       }
 
       alert("저장되었습니다");
