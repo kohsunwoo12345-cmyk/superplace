@@ -22,6 +22,7 @@ import {
   Download,
   FolderOpen,
   FileCode,
+  Edit,
 } from "lucide-react";
 
 interface LandingPage {
@@ -498,6 +499,15 @@ export default function LandingPagesPage() {
                           QR 코드 다운로드
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={() => router.push(`/dashboard/admin/landing-pages/edit/${page.id}`)}
+                        className="border-2 border-blue-300 hover:border-blue-500 hover:bg-blue-50"
+                      >
+                        <Edit className="w-5 h-5 mr-2" />
+                        수정
+                      </Button>
                       <Button
                         variant="outline"
                         size="lg"
