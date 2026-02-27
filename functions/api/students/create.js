@@ -32,16 +32,20 @@ export async function onRequestPost(context) {
     } = body;
 
     // 필수 필드 검증
-    if (!name || !email || !password) {
+    if (!name || !password) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: '이름, 이메일, 비밀번호는 필수입니다',
+          error: '이름과 비밀번호는 필수입니다',
           logs 
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
+    
+    // 이메일이 없으면 임시 이메일 생성
+    const finalEmail = email || `student_${timestamp || Date.now()}@temp.superplace.local`;
+    logs.push(`✅ 사용할 이메일: ${finalEmail}`);
 
     // Authorization 헤더에서 사용자 정보 추출
     const authHeader = context.request.headers.get('Authorization');
@@ -55,8 +59,6 @@ export async function onRequestPost(context) {
         logs.push(`✅ 토큰에서 academyId 추출: ${tokenAcademyId}`);
       }
     }
-
-    logs.push(`✅ 사용할 이메일: ${email}`);
 
     // 비밀번호 해싱
     const salt = 'superplace-salt-2024';
@@ -77,22 +79,22 @@ export async function onRequestPost(context) {
     try {
       logs.push('🔄 User 테이블에 삽입 시도...');
       
-      // school 필드 처리 (있을 경우만 추가)
       let query = `
         INSERT INTO User (
           id, email, name, password, phone, parentPhone, 
-          grade, class, role, academyId, createdAt, updatedAt
+          school, grade, class, role, academyId, createdAt, updatedAt
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
       `;
       
       const params = [
         studentId, 
-        email, 
+        finalEmail, 
         name, 
         hashedPassword, 
         phone || null, 
         parentPhone || null,
+        school || null,
         grade || null,
         studentClass || null,
         tokenAcademyId
@@ -125,10 +127,11 @@ export async function onRequestPost(context) {
         message: '학생 추가 성공!',
         user: {
           id: studentId,
-          email: email,
+          email: finalEmail,
           name: name,
           phone: phone,
           parentPhone: parentPhone,
+          school: school,
           grade: grade,
           class: studentClass,
           role: 'STUDENT',

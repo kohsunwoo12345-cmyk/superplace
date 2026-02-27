@@ -128,16 +128,16 @@ export default function CreateStudentDialog({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="email">이메일 *</Label>
+              <Label htmlFor="email">이메일</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="student@example.com"
-                required
+                placeholder="student@example.com (선택사항)"
                 disabled={loading}
               />
+              <p className="text-xs text-gray-500">선택사항 - 미입력 시 자동 생성됩니다</p>
             </div>
 
             <div className="grid gap-2">
