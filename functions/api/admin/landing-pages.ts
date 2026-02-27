@@ -136,9 +136,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     console.log("🎯 Final userIdInt:", userIdInt, "type:", typeof userIdInt);
 
-    // Verify user_id exists in users table (검증은 여기서만)
+    // Verify user_id exists in User table (대문자 U - 실제 테이블 이름)
     const userExists = await db
-      .prepare(`SELECT id FROM users WHERE id = ?`)
+      .prepare(`SELECT id FROM User WHERE id = ?`)
       .bind(userIdInt)
       .first();
 
@@ -146,12 +146,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       return new Response(
         JSON.stringify({ 
           error: "선택한 학생이 존재하지 않습니다.",
-          details: `studentId: ${studentId} (original) → ${userIdInt} (converted) not found in users table`,
+          details: `studentId: ${studentId} (original) → ${userIdInt} (converted) not found in User table`,
           debugInfo: {
             originalValue: studentId,
             originalType: typeof studentId,
             convertedValue: userIdInt,
             convertedType: typeof userIdInt,
+            tableName: "User (대문자)"
           }
         }),
         {
