@@ -248,59 +248,67 @@ export default function Home() {
     ]
   };
 
+  // 마케팅 메뉴
   const marketingMenu = {
     title: "학원 운영 및 마케팅",
     description: "학원 운영을 위한 통합 마케팅 솔루션",
-    link: "https://superplace-academy.pages.dev",
+    link: "/marketing",
     items: [
       {
-        icon: <Share2 className="h-6 w-6" />,
+        icon: "📱",
         title: "소셜미디어 관리",
         description: "인스타그램, 블로그 등 통합 관리",
-        href: "https://superplace-academy.pages.dev"
+        href: "/marketing"
       },
       {
-        icon: <TrendingUp className="h-6 w-6" />,
+        icon: "📊",
         title: "마케팅 분석",
         description: "실시간 마케팅 성과 분석",
-        href: "https://superplace-academy.pages.dev"
+        href: "/marketing"
       },
       {
-        icon: <Target className="h-6 w-6" />,
+        icon: "🎯",
         title: "타겟 광고",
         description: "효율적인 광고 캠페인 운영",
-        href: "https://superplace-academy.pages.dev"
+        href: "/marketing"
       },
       {
-        icon: <MessageCircle className="h-6 w-6" />,
+        icon: "💬",
         title: "고객 소통",
         description: "학부모 및 학생 커뮤니케이션",
-        href: "https://superplace-academy.pages.dev"
+        href: "/marketing"
       }
     ]
   };
 
+  // 회사 소개 메뉴
   const aboutMenu = {
-    title: "학원 소개",
+    title: "회사 소개",
     description: "SUPER PLACE와 함께하는 스마트 학습",
     items: [
       {
-        icon: <Building2 className="h-6 w-6" />,
-        title: "학원 소개",
+        icon: "🏢",
+        title: "회사 소개",
         description: "체계적인 학습 관리 시스템을 제공합니다",
-        href: "#about"
+        href: "/about"
       },
       {
-        icon: <Phone className="h-6 w-6" />,
+        icon: "📞",
         title: "문의하기",
         description: "궁금한 점이 있으시면 언제든 연락주세요",
         href: "/contact"
       },
       {
-        icon: <HelpCircle className="h-6 w-6" />,
+        icon: "❓",
         title: "도움말",
         description: "서비스 이용 가이드와 FAQ",
-        href: "#help"
+        href: "/help"
+      },
+      {
+        icon: "⚡",
+        title: "기능 소개",
+        description: "모든 기능을 자세히 알아보세요",
+        href: "/features"
       }
     ]
   };
