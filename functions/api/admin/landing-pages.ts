@@ -58,16 +58,11 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
 
     const role = user.role ? user.role.toUpperCase() : '';
     const userAcademyId = user.academyId;
-    const userId = user.id;
+    const userId = user.id; // User.id는 TEXT 타입 (예: "admin-001")
 
-    // userId 타입 변환 (landing_pages.user_id에 맞춤)
-    let userIdForQuery: any = userId;
-    if (typeof userId === 'string' && /^\d+$/.test(userId)) {
-      userIdForQuery = parseInt(userId, 10);
-      console.log('🔄 Converted userId to INTEGER for query:', userIdForQuery);
-    }
-
-    console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId, userId, userIdForQuery });
+    // userId는 항상 TEXT로 사용 (User.id가 TEXT이므로)
+    const userIdForQuery = String(userId);
+    console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId, userId: userIdForQuery });
 
     // 역할별 쿼리 생성
     let query = '';
@@ -175,23 +170,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       });
     }
 
-    const creatorUserId = user.id; // 생성자 ID (TEXT 또는 INTEGER)
+    const creatorUserId = user.id; // 생성자 ID (User.id는 TEXT!)
     console.log('✅ Creator:', { id: creatorUserId, email: user.email, role: user.role, idType: typeof creatorUserId });
 
-    // user_id 타입 변환: landing_pages.user_id가 INTEGER이면 숫자로, TEXT이면 그대로
-    let userIdForDb: any = creatorUserId;
-    
-    // creatorUserId가 숫자 형태의 문자열이면 INTEGER로 변환 시도
-    if (typeof creatorUserId === 'string' && /^\d+$/.test(creatorUserId)) {
-      userIdForDb = parseInt(creatorUserId, 10);
-      console.log('🔄 Converted user_id to INTEGER:', userIdForDb);
-    } else if (typeof creatorUserId === 'number') {
-      userIdForDb = creatorUserId;
-      console.log('✅ user_id is already INTEGER:', userIdForDb);
-    } else {
-      // TEXT 형태 (예: 'user-123-abc')는 그대로 사용
-      console.log('✅ user_id is TEXT:', userIdForDb);
-    }
+    // user_id는 User.id와 같은 타입(TEXT)을 사용해야 FK가 작동함!
+    // ⚠️ landing_pages.user_id가 현재 INTEGER라면 DB 스키마를 TEXT로 변경해야 함!
+    const userIdForDb = String(creatorUserId); // 항상 TEXT로 저장
+    console.log('✅ user_id for DB:', userIdForDb, 'type:', typeof userIdForDb);
 
     const body = await context.request.json();
     const {
