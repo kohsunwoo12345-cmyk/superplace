@@ -136,11 +136,27 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     console.log("🎯 Final userIdInt:", userIdInt, "type:", typeof userIdInt);
 
+    // 🔍 디버깅: User 테이블에 어떤 데이터가 있는지 먼저 확인
+    console.log("🔍 Checking all users in User table...");
+    const allUsers = await db
+      .prepare(`SELECT id, name, role FROM User LIMIT 10`)
+      .all();
+    console.log("📊 All users:", JSON.stringify(allUsers.results || []));
+
+    // 🔍 학생만 확인
+    const allStudents = await db
+      .prepare(`SELECT id, name, role FROM User WHERE role = 'STUDENT' LIMIT 10`)
+      .all();
+    console.log("🎓 All students:", JSON.stringify(allStudents.results || []));
+
     // Verify user_id exists in User table (대문자 U - 실제 테이블 이름)
+    console.log("🔍 Looking for user with id:", userIdInt);
     const userExists = await db
-      .prepare(`SELECT id FROM User WHERE id = ?`)
+      .prepare(`SELECT id, name, role FROM User WHERE id = ?`)
       .bind(userIdInt)
       .first();
+
+    console.log("🔍 Query result:", JSON.stringify(userExists));
 
     if (!userExists) {
       return new Response(
@@ -152,7 +168,11 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
             originalType: typeof studentId,
             convertedValue: userIdInt,
             convertedType: typeof userIdInt,
-            tableName: "User (대문자)"
+            tableName: "User (대문자)",
+            allUsersCount: allUsers.results?.length || 0,
+            allStudentsCount: allStudents.results?.length || 0,
+            sampleUsers: allUsers.results?.slice(0, 3) || [],
+            sampleStudents: allStudents.results?.slice(0, 3) || []
           }
         }),
         {
@@ -161,6 +181,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         }
       );
     }
+
+    console.log("✅ User found:", userExists.name, "role:", userExists.role);
 
     // Convert and verify folder_id if provided
     let folderIdInt = null;
