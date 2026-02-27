@@ -79,12 +79,13 @@ export async function onRequestPost(context) {
     try {
       logs.push('🔄 User 테이블에 삽입 시도...');
       
+      // school 컬럼이 없으므로 제외하고 INSERT
       let query = `
         INSERT INTO User (
           id, email, name, password, phone, parentPhone, 
-          school, grade, class, role, academyId, createdAt, updatedAt
+          grade, class, role, academyId, createdAt, updatedAt
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
       `;
       
       const params = [
@@ -94,7 +95,6 @@ export async function onRequestPost(context) {
         hashedPassword, 
         phone || null, 
         parentPhone || null,
-        school || null,
         grade || null,
         studentClass || null,
         tokenAcademyId

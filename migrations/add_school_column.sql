@@ -1,13 +1,10 @@
--- Add school column to User table
--- This migration adds the missing 'school' column to store student's school name
+-- Add school column to User table if not exists
+-- This migration adds the school field to store student's school name
 
--- Add school column to User table
+-- Check if column exists first (SQLite doesn't have IF NOT EXISTS for ALTER TABLE)
+-- If this fails, the column already exists and that's OK
+
 ALTER TABLE User ADD COLUMN school TEXT;
 
--- Create index for better query performance
+-- Add index for school column for faster queries
 CREATE INDEX IF NOT EXISTS idx_user_school ON User(school);
-
--- Verification query (run separately to check)
--- SELECT COUNT(*) as total_users, 
---        COUNT(school) as users_with_school 
--- FROM User;
