@@ -103,6 +103,18 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
+    if (!studentId) {
+      return new Response(
+        JSON.stringify({
+          error: "학생을 선택해주세요.",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const db = context.env.DB;
 
     // Check if slug already exists
@@ -133,12 +145,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     await db
       .prepare(
         `INSERT INTO landing_pages (
-          slug, title
-        ) VALUES (?, ?)`
+          slug, title, user_id, created_at, updated_at
+        ) VALUES (?, ?, ?, datetime('now'), datetime('now'))`
       )
       .bind(
         slug,
-        title
+        title,
+        studentId
       )
       .run();
 
