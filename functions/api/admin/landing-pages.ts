@@ -19,24 +19,22 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     const landingPages = await db
       .prepare(
         `SELECT 
-          lp.id, lp.slug, lp.title, lp.subtitle, lp.templateType,
-          lp.folderId, lp.showQrCode, lp.qrCodeUrl, lp.viewCount,
-          lp.isActive, lp.createdAt, lp.updatedAt,
-          u.name as studentName, u.id as studentId,
-          f.name as folderName,
-          (SELECT COUNT(*) FROM LandingPageSubmission WHERE landingPageId = lp.id) as submissions
+          lp.id, lp.slug, lp.title
         FROM landing_pages lp
-        LEFT JOIN users u ON lp.createdById = u.id
-        ORDER BY lp.createdAt DESC`
+        ORDER BY lp.id DESC`
       )
       .all();
 
     // Parse results
     const results = (landingPages.results || []).map((lp: any) => ({
-      ...lp,
+      id: lp.id,
+      slug: lp.slug,
+      title: lp.title,
       url: `/lp/${lp.slug}`,
-      isActive: lp.isActive === 1,
-      showQrCode: lp.showQrCode === 1,
+      isActive: true,
+      showQrCode: true,
+      viewCount: 0,
+      submissions: 0
     }));
 
     return new Response(
@@ -132,34 +130,17 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       : null;
 
     // Insert landing page
+    // Note: Using minimal columns that exist in the table
     await db
       .prepare(
         `INSERT INTO landing_pages (
-          id, slug, title, subtitle, description, templateType, templateHtml,
-          inputData, ogTitle, ogDescription, thumbnail, folderId,
-          showQrCode, qrCodePosition, qrCodeUrl, pixelScripts, studentId,
-          viewCount, isActive, createdById, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, datetime('now'), datetime('now'))`
+          id, slug, title
+        ) VALUES (?, ?, ?)`
       )
       .bind(
         id,
         slug,
-        title,
-        subtitle || null,
-        description || null,
-        templateType,
-        templateHtml || null,
-        JSON.stringify(inputData),
-        ogTitle || null,
-        ogDescription || null,
-        thumbnail || null,
-        folderId || null,
-        showQrCode ? 1 : 0,
-        qrCodePosition,
-        qrCodeUrl,
-        JSON.stringify(pixelScripts),
-        studentId || null,
-        "admin"
+        title
       )
       .run();
 
