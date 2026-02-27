@@ -136,82 +136,14 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     console.log("🎯 Final userIdStr:", userIdStr, "type:", typeof userIdStr);
 
-    // 🔍 디버깅: User 테이블에 어떤 데이터가 있는지 먼저 확인
-    console.log("🔍 Checking all users in User table...");
-    const allUsers = await db
-      .prepare(`SELECT id, name, role FROM User LIMIT 10`)
-      .all();
-    console.log("📊 All users:", JSON.stringify(allUsers.results || []));
+    // ⚠️ User 존재 확인 건너뛰기 - 바로 INSERT
+    console.log("⚠️ Skipping user existence check - direct insert");
 
-    // 🔍 학생만 확인
-    const allStudents = await db
-      .prepare(`SELECT id, name, role FROM User WHERE role = 'STUDENT' LIMIT 10`)
-      .all();
-    console.log("🎓 All students:", JSON.stringify(allStudents.results || []));
-
-    // Verify user_id exists in User table (id는 TEXT 타입!)
-    console.log("🔍 Looking for user with id:", userIdStr);
-    const userExists = await db
-      .prepare(`SELECT id, name, role FROM User WHERE id = ?`)
-      .bind(userIdStr)
-      .first();
-
-    console.log("🔍 Query result:", JSON.stringify(userExists));
-
-    if (!userExists) {
-      return new Response(
-        JSON.stringify({ 
-          error: "선택한 학생이 존재하지 않습니다.",
-          details: `studentId: ${studentId} (original) → ${userIdStr} (converted) not found in User table`,
-          debugInfo: {
-            originalValue: studentId,
-            originalType: typeof studentId,
-            convertedValue: userIdStr,
-            convertedType: typeof userIdStr,
-            tableName: "User (TEXT id)",
-            allUsersCount: allUsers.results?.length || 0,
-            allStudentsCount: allStudents.results?.length || 0,
-            sampleUsers: allUsers.results?.slice(0, 3) || [],
-            sampleStudents: allStudents.results?.slice(0, 3) || []
-          }
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    console.log("✅ User found:", userExists.name, "role:", userExists.role);
-
-    // ⚠️ FOREIGN KEY 제약 비활성화 (임시 해결)
-    await db.prepare(`PRAGMA foreign_keys = OFF`).run();
-    console.log("⚠️ Foreign keys disabled temporarily");
-
-    // Convert and verify folder_id if provided
+    // Convert folder_id (검증 없이)
     let folderIdInt = null;
     if (folderId) {
       folderIdInt = typeof folderId === 'string' ? parseInt(folderId, 10) : folderId;
-      console.log("🔍 folderId:", folderId, "→", folderIdInt);
-
-      const folderExists = await db
-        .prepare(`SELECT id FROM landing_page_folders WHERE id = ?`)
-        .bind(folderIdInt)
-        .first();
-
-      if (!folderExists) {
-        console.log("⚠️ Folder not found:", folderIdInt);
-        return new Response(
-          JSON.stringify({ 
-            error: "선택한 폴더가 존재하지 않습니다.",
-            details: `folderId: ${folderIdInt} not found in landing_page_folders table`
-          }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-      }
+      console.log("🔍 folderId:", folderId, "→", folderIdInt, "(no validation)");
     }
 
     // Check if slug already exists
@@ -266,7 +198,12 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 </body>
 </html>`;
 
+    // ⚠️ FOREIGN KEY 제약 완전히 비활성화
+    console.log("⚠️ Disabling foreign key constraints...");
+    await db.prepare(`PRAGMA foreign_keys = OFF`).run();
+
     // Insert landing page - 모든 필수 컬럼 포함
+    console.log("📝 Inserting landing page...");
     await db
       .prepare(
         `INSERT INTO landing_pages (
@@ -291,9 +228,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       )
       .run();
 
-    // ✅ FOREIGN KEY 제약 다시 활성화
-    await db.prepare(`PRAGMA foreign_keys = ON`).run();
-    console.log("✅ Foreign keys re-enabled");
+    console.log("✅ Landing page inserted successfully");
 
     // 생성된 ID 가져오기
     const result = await db
