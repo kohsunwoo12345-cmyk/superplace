@@ -19,9 +19,9 @@ export async function onRequest(context: {
           lp.*,
           u.name as studentName,
           f.name as folderName
-        FROM LandingPage lp
-        LEFT JOIN User u ON lp.studentId = u.id
-        LEFT JOIN LandingPageFolder f ON lp.folderId = f.id
+        FROM landing_pages lp
+        LEFT JOIN User u ON lp.createdBy = u.id
+        LEFT JOIN landing_page_folders f ON lp.folderId = f.id
         WHERE lp.slug = ? AND lp.isActive = 1`
       )
       .bind(slug)
@@ -60,14 +60,14 @@ export async function onRequest(context: {
 
     // Increment view count
     await db
-      .prepare(`UPDATE LandingPage SET viewCount = viewCount + 1 WHERE slug = ?`)
+      .prepare(`UPDATE landing_pages SET views = views + 1 WHERE slug = ?`)
       .bind(slug)
       .run();
 
     // Get pixel scripts
     const pixelScripts = await db
       .prepare(
-        `SELECT * FROM LandingPagePixelScript 
+        `SELECT * FROM landing_page_pixel_scripts 
         WHERE landingPageId = ? AND isActive = 1
         ORDER BY scriptType`
       )
@@ -199,7 +199,7 @@ export async function onRequest(context: {
       ${landingPage.qrCodePosition === "bottom" ? qrCodeHtml : ""}
     </div>
     <div class="footer">
-      조회수: ${landingPage.viewCount + 1}회
+      조회수: ${(landingPage.views || 0) + 1}회
     </div>
   </div>
   
