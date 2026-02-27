@@ -18,19 +18,12 @@ export async function onRequest(context: {
     let landingPage = null;
     let queryError = null;
     
-    // Try lowercase first
+    // Try lowercase first  
     try {
       console.log("🔍 Trying lowercase table: landing_pages");
       landingPage = await db
         .prepare(
-          `SELECT 
-            lp.*,
-            u.name as studentName,
-            f.name as folderName
-          FROM landing_pages lp
-          LEFT JOIN User u ON lp.user_id = u.id
-          LEFT JOIN landing_folders f ON lp.folder_id = f.id
-          WHERE lp.slug = ? AND lp.status = 'active'`
+          `SELECT * FROM landing_pages WHERE slug = ? AND status = 'active'`
         )
         .bind(slug)
         .first();
