@@ -46,7 +46,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       WHERE academyId = ?
     `).bind(parseInt(academyId)).first();
 
-    // 4. 이번 달 출석률
+    // 4. 오늘 출석
+    const todayAttendance = await DB.prepare(`
+      SELECT COUNT(*) as count
+      FROM attendance
+      WHERE academyId = ?
+        AND date(date) = date('now')
+        AND status = 'present'
+    `).bind(parseInt(academyId)).first();
+
+    // 5. 이번 달 출석률
     const thisMonthAttendance = await DB.prepare(`
       SELECT 
         COUNT(*) as total,
@@ -60,7 +69,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ? ((thisMonthAttendance.present / thisMonthAttendance.total) * 100).toFixed(1)
       : 0;
 
-    // 5. 최근 학생 (5명)
+    // 6. 최근 학생 (5명)
     const recentStudents = await DB.prepare(`
       SELECT id, name, email, createdAt
       FROM users
@@ -69,7 +78,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       LIMIT 5
     `).bind(parseInt(academyId)).all();
 
-    // 6. 이번 주 신규 학생 수
+    // 7. 이번 주 신규 학생 수
     const thisWeekStudents = await DB.prepare(`
       SELECT COUNT(*) as count
       FROM users
@@ -78,19 +87,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         AND date(createdAt) >= date('now', '-7 days')
     `).bind(parseInt(academyId)).first();
 
-    // 7. 숙제 통계
+    // 8. 숙제 통계
     const homeworkStats = await DB.prepare(`
       SELECT 
         COUNT(DISTINCT h.id) as totalHomework,
         COUNT(DISTINCT CASE WHEN hs.status = 'submitted' THEN hs.id END) as submittedCount,
         COUNT(DISTINCT CASE WHEN hs.status = 'graded' THEN hs.id END) as gradedCount,
-        COUNT(DISTINCT CASE WHEN h.dueDate >= date('now') THEN h.id END) as activeHomework
+        COUNT(DISTINCT CASE WHEN h.dueDate >= date('now') THEN h.id END) as activeHomework,
+        COUNT(DISTINCT CASE WHEN h.dueDate < date('now') AND (hs.status IS NULL OR hs.status = 'pending') THEN h.id END) as overdueCount
       FROM homework h
       LEFT JOIN homework_submissions hs ON h.id = hs.homeworkId
       WHERE h.academyId = ?
     `).bind(parseInt(academyId)).first();
 
-    // 8. 이번 주 숙제 제출률
+    // 9. 이번 주 숙제 제출률
     const thisWeekHomework = await DB.prepare(`
       SELECT 
         COUNT(DISTINCT h.id) as total,
@@ -105,7 +115,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ? ((thisWeekHomework.submitted / thisWeekHomework.total) * 100).toFixed(1)
       : 0;
 
-    // 9. AI 챗봇 사용 통계
+    // 10. AI 챗봇 사용 통계
     const aiBotsStats = await DB.prepare(`
       SELECT 
         COUNT(*) as totalBots,
@@ -114,10 +124,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       FROM ai_bots
     `).first();
 
+    // 11. 오늘 AI 대화 수
+    const todayAIConversations = await DB.prepare(`
+      SELECT COUNT(*) as count
+      FROM ai_chat_history
+      WHERE date(createdAt) = date('now')
+    `).first();
+
     const stats = {
       totalStudents: studentsCount?.count || 0,
       totalTeachers: teachersCount?.count || 0,
       totalClasses: classesCount?.count || 0,
+      todayStats: {
+        attendance: todayAttendance?.count || 0,
+      },
       attendanceRate: parseFloat(attendanceRate as string),
       recentStudents: recentStudents.results || [],
       thisWeekStudents: thisWeekStudents?.count || 0,
@@ -125,10 +145,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       submittedHomework: homeworkStats?.submittedCount || 0,
       gradedHomework: homeworkStats?.gradedCount || 0,
       activeHomework: homeworkStats?.activeHomework || 0,
+      overdueHomework: homeworkStats?.overdueCount || 0,
       homeworkSubmissionRate: parseFloat(homeworkSubmissionRate as string),
       totalAIBots: aiBotsStats?.totalBots || 0,
       activeAIBots: aiBotsStats?.activeBots || 0,
       totalAIConversations: aiBotsStats?.totalConversations || 0,
+      todayAIConversations: todayAIConversations?.count || 0,
     };
 
     return new Response(JSON.stringify(stats), {

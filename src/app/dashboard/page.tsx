@@ -468,24 +468,24 @@ export default function DashboardPage() {
                 {stats?.submittedHomework || 0}개
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                전체 {stats?.totalHomework || 0}개 중 제출됨
+                전체 {stats?.totalHomework || 0}개
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-orange-100 hover:shadow-lg transition-shadow">
+          <Card className="border-2 border-red-100 hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                AI 봇 사용
+                숙제 미제출
               </CardTitle>
-              <AlertCircle className="h-5 w-5 text-orange-600" />
+              <AlertCircle className="h-5 w-5 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-orange-600">
-                {stats?.totalAIConversations || 0}회
+              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-red-600">
+                {stats?.overdueHomework || 0}개
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                활성 봇 {stats?.activeAIBots || 0}개
+                기한 경과
               </p>
             </CardContent>
           </Card>
@@ -493,7 +493,7 @@ export default function DashboardPage() {
 
         {/* Quick Actions & Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          {/* 출석 알림 */}
+          {/* 최근 등록 학생 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -542,14 +542,15 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="p-3 border rounded-lg hover:bg-blue-50 transition-colors">
+                <div className="p-3 border rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/homework")}>
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-medium text-sm">전체 숙제</p>
                     <span className="text-lg font-bold text-blue-600">{stats?.totalHomework || 0}개</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-600">
                     <span className="bg-green-100 text-green-700 px-2 py-1 rounded">제출: {stats?.submittedHomework || 0}</span>
-                    <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">채점완료: {stats?.gradedHomework || 0}</span>
+                    <span className="bg-red-100 text-red-700 px-2 py-1 rounded">미제출: {stats?.overdueHomework || 0}</span>
                   </div>
                 </div>
 
@@ -606,13 +607,13 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <Button 
-                  size="sm" 
-                  className="w-full"
-                  onClick={() => router.push("/dashboard/admin/ai-bots")}
-                >
-                  AI 봇 관리하기
-                </Button>
+                <div className="p-3 border rounded-lg hover:bg-purple-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium text-sm">오늘 대화</p>
+                    <span className="text-lg font-bold text-purple-600">{stats?.todayAIConversations || 0}회</span>
+                  </div>
+                  <p className="text-xs text-gray-600">오늘 활동량</p>
+                </div>
               </div>
             </CardContent>
           </Card>
