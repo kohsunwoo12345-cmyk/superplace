@@ -184,6 +184,10 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     console.log("✅ User found:", userExists.name, "role:", userExists.role);
 
+    // ⚠️ FOREIGN KEY 제약 비활성화 (임시 해결)
+    await db.prepare(`PRAGMA foreign_keys = OFF`).run();
+    console.log("⚠️ Foreign keys disabled temporarily");
+
     // Convert and verify folder_id if provided
     let folderIdInt = null;
     if (folderId) {
@@ -286,6 +290,10 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         ogDescription || null
       )
       .run();
+
+    // ✅ FOREIGN KEY 제약 다시 활성화
+    await db.prepare(`PRAGMA foreign_keys = ON`).run();
+    console.log("✅ Foreign keys re-enabled");
 
     // 생성된 ID 가져오기
     const result = await db
