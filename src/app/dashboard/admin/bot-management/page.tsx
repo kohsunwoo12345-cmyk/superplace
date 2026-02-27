@@ -228,13 +228,22 @@ export default function AdminBotManagementPage() {
             학원별 AI 봇 할당 및 관리
           </p>
         </div>
-        <Button
-          onClick={() => setShowAssignModal(true)}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          봇 할당
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            onClick={() => router.push("/dashboard/admin/assign-academy-bot")}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            학원에 구독 할당
+          </Button>
+          <Button
+            onClick={() => setShowAssignModal(true)}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            개별 할당
+          </Button>
+        </div>
       </div>
 
       {/* 통계 카드 */}
