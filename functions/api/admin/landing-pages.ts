@@ -205,61 +205,57 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const createdByUser = userIdStr || null;  // TEXT 또는 NULL
     console.log("✅ Using createdBy:", createdByUser, "(TEXT, can be NULL)");
     
-    let insertedId = null;
+    // Insert landing page - 실제 마이그레이션 스키마 사용
+    // 컬럼: id, slug, title, subtitle, description, templateType, templateHtml,
+    // inputData, ogTitle, ogDescription, thumbnail, folderId, showQrCode,
+    // qrCodePosition, qrCodeUrl, views, submissions, isActive, createdBy
+    console.log("📝 Inserting landing page with migration schema...");
     
-    try {
-      // Insert landing page - 실제 마이그레이션 스키마 사용
-      // 컬럼: id, slug, title, subtitle, description, templateType, templateHtml,
-      // inputData, ogTitle, ogDescription, thumbnail, folderId, showQrCode,
-      // qrCodePosition, qrCodeUrl, views, submissions, isActive, createdBy
-      console.log("📝 Inserting landing page with migration schema...");
-      
-      await db
-        .prepare(
-          `INSERT INTO landing_pages (
-            id, slug, title, subtitle, description,
-            templateType, templateHtml, inputData,
-            ogTitle, ogDescription, thumbnail,
-            folderId, showQrCode, qrCodeUrl,
-            views, submissions, isActive, createdBy
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .bind(
-          id,  // TEXT PRIMARY KEY (이미 생성함: lp_123_abc)
-          slug,
-          title,
-          subtitle || null,
-          description || null,
-          templateType || 'basic',
-          defaultHtmlContent,  // templateHtml
-          JSON.stringify(inputData || []),  // inputData
-          ogTitle || null,
-          ogDescription || null,
-          thumbnail || null,
-          folderIdInt ? String(folderIdInt) : null,  // TEXT type
-          showQrCode ? 1 : 0,
-          qrCodeUrl,
-          0,  // views
-          0,  // submissions
-          1,  // isActive
-          createdByUser  // createdBy (TEXT, FK to users.id, can be NULL)
-        )
-        .run();
+    await db
+      .prepare(
+        `INSERT INTO landing_pages (
+          id, slug, title, subtitle, description,
+          templateType, templateHtml, inputData,
+          ogTitle, ogDescription, thumbnail,
+          folderId, showQrCode, qrCodeUrl,
+          views, submissions, isActive, createdBy
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        id,  // TEXT PRIMARY KEY (이미 생성함: lp_123_abc)
+        slug,
+        title,
+        subtitle || null,
+        description || null,
+        templateType || 'basic',
+        defaultHtmlContent,  // templateHtml
+        JSON.stringify(inputData || []),  // inputData
+        ogTitle || null,
+        ogDescription || null,
+        thumbnail || null,
+        folderIdInt ? String(folderIdInt) : null,  // TEXT type
+        showQrCode ? 1 : 0,
+        qrCodeUrl,
+        0,  // views
+        0,  // submissions
+        1,  // isActive
+        createdByUser  // createdBy (TEXT, FK to users.id, can be NULL)
+      )
+      .run();
 
-      console.log("✅ Landing page inserted successfully");
+    console.log("✅ Landing page inserted successfully");
 
-      // 생성된 ID 가져오기
-      const result = await db
-        .prepare(`SELECT id FROM landing_pages WHERE slug = ?`)
-        .bind(slug)
-        .first();
-      
-      insertedId = result?.id;
-    } catch (insertError: any) {
-      console.error("❌ INSERT failed:", insertError.message);
-      console.error("❌ Full error:", JSON.stringify(insertError));
-      // INSERT 실패해도 계속 진행 (성공 응답 보냄)
+    // 생성된 ID 가져오기 - 반드시 성공해야 함!
+    const result = await db
+      .prepare(`SELECT id FROM landing_pages WHERE slug = ?`)
+      .bind(slug)
+      .first();
+    
+    if (!result) {
+      throw new Error(`INSERT succeeded but cannot find row with slug: ${slug}`);
     }
+    
+    const insertedId = result.id;
 
     // Insert pixel scripts if provided
     if (pixelScripts && Array.isArray(pixelScripts) && pixelScripts.length > 0) {
@@ -299,23 +295,15 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     console.error("❌ Error message:", error.message);
     console.error("❌ Error stack:", error.stack);
     
-    // 오류가 발생해도 성공 응답 보내기 (강제)
-    console.log("⚠️ Forcing success response despite error");
+    // 실제 오류를 반환!
     return new Response(
       JSON.stringify({
-        success: true,
-        message: "랜딩페이지 처리 완료",
-        landingPage: {
-          id: null,
-          slug,
-          url: `/lp/${slug}`,
-          qrCodeUrl: null,
-        },
-        warning: "일부 오류 발생했으나 처리 완료",
-        error: error.message
+        error: error.message || "랜딩페이지 생성 중 오류가 발생했습니다.",
+        details: error.stack,
+        success: false
       }),
       {
-        status: 200,
+        status: 500,
         headers: { "Content-Type": "application/json" },
       }
     );
