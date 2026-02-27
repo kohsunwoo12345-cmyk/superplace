@@ -200,46 +200,51 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 </body>
 </html>`;
 
-    // user_id는 INTEGER NOT NULL이므로 기본값 0 사용
-    // studentId 정보는 content_json과 html_content에 저장
-    const userIdForDb = 0;  // INTEGER 기본값
-    console.log("⚠️ Using integer 0 for user_id to satisfy NOT NULL constraint");
+    // ⚠️ 실제 마이그레이션 스키마에는 user_id가 없고 createdBy (TEXT) 있음!
+    // FK: FOREIGN KEY (createdBy) REFERENCES users(id)
+    const createdByUser = userIdStr || null;  // TEXT 또는 NULL
+    console.log("✅ Using createdBy:", createdByUser, "(TEXT, can be NULL)");
     
     let insertedId = null;
     
     try {
-      // Insert landing page - PRAGMA foreign_keys=OFF로 외래키 무시
-      console.log("📝 Disabling foreign keys and inserting landing page...");
-      
-      // 외래키 제약 비활성화
-      await db.prepare("PRAGMA foreign_keys = OFF").run();
+      // Insert landing page - 실제 마이그레이션 스키마 사용
+      // 컬럼: id, slug, title, subtitle, description, templateType, templateHtml,
+      // inputData, ogTitle, ogDescription, thumbnail, folderId, showQrCode,
+      // qrCodePosition, qrCodeUrl, views, submissions, isActive, createdBy
+      console.log("📝 Inserting landing page with migration schema...");
       
       await db
         .prepare(
           `INSERT INTO landing_pages (
-            slug, title, user_id, template_type, 
-            content_json, html_content,
-            qr_code_url, folder_id, thumbnail_url,
-            og_title, og_description
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            id, slug, title, subtitle, description,
+            templateType, templateHtml, inputData,
+            ogTitle, ogDescription, thumbnail,
+            folderId, showQrCode, qrCodeUrl,
+            views, submissions, isActive, createdBy
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
+          id,  // TEXT PRIMARY KEY (이미 생성함: lp_123_abc)
           slug,
           title,
-          userIdForDb,  // ← INTEGER 0 (NOT NULL 충족, FK 무시됨)
+          subtitle || null,
+          description || null,
           templateType || 'basic',
-          defaultContentJson,  // studentId는 JSON 안에 저장됨
-          defaultHtmlContent,  // studentId는 meta 태그에 저장됨
-          qrCodeUrl,
-          folderIdInt,
-          thumbnail || null,
+          defaultHtmlContent,  // templateHtml
+          JSON.stringify(inputData || []),  // inputData
           ogTitle || null,
-          ogDescription || null
+          ogDescription || null,
+          thumbnail || null,
+          folderIdInt ? String(folderIdInt) : null,  // TEXT type
+          showQrCode ? 1 : 0,
+          qrCodeUrl,
+          0,  // views
+          0,  // submissions
+          1,  // isActive
+          createdByUser  // createdBy (TEXT, FK to users.id, can be NULL)
         )
         .run();
-      
-      // 외래키 제약 다시 활성화
-      await db.prepare("PRAGMA foreign_keys = ON").run();
 
       console.log("✅ Landing page inserted successfully");
 
