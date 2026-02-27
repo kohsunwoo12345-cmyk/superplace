@@ -162,14 +162,17 @@ const AIStorePage = () => {
     const section = sections.find(s => s.id === sectionId);
     if (!section || section.products.length === 0) return;
 
+    const itemsPerPage = 3; // 한 페이지에 3개 표시
+    const maxPos = Math.max(0, Math.ceil(section.products.length / itemsPerPage) - 1);
+
     setSliderPositions(prev => {
       const currentPos = prev[sectionId] || 0;
       let newPos = currentPos;
 
       if (direction === 'left') {
-        newPos = currentPos === 0 ? section.products.length - 1 : currentPos - 1;
+        newPos = currentPos === 0 ? maxPos : currentPos - 1;
       } else {
-        newPos = (currentPos + 1) % section.products.length;
+        newPos = currentPos >= maxPos ? 0 : currentPos + 1;
       }
 
       return { ...prev, [sectionId]: newPos };
@@ -178,14 +181,14 @@ const AIStorePage = () => {
 
   const ProductCard = ({ product }: { product: Product }) => (
     <div
-      className={`group bg-white rounded-2xl overflow-hidden transition-all hover:shadow-2xl ${
+      className={`group bg-white rounded-xl overflow-hidden transition-all hover:shadow-xl ${
         product.featured
-          ? 'ring-2 ring-blue-500 shadow-xl'
+          ? 'ring-2 ring-blue-500 shadow-lg'
           : 'border border-gray-200 hover:border-blue-300'
       }`}
     >
       {/* Image */}
-      <div className="relative w-full pt-[75%] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+      <div className="relative w-full pt-[65%] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
         {product.featured && (
           <div className="absolute top-4 left-4 z-10">
             <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
@@ -207,18 +210,18 @@ const AIStorePage = () => {
       </div>
 
       {/* Content */}
-      <div className="p-6">
-        <h3 className="font-bold text-xl text-gray-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">
+      <div className="p-4">
+        <h3 className="font-bold text-base text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
           {product.name}
         </h3>
 
         {/* Rating */}
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-1.5 mb-2">
           <div className="flex items-center gap-0.5">
             {[1, 2, 3, 4, 5].map((star) => (
               <Star
                 key={star}
-                className={`w-4 h-4 ${
+                className={`w-3.5 h-3.5 ${
                   star <= Math.round(product.rating || 0)
                     ? 'fill-yellow-400 text-yellow-400'
                     : 'text-gray-300'
@@ -226,28 +229,28 @@ const AIStorePage = () => {
               />
             ))}
           </div>
-          <span className="text-sm font-semibold text-gray-700">
+          <span className="text-xs font-semibold text-gray-700">
             {product.rating?.toFixed(1) || '0.0'}
           </span>
           <span className="text-xs text-gray-500">
-            ({product.reviewCount || 0}개 리뷰)
+            ({product.reviewCount || 0})
           </span>
         </div>
 
-        <p className="text-sm text-gray-600 mb-6 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-gray-600 mb-4 line-clamp-2 leading-relaxed">
           {product.description}
         </p>
 
         {/* Price & Button */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               {product.price}
             </span>
           </div>
           <Link
             href={`/store/detail?id=${product.id}`}
-            className="block w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl text-base font-bold hover:shadow-xl hover:scale-105 transition-all text-center"
+            className="block w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2.5 rounded-lg text-sm font-bold hover:shadow-lg hover:scale-105 transition-all text-center"
           >
             자세히 보기
           </Link>
@@ -455,16 +458,20 @@ const AIStorePage = () => {
                     className="flex transition-transform duration-500 ease-out"
                     style={{ transform: `translateX(-${currentPos * 100}%)` }}
                   >
-                    {section.products.map((product) => (
-                      <div key={product.id} className="w-full flex-shrink-0 px-2">
-                        <ProductCard product={product} />
+                    {Array.from({ length: Math.ceil(section.products.length / 3) }).map((_, pageIdx) => (
+                      <div key={pageIdx} className="w-full flex-shrink-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-2">
+                          {section.products.slice(pageIdx * 3, pageIdx * 3 + 3).map((product) => (
+                            <ProductCard key={product.id} product={product} />
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Navigation Arrows */}
-                {section.products.length > 1 && (
+                {section.products.length > 3 && (
                   <>
                     <button
                       onClick={() => moveSlider(section.id, 'left')}
@@ -482,9 +489,9 @@ const AIStorePage = () => {
                 )}
 
                 {/* Dots Indicator */}
-                {section.products.length > 1 && (
+                {section.products.length > 3 && (
                   <div className="flex justify-center gap-2 mt-6">
-                    {section.products.map((_, idx) => (
+                    {Array.from({ length: Math.ceil(section.products.length / 3) }).map((_, idx) => (
                       <button
                         key={idx}
                         onClick={() => setSliderPositions(prev => ({ ...prev, [section.id]: idx }))}
