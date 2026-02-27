@@ -62,8 +62,8 @@ async function getSingleStudent(DB, studentId, userPayload) {
       try {
         const userResult = await DB.prepare(
           `SELECT 
-            id, name, email, phone, role, academyId, school, grade,
-            createdAt, updatedAt, points, approved
+            id, name, email, phone, role, academyId, school, grade, class,
+            parentPhone, createdAt, updatedAt, points, approved
           FROM User 
           WHERE id = ?`
         ).bind(studentId).first();
@@ -95,7 +95,8 @@ async function getSingleStudent(DB, studentId, userPayload) {
             `SELECT 
               id, name, email, phone, role,
               CAST(academy_id AS TEXT) as academyId,
-              school, grade, created_at as createdAt, updated_at as updatedAt
+              school, grade, class, parent_phone as parentPhone,
+              created_at as createdAt, updated_at as updatedAt
             FROM users 
             WHERE id = ?`
           ).bind(studentId).first();
@@ -198,10 +199,13 @@ async function getSingleStudent(DB, studentId, userPayload) {
           name: student.name,
           email: student.email,
           phone: student.phone,
+          parentPhone: student.parentPhone,
           school: student.school,
           grade: student.grade,
+          class: student.class,
           academyId: student.academyId,
           academy: academyInfo,
+          academyName: academyInfo?.name,
           points: student.points || 0,
           approved: student.approved === 1,
           createdAt: student.createdAt,

@@ -18,6 +18,7 @@ interface StudentDetail {
   email: string;
   name: string;
   phone?: string;
+  parentPhone?: string;
   role: string;
   password?: string;
   academyId?: string; // Changed from academy_id (number)
@@ -26,6 +27,7 @@ interface StudentDetail {
   student_code?: string;
   school?: string;
   grade?: string;
+  class?: string;
   diagnostic_memo?: string;
   className?: string;
   classId?: string; // Changed from number
@@ -1609,6 +1611,8 @@ function StudentDetailContent() {
                             ))
                           ) : student.className ? (
                             <Badge variant="outline">{student.className}</Badge>
+                          ) : student.class ? (
+                            <p className="font-medium">{student.class}</p>
                           ) : (
                             <p className="font-medium">미등록</p>
                           )}
