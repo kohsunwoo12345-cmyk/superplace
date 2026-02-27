@@ -60,7 +60,14 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     const userAcademyId = user.academyId;
     const userId = user.id;
 
-    console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId, userId });
+    // userId 타입 변환 (landing_pages.user_id에 맞춤)
+    let userIdForQuery: any = userId;
+    if (typeof userId === 'string' && /^\d+$/.test(userId)) {
+      userIdForQuery = parseInt(userId, 10);
+      console.log('🔄 Converted userId to INTEGER for query:', userIdForQuery);
+    }
+
+    console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId, userId, userIdForQuery });
 
     // 역할별 쿼리 생성
     let query = '';
@@ -87,7 +94,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
         WHERE lp.user_id = ?
         ORDER BY lp.id DESC
       `;
-      queryParams = [userId];
+      queryParams = [userIdForQuery];
     } else {
       return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
         status: 403,
@@ -168,8 +175,23 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       });
     }
 
-    const creatorUserId = user.id; // 생성자 ID
-    console.log('✅ Creator:', { id: creatorUserId, email: user.email, role: user.role });
+    const creatorUserId = user.id; // 생성자 ID (TEXT 또는 INTEGER)
+    console.log('✅ Creator:', { id: creatorUserId, email: user.email, role: user.role, idType: typeof creatorUserId });
+
+    // user_id 타입 변환: landing_pages.user_id가 INTEGER이면 숫자로, TEXT이면 그대로
+    let userIdForDb: any = creatorUserId;
+    
+    // creatorUserId가 숫자 형태의 문자열이면 INTEGER로 변환 시도
+    if (typeof creatorUserId === 'string' && /^\d+$/.test(creatorUserId)) {
+      userIdForDb = parseInt(creatorUserId, 10);
+      console.log('🔄 Converted user_id to INTEGER:', userIdForDb);
+    } else if (typeof creatorUserId === 'number') {
+      userIdForDb = creatorUserId;
+      console.log('✅ user_id is already INTEGER:', userIdForDb);
+    } else {
+      // TEXT 형태 (예: 'user-123-abc')는 그대로 사용
+      console.log('✅ user_id is TEXT:', userIdForDb);
+    }
 
     const body = await context.request.json();
     const {
@@ -303,12 +325,12 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     console.log("✅ Using createdBy:", createdByUser, "(TEXT, can be NULL)");
     
     // Insert landing page - 생성자 ID를 user_id로 저장
-    console.log("📝 Inserting landing page with creator ID:", creatorUserId);
-    console.log("📝 Values:", { slug, title, creatorUserId });
+    console.log("📝 Inserting landing page with user_id:", userIdForDb, "type:", typeof userIdForDb);
+    console.log("📝 Values:", { slug, title, userIdForDb });
     
     const insertResult = await db
       .prepare(`INSERT INTO landing_pages (slug, title, user_id, template_type, content_json, html_content) VALUES (?, ?, ?, ?, ?, ?)`)
-      .bind(slug, title, creatorUserId, templateType || 'basic', defaultContentJson, defaultHtmlContent)
+      .bind(slug, title, userIdForDb, templateType || 'basic', defaultContentJson, defaultHtmlContent)
       .run();
 
     console.log("✅ Landing page inserted successfully");
