@@ -113,10 +113,14 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    if (!studentId) {
+    const db = context.env.DB;
+
+    // studentId가 없거나 유효하지 않은 경우 먼저 체크
+    if (!studentId && studentId !== 0) {
       return new Response(
         JSON.stringify({
           error: "학생을 선택해주세요.",
+          details: `studentId is ${studentId}`
         }),
         {
           status: 400,
@@ -125,22 +129,22 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    const db = context.env.DB;
-
     // Convert studentId to integer
-    const userIdInt = typeof studentId === 'string' ? parseInt(studentId, 10) : studentId;
+    const userIdInt = typeof studentId === 'string' ? parseInt(studentId, 10) : Number(studentId);
     
-    console.log("🔍 After parseInt:", {
+    console.log("🔍 After conversion:", {
       original: studentId,
+      originalType: typeof studentId,
       converted: userIdInt,
+      convertedType: typeof userIdInt,
       isNaN: isNaN(userIdInt),
     });
     
-    if (isNaN(userIdInt)) {
+    if (isNaN(userIdInt) || !Number.isInteger(userIdInt)) {
       return new Response(
         JSON.stringify({ 
           error: "잘못된 학생 ID입니다.",
-          details: `studentId: ${studentId} (type: ${typeof studentId}) → ${userIdInt} → isNaN: ${isNaN(userIdInt)}`
+          details: `studentId: ${studentId} (type: ${typeof studentId}) → converted: ${userIdInt} → isNaN: ${isNaN(userIdInt)}, isInteger: ${Number.isInteger(userIdInt)}`
         }),
         {
           status: 400,
