@@ -272,22 +272,17 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       }
     );
   } catch (error: any) {
-    console.error("랜딩페이지 생성 오류:", error);
+    console.error("❌❌❌ 랜딩페이지 생성 오류:", error);
+    console.error("❌ Error message:", error.message);
+    console.error("❌ Error stack:", error.stack);
     
-    // FOREIGN KEY 제약 조건 오류 상세 처리
-    let errorMessage = error.message || "랜딩페이지 생성 중 오류가 발생했습니다.";
-    
-    if (error.message && error.message.includes('FOREIGN KEY constraint failed')) {
-      errorMessage = "데이터베이스 참조 오류가 발생했습니다. 학생 또는 폴더 정보를 확인해주세요.";
-    } else if (error.message && error.message.includes('NOT NULL constraint failed')) {
-      errorMessage = `필수 항목이 누락되었습니다: ${error.message}`;
-    }
-    
+    // 실제 오류 메시지를 그대로 반환
     return new Response(
       JSON.stringify({
-        error: errorMessage,
+        error: error.message || "알 수 없는 오류",
+        originalError: String(error),
         details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        stack: error.stack
       }),
       {
         status: 500,

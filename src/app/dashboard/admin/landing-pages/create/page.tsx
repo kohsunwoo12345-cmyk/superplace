@@ -246,7 +246,11 @@ export default function CreateLandingPagePage() {
         const error = await response.json();
         console.error("❌ API Error Response:", error);
         console.error("❌ Error details:", error.details);
-        alert(error.error || error.message || "생성 중 오류가 발생했습니다.");
+        console.error("❌ Original error:", error.originalError);
+        console.error("❌ Stack:", error.stack);
+        // 실제 오류 메시지 표시
+        const errorMsg = `오류: ${error.error}\n\n상세: ${error.details || error.originalError || ''}`;
+        alert(errorMsg);
       }
     } catch (error: any) {
       console.error("랜딩페이지 생성 실패:", error);
