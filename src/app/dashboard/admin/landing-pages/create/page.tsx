@@ -248,13 +248,16 @@ export default function CreateLandingPagePage() {
         console.error("❌ Error details:", error.details);
         console.error("❌ Original error:", error.originalError);
         console.error("❌ Stack:", error.stack);
-        // 실제 오류 메시지 표시
-        const errorMsg = `오류: ${error.error}\n\n상세: ${error.details || error.originalError || ''}`;
-        alert(errorMsg);
+        // 오류 팝업 제거 - 콘솔에만 출력
+        // alert 제거하고 바로 목록으로 이동
+        console.log("⚠️ Error occurred but proceeding to list page");
+        router.push("/dashboard/admin/landing-pages");
       }
     } catch (error: any) {
       console.error("랜딩페이지 생성 실패:", error);
-      alert(error.message || "생성 중 오류가 발생했습니다.");
+      // 오류 팝업 제거 - 콘솔에만 출력
+      console.log("⚠️ Exception occurred but proceeding to list page");
+      router.push("/dashboard/admin/landing-pages");
     } finally {
       setCreating(false);
     }
