@@ -44,7 +44,7 @@ export async function onRequestPost(context: any) {
     }
 
     const body = await request.json();
-    const { requestId } = body;
+    const { requestId, studentCount: approvedStudentCount } = body;
 
     if (!requestId) {
       return new Response(JSON.stringify({
@@ -105,10 +105,14 @@ export async function onRequestPost(context: any) {
     const subscriptionEndDate = new Date();
     subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + purchaseRequest.months);
 
+    // 관리자가 수정한 학생 수 또는 요청된 학생 수 사용
+    const finalStudentCount = approvedStudentCount || purchaseRequest.studentCount;
+    console.log(`📝 Student count: requested=${purchaseRequest.studentCount}, approved=${approvedStudentCount}, final=${finalStudentCount}`);
+
     if (existingSubscription) {
       // 기존 구독 업데이트 (학생 슬롯 추가, 기간 연장)
-      const newTotalSlots = (existingSubscription.totalStudentSlots || 0) + purchaseRequest.studentCount;
-      const newRemainingSlots = (existingSubscription.remainingStudentSlots || 0) + purchaseRequest.studentCount;
+      const newTotalSlots = (existingSubscription.totalStudentSlots || 0) + finalStudentCount;
+      const newRemainingSlots = (existingSubscription.remainingStudentSlots || 0) + finalStudentCount;
       
       // 기간 연장 (기존 만료일이 현재보다 미래면 그 날짜 기준으로 추가)
       let newEndDate = new Date(existingSubscription.subscriptionEnd);
@@ -148,9 +152,9 @@ export async function onRequestPost(context: any) {
         purchaseRequest.academyId,
         purchaseRequest.productId,
         purchaseRequest.productName,
-        purchaseRequest.studentCount,
+        finalStudentCount,  // 관리자가 수정한 학생 수 사용
         0,
-        purchaseRequest.studentCount,
+        finalStudentCount,  // 관리자가 수정한 학생 수 사용
         now,
         subscriptionEndDate.toISOString(),
         now,

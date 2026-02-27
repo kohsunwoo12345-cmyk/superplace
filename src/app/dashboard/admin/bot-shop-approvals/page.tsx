@@ -92,6 +92,7 @@ export default function BotShopApprovalsPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [approvedStudentCount, setApprovedStudentCount] = useState<number>(0);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -148,7 +149,12 @@ export default function BotShopApprovalsPage() {
   }, [filterStatus]);
 
   const handleApprove = async (requestId: string) => {
-    if (!confirm("이 구매 요청을 승인하시겠습니까?\n\n승인 시 학원에 구독 슬롯이 할당됩니다.")) {
+    if (!approvedStudentCount || approvedStudentCount <= 0) {
+      alert("승인할 학생 수를 입력해주세요.");
+      return;
+    }
+
+    if (!confirm(`이 구매 요청을 승인하시겠습니까?\n\n학생 슬롯: ${approvedStudentCount}개\n\n승인 시 학원에 구독 슬롯이 할당됩니다.`)) {
       return;
     }
 
@@ -161,7 +167,10 @@ export default function BotShopApprovalsPage() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ requestId })
+        body: JSON.stringify({ 
+          requestId,
+          studentCount: approvedStudentCount  // 관리자가 수정한 학생 수 전달
+        })
       });
 
       if (response.ok) {
@@ -224,6 +233,7 @@ export default function BotShopApprovalsPage() {
     setSelectedRequest(request);
     setShowDetailModal(true);
     setRejectionReason("");
+    setApprovedStudentCount(request.studentCount); // 요청된 학생 수로 초기화
   };
 
   const closeDetailModal = () => {
@@ -623,6 +633,32 @@ export default function BotShopApprovalsPage() {
               {/* 액션 버튼 */}
               {selectedRequest.status === "PENDING" && (
                 <div className="space-y-4 pt-4 border-t">
+                  {/* 승인할 학생 수 수정 */}
+                  <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-blue-600" />
+                      승인할 학생 슬롯 수 (수정 가능)
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={approvedStudentCount}
+                      onChange={(e) => setApprovedStudentCount(parseInt(e.target.value) || 0)}
+                      placeholder="학생 수 입력"
+                      className="text-lg font-semibold"
+                    />
+                    <p className="text-xs text-gray-600">
+                      💡 요청된 학생 수: {selectedRequest.studentCount}명 → 관리자가 수정하여 승인할 수 있습니다.
+                    </p>
+                    {approvedStudentCount !== selectedRequest.studentCount && (
+                      <p className="text-sm font-medium text-orange-600 flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        요청된 학생 수와 다릅니다! ({selectedRequest.studentCount}명 → {approvedStudentCount}명)
+                      </p>
+                    )}
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">
                       거절 사유 (거절 시 필수)
