@@ -28,9 +28,9 @@ export async function onRequest(context: {
             u.name as studentName,
             f.name as folderName
           FROM landing_pages lp
-          LEFT JOIN User u ON lp.createdBy = u.id
-          LEFT JOIN landing_page_folders f ON lp.folderId = f.id
-          WHERE lp.slug = ? AND lp.isActive = 1`
+          LEFT JOIN User u ON lp.user_id = u.id
+          LEFT JOIN landing_folders f ON lp.folder_id = f.id
+          WHERE lp.slug = ? AND lp.status = 'active'`
         )
         .bind(slug)
         .first();
