@@ -121,11 +121,12 @@ const AIStorePage = () => {
     const intervals: NodeJS.Timeout[] = [];
     
     sections.forEach(section => {
-      if (section.products.length > 1) {
+      if (section.products.length > 3) {
+        const maxPos = Math.ceil(section.products.length / 3) - 1;
         const interval = setInterval(() => {
           setSliderPositions(prev => {
             const currentPos = prev[section.id] || 0;
-            const nextPos = (currentPos + 1) % section.products.length;
+            const nextPos = currentPos >= maxPos ? 0 : currentPos + 1;
             return { ...prev, [section.id]: nextPos };
           });
         }, 5000); // 5초마다 자동 슬라이드
