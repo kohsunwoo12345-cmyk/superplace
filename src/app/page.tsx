@@ -178,59 +178,72 @@ export default function Home() {
     }
   }, []);
 
-  // Mega menu data
+  // Mega menu data - 학생용 메뉴
   const featuresMenu = {
-    title: "기능 소개",
+    title: "학생 학습 자료",
     description: "학습 효율을 극대화하는 스마트 기능들",
     items: [
       {
-        icon: <BookOpen className="h-6 w-6" />,
+        icon: "📚",
         title: "디지털 학습 자료",
         description: "언제 어디서나 접근 가능한 체계적인 학습 콘텐츠",
-        href: "#features"
+        href: "/student/materials"
       },
       {
-        icon: <BarChart3 className="h-6 w-6" />,
+        icon: "📊",
         title: "학습 진도 관리",
         description: "실시간으로 확인하는 나의 학습 진행 상황",
-        href: "#features"
+        href: "/student/progress"
       },
       {
-        icon: <FileText className="h-6 w-6" />,
-        title: "과제 제출 시스템",
-        description: "온라인으로 간편하게 과제 제출 및 피드백",
-        href: "#features"
+        icon: "🤖",
+        title: "AI 부족한 개념 분석",
+        description: "AI가 자동으로 취약 개념을 분석하고 보완 학습 제공",
+        href: "/student/ai-analysis"
       },
       {
-        icon: <Award className="h-6 w-6" />,
-        title: "성적 분석",
-        description: "시험 점수 및 성취도를 한눈에 확인",
-        href: "#features"
+        icon: "🎯",
+        title: "개별 학습 관리",
+        description: "나만의 맞춤형 학습 계획과 관리",
+        href: "/student/personalized"
+      },
+      {
+        icon: "💬",
+        title: "24시간 AI 튜터",
+        description: "언제든지 질문하고 답변받는 AI 학습 도우미",
+        href: "/student/tutor"
       }
     ]
   };
 
+  // 학원장용 메뉴
   const benefitsMenu = {
-    title: "학습 효과",
-    description: "모두를 위한 맞춤형 학습 솔루션",
+    title: "학원장 관리",
+    description: "효율적인 학원 운영을 위한 통합 솔루션",
     items: [
       {
-        icon: <GraduationCap className="h-6 w-6" />,
-        title: "학생을 위한",
-        description: "자기주도 학습 환경과 맞춤형 학습 자료",
-        href: "#benefits"
+        icon: "🛒",
+        title: "AI 쇼핑몰",
+        description: "다양한 AI 교육 솔루션을 구매하고 관리",
+        href: "/director/ai-shop"
       },
       {
-        icon: <Briefcase className="h-6 w-6" />,
-        title: "학원장을 위한",
-        description: "효율적인 학원 운영과 통합 관리 시스템",
-        href: "#benefits"
+        icon: "⏰",
+        title: "24시간 AI 튜터",
+        description: "학생들을 위한 24시간 질의응답 서비스",
+        href: "/director/tutor-24"
       },
       {
-        icon: <Users className="h-6 w-6" />,
-        title: "선생님을 위한",
-        description: "학생 관리와 수업 진행을 편리하게",
-        href: "#benefits"
+        icon: "🧠",
+        title: "AI 부족한 개념 분석",
+        description: "전체 학생의 취약 개념을 한눈에 파악",
+        href: "/director/ai-concept-analysis"
+      },
+      {
+        icon: "👥",
+        title: "개별 학습 관리",
+        description: "학생별 맞춤형 학습 관리 및 분석",
+        href: "/director/student-management"
       }
     ]
   };
@@ -886,17 +899,23 @@ export default function Home() {
             <div>
               <h3 className="font-semibold mb-4">학생</h3>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li><Link href="#features">학습 자료</Link></li>
-                <li><Link href="#benefits">진도 관리</Link></li>
-                <li><a href="/register">회원가입</a></li>
+                <li><Link href="/student/materials" className="hover:text-blue-600 transition-colors">학습 자료</Link></li>
+                <li><Link href="/student/progress" className="hover:text-blue-600 transition-colors">진도 관리</Link></li>
+                <li><Link href="/student/ai-analysis" className="hover:text-blue-600 transition-colors">AI 부족한 개념 분석</Link></li>
+                <li><Link href="/student/personalized" className="hover:text-blue-600 transition-colors">개별학습 관리</Link></li>
+                <li><Link href="/student/tutor" className="hover:text-blue-600 transition-colors">24시간 AI 튜터</Link></li>
+                <li><a href="/register" className="hover:text-blue-600 transition-colors">회원가입</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-semibold mb-4">학원장</h3>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="/login">로그인</a></li>
-                <li><Link href="#features">기능 소개</Link></li>
-                <li><Link href="#about">관리 시스템</Link></li>
+                <li><a href="/login" className="hover:text-blue-600 transition-colors">로그인</a></li>
+                <li><Link href="/director/ai-shop" className="hover:text-blue-600 transition-colors">AI 쇼핑몰</Link></li>
+                <li><Link href="/director/24-tutor" className="hover:text-blue-600 transition-colors">24시간 튜터 서비스</Link></li>
+                <li><Link href="/director/analytics" className="hover:text-blue-600 transition-colors">학원 분석</Link></li>
+                <li><Link href="/director/management" className="hover:text-blue-600 transition-colors">통합 관리</Link></li>
+                <li><Link href="#features" className="hover:text-blue-600 transition-colors">기능 소개</Link></li>
               </ul>
             </div>
             <div>
