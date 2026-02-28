@@ -495,12 +495,6 @@ export default function KakaoChannelRegisterPage() {
       <div className="mt-6 p-4 bg-blue-50 rounded-lg">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-blue-900">📌 채널 연동 안내</h3>
-          <Link href="/dashboard/kakao-business-guide" target="_blank">
-            <Button variant="link" size="sm" className="text-blue-600 h-auto p-0">
-              <BookOpen className="w-4 h-4 mr-1" />
-              자세한 가이드 →
-            </Button>
-          </Link>
         </div>
         <ul className="text-sm text-blue-800 space-y-1">
           <li>• <strong className="text-blue-900">카카오톡 채널이 이미 개설되어 있어야 합니다</strong> - 
