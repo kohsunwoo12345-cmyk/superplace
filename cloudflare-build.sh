@@ -34,6 +34,12 @@ if [ -d ".vercel/output/static" ]; then
   rm -rf out
   cp -r .vercel/output/static out
   
+  # Remove _worker.js to prevent conflicts with functions/
+  if [ -d "out/_worker.js" ]; then
+    rm -rf out/_worker.js
+    echo "🗑️  Removed out/_worker.js (conflicts with functions/ directory)"
+  fi
+  
   # Copy Cloudflare Functions to out directory
   if [ -d "functions" ]; then
     echo "📦 Copying Cloudflare Functions to out directory..."
