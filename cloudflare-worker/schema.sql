@@ -210,3 +210,61 @@ CREATE TABLE IF NOT EXISTS LandingPagePixelScript (
 -- Indexes for LandingPagePixelScript
 CREATE INDEX IF NOT EXISTS idx_pixel_landing ON LandingPagePixelScript(landingPageId);
 CREATE INDEX IF NOT EXISTS idx_pixel_active ON LandingPagePixelScript(isActive);
+
+-- Kakao Channel Table
+CREATE TABLE IF NOT EXISTS KakaoChannel (
+  id TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,
+  userName TEXT,
+  phoneNumber TEXT NOT NULL,
+  channelName TEXT NOT NULL,
+  searchId TEXT NOT NULL,
+  categoryCode TEXT NOT NULL,
+  mainCategory TEXT,
+  middleCategory TEXT,
+  subCategory TEXT,
+  businessNumber TEXT,
+  solapiChannelId TEXT,
+  status TEXT DEFAULT 'PENDING',
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (userId) REFERENCES User(id) ON DELETE CASCADE
+);
+
+-- Indexes for KakaoChannel
+CREATE INDEX IF NOT EXISTS idx_kakao_channel_user ON KakaoChannel(userId);
+CREATE INDEX IF NOT EXISTS idx_kakao_channel_search ON KakaoChannel(searchId);
+CREATE INDEX IF NOT EXISTS idx_kakao_channel_status ON KakaoChannel(status);
+
+-- Alimtalk Template Table
+CREATE TABLE IF NOT EXISTS AlimtalkTemplate (
+  id TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,
+  channelId TEXT NOT NULL,
+  solapiChannelId TEXT,
+  solapiTemplateId TEXT,
+  templateCode TEXT,
+  templateName TEXT NOT NULL,
+  content TEXT NOT NULL,
+  categoryCode TEXT,
+  messageType TEXT DEFAULT 'BA',
+  emphasizeType TEXT DEFAULT 'NONE',
+  buttons TEXT, -- JSON string
+  quickReplies TEXT, -- JSON string
+  variables TEXT, -- JSON string array
+  status TEXT DEFAULT 'PENDING',
+  inspectionStatus TEXT,
+  approvedAt TEXT,
+  rejectedReason TEXT,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+  updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (userId) REFERENCES User(id) ON DELETE CASCADE,
+  FOREIGN KEY (channelId) REFERENCES KakaoChannel(id) ON DELETE CASCADE
+);
+
+-- Indexes for AlimtalkTemplate
+CREATE INDEX IF NOT EXISTS idx_alimtalk_user ON AlimtalkTemplate(userId);
+CREATE INDEX IF NOT EXISTS idx_alimtalk_channel ON AlimtalkTemplate(channelId);
+CREATE INDEX IF NOT EXISTS idx_alimtalk_status ON AlimtalkTemplate(status);
+CREATE INDEX IF NOT EXISTS idx_alimtalk_code ON AlimtalkTemplate(templateCode);
+
