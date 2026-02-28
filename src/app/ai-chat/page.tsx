@@ -776,7 +776,7 @@ export default function ModernAIChatPage() {
     const assistantMessages = messages.filter(m => m.role === 'assistant');
     console.log('🤖 AI 응답 메시지 개수:', assistantMessages.length);
 
-    const extractedProblems: { number: number; content: string; hasAnswer: boolean }[] = [];
+    const extractedProblems: { number: number; content: string; hasAnswer: boolean; type: 'multiple' | 'descriptive' }[] = [];
 
     assistantMessages.forEach((msg, index) => {
       const content = msg.content;
@@ -818,12 +818,16 @@ export default function ModernAIChatPage() {
             problemContent.includes('=') ||
             problemContent.includes('?');
           
+          // 객관식 문제인지 판단 (①, ②, ③, ④, ⑤ 또는 1), 2), 3), 4), 5) 형태의 선택지 포함)
+          const isMultipleChoice = /[①②③④⑤]|[\(（]?[1-5][\)）]\s*[^\d]/.test(problemContent);
+          
           // 순수 문제 형식이고, 길이가 적당하면 추가 (너무 길면 설명이 섞인 것)
-          if (isPureProbl && problemContent.length > 5 && problemContent.length < 500) {
+          if (isPureProbl && problemContent.length > 5 && problemContent.length < 800) {
             extractedProblems.push({
               number: parseInt(problemNumber),
               content: problemContent,
-              hasAnswer: hasAnswer
+              hasAnswer: hasAnswer,
+              type: isMultipleChoice ? 'multiple' : 'descriptive'
             });
           }
         });
@@ -833,6 +837,7 @@ export default function ModernAIChatPage() {
     console.log('📋 추출된 문제 개수:', extractedProblems.length);
     console.log('📋 문제 상세:', extractedProblems.map(p => ({ 
       number: p.number, 
+      type: p.type,
       length: p.content.length, 
       hasAnswer: p.hasAnswer,
       preview: p.content.substring(0, 50) + '...'
@@ -842,6 +847,21 @@ export default function ModernAIChatPage() {
       alert('출력할 문제를 찾을 수 없습니다.\n\nAI에게 "수학 문제 3개 출제해줘" 같은 요청을 먼저 해보세요.');
       return;
     }
+
+    // 문제를 객관식과 서술형으로 분리
+    const multipleChoiceProblems = extractedProblems.filter(p => p.type === 'multiple');
+    const descriptiveProblems = extractedProblems.filter(p => p.type === 'descriptive');
+
+    // 각 섹션별로 1번부터 번호 재정렬
+    multipleChoiceProblems.forEach((p, index) => {
+      p.number = index + 1;
+    });
+    descriptiveProblems.forEach((p, index) => {
+      p.number = index + 1;
+    });
+
+    console.log('📝 객관식 문제:', multipleChoiceProblems.length, '개');
+    console.log('📝 서술형 문제:', descriptiveProblems.length, '개');
 
     const problems = extractedProblems;
 
@@ -880,6 +900,7 @@ export default function ModernAIChatPage() {
               size: A4;
             }
             .no-print { display: none !important; }
+            .editable-name { border: none !important; }
           }
           * {
             margin: 0;
@@ -906,6 +927,28 @@ export default function ModernAIChatPage() {
             font-weight: 700;
             margin-bottom: 15px;
           }
+          .editable-name {
+            display: inline-block;
+            min-width: 200px;
+            padding: 4px 8px;
+            border: 2px dashed #3b82f6;
+            border-radius: 4px;
+            background: #eff6ff;
+            cursor: text;
+          }
+          .editable-name:focus {
+            outline: none;
+            border-color: #2563eb;
+            background: #dbeafe;
+          }
+          .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 30px 0 20px 0;
+            padding: 10px;
+            background: #f3f4f6;
+            border-left: 4px solid #2563eb;
+          }
           .student-info {
             margin-bottom: 30px;
             font-size: 14px;
@@ -925,7 +968,7 @@ export default function ModernAIChatPage() {
             min-height: 20px;
           }
           .problem {
-            margin-bottom: 40px;
+            margin-bottom: 35px;
             page-break-inside: avoid;
           }
           .problem-number {
@@ -941,18 +984,23 @@ export default function ModernAIChatPage() {
           }
           .answer-space {
             margin-top: 20px;
-            min-height: 80px;
+            min-height: 60px;
           }
           .answer-line {
             border-bottom: 1px solid #ccc;
             height: 30px;
             margin-bottom: 5px;
           }
+          .page-break {
+            page-break-after: always;
+          }
         </style>
       </head>
       <body>
         <div class="header">
-          <div class="academy-name">${academyName}</div>
+          <div class="academy-name">
+            <span class="editable-name" contenteditable="true" id="academyNameEdit">${academyName}</span>
+          </div>
         </div>
 
         <div class="student-info">
@@ -966,7 +1014,21 @@ export default function ModernAIChatPage() {
           </div>
         </div>
 
-        ${problems.map((p, index) => `
+        ${multipleChoiceProblems.length > 0 ? `
+        <div class="section-title">객관식 문제 (1~5번)</div>
+        ${multipleChoiceProblems.map((p, index) => `
+          <div class="problem">
+            <div class="problem-number">${p.number}. </div>
+            <div class="problem-content">${p.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+          </div>
+          ${(index + 1) % 6 === 0 && index < multipleChoiceProblems.length - 1 ? '<div class="page-break"></div>' : ''}
+        `).join('')}
+        ` : ''}
+
+        ${descriptiveProblems.length > 0 ? `
+        ${multipleChoiceProblems.length > 0 ? '<div class="page-break"></div>' : ''}
+        <div class="section-title">서술형 문제</div>
+        ${descriptiveProblems.map((p, index) => `
           <div class="problem">
             <div class="problem-number">${p.number}. </div>
             <div class="problem-content">${p.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
@@ -976,7 +1038,9 @@ export default function ModernAIChatPage() {
               <div class="answer-line"></div>
             </div>
           </div>
+          ${(index + 1) % 5 === 0 && index < descriptiveProblems.length - 1 ? '<div class="page-break"></div>' : ''}
         `).join('')}
+        ` : ''}
 
         <div class="no-print" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <button onclick="window.print()" style="padding: 10px 25px; font-size: 14px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
@@ -986,6 +1050,14 @@ export default function ModernAIChatPage() {
             닫기
           </button>
         </div>
+        
+        <script>
+          // Focus on academy name edit on load
+          document.getElementById('academyNameEdit').addEventListener('click', function() {
+            this.focus();
+            document.execCommand('selectAll', false, null);
+          });
+        </script>
       </body>
       </html>
     `;
