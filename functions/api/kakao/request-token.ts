@@ -36,15 +36,28 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       );
     }
 
+    // Solapi API는 @ 기호 없이 순수 검색용 ID만 요구
+    // 프론트엔드에서 이미 처리했지만 안전을 위해 다시 확인
+    const cleanSearchId = searchId.startsWith('@') ? searchId.substring(1) : searchId;
+
     // Solapi REST API 직접 호출
     const timestamp = new Date().toISOString();  // ISO 8601 형식
     const salt = Math.random().toString(36).substring(2);
     const signature = await generateSignature(SOLAPI_API_Secret, timestamp, salt);
     
     const requestBody = {
-      searchId: searchId,
+      searchId: cleanSearchId,
       phoneNumber: phoneNumber,
     };
+    
+    console.log('📤 Requesting Kakao channel token:', {
+      originalSearchId: searchId,
+      cleanSearchId: cleanSearchId,
+      hasAtSymbol: searchId.startsWith('@'),
+      searchIdLength: cleanSearchId.length,
+      phoneNumber: phoneNumber.substring(0, 3) + '****' + phoneNumber.substring(7),
+      url: 'https://api.solapi.com/kakao/v1/plus-friends/token'
+    });
     
     const response = await fetch('https://api.solapi.com/kakao/v1/plus-friends/token', {
       method: 'POST',
@@ -68,10 +81,29 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       });
       
       let errorMessage = `Failed to request token: ${response.status}`;
+      let userFriendlyMessage = '';
       try {
         const errorJson = JSON.parse(errorData);
         if (errorJson.errorMessage) {
           errorMessage = errorJson.errorMessage;
+          
+          // 사용자 친화적인 에러 메시지 생성
+          if (errorMessage.includes('존재하지 않는 카카오톡 채널')) {
+            userFriendlyMessage = `입력하신 채널 ID를 찾을 수 없습니다.
+
+확인 사항:
+1. 카카오톡 채널 관리자센터(business.kakao.com)에 로그인
+2. 왼쪽 메뉴 → "관리" 클릭
+3. "검색용 아이디" 항목에서 정확한 ID 확인 (예: myacademy)
+4. 채널 이름이 아닌 "검색용 ID"를 입력하세요
+5. "홈 공개"와 "검색 허용"이 모두 ON 상태인지 확인
+6. 채널이 "비즈니스 인증" 완료되었는지 확인
+
+입력하신 ID: ${cleanSearchId}
+ID 길이: ${cleanSearchId.length}자`;
+          } else if (errorMessage.includes('카테고리를 선택해주세요')) {
+            userFriendlyMessage = '카테고리를 선택해주세요';
+          }
         } else if (errorJson.message) {
           errorMessage = errorJson.message;
         }
@@ -82,15 +114,18 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: errorMessage,
+          error: userFriendlyMessage || errorMessage,
           details: errorData,
           debug: {
             url: 'https://api.solapi.com/kakao/v1/plus-friends/token',
             timestamp,
             salt,
             actualRequestBody: requestBody,
-            searchIdLength: searchId?.length,
-            phoneNumberLength: phoneNumber?.length
+            originalSearchId: searchId,
+            cleanSearchId: cleanSearchId,
+            searchIdLength: cleanSearchId?.length,
+            phoneNumberLength: phoneNumber?.length,
+            hadAtSymbol: searchId?.startsWith('@')
           }
         }),
         { status: response.status, headers: { 'Content-Type': 'application/json' } }

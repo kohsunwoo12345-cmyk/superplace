@@ -39,6 +39,10 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       );
     }
 
+    // Solapi API는 @ 기호 없이 순수 검색용 ID만 요구
+    // 프론트엔드에서 이미 처리했지만 안전을 위해 다시 확인
+    const cleanSearchId = searchId.startsWith('@') ? searchId.substring(1) : searchId;
+
     // Solapi REST API 직접 호출
     const timestamp = new Date().toISOString();  // ISO 8601 형식
     const salt = Math.random().toString(36).substring(2);
@@ -46,13 +50,17 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     
     // Request body 구성 (categoryCode는 필수)
     const requestBody = {
-      searchId: searchId,
+      searchId: cleanSearchId,
       phoneNumber: phoneNumber,
       categoryCode: categoryCode,
       token: token,
     };
     
-    console.log('📤 Solapi API request:', requestBody);
+    console.log('📤 Solapi API request:', {
+      ...requestBody,
+      originalSearchId: searchId,
+      searchIdCleaned: cleanSearchId !== searchId
+    });
     
     const response = await fetch('https://api.solapi.com/kakao/v1/plus-friends', {
       method: 'POST',
@@ -66,7 +74,13 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('Solapi API error:', errorData);
-      console.error('Request data:', { searchId, phoneNumber, categoryCode, token });
+      console.error('Request data:', { 
+        originalSearchId: searchId,
+        cleanSearchId: cleanSearchId, 
+        phoneNumber, 
+        categoryCode, 
+        token: '***' 
+      });
       
       let errorMessage = `Failed to create channel: ${response.status}`;
       try {
@@ -85,7 +99,13 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
           success: false, 
           error: errorMessage,
           details: errorData,
-          debug: { searchId, phoneNumber, categoryCode, tokenLength: token?.length }
+          debug: { 
+            originalSearchId: searchId,
+            cleanSearchId: cleanSearchId,
+            phoneNumber, 
+            categoryCode, 
+            tokenLength: token?.length 
+          }
         }),
         { status: response.status, headers: { 'Content-Type': 'application/json' } }
       );
@@ -101,7 +121,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
             searchId, phoneNumber, categoryCode, pfId, status, createdAt, updatedAt
           ) VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `).bind(
-          searchId,
+          cleanSearchId,  // @ 기호가 제거된 순수 ID 저장
           phoneNumber,
           categoryCode,
           result.pfId || result.plusFriendId || '',

@@ -121,8 +121,8 @@ export default function KakaoChannelRegisterPage() {
     setSuccess(null);
 
     try {
-      // searchId는 @를 포함해야 함 (Solapi API 요구사항)
-      const cleanSearchId = searchId.startsWith('@') ? searchId : `@${searchId}`;
+      // searchId에서 @ 기호를 제거 (Solapi API는 @ 없이 순수 ID만 요구)
+      const cleanSearchId = searchId.startsWith('@') ? searchId.substring(1) : searchId;
       
       const response = await fetch('/api/kakao/request-token', {
         method: 'POST',
@@ -170,8 +170,8 @@ export default function KakaoChannelRegisterPage() {
     setSuccess(null);
 
     try {
-      // searchId는 @를 포함해야 함 (Solapi API 요구사항)
-      const cleanSearchId = searchId.startsWith('@') ? searchId : `@${searchId}`;
+      // searchId에서 @ 기호를 제거 (Solapi API는 @ 없이 순수 ID만 요구)
+      const cleanSearchId = searchId.startsWith('@') ? searchId.substring(1) : searchId;
       
       console.log('📤 Sending create channel request:', {
         searchId: cleanSearchId,
@@ -373,14 +373,33 @@ export default function KakaoChannelRegisterPage() {
               <Label htmlFor="searchId">채널 검색용 ID *</Label>
               <Input
                 id="searchId"
-                placeholder="@your_channel_id"
+                placeholder="your_channel_id 또는 @your_channel_id"
                 value={searchId}
                 onChange={(e) => setSearchId(e.target.value)}
                 disabled={loading}
               />
-              <p className="text-sm text-gray-500 mt-1">
-                카카오톡 채널 검색용 ID (@ 포함 또는 제외)
-              </p>
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-900 font-medium mb-2">
+                  💡 채널 검색용 ID 확인 방법:
+                </p>
+                <ol className="text-xs text-blue-800 space-y-1 ml-4 list-decimal">
+                  <li><a href="https://business.kakao.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline text-blue-600">카카오톡 채널 관리자센터</a> 접속</li>
+                  <li>왼쪽 메뉴 → <strong>관리</strong> 클릭</li>
+                  <li><strong>"검색용 아이디"</strong> 항목 확인 (예: myacademy)</li>
+                  <li>@ 기호는 포함/제외 모두 가능 (자동으로 처리됨)</li>
+                  <li><strong>홈 공개, 검색 허용을 모두 ON으로 설정</strong>해야 연동 가능</li>
+                </ol>
+                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-300 rounded">
+                  <p className="text-xs text-yellow-900 font-medium">
+                    ⚠️ 주의사항:
+                  </p>
+                  <ul className="text-xs text-yellow-800 mt-1 ml-4 list-disc">
+                    <li>채널 <strong>이름</strong>이 아닌 <strong>검색용 ID</strong>를 입력하세요</li>
+                    <li>채널이 <strong>비즈니스 인증</strong>되어 있어야 합니다</li>
+                    <li>채널이 <strong>공개</strong> 상태여야 합니다</li>
+                  </ul>
+                </div>
+              </div>
             </div>
 
             <div>
