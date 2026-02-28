@@ -90,6 +90,7 @@ export default function KakaoChannelRegisterPage() {
   const [categories, setCategories] = useState<Category[]>(HARDCODED_CATEGORIES);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
   // Form data
   const [searchId, setSearchId] = useState('');
@@ -104,10 +105,33 @@ export default function KakaoChannelRegisterPage() {
   const [verificationCode, setVerificationCode] = useState('');
   const [tokenSentTime, setTokenSentTime] = useState<Date | null>(null);
 
-  // 하드코딩된 카테고리 사용 (API 호출 불필요)
-  // Solapi API는 카테고리 조회를 지원하지 않으므로 하드코딩된 목록 사용
+  // 실제 Solapi 카테고리 목록 가져오기
   useEffect(() => {
-    console.log('✅ Using hardcoded Solapi categories');
+    const fetchCategories = async () => {
+      try {
+        console.log('📥 Fetching Solapi categories from API...');
+        const response = await fetch('/api/kakao/get-categories');
+        const data = await response.json();
+        
+        if (data.success && data.categories) {
+          console.log('✅ Solapi categories loaded:', data.categories);
+          // 실제 API에서 받은 카테고리로 업데이트
+          setCategories(data.categories);
+        } else {
+          console.warn('⚠️ Failed to load categories, using hardcoded:', data.error);
+          // 실패 시 하드코딩된 카테고리 사용
+          setCategories(HARDCODED_CATEGORIES);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching categories:', error);
+        // 에러 시 하드코딩된 카테고리 사용
+        setCategories(HARDCODED_CATEGORIES);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    
+    fetchCategories();
   }, []);
 
   const handleRequestToken = async () => {
@@ -317,22 +341,39 @@ export default function KakaoChannelRegisterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* 대분류 선택 */}
-            <div>
-              <Label htmlFor="mainCategory">카테고리 - 대분류 *</Label>
-              <select
-                id="mainCategory"
-                className="w-full p-2 border rounded-md"
-                value={mainCategory}
-                onChange={(e) => handleMainCategoryChange(e.target.value)}
-                disabled={loading || categories.length === 0}
-              >
-                <option value="">대분류 선택</option>
-                {categories.map((cat) => (
-                  <option key={cat.code} value={cat.code}>
-                    {cat.name}
-                  </option>
-                ))}
+            {loadingCategories ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                <span className="ml-3 text-gray-600">Solapi 카테고리 목록 가져오는 중...</span>
+              </div>
+            ) : (
+              <>
+                {/* 디버그: 실제 카테고리 목록 표시 */}
+                <Alert className="border-blue-500 bg-blue-50">
+                  <AlertDescription className="text-blue-800">
+                    <div className="font-bold mb-2">📋 Solapi에서 가져온 카테고리 목록:</div>
+                    <pre className="text-xs bg-white p-2 rounded overflow-auto max-h-40">
+                      {JSON.stringify(categories, null, 2)}
+                    </pre>
+                  </AlertDescription>
+                </Alert>
+
+                {/* 대분류 선택 */}
+                <div>
+                  <Label htmlFor="mainCategory">카테고리 - 대분류 *</Label>
+                  <select
+                    id="mainCategory"
+                    className="w-full p-2 border rounded-md"
+                    value={mainCategory}
+                    onChange={(e) => handleMainCategoryChange(e.target.value)}
+                    disabled={loading || categories.length === 0}
+                  >
+                    <option value="">대분류 선택</option>
+                    {categories.map((cat) => (
+                      <option key={cat.code} value={cat.code}>
+                        {cat.name}
+                      </option>
+                    ))}
               </select>
             </div>
 
