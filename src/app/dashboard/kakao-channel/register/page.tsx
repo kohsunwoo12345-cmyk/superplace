@@ -116,11 +116,6 @@ export default function KakaoChannelRegisterPage() {
       return;
     }
 
-    if (!finalCategoryCode) {
-      setError('카테고리를 먼저 선택해주세요.');
-      return;
-    }
-
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -129,10 +124,9 @@ export default function KakaoChannelRegisterPage() {
       // searchId에서 @ 기호를 제거 (Solapi API는 @ 없이 순수 ID만 요구)
       const cleanSearchId = searchId.startsWith('@') ? searchId.substring(1) : searchId;
       
-      console.log('📤 Requesting token with:', {
+      console.log('📤 Requesting token (v2 API - no categoryCode needed):', {
         searchId: cleanSearchId,
-        phoneNumber: phoneNumber.substring(0, 3) + '****',
-        categoryCode: finalCategoryCode
+        phoneNumber: phoneNumber.substring(0, 3) + '****'
       });
       
       const response = await fetch('/api/kakao/request-token', {
@@ -140,8 +134,8 @@ export default function KakaoChannelRegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           searchId: cleanSearchId, 
-          phoneNumber,
-          categoryCode: finalCategoryCode  // 카테고리 코드 추가
+          phoneNumber
+          // v2 API: categoryCode는 토큰 요청 시 불필요
         }),
       });
 
@@ -188,11 +182,12 @@ export default function KakaoChannelRegisterPage() {
       // searchId에서 @ 기호를 제거 (Solapi API는 @ 없이 순수 ID만 요구)
       const cleanSearchId = searchId.startsWith('@') ? searchId.substring(1) : searchId;
       
-      console.log('📤 Sending create channel request:', {
+      console.log('📤 Sending create channel request (v2):', {
         searchId: cleanSearchId,
         phoneNumber,
         categoryCode: finalCategoryCode,
-        tokenLength: verificationCode.length
+        token: verificationCode,
+        tokenType: typeof verificationCode
       });
       
       const response = await fetch('/api/kakao/create-channel', {
@@ -202,7 +197,7 @@ export default function KakaoChannelRegisterPage() {
           searchId: cleanSearchId, 
           phoneNumber, 
           categoryCode: finalCategoryCode,  // 필수 필드
-          token: verificationCode
+          token: parseInt(verificationCode, 10)  // Number 타입으로 변환
         }),
       });
 
@@ -443,7 +438,7 @@ export default function KakaoChannelRegisterPage() {
               </Button>
               <Button 
                 onClick={handleRequestToken} 
-                disabled={loading || !searchId || !phoneNumber || !finalCategoryCode}
+                disabled={loading || !searchId || !phoneNumber}
                 className="flex-1"
               >
                 {loading ? (

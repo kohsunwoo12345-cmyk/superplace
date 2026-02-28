@@ -24,13 +24,13 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     }
 
     const body = await context.request.json();
-    const { searchId, phoneNumber, categoryCode } = body;
+    const { searchId, phoneNumber } = body;
 
-    if (!searchId || !phoneNumber || !categoryCode) {
+    if (!searchId || !phoneNumber) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'searchId, phoneNumber, categoryCode are required' 
+          error: 'searchId and phoneNumber are required' 
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
@@ -40,28 +40,27 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     // 프론트엔드에서 이미 처리했지만 안전을 위해 다시 확인
     const cleanSearchId = searchId.startsWith('@') ? searchId.substring(1) : searchId;
 
-    // Solapi REST API 직접 호출
+    // Solapi REST API 직접 호출 (v2 API 사용)
     const timestamp = new Date().toISOString();  // ISO 8601 형식
     const salt = Math.random().toString(36).substring(2);
     const signature = await generateSignature(SOLAPI_API_Secret, timestamp, salt);
     
+    // v2 API: 토큰 요청 시 categoryCode 불필요
     const requestBody = {
       searchId: cleanSearchId,
       phoneNumber: phoneNumber,
-      categoryCode: categoryCode,  // 카테고리 코드 추가 (필수)
     };
     
-    console.log('📤 Requesting Kakao channel token:', {
+    console.log('📤 Requesting Kakao channel token (v2):', {
       originalSearchId: searchId,
       cleanSearchId: cleanSearchId,
       hasAtSymbol: searchId.startsWith('@'),
       searchIdLength: cleanSearchId.length,
       phoneNumber: phoneNumber.substring(0, 3) + '****' + phoneNumber.substring(7),
-      categoryCode: categoryCode,
-      url: 'https://api.solapi.com/kakao/v1/plus-friends/token'
+      url: 'https://api.solapi.com/kakao/v2/channels/token'
     });
     
-    const response = await fetch('https://api.solapi.com/kakao/v1/plus-friends/token', {
+    const response = await fetch('https://api.solapi.com/kakao/v2/channels/token', {
       method: 'POST',
       headers: {
         'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${timestamp}, salt=${salt}, signature=${signature}`,
@@ -74,11 +73,10 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       const errorData = await response.text();
       console.error('Solapi API error:', errorData);
       console.error('Request details:', {
-        url: 'https://api.solapi.com/kakao/v1/plus-friends/token',
+        url: 'https://api.solapi.com/kakao/v2/channels/token',
         searchId,
         cleanSearchId,
         phoneNumber,
-        categoryCode,
         timestamp,
         hasApiKey: !!SOLAPI_API_Key,
         hasApiSecret: !!SOLAPI_API_Secret
@@ -121,13 +119,12 @@ ID 길이: ${cleanSearchId.length}자`;
           error: userFriendlyMessage || errorMessage,
           details: errorData,
           debug: {
-            url: 'https://api.solapi.com/kakao/v1/plus-friends/token',
+            url: 'https://api.solapi.com/kakao/v2/channels/token',
             timestamp,
             salt,
             actualRequestBody: requestBody,
             originalSearchId: searchId,
             cleanSearchId: cleanSearchId,
-            categoryCode: categoryCode,
             searchIdLength: cleanSearchId?.length,
             phoneNumberLength: phoneNumber?.length,
             hadAtSymbol: searchId?.startsWith('@')

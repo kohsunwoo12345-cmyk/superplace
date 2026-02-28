@@ -56,13 +56,14 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       token: token,
     };
     
-    console.log('📤 Solapi API request:', {
+    console.log('📤 Solapi API request (v2):', {
       ...requestBody,
       originalSearchId: searchId,
-      searchIdCleaned: cleanSearchId !== searchId
+      searchIdCleaned: cleanSearchId !== searchId,
+      token: '***'
     });
     
-    const response = await fetch('https://api.solapi.com/kakao/v1/plus-friends', {
+    const response = await fetch('https://api.solapi.com/kakao/v2/channels', {
       method: 'POST',
       headers: {
         'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${timestamp}, salt=${salt}, signature=${signature}`,
