@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>카카오 채널 카테고리 디버깅</title>
+</head>
+<body>
+  <h1>카테고리 코드 확인</h1>
+  <div id="result"></div>
+  
+  <script>
+    // 실제 선택된 카테고리 코드 확인
+    const categories = [
+      {
+        code: '002',
+        name: '교육',
+        subcategories: [
+          {
+            code: '002001',
+            name: '학원',
+            subcategories: [
+              { code: '002001001', name: '어학원' },
+              { code: '002001002', name: '입시학원' }
+            ]
+          }
+        ]
+      }
+    ];
+    
+    console.log('카테고리 구조:', categories);
+    console.log('학원 코드:', '002001');
+    console.log('어학원 코드:', '002001001');
+    console.log('코드 길이:', '002001001'.length, '자리');
+  </script>
+</body>
+</html>

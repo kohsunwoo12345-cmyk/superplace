@@ -367,8 +367,8 @@ export default function KakaoChannelRegisterPage() {
   };
 
   const handleCreateChannel = async () => {
-    if (!searchId || !phoneNumber || !finalCategoryCode || !verificationCode) {
-      setError('모든 필드를 입력해주세요. (카테고리 선택 필수)');
+    if (!searchId || !phoneNumber || !verificationCode) {
+      setError('검색용 ID, 전화번호, 인증번호를 입력해주세요.');
       return;
     }
 
@@ -387,7 +387,7 @@ export default function KakaoChannelRegisterPage() {
       console.log('📤 Sending create channel request:', {
         searchId: cleanSearchId,
         phoneNumber,
-        categoryCode: finalCategoryCode,
+        categoryCode: finalCategoryCode || 'none',
         tokenLength: verificationCode.length
       });
       
@@ -397,7 +397,7 @@ export default function KakaoChannelRegisterPage() {
         body: JSON.stringify({ 
           searchId: cleanSearchId, 
           phoneNumber, 
-          categoryCode: finalCategoryCode,
+          categoryCode: finalCategoryCode || '',  // 빈 문자열이면 서버에서 생략
           token: verificationCode
         }),
       });
@@ -503,9 +503,9 @@ export default function KakaoChannelRegisterPage() {
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 1: 카테고리 선택</CardTitle>
+            <CardTitle>Step 1: 카테고리 선택 (선택사항)</CardTitle>
             <CardDescription>
-              채널의 업종 카테고리를 선택해주세요. 중분류 선택 시 소분류가 자동으로 선택됩니다.
+              채널의 업종 카테고리를 선택하거나 건너뛸 수 있습니다. 카테고리 없이도 채널 등록이 가능합니다.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -581,14 +581,24 @@ export default function KakaoChannelRegisterPage() {
               </div>
             )}
 
-            <Button 
-              onClick={() => setStep(2)} 
-              disabled={!finalCategoryCode}
-              className="w-full"
-            >
-              다음 단계: 채널 정보 입력
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            {!finalCategoryCode && (
+              <div className="p-3 bg-yellow-50 rounded-md border border-yellow-200">
+                <p className="text-sm text-yellow-900">
+                  ℹ️ 카테고리를 선택하지 않고 진행할 수 있습니다. (선택사항)
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => setStep(2)} 
+                className="flex-1"
+                variant={finalCategoryCode ? "default" : "outline"}
+              >
+                다음 단계: 채널 정보 입력
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

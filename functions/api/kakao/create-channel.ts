@@ -28,11 +28,11 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     const body = await context.request.json();
     const { searchId, phoneNumber, categoryCode, token } = body;
 
-    if (!searchId || !phoneNumber || !categoryCode || !token) {
+    if (!searchId || !phoneNumber || !token) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'All fields are required: searchId, phoneNumber, categoryCode, token' 
+          error: 'Required fields: searchId, phoneNumber, token (categoryCode is optional)' 
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
@@ -43,18 +43,27 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     const salt = Math.random().toString(36).substring(2);
     const signature = await generateSignature(SOLAPI_API_Secret, timestamp, salt);
     
+    // Request body 구성 (categoryCode는 선택사항)
+    const requestBody: any = {
+      searchId: searchId,
+      phoneNumber: phoneNumber,
+      token: token,
+    };
+    
+    // categoryCode가 있으면 추가
+    if (categoryCode && categoryCode.trim() !== '') {
+      requestBody.categoryCode = categoryCode;
+    }
+    
+    console.log('📤 Solapi API request:', requestBody);
+    
     const response = await fetch('https://api.solapi.com/kakao/v1/plus-friends', {
       method: 'POST',
       headers: {
         'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${timestamp}, salt=${salt}, signature=${signature}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        searchId: searchId,
-        phoneNumber: phoneNumber,
-        categoryCode: categoryCode,
-        token: token,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
