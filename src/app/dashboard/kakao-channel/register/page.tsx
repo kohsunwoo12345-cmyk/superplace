@@ -368,7 +368,7 @@ export default function KakaoChannelRegisterPage() {
 
   const handleCreateChannel = async () => {
     if (!searchId || !phoneNumber || !finalCategoryCode || !verificationCode) {
-      setError('모든 필드를 입력해주세요. (대분류, 중분류, 소분류 필수)');
+      setError('모든 필드를 입력해주세요. (카테고리 선택 필수)');
       return;
     }
 
@@ -429,14 +429,35 @@ export default function KakaoChannelRegisterPage() {
     setMainCategory(value);
     setSubCategory('');
     setDetailCategory('');
-    setFinalCategoryCode('');
+    
+    // 대분류의 하위 카테고리 확인
+    const selectedMain = categories.find(c => c.code === value);
+    const hasSub = selectedMain?.subcategories && selectedMain.subcategories.length > 0;
+    
+    // 하위 카테고리가 없으면 현재 코드를 최종 코드로 설정
+    if (!hasSub) {
+      setFinalCategoryCode(value);
+    } else {
+      setFinalCategoryCode('');
+    }
   };
 
   // 중분류 선택 시
   const handleSubCategoryChange = (value: string) => {
     setSubCategory(value);
     setDetailCategory('');
-    setFinalCategoryCode('');
+    
+    // 중분류의 하위 카테고리 확인
+    const selectedMain = categories.find(c => c.code === mainCategory);
+    const selectedSub = selectedMain?.subcategories?.find(c => c.code === value);
+    const hasDetail = selectedSub?.subcategories && selectedSub.subcategories.length > 0;
+    
+    // 하위 카테고리가 없으면 현재 코드를 최종 코드로 설정
+    if (!hasDetail) {
+      setFinalCategoryCode(value);
+    } else {
+      setFinalCategoryCode('');
+    }
   };
 
   // 소분류 선택 시
@@ -481,7 +502,7 @@ export default function KakaoChannelRegisterPage() {
           <CardHeader>
             <CardTitle>Step 1: 카테고리 선택</CardTitle>
             <CardDescription>
-              채널의 업종 카테고리를 먼저 선택해주세요. (대분류 → 중분류 → 소분류)
+              채널의 업종 카테고리를 선택해주세요. 하위 카테고리가 없으면 자동으로 선택 완료됩니다.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
