@@ -1,8 +1,10 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // Cloudflare Pages에서 API Routes를 사용하기 위해 static export 제거
-  // @cloudflare/next-on-pages가 빌드를 처리
+  // Cloudflare Pages: Static export mode
+  // API Routes are handled by functions/ directory
+  output: 'export',
+  distDir: 'out',
   images: {
     unoptimized: true,
   },

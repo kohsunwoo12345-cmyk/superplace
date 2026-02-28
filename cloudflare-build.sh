@@ -1,62 +1,40 @@
 #!/bin/bash
 
 # Cloudflare Pages Build Script for Super Place
-# Uses @cloudflare/next-on-pages for Next.js with API Routes support
+# Static export + Cloudflare Functions
 
 set -e  # Exit on error
 
-echo "🚀 Starting Cloudflare Pages build with @cloudflare/next-on-pages..."
+echo "🚀 Starting Cloudflare Pages build..."
 
 # Check Node.js version
 echo "📦 Node.js version: $(node -v)"
 echo "📦 npm version: $(npm -v)"
 
-# Build with @cloudflare/next-on-pages
-echo "🔨 Building Next.js with Cloudflare Pages adapter..."
-npm run pages:build
+# Build Next.js with static export
+echo "🔨 Building Next.js static site..."
+npm run build
 
 # Verify build output
-echo "✅ Build completed successfully!"
-echo "📁 Build output directory: .vercel/output/static/"
-
-# List output directory contents
-if [ -d ".vercel/output/static" ]; then
-  echo "✅ .vercel/output/static directory created successfully"
-  ls -la .vercel/output/static/ | head -20
-  
-  # Check for worker file
-  if [ -f ".vercel/output/static/_worker.js/index.js" ]; then
-    echo "✅ Cloudflare Worker file generated"
-  fi
-  
-  # Copy to 'out' directory for Cloudflare Pages compatibility
-  echo "📦 Copying build output to 'out' directory for Cloudflare Pages..."
-  rm -rf out
-  cp -r .vercel/output/static out
-  
-  # Remove _worker.js to prevent conflicts with functions/
-  if [ -d "out/_worker.js" ]; then
-    rm -rf out/_worker.js
-    echo "🗑️  Removed out/_worker.js (conflicts with functions/ directory)"
-  fi
-  
-  # Copy Cloudflare Functions to out directory
-  if [ -d "functions" ]; then
-    echo "📦 Copying Cloudflare Functions to out directory..."
-    cp -r functions out/
-    echo "✅ Functions directory copied"
-  fi
-  
-  echo "✅ Build output copied to 'out' directory"
+if [ -d "out" ]; then
+  echo "✅ Static build output created: out/"
+  ls -la out/ | head -20
 else
-  echo "❌ ERROR: .vercel/output/static directory not found!"
+  echo "❌ ERROR: out directory not found!"
   exit 1
+fi
+
+# Verify functions directory
+if [ -d "functions" ]; then
+  echo "✅ Cloudflare Functions directory exists"
+  echo "📁 API endpoints:"
+  find functions/api/kakao -type f -name "*.ts" | head -10
+else
+  echo "⚠️  WARNING: functions directory not found!"
 fi
 
 echo "🎉 Cloudflare Pages build complete!"
 echo "📊 Build summary:"
-echo "  - Build output: .vercel/output/static/"
-echo "  - Deployment output: out/ (copied from .vercel/output/static/)"
-echo "  - Cloudflare Functions: out/functions/"
-echo "  - API Routes: Converted to Cloudflare Workers"
+echo "  - Static pages: out/"
+echo "  - API functions: functions/"
 echo "  - Ready for deployment!"
