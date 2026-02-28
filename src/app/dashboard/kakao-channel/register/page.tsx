@@ -104,28 +104,11 @@ export default function KakaoChannelRegisterPage() {
   const [verificationCode, setVerificationCode] = useState('');
   const [tokenSentTime, setTokenSentTime] = useState<Date | null>(null);
 
-  // Load categories on mount (API 시도 후 실패 시 하드코딩 사용)
+  // 하드코딩된 카테고리 사용 (API 호출 불필요)
+  // Solapi API는 카테고리 조회를 지원하지 않으므로 하드코딩된 목록 사용
   useEffect(() => {
-    loadCategories();
+    console.log('✅ Using hardcoded Solapi categories');
   }, []);
-
-  const loadCategories = async () => {
-    try {
-      const response = await fetch('/api/kakao/channel-categories');
-      const data = await response.json();
-      
-      if (data.success && data.categories && data.categories.length > 0) {
-        setCategories(data.categories);
-        console.log('✅ Loaded categories from API:', data.categories);
-      } else {
-        console.warn('⚠️ API failed, using hardcoded categories');
-        setCategories(HARDCODED_CATEGORIES);
-      }
-    } catch (err: any) {
-      console.warn('⚠️ API error, using hardcoded categories:', err);
-      setCategories(HARDCODED_CATEGORIES);
-    }
-  };
 
   const handleRequestToken = async () => {
     if (!searchId || !phoneNumber) {
