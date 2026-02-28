@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle2, AlertCircle, ArrowRight, BookOpen, ExternalLink } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, ArrowRight, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 
 interface Category {
   code: string;
   name: string;
+  subcategories?: Category[];
 }
 
 export default function KakaoChannelRegisterPage() {
@@ -26,8 +27,14 @@ export default function KakaoChannelRegisterPage() {
   // Form data
   const [searchId, setSearchId] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [categoryCode, setCategoryCode] = useState('');
-  const [verificationCode, setVerificationCode] = useState(''); // 인증번호
+  
+  // 카테고리 선택 (3단계)
+  const [mainCategory, setMainCategory] = useState('');
+  const [subCategory, setSubCategory] = useState('');
+  const [detailCategory, setDetailCategory] = useState('');
+  const [finalCategoryCode, setFinalCategoryCode] = useState('');
+  
+  const [verificationCode, setVerificationCode] = useState('');
   const [tokenSentTime, setTokenSentTime] = useState<Date | null>(null);
 
   // Load categories on mount
@@ -42,30 +49,14 @@ export default function KakaoChannelRegisterPage() {
       
       if (data.success && data.categories && data.categories.length > 0) {
         setCategories(data.categories);
+        console.log('✅ Loaded categories:', data.categories);
       } else {
-        // API 실패 시 기본 카테고리 사용
-        setCategories([
-          { code: 'CATEGORY_001', name: '교육' },
-          { code: 'CATEGORY_002', name: '금융/보험' },
-          { code: 'CATEGORY_003', name: '유통/소매' },
-          { code: 'CATEGORY_004', name: '서비스' },
-          { code: 'CATEGORY_005', name: '의료' },
-          { code: 'CATEGORY_006', name: 'IT/기술' },
-          { code: 'CATEGORY_007', name: '기타' }
-        ]);
+        console.error('Failed to load categories:', data);
+        setError('카테고리를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
       }
     } catch (err: any) {
-      // 에러 발생 시 기본 카테고리 사용
-      setCategories([
-        { code: 'CATEGORY_001', name: '교육' },
-        { code: 'CATEGORY_002', name: '금융/보험' },
-        { code: 'CATEGORY_003', name: '유통/소매' },
-        { code: 'CATEGORY_004', name: '서비스' },
-        { code: 'CATEGORY_005', name: '의료' },
-        { code: 'CATEGORY_006', name: 'IT/기술' },
-        { code: 'CATEGORY_007', name: '기타' }
-      ]);
-      console.error(err);
+      console.error('Category load error:', err);
+      setError('카테고리를 불러오는데 실패했습니다.');
     }
   };
 
@@ -80,7 +71,6 @@ export default function KakaoChannelRegisterPage() {
     setSuccess(null);
 
     try {
-      // @ 기호 제거
       const cleanSearchId = searchId.replace('@', '');
       
       const response = await fetch('/api/kakao/request-token', {
@@ -99,7 +89,7 @@ export default function KakaoChannelRegisterPage() {
         setError(data.error || '인증번호 요청에 실패했습니다.');
       }
     } catch (err: any) {
-      setError('Failed to request token');
+      setError('인증번호 요청 중 오류가 발생했습니다.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -107,12 +97,11 @@ export default function KakaoChannelRegisterPage() {
   };
 
   const handleCreateChannel = async () => {
-    if (!searchId || !phoneNumber || !categoryCode || !verificationCode) {
-      setError('모든 필드를 입력해주세요.');
+    if (!searchId || !phoneNumber || !finalCategoryCode || !verificationCode) {
+      setError('모든 필드를 입력해주세요. (대분류, 중분류, 소분류 필수)');
       return;
     }
 
-    // 인증번호 길이 체크 (일반적으로 6자리)
     if (verificationCode.length < 4) {
       setError('올바른 인증번호를 입력해주세요.');
       return;
@@ -123,8 +112,14 @@ export default function KakaoChannelRegisterPage() {
     setSuccess(null);
 
     try {
-      // @ 기호 제거
       const cleanSearchId = searchId.replace('@', '');
+      
+      console.log('📤 Sending create channel request:', {
+        searchId: cleanSearchId,
+        phoneNumber,
+        categoryCode: finalCategoryCode,
+        tokenLength: verificationCode.length
+      });
       
       const response = await fetch('/api/kakao/create-channel', {
         method: 'POST',
@@ -132,8 +127,8 @@ export default function KakaoChannelRegisterPage() {
         body: JSON.stringify({ 
           searchId: cleanSearchId, 
           phoneNumber, 
-          categoryCode, 
-          token: verificationCode // 인증번호를 token으로 전달
+          categoryCode: finalCategoryCode,
+          token: verificationCode
         }),
       });
 
@@ -145,57 +140,62 @@ export default function KakaoChannelRegisterPage() {
           router.push('/dashboard/kakao-channel');
         }, 2000);
       } else {
-        setError(data.error || '채널 연동에 실패했습니다. 인증번호를 확인해주세요.');
+        console.error('❌ Create channel failed:', data);
+        setError(data.error || '채널 연동에 실패했습니다.');
+        if (data.details) {
+          console.error('Error details:', data.details);
+        }
       }
     } catch (err: any) {
-      setError('채널 연동에 실패했습니다. 다시 시도해주세요.');
+      setError('채널 연동 중 오류가 발생했습니다.');
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="container mx-auto py-8 px-4 max-w-3xl">
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-3xl font-bold">카카오톡 채널 연동</h1>
-          <Link href="/dashboard/kakao-business-guide" target="_blank">
-            <Button variant="outline" size="sm">
-              <BookOpen className="w-4 h-4 mr-2" />
-              연동 가이드 보기
-              <ExternalLink className="w-3 h-3 ml-1" />
-            </Button>
-          </Link>
-        </div>
-        <p className="text-gray-600">카카오 비즈니스 채널을 연동하여 알림톡을 발송하세요</p>
-      </div>
+  // 대분류 선택 시
+  const handleMainCategoryChange = (value: string) => {
+    setMainCategory(value);
+    setSubCategory('');
+    setDetailCategory('');
+    setFinalCategoryCode('');
+  };
 
-      {/* Progress indicator */}
+  // 중분류 선택 시
+  const handleSubCategoryChange = (value: string) => {
+    setSubCategory(value);
+    setDetailCategory('');
+    setFinalCategoryCode('');
+  };
+
+  // 소분류 선택 시
+  const handleDetailCategoryChange = (value: string) => {
+    setDetailCategory(value);
+    setFinalCategoryCode(value); // 최종 카테고리 코드는 소분류 코드
+  };
+
+  // 선택된 대분류의 하위 카테고리
+  const selectedMainCategoryObj = categories.find(c => c.code === mainCategory);
+  const subCategories = selectedMainCategoryObj?.subcategories || [];
+
+  // 선택된 중분류의 하위 카테고리
+  const selectedSubCategoryObj = subCategories.find(c => c.code === subCategory);
+  const detailCategories = selectedSubCategoryObj?.subcategories || [];
+
+  return (
+    <div className="container mx-auto p-6 max-w-3xl">
       <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div className={`flex items-center ${step >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}>
-              {step > 1 ? <CheckCircle2 size={20} /> : '1'}
-            </div>
-            <span className="ml-2 font-medium">인증번호 요청</span>
-          </div>
-          <div className="flex-1 h-1 mx-4 bg-gray-300">
-            <div className={`h-full ${step >= 2 ? 'bg-blue-600' : 'bg-gray-300'}`} style={{ width: step >= 2 ? '100%' : '0%', transition: 'width 0.3s' }}></div>
-          </div>
-          <div className={`flex items-center ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}>
-              2
-            </div>
-            <span className="ml-2 font-medium">인증 및 연동</span>
-          </div>
-        </div>
+        <h1 className="text-3xl font-bold mb-2">카카오톡 채널 연동</h1>
+        <p className="text-gray-600">
+          카카오 비즈니스 채널을 시스템에 연동하여 알림톡을 발송할 수 있습니다.
+        </p>
       </div>
 
       {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+        <Alert className="mb-6 border-red-500 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">{error}</AlertDescription>
         </Alert>
       )}
 
@@ -296,16 +296,17 @@ export default function KakaoChannelRegisterPage() {
               </p>
             </div>
 
+            {/* 대분류 선택 */}
             <div>
-              <Label htmlFor="category">채널 카테고리 *</Label>
+              <Label htmlFor="mainCategory">카테고리 - 대분류 *</Label>
               <select
-                id="category"
+                id="mainCategory"
                 className="w-full p-2 border rounded-md"
-                value={categoryCode}
-                onChange={(e) => setCategoryCode(e.target.value)}
-                disabled={loading}
+                value={mainCategory}
+                onChange={(e) => handleMainCategoryChange(e.target.value)}
+                disabled={loading || categories.length === 0}
               >
-                <option value="">카테고리 선택</option>
+                <option value="">대분류 선택</option>
                 {categories.map((cat) => (
                   <option key={cat.code} value={cat.code}>
                     {cat.name}
@@ -313,6 +314,57 @@ export default function KakaoChannelRegisterPage() {
                 ))}
               </select>
             </div>
+
+            {/* 중분류 선택 */}
+            {mainCategory && subCategories.length > 0 && (
+              <div>
+                <Label htmlFor="subCategory">카테고리 - 중분류 *</Label>
+                <select
+                  id="subCategory"
+                  className="w-full p-2 border rounded-md"
+                  value={subCategory}
+                  onChange={(e) => handleSubCategoryChange(e.target.value)}
+                  disabled={loading}
+                >
+                  <option value="">중분류 선택</option>
+                  {subCategories.map((cat) => (
+                    <option key={cat.code} value={cat.code}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* 소분류 선택 */}
+            {subCategory && detailCategories.length > 0 && (
+              <div>
+                <Label htmlFor="detailCategory">카테고리 - 소분류 *</Label>
+                <select
+                  id="detailCategory"
+                  className="w-full p-2 border rounded-md"
+                  value={detailCategory}
+                  onChange={(e) => handleDetailCategoryChange(e.target.value)}
+                  disabled={loading}
+                >
+                  <option value="">소분류 선택</option>
+                  {detailCategories.map((cat) => (
+                    <option key={cat.code} value={cat.code}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* 선택된 카테고리 표시 */}
+            {finalCategoryCode && (
+              <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
+                <p className="text-sm text-blue-900">
+                  ✅ 선택된 카테고리: <strong>{finalCategoryCode}</strong>
+                </p>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <Button 
@@ -329,7 +381,7 @@ export default function KakaoChannelRegisterPage() {
               </Button>
               <Button 
                 onClick={handleCreateChannel} 
-                disabled={loading || !verificationCode || !categoryCode || verificationCode.length < 4}
+                disabled={loading || !verificationCode || !finalCategoryCode || verificationCode.length < 4}
                 className="flex-1"
               >
                 {loading ? (
@@ -364,6 +416,7 @@ export default function KakaoChannelRegisterPage() {
           </li>
           <li>• 카카오 비즈니스 센터에서 채널 검색용 ID를 확인하세요</li>
           <li>• 담당자 휴대전화는 카카오톡이 설치된 번호여야 합니다</li>
+          <li>• <strong className="text-blue-900">카테고리는 대분류 → 중분류 → 소분류 순서로 선택하세요</strong></li>
           <li>• <strong className="text-blue-900">인증번호는 SMS로 전송되며 유효시간이 있으니 빠르게 입력하세요</strong></li>
           <li>• 인증번호를 받지 못했다면 "이전" 버튼을 눌러 다시 요청하세요</li>
         </ul>

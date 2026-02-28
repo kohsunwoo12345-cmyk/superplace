@@ -60,10 +60,26 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('Solapi API error:', errorData);
+      console.error('Request data:', { searchId, phoneNumber, categoryCode, token });
+      
+      let errorMessage = `Failed to create channel: ${response.status}`;
+      try {
+        const errorJson = JSON.parse(errorData);
+        if (errorJson.errorMessage) {
+          errorMessage = errorJson.errorMessage;
+        } else if (errorJson.message) {
+          errorMessage = errorJson.message;
+        }
+      } catch (e) {
+        // errorData가 JSON이 아닌 경우
+      }
+      
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Failed to create channel: ${response.status}. 인증번호를 확인해주세요.` 
+          error: errorMessage,
+          details: errorData,
+          debug: { searchId, phoneNumber, categoryCode, tokenLength: token?.length }
         }),
         { status: response.status, headers: { 'Content-Type': 'application/json' } }
       );
