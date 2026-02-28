@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   // API Routes are handled by functions/ directory
   output: 'export',
   distDir: 'out',
+  trailingSlash: true, // Generate /path/index.html instead of /path.html
   images: {
     unoptimized: true,
   },
