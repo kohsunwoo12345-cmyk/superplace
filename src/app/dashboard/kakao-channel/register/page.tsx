@@ -17,68 +17,68 @@ interface Category {
 }
 
 // Solapi 카카오 플러스친구 실제 카테고리 코드
-// 참고: Solapi API는 간단한 문자열 코드를 사용합니다
+// 참고: Solapi 웹 콘솔의 실제 형식에 맞춤
 const HARDCODED_CATEGORIES: Category[] = [
   {
-    code: 'CS',
+    code: '교육',
     name: '교육',
     subcategories: [
-      { code: 'CS02', name: '학원' },
-      { code: 'CS03', name: '온라인교육' },
-      { code: 'CS01', name: '교육기관' },
+      { code: '학원', name: '학원' },
+      { code: '온라인교육', name: '온라인교육' },
+      { code: '교육기관', name: '교육기관' },
     ],
   },
   {
-    code: 'PH',
+    code: '의료/건강',
     name: '의료/건강',
     subcategories: [
-      { code: 'PH01', name: '병원/의원' },
-      { code: 'PH02', name: '약국' },
-      { code: 'PH03', name: '한의원' },
+      { code: '병원/의원', name: '병원/의원' },
+      { code: '약국', name: '약국' },
+      { code: '한의원', name: '한의원' },
     ],
   },
   {
-    code: 'BT',
+    code: '뷰티',
     name: '뷰티',
     subcategories: [
-      { code: 'BT01', name: '미용실' },
-      { code: 'BT02', name: '피부관리' },
-      { code: 'BT03', name: '네일샵' },
+      { code: '미용실', name: '미용실' },
+      { code: '피부관리', name: '피부관리' },
+      { code: '네일샵', name: '네일샵' },
     ],
   },
   {
-    code: 'FD',
+    code: '음식/외식',
     name: '음식/외식',
     subcategories: [
-      { code: 'FD01', name: '한식' },
-      { code: 'FD02', name: '중식' },
-      { code: 'FD03', name: '일식' },
-      { code: 'FD04', name: '양식' },
-      { code: 'FD05', name: '카페/디저트' },
+      { code: '한식', name: '한식' },
+      { code: '중식', name: '중식' },
+      { code: '일식', name: '일식' },
+      { code: '양식', name: '양식' },
+      { code: '카페/디저트', name: '카페/디저트' },
     ],
   },
   {
-    code: 'SH',
+    code: '쇼핑/유통',
     name: '쇼핑/유통',
     subcategories: [
-      { code: 'SH01', name: '패션/의류' },
-      { code: 'SH02', name: '화장품' },
-      { code: 'SH03', name: '식품' },
+      { code: '패션/의류', name: '패션/의류' },
+      { code: '화장품', name: '화장품' },
+      { code: '식품', name: '식품' },
     ],
   },
   {
-    code: 'IT',
+    code: 'IT/기술',
     name: 'IT/기술',
     subcategories: [
-      { code: 'IT01', name: 'IT서비스' },
-      { code: 'IT02', name: '소프트웨어' },
+      { code: 'IT서비스', name: 'IT서비스' },
+      { code: '소프트웨어', name: '소프트웨어' },
     ],
   },
   {
-    code: 'ETC',
+    code: '기타',
     name: '기타',
     subcategories: [
-      { code: 'ETC', name: '기타' },
+      { code: '기타', name: '기타' },
     ],
   },
 ];
