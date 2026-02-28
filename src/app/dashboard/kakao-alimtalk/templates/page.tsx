@@ -448,7 +448,7 @@ export default function AlimtalkTemplatesPage() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <div>
-            <strong>1. 템플릿 생성:</strong> 발송할 메시지 내용을 작성하고 변수(#{`{변수명}`}), 버튼 등을 추가합니다.
+            <strong>1. 템플릿 생성:</strong> 발송할 메시지 내용을 작성하고 변수(#{'{'} 변수명 {'}'}), 버튼 등을 추가합니다.
           </div>
           <div>
             <strong>2. 검수 요청:</strong> 생성한 템플릿을 카카오에 검수 요청합니다.
