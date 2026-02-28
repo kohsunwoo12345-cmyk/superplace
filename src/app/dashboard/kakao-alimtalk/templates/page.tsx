@@ -48,7 +48,7 @@ export default function AlimtalkTemplatesPage() {
     if (status === 'loading') return;
     
     if (!session?.user?.id) {
-      router.push('/auth/signin');
+      router.push('/login');
       return;
     }
 

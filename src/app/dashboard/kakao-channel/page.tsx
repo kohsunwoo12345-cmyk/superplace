@@ -39,7 +39,7 @@ export default function KakaoChannelListPage() {
     if (status === 'loading') return;
     
     if (!session?.user?.id) {
-      router.push('/auth/signin');
+      router.push('/login');
       return;
     }
 
