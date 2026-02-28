@@ -28,6 +28,12 @@ if [ -d ".vercel/output/static" ]; then
   if [ -f ".vercel/output/static/_worker.js/index.js" ]; then
     echo "✅ Cloudflare Worker file generated"
   fi
+  
+  # Copy to 'out' directory for Cloudflare Pages compatibility
+  echo "📦 Copying build output to 'out' directory for Cloudflare Pages..."
+  rm -rf out
+  cp -r .vercel/output/static out
+  echo "✅ Build output copied to 'out' directory"
 else
   echo "❌ ERROR: .vercel/output/static directory not found!"
   exit 1
@@ -35,6 +41,7 @@ fi
 
 echo "🎉 Cloudflare Pages build complete!"
 echo "📊 Build summary:"
-echo "  - Output directory: .vercel/output/static/"
+echo "  - Build output: .vercel/output/static/"
+echo "  - Deployment output: out/ (copied from .vercel/output/static/)"
 echo "  - API Routes: Converted to Cloudflare Workers"
 echo "  - Ready for deployment!"
