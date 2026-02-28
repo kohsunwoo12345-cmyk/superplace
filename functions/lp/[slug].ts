@@ -93,6 +93,7 @@ export async function onRequest(context: {
       console.log("✅ Using stored html_content");
       
       // Increment view count first
+      let currentViewCount = (landingPage.view_count || 0) + 1;
       try {
         await db
           .prepare(`UPDATE landing_pages SET view_count = view_count + 1 WHERE slug = ?`)
@@ -102,8 +103,49 @@ export async function onRequest(context: {
         console.log("⚠️ Could not update view count:", e.message);
       }
       
-      // Return stored HTML directly
-      return new Response(landingPage.html_content as string, {
+      // Get student data if user_id exists
+      let studentData: any = null;
+      if (landingPage.user_id) {
+        try {
+          studentData = await db
+            .prepare(`SELECT * FROM User WHERE id = ?`)
+            .bind(landingPage.user_id)
+            .first();
+        } catch (e: any) {
+          console.log("⚠️ Could not fetch student data:", e.message);
+        }
+      }
+      
+      // Replace variables in HTML
+      let html = landingPage.html_content as string;
+      
+      // Student variables
+      const studentName = studentData?.name || '학생';
+      const period = '2024년 1학기'; // TODO: 실제 기간 데이터 사용
+      const attendanceRate = '95%'; // TODO: 실제 출석률 데이터
+      const totalDays = '20'; // TODO: 실제 데이터
+      const presentDays = '19'; // TODO: 실제 데이터
+      const absentDays = '1'; // TODO: 실제 데이터
+      const tardyDays = '0'; // TODO: 실제 데이터
+      const aiChatCount = '0'; // TODO: 실제 데이터
+      const homeworkRate = '100%'; // TODO: 실제 데이터
+      const homeworkCompleted = '10'; // TODO: 실제 데이터
+      
+      // Replace variables
+      html = html.replace(/\{\{studentName\}\}/g, studentName);
+      html = html.replace(/\{\{period\}\}/g, period);
+      html = html.replace(/\{\{attendanceRate\}\}/g, attendanceRate);
+      html = html.replace(/\{\{totalDays\}\}/g, totalDays);
+      html = html.replace(/\{\{presentDays\}\}/g, presentDays);
+      html = html.replace(/\{\{absentDays\}\}/g, absentDays);
+      html = html.replace(/\{\{tardyDays\}\}/g, tardyDays);
+      html = html.replace(/\{\{aiChatCount\}\}/g, aiChatCount);
+      html = html.replace(/\{\{homeworkRate\}\}/g, homeworkRate);
+      html = html.replace(/\{\{homeworkCompleted\}\}/g, homeworkCompleted);
+      html = html.replace(/\{\{viewCount\}\}/g, currentViewCount.toString());
+      
+      // Return processed HTML
+      return new Response(html, {
         status: 200,
         headers: { "Content-Type": "text/html; charset=utf-8" },
       });
