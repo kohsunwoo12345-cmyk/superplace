@@ -1,0 +1,49 @@
+{
+  "test_scenarios": [
+    {
+      "name": "New Bot Creation",
+      "steps": [
+        "1. Go to /dashboard/admin/ai-bots/create",
+        "2. Enable '유사문제 출제 기능' checkbox",
+        "3. Enable '음성 출력 (TTS)' checkbox",
+        "4. Select voice (e.g., ko-KR-Wavenet-A)",
+        "5. Fill other required fields",
+        "6. Click '생성하기'",
+        "7. Check console logs for saved values"
+      ],
+      "expected": {
+        "enableProblemGeneration": 1,
+        "voiceEnabled": 1,
+        "voiceName": "ko-KR-Wavenet-A"
+      }
+    },
+    {
+      "name": "Problem Generation Test",
+      "steps": [
+        "1. Go to /ai-chat",
+        "2. Select bot with enableProblemGeneration=1",
+        "3. Ask AI to create math problems",
+        "4. Click '문제지 출력' button",
+        "5. Check console for extracted problems"
+      ],
+      "expected": {
+        "console_log": "🖨️ 문제지 출력 시작...",
+        "alert": "문제지가 열립니다"
+      }
+    },
+    {
+      "name": "TTS Playback Test",
+      "steps": [
+        "1. Go to /ai-chat",
+        "2. Select bot with voiceEnabled=1",
+        "3. Send a message to AI",
+        "4. Click speaker button on AI response",
+        "5. Check console for TTS logs"
+      ],
+      "expected": {
+        "console_log": "🔊 Playing TTS for message",
+        "result": "Audio plays successfully"
+      }
+    }
+  ]
+}

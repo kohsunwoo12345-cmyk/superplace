@@ -676,8 +676,21 @@ export default function ModernAIChatPage() {
 
   const playTTS = async (text: string, messageId: string) => {
     try {
-      if (!selectedBot || !selectedBot.voiceEnabled) {
+      // Check if voice is enabled (handle 1, "1", true)
+      const voiceFlag = selectedBot?.voiceEnabled;
+      const isVoiceEnabled = voiceFlag === 1 || voiceFlag === "1" || voiceFlag === true || Number(voiceFlag) === 1;
+      
+      console.log('🔊 TTS Check:', { 
+        bot: selectedBot?.name,
+        voiceEnabled: selectedBot?.voiceEnabled, 
+        type: typeof selectedBot?.voiceEnabled,
+        isVoiceEnabled,
+        voiceName: selectedBot?.voiceName
+      });
+      
+      if (!selectedBot || !isVoiceEnabled) {
         console.log('🔇 TTS not enabled for this bot');
+        alert('이 AI 봇은 음성 출력 기능이 활성화되지 않았습니다.');
         return;
       }
 
@@ -737,8 +750,15 @@ export default function ModernAIChatPage() {
     const enableFlag = selectedBot?.enableProblemGeneration;
     const isProblemGenerationEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
     
+    console.log('📝 Problem Generation Check:', {
+      bot: selectedBot?.name,
+      enableProblemGeneration: selectedBot?.enableProblemGeneration,
+      type: typeof selectedBot?.enableProblemGeneration,
+      isProblemGenerationEnabled
+    });
+    
     if (!isProblemGenerationEnabled) {
-      alert('이 AI 봇은 문제 출제 기능이 활성화되지 않았습니다.');
+      alert('이 AI 봇은 문제 출제 기능이 활성화되지 않았습니다.\n\n봇 설정에서 "📝 유사문제 출제 기능"을 활성화해주세요.');
       console.error('❌ enableProblemGeneration:', selectedBot?.enableProblemGeneration, typeof selectedBot?.enableProblemGeneration);
       return;
     }
@@ -1207,6 +1227,13 @@ export default function ModernAIChatPage() {
                   key={bot.id}
                   onClick={() => {
                     console.log(`🤖 봇 선택: ${bot.name} (${bot.id})`);
+                    console.log('📊 봇 기능 상태:', {
+                      enableProblemGeneration: bot.enableProblemGeneration,
+                      enableProblemGenerationType: typeof bot.enableProblemGeneration,
+                      voiceEnabled: bot.voiceEnabled,
+                      voiceEnabledType: typeof bot.voiceEnabled,
+                      voiceName: bot.voiceName
+                    });
                     setSelectedBot(bot);
                     // 새로운 채팅 시작
                     createNewChat();
@@ -1345,18 +1372,22 @@ export default function ModernAIChatPage() {
           </div>
           <div className="flex items-center gap-3">
             {/* 유사문제 출제 기능이 활성화된 경우에만 버튼 표시 */}
-            {selectedBot && messages.length > 0 && selectedBot.enableProblemGeneration === 1 && (
-              <Button
-                onClick={handlePrintProblems}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-700 font-medium"
-                title="문제지를 출력합니다"
-              >
-                <Printer className="w-4 h-4" />
-                문제지 출력
-              </Button>
-            )}
+            {selectedBot && messages.length > 0 && (() => {
+              const enableFlag = selectedBot.enableProblemGeneration;
+              const isProblemEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
+              return isProblemEnabled && (
+                <Button
+                  onClick={handlePrintProblems}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-700 font-medium"
+                  title="문제지를 출력합니다"
+                >
+                  <Printer className="w-4 h-4" />
+                  문제지 출력
+                </Button>
+              );
+            })()}
             <span className="text-xs text-gray-500">안녕하세요, {user?.name}님</span>
           </div>
         </div>
@@ -1388,6 +1419,28 @@ export default function ModernAIChatPage() {
                   {selectedBot?.name}에게 무엇이든 물어보세요
                 </h3>
                 <p className="text-gray-600">{selectedBot?.description}</p>
+                
+                {/* Feature Status Badges */}
+                <div className="flex gap-2 justify-center mt-4">
+                  {(() => {
+                    const enableFlag = selectedBot?.enableProblemGeneration;
+                    const isProblemEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
+                    return isProblemEnabled && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        📝 문제 출제 가능
+                      </span>
+                    );
+                  })()}
+                  {(() => {
+                    const voiceFlag = selectedBot?.voiceEnabled;
+                    const isVoiceEnabled = voiceFlag === 1 || voiceFlag === "1" || voiceFlag === true || Number(voiceFlag) === 1;
+                    return isVoiceEnabled && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        🔊 음성 출력 지원
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
             ) : (
               messages.map((message) => (
@@ -1429,15 +1482,19 @@ export default function ModernAIChatPage() {
                       )}
                       <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
-                    {message.role === "assistant" && selectedBot?.voiceEnabled && (
-                      <button
-                        onClick={() => playTTS(message.content, message.id)}
-                        className="ml-2 p-2 rounded-full hover:bg-gray-200 transition-colors"
-                        title="음성으로 듣기"
-                      >
-                        <Volume2 className="w-4 h-4 text-gray-600" />
-                      </button>
-                    )}
+                    {message.role === "assistant" && (() => {
+                      const voiceFlag = selectedBot?.voiceEnabled;
+                      const isVoiceEnabled = voiceFlag === 1 || voiceFlag === "1" || voiceFlag === true || Number(voiceFlag) === 1;
+                      return isVoiceEnabled && (
+                        <button
+                          onClick={() => playTTS(message.content, message.id)}
+                          className="ml-2 p-2 rounded-full hover:bg-gray-200 transition-colors"
+                          title="음성으로 듣기"
+                        >
+                          <Volume2 className="w-4 h-4 text-gray-600" />
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               ))
