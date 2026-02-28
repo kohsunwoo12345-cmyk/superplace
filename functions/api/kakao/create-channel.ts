@@ -29,6 +29,8 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     const { searchId, phoneNumber, categoryCode, token, userId, userName, channelName } = body;
 
     console.log('🔍 Received request body:', {
+      userId,
+      userName,
       searchId,
       searchIdType: typeof searchId,
       phoneNumber,
@@ -39,6 +41,18 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       tokenType: typeof token,
       rawBody: JSON.stringify(body)
     });
+
+    // 🔒 사용자 인증 필수 (보안)
+    if (!userId) {
+      console.error('❌ Missing userId - authentication required');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Authentication required: userId is missing',
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
     // categoryCode는 필수 필드입니다 (Solapi API 요구사항)
     if (!searchId || !phoneNumber || !categoryCode || !token) {

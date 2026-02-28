@@ -61,6 +61,8 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     } = body;
 
     console.log('📤 Creating Solapi template:', {
+      userId,
+      channelId,
       templateName,
       solapiChannelId,
       categoryCode,
@@ -69,14 +71,61 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       hasQuickReplies: !!quickReplies,
     });
 
-    if (!userId || !channelId || !solapiChannelId || !templateName || !content || !categoryCode) {
+    // 🔒 사용자 인증 필수 (보안)
+    if (!userId) {
+      console.error('❌ Missing userId - authentication required');
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Required fields: userId, channelId, solapiChannelId, templateName, content, categoryCode',
+          error: 'Authentication required: userId is missing',
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!channelId || !solapiChannelId || !templateName || !content || !categoryCode) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Required fields: channelId, solapiChannelId, templateName, content, categoryCode',
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
+    }
+
+    // 🔒 채널 소유권 검증 (사용자가 해당 채널의 소유자인지 확인)
+    if (DB) {
+      try {
+        const channelOwnership = await DB.prepare(`
+          SELECT id FROM KakaoChannel
+          WHERE id = ? AND userId = ?
+        `).bind(channelId, userId).first();
+
+        if (!channelOwnership) {
+          console.error('❌ Channel ownership verification failed:', {
+            channelId,
+            userId,
+          });
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'Channel not found or access denied. You can only create templates for your own channels.',
+            }),
+            { status: 403, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        console.log('✅ Channel ownership verified:', { channelId, userId });
+      } catch (dbError) {
+        console.error('❌ Failed to verify channel ownership:', dbError);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Failed to verify channel ownership',
+          }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Solapi REST API 직접 호출
