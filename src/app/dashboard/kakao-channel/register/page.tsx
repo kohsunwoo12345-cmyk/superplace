@@ -374,8 +374,8 @@ export default function KakaoChannelRegisterPage() {
                         {cat.name}
                       </option>
                     ))}
-              </select>
-            </div>
+                  </select>
+                </div>
 
             {/* 중분류 선택 */}
             {mainCategory && subCategories.length > 0 && (
@@ -421,6 +421,8 @@ export default function KakaoChannelRegisterPage() {
               다음 단계: 채널 정보 입력
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
