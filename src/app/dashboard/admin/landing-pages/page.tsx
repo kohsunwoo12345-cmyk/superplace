@@ -502,7 +502,7 @@ export default function LandingPagesPage() {
                       <Button
                         variant="outline"
                         size="lg"
-                        onClick={() => router.push(`/dashboard/admin/landing-pages/edit/${page.id}`)}
+                        onClick={() => router.push(`/dashboard/admin/landing-pages/edit-page?id=${page.id}`)}
                         className="border-2 border-blue-300 hover:border-blue-500 hover:bg-blue-50"
                       >
                         <Edit className="w-5 h-5 mr-2" />

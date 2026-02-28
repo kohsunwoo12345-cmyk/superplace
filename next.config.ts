@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // 동적 라우트를 런타임에 처리하도록 설정
+  trailingSlash: true,
+  skipTrailingSlashRedirect: true,
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // 클라이언트 사이드에서 Node.js 모듈 무시

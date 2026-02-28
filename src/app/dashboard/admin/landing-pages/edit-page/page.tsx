@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,15 +31,10 @@ interface LandingPage {
   status: string;
 }
 
-// Required for static export with dynamic routes
-export function generateStaticParams() {
-  return [];
-}
-
 export default function EditLandingPagePage() {
   const router = useRouter();
-  const params = useParams();
-  const id = params?.id as string;
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
 
   const [landingPage, setLandingPage] = useState<LandingPage | null>(null);
   const [title, setTitle] = useState("");
@@ -56,6 +51,9 @@ export default function EditLandingPagePage() {
   useEffect(() => {
     if (id) {
       fetchLandingPage();
+    } else {
+      alert("페이지 ID가 필요합니다.");
+      router.push("/dashboard/admin/landing-pages");
     }
   }, [id]);
 
@@ -328,6 +326,9 @@ export default function EditLandingPagePage() {
                   />
                   <p className="text-xs text-gray-500 mt-2">
                     ⚠️ HTML을 직접 수정할 수 있습니다. 변경사항은 프리뷰에서 확인하세요.
+                  </p>
+                  <p className="text-xs text-blue-600 mt-2">
+                    💡 사용 가능한 변수: {'{{'}{'{'}studentName{'}'}{'}'}, {'{{'}{'{'}period{'}'}{'}'}, {'{{'}{'{'}attendanceRate{'}'}{'}'}, {'{{'}{'{'}viewCount{'}'}{'}'}
                   </p>
                 </div>
               </CardContent>
