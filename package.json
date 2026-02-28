@@ -6,9 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "postbuild": "echo 'Next.js build complete'",
-    "pages:build": "next build",
-    "preview": "npm run pages:build && wrangler pages dev out",
-    "deploy": "npm run pages:build && wrangler pages deploy out --project-name=superplacestudy",
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static --project-name=superplacestudy",
+    "preview": "npm run pages:build && wrangler pages dev .vercel/output/static",
+    "deploy": "npm run pages:deploy",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "echo 'Dependencies installed'"

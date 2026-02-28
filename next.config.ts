@@ -1,9 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // Cloudflare Pages를 위한 static export
-  output: 'export',
-  distDir: 'out',
+  // Cloudflare Pages에서 API Routes를 사용하기 위해 static export 제거
+  // @cloudflare/next-on-pages가 빌드를 처리
   images: {
     unoptimized: true,
   },
@@ -13,9 +12,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // 동적 라우트를 런타임에 처리하도록 설정
-  trailingSlash: true,
-  skipTrailingSlashRedirect: true,
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // 클라이언트 사이드에서 Node.js 모듈 무시
