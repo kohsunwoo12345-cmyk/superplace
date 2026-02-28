@@ -182,23 +182,44 @@ export default function KakaoChannelRegisterPage() {
       // searchId에서 @ 기호를 제거 (Solapi API는 @ 없이 순수 ID만 요구)
       const cleanSearchId = searchId.startsWith('@') ? searchId.substring(1) : searchId;
       
-      console.log('📤 Sending create channel request (v2):', {
-        searchId: cleanSearchId,
-        phoneNumber,
+      const requestData = {
+        searchId: cleanSearchId, 
+        phoneNumber, 
         categoryCode: finalCategoryCode,
-        token: verificationCode,
-        tokenType: typeof verificationCode
+        token: parseInt(verificationCode, 10)
+      };
+      
+      console.log('🔍 최종 전송 데이터 (v2):', {
+        searchId: cleanSearchId,
+        searchIdOriginal: searchId,
+        phoneNumber: phoneNumber,
+        categoryCode: finalCategoryCode,
+        categoryCodeType: typeof finalCategoryCode,
+        categoryCodeLength: finalCategoryCode?.length,
+        token: parseInt(verificationCode, 10),
+        tokenType: typeof parseInt(verificationCode, 10),
+        tokenOriginal: verificationCode,
+        requestBodyStringified: JSON.stringify(requestData)
       });
+      
+      // 사용자가 확인할 수 있도록 alert 추가
+      const confirmMessage = `전송 정보 확인:
+검색 ID: ${cleanSearchId}
+전화번호: ${phoneNumber}
+카테고리: ${finalCategoryCode}
+인증번호: ${verificationCode}
+
+계속하시겠습니까?`;
+      
+      if (!confirm(confirmMessage)) {
+        setLoading(false);
+        return;
+      }
       
       const response = await fetch('/api/kakao/create-channel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          searchId: cleanSearchId, 
-          phoneNumber, 
-          categoryCode: finalCategoryCode,  // 필수 필드
-          token: parseInt(verificationCode, 10)  // Number 타입으로 변환
-        }),
+        body: JSON.stringify(requestData),
       });
 
       const data = await response.json();

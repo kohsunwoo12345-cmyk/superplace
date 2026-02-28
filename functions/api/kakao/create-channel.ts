@@ -28,12 +28,31 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     const body = await context.request.json();
     const { searchId, phoneNumber, categoryCode, token } = body;
 
+    console.log('🔍 Received request body:', {
+      searchId,
+      searchIdType: typeof searchId,
+      phoneNumber,
+      phoneNumberType: typeof phoneNumber,
+      categoryCode,
+      categoryCodeType: typeof categoryCode,
+      token,
+      tokenType: typeof token,
+      rawBody: JSON.stringify(body)
+    });
+
     // categoryCode는 필수 필드입니다 (Solapi API 요구사항)
     if (!searchId || !phoneNumber || !categoryCode || !token) {
+      console.error('❌ Missing required fields:', {
+        hasSearchId: !!searchId,
+        hasPhoneNumber: !!phoneNumber,
+        hasCategoryCode: !!categoryCode,
+        hasToken: !!token
+      });
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Required fields: searchId, phoneNumber, categoryCode, token' 
+          error: 'Required fields: searchId, phoneNumber, categoryCode, token',
+          received: { searchId: !!searchId, phoneNumber: !!phoneNumber, categoryCode: !!categoryCode, token: !!token }
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
@@ -56,11 +75,21 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       token: token,
     };
     
-    console.log('📤 Solapi API request (v2):', {
-      ...requestBody,
+    console.log('📤 Solapi API request (v2) - FULL DETAILS:', {
+      url: 'https://api.solapi.com/kakao/v2/channels',
+      method: 'POST',
+      requestBody: requestBody,
+      requestBodyStringified: JSON.stringify(requestBody),
       originalSearchId: searchId,
+      cleanSearchId: cleanSearchId,
       searchIdCleaned: cleanSearchId !== searchId,
-      token: '***'
+      hasApiKey: !!SOLAPI_API_Key,
+      hasApiSecret: !!SOLAPI_API_Secret,
+      timestamp: timestamp,
+      categoryCodeValue: categoryCode,
+      categoryCodeType: typeof categoryCode,
+      tokenValue: token,
+      tokenType: typeof token
     });
     
     const response = await fetch('https://api.solapi.com/kakao/v2/channels', {
@@ -74,38 +103,73 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('Solapi API error:', errorData);
-      console.error('Request data:', { 
-        originalSearchId: searchId,
-        cleanSearchId: cleanSearchId, 
-        phoneNumber, 
-        categoryCode, 
-        token: '***' 
+      console.error('❌ Solapi API error - FULL DETAILS:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData: errorData,
+        requestUrl: 'https://api.solapi.com/kakao/v2/channels',
+        requestMethod: 'POST',
+        requestHeaders: {
+          hasAuth: true,
+          contentType: 'application/json'
+        },
+        requestBody: {
+          originalSearchId: searchId,
+          cleanSearchId: cleanSearchId, 
+          phoneNumber, 
+          categoryCode,
+          categoryCodeType: typeof categoryCode,
+          token: '***',
+          tokenType: typeof token
+        }
       });
       
       let errorMessage = `Failed to create channel: ${response.status}`;
+      let userFriendlyMessage = '';
+      
       try {
         const errorJson = JSON.parse(errorData);
+        console.error('❌ Parsed error JSON:', errorJson);
+        
         if (errorJson.errorMessage) {
           errorMessage = errorJson.errorMessage;
+          
+          // 카테고리 관련 에러 상세 처리
+          if (errorMessage.includes('카테고리')) {
+            userFriendlyMessage = `카테고리 오류: ${errorMessage}
+
+전송된 카테고리 코드: ${categoryCode}
+카테고리 타입: ${typeof categoryCode}
+
+가능한 원인:
+1. 카테고리 코드가 Solapi에서 지원하지 않는 형식
+2. 카테고리 코드가 비어있거나 null
+3. 잘못된 카테고리 코드 값
+
+Step 1에서 선택한 카테고리를 다시 확인해주세요.`;
+          }
         } else if (errorJson.message) {
           errorMessage = errorJson.message;
         }
       } catch (e) {
-        // errorData가 JSON이 아닌 경우
+        console.error('❌ Error parsing error response:', e);
       }
       
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: errorMessage,
+          error: userFriendlyMessage || errorMessage,
           details: errorData,
           debug: { 
             originalSearchId: searchId,
             cleanSearchId: cleanSearchId,
             phoneNumber, 
-            categoryCode, 
-            tokenLength: token?.length 
+            categoryCode,
+            categoryCodeType: typeof categoryCode,
+            tokenLength: token?.toString().length,
+            tokenType: typeof token,
+            requestUrl: 'https://api.solapi.com/kakao/v2/channels',
+            responseStatus: response.status
           }
         }),
         { status: response.status, headers: { 'Content-Type': 'application/json' } }
