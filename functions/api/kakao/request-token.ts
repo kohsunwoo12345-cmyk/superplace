@@ -58,16 +58,39 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('Solapi API error:', errorData);
+      console.error('Request details:', {
+        url: 'https://api.solapi.com/kakao/v1/plus-friends/token',
+        searchId,
+        phoneNumber,
+        timestamp,
+        hasApiKey: !!SOLAPI_API_Key,
+        hasApiSecret: !!SOLAPI_API_Secret
+      });
+      
+      let errorMessage = `Failed to request token: ${response.status}`;
+      try {
+        const errorJson = JSON.parse(errorData);
+        if (errorJson.errorMessage) {
+          errorMessage = errorJson.errorMessage;
+        } else if (errorJson.message) {
+          errorMessage = errorJson.message;
+        }
+      } catch (e) {
+        // errorData가 JSON이 아닌 경우
+      }
+      
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Failed to request token: ${response.status}`,
+          error: errorMessage,
           details: errorData,
           debug: {
             url: 'https://api.solapi.com/kakao/v1/plus-friends/token',
             timestamp,
             salt,
-            actualRequestBody: requestBody
+            actualRequestBody: requestBody,
+            searchIdLength: searchId?.length,
+            phoneNumberLength: phoneNumber?.length
           }
         }),
         { status: response.status, headers: { 'Content-Type': 'application/json' } }

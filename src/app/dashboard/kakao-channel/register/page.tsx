@@ -137,7 +137,14 @@ export default function KakaoChannelRegisterPage() {
         setTokenSentTime(new Date());
         setStep(3);
       } else {
+        console.error('❌ Request token failed:', data);
         setError(data.error || '인증번호 요청에 실패했습니다.');
+        if (data.details) {
+          console.error('Error details:', data.details);
+        }
+        if (data.debug) {
+          console.error('Debug info:', data.debug);
+        }
       }
     } catch (err: any) {
       setError('인증번호 요청 중 오류가 발생했습니다.');
