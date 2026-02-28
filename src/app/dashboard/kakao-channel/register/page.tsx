@@ -447,17 +447,9 @@ export default function KakaoChannelRegisterPage() {
     setSubCategory(value);
     setDetailCategory('');
     
-    // 중분류의 하위 카테고리 확인
-    const selectedMain = categories.find(c => c.code === mainCategory);
-    const selectedSub = selectedMain?.subcategories?.find(c => c.code === value);
-    const hasDetail = selectedSub?.subcategories && selectedSub.subcategories.length > 0;
-    
-    // 하위 카테고리가 없으면 현재 코드를 최종 코드로 설정
-    if (!hasDetail) {
-      setFinalCategoryCode(value);
-    } else {
-      setFinalCategoryCode('');
-    }
+    // 중분류를 선택하면 일단 finalCategoryCode로 설정
+    // (소분류가 있어도 중분류만으로 등록 가능)
+    setFinalCategoryCode(value);
   };
 
   // 소분류 선택 시
@@ -502,7 +494,7 @@ export default function KakaoChannelRegisterPage() {
           <CardHeader>
             <CardTitle>Step 1: 카테고리 선택</CardTitle>
             <CardDescription>
-              채널의 업종 카테고리를 선택해주세요. 하위 카테고리가 없으면 자동으로 선택 완료됩니다.
+              채널의 업종 카테고리를 선택해주세요. 중분류까지 선택하면 다음 단계로 진행할 수 있습니다. 소분류는 선택 사항입니다.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -546,10 +538,10 @@ export default function KakaoChannelRegisterPage() {
               </div>
             )}
 
-            {/* 소분류 선택 */}
+            {/* 소분류 선택 (선택사항) */}
             {subCategory && detailCategories.length > 0 && (
               <div>
-                <Label htmlFor="detailCategory">카테고리 - 소분류 *</Label>
+                <Label htmlFor="detailCategory">카테고리 - 소분류 (선택사항)</Label>
                 <select
                   id="detailCategory"
                   className="w-full p-2 border rounded-md"
@@ -557,7 +549,7 @@ export default function KakaoChannelRegisterPage() {
                   onChange={(e) => handleDetailCategoryChange(e.target.value)}
                   disabled={loading}
                 >
-                  <option value="">소분류 선택</option>
+                  <option value="">소분류 선택 (생략 가능)</option>
                   {detailCategories.map((cat) => (
                     <option key={cat.code} value={cat.code}>
                       {cat.name}
