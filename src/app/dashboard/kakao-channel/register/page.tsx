@@ -162,7 +162,8 @@ export default function KakaoChannelRegisterPage() {
     setSuccess(null);
 
     try {
-      const cleanSearchId = searchId.replace('@', '');
+      // searchId는 @를 포함해야 함 (Solapi API 요구사항)
+      const cleanSearchId = searchId.startsWith('@') ? searchId : `@${searchId}`;
       
       console.log('📤 Sending create channel request:', {
         searchId: cleanSearchId,
