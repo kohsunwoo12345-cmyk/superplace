@@ -16,11 +16,52 @@ interface Category {
   subcategories?: Category[];
 }
 
+// 하드코딩된 카테고리 (Solapi API 응답 형식)
+const HARDCODED_CATEGORIES: Category[] = [
+  {
+    code: 'BUSINESS',
+    name: '기업/서비스',
+    subcategories: [
+      {
+        code: 'BUSINESS_EDUCATION',
+        name: '교육',
+        subcategories: [
+          { code: 'BUSINESS_EDUCATION_ACADEMY', name: '학원' },
+          { code: 'BUSINESS_EDUCATION_ONLINE', name: '온라인 교육' },
+          { code: 'BUSINESS_EDUCATION_LANGUAGE', name: '어학' },
+        ],
+      },
+      {
+        code: 'BUSINESS_IT',
+        name: 'IT/인터넷',
+        subcategories: [
+          { code: 'BUSINESS_IT_SOFTWARE', name: '소프트웨어' },
+          { code: 'BUSINESS_IT_HOSTING', name: '호스팅/IDC' },
+        ],
+      },
+    ],
+  },
+  {
+    code: 'COMMERCE',
+    name: '커머스',
+    subcategories: [
+      {
+        code: 'COMMERCE_SHOPPING',
+        name: '쇼핑',
+        subcategories: [
+          { code: 'COMMERCE_SHOPPING_FASHION', name: '패션/의류' },
+          { code: 'COMMERCE_SHOPPING_BEAUTY', name: '뷰티/화장품' },
+        ],
+      },
+    ],
+  },
+];
+
 export default function KakaoChannelRegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Category[]>(HARDCODED_CATEGORIES);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -37,7 +78,7 @@ export default function KakaoChannelRegisterPage() {
   const [verificationCode, setVerificationCode] = useState('');
   const [tokenSentTime, setTokenSentTime] = useState<Date | null>(null);
 
-  // Load categories on mount
+  // Load categories on mount (API 시도 후 실패 시 하드코딩 사용)
   useEffect(() => {
     loadCategories();
   }, []);
@@ -49,14 +90,14 @@ export default function KakaoChannelRegisterPage() {
       
       if (data.success && data.categories && data.categories.length > 0) {
         setCategories(data.categories);
-        console.log('✅ Loaded categories:', data.categories);
+        console.log('✅ Loaded categories from API:', data.categories);
       } else {
-        console.error('Failed to load categories:', data);
-        setError('카테고리를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
+        console.warn('⚠️ API failed, using hardcoded categories');
+        setCategories(HARDCODED_CATEGORIES);
       }
     } catch (err: any) {
-      console.error('Category load error:', err);
-      setError('카테고리를 불러오는데 실패했습니다.');
+      console.warn('⚠️ API error, using hardcoded categories:', err);
+      setCategories(HARDCODED_CATEGORIES);
     }
   };
 
@@ -84,7 +125,7 @@ export default function KakaoChannelRegisterPage() {
       if (data.success) {
         setSuccess('인증번호가 SMS로 전송되었습니다. 휴대전화를 확인해주세요.');
         setTokenSentTime(new Date());
-        setStep(2);
+        setStep(3);
       } else {
         setError(data.error || '인증번호 요청에 실패했습니다.');
       }
@@ -209,93 +250,12 @@ export default function KakaoChannelRegisterPage() {
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 1: 인증번호 요청</CardTitle>
+            <CardTitle>Step 1: 카테고리 선택</CardTitle>
             <CardDescription>
-              카카오 비즈니스 채널 정보를 입력하면 담당자 휴대전화로 인증번호가 SMS로 전송됩니다.
+              채널의 업종 카테고리를 먼저 선택해주세요. (대분류 → 중분류 → 소분류)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="searchId">채널 검색용 ID *</Label>
-              <Input
-                id="searchId"
-                placeholder="@your_channel_id"
-                value={searchId}
-                onChange={(e) => setSearchId(e.target.value)}
-                disabled={loading}
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                카카오톡 채널 검색용 ID (@ 포함)
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="phoneNumber">담당자 휴대전화 번호 *</Label>
-              <Input
-                id="phoneNumber"
-                type="tel"
-                placeholder="01012345678"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                disabled={loading}
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                카카오 비즈니스 채널 담당자의 휴대전화 번호 (하이픈 제외)
-              </p>
-            </div>
-
-            <Button 
-              onClick={handleRequestToken} 
-              disabled={loading || !searchId || !phoneNumber}
-              className="w-full"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  전송 중...
-                </>
-              ) : (
-                <>
-                  인증번호 요청
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {step === 2 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Step 2: 인증번호 확인 및 채널 연동</CardTitle>
-            <CardDescription>
-              SMS로 받은 인증번호를 입력하고 카테고리를 선택하여 채널 연동을 완료하세요.
-              {tokenSentTime && (
-                <div className="mt-2 text-xs text-blue-600">
-                  📱 인증번호 전송 시간: {tokenSentTime.toLocaleTimeString('ko-KR')}
-                </div>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="verificationCode">인증번호 (6자리) *</Label>
-              <Input
-                id="verificationCode"
-                type="text"
-                placeholder="SMS로 받은 인증번호 입력"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                disabled={loading}
-                maxLength={6}
-                className="text-center text-2xl tracking-widest font-mono"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                📱 {phoneNumber}로 전송된 6자리 인증번호를 입력하세요
-              </p>
-            </div>
-
             {/* 대분류 선택 */}
             <div>
               <Label htmlFor="mainCategory">카테고리 - 대분류 *</Label>
@@ -359,18 +319,146 @@ export default function KakaoChannelRegisterPage() {
 
             {/* 선택된 카테고리 표시 */}
             {finalCategoryCode && (
-              <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
-                <p className="text-sm text-blue-900">
+              <div className="p-3 bg-green-50 rounded-md border border-green-200">
+                <p className="text-sm text-green-900">
                   ✅ 선택된 카테고리: <strong>{finalCategoryCode}</strong>
                 </p>
               </div>
             )}
 
+            <Button 
+              onClick={() => setStep(2)} 
+              disabled={!finalCategoryCode}
+              className="w-full"
+            >
+              다음 단계: 채널 정보 입력
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 2 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Step 2: 채널 정보 입력</CardTitle>
+            <CardDescription>
+              카카오 비즈니스 채널 정보를 입력하고 인증번호를 요청하세요.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* 선택된 카테고리 표시 */}
+            <div className="p-3 bg-green-50 rounded-md border border-green-200">
+              <p className="text-sm text-green-900">
+                ✅ 선택된 카테고리: <strong>{finalCategoryCode}</strong>
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="searchId">채널 검색용 ID *</Label>
+              <Input
+                id="searchId"
+                placeholder="@your_channel_id"
+                value={searchId}
+                onChange={(e) => setSearchId(e.target.value)}
+                disabled={loading}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                카카오톡 채널 검색용 ID (@ 포함 또는 제외)
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="phoneNumber">담당자 휴대전화 번호 *</Label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                placeholder="01012345678"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                disabled={loading}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                카카오 비즈니스 채널 담당자의 휴대전화 번호 (하이픈 제외)
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                onClick={() => setStep(1)} 
+                disabled={loading}
+                className="flex-1"
+              >
+                ← 이전
+              </Button>
+              <Button 
+                onClick={handleRequestToken} 
+                disabled={loading || !searchId || !phoneNumber}
+                className="flex-1"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    전송 중...
+                  </>
+                ) : (
+                  <>
+                    인증번호 요청
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 3 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Step 3: 인증번호 확인</CardTitle>
+            <CardDescription>
+              SMS로 받은 인증번호를 입력하여 채널 연동을 완료하세요.
+              {tokenSentTime && (
+                <div className="mt-2 text-xs text-blue-600">
+                  📱 인증번호 전송 시간: {tokenSentTime.toLocaleTimeString('ko-KR')}
+                </div>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* 선택된 카테고리 표시 */}
+            <div className="p-3 bg-green-50 rounded-md border border-green-200">
+              <p className="text-sm text-green-900">
+                ✅ 카테고리: <strong>{finalCategoryCode}</strong><br />
+                ✅ 채널 ID: <strong>{searchId}</strong><br />
+                ✅ 전화번호: <strong>{phoneNumber}</strong>
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="verificationCode">인증번호 (6자리) *</Label>
+              <Input
+                id="verificationCode"
+                type="text"
+                placeholder="SMS로 받은 인증번호 입력"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                disabled={loading}
+                maxLength={6}
+                className="text-center text-2xl tracking-widest font-mono"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                📱 {phoneNumber}로 전송된 6자리 인증번호를 입력하세요
+              </p>
+            </div>
+
             <div className="flex gap-2">
               <Button 
                 variant="outline"
                 onClick={() => {
-                  setStep(1);
+                  setStep(2);
                   setVerificationCode('');
                   setSuccess(null);
                 }} 
@@ -381,7 +469,7 @@ export default function KakaoChannelRegisterPage() {
               </Button>
               <Button 
                 onClick={handleCreateChannel} 
-                disabled={loading || !verificationCode || !finalCategoryCode || verificationCode.length < 4}
+                disabled={loading || !verificationCode || verificationCode.length < 4}
                 className="flex-1"
               >
                 {loading ? (
