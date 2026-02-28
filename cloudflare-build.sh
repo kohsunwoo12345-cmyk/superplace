@@ -33,6 +33,14 @@ if [ -d ".vercel/output/static" ]; then
   echo "📦 Copying build output to 'out' directory for Cloudflare Pages..."
   rm -rf out
   cp -r .vercel/output/static out
+  
+  # Copy Cloudflare Functions to out directory
+  if [ -d "functions" ]; then
+    echo "📦 Copying Cloudflare Functions to out directory..."
+    cp -r functions out/
+    echo "✅ Functions directory copied"
+  fi
+  
   echo "✅ Build output copied to 'out' directory"
 else
   echo "❌ ERROR: .vercel/output/static directory not found!"
@@ -43,5 +51,6 @@ echo "🎉 Cloudflare Pages build complete!"
 echo "📊 Build summary:"
 echo "  - Build output: .vercel/output/static/"
 echo "  - Deployment output: out/ (copied from .vercel/output/static/)"
+echo "  - Cloudflare Functions: out/functions/"
 echo "  - API Routes: Converted to Cloudflare Workers"
 echo "  - Ready for deployment!"
