@@ -16,272 +16,69 @@ interface Category {
   subcategories?: Category[];
 }
 
-// 하드코딩된 카테고리 (Solapi 전체 카테고리 목록)
+// Solapi 카카오 플러스친구 실제 카테고리 코드
+// 참고: Solapi API는 간단한 문자열 코드를 사용합니다
 const HARDCODED_CATEGORIES: Category[] = [
   {
-    code: '001',
-    name: '비즈니스/경제',
-    subcategories: [
-      {
-        code: '001001',
-        name: '금융/재테크',
-        subcategories: [
-          { code: '001001001', name: '은행/금융' },
-          { code: '001001002', name: '증권/투자' },
-          { code: '001001003', name: '보험' },
-          { code: '001001004', name: '부동산' },
-          { code: '001001005', name: '세무/회계' },
-        ],
-      },
-      {
-        code: '001002',
-        name: '기업서비스',
-        subcategories: [
-          { code: '001002001', name: '컨설팅' },
-          { code: '001002002', name: '법률' },
-          { code: '001002003', name: '인사/채용' },
-          { code: '001002004', name: '광고/마케팅' },
-        ],
-      },
-    ],
-  },
-  {
-    code: '002',
+    code: 'CS',
     name: '교육',
     subcategories: [
-      {
-        code: '002001',
-        name: '학원',
-        subcategories: [
-          { code: '002001001', name: '어학원' },
-          { code: '002001002', name: '입시학원' },
-          { code: '002001003', name: '예체능학원' },
-          { code: '002001004', name: '컴퓨터학원' },
-          { code: '002001005', name: '기타학원' },
-        ],
-      },
-      {
-        code: '002002',
-        name: '온라인교육',
-        subcategories: [
-          { code: '002002001', name: '어학' },
-          { code: '002002002', name: '입시' },
-          { code: '002002003', name: '자격증' },
-          { code: '002002004', name: 'IT/프로그래밍' },
-          { code: '002002005', name: '취미/실용' },
-        ],
-      },
-      {
-        code: '002003',
-        name: '교육기관',
-        subcategories: [
-          { code: '002003001', name: '유치원' },
-          { code: '002003002', name: '초등학교' },
-          { code: '002003003', name: '중학교' },
-          { code: '002003004', name: '고등학교' },
-          { code: '002003005', name: '대학교' },
-        ],
-      },
+      { code: 'CS02', name: '학원' },
+      { code: 'CS03', name: '온라인교육' },
+      { code: 'CS01', name: '교육기관' },
     ],
   },
   {
-    code: '003',
-    name: '생활/건강',
+    code: 'PH',
+    name: '의료/건강',
     subcategories: [
-      {
-        code: '003001',
-        name: '병원',
-        subcategories: [
-          { code: '003001001', name: '내과' },
-          { code: '003001002', name: '외과' },
-          { code: '003001003', name: '소아과' },
-          { code: '003001004', name: '산부인과' },
-          { code: '003001005', name: '치과' },
-          { code: '003001006', name: '한의원' },
-          { code: '003001007', name: '피부과' },
-          { code: '003001008', name: '성형외과' },
-          { code: '003001009', name: '안과' },
-        ],
-      },
-      {
-        code: '003002',
-        name: '뷰티',
-        subcategories: [
-          { code: '003002001', name: '헤어샵' },
-          { code: '003002002', name: '네일샵' },
-          { code: '003002003', name: '피부관리실' },
-          { code: '003002004', name: '왁싱샵' },
-          { code: '003002005', name: '메이크업샵' },
-        ],
-      },
-      {
-        code: '003003',
-        name: '운동/피트니스',
-        subcategories: [
-          { code: '003003001', name: '헬스장' },
-          { code: '003003002', name: '요가/필라테스' },
-          { code: '003003003', name: '수영장' },
-          { code: '003003004', name: '골프연습장' },
-          { code: '003003005', name: 'PT/트레이닝' },
-        ],
-      },
+      { code: 'PH01', name: '병원/의원' },
+      { code: 'PH02', name: '약국' },
+      { code: 'PH03', name: '한의원' },
     ],
   },
   {
-    code: '004',
-    name: '여행/레저',
+    code: 'BT',
+    name: '뷰티',
     subcategories: [
-      {
-        code: '004001',
-        name: '여행사',
-        subcategories: [
-          { code: '004001001', name: '국내여행' },
-          { code: '004001002', name: '해외여행' },
-          { code: '004001003', name: '항공권' },
-          { code: '004001004', name: '패키지여행' },
-        ],
-      },
-      {
-        code: '004002',
-        name: '숙박',
-        subcategories: [
-          { code: '004002001', name: '호텔' },
-          { code: '004002002', name: '모텔' },
-          { code: '004002003', name: '펜션' },
-          { code: '004002004', name: '게스트하우스' },
-        ],
-      },
+      { code: 'BT01', name: '미용실' },
+      { code: 'BT02', name: '피부관리' },
+      { code: 'BT03', name: '네일샵' },
     ],
   },
   {
-    code: '005',
-    name: '쇼핑/유통',
-    subcategories: [
-      {
-        code: '005001',
-        name: '패션/의류',
-        subcategories: [
-          { code: '005001001', name: '여성의류' },
-          { code: '005001002', name: '남성의류' },
-          { code: '005001003', name: '아동복' },
-          { code: '005001004', name: '신발' },
-          { code: '005001005', name: '가방/잡화' },
-        ],
-      },
-      {
-        code: '005002',
-        name: '화장품/미용',
-        subcategories: [
-          { code: '005002001', name: '스킨케어' },
-          { code: '005002002', name: '메이크업' },
-          { code: '005002003', name: '헤어케어' },
-          { code: '005002004', name: '향수' },
-        ],
-      },
-      {
-        code: '005003',
-        name: '식품',
-        subcategories: [
-          { code: '005003001', name: '농산물' },
-          { code: '005003002', name: '수산물' },
-          { code: '005003003', name: '축산물' },
-          { code: '005003004', name: '건강식품' },
-          { code: '005003005', name: '가공식품' },
-        ],
-      },
-    ],
-  },
-  {
-    code: '006',
+    code: 'FD',
     name: '음식/외식',
     subcategories: [
-      {
-        code: '006001',
-        name: '한식',
-        subcategories: [
-          { code: '006001001', name: '고기/구이' },
-          { code: '006001002', name: '찌개/전골' },
-          { code: '006001003', name: '백반/한정식' },
-        ],
-      },
-      {
-        code: '006002',
-        name: '중식',
-        subcategories: [
-          { code: '006002001', name: '중화요리' },
-        ],
-      },
-      {
-        code: '006003',
-        name: '일식',
-        subcategories: [
-          { code: '006003001', name: '초밥/회' },
-          { code: '006003002', name: '돈카츠/우동' },
-        ],
-      },
-      {
-        code: '006004',
-        name: '양식',
-        subcategories: [
-          { code: '006004001', name: '스테이크/바비큐' },
-          { code: '006004002', name: '파스타/피자' },
-        ],
-      },
-      {
-        code: '006005',
-        name: '카페/디저트',
-        subcategories: [
-          { code: '006005001', name: '커피전문점' },
-          { code: '006005002', name: '베이커리' },
-          { code: '006005003', name: '아이스크림' },
-        ],
-      },
+      { code: 'FD01', name: '한식' },
+      { code: 'FD02', name: '중식' },
+      { code: 'FD03', name: '일식' },
+      { code: 'FD04', name: '양식' },
+      { code: 'FD05', name: '카페/디저트' },
     ],
   },
   {
-    code: '007',
+    code: 'SH',
+    name: '쇼핑/유통',
+    subcategories: [
+      { code: 'SH01', name: '패션/의류' },
+      { code: 'SH02', name: '화장품' },
+      { code: 'SH03', name: '식품' },
+    ],
+  },
+  {
+    code: 'IT',
     name: 'IT/기술',
     subcategories: [
-      {
-        code: '007001',
-        name: '소프트웨어',
-        subcategories: [
-          { code: '007001001', name: '앱개발' },
-          { code: '007001002', name: '웹개발' },
-          { code: '007001003', name: '시스템개발' },
-        ],
-      },
-      {
-        code: '007002',
-        name: '하드웨어',
-        subcategories: [
-          { code: '007002001', name: '컴퓨터' },
-          { code: '007002002', name: '모바일기기' },
-          { code: '007002003', name: '주변기기' },
-        ],
-      },
+      { code: 'IT01', name: 'IT서비스' },
+      { code: 'IT02', name: '소프트웨어' },
     ],
   },
   {
-    code: '008',
-    name: '자동차',
+    code: 'ETC',
+    name: '기타',
     subcategories: [
-      {
-        code: '008001',
-        name: '판매',
-        subcategories: [
-          { code: '008001001', name: '신차' },
-          { code: '008001002', name: '중고차' },
-        ],
-      },
-      {
-        code: '008002',
-        name: '정비/수리',
-        subcategories: [
-          { code: '008002001', name: '정비소' },
-          { code: '008002002', name: '세차장' },
-        ],
-      },
+      { code: 'ETC', name: '기타' },
     ],
   },
 ];
@@ -447,20 +244,8 @@ export default function KakaoChannelRegisterPage() {
     setSubCategory(value);
     setDetailCategory('');
     
-    // 중분류의 하위 소분류 확인
-    const selectedMain = categories.find(c => c.code === mainCategory);
-    const selectedSub = selectedMain?.subcategories?.find(c => c.code === value);
-    const detailCats = selectedSub?.subcategories || [];
-    
-    if (detailCats.length > 0) {
-      // 소분류가 있으면 첫 번째 소분류를 자동 선택
-      const firstDetail = detailCats[0];
-      setDetailCategory(firstDetail.code);
-      setFinalCategoryCode(firstDetail.code);
-    } else {
-      // 소분류가 없으면 중분류 코드 사용
-      setFinalCategoryCode(value);
-    }
+    // 중분류 코드를 바로 사용 (예: CS02, PH01 등)
+    setFinalCategoryCode(value);
   };
 
   // 소분류 선택 시
@@ -503,9 +288,9 @@ export default function KakaoChannelRegisterPage() {
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 1: 카테고리 선택 (선택사항)</CardTitle>
+            <CardTitle>Step 1: 카테고리 선택</CardTitle>
             <CardDescription>
-              채널의 업종 카테고리를 선택하거나 건너뛸 수 있습니다. 카테고리 없이도 채널 등록이 가능합니다.
+              채널의 업종 카테고리를 선택해주세요. 중분류까지 선택하면 다음 단계로 진행할 수 있습니다.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -531,7 +316,7 @@ export default function KakaoChannelRegisterPage() {
             {/* 중분류 선택 */}
             {mainCategory && subCategories.length > 0 && (
               <div>
-                <Label htmlFor="subCategory">카테고리 - 중분류 *</Label>
+                <Label htmlFor="subCategory">카테고리 선택 *</Label>
                 <select
                   id="subCategory"
                   className="w-full p-2 border rounded-md"
@@ -539,36 +324,13 @@ export default function KakaoChannelRegisterPage() {
                   onChange={(e) => handleSubCategoryChange(e.target.value)}
                   disabled={loading}
                 >
-                  <option value="">중분류 선택</option>
+                  <option value="">카테고리 선택</option>
                   {subCategories.map((cat) => (
                     <option key={cat.code} value={cat.code}>
-                      {cat.name}
+                      {cat.name} ({cat.code})
                     </option>
                   ))}
                 </select>
-              </div>
-            )}
-
-            {/* 소분류 선택 (자동 선택됨) */}
-            {subCategory && detailCategories.length > 0 && (
-              <div>
-                <Label htmlFor="detailCategory">카테고리 - 소분류 (자동 선택됨)</Label>
-                <select
-                  id="detailCategory"
-                  className="w-full p-2 border rounded-md"
-                  value={detailCategory}
-                  onChange={(e) => handleDetailCategoryChange(e.target.value)}
-                  disabled={loading}
-                >
-                  {detailCategories.map((cat) => (
-                    <option key={cat.code} value={cat.code}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-sm text-gray-500 mt-1">
-                  ℹ️ 중분류 선택 시 첫 번째 소분류가 자동으로 선택됩니다. 필요시 변경 가능합니다.
-                </p>
               </div>
             )}
 
@@ -581,24 +343,14 @@ export default function KakaoChannelRegisterPage() {
               </div>
             )}
 
-            {!finalCategoryCode && (
-              <div className="p-3 bg-yellow-50 rounded-md border border-yellow-200">
-                <p className="text-sm text-yellow-900">
-                  ℹ️ 카테고리를 선택하지 않고 진행할 수 있습니다. (선택사항)
-                </p>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => setStep(2)} 
-                className="flex-1"
-                variant={finalCategoryCode ? "default" : "outline"}
-              >
-                다음 단계: 채널 정보 입력
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
+            <Button 
+              onClick={() => setStep(2)} 
+              disabled={!finalCategoryCode}
+              className="w-full"
+            >
+              다음 단계: 채널 정보 입력
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </CardContent>
         </Card>
       )}
