@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,6 +87,7 @@ const HARDCODED_CATEGORIES: Category[] = [
 
 export default function KakaoChannelRegisterPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>(HARDCODED_CATEGORIES);
@@ -95,6 +97,7 @@ export default function KakaoChannelRegisterPage() {
 
   // Form data
   const [searchId, setSearchId] = useState('');
+  const [channelName, setChannelName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   
   // 카테고리 선택 (3단계)
@@ -208,6 +211,9 @@ export default function KakaoChannelRegisterPage() {
       const cleanSearchId = searchId.startsWith('@') ? searchId.substring(1) : searchId;
       
       const requestData = {
+        userId: session?.user?.id || 'anonymous',
+        userName: session?.user?.name || '알 수 없음',
+        channelName: channelName || cleanSearchId,
         searchId: cleanSearchId, 
         phoneNumber, 
         categoryCode: finalCategoryCode,
@@ -215,6 +221,9 @@ export default function KakaoChannelRegisterPage() {
       };
       
       console.log('🔍 최종 전송 데이터 (v2):', {
+        userId: requestData.userId,
+        userName: requestData.userName,
+        channelName: requestData.channelName,
         searchId: cleanSearchId,
         searchIdOriginal: searchId,
         phoneNumber: phoneNumber,
@@ -230,6 +239,7 @@ export default function KakaoChannelRegisterPage() {
       // 사용자가 확인할 수 있도록 alert 추가
       const confirmMessage = `전송 정보 확인:
 검색 ID: ${cleanSearchId}
+채널명: ${requestData.channelName}
 전화번호: ${phoneNumber}
 카테고리: ${finalCategoryCode}
 인증번호: ${verificationCode}
@@ -475,6 +485,20 @@ export default function KakaoChannelRegisterPage() {
                   </ul>
                 </div>
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="channelName">채널 이름 (선택)</Label>
+              <Input
+                id="channelName"
+                placeholder="우리 학원 (미입력 시 검색용 ID 사용)"
+                value={channelName}
+                onChange={(e) => setChannelName(e.target.value)}
+                disabled={loading}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                채널을 식별하기 쉬운 이름을 입력하세요 (내부 관리용)
+              </p>
             </div>
 
             <div>

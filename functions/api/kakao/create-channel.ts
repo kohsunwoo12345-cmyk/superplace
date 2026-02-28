@@ -26,7 +26,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     }
 
     const body = await context.request.json();
-    const { searchId, phoneNumber, categoryCode, token } = body;
+    const { searchId, phoneNumber, categoryCode, token, userId, userName, channelName } = body;
 
     console.log('🔍 Received request body:', {
       searchId,
@@ -179,21 +179,40 @@ Step 1에서 선택한 카테고리를 다시 확인해주세요.`;
     const result = await response.json();
 
     // DB에 채널 정보 저장
-    if (DB) {
+    if (DB && userId) {
       try {
+        const channelId = `ch_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+        const pfId = result.pfId || result.plusFriendId || result.id || '';
+        
+        // 카테고리 정보 파싱 (예: "00200020001" -> "교육,학원,오프라인학원")
+        const categoryName = result.categoryName || '';
+        const categoryParts = categoryName.split(',');
+        
         await DB.prepare(`
-          INSERT OR REPLACE INTO KakaoChannels (
-            searchId, phoneNumber, categoryCode, pfId, status, createdAt, updatedAt
-          ) VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          INSERT INTO KakaoChannel (
+            id, userId, userName, phoneNumber, channelName, searchId,
+            categoryCode, mainCategory, middleCategory, subCategory,
+            solapiChannelId, status, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `).bind(
-          cleanSearchId,  // @ 기호가 제거된 순수 ID 저장
+          channelId,
+          userId,
+          userName || 'Unknown',
           phoneNumber,
+          channelName || cleanSearchId,
+          cleanSearchId,  // @ 기호가 제거된 순수 ID 저장
           categoryCode,
-          result.pfId || result.plusFriendId || '',
-          'active'
+          categoryParts[0] || '',  // 대분류
+          categoryParts[1] || '',  // 중분류
+          categoryParts[2] || '',  // 소분류
+          pfId,
+          'ACTIVE'
         ).run();
+        
+        console.log(`✅ Channel saved to DB: ${channelId}, pfId: ${pfId}`);
       } catch (dbError) {
-        console.error('Failed to save channel to DB:', dbError);
+        console.error('❌ Failed to save channel to DB:', dbError);
+        // DB 저장 실패해도 Solapi 연동은 성공했으므로 계속 진행
       }
     }
 
