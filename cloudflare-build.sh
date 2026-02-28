@@ -1,61 +1,40 @@
 #!/bin/bash
 
 # Cloudflare Pages Build Script for Super Place
-# Simple static export with Cloudflare Functions
+# Uses @cloudflare/next-on-pages for Next.js with API Routes support
 
 set -e  # Exit on error
 
-echo "🚀 Starting Cloudflare Pages build..."
+echo "🚀 Starting Cloudflare Pages build with @cloudflare/next-on-pages..."
 
 # Check Node.js version
 echo "📦 Node.js version: $(node -v)"
 echo "📦 npm version: $(npm -v)"
 
-# Remove Next.js API routes for production build (incompatible with output: export)
-echo "🧹 Removing Next.js API routes for production..."
-if [ -d "src/app/api" ]; then
-  # Move to temporary location outside src directory
-  mv src/app/api /tmp/nextjs-api-backup
-  echo "✅ API routes backed up to /tmp/nextjs-api-backup"
-fi
-
-# Build Next.js static export
-echo "🔨 Building Next.js static site..."
-npm run build
-
-# Restore API routes for development
-if [ -d "/tmp/nextjs-api-backup" ]; then
-  mv /tmp/nextjs-api-backup src/app/api
-  echo "✅ API routes restored for development"
-fi
+# Build with @cloudflare/next-on-pages
+echo "🔨 Building Next.js with Cloudflare Pages adapter..."
+npm run pages:build
 
 # Verify build output
 echo "✅ Build completed successfully!"
-echo "📁 Build output directory: out/"
+echo "📁 Build output directory: .vercel/output/static/"
 
 # List output directory contents
-if [ -d "out" ]; then
-  echo "✅ out directory created successfully"
-  ls -la out/ | head -20
+if [ -d ".vercel/output/static" ]; then
+  echo "✅ .vercel/output/static directory created successfully"
+  ls -la .vercel/output/static/ | head -20
+  
+  # Check for worker file
+  if [ -f ".vercel/output/static/_worker.js/index.js" ]; then
+    echo "✅ Cloudflare Worker file generated"
+  fi
 else
-  echo "❌ ERROR: out directory not found!"
+  echo "❌ ERROR: .vercel/output/static directory not found!"
   exit 1
-fi
-
-# Copy Cloudflare Pages Functions to output
-echo "🔧 Copying Cloudflare Pages Functions..."
-if [ -d "functions" ]; then
-  # Cloudflare Pages looks for functions in the root, not in out/
-  # So we keep functions at the root level
-  echo "✅ Functions directory exists at root level"
-  echo "📁 Functions structure:"
-  find functions -type f -name "*.js" -o -name "*.ts" | head -10
-else
-  echo "⚠️  WARNING: functions directory not found!"
 fi
 
 echo "🎉 Cloudflare Pages build complete!"
 echo "📊 Build summary:"
-echo "  - Static pages: out/"
-echo "  - API functions: functions/"
+echo "  - Output directory: .vercel/output/static/"
+echo "  - API Routes: Converted to Cloudflare Workers"
 echo "  - Ready for deployment!"
