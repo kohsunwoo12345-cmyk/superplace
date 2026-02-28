@@ -164,8 +164,8 @@ export default function KakaoChannelRegisterPage() {
   };
 
   const handleCreateChannel = async () => {
-    if (!searchId || !phoneNumber || !verificationCode) {
-      setError('검색용 ID, 전화번호, 인증번호를 입력해주세요.');
+    if (!searchId || !phoneNumber || !verificationCode || !finalCategoryCode) {
+      setError('모든 필드를 입력해주세요. (카테고리 선택 필수)');
       return;
     }
 
@@ -184,7 +184,7 @@ export default function KakaoChannelRegisterPage() {
       console.log('📤 Sending create channel request:', {
         searchId: cleanSearchId,
         phoneNumber,
-        categoryCode: finalCategoryCode || 'none',
+        categoryCode: finalCategoryCode,
         tokenLength: verificationCode.length
       });
       
@@ -194,7 +194,7 @@ export default function KakaoChannelRegisterPage() {
         body: JSON.stringify({ 
           searchId: cleanSearchId, 
           phoneNumber, 
-          categoryCode: finalCategoryCode || '',  // 빈 문자열이면 서버에서 생략
+          categoryCode: finalCategoryCode,  // 필수 필드
           token: verificationCode
         }),
       });
@@ -288,9 +288,9 @@ export default function KakaoChannelRegisterPage() {
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 1: 카테고리 선택</CardTitle>
+            <CardTitle>Step 1: 카테고리 선택 (필수)</CardTitle>
             <CardDescription>
-              채널의 업종 카테고리를 선택해주세요. 중분류까지 선택하면 다음 단계로 진행할 수 있습니다.
+              채널의 업종 카테고리를 반드시 선택해주세요. 카테고리 선택 후 다음 단계로 진행할 수 있습니다.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -335,10 +335,16 @@ export default function KakaoChannelRegisterPage() {
             )}
 
             {/* 선택된 카테고리 표시 */}
-            {finalCategoryCode && (
+            {finalCategoryCode ? (
               <div className="p-3 bg-green-50 rounded-md border border-green-200">
                 <p className="text-sm text-green-900">
                   ✅ 선택된 카테고리: <strong>{finalCategoryCode}</strong>
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 bg-yellow-50 rounded-md border border-yellow-200">
+                <p className="text-sm text-yellow-900">
+                  ⚠️ 카테고리를 선택해주세요 (필수)
                 </p>
               </div>
             )}

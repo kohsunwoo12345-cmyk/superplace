@@ -28,11 +28,12 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     const body = await context.request.json();
     const { searchId, phoneNumber, categoryCode, token } = body;
 
-    if (!searchId || !phoneNumber || !token) {
+    // categoryCode는 필수 필드입니다 (Solapi API 요구사항)
+    if (!searchId || !phoneNumber || !categoryCode || !token) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Required fields: searchId, phoneNumber, token (categoryCode is optional)' 
+          error: 'Required fields: searchId, phoneNumber, categoryCode, token' 
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
@@ -43,17 +44,13 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     const salt = Math.random().toString(36).substring(2);
     const signature = await generateSignature(SOLAPI_API_Secret, timestamp, salt);
     
-    // Request body 구성 (categoryCode는 선택사항)
-    const requestBody: any = {
+    // Request body 구성 (categoryCode는 필수)
+    const requestBody = {
       searchId: searchId,
       phoneNumber: phoneNumber,
+      categoryCode: categoryCode,
       token: token,
     };
-    
-    // categoryCode가 있으면 추가
-    if (categoryCode && categoryCode.trim() !== '') {
-      requestBody.categoryCode = categoryCode;
-    }
     
     console.log('📤 Solapi API request:', requestBody);
     
