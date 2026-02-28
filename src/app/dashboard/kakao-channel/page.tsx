@@ -1,139 +1,304 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, CheckCircle, BookOpen, ExternalLink } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, Plus, Trash2, CheckCircle, XCircle, Clock, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 interface KakaoChannel {
-  searchId: string;
+  id: string;
+  userId: string;
+  userName: string;
   phoneNumber: string;
+  channelName: string;
+  searchId: string;
   categoryCode: string;
-  pfId: string;
+  mainCategory: string;
+  middleCategory: string;
+  subCategory: string;
+  businessNumber: string;
+  solapiChannelId: string;
   status: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export default function KakaoChannelPage() {
+export default function KakaoChannelListPage() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const [channels, setChannels] = useState<KakaoChannel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (status === 'loading') return;
+    
+    if (!session?.user?.id) {
+      router.push('/auth/signin');
+      return;
+    }
+
     fetchChannels();
-  }, []);
+  }, [session, status]);
 
   const fetchChannels = async () => {
+    if (!session?.user?.id) return;
+
     try {
-      const response = await fetch('/api/kakao/channels/list');
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch(`/api/kakao/channels?userId=${session.user.id}`);
       const data = await response.json();
+
       if (data.success) {
-        setChannels(data.channels);
+        setChannels(data.channels || []);
+      } else {
+        setError(data.error || '채널 목록을 불러오는데 실패했습니다.');
       }
-    } catch (error) {
-      console.error('Failed to fetch channels:', error);
+    } catch (err: any) {
+      console.error('Failed to fetch channels:', err);
+      setError('채널 목록을 불러오는 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">카카오톡 채널 관리</h1>
-          <p className="text-gray-600 mt-2">알림톡 발송을 위한 카카오 채널을 관리합니다</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard/kakao-business-guide" target="_blank">
-            <Button variant="outline">
-              <BookOpen className="w-4 h-4 mr-2" />
-              연동 가이드
-              <ExternalLink className="w-3 h-3 ml-1" />
-            </Button>
-          </Link>
-          <Link href="/dashboard/kakao-channel/register">
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              채널 추가
-            </Button>
-          </Link>
+  const handleDeleteChannel = async (channelId: string) => {
+    if (!session?.user?.id) return;
+
+    if (!confirm('정말 이 채널을 삭제하시겠습니까? 연결된 템플릿도 사용할 수 없게 됩니다.')) {
+      return;
+    }
+
+    try {
+      setDeletingId(channelId);
+
+      const response = await fetch(
+        `/api/kakao/channels?channelId=${channelId}&userId=${session.user.id}`,
+        { method: 'DELETE' }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        // 목록에서 제거
+        setChannels(channels.filter(ch => ch.id !== channelId));
+      } else {
+        alert(data.error || '채널 삭제에 실패했습니다.');
+      }
+    } catch (err: any) {
+      console.error('Failed to delete channel:', err);
+      alert('채널 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            활성
+          </span>
+        );
+      case 'INACTIVE':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <XCircle className="w-3 h-3 mr-1" />
+            비활성
+          </span>
+        );
+      case 'PENDING':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            <Clock className="w-3 h-3 mr-1" />
+            대기중
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            {status}
+          </span>
+        );
+    }
+  };
+
+  if (status === 'loading' || loading) {
+    return (
+      <div className="container mx-auto p-6 max-w-7xl">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+          <span className="ml-3 text-gray-600">채널 목록을 불러오는 중...</span>
         </div>
       </div>
+    );
+  }
 
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-          <p className="mt-4 text-gray-600">채널 목록을 불러오는 중...</p>
+  return (
+    <div className="container mx-auto p-6 max-w-7xl">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">카카오톡 채널 관리</h1>
+          <p className="text-gray-600">
+            등록된 카카오 비즈니스 채널을 관리하고 알림톡 템플릿을 생성할 수 있습니다.
+          </p>
         </div>
-      ) : channels.length === 0 ? (
+        <Link href="/dashboard/kakao-channel/register">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            새 채널 등록
+          </Button>
+        </Link>
+      </div>
+
+      {error && (
+        <Alert className="mb-6 border-red-500 bg-red-50">
+          <AlertDescription className="text-red-800">{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {channels.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <MessageSquare className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">등록된 채널이 없습니다</h3>
-            <p className="text-gray-600 mb-4">
-              카카오톡 채널을 등록하여 알림톡을 발송할 수 있습니다
-            </p>
-            <div className="flex gap-2 justify-center">
-              <Link href="/dashboard/kakao-business-guide" target="_blank">
-                <Button variant="outline">
-                  <BookOpen className="w-4 h-4 mr-2" />
-                  연동 가이드
-                </Button>
-              </Link>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="text-center">
+              <div className="mb-4 text-gray-400">
+                <svg
+                  className="mx-auto h-16 w-16"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                등록된 채널이 없습니다
+              </h3>
+              <p className="text-gray-500 mb-6">
+                카카오 비즈니스 채널을 등록하여 알림톡을 발송하세요.
+              </p>
               <Link href="/dashboard/kakao-channel/register">
                 <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  첫 채널 등록하기
+                  <Plus className="mr-2 h-4 w-4" />
+                  첫 번째 채널 등록하기
                 </Button>
               </Link>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {channels.map((channel) => (
-            <Card key={channel.pfId}>
+            <Card key={channel.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">@{channel.searchId}</CardTitle>
-                    <CardDescription>{channel.phoneNumber}</CardDescription>
+                  <div className="flex-1">
+                    <CardTitle className="text-xl mb-1">{channel.channelName}</CardTitle>
+                    <CardDescription className="flex items-center gap-1">
+                      <span className="font-mono text-sm">@{channel.searchId}</span>
+                      <a
+                        href={`https://pf.kakao.com/${channel.searchId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </CardDescription>
                   </div>
-                  {channel.status === 'active' && (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                  )}
+                  {getStatusBadge(channel.status)}
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">pfId:</span>
-                    <span className="font-mono text-xs">{channel.pfId.substring(0, 16)}...</span>
+                <dl className="space-y-2 text-sm">
+                  <div>
+                    <dt className="text-gray-500">카테고리</dt>
+                    <dd className="font-medium">
+                      {channel.mainCategory} &gt; {channel.middleCategory} &gt; {channel.subCategory}
+                    </dd>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">카테고리:</span>
-                    <span>{channel.categoryCode}</span>
+                  <div>
+                    <dt className="text-gray-500">담당자 번호</dt>
+                    <dd className="font-medium font-mono">{channel.phoneNumber}</dd>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">등록일:</span>
-                    <span>{new Date(channel.createdAt).toLocaleDateString()}</span>
+                  {channel.solapiChannelId && (
+                    <div>
+                      <dt className="text-gray-500">Solapi 채널 ID</dt>
+                      <dd className="font-medium font-mono text-xs">{channel.solapiChannelId}</dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt className="text-gray-500">등록일</dt>
+                    <dd className="font-medium">
+                      {new Date(channel.createdAt).toLocaleDateString('ko-KR')}
+                    </dd>
                   </div>
-                </div>
-                <div className="mt-4 pt-4 border-t">
-                  <Link href={`/dashboard/kakao-alimtalk?pfId=${channel.pfId}`}>
-                    <Button className="w-full" variant="outline">
-                      <MessageSquare className="w-4 h-4 mr-2" />
-                      알림톡 보내기
+                </dl>
+
+                <div className="mt-6 flex gap-2">
+                  <Link href={`/dashboard/kakao-alimtalk/templates?channelId=${channel.id}`} className="flex-1">
+                    <Button variant="outline" className="w-full">
+                      템플릿 관리
                     </Button>
                   </Link>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => handleDeleteChannel(channel.id)}
+                    disabled={deletingId === channel.id}
+                  >
+                    {deletingId === channel.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* 안내 정보 */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle className="text-lg">💡 채널 관리 안내</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <div>
+            <strong>1. 채널 등록:</strong> 카카오 비즈니스 센터에서 생성한 채널을 시스템에 연동합니다.
+          </div>
+          <div>
+            <strong>2. 템플릿 관리:</strong> 등록된 채널로 발송할 알림톡 템플릿을 생성하고 관리합니다.
+          </div>
+          <div>
+            <strong>3. 알림톡 발송:</strong> 승인된 템플릿으로 고객에게 알림톡을 발송합니다.
+          </div>
+          <div className="pt-2 border-t">
+            <p className="text-gray-600">
+              📚 자세한 가이드는{' '}
+              <Link href="/dashboard/kakao-business-guide" className="text-blue-600 hover:underline">
+                카카오 비즈니스 가이드
+              </Link>
+              를 참고하세요.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
