@@ -23,6 +23,17 @@ function parseToken(authHeader: string | null): { id: string; email: string; rol
   };
 }
 
+// User.id(TEXT) → INTEGER 해시 변환 함수
+function hashStringToInt(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // 32비트 정수로 변환
+  }
+  return Math.abs(hash);
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
@@ -54,6 +65,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
+    console.log('🔍 Fetching landing page:', id);
+
     // 랜딩페이지 조회
     const query = `
       SELECT 
@@ -69,11 +82,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const result = await DB.prepare(query).bind(id).first();
 
     if (!result) {
+      console.error('❌ Landing page not found:', id);
       return new Response(JSON.stringify({ error: 'Landing page not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    console.log('✅ Found landing page:', result.slug);
 
     // 권한 체크 (DIRECTOR는 자신의 페이지만 조회 가능)
     if (user.role === 'DIRECTOR') {
@@ -194,6 +210,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       });
     }
 
+    console.log('📝 Updating landing page:', id);
+
     // 업데이트 쿼리 생성
     const updateFields: string[] = [];
     const updateValues: any[] = [];
@@ -246,6 +264,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     `;
 
     await DB.prepare(updateQuery).bind(...updateValues).run();
+
+    console.log('✅ Landing page updated:', id);
 
     // 업데이트된 페이지 조회
     const updatedPage = await DB.prepare(`
@@ -342,6 +362,8 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     // 페이지 삭제
     await DB.prepare('DELETE FROM landing_pages WHERE id = ?').bind(id).run();
 
+    console.log('🗑️ Landing page deleted:', id);
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -366,14 +388,3 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     );
   }
 };
-
-// User.id(TEXT) → INTEGER 해시 변환 함수
-function hashStringToInt(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // 32비트 정수로 변환
-  }
-  return Math.abs(hash);
-}

@@ -304,8 +304,22 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       creatorUserId: userIdOriginal // 실제 User.id 저장 (추적용)
     });
 
-    // 기본 html_content 생성
-    const defaultHtmlContent = templateHtml || `
+    // HTML 콘텐츠 생성
+    let htmlContent = '';
+    
+    if (templateHtml) {
+      // 템플릿 HTML이 제공된 경우
+      console.log('✅ Using provided template HTML');
+      htmlContent = templateHtml;
+      
+      // 제목과 부제목 치환
+      htmlContent = htmlContent.replace(/\{\{title\}\}/g, title);
+      htmlContent = htmlContent.replace(/\{\{subtitle\}\}/g, subtitle || '');
+      htmlContent = htmlContent.replace(/\{\{description\}\}/g, description || '');
+    } else {
+      // 기본 HTML 생성
+      console.log('⚠️ Using default HTML');
+      htmlContent = `
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -316,6 +330,12 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
   ${ogDescription ? `<meta property="og:description" content="${ogDescription}">` : ''}
   ${thumbnail ? `<meta property="og:image" content="${thumbnail}">` : ''}
   <meta name="student-id" content="${userIdStr}">
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    h1 { color: #1a1a1a; }
+    .subtitle { color: #666; font-size: 1.2em; margin: 10px 0; }
+    .description { color: #444; line-height: 1.6; }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -325,6 +345,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
   </div>
 </body>
 </html>`;
+    }
 
     // Insert landing page - 생성자의 실제 user.id 사용 (FK 제약 충족)
     console.log("📝 Inserting landing page with user_id:", userIdForDb, "type:", typeof userIdForDb);
@@ -332,7 +353,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     
     const insertResult = await db
       .prepare(`INSERT INTO landing_pages (slug, title, user_id, template_type, content_json, html_content) VALUES (?, ?, ?, ?, ?, ?)`)
-      .bind(slug, title, userIdForDb, templateType || 'basic', defaultContentJson, defaultHtmlContent)
+      .bind(slug, title, userIdForDb, templateType || 'basic', defaultContentJson, htmlContent)
       .run();
 
     console.log("✅ Landing page inserted successfully");
