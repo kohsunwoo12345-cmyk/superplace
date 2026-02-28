@@ -24,13 +24,13 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     }
 
     const body = await context.request.json();
-    const { searchId, phoneNumber } = body;
+    const { searchId, phoneNumber, categoryCode } = body;
 
-    if (!searchId || !phoneNumber) {
+    if (!searchId || !phoneNumber || !categoryCode) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'searchId and phoneNumber are required' 
+          error: 'searchId, phoneNumber, categoryCode are required' 
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
@@ -48,6 +48,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     const requestBody = {
       searchId: cleanSearchId,
       phoneNumber: phoneNumber,
+      categoryCode: categoryCode,  // 카테고리 코드 추가 (필수)
     };
     
     console.log('📤 Requesting Kakao channel token:', {
@@ -56,6 +57,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       hasAtSymbol: searchId.startsWith('@'),
       searchIdLength: cleanSearchId.length,
       phoneNumber: phoneNumber.substring(0, 3) + '****' + phoneNumber.substring(7),
+      categoryCode: categoryCode,
       url: 'https://api.solapi.com/kakao/v1/plus-friends/token'
     });
     
@@ -74,7 +76,9 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       console.error('Request details:', {
         url: 'https://api.solapi.com/kakao/v1/plus-friends/token',
         searchId,
+        cleanSearchId,
         phoneNumber,
+        categoryCode,
         timestamp,
         hasApiKey: !!SOLAPI_API_Key,
         hasApiSecret: !!SOLAPI_API_Secret
@@ -123,6 +127,7 @@ ID 길이: ${cleanSearchId.length}자`;
             actualRequestBody: requestBody,
             originalSearchId: searchId,
             cleanSearchId: cleanSearchId,
+            categoryCode: categoryCode,
             searchIdLength: cleanSearchId?.length,
             phoneNumberLength: phoneNumber?.length,
             hadAtSymbol: searchId?.startsWith('@')

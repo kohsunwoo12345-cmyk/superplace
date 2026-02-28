@@ -116,6 +116,11 @@ export default function KakaoChannelRegisterPage() {
       return;
     }
 
+    if (!finalCategoryCode) {
+      setError('카테고리를 먼저 선택해주세요.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -124,10 +129,20 @@ export default function KakaoChannelRegisterPage() {
       // searchId에서 @ 기호를 제거 (Solapi API는 @ 없이 순수 ID만 요구)
       const cleanSearchId = searchId.startsWith('@') ? searchId.substring(1) : searchId;
       
+      console.log('📤 Requesting token with:', {
+        searchId: cleanSearchId,
+        phoneNumber: phoneNumber.substring(0, 3) + '****',
+        categoryCode: finalCategoryCode
+      });
+      
       const response = await fetch('/api/kakao/request-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ searchId: cleanSearchId, phoneNumber }),
+        body: JSON.stringify({ 
+          searchId: cleanSearchId, 
+          phoneNumber,
+          categoryCode: finalCategoryCode  // 카테고리 코드 추가
+        }),
       });
 
       const data = await response.json();
@@ -428,7 +443,7 @@ export default function KakaoChannelRegisterPage() {
               </Button>
               <Button 
                 onClick={handleRequestToken} 
-                disabled={loading || !searchId || !phoneNumber}
+                disabled={loading || !searchId || !phoneNumber || !finalCategoryCode}
                 className="flex-1"
               >
                 {loading ? (
