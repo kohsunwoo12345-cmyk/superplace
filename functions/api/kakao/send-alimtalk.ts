@@ -1,121 +1,171 @@
-/**
- * 카카오 알림톡 전송 API
- * POST /api/kakao/send-alimtalk
- */
+// Solapi Send Alimtalk API
+export async function onRequest(context: any) {
+  const { request, env } = context;
 
-interface Env {
-  'SOLAPI_API_Key ': string;
-  SOLAPI_API_Secret?: string;
-}
+  // CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 
-interface SendRequest {
-  pfId: string;
-  templateId: string;
-  to: string;
-  variables?: Record<string, string>;
-}
+  // Handle OPTIONS
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
 
-export async function onRequestPost(context: { env: Env; request: Request }) {
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Method not allowed' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
-    const SOLAPI_API_Key = context.env['SOLAPI_API_Key '];
-    const SOLAPI_API_Secret = context.env.SOLAPI_API_Secret;
+    const body = await request.json();
+    const { userId, channelId, solapiChannelId, templateCode, messages } = body;
 
-    if (!SOLAPI_API_Key || !SOLAPI_API_Secret) {
+    if (!userId || !channelId || !solapiChannelId || !templateCode || !messages) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'SOLAPI API credentials not configured' 
+          error: 'Missing required fields: userId, channelId, solapiChannelId, templateCode, messages' 
         }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const body: SendRequest = await context.request.json();
-    const { pfId, templateId, to, variables } = body;
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'messages must be a non-empty array' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    if (!pfId || !templateId || !to) {
+    const SOLAPI_API_KEY = env.SOLAPI_API_KEY;
+    const SOLAPI_API_SECRET = env.SOLAPI_API_SECRET;
+
+    if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'pfId, templateId, and to are required' 
+          error: 'Solapi credentials not configured' 
         }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const timestamp = new Date().toISOString();
-    const salt = Math.random().toString(36).substring(2);
-    const signature = await generateSignature(SOLAPI_API_Secret, timestamp, salt);
-    
-    const messageData = {
-      message: {
-        to: to,
-        from: '01087399697', // 발신번호 (등록된 번호)
-        kakaoOptions: {
-          pfId: pfId,
-          templateId: templateId,
-          variables: variables || {}
-        }
-      }
-    };
+    // Create Authorization header
+    const authString = Buffer.from(`${SOLAPI_API_KEY}:${SOLAPI_API_SECRET}`).toString('base64');
 
-    const response = await fetch('https://api.solapi.com/messages/v4/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${timestamp}, salt=${salt}, signature=${signature}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(messageData),
+    console.log('📤 Sending alimtalk:', {
+      channelId: solapiChannelId,
+      templateCode,
+      messageCount: messages.length
     });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Solapi API error:', errorData);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: `Failed to send message: ${response.status}`,
-          details: errorData
-        }),
-        { status: response.status, headers: { 'Content-Type': 'application/json' } }
-      );
+    // Send messages via Solapi
+    const results = [];
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const message of messages) {
+      try {
+        const response = await fetch('https://api.solapi.com/messages/v4/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${authString}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: {
+              to: message.to,
+              from: solapiChannelId, // 발신번호 (채널 ID)
+              type: 'ATA', // Alimtalk
+              kakaoOptions: {
+                pfId: solapiChannelId,
+                templateId: templateCode,
+                variables: message.variables || {},
+                buttons: message.buttons || []
+              },
+              text: message.content
+            }
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          successCount++;
+          results.push({
+            to: message.to,
+            success: true,
+            messageId: data.messageId || data.groupId
+          });
+        } else {
+          failCount++;
+          results.push({
+            to: message.to,
+            success: false,
+            error: data.errorMessage || data.message
+          });
+        }
+
+      } catch (error: any) {
+        failCount++;
+        results.push({
+          to: message.to,
+          success: false,
+          error: error.message
+        });
+      }
     }
 
-    const data = await response.json();
+    // Update user points (deduct cost)
+    const totalCost = successCount * 15; // 15 points per message
+    if (totalCost > 0) {
+      const db = env.DB;
+      
+      // Get current points
+      const user = await db.prepare(`
+        SELECT points FROM User WHERE id = ?
+      `).bind(userId).first();
+
+      if (user && user.points >= totalCost) {
+        // Deduct points
+        await db.prepare(`
+          UPDATE User SET points = points - ? WHERE id = ?
+        `).bind(totalCost, userId).run();
+      }
+    }
+
+    console.log('📥 Alimtalk send result:', {
+      total: messages.length,
+      success: successCount,
+      fail: failCount,
+      cost: totalCost
+    });
 
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        message: '알림톡이 성공적으로 전송되었습니다!',
-        result: data
+        success: true,
+        successCount,
+        failCount,
+        totalCost,
+        results
       }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (error: any) {
-    console.error('Error sending alimtalk:', error);
+    console.error('Send alimtalk error:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'Failed to send alimtalk' 
+        error: 'Internal server error',
+        details: error.message 
       }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-}
-
-async function generateSignature(secret: string | undefined, timestamp: string, salt: string): Promise<string> {
-  if (!secret) throw new Error('Secret required');
-  const message = timestamp + salt;
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const messageData = encoder.encode(message);
-  
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-  );
-  
-  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
-  return Array.from(new Uint8Array(signature))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
 }

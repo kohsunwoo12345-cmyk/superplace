@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useKakaoAuth } from '@/hooks/useKakaoAuth';
+import * as XLSX from 'xlsx';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -18,487 +19,557 @@ import {
 } from "@/components/ui/select";
 import {
   Send,
-  MessageCircle,
-  Users,
+  Upload,
   Loader2,
   CheckCircle,
   AlertCircle,
-  ArrowLeft,
-  Coins,
+  FileSpreadsheet,
+  Trash2,
 } from "lucide-react";
 
-interface Student {
+interface KakaoChannel {
   id: string;
-  name: string;
-  email: string;
-  parentPhone?: string;
+  channelName: string;
+  searchId: string;
+  solapiChannelId: string;
+  status: string;
 }
 
-interface KakaoChannel {
-  channelId: string;
-  phoneNumber: string;
-  channelName: string;
+interface AlimtalkTemplate {
+  id: string;
+  templateCode: string;
+  templateName: string;
+  content: string;
+  variables: string | null;
   status: string;
+  inspectionStatus: string;
+  buttons: string | null;
+}
+
+interface RecipientData {
+  phone: string;
+  [key: string]: any; // 변수들
 }
 
 const KAKAO_COST = 15; // 15 포인트/건
 
 export default function KakaoSendPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const searchParams = useSearchParams();
+  const templateId = searchParams?.get('templateId');
+  
+  const { user, loading: authLoading } = useKakaoAuth();
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
-  // 메시지 설정
-  const [selectedKakaoChannel, setSelectedKakaoChannel] = useState("");
-  const [messageTitle, setMessageTitle] = useState("");
-  const [messageContent, setMessageContent] = useState("");
-  const [kakaoChannels, setKakaoChannels] = useState<KakaoChannel[]>([]);
+  // 채널 및 템플릿
+  const [channels, setChannels] = useState<KakaoChannel[]>([]);
+  const [templates, setTemplates] = useState<AlimtalkTemplate[]>([]);
+  const [selectedChannel, setSelectedChannel] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [templateVariables, setTemplateVariables] = useState<string[]>([]);
 
-  // 수신자 설정
-  const [recipientMode, setRecipientMode] = useState<"students" | "manual">("students");
-  const [students, setStudents] = useState<Student[]>([]);
-  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-  const [manualRecipients, setManualRecipients] = useState<{ phone: string; name: string }[]>([
-    { phone: "", name: "" },
-  ]);
+  // 수신자 데이터
+  const [recipients, setRecipients] = useState<RecipientData[]>([]);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [columnMapping, setColumnMapping] = useState<{ [key: string]: string }>({});
+  const [excelColumns, setExcelColumns] = useState<string[]>([]);
+
+  // 미리보기
+  const [previewMessage, setPreviewMessage] = useState("");
+
+  // 에러 및 성공
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setUser(userData);
-      loadInitialData();
-    } else {
-      router.push("/login");
+    if (authLoading) return;
+    
+    if (!user?.id) {
+      router.push('/login');
+      return;
     }
-  }, [router]);
 
-  const loadInitialData = async () => {
+    fetchChannelsAndTemplates();
+  }, [user, authLoading]);
+
+  useEffect(() => {
+    if (templateId) {
+      setSelectedTemplate(templateId);
+    }
+  }, [templateId]);
+
+  useEffect(() => {
+    if (selectedTemplate) {
+      const template = templates.find(t => t.id === selectedTemplate);
+      if (template) {
+        extractVariables(template.content);
+        updatePreview(template.content, {});
+      }
+    }
+  }, [selectedTemplate, templates]);
+
+  const fetchChannelsAndTemplates = async () => {
+    if (!user?.id) return;
+
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
 
-      // 학생 목록 (부모 연락처가 있는 학생만)
-      const studentsRes = await fetch("/api/students/by-academy", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (studentsRes.ok) {
-        const data = await studentsRes.json();
-        const studentsWithParent = (data.students || []).filter(
-          (s: Student) => s.parentPhone
-        );
-        setStudents(studentsWithParent);
-      }
+      // 채널 목록
+      const channelsRes = await fetch(`/api/kakao/channels?userId=${user.id}`);
+      const channelsData = await channelsRes.json();
 
-      // 카카오 채널 목록 (승인된 채널만)
-      const channelsRes = await fetch("/api/kakao/channels/my", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (channelsRes.ok) {
-        const data = await channelsRes.json();
-        const approved = (data.channels || []).filter(
-          (c: KakaoChannel) => c.status === "APPROVED"
+      if (channelsData.success) {
+        const activeChannels = channelsData.channels.filter(
+          (c: KakaoChannel) => c.status === 'ACTIVE'
         );
-        setKakaoChannels(approved);
-        if (approved.length > 0) {
-          setSelectedKakaoChannel(approved[0].channelId);
+        setChannels(activeChannels);
+        
+        if (activeChannels.length > 0) {
+          setSelectedChannel(activeChannels[0].id);
+          
+          // 첫 번째 채널의 템플릿 목록
+          await fetchTemplatesForChannel(activeChannels[0].id);
         }
       }
-
-      // 사용자 포인트 업데이트
-      const userRes = await fetch("/api/user/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (userRes.ok) {
-        const userData = await userRes.json();
-        setUser(userData.user);
-      }
-    } catch (error) {
-      console.error("Failed to load data:", error);
+    } catch (err: any) {
+      console.error('Failed to fetch data:', err);
+      setError('데이터를 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStudentToggle = (studentId: string) => {
-    setSelectedStudents((prev) =>
-      prev.includes(studentId)
-        ? prev.filter((id) => id !== studentId)
-        : [...prev, studentId]
-    );
-  };
+  const fetchTemplatesForChannel = async (channelId: string) => {
+    if (!user?.id) return;
 
-  const handleSelectAll = () => {
-    if (selectedStudents.length === students.length) {
-      setSelectedStudents([]);
-    } else {
-      setSelectedStudents(students.map((s) => s.id));
+    try {
+      const response = await fetch(
+        `/api/kakao/templates?userId=${user.id}&channelId=${channelId}`
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        // 승인된 템플릿만 표시
+        const approvedTemplates = data.templates.filter(
+          (t: AlimtalkTemplate) => t.inspectionStatus === 'APPROVED'
+        );
+        setTemplates(approvedTemplates);
+
+        // templateId가 URL 파라미터로 있으면 자동 선택
+        if (templateId && approvedTemplates.find((t: AlimtalkTemplate) => t.id === templateId)) {
+          setSelectedTemplate(templateId);
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch templates:', err);
     }
   };
 
-  const addManualRecipient = () => {
-    setManualRecipients([...manualRecipients, { phone: "", name: "" }]);
+  const extractVariables = (content: string) => {
+    const regex = /#{([^}]+)}/g;
+    const matches = [...content.matchAll(regex)];
+    const vars = matches.map(m => m[1].trim());
+    setTemplateVariables([...new Set(vars)]); // 중복 제거
   };
 
-  const removeManualRecipient = (index: number) => {
-    setManualRecipients(manualRecipients.filter((_, i) => i !== index));
+  const handleChannelChange = async (channelId: string) => {
+    setSelectedChannel(channelId);
+    setSelectedTemplate("");
+    setTemplates([]);
+    await fetchTemplatesForChannel(channelId);
   };
 
-  const updateManualRecipient = (index: number, field: "phone" | "name", value: string) => {
-    const updated = [...manualRecipients];
-    updated[index][field] = value;
-    setManualRecipients(updated);
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setExcelFile(file);
+    setError(null);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
+
+        if (jsonData.length === 0) {
+          setError('엑셀 파일에 데이터가 없습니다.');
+          return;
+        }
+
+        // 첫 번째 행에서 컬럼 추출
+        const columns = Object.keys(jsonData[0]);
+        setExcelColumns(columns);
+
+        // 데이터 저장 (전화번호 필수)
+        const recipientsData = jsonData.map((row: any) => ({
+          phone: row['전화번호'] || row['휴대폰'] || row['phone'] || '',
+          ...row
+        }));
+
+        setRecipients(recipientsData);
+
+        // 자동 매핑 (컬럼 이름이 변수명과 같으면 자동으로 매핑)
+        const autoMapping: { [key: string]: string } = {};
+        templateVariables.forEach(varName => {
+          const matchingColumn = columns.find(col => 
+            col.toLowerCase() === varName.toLowerCase() ||
+            col.includes(varName) ||
+            varName.includes(col)
+          );
+          if (matchingColumn) {
+            autoMapping[varName] = matchingColumn;
+          }
+        });
+        setColumnMapping(autoMapping);
+
+      } catch (err: any) {
+        console.error('Excel parsing error:', err);
+        setError('엑셀 파일을 읽는 중 오류가 발생했습니다.');
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
-  const getRecipientCount = () => {
-    if (recipientMode === "students") {
-      return selectedStudents.length;
-    } else {
-      return manualRecipients.filter((r) => r.phone.trim()).length;
+  const handleMappingChange = (variable: string, column: string) => {
+    setColumnMapping({
+      ...columnMapping,
+      [variable]: column
+    });
+  };
+
+  const updatePreview = (content: string, sampleData: { [key: string]: string }) => {
+    let preview = content;
+    Object.entries(sampleData).forEach(([key, value]) => {
+      preview = preview.replace(new RegExp(`#{${key}}`, 'g'), value);
+    });
+    setPreviewMessage(preview);
+  };
+
+  useEffect(() => {
+    if (selectedTemplate && recipients.length > 0) {
+      const template = templates.find(t => t.id === selectedTemplate);
+      if (template) {
+        // 첫 번째 수신자 데이터로 미리보기 생성
+        const sampleData: { [key: string]: string } = {};
+        templateVariables.forEach(varName => {
+          const column = columnMapping[varName];
+          if (column && recipients[0][column]) {
+            sampleData[varName] = String(recipients[0][column]);
+          }
+        });
+        updatePreview(template.content, sampleData);
+      }
     }
-  };
+  }, [selectedTemplate, recipients, columnMapping, templateVariables]);
 
-  const totalCost = getRecipientCount() * KAKAO_COST;
+  const validateData = (): string | null => {
+    if (!selectedChannel) return '카카오 채널을 선택해주세요.';
+    if (!selectedTemplate) return '템플릿을 선택해주세요.';
+    if (recipients.length === 0) return '엑셀 파일을 업로드해주세요.';
+
+    // 전화번호 검증
+    const invalidPhones = recipients.filter(r => !r.phone || !/^01[0-9]{8,9}$/.test(r.phone.replace(/-/g, '')));
+    if (invalidPhones.length > 0) {
+      return `유효하지 않은 전화번호가 ${invalidPhones.length}개 있습니다.`;
+    }
+
+    // 변수 매핑 검증
+    const unmappedVars = templateVariables.filter(v => !columnMapping[v]);
+    if (unmappedVars.length > 0) {
+      return `매핑되지 않은 변수가 있습니다: ${unmappedVars.join(', ')}`;
+    }
+
+    return null;
+  };
 
   const handleSend = async () => {
-    // 검증
-    if (!selectedKakaoChannel) {
-      alert("카카오 채널을 선택해주세요");
+    const validationError = validateData();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
-    if (!messageContent.trim()) {
-      alert("메시지 내용을 입력해주세요");
-      return;
-    }
-
-    const recipientCount = getRecipientCount();
-    if (recipientCount === 0) {
-      alert("수신자를 선택해주세요");
-      return;
-    }
-
-    if (user && user.points < totalCost) {
-      alert(`포인트가 부족합니다. (필요: ${totalCost}P, 보유: ${user.points}P)`);
+    const totalCost = recipients.length * KAKAO_COST;
+    if (!confirm(`${recipients.length}명에게 알림톡을 전송합니다. (${totalCost} 포인트)\n계속하시겠습니까?`)) {
       return;
     }
 
     setSending(true);
+    setError(null);
+    setSuccess(null);
 
     try {
-      const token = localStorage.getItem("token");
+      const channel = channels.find(c => c.id === selectedChannel);
+      const template = templates.find(t => t.id === selectedTemplate);
 
-      // 수신자 정보 생성
-      let recipients = [];
-      if (recipientMode === "students") {
-        recipients = students
-          .filter((s) => selectedStudents.includes(s.id))
-          .map((s) => ({
-            phone: s.parentPhone,
-            name: s.name,
-          }));
-      } else {
-        recipients = manualRecipients.filter((r) => r.phone.trim());
+      if (!channel || !template) {
+        throw new Error('채널 또는 템플릿을 찾을 수 없습니다.');
       }
 
-      const response = await fetch("/api/messages/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          messageType: "KAKAO",
-          channelId: selectedKakaoChannel,
-          title: messageTitle,
-          content: messageContent,
-          recipients,
-        }),
+      // 메시지 생성
+      const messages = recipients.map(recipient => {
+        let content = template.content;
+        
+        // 변수 치환
+        templateVariables.forEach(varName => {
+          const column = columnMapping[varName];
+          if (column && recipient[column]) {
+            content = content.replace(new RegExp(`#{${varName}}`, 'g'), String(recipient[column]));
+          }
+        });
+
+        return {
+          to: recipient.phone.replace(/-/g, ''),
+          content: content,
+          buttons: template.buttons ? JSON.parse(template.buttons) : undefined
+        };
       });
 
-      if (response.ok) {
-        alert(`카카오톡 메시지가 발송되었습니다!\n수신자: ${recipientCount}명\n차감 포인트: ${totalCost}P`);
-        router.push("/dashboard/message-history");
+      // Solapi API 호출
+      const response = await fetch('/api/kakao/send-alimtalk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id,
+          channelId: selectedChannel,
+          solapiChannelId: channel.solapiChannelId,
+          templateCode: template.templateCode,
+          messages: messages
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccess(`알림톡 전송이 완료되었습니다. (성공: ${data.successCount}건, 실패: ${data.failCount}건)`);
+        
+        // 초기화
+        setRecipients([]);
+        setExcelFile(null);
+        setColumnMapping({});
       } else {
-        const error = await response.json();
-        alert(`발송 실패: ${error.message || "알 수 없는 오류"}`);
+        setError(data.error || '알림톡 전송에 실패했습니다.');
       }
-    } catch (error) {
-      console.error("Send error:", error);
-      alert("메시지 발송 중 오류가 발생했습니다");
+
+    } catch (err: any) {
+      console.error('Send error:', err);
+      setError('알림톡 전송 중 오류가 발생했습니다.');
     } finally {
       setSending(false);
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-yellow-600" />
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
+  const totalCost = recipients.length * KAKAO_COST;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-amber-50 p-6">
+    <div className="container mx-auto py-8 px-4">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push("/dashboard/kakao-channel")}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            뒤로가기
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Send className="w-8 h-8 text-orange-600" />
-              카카오톡 메시지 발송
-            </h1>
-            <p className="text-gray-600 mt-1">
-              승인된 카카오 채널로 메시지를 발송합니다
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-600">보유 포인트</p>
-            <p className="text-2xl font-bold text-yellow-600 flex items-center gap-1">
-              <Coins className="w-5 h-5" />
-              {user?.points || 0}P
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">알림톡 전송</h1>
+            <p className="text-gray-500 mt-2">
+              엑셀 파일을 업로드하여 대량 알림톡을 전송하세요
             </p>
           </div>
         </div>
 
-        {/* 채널 선택 */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {success && (
+          <Alert>
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription>{success}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* 1. 채널 및 템플릿 선택 */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5 text-yellow-600" />
-              카카오 채널 선택
-            </CardTitle>
+            <CardTitle>1. 채널 및 템플릿 선택</CardTitle>
+            <CardDescription>발송할 카카오 채널과 템플릿을 선택하세요</CardDescription>
           </CardHeader>
-          <CardContent>
-            {kakaoChannels.length === 0 ? (
-              <div className="text-center py-8">
-                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600 mb-4">승인된 카카오 채널이 없습니다</p>
-                <Button
-                  onClick={() => router.push("/dashboard/kakao-channel/register")}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white"
-                >
-                  채널 등록하기
-                </Button>
-              </div>
-            ) : (
-              <Select value={selectedKakaoChannel} onValueChange={setSelectedKakaoChannel}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>카카오 채널</Label>
+              <Select value={selectedChannel} onValueChange={handleChannelChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="채널 선택" />
+                  <SelectValue placeholder="채널을 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  {kakaoChannels.map((channel) => (
-                    <SelectItem key={channel.channelId} value={channel.channelId}>
-                      {channel.channelName} ({channel.phoneNumber})
+                  {channels.map(channel => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      {channel.channelName} (@{channel.searchId})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            )}
-          </CardContent>
-        </Card>
+            </div>
 
-        {/* 수신자 선택 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-orange-600" />
-              수신자 선택
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={recipientMode} onValueChange={(v) => setRecipientMode(v as any)}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="students">학생 선택</TabsTrigger>
-                <TabsTrigger value="manual">직접 입력</TabsTrigger>
-              </TabsList>
+            <div className="space-y-2">
+              <Label>알림톡 템플릿</Label>
+              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                <SelectTrigger>
+                  <SelectValue placeholder="템플릿을 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map(template => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.templateName}
+                      <Badge variant="outline" className="ml-2">{template.templateCode}</Badge>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              <TabsContent value="students" className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-gray-600">
-                    부모 연락처가 등록된 학생만 표시됩니다
-                  </p>
-                  <Button size="sm" variant="outline" onClick={handleSelectAll}>
-                    {selectedStudents.length === students.length ? "전체 해제" : "전체 선택"}
-                  </Button>
-                </div>
-                <div className="max-h-64 overflow-y-auto space-y-2 border rounded-lg p-4">
-                  {students.length === 0 ? (
-                    <p className="text-center text-gray-500 py-4">
-                      부모 연락처가 등록된 학생이 없습니다
-                    </p>
-                  ) : (
-                    students.map((student) => (
-                      <div
-                        key={student.id}
-                        className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                        onClick={() => handleStudentToggle(student.id)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedStudents.includes(student.id)}
-                          onChange={() => {}}
-                          className="w-4 h-4"
-                        />
-                        <div className="flex-1">
-                          <p className="font-medium">{student.name}</p>
-                          <p className="text-sm text-gray-500">{student.parentPhone}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="manual" className="space-y-4">
-                <div className="space-y-3">
-                  {manualRecipients.map((recipient, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        placeholder="이름"
-                        value={recipient.name}
-                        onChange={(e) => updateManualRecipient(index, "name", e.target.value)}
-                        className="flex-1"
-                      />
-                      <Input
-                        placeholder="연락처 (010-0000-0000)"
-                        value={recipient.phone}
-                        onChange={(e) => updateManualRecipient(index, "phone", e.target.value)}
-                        className="flex-1"
-                      />
-                      {manualRecipients.length > 1 && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => removeManualRecipient(index)}
-                        >
-                          삭제
-                        </Button>
-                      )}
-                    </div>
+            {templateVariables.length > 0 && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm font-medium text-blue-900 mb-2">템플릿 변수</p>
+                <div className="flex flex-wrap gap-2">
+                  {templateVariables.map(varName => (
+                    <Badge key={varName} variant="secondary">
+                      #{varName}
+                    </Badge>
                   ))}
                 </div>
-                <Button onClick={addManualRecipient} variant="outline" className="w-full">
-                  수신자 추가
-                </Button>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-
-        {/* 메시지 작성 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>메시지 작성</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>제목 (선택)</Label>
-              <Input
-                placeholder="메시지 제목"
-                value={messageTitle}
-                onChange={(e) => setMessageTitle(e.target.value)}
-                maxLength={50}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {messageTitle.length}/50자
-              </p>
-            </div>
-            <div>
-              <Label>내용 *</Label>
-              <Textarea
-                placeholder="메시지 내용을 입력하세요"
-                value={messageContent}
-                onChange={(e) => setMessageContent(e.target.value)}
-                rows={8}
-                maxLength={1000}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {messageContent.length}/1,000자
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 발송 요약 */}
-        <Card className="border-2 border-orange-200 bg-orange-50">
-          <CardHeader>
-            <CardTitle className="text-orange-900">발송 요약</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-700">메시지 타입</span>
-              <Badge className="bg-yellow-500">카카오톡</Badge>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-700">수신자 수</span>
-              <span className="font-semibold">{getRecipientCount()}명</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-700">건당 비용</span>
-              <span className="font-semibold">{KAKAO_COST}P</span>
-            </div>
-            <div className="border-t pt-3 flex justify-between">
-              <span className="font-bold">총 차감 포인트</span>
-              <span className="font-bold text-orange-600 text-lg">{totalCost}P</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-700">발송 후 잔여 포인트</span>
-              <span
-                className={`font-semibold ${
-                  user && user.points >= totalCost ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {user ? user.points - totalCost : 0}P
-              </span>
-            </div>
-
-            {user && user.points < totalCost && (
-              <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-800">
-                <AlertCircle className="w-4 h-4 inline mr-1" />
-                포인트가 부족합니다.{" "}
-                <Button
-                  size="sm"
-                  variant="link"
-                  className="text-red-600 underline p-0 h-auto"
-                  onClick={() => router.push("/dashboard/point-charge")}
-                >
-                  포인트 충전하기
-                </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
 
+        {/* 2. 엑셀 파일 업로드 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>2. 수신자 엑셀 업로드</CardTitle>
+            <CardDescription>
+              전화번호와 변수 데이터가 포함된 엑셀 파일을 업로드하세요
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="excel-upload">엑셀 파일 (.xlsx, .xls)</Label>
+              <div className="flex items-center gap-4">
+                <Input
+                  id="excel-upload"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleExcelUpload}
+                  className="flex-1"
+                />
+                {excelFile && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setExcelFile(null);
+                      setRecipients([]);
+                      setColumnMapping({});
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {recipients.length > 0 && (
+              <div className="space-y-4">
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                    <p className="font-medium text-green-900">
+                      {recipients.length}명의 수신자 데이터 로드 완료
+                    </p>
+                  </div>
+                  <p className="text-sm text-green-700 mt-1">
+                    예상 비용: {totalCost} 포인트
+                  </p>
+                </div>
+
+                {/* 변수 매핑 */}
+                {templateVariables.length > 0 && (
+                  <div className="space-y-3">
+                    <Label>변수 매핑</Label>
+                    {templateVariables.map(varName => (
+                      <div key={varName} className="grid grid-cols-2 gap-4 items-center">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">#{varName}</Badge>
+                        </div>
+                        <Select
+                          value={columnMapping[varName] || ""}
+                          onValueChange={(val) => handleMappingChange(varName, val)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="엑셀 컬럼 선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {excelColumns.map(col => (
+                              <SelectItem key={col} value={col}>
+                                {col}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 3. 미리보기 */}
+        {previewMessage && (
+          <Card>
+            <CardHeader>
+              <CardTitle>3. 메시지 미리보기</CardTitle>
+              <CardDescription>첫 번째 수신자 데이터로 생성된 미리보기</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">
+                {previewMessage}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 4. 전송 버튼 */}
+        <Card>
+          <CardContent className="pt-6">
             <Button
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-              size="lg"
               onClick={handleSend}
-              disabled={
-                sending ||
-                !selectedKakaoChannel ||
-                !messageContent.trim() ||
-                getRecipientCount() === 0 ||
-                (user && user.points < totalCost)
-              }
+              disabled={sending || recipients.length === 0}
+              className="w-full"
+              size="lg"
             >
               {sending ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  발송 중...
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  전송 중...
                 </>
               ) : (
                 <>
-                  <Send className="w-4 h-4 mr-2" />
-                  카카오톡 발송
+                  <Send className="mr-2 h-5 w-5" />
+                  {recipients.length}명에게 알림톡 전송 ({totalCost} 포인트)
                 </>
               )}
             </Button>

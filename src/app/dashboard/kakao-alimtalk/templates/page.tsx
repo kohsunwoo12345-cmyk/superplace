@@ -53,7 +53,7 @@ export default function AlimtalkTemplatesPage() {
     }
 
     fetchTemplates();
-  }, [session, status, channelId]);
+  }, [user, authLoading, channelId]);
 
   const fetchTemplates = async () => {
     if (!user?.id) return;
