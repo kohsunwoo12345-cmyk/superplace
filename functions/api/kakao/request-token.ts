@@ -120,14 +120,14 @@ export async function onRequest(context: any) {
       signatureLength: signatureHex.length
     });
 
-    const response = await fetch('https://api.solapi.com/kakao/v2/plus-friends/request-token', {
+    const response = await fetch('https://api.solapi.com/kakao/v1/plus-friends/token', {
       method: 'POST',
       headers: {
         'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${dateTime}, salt=${salt}, signature=${signatureHex}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        plusFriendId: searchId,
+        searchId: searchId,
         phoneNumber: phoneNumber
       })
     });
