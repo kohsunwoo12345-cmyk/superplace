@@ -87,7 +87,7 @@ const HARDCODED_CATEGORIES: Category[] = [
 
 export default function KakaoChannelRegisterPage() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { user, loading: authLoading } = useKakaoAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>(HARDCODED_CATEGORIES);
