@@ -228,6 +228,16 @@ export default function AlimtalkTemplatesPage() {
     return <Badge variant="outline" className={config.class}>{config.label}</Badge>;
   };
 
+  const parseVariables = (variables: string): string[] => {
+    try {
+      if (!variables || variables === '') return [];
+      const parsed = JSON.parse(variables);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  };
+
   const filteredTemplates = templates.filter(template => {
     if (filterStatus && template.inspectionStatus !== filterStatus) return false;
     if (searchQuery && !template.templateName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -379,9 +389,9 @@ export default function AlimtalkTemplatesPage() {
                   </p>
                 </div>
 
-                {template.variables && JSON.parse(template.variables).length > 0 && (
+                {parseVariables(template.variables).length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {JSON.parse(template.variables).map((v: string, i: number) => (
+                    {parseVariables(template.variables).map((v: string, i: number) => (
                       <Badge key={i} variant="secondary" className="text-xs">
                         #{'{'}{ v}{'}'}
                       </Badge>
@@ -501,11 +511,11 @@ export default function AlimtalkTemplatesPage() {
                 </div>
               </div>
 
-              {previewTemplate.variables && JSON.parse(previewTemplate.variables).length > 0 && (
+              {parseVariables(previewTemplate.variables).length > 0 && (
                 <div>
                   <label className="text-sm font-semibold mb-2 block">변수</label>
                   <div className="flex flex-wrap gap-2">
-                    {JSON.parse(previewTemplate.variables).map((v: string, i: number) => (
+                    {parseVariables(previewTemplate.variables).map((v: string, i: number) => (
                       <Badge key={i} variant="secondary">
                         #{'{'}{ v}{'}'}
                       </Badge>
