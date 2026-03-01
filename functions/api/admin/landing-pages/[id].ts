@@ -29,11 +29,12 @@ function hashStringToInt(str: string): number {
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // 32비트 정수로 변환
+    hash = hash & hash;
   }
   return Math.abs(hash);
 }
 
+// GET - 랜딩페이지 조회
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
@@ -55,7 +56,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // ID 파라미터 추출
     const id = context.params.id as string;
 
     if (!id) {
@@ -67,32 +67,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     console.log('🔍 Fetching landing page:', id);
 
-    // 랜딩페이지 조회 - 새 스키마와 구 스키마 모두 지원
-    const query = `
-      SELECT 
-        id, slug, 
-        title, 
-        subtitle, 
-        description, 
-        COALESCE(templateType, template_type, 'basic') as templateType,
-        COALESCE(templateHtml, html_content) as templateHtml,
-        COALESCE(customFields, content_json) as customFields,
-        COALESCE(thumbnailUrl, thumbnail_url) as thumbnailUrl,
-        COALESCE(qrCodeUrl, qr_code_url) as qrCodeUrl,
-        COALESCE(metaTitle, og_title, title) as metaTitle,
-        COALESCE(metaDescription, og_description) as metaDescription,
-        metaKeywords,
-        COALESCE(views, view_count, 0) as views,
-        COALESCE(submissions, 0) as submissions,
-        COALESCE(isActive, CASE WHEN status = 'active' THEN 1 ELSE 0 END, 1) as isActive,
-        COALESCE(createdById, CAST(user_id AS TEXT)) as createdById,
-        COALESCE(createdAt, created_at) as createdAt,
-        COALESCE(updatedAt, updated_at) as updatedAt
-      FROM landing_pages
-      WHERE id = ?
-    `;
-
-    const result = await DB.prepare(query).bind(id).first();
+    // 구 스키마 직접 조회
+    const result = await DB.prepare(`SELECT * FROM landing_pages WHERE id = ?`).bind(id).first();
 
     if (!result) {
       console.error('❌ Landing page not found:', id);
@@ -102,16 +78,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    console.log('✅ Found landing page:', result.slug);
-
     // 권한 체크 (DIRECTOR는 자신의 페이지만 조회 가능)
     if (user.role === 'DIRECTOR') {
-      // 새 스키마와 구 스키마 모두 확인
       const userIdHash = hashStringToInt(user.id);
-      const createdByMatches = result.createdById === user.id || 
-                               String(result.createdById) === String(userIdHash);
-      
-      if (!createdByMatches) {
+      if (result.user_id !== userIdHash) {
         return new Response(JSON.stringify({ error: 'Forbidden' }), {
           status: 403,
           headers: { 'Content-Type': 'application/json' },
@@ -119,23 +89,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 응답 데이터 매핑 (프론트엔드 호환성)
+    // 응답 데이터 (구 스키마 그대로)
     const landingPage = {
       id: result.id,
       slug: result.slug,
       title: result.title,
-      subtitle: result.subtitle,
-      template_type: result.templateType,
-      html_content: result.templateHtml, // templateHtml을 html_content로 매핑
-      content_json: result.customFields, // customFields를 content_json으로 매핑
-      thumbnail_url: result.thumbnailUrl,
-      qr_code_url: result.qrCodeUrl,
-      og_title: result.metaTitle,
-      og_description: result.metaDescription,
-      status: result.isActive === 1 ? 'active' : 'inactive',
-      created_at: result.createdAt,
-      updated_at: result.updatedAt,
-      views: result.views
+      subtitle: result.subtitle || '',
+      template_type: result.template_type || 'basic',
+      html_content: result.html_content || '',
+      content_json: result.content_json || '{}',
+      thumbnail_url: result.thumbnail_url || null,
+      qr_code_url: result.qr_code_url || null,
+      og_title: result.og_title || result.title,
+      og_description: result.og_description || '',
+      status: result.status || 'active',
+      created_at: result.created_at,
+      updated_at: result.updated_at,
+      views: result.view_count || 0,
+      user_id: result.user_id
     };
 
     console.log('📤 Sending landing page data, html_content length:', landingPage.html_content?.length || 0);
@@ -165,6 +136,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 };
 
+// PUT - 랜딩페이지 수정
 export const onRequestPut: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
@@ -186,7 +158,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // ID 파라미터 추출
     const id = context.params.id as string;
 
     if (!id) {
@@ -196,14 +167,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 기존 페이지 조회 - 두 스키마 모두 지원
-    const existingPage = await DB.prepare(`
-      SELECT 
-        id, 
-        COALESCE(createdById, CAST(user_id AS TEXT)) as createdById
-      FROM landing_pages 
-      WHERE id = ?
-    `).bind(id).first();
+    // 기존 페이지 조회
+    const existingPage = await DB.prepare(`SELECT id, user_id FROM landing_pages WHERE id = ?`).bind(id).first();
 
     if (!existingPage) {
       return new Response(JSON.stringify({ error: 'Landing page not found' }), {
@@ -212,13 +177,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 권한 체크 (DIRECTOR는 자신의 페이지만 수정 가능)
+    // 권한 체크
     if (user.role === 'DIRECTOR') {
       const userIdHash = hashStringToInt(user.id);
-      const createdByMatches = existingPage.createdById === user.id || 
-                               String(existingPage.createdById) === String(userIdHash);
-      
-      if (!createdByMatches) {
+      if (existingPage.user_id !== userIdHash) {
         return new Response(JSON.stringify({ error: 'Forbidden' }), {
           status: 403,
           headers: { 'Content-Type': 'application/json' },
@@ -237,15 +199,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       thumbnail_url?: string;
     };
 
-    const {
-      title,
-      subtitle,
-      html_content,
-      og_title,
-      og_description,
-      status,
-      thumbnail_url,
-    } = body;
+    const { title, subtitle, html_content, og_title, og_description, status, thumbnail_url } = body;
 
     // 필수 필드 체크
     if (!title || !title.trim()) {
@@ -257,7 +211,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
     console.log('📝 Updating landing page:', id);
 
-    // 업데이트 쿼리 생성 - 새/구 스키마 모두 업데이트
+    // 업데이트 쿼리 생성
     const updateFields: string[] = [];
     const updateValues: any[] = [];
 
@@ -272,105 +226,73 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     }
 
     if (html_content) {
-      // 새 스키마와 구 스키마 모두 업데이트 시도
-      updateFields.push('templateHtml = ?'); 
-      updateFields.push('html_content = ?'); // 구 스키마 호환
-      updateValues.push(html_content);
+      updateFields.push('html_content = ?');
       updateValues.push(html_content);
     }
 
     if (og_title) {
-      updateFields.push('metaTitle = ?');
-      updateFields.push('og_title = ?'); // 구 스키마 호환
-      updateValues.push(og_title.trim());
+      updateFields.push('og_title = ?');
       updateValues.push(og_title.trim());
     }
 
     if (og_description !== undefined) {
-      updateFields.push('metaDescription = ?');
-      updateFields.push('og_description = ?'); // 구 스키마 호환
-      updateValues.push(og_description?.trim() || null);
+      updateFields.push('og_description = ?');
       updateValues.push(og_description?.trim() || null);
     }
 
     if (status) {
-      updateFields.push('isActive = ?');
-      updateFields.push('status = ?'); // 구 스키마 호환
-      const statusValue = status === 'active' ? 1 : 0;
-      updateValues.push(statusValue);
+      updateFields.push('status = ?');
       updateValues.push(status);
     }
 
     if (thumbnail_url !== undefined) {
-      updateFields.push('thumbnailUrl = ?');
-      updateFields.push('thumbnail_url = ?'); // 구 스키마 호환
-      updateValues.push(thumbnail_url?.trim() || null);
-      updateValues.push(thumbnail_url?.trim() || null);
+      updateFields.push('thumbnail_url = ?');
+      updateValues.push(thumbnail_url || null);
     }
 
-    // updatedAt/updated_at 모두 업데이트
-    updateFields.push('updatedAt = datetime(\'now\')');
-    updateFields.push('updated_at = datetime(\'now\')');
+    // updated_at 자동 업데이트
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
 
     // ID 추가
     updateValues.push(id);
 
-    const updateQuery = `
-      UPDATE landing_pages
-      SET ${updateFields.join(', ')}
-      WHERE id = ?
-    `;
+    const updateQuery = `UPDATE landing_pages SET ${updateFields.join(', ')} WHERE id = ?`;
 
     await DB.prepare(updateQuery).bind(...updateValues).run();
 
     console.log('✅ Landing page updated:', id);
 
-    // 업데이트된 페이지 조회 - 두 스키마 모두 지원
-    const updatedPage = await DB.prepare(`
-      SELECT 
-        id, slug, title, subtitle, description,
-        COALESCE(templateType, template_type, 'basic') as templateType,
-        COALESCE(templateHtml, html_content) as templateHtml,
-        COALESCE(customFields, content_json) as customFields,
-        COALESCE(thumbnailUrl, thumbnail_url) as thumbnailUrl,
-        COALESCE(qrCodeUrl, qr_code_url) as qrCodeUrl,
-        COALESCE(metaTitle, og_title, title) as metaTitle,
-        COALESCE(metaDescription, og_description) as metaDescription,
-        metaKeywords,
-        COALESCE(views, view_count, 0) as views,
-        COALESCE(submissions, 0) as submissions,
-        COALESCE(isActive, CASE WHEN status = 'active' THEN 1 ELSE 0 END, 1) as isActive,
-        COALESCE(createdById, CAST(user_id AS TEXT)) as createdById,
-        COALESCE(createdAt, created_at) as createdAt,
-        COALESCE(updatedAt, updated_at) as updatedAt
-      FROM landing_pages
-      WHERE id = ?
-    `).bind(id).first();
+    // 업데이트된 페이지 조회
+    const updatedPage = await DB.prepare(`SELECT * FROM landing_pages WHERE id = ?`).bind(id).first();
 
-    // 응답 데이터 매핑
-    const responseData = updatedPage ? {
+    if (!updatedPage) {
+      throw new Error('Failed to retrieve updated page');
+    }
+
+    // 응답 데이터
+    const landingPage = {
       id: updatedPage.id,
       slug: updatedPage.slug,
       title: updatedPage.title,
-      subtitle: updatedPage.subtitle,
-      template_type: updatedPage.templateType,
-      html_content: updatedPage.templateHtml,
-      content_json: updatedPage.customFields,
-      thumbnail_url: updatedPage.thumbnailUrl,
-      qr_code_url: updatedPage.qrCodeUrl,
-      og_title: updatedPage.metaTitle,
-      og_description: updatedPage.metaDescription,
-      status: updatedPage.isActive === 1 ? 'active' : 'inactive',
-      created_at: updatedPage.createdAt,
-      updated_at: updatedPage.updatedAt,
-      views: updatedPage.views
-    } : null;
+      subtitle: updatedPage.subtitle || '',
+      template_type: updatedPage.template_type || 'basic',
+      html_content: updatedPage.html_content || '',
+      content_json: updatedPage.content_json || '{}',
+      thumbnail_url: updatedPage.thumbnail_url || null,
+      qr_code_url: updatedPage.qr_code_url || null,
+      og_title: updatedPage.og_title || updatedPage.title,
+      og_description: updatedPage.og_description || '',
+      status: updatedPage.status || 'active',
+      created_at: updatedPage.created_at,
+      updated_at: updatedPage.updated_at,
+      views: updatedPage.view_count || 0,
+      user_id: updatedPage.user_id
+    };
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Landing page updated successfully',
-        landingPage: responseData,
+        landingPage: landingPage,
       }),
       {
         status: 200,
@@ -392,6 +314,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
   }
 };
 
+// DELETE - 랜딩페이지 삭제
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
@@ -413,7 +336,6 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // ID 파라미터 추출
     const id = context.params.id as string;
 
     if (!id) {
@@ -423,14 +345,8 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 기존 페이지 조회 - 두 스키마 모두 지원
-    const existingPage = await DB.prepare(`
-      SELECT 
-        id,
-        COALESCE(createdById, CAST(user_id AS TEXT)) as createdById
-      FROM landing_pages 
-      WHERE id = ?
-    `).bind(id).first();
+    // 기존 페이지 조회
+    const existingPage = await DB.prepare(`SELECT id, user_id FROM landing_pages WHERE id = ?`).bind(id).first();
 
     if (!existingPage) {
       return new Response(JSON.stringify({ error: 'Landing page not found' }), {
@@ -439,13 +355,10 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 권한 체크 (DIRECTOR는 자신의 페이지만 삭제 가능)
+    // 권한 체크
     if (user.role === 'DIRECTOR') {
       const userIdHash = hashStringToInt(user.id);
-      const createdByMatches = existingPage.createdById === user.id || 
-                               String(existingPage.createdById) === String(userIdHash);
-      
-      if (!createdByMatches) {
+      if (existingPage.user_id !== userIdHash) {
         return new Response(JSON.stringify({ error: 'Forbidden' }), {
           status: 403,
           headers: { 'Content-Type': 'application/json' },
@@ -453,10 +366,11 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 페이지 삭제
-    await DB.prepare('DELETE FROM landing_pages WHERE id = ?').bind(id).run();
+    console.log('🗑️ Deleting landing page:', id);
 
-    console.log('🗑️ Landing page deleted:', id);
+    await DB.prepare(`DELETE FROM landing_pages WHERE id = ?`).bind(id).run();
+
+    console.log('✅ Landing page deleted:', id);
 
     return new Response(
       JSON.stringify({
