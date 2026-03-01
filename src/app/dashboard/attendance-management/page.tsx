@@ -153,19 +153,28 @@ export default function AttendanceManagementPage() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* 헤더 */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          뒤로가기
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold">출석 관리</h1>
-          <p className="text-gray-600">학생들의 출석 상태를 수동으로 관리합니다</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            onClick={() => router.back()}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            뒤로가기
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">출석 관리</h1>
+            <p className="text-gray-600">학생들의 출석 상태를 수동으로 관리합니다</p>
+          </div>
         </div>
+        <Button
+          onClick={() => router.push('/attendance')}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+        >
+          <CheckCircle className="w-4 h-4" />
+          출석 페이지
+        </Button>
       </div>
 
       {/* 날짜 선택 */}
