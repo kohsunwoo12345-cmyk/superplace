@@ -133,12 +133,12 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     } catch (error: any) {
       console.log("⚠️ 신 스키마 실패, 구 스키마로 시도:", error.message);
       
-      // 구 스키마로 재시도 (id 없이)
+      // 구 스키마로 재시도 (user_id 추가)
       const insertResult = await db
         .prepare(`
           INSERT INTO landing_pages 
-          (slug, title, template_type, html_content, status) 
-          VALUES (?, ?, 'student_report', ?, 'active')
+          (slug, title, user_id, template_type, html_content, status) 
+          VALUES (?, ?, 1, 'student_report', ?, 'active')
         `)
         .bind(slug, title, htmlContent)
         .run();
