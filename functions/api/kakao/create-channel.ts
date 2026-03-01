@@ -110,9 +110,6 @@ export async function onRequest(context: any) {
       );
     }
 
-    // Create Authorization header (use btoa for Cloudflare Workers compatibility)
-    const authString = btoa(`${SOLAPI_API_KEY}:${SOLAPI_API_SECRET}`);
-
     console.log('📤 Creating channel with Solapi v2 API:', {
       searchId,
       phoneNumber: phoneNumber.substring(0, 3) + '****',
@@ -124,7 +121,7 @@ export async function onRequest(context: any) {
     const response = await fetch('https://api.solapi.com/kakao/v2/plus-friends', {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${authString}`,
+        'Authorization': `bearer ${SOLAPI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

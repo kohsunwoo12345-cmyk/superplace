@@ -56,9 +56,6 @@ export async function onRequest(context: any) {
       );
     }
 
-    // Create Authorization header (use btoa for Cloudflare Workers compatibility)
-    const authString = btoa(`${SOLAPI_API_KEY}:${SOLAPI_API_SECRET}`);
-
     console.log('📤 Sending alimtalk:', {
       channelId: solapiChannelId,
       templateCode,
@@ -75,7 +72,7 @@ export async function onRequest(context: any) {
         const response = await fetch('https://api.solapi.com/messages/v4/send', {
           method: 'POST',
           headers: {
-            'Authorization': `Basic ${authString}`,
+            'Authorization': `bearer ${SOLAPI_API_KEY}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
