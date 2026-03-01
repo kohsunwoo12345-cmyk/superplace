@@ -83,8 +83,8 @@ export async function onRequest(context: any) {
       );
     }
 
-    // Create Authorization header
-    const authString = Buffer.from(`${SOLAPI_API_KEY}:${SOLAPI_API_SECRET}`).toString('base64');
+    // Create Authorization header (use btoa for Cloudflare Workers compatibility)
+    const authString = btoa(`${SOLAPI_API_KEY}:${SOLAPI_API_SECRET}`);
 
     console.log('📤 Requesting token from Solapi:', {
       searchId,
