@@ -66,9 +66,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     console.log('🔍 Fetching landing page:', id);
+    console.log('🔍 User info:', { userId: user.id, role: user.role, email: user.email });
 
     // 구 스키마 직접 조회
     const result = await DB.prepare(`SELECT * FROM landing_pages WHERE id = ?`).bind(id).first();
+
+    console.log('📊 Query result:', result ? 'Found' : 'Not found');
+    
+    if (result) {
+      console.log('📊 Page data:', {
+        id: result.id,
+        slug: result.slug,
+        title: result.title,
+        user_id: result.user_id,
+        status: result.status
+      });
+    }
 
     if (!result) {
       console.error('❌ Landing page not found:', id);

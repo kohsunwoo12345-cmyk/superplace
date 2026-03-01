@@ -78,7 +78,9 @@ export default function EditLandingPagePage() {
         setOgDescription(page.og_description || "");
         setStatus(page.status || "active");
       } else {
-        alert("랜딩페이지를 불러올 수 없습니다.");
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error("❌ API 응답 오류:", response.status, errorData);
+        alert(`랜딩페이지를 불러올 수 없습니다.\n\n상태: ${response.status}\n오류: ${errorData.error || 'Unknown error'}`);
         router.push("/dashboard/admin/landing-pages");
       }
     } catch (error) {
