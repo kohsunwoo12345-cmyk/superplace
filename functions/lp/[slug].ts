@@ -28,7 +28,7 @@ export async function onRequest(context: {
       
       console.log("📊 테이블 내 해당 slug 개수:", simpleCheck?.count || 0);
       
-      // 전체 데이터 조회 (활성 상태 필터 제거)
+      // 전체 데이터 조회 (활성 상태 필터 제거, 구 스키마 우선)
       landingPage = await db
         .prepare(
           `SELECT 
@@ -41,11 +41,12 @@ export async function onRequest(context: {
             COALESCE(metaTitle, og_title, title) as metaTitle,
             COALESCE(metaDescription, og_description) as metaDescription,
             COALESCE(views, view_count, 0) as views,
-            COALESCE(isActive, CASE WHEN status = 'active' THEN 1 ELSE 0 END, 1) as isActive,
+            COALESCE(isActive, CASE WHEN status = 'active' THEN 1 WHEN status IS NULL THEN 1 ELSE 0 END, 1) as isActive,
             COALESCE(createdById, CAST(user_id AS TEXT)) as createdById,
             COALESCE(createdAt, created_at) as createdAt
           FROM landing_pages 
-          WHERE slug = ?`
+          WHERE slug = ? 
+          LIMIT 1`
         )
         .bind(slug)
         .first();
