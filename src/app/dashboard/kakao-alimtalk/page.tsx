@@ -121,6 +121,13 @@ export default function KakaoAlimtalkDashboard() {
       icon: History,
       href: '/dashboard/kakao-alimtalk/history',
       color: 'orange'
+    },
+    {
+      title: '예약 발송',
+      description: '예약된 발송 관리',
+      icon: Clock,
+      href: '/dashboard/kakao-alimtalk/scheduled',
+      color: 'indigo'
     }
   ];
 
@@ -129,7 +136,8 @@ export default function KakaoAlimtalkDashboard() {
       blue: 'from-blue-500 to-blue-600',
       green: 'from-green-500 to-green-600',
       purple: 'from-purple-500 to-purple-600',
-      orange: 'from-orange-500 to-orange-600'
+      orange: 'from-orange-500 to-orange-600',
+      indigo: 'from-indigo-500 to-indigo-600'
     };
     return colors[color] || colors.blue;
   };
