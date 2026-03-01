@@ -48,6 +48,8 @@ export async function onRequest(context: any) {
       hasSecret2: !!env.SOLAPI_API_SECRET,
       keyLength: SOLAPI_API_KEY ? SOLAPI_API_KEY.length : 0,
       secretLength: SOLAPI_API_SECRET ? SOLAPI_API_SECRET.length : 0,
+      keyFirst10: SOLAPI_API_KEY ? SOLAPI_API_KEY.substring(0, 10) : 'N/A',
+      secretFirst10: SOLAPI_API_SECRET ? SOLAPI_API_SECRET.substring(0, 10) : 'N/A',
       testMode: ENABLE_TEST_MODE
     });
 
