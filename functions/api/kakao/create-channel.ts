@@ -170,7 +170,17 @@ export async function onRequest(context: any) {
       data
     });
 
-    if (!response.ok) {
+    // Check if channel already exists in Solapi
+    const isAlreadyRegistered = 
+      !response.ok && 
+      (data.errorMessage?.includes('사용 중인') || 
+       data.errorMessage?.includes('이미') ||
+       data.errorCode === 'DuplicatePlusFriend' ||
+       data.errorCode === 'AlreadyRegistered');
+
+    // If it's "already registered" error, we still want to save it to our DB
+    if (!response.ok && !isAlreadyRegistered) {
+      // Real error - not just "already registered"
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -188,8 +198,26 @@ export async function onRequest(context: any) {
       );
     }
 
-    // Save to database
+    // Save to database (even if already registered in Solapi)
     const db = env.DB;
+    
+    // Check if already exists in our DB
+    const existing = await db.prepare(`
+      SELECT id FROM KakaoChannel WHERE searchId = ? AND userId = ?
+    `).bind(searchId, userId || 'anonymous').first();
+
+    if (existing) {
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          channel: existing,
+          message: '이미 등록된 채널입니다.',
+          alreadyInDB: true
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const channelId = `ch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date().toISOString();
 
@@ -215,7 +243,7 @@ export async function onRequest(context: any) {
       mainCategory,
       middleCategory,
       subCategory,
-      data.plusFriendId || data.id || null,
+      data.plusFriendId || data.id || searchId,
       now,
       now
     ).run();
@@ -230,7 +258,10 @@ export async function onRequest(context: any) {
         success: true,
         channel,
         solapiData: data,
-        message: '카카오 채널이 성공적으로 등록되었습니다.'
+        alreadyRegisteredInSolapi: isAlreadyRegistered,
+        message: isAlreadyRegistered 
+          ? '카카오 채널이 등록되었습니다. (Solapi에 이미 등록된 채널)'
+          : '카카오 채널이 성공적으로 등록되었습니다.'
       }),
       { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
