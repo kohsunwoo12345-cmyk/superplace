@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useKakaoAuth } from '@/hooks/useKakaoAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -29,31 +29,31 @@ interface KakaoChannel {
 
 export default function KakaoChannelListPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { user, loading: authLoading } = useKakaoAuth();
   const [channels, setChannels] = useState<KakaoChannel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === 'loading') return;
+    if (authLoading) return;
     
-    if (!session?.user?.id) {
+    if (!user?.id) {
       router.push('/login');
       return;
     }
 
     fetchChannels();
-  }, [session, status]);
+  }, [user, authLoading]);
 
   const fetchChannels = async () => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/kakao/channels?userId=${session.user.id}`);
+      const response = await fetch(`/api/kakao/channels?userId=${user.id}`);
       const data = await response.json();
 
       if (data.success) {
@@ -70,7 +70,7 @@ export default function KakaoChannelListPage() {
   };
 
   const handleDeleteChannel = async (channelId: string) => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
     if (!confirm('정말 이 채널을 삭제하시겠습니까? 연결된 템플릿도 사용할 수 없게 됩니다.')) {
       return;
@@ -80,7 +80,7 @@ export default function KakaoChannelListPage() {
       setDeletingId(channelId);
 
       const response = await fetch(
-        `/api/kakao/channels?channelId=${channelId}&userId=${session.user.id}`,
+        `/api/kakao/channels?channelId=${channelId}&userId=${user.id}`,
         { method: 'DELETE' }
       );
       const data = await response.json();
@@ -131,7 +131,7 @@ export default function KakaoChannelListPage() {
     }
   };
 
-  if (status === 'loading' || loading) {
+  if (authLoading || loading) {
     return (
       <div className="container mx-auto p-6 max-w-7xl">
         <div className="flex items-center justify-center h-64">

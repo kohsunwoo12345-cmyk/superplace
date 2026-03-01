@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useKakaoAuth } from '@/hooks/useKakaoAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -36,7 +36,7 @@ interface AlimtalkTemplate {
 export default function AlimtalkTemplatesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+  const { user, loading: authLoading } = useKakaoAuth();
   const [templates, setTemplates] = useState<AlimtalkTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,9 +45,9 @@ export default function AlimtalkTemplatesPage() {
   const channelId = searchParams.get('channelId');
 
   useEffect(() => {
-    if (status === 'loading') return;
+    if (authLoading) return;
     
-    if (!session?.user?.id) {
+    if (!user?.id) {
       router.push('/login');
       return;
     }
@@ -56,13 +56,13 @@ export default function AlimtalkTemplatesPage() {
   }, [session, status, channelId]);
 
   const fetchTemplates = async () => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
     try {
       setLoading(true);
       setError(null);
 
-      let url = `/api/kakao/templates?userId=${session.user.id}`;
+      let url = `/api/kakao/templates?userId=${user.id}`;
       if (channelId) {
         url += `&channelId=${channelId}`;
       }
@@ -84,7 +84,7 @@ export default function AlimtalkTemplatesPage() {
   };
 
   const handleRequestInspection = async (templateId: string) => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
     if (!confirm('검수를 요청하시겠습니까? 검수 승인까지 최대 3영업일이 소요됩니다.')) {
       return;
@@ -96,7 +96,7 @@ export default function AlimtalkTemplatesPage() {
       const response = await fetch('/api/kakao/templates/inspection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateId, userId: session.user.id }),
+        body: JSON.stringify({ templateId, userId: user.id }),
       });
       const data = await response.json();
 
@@ -115,7 +115,7 @@ export default function AlimtalkTemplatesPage() {
   };
 
   const handleCancelInspection = async (templateId: string) => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
     if (!confirm('검수 요청을 취소하시겠습니까?')) {
       return;
@@ -125,7 +125,7 @@ export default function AlimtalkTemplatesPage() {
       setActioningId(templateId);
 
       const response = await fetch(
-        `/api/kakao/templates/inspection?templateId=${templateId}&userId=${session.user.id}`,
+        `/api/kakao/templates/inspection?templateId=${templateId}&userId=${user.id}`,
         { method: 'DELETE' }
       );
       const data = await response.json();
@@ -145,7 +145,7 @@ export default function AlimtalkTemplatesPage() {
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
     if (!confirm('정말 이 템플릿을 삭제하시겠습니까? 되돌릴 수 없습니다.')) {
       return;
@@ -155,7 +155,7 @@ export default function AlimtalkTemplatesPage() {
       setActioningId(templateId);
 
       const response = await fetch(
-        `/api/kakao/templates?templateId=${templateId}&userId=${session.user.id}`,
+        `/api/kakao/templates?templateId=${templateId}&userId=${user.id}`,
         { method: 'DELETE' }
       );
       const data = await response.json();
@@ -208,7 +208,7 @@ export default function AlimtalkTemplatesPage() {
     }
   };
 
-  if (status === 'loading' || loading) {
+  if (authLoading || loading) {
     return (
       <div className="container mx-auto p-6 max-w-7xl">
         <div className="flex items-center justify-center h-64">
