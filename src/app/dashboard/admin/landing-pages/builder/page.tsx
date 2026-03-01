@@ -34,6 +34,7 @@ import {
   Code,
   RefreshCw,
 } from "lucide-react";
+import { STUDENT_GROWTH_REPORT_TEMPLATE } from "@/templates/student-growth-report";
 
 interface CustomField {
   id: string;
@@ -110,6 +111,29 @@ export default function LandingPageBuilderPage() {
     { type: "phone", label: "전화번호", icon: Phone },
     { type: "checkbox", label: "체크박스", icon: CheckSquare },
   ];
+
+  // 템플릿 HTML 가져오기
+  const getTemplateHtml = (templateType: string): string => {
+    if (templateType === "student_report") {
+      return STUDENT_GROWTH_REPORT_TEMPLATE;
+    }
+    return "";
+  };
+
+  // 템플릿 타입 변경 핸들러
+  const handleTemplateTypeChange = (templateType: string) => {
+    const updatedData = { ...data, template_type: templateType };
+    
+    // 학생 리포트 템플릿인 경우 자동으로 HTML 주입
+    if (templateType === "student_report") {
+      updatedData.template_html = STUDENT_GROWTH_REPORT_TEMPLATE;
+      console.log("✅ Student report template loaded, length:", STUDENT_GROWTH_REPORT_TEMPLATE.length);
+    } else {
+      updatedData.template_html = "";
+    }
+    
+    setData(updatedData);
+  };
 
   // 폴더 목록 불러오기
   useEffect(() => {
@@ -424,7 +448,7 @@ export default function LandingPageBuilderPage() {
                   {templateTypes.map((template) => (
                     <button
                       key={template.value}
-                      onClick={() => setData({ ...data, template_type: template.value })}
+                      onClick={() => handleTemplateTypeChange(template.value)}
                       className={`p-6 border-3 rounded-xl text-left transition-all hover:border-indigo-400 hover:shadow-lg ${
                         data.template_type === template.value
                           ? "border-indigo-600 bg-indigo-50 shadow-lg scale-105"
