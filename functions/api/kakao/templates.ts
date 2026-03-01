@@ -31,15 +31,23 @@ export async function onRequest(context: any) {
         );
       }
 
-      let query = 'SELECT * FROM AlimtalkTemplate WHERE userId = ?';
+      let query = `
+        SELECT 
+          t.*,
+          c.channelName,
+          c.solapiChannelId as channelSolapiId
+        FROM AlimtalkTemplate t
+        LEFT JOIN KakaoChannel c ON t.channelId = c.id
+        WHERE t.userId = ?
+      `;
       const params = [userId];
 
       if (channelId) {
-        query += ' AND channelId = ?';
+        query += ' AND t.channelId = ?';
         params.push(channelId);
       }
 
-      query += ' ORDER BY createdAt DESC';
+      query += ' ORDER BY t.createdAt DESC';
 
       const result = await db.prepare(query).bind(...params).all();
 

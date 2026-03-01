@@ -97,10 +97,15 @@ export default function AlimtalkTemplatesPage() {
       setError(null);
 
       // Fetch channels
-      const channelsRes = await fetch(`/api/kakao/channels?userId=${user.id}`);
-      const channelsData = await channelsRes.json();
-      if (channelsData.success) {
-        setChannels(channelsData.channels || []);
+      try {
+        const channelsRes = await fetch(`/api/kakao/channels?userId=${user.id}`);
+        const channelsData = await channelsRes.json();
+        if (channelsData.success) {
+          setChannels(channelsData.channels || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch channels:', err);
+        // Continue even if channels fail
       }
 
       // Fetch templates
@@ -110,16 +115,30 @@ export default function AlimtalkTemplatesPage() {
       }
       
       const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
 
       if (data.success) {
-        setTemplates(data.templates || []);
+        // Ensure all templates have valid data
+        const validTemplates = (data.templates || []).map((t: any) => ({
+          ...t,
+          variables: t.variables || '[]',
+          channelName: t.channelName || '알 수 없는 채널',
+          messageType: t.messageType || 'BA',
+          emphasizeType: t.emphasizeType || 'NONE',
+          inspectionStatus: t.inspectionStatus || 'PENDING'
+        }));
+        setTemplates(validTemplates);
       } else {
         setError(data.error || '템플릿을 불러오는데 실패했습니다.');
       }
     } catch (err: any) {
       console.error('Failed to fetch data:', err);
-      setError('데이터를 불러오는 중 오류가 발생했습니다.');
+      setError(`데이터를 불러오는 중 오류가 발생했습니다: ${err.message}`);
     } finally {
       setLoading(false);
     }
