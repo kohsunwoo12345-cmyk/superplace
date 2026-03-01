@@ -39,12 +39,30 @@ export async function onRequest(context: any) {
     const SOLAPI_API_SECRET = env.SOLAPI_API_Secret || env.SOLAPI_API_SECRET;
     const ENABLE_TEST_MODE = env.ENABLE_KAKAO_TEST_MODE === 'true';
 
+    // Debug logging
+    console.log('🔍 Environment check:', {
+      hasKey1: !!env.SOLAPI_API_Key,
+      hasKey2: !!env.SOLAPI_API_KEY,
+      hasSecret1: !!env.SOLAPI_API_Secret,
+      hasSecret2: !!env.SOLAPI_API_SECRET,
+      keyLength: SOLAPI_API_KEY ? SOLAPI_API_KEY.length : 0,
+      secretLength: SOLAPI_API_SECRET ? SOLAPI_API_SECRET.length : 0,
+      testMode: ENABLE_TEST_MODE
+    });
+
     if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
       if (!ENABLE_TEST_MODE) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Solapi credentials not configured. Set ENABLE_KAKAO_TEST_MODE=true to test without Solapi.' 
+            error: 'Solapi credentials not configured. Set ENABLE_KAKAO_TEST_MODE=true to test without Solapi.',
+            debug: {
+              hasKey1: !!env.SOLAPI_API_Key,
+              hasKey2: !!env.SOLAPI_API_KEY,
+              hasSecret1: !!env.SOLAPI_API_Secret,
+              hasSecret2: !!env.SOLAPI_API_SECRET,
+              envKeys: Object.keys(env).filter(k => k.includes('SOLAPI'))
+            }
           }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
