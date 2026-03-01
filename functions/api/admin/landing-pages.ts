@@ -81,24 +81,24 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
       // 관리자는 모든 랜딩페이지 조회
       query = `
         SELECT 
-          lp.id, lp.slug, lp.title, lp.created_at, lp.user_id,
+          lp.id, lp.slug, lp.title, lp.createdAt, lp.createdById,
           u.name as creatorName
         FROM landing_pages lp
-        LEFT JOIN User u ON lp.user_id = u.id
-        ORDER BY lp.id DESC
+        LEFT JOIN User u ON lp.createdById = u.id
+        ORDER BY lp.createdAt DESC
       `;
     } else if (role === 'DIRECTOR' || role === 'TEACHER') {
       // 학원장/교사는 자신이 만든 것만 조회
       query = `
         SELECT 
-          lp.id, lp.slug, lp.title, lp.created_at, lp.user_id,
+          lp.id, lp.slug, lp.title, lp.createdAt, lp.createdById,
           u.name as creatorName
         FROM landing_pages lp
-        LEFT JOIN User u ON lp.user_id = u.id
-        WHERE lp.user_id = ?
-        ORDER BY lp.id DESC
+        LEFT JOIN User u ON lp.createdById = u.id
+        WHERE lp.createdById = ?
+        ORDER BY lp.createdAt DESC
       `;
-      queryParams = [userIdForQuery];
+      queryParams = [userId]; // TEXT ID 직접 사용
     } else {
       return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
         status: 403,
@@ -363,13 +363,33 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 </html>`;
     }
 
-    // Insert landing page - 생성자의 실제 user.id 사용 (FK 제약 충족)
-    console.log("📝 Inserting landing page with user_id:", userIdForDb, "type:", typeof userIdForDb);
-    console.log("📝 Creator info:", { creatorUserId, userIdForDb, slug, title });
+    // Insert landing page - 올바른 스키마 사용
+    console.log("📝 Inserting landing page with createdById:", userIdOriginal);
+    console.log("📝 Slug:", slug, "Title:", title, "Template:", templateType);
     
     const insertResult = await db
-      .prepare(`INSERT INTO landing_pages (slug, title, user_id, template_type, content_json, html_content) VALUES (?, ?, ?, ?, ?, ?)`)
-      .bind(slug, title, userIdForDb, templateType || 'basic', defaultContentJson, htmlContent)
+      .prepare(`
+        INSERT INTO landing_pages 
+        (id, slug, title, subtitle, description, templateType, templateHtml, 
+         customFields, thumbnailUrl, qrCodeUrl, metaTitle, metaDescription, 
+         createdById, createdAt, updatedAt, isActive) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 1)
+      `)
+      .bind(
+        id,
+        slug,
+        title,
+        subtitle || null,
+        description || null,
+        templateType || 'basic',
+        htmlContent, // templateHtml
+        JSON.stringify(inputData || []), // customFields
+        thumbnail || null,
+        qrCodeUrl,
+        ogTitle || title,
+        ogDescription || null,
+        userIdOriginal // createdById (TEXT)
+      )
       .run();
 
     console.log("✅ Landing page inserted successfully");

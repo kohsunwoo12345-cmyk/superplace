@@ -14,50 +14,30 @@ export async function onRequest(context: {
 
     console.log("🔍 Trying to fetch landing page:", slug);
 
-    // Try multiple table name variations
+    // 올바른 스키마로 조회
     let landingPage = null;
-    let queryError = null;
     
-    // Try lowercase first  
     try {
-      console.log("🔍 Trying lowercase table: landing_pages");
+      console.log("🔍 Querying landing_pages table");
       landingPage = await db
         .prepare(
-          `SELECT * FROM landing_pages WHERE slug = ? AND status = 'active'`
+          `SELECT 
+            id, slug, title, subtitle, description, templateType,
+            templateHtml, customFields, thumbnailUrl, qrCodeUrl,
+            metaTitle, metaDescription, views, isActive,
+            createdById, createdAt
+          FROM landing_pages 
+          WHERE slug = ? AND isActive = 1`
         )
         .bind(slug)
         .first();
-      console.log("✅ Found with lowercase:", !!landingPage);
-    } catch (e1: any) {
-      console.log("❌ Lowercase failed:", e1.message);
-      queryError = e1.message;
-      
-      // Try uppercase
-      try {
-        console.log("🔍 Trying uppercase table: LandingPage");
-        landingPage = await db
-          .prepare(
-            `SELECT 
-              lp.*,
-              u.name as studentName,
-              f.name as folderName
-            FROM LandingPage lp
-            LEFT JOIN User u ON lp.studentId = u.id
-            LEFT JOIN LandingPageFolder f ON lp.folderId = f.id
-            WHERE lp.slug = ? AND lp.isActive = 1`
-          )
-          .bind(slug)
-          .first();
-        console.log("✅ Found with uppercase:", !!landingPage);
-      } catch (e2: any) {
-        console.log("❌ Uppercase also failed:", e2.message);
-        queryError = e2.message;
-      }
+      console.log("✅ Query result:", !!landingPage);
+    } catch (e: any) {
+      console.log("❌ Query failed:", e.message);
     }
 
     if (!landingPage) {
       console.log("❌ Landing page not found for slug:", slug);
-      console.log("❌ Query error:", queryError);
       return new Response(
         `<!DOCTYPE html>
 <html lang="ko">
@@ -88,32 +68,32 @@ export async function onRequest(context: {
       );
     }
 
-    // Check if html_content exists and use it
-    if (landingPage.html_content) {
-      console.log("✅ Using stored html_content");
+    // Check if templateHtml exists and use it
+    if (landingPage.templateHtml) {
+      console.log("✅ Using stored templateHtml");
       
       // Increment view count first
-      let currentViewCount = (landingPage.view_count || 0) + 1;
+      let currentViewCount = (landingPage.views || 0) + 1;
       try {
         await db
-          .prepare(`UPDATE landing_pages SET view_count = view_count + 1 WHERE slug = ?`)
+          .prepare(`UPDATE landing_pages SET views = views + 1 WHERE slug = ?`)
           .bind(slug)
           .run();
       } catch (e: any) {
         console.log("⚠️ Could not update view count:", e.message);
       }
       
-      // Get student data if user_id exists
+      // Get student data if createdById exists
       let studentData: any = null;
       let attendanceData: any = null;
       let homeworkData: any = null;
       let aiChatData: any = null;
       
-      if (landingPage.user_id) {
+      if (landingPage.createdById) {
         try {
           studentData = await db
             .prepare(`SELECT * FROM User WHERE id = ?`)
-            .bind(landingPage.user_id)
+            .bind(landingPage.createdById)
             .first();
           console.log("✅ Student data fetched:", studentData?.name);
         } catch (e: any) {
@@ -133,7 +113,7 @@ export async function onRequest(context: {
               WHERE studentId = ? 
               AND date >= date('now', '-90 days')
             `)
-            .bind(landingPage.user_id)
+            .bind(landingPage.createdById)
             .first();
           attendanceData = attendanceResult;
           console.log("✅ Attendance data fetched:", attendanceData);
@@ -152,7 +132,7 @@ export async function onRequest(context: {
               WHERE studentId = ? 
               AND createdAt >= datetime('now', '-90 days')
             `)
-            .bind(landingPage.user_id)
+            .bind(landingPage.createdById)
             .first();
           homeworkData = homeworkResult;
           console.log("✅ Homework data fetched:", homeworkData);
@@ -169,7 +149,7 @@ export async function onRequest(context: {
               WHERE userId = ? 
               AND createdAt >= datetime('now', '-90 days')
             `)
-            .bind(landingPage.user_id)
+            .bind(landingPage.createdById)
             .first();
           aiChatData = aiChatResult;
           console.log("✅ AI chat data fetched:", aiChatData);
@@ -179,7 +159,7 @@ export async function onRequest(context: {
       }
       
       // Replace variables in HTML
-      let html = landingPage.html_content as string;
+      let html = landingPage.templateHtml as string;
       
       // Calculate statistics
       const totalDays = attendanceData?.totalDays || 40;
