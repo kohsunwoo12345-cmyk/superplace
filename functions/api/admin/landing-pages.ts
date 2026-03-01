@@ -409,109 +409,73 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     });
     
     let insertResult: any = null;
+    let insertedId = id;
     
     try {
-      // 먼저 간단한 INSERT 시도 (최소 필수 컬럼만)
+      // 한 번에 모든 데이터 INSERT (신 스키마)
       console.log("📝 INSERT 실행 - createdById:", userIdOriginal);
       insertResult = await db
         .prepare(`
           INSERT INTO landing_pages 
-          (id, slug, title, createdById) 
-          VALUES (?, ?, ?, ?)
+          (id, slug, title, subtitle, description, templateType, templateHtml, 
+           customFields, thumbnailUrl, qrCodeUrl, metaTitle, metaDescription, 
+           isActive, createdById) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
         `)
-        .bind(id, slug, title, userIdOriginal)
+        .bind(
+          id, 
+          slug, 
+          title, 
+          subtitle || null,
+          description || null,
+          templateType || 'basic',
+          htmlContent || null,
+          (inputData && inputData.length > 0) ? JSON.stringify(inputData) : null,
+          thumbnail || null,
+          qrCodeUrl || null,
+          ogTitle || title,
+          ogDescription || description || null,
+          userIdOriginal
+        )
         .run();
       
-      console.log("✅ 기본 INSERT 성공");
+      console.log("✅ 신규 스키마 INSERT 성공");
       console.log("✅ insertResult:", JSON.stringify(insertResult));
       
-      // 이제 선택적 컬럼 업데이트 (존재하는 컬럼만)
-      const updates: string[] = [];
-      const updateValues: any[] = [];
-      
-      if (subtitle) {
-        updates.push('subtitle = ?');
-        updateValues.push(subtitle);
-      }
-      
-      if (description) {
-        updates.push('description = ?');
-        updateValues.push(description);
-      }
-      
-      if (templateType) {
-        updates.push('templateType = ?');
-        updateValues.push(templateType);
-      }
-      
-      if (htmlContent) {
-        updates.push('templateHtml = ?');
-        updateValues.push(htmlContent);
-      }
-      
-      if (inputData && inputData.length > 0) {
-        updates.push('customFields = ?');
-        updateValues.push(JSON.stringify(inputData));
-      }
-      
-      if (thumbnail) {
-        updates.push('thumbnailUrl = ?');
-        updateValues.push(thumbnail);
-      }
-      
-      if (qrCodeUrl) {
-        updates.push('qrCodeUrl = ?');
-        updateValues.push(qrCodeUrl);
-      }
-      
-      if (ogTitle) {
-        updates.push('metaTitle = ?');
-        updateValues.push(ogTitle);
-      }
-      
-      if (ogDescription) {
-        updates.push('metaDescription = ?');
-        updateValues.push(ogDescription);
-      }
-      
-      // 업데이트할 내용이 있으면 실행
-      if (updates.length > 0) {
-        updateValues.push(id);
-        const updateQuery = `UPDATE landing_pages SET ${updates.join(', ')} WHERE id = ?`;
-        await db.prepare(updateQuery).bind(...updateValues).run();
-        console.log("✅ Optional fields updated");
-      }
     } catch (error: any) {
-      console.error("❌ Insert failed:", error.message);
+      console.error("❌ 신규 스키마 INSERT 실패:", error.message);
+      console.error("❌ 에러 상세:", error.stack);
       
       // 구 스키마로 재시도
-      console.log("🔄 Trying legacy schema...");
+      console.log("🔄 구 스키마로 재시도...");
       try {
         insertResult = await db
           .prepare(`
             INSERT INTO landing_pages 
-            (slug, title, user_id, template_type, content_json, html_content) 
-            VALUES (?, ?, ?, ?, ?, ?)
+            (id, slug, title, user_id, template_type, content_json, html_content, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
           `)
           .bind(
+            id,
             slug,
             title,
             hashStringToInt(userIdOriginal),
             templateType || 'basic',
             JSON.stringify(inputData || []),
-            htmlContent
+            htmlContent || ''
           )
           .run();
-        console.log("✅ Legacy insert successful");
+        console.log("✅ 구 스키마 INSERT 성공");
       } catch (legacyError: any) {
-        console.error("❌ Legacy insert also failed:", legacyError.message);
-        throw new Error(`Failed to insert landing page: ${error.message}`);
+        console.error("❌ 구 스키마 INSERT도 실패:", legacyError.message);
+        console.error("❌ 구 스키마 에러 상세:", legacyError.stack);
+        throw new Error(`랜딩페이지 생성 실패: ${error.message}. 구 스키마 실패: ${legacyError.message}`);
       }
     }
 
-    console.log("✅ Landing page inserted successfully");
+    console.log("✅ 랜딩페이지 INSERT 완료");
     if (insertResult) {
-      console.log("📊 Insert result:", JSON.stringify(insertResult));
+      console.log("📊 INSERT 결과:", JSON.stringify(insertResult));
     }
 
     // Wait a tiny bit for consistency

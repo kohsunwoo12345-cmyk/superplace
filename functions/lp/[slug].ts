@@ -18,7 +18,17 @@ export async function onRequest(context: {
     let landingPage = null;
     
     try {
-      console.log("🔍 Querying landing_pages table with backward compatibility");
+      console.log("🔍 랜딩페이지 조회 시작:", slug);
+      
+      // 먼저 간단한 쿼리로 존재 여부 확인
+      const simpleCheck = await db
+        .prepare(`SELECT COUNT(*) as count FROM landing_pages WHERE slug = ?`)
+        .bind(slug)
+        .first();
+      
+      console.log("📊 테이블 내 해당 slug 개수:", simpleCheck?.count || 0);
+      
+      // 전체 데이터 조회 (활성 상태 필터 제거)
       landingPage = await db
         .prepare(
           `SELECT 
@@ -35,22 +45,25 @@ export async function onRequest(context: {
             COALESCE(createdById, CAST(user_id AS TEXT)) as createdById,
             COALESCE(createdAt, created_at) as createdAt
           FROM landing_pages 
-          WHERE slug = ? AND (isActive = 1 OR status = 'active')`
+          WHERE slug = ?`
         )
         .bind(slug)
         .first();
-      console.log("✅ Query result:", !!landingPage);
+      
+      console.log("✅ 쿼리 결과:", !!landingPage);
       if (landingPage) {
-        console.log("📊 Landing page data:", {
+        console.log("📊 랜딩페이지 데이터:", {
           slug: landingPage.slug,
           title: landingPage.title,
           hasTemplateHtml: !!landingPage.templateHtml,
           templateHtmlLength: landingPage.templateHtml?.length || 0,
-          createdById: landingPage.createdById
+          createdById: landingPage.createdById,
+          isActive: landingPage.isActive
         });
       }
     } catch (e: any) {
-      console.log("❌ Query failed:", e.message);
+      console.log("❌ 쿼리 실패:", e.message);
+      console.log("❌ 에러 상세:", e.stack);
     }
 
     if (!landingPage) {
