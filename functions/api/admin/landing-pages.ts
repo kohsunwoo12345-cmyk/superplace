@@ -73,43 +73,40 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     const userIdForQuery = hashStringToInt(String(userId));
     console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId, userIdHash: userIdForQuery, originalUserId: userId });
 
-    // 역할별 쿼리 생성 - 두 스키마 모두 지원
+    // 역할별 쿼리 생성 - 구 스키마 사용
     let query = '';
     let queryParams: any[] = [];
 
     if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
       // 관리자는 모든 랜딩페이지 조회
-      // 새 스키마(createdById)와 구 스키마(user_id) 모두 지원
       query = `
         SELECT 
-          lp.id, lp.slug, lp.title, 
-          COALESCE(lp.createdAt, lp.created_at) as createdAt,
-          COALESCE(lp.createdById, CAST(lp.user_id AS TEXT)) as createdById,
+          lp.id, lp.slug, lp.title, lp.created_at as createdAt,
+          lp.user_id as createdById,
           u.name as creatorName,
-          COALESCE(lp.views, lp.view_count, 0) as viewCount,
-          COALESCE(lp.isActive, CASE WHEN lp.status = 'active' THEN 1 ELSE 0 END, 1) as isActive
+          lp.view_count as viewCount,
+          CASE WHEN lp.status = 'active' THEN 1 ELSE 0 END as isActive
         FROM landing_pages lp
-        LEFT JOIN User u ON (lp.createdById = u.id OR CAST(lp.user_id AS TEXT) = u.id)
-        ORDER BY COALESCE(lp.createdAt, lp.created_at) DESC
+        LEFT JOIN User u ON CAST(lp.user_id AS TEXT) = u.id
+        ORDER BY lp.created_at DESC
       `;
     } else if (role === 'DIRECTOR' || role === 'TEACHER') {
       // 학원장/교사는 자신이 만든 것만 조회
-      // 새 스키마와 구 스키마 모두 확인
+      // user_id는 INTEGER이므로 해시값으로 비교
       const userIdHash = hashStringToInt(String(userId));
       query = `
         SELECT 
-          lp.id, lp.slug, lp.title,
-          COALESCE(lp.createdAt, lp.created_at) as createdAt,
-          COALESCE(lp.createdById, CAST(lp.user_id AS TEXT)) as createdById,
+          lp.id, lp.slug, lp.title, lp.created_at as createdAt,
+          lp.user_id as createdById,
           u.name as creatorName,
-          COALESCE(lp.views, lp.view_count, 0) as viewCount,
-          COALESCE(lp.isActive, CASE WHEN lp.status = 'active' THEN 1 ELSE 0 END, 1) as isActive
+          lp.view_count as viewCount,
+          CASE WHEN lp.status = 'active' THEN 1 ELSE 0 END as isActive
         FROM landing_pages lp
-        LEFT JOIN User u ON (lp.createdById = u.id OR CAST(lp.user_id AS TEXT) = u.id)
-        WHERE lp.createdById = ? OR lp.user_id = ?
-        ORDER BY COALESCE(lp.createdAt, lp.created_at) DESC
+        LEFT JOIN User u ON CAST(lp.user_id AS TEXT) = u.id
+        WHERE lp.user_id = ?
+        ORDER BY lp.created_at DESC
       `;
-      queryParams = [userId, userIdHash]; // TEXT ID와 해시 모두 검색
+      queryParams = [userIdHash];
     } else {
       return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
         status: 403,
@@ -446,23 +443,27 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       console.error("❌ 신규 스키마 INSERT 실패:", error.message);
       console.error("❌ 에러 상세:", error.stack);
       
-      // 구 스키마로 재시도
+      // 구 스키마로 재시도 (id 제거, AUTO INCREMENT)
       console.log("🔄 구 스키마로 재시도...");
       try {
         insertResult = await db
           .prepare(`
             INSERT INTO landing_pages 
-            (id, slug, title, user_id, template_type, content_json, html_content, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
+            (slug, title, user_id, template_type, content_json, html_content, 
+             qr_code_url, thumbnail_url, og_title, og_description, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
           `)
           .bind(
-            id,
             slug,
             title,
             hashStringToInt(userIdOriginal),
             templateType || 'basic',
             JSON.stringify(inputData || []),
-            htmlContent || ''
+            htmlContent || '',
+            qrCodeUrl || null,
+            thumbnail || null,
+            ogTitle || title,
+            ogDescription || description || null
           )
           .run();
         console.log("✅ 구 스키마 INSERT 성공");
