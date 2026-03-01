@@ -6,7 +6,7 @@ import { useKakaoAuth } from '@/hooks/useKakaoAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Plus, Trash2, CheckCircle, XCircle, Clock, ExternalLink, RefreshCw } from 'lucide-react';
+import { Loader2, Plus, Trash2, CheckCircle, XCircle, Clock, ExternalLink, RefreshCw, Send } from 'lucide-react';
 import Link from 'next/link';
 
 interface KakaoChannel {
@@ -294,6 +294,12 @@ export default function KakaoChannelListPage() {
                 </dl>
 
                 <div className="mt-6 flex gap-2">
+                  <Link href={`/dashboard/kakao-channel/send?channelId=${channel.id}`} className="flex-1">
+                    <Button className="w-full">
+                      <Send className="mr-2 h-4 w-4" />
+                      알림톡 발송
+                    </Button>
+                  </Link>
                   <Link href={`/dashboard/kakao-alimtalk/templates?channelId=${channel.id}`} className="flex-1">
                     <Button variant="outline" className="w-full">
                       템플릿 관리
