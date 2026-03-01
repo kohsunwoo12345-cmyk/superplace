@@ -1,437 +1,174 @@
-/**
- * 알림톡 템플릿 관리 API
- * POST /api/kakao/templates - 템플릿 생성
- * GET /api/kakao/templates?userId={userId}&channelId={channelId} - 템플릿 목록 조회
- * PUT /api/kakao/templates - 템플릿 수정
- * DELETE /api/kakao/templates?templateId={templateId}&userId={userId} - 템플릿 삭제
- */
+// Alimtalk Templates API
+export async function onRequest(context: any) {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const method = request.method;
 
-interface Env {
-  'SOLAPI_API_Key ': string;
-  SOLAPI_API_Secret?: string;
-  DB: any;
-}
+  // CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 
-interface Button {
-  buttonName: string;
-  buttonType: string;
-  linkMo?: string;
-  linkPc?: string;
-  linkAnd?: string;
-  linkIos?: string;
-}
+  // Handle OPTIONS
+  if (method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
 
-interface QuickReply {
-  name: string;
-  linkType: string;
-  linkMo?: string;
-  linkPc?: string;
-}
-
-/**
- * 템플릿 생성
- */
-export async function onRequestPost(context: { env: Env; request: Request }) {
   try {
-    const SOLAPI_API_Key = context.env['SOLAPI_API_Key '];
-    const SOLAPI_API_Secret = context.env.SOLAPI_API_Secret;
-    const DB = context.env.DB;
+    const db = env.DB;
 
-    if (!SOLAPI_API_Key) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'SOLAPI API credentials not configured' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    if (method === 'GET') {
+      // Get templates list
+      const userId = url.searchParams.get('userId');
+      const channelId = url.searchParams.get('channelId');
 
-    const body = await context.request.json();
-    const {
-      userId,
-      channelId,
-      solapiChannelId,
-      templateName,
-      content,
-      categoryCode,
-      buttons,
-      quickReplies,
-      messageType,
-      emphasizeType,
-      emphasizeTitle,
-      emphasizeSubTitle,
-    } = body;
-
-    console.log('📤 Creating Solapi template:', {
-      userId,
-      channelId,
-      templateName,
-      solapiChannelId,
-      categoryCode,
-      contentLength: content?.length,
-      hasButtons: !!buttons,
-      hasQuickReplies: !!quickReplies,
-    });
-
-    // 🔒 사용자 인증 필수 (보안)
-    if (!userId) {
-      console.error('❌ Missing userId - authentication required');
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Authentication required: userId is missing',
-        }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!channelId || !solapiChannelId || !templateName || !content || !categoryCode) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Required fields: channelId, solapiChannelId, templateName, content, categoryCode',
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 🔒 채널 소유권 검증 (사용자가 해당 채널의 소유자인지 확인)
-    if (DB) {
-      try {
-        const channelOwnership = await DB.prepare(`
-          SELECT id FROM KakaoChannel
-          WHERE id = ? AND userId = ?
-        `).bind(channelId, userId).first();
-
-        if (!channelOwnership) {
-          console.error('❌ Channel ownership verification failed:', {
-            channelId,
-            userId,
-          });
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: 'Channel not found or access denied. You can only create templates for your own channels.',
-            }),
-            { status: 403, headers: { 'Content-Type': 'application/json' } }
-          );
-        }
-
-        console.log('✅ Channel ownership verified:', { channelId, userId });
-      } catch (dbError) {
-        console.error('❌ Failed to verify channel ownership:', dbError);
+      if (!userId) {
         return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Failed to verify channel ownership',
-          }),
-          { status: 500, headers: { 'Content-Type': 'application/json' } }
+          JSON.stringify({ success: false, error: 'userId is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-    }
 
-    // Solapi REST API 직접 호출
-    const timestamp = new Date().toISOString();
-    const salt = Math.random().toString(36).substring(2);
-    const signature = await generateSignature(SOLAPI_API_Secret, timestamp, salt);
+      let query = 'SELECT * FROM AlimtalkTemplate WHERE userId = ?';
+      const params = [userId];
 
-    const requestBody: any = {
-      name: templateName,
-      content: content,
-      channelId: solapiChannelId,
-      categoryCode: categoryCode,
-    };
-
-    // 선택적 필드 추가
-    if (buttons && buttons.length > 0) {
-      requestBody.buttons = buttons;
-    }
-    if (quickReplies && quickReplies.length > 0) {
-      requestBody.quickReplies = quickReplies;
-    }
-    if (messageType) {
-      requestBody.messageType = messageType;
-    }
-    if (emphasizeType && emphasizeType !== 'NONE') {
-      requestBody.emphasizeType = emphasizeType;
-      if (emphasizeTitle) requestBody.emphasizeTitle = emphasizeTitle;
-      if (emphasizeSubTitle) requestBody.emphasizeSubTitle = emphasizeSubTitle;
-    }
-
-    console.log('📤 Solapi create template request:', {
-      url: 'https://api.solapi.com/kakao/v2/templates',
-      body: requestBody,
-    });
-
-    const response = await fetch('https://api.solapi.com/kakao/v2/templates', {
-      method: 'POST',
-      headers: {
-        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${timestamp}, salt=${salt}, signature=${signature}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('❌ Solapi template creation error:', {
-        status: response.status,
-        errorData,
-      });
-
-      let errorMessage = `Failed to create template: ${response.status}`;
-      try {
-        const errorJson = JSON.parse(errorData);
-        errorMessage = errorJson.errorMessage || errorJson.message || errorMessage;
-      } catch (e) {
-        // ignore parse error
+      if (channelId) {
+        query += ' AND channelId = ?';
+        params.push(channelId);
       }
 
+      query += ' ORDER BY createdAt DESC';
+
+      const result = await db.prepare(query).bind(...params).all();
+
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: errorMessage,
-          details: errorData,
+        JSON.stringify({ success: true, templates: result.results || [] }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } else if (method === 'POST') {
+      // Create new template
+      const body = await request.json();
+      const {
+        userId,
+        channelId,
+        templateName,
+        content,
+        categoryCode,
+        messageType,
+        emphasizeType,
+        buttons,
+        quickReplies,
+        variables
+      } = body;
+
+      if (!userId || !channelId || !templateName || !content) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Missing required fields: userId, channelId, templateName, content' 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Generate unique ID and template code
+      const id = `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const templateCode = `TPL_${Date.now()}`;
+      const now = new Date().toISOString();
+
+      await db.prepare(`
+        INSERT INTO AlimtalkTemplate (
+          id, userId, channelId, templateCode, templateName, content,
+          categoryCode, messageType, emphasizeType, buttons, quickReplies, variables,
+          status, inspectionStatus, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'PENDING', ?, ?)
+      `).bind(
+        id,
+        userId,
+        channelId,
+        templateCode,
+        templateName,
+        content,
+        categoryCode || null,
+        messageType || 'BA',
+        emphasizeType || 'NONE',
+        buttons ? JSON.stringify(buttons) : null,
+        quickReplies ? JSON.stringify(quickReplies) : null,
+        variables ? JSON.stringify(variables) : null,
+        now,
+        now
+      ).run();
+
+      // Fetch the created template
+      const template = await db.prepare(`
+        SELECT * FROM AlimtalkTemplate WHERE id = ?
+      `).bind(id).first();
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          template,
+          message: '템플릿이 생성되었습니다.' 
         }),
-        { status: response.status, headers: { 'Content-Type': 'application/json' } }
+        { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
 
-    const result = await response.json();
-    console.log('✅ Solapi template created:', result);
+    } else if (method === 'DELETE') {
+      // Delete template
+      const templateId = url.searchParams.get('templateId');
+      const userId = url.searchParams.get('userId');
 
-    // DB에 템플릿 정보 저장
-    if (DB) {
-      try {
-        const templateId = `tpl_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-        const solapiTemplateId = result.templateId || result.id || '';
-        const templateCode = result.templateCode || result.code || '';
-
-        // content에서 변수 추출 (#{변수명} 형식)
-        const variableMatches = content.match(/#\{([^}]+)\}/g) || [];
-        const variables = variableMatches.map((v: string) => v.slice(2, -1));
-
-        await DB.prepare(`
-          INSERT INTO KakaoAlimtalkTemplate (
-            id, userId, channelId, solapiChannelId, solapiTemplateId, 
-            templateCode, templateName, content, categoryCode,
-            messageType, emphasizeType, buttons, quickReplies, variables,
-            status, inspectionStatus, createdAt, updatedAt
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-        `).bind(
-          templateId,
-          userId,
-          channelId,
-          solapiChannelId,
-          solapiTemplateId,
-          templateCode,
-          templateName,
-          content,
-          categoryCode,
-          messageType || 'BA',
-          emphasizeType || 'NONE',
-          buttons ? JSON.stringify(buttons) : null,
-          quickReplies ? JSON.stringify(quickReplies) : null,
-          JSON.stringify(variables),
-          'PENDING',  // 초기 상태: 대기(검수 필요)
-          result.status || 'PENDING'
-        ).run();
-
-        console.log(`✅ Template saved to DB: ${templateId}`);
-      } catch (dbError) {
-        console.error('❌ Failed to save template to DB:', dbError);
-        // DB 저장 실패해도 Solapi 생성은 성공했으므로 계속 진행
+      if (!templateId || !userId) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'templateId and userId are required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-    }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: '템플릿이 성공적으로 생성되었습니다. 검수를 요청하세요.',
-        template: result,
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  } catch (error: any) {
-    console.error('❌ Error creating template:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to create template',
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-}
+      // Verify ownership
+      const template = await db.prepare(`
+        SELECT * FROM AlimtalkTemplate WHERE id = ? AND userId = ?
+      `).bind(templateId, userId).first();
 
-/**
- * 템플릿 목록 조회
- */
-export async function onRequestGet(context: { env: Env; request: Request }) {
-  try {
-    const DB = context.env.DB;
-
-    if (!DB) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Database not configured' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const url = new URL(context.request.url);
-    const userId = url.searchParams.get('userId');
-    const channelId = url.searchParams.get('channelId');
-
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'userId parameter is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    let query = `
-      SELECT 
-        id, userId, channelId, solapiChannelId, solapiTemplateId,
-        templateCode, templateName, content, categoryCode,
-        messageType, emphasizeType, buttons, quickReplies, variables,
-        status, inspectionStatus, approvedAt, rejectedReason,
-        createdAt, updatedAt
-      FROM KakaoAlimtalkTemplate
-      WHERE userId = ?
-    `;
-    const params: any[] = [userId];
-
-    if (channelId) {
-      query += ' AND channelId = ?';
-      params.push(channelId);
-    }
-
-    query += ' ORDER BY createdAt DESC';
-
-    const templates = await DB.prepare(query).bind(...params).all();
-
-    console.log(`✅ Found ${templates.results.length} templates for user ${userId}`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        templates: templates.results || [],
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  } catch (error: any) {
-    console.error('❌ Error fetching templates:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to fetch templates',
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-}
-
-/**
- * 템플릿 삭제
- */
-export async function onRequestDelete(context: { env: Env; request: Request }) {
-  try {
-    const SOLAPI_API_Key = context.env['SOLAPI_API_Key '];
-    const SOLAPI_API_Secret = context.env.SOLAPI_API_Secret;
-    const DB = context.env.DB;
-
-    if (!SOLAPI_API_Key || !DB) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'API credentials or database not configured' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const url = new URL(context.request.url);
-    const templateId = url.searchParams.get('templateId');
-    const userId = url.searchParams.get('userId');
-
-    if (!templateId || !userId) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'templateId and userId parameters are required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // DB에서 템플릿 정보 조회
-    const template = await DB.prepare(`
-      SELECT solapiTemplateId FROM KakaoAlimtalkTemplate
-      WHERE id = ? AND userId = ?
-    `).bind(templateId, userId).first();
-
-    if (!template || !template.solapiTemplateId) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Template not found or access denied' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Solapi에서 템플릿 삭제
-    const timestamp = new Date().toISOString();
-    const salt = Math.random().toString(36).substring(2);
-    const signature = await generateSignature(SOLAPI_API_Secret, timestamp, salt);
-
-    const response = await fetch(
-      `https://api.solapi.com/kakao/v2/templates/${template.solapiTemplateId}`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${timestamp}, salt=${salt}, signature=${signature}`,
-        },
+      if (!template) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Template not found or access denied' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-    );
 
-    if (!response.ok && response.status !== 404) {
-      console.error('❌ Solapi template deletion error:', response.status);
-      // Solapi 삭제 실패해도 DB에서는 삭제 처리
+      // Delete template
+      await db.prepare(`
+        DELETE FROM AlimtalkTemplate WHERE id = ? AND userId = ?
+      `).bind(templateId, userId).run();
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: '템플릿이 삭제되었습니다.' 
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } else {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Method not allowed' }),
+        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // DB에서 템플릿 삭제
-    await DB.prepare(`
-      DELETE FROM KakaoAlimtalkTemplate
-      WHERE id = ? AND userId = ?
-    `).bind(templateId, userId).run();
-
-    console.log(`✅ Template ${templateId} deleted`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Template deleted successfully',
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
   } catch (error: any) {
-    console.error('❌ Error deleting template:', error);
+    console.error('Templates API error:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to delete template',
+      JSON.stringify({ 
+        success: false, 
+        error: 'Internal server error',
+        details: error.message 
       }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-}
-
-async function generateSignature(secret: string, timestamp: string, salt: string): Promise<string> {
-  const message = timestamp + salt;
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const messageData = encoder.encode(message);
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-
-  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
-  return Array.from(new Uint8Array(signature))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
 }

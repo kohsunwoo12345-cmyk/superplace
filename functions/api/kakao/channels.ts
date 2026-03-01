@@ -1,144 +1,163 @@
-/**
- * 카카오톡 채널 목록 조회 API
- * GET /api/kakao/channels?userId={userId}
- */
+// Kakao Channel Management API
+export async function onRequest(context: any) {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const method = request.method;
 
-interface Env {
-  DB: any;
-}
+  // CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 
-export async function onRequestGet(context: { env: Env; request: Request }) {
-  try {
-    const DB = context.env.DB;
-
-    if (!DB) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Database not configured' 
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const url = new URL(context.request.url);
-    const userId = url.searchParams.get('userId');
-
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'userId parameter is required' 
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 사용자의 카카오 채널 목록 조회
-    const channels = await DB.prepare(`
-      SELECT 
-        id, userId, userName, phoneNumber, channelName, searchId,
-        categoryCode, mainCategory, middleCategory, subCategory,
-        businessNumber, solapiChannelId, status,
-        createdAt, updatedAt
-      FROM KakaoChannel
-      WHERE userId = ?
-      ORDER BY createdAt DESC
-    `).bind(userId).all();
-
-    console.log(`✅ Found ${channels.results.length} channels for user ${userId}`);
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        channels: channels.results || []
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  } catch (error: any) {
-    console.error('Error fetching channels:', error);
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message || 'Failed to fetch channels' 
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+  // Handle OPTIONS (preflight)
+  if (method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
-}
 
-/**
- * 카카오톡 채널 삭제 API
- * DELETE /api/kakao/channels?channelId={channelId}&userId={userId}
- */
-export async function onRequestDelete(context: { env: Env; request: Request }) {
   try {
-    const DB = context.env.DB;
+    const db = env.DB;
 
-    if (!DB) {
+    if (method === 'GET') {
+      // Get channels list
+      const userId = url.searchParams.get('userId');
+      
+      if (!userId) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'userId is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const result = await db.prepare(`
+        SELECT * FROM KakaoChannel 
+        WHERE userId = ? 
+        ORDER BY createdAt DESC
+      `).bind(userId).all();
+
+      return new Response(
+        JSON.stringify({ success: true, channels: result.results || [] }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } else if (method === 'POST') {
+      // Create new channel
+      const body = await request.json();
+      const {
+        userId,
+        userName,
+        channelName,
+        searchId,
+        phoneNumber,
+        categoryCode,
+        solapiChannelId
+      } = body;
+
+      if (!userId || !channelName || !searchId || !phoneNumber || !categoryCode) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Missing required fields: userId, channelName, searchId, phoneNumber, categoryCode' 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Generate unique ID
+      const id = `ch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const now = new Date().toISOString();
+
+      // Parse categoryCode (format: 00200020001)
+      // First 3 digits: main, next 3: middle, last 5: sub
+      const mainCategory = categoryCode.substring(0, 3);
+      const middleCategory = categoryCode.substring(3, 6);
+      const subCategory = categoryCode.substring(6, 11);
+
+      await db.prepare(`
+        INSERT INTO KakaoChannel (
+          id, userId, userName, phoneNumber, channelName, searchId,
+          categoryCode, mainCategory, middleCategory, subCategory,
+          solapiChannelId, status, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)
+      `).bind(
+        id, userId, userName || '', phoneNumber, channelName, searchId,
+        categoryCode, mainCategory, middleCategory, subCategory,
+        solapiChannelId || null, now, now
+      ).run();
+
+      // Fetch the created channel
+      const channel = await db.prepare(`
+        SELECT * FROM KakaoChannel WHERE id = ?
+      `).bind(id).first();
+
       return new Response(
         JSON.stringify({ 
-          success: false, 
-          error: 'Database not configured' 
+          success: true, 
+          channel,
+          message: '카카오 채널이 등록되었습니다.' 
         }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } else if (method === 'DELETE') {
+      // Delete channel
+      const channelId = url.searchParams.get('channelId');
+      const userId = url.searchParams.get('userId');
+
+      if (!channelId || !userId) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'channelId and userId are required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Verify ownership
+      const channel = await db.prepare(`
+        SELECT * FROM KakaoChannel WHERE id = ? AND userId = ?
+      `).bind(channelId, userId).first();
+
+      if (!channel) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Channel not found or access denied' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Delete channel
+      await db.prepare(`
+        DELETE FROM KakaoChannel WHERE id = ? AND userId = ?
+      `).bind(channelId, userId).run();
+
+      // Also delete related templates
+      await db.prepare(`
+        DELETE FROM AlimtalkTemplate WHERE channelId = ?
+      `).bind(channelId).run();
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: '채널이 삭제되었습니다.' 
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } else {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Method not allowed' }),
+        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const url = new URL(context.request.url);
-    const channelId = url.searchParams.get('channelId');
-    const userId = url.searchParams.get('userId');
-
-    if (!channelId || !userId) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'channelId and userId parameters are required' 
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 해당 채널이 사용자의 것인지 확인
-    const channel = await DB.prepare(`
-      SELECT id FROM KakaoChannel
-      WHERE id = ? AND userId = ?
-    `).bind(channelId, userId).first();
-
-    if (!channel) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Channel not found or access denied' 
-        }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 채널 삭제 (실제로는 status를 DELETED로 변경)
-    await DB.prepare(`
-      UPDATE KakaoChannel
-      SET status = 'DELETED', updatedAt = datetime('now')
-      WHERE id = ? AND userId = ?
-    `).bind(channelId, userId).run();
-
-    console.log(`✅ Channel ${channelId} deleted for user ${userId}`);
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Channel deleted successfully' 
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
   } catch (error: any) {
-    console.error('Error deleting channel:', error);
+    console.error('Kakao channels API error:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'Failed to delete channel' 
+        error: 'Internal server error',
+        details: error.message 
       }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 }
