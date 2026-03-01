@@ -117,9 +117,23 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
       });
     }
 
+    console.log('🔍 Executing query with params:', queryParams);
+    console.log('🔍 Query:', query);
+    
     const landingPages = await db.prepare(query).bind(...queryParams).all();
 
     console.log('📊 Found landing pages:', landingPages.results?.length || 0);
+    
+    // 디버깅: 첫 번째 결과 로깅
+    if (landingPages.results && landingPages.results.length > 0) {
+      console.log('📊 First result sample:', {
+        id: landingPages.results[0].id,
+        slug: landingPages.results[0].slug,
+        title: landingPages.results[0].title,
+        createdById: landingPages.results[0].createdById,
+        creatorName: landingPages.results[0].creatorName
+      });
+    }
 
     // Parse results
     const results = (landingPages.results || []).map((lp: any) => ({
@@ -195,7 +209,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
 
     const creatorUserId = user.id; // 생성자 ID (User.id는 TEXT!)
-    console.log('✅ Creator:', { id: creatorUserId, email: user.email, role: user.role, idType: typeof creatorUserId });
+    console.log('✅ Creator 정보:', { 
+      id: creatorUserId, 
+      email: user.email, 
+      role: user.role, 
+      academyId: user.academyId,
+      idType: typeof creatorUserId 
+    });
 
     // ⚠️ landing_pages.user_id가 INTEGER인 경우: TEXT ID를 숫자 해시로 변환
     // User.id (TEXT)를 간단한 해시 함수로 INTEGER로 변환
@@ -379,13 +399,20 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
 
     // Insert landing page - 실제 존재하는 컬럼만 사용
-    console.log("📝 Inserting landing page");
-    console.log("📝 Slug:", slug, "Title:", title, "Template:", templateType);
+    console.log("📝 랜딩페이지 생성 시작");
+    console.log("📝 데이터:", { 
+      id, 
+      slug, 
+      title, 
+      createdById: userIdOriginal,
+      templateType 
+    });
     
     let insertResult: any = null;
     
     try {
       // 먼저 간단한 INSERT 시도 (최소 필수 컬럼만)
+      console.log("📝 INSERT 실행 - createdById:", userIdOriginal);
       insertResult = await db
         .prepare(`
           INSERT INTO landing_pages 
@@ -395,7 +422,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         .bind(id, slug, title, userIdOriginal)
         .run();
       
-      console.log("✅ Basic insert successful");
+      console.log("✅ 기본 INSERT 성공");
+      console.log("✅ insertResult:", JSON.stringify(insertResult));
       
       // 이제 선택적 컬럼 업데이트 (존재하는 컬럼만)
       const updates: string[] = [];
