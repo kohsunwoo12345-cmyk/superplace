@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useKakaoAuth } from '@/hooks/useKakaoAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -211,8 +211,8 @@ export default function KakaoChannelRegisterPage() {
       const cleanSearchId = searchId.startsWith('@') ? searchId.substring(1) : searchId;
       
       const requestData = {
-        userId: session?.user?.id || 'anonymous',
-        userName: session?.user?.name || '알 수 없음',
+        userId: user?.id || 'anonymous',
+        userName: user?.name || '알 수 없음',
         channelName: channelName || cleanSearchId,
         searchId: cleanSearchId, 
         phoneNumber, 
