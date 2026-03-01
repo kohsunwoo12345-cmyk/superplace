@@ -13,6 +13,7 @@ export default function TemplateDebugPage() {
   const { user, loading: authLoading } = useKakaoAuth();
   
   const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [channelDebug, setChannelDebug] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,6 +25,58 @@ export default function TemplateDebugPage() {
       return;
     }
   }, [user, authLoading]);
+
+  const testChannelsAPI = async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      setChannelDebug(null);
+
+      const response = await fetch(`/api/kakao/channels?userId=${user.id}`);
+      
+      const debug: any = {
+        timestamp: new Date().toISOString(),
+        userId: user.id,
+        responseStatus: response.status,
+        responseOk: response.ok,
+        responseHeaders: Object.fromEntries(response.headers.entries())
+      };
+
+      let data;
+      try {
+        const text = await response.text();
+        debug.responseText = text.substring(0, 1000);
+        data = JSON.parse(text);
+        debug.parsedData = data;
+      } catch (e: any) {
+        debug.parseError = e.message;
+        setError(`Failed to parse response: ${e.message}`);
+        setChannelDebug(debug);
+        return;
+      }
+
+      if (data.success && data.channels) {
+        debug.channelsCount = data.channels.length;
+        debug.channels = data.channels;
+      } else {
+        debug.apiError = data.error || 'Unknown error';
+        setError(data.error || 'API returned error');
+      }
+
+      setChannelDebug(debug);
+    } catch (err: any) {
+      console.error('Channel debug test failed:', err);
+      setError(`Test failed: ${err.message}`);
+      setChannelDebug({
+        error: err.message,
+        stack: err.stack
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const testAPI = async () => {
     if (!user?.id) return;
@@ -122,6 +175,17 @@ export default function TemplateDebugPage() {
         </CardContent>
       </Card>
 
+      <Button onClick={testChannelsAPI} disabled={loading} className="mb-6 mr-4">
+        {loading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            테스트 중...
+          </>
+        ) : (
+          '채널 API 테스트'
+        )}
+      </Button>
+
       <Button onClick={testAPI} disabled={loading} className="mb-6">
         {loading ? (
           <>
@@ -129,7 +193,7 @@ export default function TemplateDebugPage() {
             테스트 중...
           </>
         ) : (
-          'API 테스트 실행'
+          '템플릿 API 테스트'
         )}
       </Button>
 
@@ -141,10 +205,23 @@ export default function TemplateDebugPage() {
         </Alert>
       )}
 
+      {channelDebug && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>채널 API 디버그 정보</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="bg-gray-100 p-4 rounded overflow-auto max-h-[600px] text-xs">
+              {JSON.stringify(channelDebug, null, 2)}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
+
       {debugInfo && (
         <Card>
           <CardHeader>
-            <CardTitle>디버그 정보</CardTitle>
+            <CardTitle>템플릿 API 디버그 정보</CardTitle>
           </CardHeader>
           <CardContent>
             <pre className="bg-gray-100 p-4 rounded overflow-auto max-h-[600px] text-xs">
