@@ -69,10 +69,38 @@ export async function onRequest(context: any) {
 
     for (const message of messages) {
       try {
+        // Create HMAC signature for each request
+        const now = new Date();
+        const kstOffset = 9 * 60; // KST is UTC+9
+        const kstDate = new Date(now.getTime() + (kstOffset - now.getTimezoneOffset()) * 60000);
+        const date = kstDate.toISOString()
+          .replace('T', ' ')
+          .substring(0, 19); // YYYY-MM-DD HH:mm:ss
+        const salt = (Math.random() + 1).toString(36).substring(2, 9);
+        const hmacData = date + salt;
+        
+        // Create signature using Web Crypto API
+        const encoder = new TextEncoder();
+        const keyData = encoder.encode(SOLAPI_API_SECRET);
+        const messageData = encoder.encode(hmacData);
+        
+        const cryptoKey = await crypto.subtle.importKey(
+          'raw',
+          keyData,
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
+          ['sign']
+        );
+        
+        const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+        const signatureHex = Array.from(new Uint8Array(signature))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+
         const response = await fetch('https://api.solapi.com/messages/v4/send', {
           method: 'POST',
           headers: {
-            'Authorization': `bearer ${SOLAPI_API_KEY}`,
+            'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signatureHex}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
