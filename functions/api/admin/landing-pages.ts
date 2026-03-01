@@ -382,9 +382,11 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     console.log("📝 Inserting landing page");
     console.log("📝 Slug:", slug, "Title:", title, "Template:", templateType);
     
+    let insertResult: any = null;
+    
     try {
       // 먼저 간단한 INSERT 시도 (최소 필수 컬럼만)
-      const insertResult = await db
+      insertResult = await db
         .prepare(`
           INSERT INTO landing_pages 
           (id, slug, title, createdById) 
@@ -457,7 +459,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       // 구 스키마로 재시도
       console.log("🔄 Trying legacy schema...");
       try {
-        await db
+        insertResult = await db
           .prepare(`
             INSERT INTO landing_pages 
             (slug, title, user_id, template_type, content_json, html_content) 
@@ -480,7 +482,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
 
     console.log("✅ Landing page inserted successfully");
-    console.log("📊 Insert result:", JSON.stringify(insertResult));
+    if (insertResult) {
+      console.log("📊 Insert result:", JSON.stringify(insertResult));
+    }
 
     // Wait a tiny bit for consistency
     await new Promise(resolve => setTimeout(resolve, 100));
