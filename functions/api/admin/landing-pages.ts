@@ -378,34 +378,106 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 </html>`;
     }
 
-    // Insert landing page - 올바른 스키마 사용
-    console.log("📝 Inserting landing page with createdById:", userIdOriginal);
+    // Insert landing page - 실제 존재하는 컬럼만 사용
+    console.log("📝 Inserting landing page");
     console.log("📝 Slug:", slug, "Title:", title, "Template:", templateType);
     
-    const insertResult = await db
-      .prepare(`
-        INSERT INTO landing_pages 
-        (id, slug, title, subtitle, description, templateType, templateHtml, 
-         customFields, thumbnailUrl, qrCodeUrl, metaTitle, metaDescription, 
-         createdById, createdAt, updatedAt, isActive) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 1)
-      `)
-      .bind(
-        id,
-        slug,
-        title,
-        subtitle || null,
-        description || null,
-        templateType || 'basic',
-        htmlContent, // templateHtml
-        JSON.stringify(inputData || []), // customFields
-        thumbnail || null,
-        qrCodeUrl,
-        ogTitle || title,
-        ogDescription || null,
-        userIdOriginal // createdById (TEXT)
-      )
-      .run();
+    try {
+      // 먼저 간단한 INSERT 시도 (최소 필수 컬럼만)
+      const insertResult = await db
+        .prepare(`
+          INSERT INTO landing_pages 
+          (id, slug, title, createdById) 
+          VALUES (?, ?, ?, ?)
+        `)
+        .bind(id, slug, title, userIdOriginal)
+        .run();
+      
+      console.log("✅ Basic insert successful");
+      
+      // 이제 선택적 컬럼 업데이트 (존재하는 컬럼만)
+      const updates: string[] = [];
+      const updateValues: any[] = [];
+      
+      if (subtitle) {
+        updates.push('subtitle = ?');
+        updateValues.push(subtitle);
+      }
+      
+      if (description) {
+        updates.push('description = ?');
+        updateValues.push(description);
+      }
+      
+      if (templateType) {
+        updates.push('templateType = ?');
+        updateValues.push(templateType);
+      }
+      
+      if (htmlContent) {
+        updates.push('templateHtml = ?');
+        updateValues.push(htmlContent);
+      }
+      
+      if (inputData && inputData.length > 0) {
+        updates.push('customFields = ?');
+        updateValues.push(JSON.stringify(inputData));
+      }
+      
+      if (thumbnail) {
+        updates.push('thumbnailUrl = ?');
+        updateValues.push(thumbnail);
+      }
+      
+      if (qrCodeUrl) {
+        updates.push('qrCodeUrl = ?');
+        updateValues.push(qrCodeUrl);
+      }
+      
+      if (ogTitle) {
+        updates.push('metaTitle = ?');
+        updateValues.push(ogTitle);
+      }
+      
+      if (ogDescription) {
+        updates.push('metaDescription = ?');
+        updateValues.push(ogDescription);
+      }
+      
+      // 업데이트할 내용이 있으면 실행
+      if (updates.length > 0) {
+        updateValues.push(id);
+        const updateQuery = `UPDATE landing_pages SET ${updates.join(', ')} WHERE id = ?`;
+        await db.prepare(updateQuery).bind(...updateValues).run();
+        console.log("✅ Optional fields updated");
+      }
+    } catch (error: any) {
+      console.error("❌ Insert failed:", error.message);
+      
+      // 구 스키마로 재시도
+      console.log("🔄 Trying legacy schema...");
+      try {
+        await db
+          .prepare(`
+            INSERT INTO landing_pages 
+            (slug, title, user_id, template_type, content_json, html_content) 
+            VALUES (?, ?, ?, ?, ?, ?)
+          `)
+          .bind(
+            slug,
+            title,
+            hashStringToInt(userIdOriginal),
+            templateType || 'basic',
+            JSON.stringify(inputData || []),
+            htmlContent
+          )
+          .run();
+        console.log("✅ Legacy insert successful");
+      } catch (legacyError: any) {
+        console.error("❌ Legacy insert also failed:", legacyError.message);
+        throw new Error(`Failed to insert landing page: ${error.message}`);
+      }
+    }
 
     console.log("✅ Landing page inserted successfully");
     console.log("📊 Insert result:", JSON.stringify(insertResult));
