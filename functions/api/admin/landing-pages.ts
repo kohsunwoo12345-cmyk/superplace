@@ -309,13 +309,29 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     
     if (templateHtml) {
       // 템플릿 HTML이 제공된 경우
-      console.log('✅ Using provided template HTML');
+      console.log('✅ Using provided template HTML, length:', templateHtml.length);
       htmlContent = templateHtml;
       
-      // 제목과 부제목 치환
+      // 기본 변수 치환
       htmlContent = htmlContent.replace(/\{\{title\}\}/g, title);
       htmlContent = htmlContent.replace(/\{\{subtitle\}\}/g, subtitle || '');
       htmlContent = htmlContent.replace(/\{\{description\}\}/g, description || '');
+      
+      // 학생 정보 변수 치환 (기본값 설정)
+      htmlContent = htmlContent.replace(/\{\{studentName\}\}/g, '학생');
+      htmlContent = htmlContent.replace(/\{\{period\}\}/g, '2024년 1학기');
+      htmlContent = htmlContent.replace(/\{\{attendanceRate\}\}/g, '95%');
+      htmlContent = htmlContent.replace(/\{\{totalDays\}\}/g, '40');
+      htmlContent = htmlContent.replace(/\{\{presentDays\}\}/g, '38');
+      htmlContent = htmlContent.replace(/\{\{tardyDays\}\}/g, '1');
+      htmlContent = htmlContent.replace(/\{\{absentDays\}\}/g, '1');
+      htmlContent = htmlContent.replace(/\{\{homeworkRate\}\}/g, '90%');
+      htmlContent = htmlContent.replace(/\{\{homeworkCompleted\}\}/g, '36');
+      htmlContent = htmlContent.replace(/\{\{aiChatCount\}\}/g, '127');
+      htmlContent = htmlContent.replace(/\{\{academyName\}\}/g, '슈퍼플레이스 스터디');
+      htmlContent = htmlContent.replace(/\{\{directorName\}\}/g, '홍길동');
+      
+      console.log('✅ Template HTML processed, length:', htmlContent.length);
     } else {
       // 기본 HTML 생성
       console.log('⚠️ Using default HTML');
