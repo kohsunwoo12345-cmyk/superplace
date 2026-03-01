@@ -49,55 +49,143 @@ export async function onRequest(context: any) {
       );
 
     } else if (method === 'POST') {
-      // Create new template
+      // Create new template and register with Solapi
       const body = await request.json();
       const {
         userId,
         channelId,
+        solapiChannelId,
+        templateCode,
         templateName,
         content,
-        categoryCode,
+        extra,
         messageType,
         emphasizeType,
+        securityFlag,
         buttons,
-        quickReplies,
+        inspectorComment,
         variables
       } = body;
 
-      if (!userId || !channelId || !templateName || !content) {
+      if (!userId || !channelId || !solapiChannelId || !templateName || !content) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Missing required fields: userId, channelId, templateName, content' 
+            error: 'Missing required fields: userId, channelId, solapiChannelId, templateName, content' 
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Generate unique ID and template code
+      // Get Solapi credentials
+      const SOLAPI_API_KEY = env['SOLAPI_API_Key '] || env.SOLAPI_API_Key || env.SOLAPI_API_KEY;
+      const SOLAPI_API_SECRET = env.SOLAPI_API_Secret || env.SOLAPI_API_SECRET;
+
+      if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Solapi credentials not configured' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Generate unique template code if not provided
+      const finalTemplateCode = templateCode || `TPL_${Date.now()}`;
+
+      // Create HMAC signature for Solapi API
+      const dateTime = new Date().toISOString();
+      const salt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const hmacData = dateTime + salt;
+      
+      const encoder = new TextEncoder();
+      const keyData = encoder.encode(SOLAPI_API_SECRET);
+      const messageData = encoder.encode(hmacData);
+      
+      const cryptoKey = await crypto.subtle.importKey(
+        'raw',
+        keyData,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      
+      const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+      const signatureHex = Array.from(new Uint8Array(signature))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      // Prepare Solapi request body
+      const solapiBody: any = {
+        plusFriendId: solapiChannelId,
+        templateCode: finalTemplateCode,
+        templateName,
+        content,
+        messageType: messageType || 'BA',
+        securityFlag: securityFlag || false
+      };
+
+      if (extra) solapiBody.extra = extra;
+      if (emphasizeType && emphasizeType !== 'NONE') solapiBody.emphasizeType = emphasizeType;
+      if (buttons && buttons.length > 0) solapiBody.buttons = buttons;
+      if (inspectorComment) solapiBody.comments = [{ name: '검수자 참고', content: inspectorComment }];
+
+      console.log('📤 Registering template with Solapi:', {
+        ...solapiBody,
+        plusFriendId: solapiChannelId.substring(0, 10) + '...'
+      });
+
+      // Register template with Solapi
+      const solapiResponse = await fetch('https://api.solapi.com/kakao/v1/alimtalk/templates', {
+        method: 'POST',
+        headers: {
+          'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${dateTime}, salt=${salt}, signature=${signatureHex}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(solapiBody)
+      });
+
+      const solapiData = await solapiResponse.json();
+
+      console.log('📥 Solapi template registration response:', {
+        status: solapiResponse.status,
+        ok: solapiResponse.ok,
+        data: solapiData
+      });
+
+      if (!solapiResponse.ok) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: solapiData.errorMessage || 'Failed to register template with Solapi',
+            details: solapiData
+          }),
+          { status: solapiResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Save to database
       const id = `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const templateCode = `TPL_${Date.now()}`;
       const now = new Date().toISOString();
 
       await db.prepare(`
         INSERT INTO AlimtalkTemplate (
           id, userId, channelId, templateCode, templateName, content,
           categoryCode, messageType, emphasizeType, buttons, quickReplies, variables,
-          status, inspectionStatus, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'PENDING', ?, ?)
+          solapiTemplateId, status, inspectionStatus, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'PENDING', ?, ?)
       `).bind(
         id,
         userId,
         channelId,
-        templateCode,
+        finalTemplateCode,
         templateName,
         content,
-        categoryCode || null,
+        null,
         messageType || 'BA',
         emphasizeType || 'NONE',
         buttons ? JSON.stringify(buttons) : null,
-        quickReplies ? JSON.stringify(quickReplies) : null,
+        null,
         variables ? JSON.stringify(variables) : null,
+        solapiData.templateId || solapiData.id || null,
         now,
         now
       ).run();
@@ -111,7 +199,8 @@ export async function onRequest(context: any) {
         JSON.stringify({ 
           success: true, 
           template,
-          message: '템플릿이 생성되었습니다.' 
+          solapiData,
+          message: '템플릿이 Solapi에 등록되었습니다. 카카오 검수 완료 후 사용 가능합니다.' 
         }),
         { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
