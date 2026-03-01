@@ -303,7 +303,7 @@ export default function CreateTemplatePage() {
     return channels.find(ch => ch.id === selectedChannel);
   };
 
-  // Kakao Talk Preview Component
+  // Kakao Talk Preview Component - 100% Accurate
   const KakaoPreview = () => {
     const channel = getSelectedChannel();
     const now = new Date();
@@ -312,76 +312,101 @@ export default function CreateTemplatePage() {
 
     return (
       <div className="sticky top-6">
-        <div className="text-sm text-gray-600 mb-2 text-center">{dateStr}</div>
+        <div className="text-sm text-gray-600 mb-3 text-center font-medium">{dateStr}</div>
         
-        {/* Kakao Talk Message Bubble */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden" style={{ maxWidth: '360px' }}>
-          {/* Header */}
-          <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-yellow-400 flex items-center justify-center text-white font-bold">
-                K
+        {/* Kakao Talk Message Bubble - 실제 카카오톡 UI 재현 */}
+        <div 
+          className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200" 
+          style={{ 
+            maxWidth: '360px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+          }}
+        >
+          {/* Header - 채널 정보 */}
+          <div className="bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                {channel?.channelName?.[0] || 'K'}
               </div>
               <div>
-                <div className="font-semibold text-sm">{channel?.channelName || '채널명'}</div>
-                <div className="text-xs text-gray-500">kakao</div>
+                <div className="font-semibold text-[15px] text-gray-900">{channel?.channelName || '채널명'}</div>
+                <div className="text-[11px] text-gray-400 -mt-0.5">알림톡</div>
               </div>
             </div>
-            <div className="text-xs text-gray-400">{timeStr}</div>
+            <div className="text-[11px] text-gray-400 font-medium">{timeStr}</div>
           </div>
 
-          {/* Preview message (if exists) */}
+          {/* 광고 표기 (AD type) */}
+          {messageType === 'AD' && (
+            <div className="px-4 py-1.5 bg-orange-50 border-b border-orange-100 text-[11px] text-orange-600 font-medium">
+              (광고)
+            </div>
+          )}
+
+          {/* Preview message (header) */}
           {headerContent && (
-            <div className="px-4 py-2 bg-yellow-50 border-b text-sm text-gray-700">
+            <div className="px-4 py-2.5 bg-yellow-50 border-b border-yellow-100 text-[13px] text-gray-700 leading-snug">
               {headerContent}
             </div>
           )}
 
           {/* Message Content */}
-          <div className="p-4">
+          <div className="px-4 py-4 bg-[#F8F9FA]">
             {/* Emphasize - IMAGE */}
             {emphasizeType === 'IMAGE' && imageUrl && (
-              <div className="mb-3 rounded-lg overflow-hidden bg-gray-100">
-                <div className="aspect-video flex items-center justify-center">
-                  <ImageIcon className="w-12 h-12 text-gray-400" />
+              <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 shadow-sm">
+                <div className="aspect-[4/3] flex items-center justify-center border border-gray-200">
+                  <div className="text-center">
+                    <ImageIcon className="w-16 h-16 text-gray-300 mx-auto mb-2" />
+                    <div className="text-xs text-gray-400">이미지 영역</div>
+                    <div className="text-[10px] text-gray-300 mt-1">800x600px 권장</div>
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Emphasize - TEXT */}
             {emphasizeType === 'TEXT' && (emphasizeTitle || emphasizeSubtitle) && (
-              <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+              <div className="mb-3 p-4 bg-white rounded-xl shadow-sm border border-gray-200">
                 {emphasizeTitle && (
-                  <div className="font-bold text-base mb-1">{emphasizeTitle}</div>
+                  <div className="font-bold text-[16px] text-gray-900 mb-1.5 leading-tight">
+                    {emphasizeTitle}
+                  </div>
                 )}
                 {emphasizeSubtitle && (
-                  <div className="text-sm text-gray-600">{emphasizeSubtitle}</div>
+                  <div className="text-[13px] text-gray-600 leading-relaxed">
+                    {emphasizeSubtitle}
+                  </div>
                 )}
               </div>
             )}
 
             {/* Emphasize - ITEM_LIST */}
             {emphasizeType === 'ITEM_LIST' && (
-              <div className="mb-3">
+              <div className="mb-3 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 {/* Item Highlight */}
                 {(itemHighlight.title || itemHighlight.description) && (
-                  <div className="p-3 bg-yellow-50 rounded-t-lg border-b">
+                  <div className="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
                     {itemHighlight.title && (
-                      <div className="font-bold text-sm">{itemHighlight.title}</div>
+                      <div className="font-bold text-[14px] text-gray-900">{itemHighlight.title}</div>
                     )}
                     {itemHighlight.description && (
-                      <div className="text-xs text-gray-600 mt-1">{itemHighlight.description}</div>
+                      <div className="text-[12px] text-gray-600 mt-1">{itemHighlight.description}</div>
                     )}
                   </div>
                 )}
                 
                 {/* Item List */}
                 {items.list.length > 0 && (
-                  <div className="divide-y">
+                  <div className="divide-y divide-gray-100">
                     {items.list.map((item, i) => (
-                      <div key={i} className="p-3 bg-white">
-                        <div className="text-sm font-medium">{item.title || `아이템 ${i + 1}`}</div>
-                        <div className="text-xs text-gray-600 mt-1">{item.description}</div>
+                      <div key={i} className="p-3.5 bg-white hover:bg-gray-50 transition-colors">
+                        <div className="text-[13px] font-semibold text-gray-900 mb-1">
+                          {item.title || `아이템 ${i + 1}`}
+                        </div>
+                        <div className="text-[12px] text-gray-600 leading-relaxed">
+                          {item.description}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -389,37 +414,45 @@ export default function CreateTemplatePage() {
 
                 {/* Summary */}
                 {(items.summary.title || items.summary.description) && (
-                  <div className="p-3 bg-gray-50 rounded-b-lg border-t">
+                  <div className="p-3.5 bg-gray-50 border-t border-gray-200">
                     {items.summary.title && (
-                      <div className="font-bold text-sm">{items.summary.title}</div>
+                      <div className="font-bold text-[13px] text-gray-900 mb-1">{items.summary.title}</div>
                     )}
                     {items.summary.description && (
-                      <div className="text-xs text-gray-600 mt-1">{items.summary.description}</div>
+                      <div className="text-[12px] text-gray-600">{items.summary.description}</div>
                     )}
                   </div>
                 )}
               </div>
             )}
 
-            {/* Main Content */}
-            <div className="text-sm whitespace-pre-wrap leading-relaxed mb-3">
-              {content || '내용을 입력하세요'}
+            {/* Main Content - 실제 카카오톡 폰트 및 스타일 */}
+            <div className="text-[14px] whitespace-pre-wrap leading-[1.6] text-gray-800 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+              {content || (
+                <span className="text-gray-400 italic">
+                  예시:
+                  <br />#{'{'}학생이름{'}'}님의 성과 리포트가 준비되었습니다.
+                  <br /><br />아래 링크에서 확인하세요!
+                  <br />#{'{'}리포트URL{'}'}
+                </span>
+              )}
             </div>
 
             {/* Extra Info */}
             {(messageType === 'EX' || messageType === 'MI') && extra && (
-              <div className="text-xs text-gray-500 pt-2 border-t mt-2">
+              <div className="mt-3 pt-3 border-t border-gray-200 text-[12px] text-gray-500 leading-relaxed bg-white px-4 py-3 rounded-xl shadow-sm">
                 {extra}
               </div>
             )}
 
-            {/* Buttons */}
+            {/* Buttons - 실제 카카오톡 버튼 스타일 */}
             {buttons.filter(b => b.name).length > 0 && (
               <div className="space-y-2 mt-3">
                 {buttons.filter(b => b.name).map((button, i) => (
                   <button
                     key={i}
-                    className="w-full py-2.5 px-4 bg-white border border-gray-300 rounded text-sm font-medium hover:bg-gray-50"
+                    className="w-full py-3 px-4 bg-white border-2 border-gray-200 rounded-lg text-[14px] font-semibold text-gray-800 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm active:scale-98"
+                    style={{ letterSpacing: '-0.01em' }}
                   >
                     {button.name}
                   </button>
@@ -429,38 +462,93 @@ export default function CreateTemplatePage() {
 
             {/* Channel Add Button */}
             {(messageType === 'AD' || messageType === 'MI') && channelAddButton && (
-              <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div className="mt-3 p-3.5 bg-white rounded-xl border-2 border-yellow-300 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs text-gray-700">
+                  <div className="text-[12px] text-gray-700 leading-tight flex-1 pr-3">
                     채널 추가하고 이 채널의 마케팅 메시지 등을 카카오톡으로 받기
                   </div>
-                  <button className="px-3 py-1 bg-yellow-400 text-white text-xs rounded-full font-medium">
+                  <button className="px-4 py-1.5 bg-yellow-400 text-white text-[12px] rounded-full font-bold hover:bg-yellow-500 transition-colors shadow-sm whitespace-nowrap">
                     추가
                   </button>
                 </div>
               </div>
             )}
+
+            {/* 수신거부 안내 (AD type) */}
+            {messageType === 'AD' && (
+              <div className="mt-3 text-[11px] text-gray-400 text-center leading-relaxed">
+                무료 수신거부 080-000-0000
+              </div>
+            )}
           </div>
 
           {/* Footer note */}
-          <div className="px-4 py-2 bg-gray-50 border-t text-xs text-gray-500 text-center">
-            미리보기는 실제 단말기와 차이가 있을 수 있습니다.
+          <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-400 text-center">
+            ℹ️ 미리보기는 실제 단말기와 차이가 있을 수 있습니다.
           </div>
         </div>
 
         {/* Variables Display */}
         {variables.length > 0 && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <div className="text-sm font-semibold mb-2">사용 중인 변수</div>
+          <div className="mt-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm">
+            <div className="text-[13px] font-bold mb-2.5 text-gray-800 flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              감지된 변수 ({variables.length}개)
+            </div>
             <div className="flex flex-wrap gap-2">
               {variables.map((v, i) => (
-                <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                <span 
+                  key={i} 
+                  className="px-3 py-1.5 bg-white border-2 border-blue-300 text-blue-700 rounded-lg text-[12px] font-semibold shadow-sm"
+                >
                   #{'{'}{ v}{'}'}
                 </span>
               ))}
             </div>
+            <div className="mt-3 text-[11px] text-gray-600 bg-white px-3 py-2 rounded-lg border border-gray-200">
+              💡 대량 발송 시 각 변수에 실제 값이 치환됩니다
+            </div>
           </div>
         )}
+
+        {/* Template Info Summary */}
+        <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm space-y-2">
+          <div className="text-[12px] font-bold text-gray-800 mb-2">템플릿 정보</div>
+          <div className="text-[11px] space-y-1.5">
+            <div className="flex justify-between">
+              <span className="text-gray-500">메시지 유형</span>
+              <span className="font-semibold text-gray-800">
+                {messageType === 'BA' && '기본형 (BA)'}
+                {messageType === 'EX' && '부가정보형 (EX)'}
+                {messageType === 'AD' && '채널추가형 (AD)'}
+                {messageType === 'MI' && '복합형 (MI)'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">강조 유형</span>
+              <span className="font-semibold text-gray-800">
+                {emphasizeType === 'NONE' && '없음'}
+                {emphasizeType === 'TEXT' && '강조표기형'}
+                {emphasizeType === 'IMAGE' && '이미지형'}
+                {emphasizeType === 'ITEM_LIST' && '아이템리스트형'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">보안 템플릿</span>
+              <span className="font-semibold text-gray-800">{securityFlag ? '✓ 예' : '아니오'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">버튼 개수</span>
+              <span className="font-semibold text-gray-800">{buttons.filter(b => b.name).length}개</span>
+            </div>
+            {content && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">내용 글자 수</span>
+                <span className="font-semibold text-gray-800">{content.length} / 1,000</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   };

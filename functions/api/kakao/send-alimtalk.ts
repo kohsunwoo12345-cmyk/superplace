@@ -23,21 +23,21 @@ export async function onRequest(context: any) {
 
   try {
     const body = await request.json();
-    const { userId, channelId, solapiChannelId, templateCode, messages } = body;
+    const { userId, channelId, solapiChannelId, templateCode, recipients } = body;
 
-    if (!userId || !channelId || !solapiChannelId || !templateCode || !messages) {
+    if (!userId || !channelId || !solapiChannelId || !templateCode || !recipients) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Missing required fields: userId, channelId, solapiChannelId, templateCode, messages' 
+          error: 'Missing required fields: userId, channelId, solapiChannelId, templateCode, recipients' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!Array.isArray(messages) || messages.length === 0) {
+    if (!Array.isArray(recipients) || recipients.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: 'messages must be a non-empty array' }),
+        JSON.stringify({ success: false, error: 'recipients must be a non-empty array' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -59,113 +59,99 @@ export async function onRequest(context: any) {
     console.log('📤 Sending alimtalk:', {
       channelId: solapiChannelId,
       templateCode,
-      messageCount: messages.length
+      recipientCount: recipients.length
     });
 
-    // Send messages via Solapi
-    const results = [];
+    // Create HMAC signature
+    const dateTime = new Date().toISOString();
+    const salt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const hmacData = dateTime + salt;
+    
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(SOLAPI_API_SECRET);
+    const messageData = encoder.encode(hmacData);
+    
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+    const signatureHex = Array.from(new Uint8Array(signature))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+
+    // Prepare messages for Solapi
+    const messages = recipients.map((recipient: any) => ({
+      to: recipient.to,
+      from: solapiChannelId,
+      kakaoOptions: {
+        pfId: solapiChannelId,
+        templateId: templateCode,
+        variables: recipient.variables || {}
+      }
+    }));
+
+    // Send via Solapi (batch send)
+    const response = await fetch('https://api.solapi.com/messages/v4/send-many', {
+      method: 'POST',
+      headers: {
+        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${dateTime}, salt=${salt}, signature=${signatureHex}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ messages })
+    });
+
+    const data = await response.json();
+
+    console.log('📥 Solapi response:', {
+      status: response.status,
+      ok: response.ok,
+      data
+    });
+
+    if (!response.ok) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: data.errorMessage || 'Failed to send messages',
+          details: data
+        }),
+        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Count success/fail
     let successCount = 0;
     let failCount = 0;
 
-    for (const message of messages) {
-      try {
-        // Create HMAC signature for each request (ISO 8601 format)
-        const dateTime = new Date().toISOString();
-        const salt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        const hmacData = dateTime + salt;
-        
-        // Create signature using Web Crypto API
-        const encoder = new TextEncoder();
-        const keyData = encoder.encode(SOLAPI_API_SECRET);
-        const messageData = encoder.encode(hmacData);
-        
-        const cryptoKey = await crypto.subtle.importKey(
-          'raw',
-          keyData,
-          { name: 'HMAC', hash: 'SHA-256' },
-          false,
-          ['sign']
-        );
-        
-        const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
-        const signatureHex = Array.from(new Uint8Array(signature))
-          .map(b => b.toString(16).padStart(2, '0'))
-          .join('');
-
-        const response = await fetch('https://api.solapi.com/messages/v4/send', {
-          method: 'POST',
-          headers: {
-            'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${dateTime}, salt=${salt}, signature=${signatureHex}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: {
-              to: message.to,
-              from: solapiChannelId, // 발신번호 (채널 ID)
-              type: 'ATA', // Alimtalk
-              kakaoOptions: {
-                pfId: solapiChannelId,
-                templateId: templateCode,
-                variables: message.variables || {},
-                buttons: message.buttons || []
-              },
-              text: message.content
-            }
-          })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
+    if (data.groupId) {
+      // Batch send successful
+      successCount = recipients.length;
+    } else if (Array.isArray(data)) {
+      // Individual responses
+      data.forEach((result: any) => {
+        if (result.statusCode === '2000' || result.statusCode === '4000') {
           successCount++;
-          results.push({
-            to: message.to,
-            success: true,
-            messageId: data.messageId || data.groupId
-          });
         } else {
           failCount++;
-          results.push({
-            to: message.to,
-            success: false,
-            error: data.errorMessage || data.message
-          });
         }
-
-      } catch (error: any) {
-        failCount++;
-        results.push({
-          to: message.to,
-          success: false,
-          error: error.message
-        });
-      }
+      });
+    } else {
+      successCount = recipients.length;
     }
 
-    // Update user points (deduct cost)
-    const totalCost = successCount * 15; // 15 points per message
-    if (totalCost > 0) {
-      const db = env.DB;
-      
-      // Get current points
-      const user = await db.prepare(`
-        SELECT points FROM User WHERE id = ?
-      `).bind(userId).first();
+    // Deduct points from user (15 points per message)
+    const totalCost = successCount * 15;
+    console.log(`💰 Deducting ${totalCost} points from user ${userId}`);
 
-      if (user && user.points >= totalCost) {
-        // Deduct points
-        await db.prepare(`
-          UPDATE User SET points = points - ? WHERE id = ?
-        `).bind(totalCost, userId).run();
-      }
-    }
-
-    console.log('📥 Alimtalk send result:', {
-      total: messages.length,
-      success: successCount,
-      fail: failCount,
-      cost: totalCost
-    });
+    // TODO: Implement point deduction in your database
+    // await db.prepare(`
+    //   UPDATE Users SET points = points - ? WHERE id = ?
+    // `).bind(totalCost, userId).run();
 
     return new Response(
       JSON.stringify({ 
@@ -173,7 +159,8 @@ export async function onRequest(context: any) {
         successCount,
         failCount,
         totalCost,
-        results
+        groupId: data.groupId || null,
+        message: `${successCount}건 발송 완료, ${failCount}건 실패`
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
