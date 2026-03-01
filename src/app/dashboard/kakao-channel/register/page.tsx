@@ -359,16 +359,6 @@ export default function KakaoChannelRegisterPage() {
               </div>
             ) : (
               <>
-                {/* 디버그: 실제 카테고리 목록 표시 */}
-                <Alert className="border-blue-500 bg-blue-50">
-                  <AlertDescription className="text-blue-800">
-                    <div className="font-bold mb-2">📋 Solapi에서 가져온 카테고리 목록:</div>
-                    <pre className="text-xs bg-white p-2 rounded overflow-auto max-h-40">
-                      {JSON.stringify(categories, null, 2)}
-                    </pre>
-                  </AlertDescription>
-                </Alert>
-
                 {/* 대분류 선택 */}
                 <div>
                   <Label htmlFor="mainCategory">카테고리 - 대분류 *</Label>
