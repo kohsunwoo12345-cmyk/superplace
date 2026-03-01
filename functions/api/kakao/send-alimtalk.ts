@@ -149,9 +149,38 @@ export async function onRequest(context: any) {
     console.log(`💰 Deducting ${totalCost} points from user ${userId}`);
 
     // TODO: Implement point deduction in your database
-    // await db.prepare(`
+    // await env.DB.prepare(`
     //   UPDATE Users SET points = points - ? WHERE id = ?
     // `).bind(totalCost, userId).run();
+
+    // Save send history
+    try {
+      const historyId = `hist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await env.DB.prepare(`
+        INSERT INTO AlimtalkSendHistory (
+          id, userId, channelId, channelName, templateId, templateName, templateCode,
+          recipientCount, successCount, failCount, totalCost, groupId, status, createdAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        historyId,
+        userId,
+        channelId,
+        body.channelName || 'Unknown',
+        body.templateId || '',
+        body.templateName || 'Unknown',
+        templateCode,
+        recipients.length,
+        successCount,
+        failCount,
+        totalCost,
+        data.groupId || null,
+        failCount === 0 ? 'COMPLETED' : (successCount > 0 ? 'PARTIAL' : 'FAILED'),
+        new Date().toISOString()
+      ).run();
+    } catch (histError) {
+      console.error('Failed to save history:', histError);
+      // Continue anyway
+    }
 
     return new Response(
       JSON.stringify({ 

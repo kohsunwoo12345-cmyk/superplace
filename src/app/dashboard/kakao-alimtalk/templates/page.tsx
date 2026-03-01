@@ -1,39 +1,47 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useKakaoAuth } from '@/hooks/useKakaoAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Loader2, Plus, Trash2, CheckCircle, Clock, XCircle, Send, Eye, Edit } from 'lucide-react';
+import { 
+  Loader2, Plus, Trash2, CheckCircle, Clock, XCircle, Send, Eye, Edit, 
+  Copy, FileText, AlertCircle, Filter, Search 
+} from 'lucide-react';
 import Link from 'next/link';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter
+} from "@/components/ui/dialog";
 
 interface AlimtalkTemplate {
   id: string;
-  userId: string;
   channelId: string;
   channelName?: string;
-  solapiChannelId: string;
-  solapiTemplateId: string;
   templateCode: string;
   templateName: string;
   content: string;
-  categoryCode: string;
   messageType: string;
   emphasizeType: string;
-  buttons: string;
-  quickReplies: string;
   variables: string;
   status: string;
   inspectionStatus: string;
-  approvedAt: string;
-  rejectedReason: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,26 +55,28 @@ interface KakaoChannel {
 
 export default function AlimtalkTemplatesPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useKakaoAuth();
+  
   const [templates, setTemplates] = useState<AlimtalkTemplate[]>([]);
   const [channels, setChannels] = useState<KakaoChannel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actioningId, setActioningId] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   
-  // 템플릿 생성/수정 모달
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<AlimtalkTemplate | null>(null);
-  const [formData, setFormData] = useState({
-    channelId: '',
-    templateName: '',
-    content: '',
-    categoryCode: '999999',
+  // Filters
+  const [filterChannel, setFilterChannel] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Delete modal
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; templateId: string | null }>({
+    open: false,
+    templateId: null
   });
-  const [creating, setCreating] = useState(false);
-
-  const channelId = searchParams.get('channelId');
+  const [deleting, setDeleting] = useState(false);
+  
+  // Preview modal
+  const [previewTemplate, setPreviewTemplate] = useState<AlimtalkTemplate | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -77,7 +87,7 @@ export default function AlimtalkTemplatesPage() {
     }
 
     fetchData();
-  }, [user, authLoading, channelId]);
+  }, [user, authLoading, filterChannel]);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -91,24 +101,21 @@ export default function AlimtalkTemplatesPage() {
       const channelsData = await channelsRes.json();
       if (channelsData.success) {
         setChannels(channelsData.channels || []);
-        if (channelsData.channels.length > 0 && !formData.channelId) {
-          setFormData(prev => ({ ...prev, channelId: channelId || channelsData.channels[0].id }));
-        }
       }
 
       // Fetch templates
       let url = `/api/kakao/templates?userId=${user.id}`;
-      if (channelId) {
-        url += `&channelId=${channelId}`;
+      if (filterChannel) {
+        url += `&channelId=${filterChannel}`;
       }
+      
+      const response = await fetch(url);
+      const data = await response.json();
 
-      const templatesRes = await fetch(url);
-      const templatesData = await templatesRes.json();
-
-      if (templatesData.success) {
-        setTemplates(templatesData.templates || []);
+      if (data.success) {
+        setTemplates(data.templates || []);
       } else {
-        setError(templatesData.error || '템플릿 목록을 불러오는데 실패했습니다.');
+        setError(data.error || '템플릿을 불러오는데 실패했습니다.');
       }
     } catch (err: any) {
       console.error('Failed to fetch data:', err);
@@ -118,151 +125,121 @@ export default function AlimtalkTemplatesPage() {
     }
   };
 
-  const handleCreateTemplate = async () => {
-    if (!user?.id || !formData.channelId || !formData.templateName || !formData.content) {
-      alert('모든 필드를 입력해주세요.');
-      return;
-    }
-
+  const handleDelete = async (templateId: string) => {
     try {
-      setCreating(true);
-
-      const selectedChannel = channels.find(c => c.id === formData.channelId);
-      if (!selectedChannel) {
-        alert('선택한 채널을 찾을 수 없습니다.');
-        return;
+      setDeleting(true);
+      
+      const response = await fetch(`/api/kakao/templates?templateId=${templateId}&userId=${user?.id}`, {
+        method: 'DELETE'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccess('템플릿이 삭제되었습니다.');
+        setDeleteDialog({ open: false, templateId: null });
+        fetchData();
+      } else {
+        setError(data.error || '템플릿 삭제에 실패했습니다.');
       }
+    } catch (err: any) {
+      console.error('Failed to delete:', err);
+      setError('템플릿 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDuplicate = async (template: AlimtalkTemplate) => {
+    try {
+      const newTemplate = {
+        userId: user?.id,
+        channelId: template.channelId,
+        templateName: `${template.templateName} (복사본)`,
+        templateCode: `${template.templateCode}_COPY_${Date.now()}`,
+        content: template.content,
+        messageType: template.messageType,
+        emphasizeType: template.emphasizeType
+      };
 
       const response = await fetch('/api/kakao/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          channelId: formData.channelId,
-          solapiChannelId: selectedChannel.solapiChannelId,
-          templateName: formData.templateName,
-          content: formData.content,
-          categoryCode: formData.categoryCode,
-          messageType: 'BA',
-          emphasizeType: 'NONE',
-        }),
+        body: JSON.stringify(newTemplate)
       });
 
       const data = await response.json();
 
       if (data.success) {
-        alert('템플릿이 생성되었습니다!');
-        setIsModalOpen(false);
-        setFormData({
-          channelId: formData.channelId,
-          templateName: '',
-          content: '',
-          categoryCode: '999999',
-        });
+        setSuccess('템플릿이 복사되었습니다.');
         fetchData();
       } else {
-        alert(data.error || '템플릿 생성에 실패했습니다.');
+        setError(data.error || '템플릿 복사에 실패했습니다.');
       }
     } catch (err: any) {
-      console.error('Failed to create template:', err);
-      alert('템플릿 생성 중 오류가 발생했습니다.');
-    } finally {
-      setCreating(false);
+      console.error('Failed to duplicate:', err);
+      setError('템플릿 복사 중 오류가 발생했습니다.');
     }
   };
 
-  const handleDeleteTemplate = async (templateId: string) => {
-    if (!user?.id) return;
-
-    if (!confirm('정말 이 템플릿을 삭제하시겠습니까?')) {
-      return;
-    }
-
-    try {
-      setActioningId(templateId);
-
-      const response = await fetch(
-        `/api/kakao/templates?templateId=${templateId}&userId=${user.id}`,
-        { method: 'DELETE' }
-      );
-      const data = await response.json();
-
-      if (data.success) {
-        setTemplates(templates.filter(t => t.id !== templateId));
-        alert('템플릿이 삭제되었습니다.');
-      } else {
-        alert(data.error || '템플릿 삭제에 실패했습니다.');
+  const getStatusBadge = (inspectionStatus: string) => {
+    const statusConfig: any = {
+      'APPROVED': { 
+        icon: CheckCircle, 
+        label: '승인', 
+        class: 'bg-green-100 text-green-800 border-green-200' 
+      },
+      'PENDING': { 
+        icon: Clock, 
+        label: '검수 중', 
+        class: 'bg-yellow-100 text-yellow-800 border-yellow-200' 
+      },
+      'REJECTED': { 
+        icon: XCircle, 
+        label: '반려', 
+        class: 'bg-red-100 text-red-800 border-red-200' 
       }
-    } catch (err: any) {
-      console.error('Failed to delete template:', err);
-      alert('템플릿 삭제 중 오류가 발생했습니다.');
-    } finally {
-      setActioningId(null);
-    }
-  };
+    };
 
-  const extractVariables = (content: string): string[] => {
-    const regex = /#\{([^}]+)\}/g;
-    const matches = [...content.matchAll(regex)];
-    return matches.map(match => match[1]);
-  };
-
-  const renderPreview = (content: string) => {
-    const variables = extractVariables(content);
-    let previewContent = content;
+    const config = statusConfig[inspectionStatus] || { 
+      icon: AlertCircle, 
+      label: inspectionStatus, 
+      class: 'bg-gray-100 text-gray-800 border-gray-200' 
+    };
     
-    variables.forEach(varName => {
-      previewContent = previewContent.replace(
-        new RegExp(`#\\{${varName}\\}`, 'g'),
-        `[${varName}]`
-      );
-    });
-
-    return previewContent;
+    const Icon = config.icon;
+    
+    return (
+      <Badge className={`${config.class} border flex items-center gap-1`}>
+        <Icon className="h-3 w-3" />
+        {config.label}
+      </Badge>
+    );
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-        return (
-          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            승인됨
-          </Badge>
-        );
-      case 'INSPECTING':
-        return (
-          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-            <Clock className="w-3 h-3 mr-1" />
-            검수중
-          </Badge>
-        );
-      case 'REJECTED':
-        return (
-          <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
-            <XCircle className="w-3 h-3 mr-1" />
-            반려됨
-          </Badge>
-        );
-      case 'PENDING':
-      case 'DRAFT':
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-            <Clock className="w-3 h-3 mr-1" />
-            대기중
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
+  const getMessageTypeBadge = (messageType: string) => {
+    const types: any = {
+      'BA': { label: '기본형', class: 'bg-blue-100 text-blue-800' },
+      'EX': { label: '부가정보형', class: 'bg-purple-100 text-purple-800' },
+      'AD': { label: '채널추가형', class: 'bg-orange-100 text-orange-800' },
+      'MI': { label: '복합형', class: 'bg-indigo-100 text-indigo-800' }
+    };
+    const config = types[messageType] || { label: messageType, class: 'bg-gray-100 text-gray-800' };
+    return <Badge variant="outline" className={config.class}>{config.label}</Badge>;
   };
+
+  const filteredTemplates = templates.filter(template => {
+    if (filterStatus && template.inspectionStatus !== filterStatus) return false;
+    if (searchQuery && !template.templateName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
 
   if (authLoading || loading) {
     return (
       <div className="container mx-auto p-6 max-w-7xl">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-          <span className="ml-3 text-gray-600">템플릿 목록을 불러오는 중...</span>
+          <span className="ml-3 text-gray-600">로딩 중...</span>
         </div>
       </div>
     );
@@ -270,282 +247,276 @@ export default function AlimtalkTemplatesPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">알림톡 템플릿 관리</h1>
-          <p className="text-gray-600">
-            알림톡 발송에 사용할 템플릿을 생성하고 관리하세요.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard/kakao-channel">
-            <Button variant="outline">채널 관리</Button>
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+              <FileText className="h-8 w-8 text-blue-600" />
+              알림톡 템플릿
+            </h1>
+            <p className="text-gray-600">
+              템플릿을 등록하고 관리하세요
+            </p>
+          </div>
+          <Link href="/dashboard/kakao-alimtalk/templates/create">
+            <Button size="lg" className="shadow-lg">
+              <Plus className="mr-2 h-5 w-5" />
+              새 템플릿 등록
+            </Button>
           </Link>
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                새 템플릿 생성
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>새 알림톡 템플릿 생성</DialogTitle>
-                <DialogDescription>
-                  변수는 #{"{"}변수명{"}"} 형식으로 입력하세요. 예: #{"{"}이름{"}"}, #{"{"}날짜{"}"}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="grid grid-cols-2 gap-6">
-                {/* 왼쪽: 템플릿 입력 */}
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="channel">채널 선택 *</Label>
-                    <select
-                      id="channel"
-                      className="w-full p-2 border rounded-md"
-                      value={formData.channelId}
-                      onChange={(e) => setFormData({ ...formData, channelId: e.target.value })}
-                    >
-                      <option value="">채널 선택</option>
-                      {channels.map((channel) => (
-                        <option key={channel.id} value={channel.id}>
-                          {channel.channelName} (@{channel.searchId})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="templateName">템플릿 이름 *</Label>
-                    <Input
-                      id="templateName"
-                      placeholder="예: 수업 안내"
-                      value={formData.templateName}
-                      onChange={(e) => setFormData({ ...formData, templateName: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="content">메시지 내용 *</Label>
-                    <Textarea
-                      id="content"
-                      placeholder={`예:\n안녕하세요 #{이름}님,\n#{날짜} #{시간}에 수업이 있습니다.\n많은 참여 부탁드립니다.`}
-                      value={formData.content}
-                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                      rows={10}
-                      className="font-mono text-sm"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      {formData.content.length} / 1000자
-                    </p>
-                  </div>
-
-                  <div>
-                    <Label>감지된 변수</Label>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {extractVariables(formData.content).map((varName, index) => (
-                        <Badge key={index} variant="secondary">
-                          {varName}
-                        </Badge>
-                      ))}
-                      {extractVariables(formData.content).length === 0 && (
-                        <span className="text-sm text-gray-500">변수가 없습니다</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 오른쪽: 미리보기 */}
-                <div>
-                  <Label>카카오톡 미리보기</Label>
-                  <div className="mt-2 border rounded-lg p-4 bg-gradient-to-b from-yellow-50 to-white min-h-[400px]">
-                    <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                      <div className="flex items-center gap-2 mb-3 pb-3 border-b">
-                        <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">K</span>
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm">
-                            {channels.find(c => c.id === formData.channelId)?.channelName || '채널명'}
-                          </div>
-                          <div className="text-xs text-gray-500">알림톡</div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {formData.templateName && (
-                          <div className="font-bold text-sm text-gray-800 mb-2">
-                            {formData.templateName}
-                          </div>
-                        )}
-                        <div className="text-sm whitespace-pre-wrap text-gray-700 leading-relaxed">
-                          {formData.content ? renderPreview(formData.content) : '메시지 내용을 입력하세요...'}
-                        </div>
-                      </div>
-
-                      {formData.content && (
-                        <div className="mt-4 pt-3 border-t">
-                          <div className="text-xs text-gray-400">
-                            {new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <Alert className="mt-4">
-                    <AlertDescription className="text-xs">
-                      💡 <strong>팁:</strong> 실제 발송 시 변수 값이 자동으로 치환됩니다.<br />
-                      예: #{"{"}이름{"}"} → 홍길동
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setFormData({
-                      channelId: formData.channelId,
-                      templateName: '',
-                      content: '',
-                      categoryCode: '999999',
-                    });
-                  }}
-                >
-                  취소
-                </Button>
-                <Button onClick={handleCreateTemplate} disabled={creating}>
-                  {creating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      생성 중...
-                    </>
-                  ) : (
-                    '템플릿 생성'
-                  )}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
       {error && (
         <Alert className="mb-6 border-red-500 bg-red-50">
+          <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-red-800">{error}</AlertDescription>
         </Alert>
       )}
 
-      {templates.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="text-center">
-              <div className="mb-4 text-gray-400">
-                <Send className="mx-auto h-16 w-16" />
+      {success && (
+        <Alert className="mb-6 border-green-500 bg-green-50">
+          <CheckCircle className="h-4 w-4" />
+          <AlertDescription className="text-green-800">{success}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">채널</label>
+              <Select value={filterChannel} onValueChange={setFilterChannel}>
+                <SelectTrigger>
+                  <SelectValue placeholder="전체 채널" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">전체</SelectItem>
+                  {channels.map(channel => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      {channel.channelName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">상태</label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="전체 상태" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">전체</SelectItem>
+                  <SelectItem value="APPROVED">승인</SelectItem>
+                  <SelectItem value="PENDING">검수 중</SelectItem>
+                  <SelectItem value="REJECTED">반려</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium mb-2 block">검색</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="템플릿 이름으로 검색..."
+                  className="pl-10"
+                />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                등록된 템플릿이 없습니다
-              </h3>
-              <p className="text-gray-500 mb-6">
-                알림톡 발송을 위한 첫 번째 템플릿을 생성하세요.
-              </p>
-              <Button onClick={() => setIsModalOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                첫 번째 템플릿 생성하기
-              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Templates Grid */}
+      {filteredTemplates.length === 0 ? (
+        <Card>
+          <CardContent className="py-16">
+            <div className="text-center">
+              <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">템플릿이 없습니다</h3>
+              <p className="text-gray-600 mb-6">새로운 알림톡 템플릿을 등록해보세요</p>
+              <Link href="/dashboard/kakao-alimtalk/templates/create">
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  템플릿 등록하기
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {templates.map((template) => (
-            <Card key={template.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTemplates.map((template) => (
+            <Card key={template.id} className="hover:shadow-xl transition-shadow border-2">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start mb-2">
                   <div className="flex-1">
-                    <CardTitle className="text-lg mb-1">{template.templateName}</CardTitle>
-                    <CardDescription className="text-xs font-mono">
-                      {template.templateCode || 'N/A'}
-                    </CardDescription>
+                    <CardTitle className="text-lg mb-2 line-clamp-1">
+                      {template.templateName}
+                    </CardTitle>
+                    <div className="flex flex-wrap gap-2">
+                      {getStatusBadge(template.inspectionStatus)}
+                      {getMessageTypeBadge(template.messageType)}
+                    </div>
                   </div>
-                  {getStatusBadge(template.status || template.inspectionStatus)}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {template.channelName || '알 수 없는 채널'}
+                </p>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="bg-gray-50 rounded p-3 text-sm">
-                    <div className="whitespace-pre-wrap line-clamp-4">
-                      {template.content}
-                    </div>
-                  </div>
-
-                  {template.variables && (
-                    <div className="flex flex-wrap gap-1">
-                      {JSON.parse(template.variables).map((varName: string, index: number) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {varName}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="text-xs text-gray-500">
-                    생성일: {new Date(template.createdAt).toLocaleDateString('ko-KR')}
-                  </div>
+              
+              <CardContent className="space-y-4">
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm text-gray-700 line-clamp-4 whitespace-pre-wrap">
+                    {template.content}
+                  </p>
                 </div>
 
-                <div className="mt-4 flex gap-2">
+                {template.variables && JSON.parse(template.variables).length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {JSON.parse(template.variables).map((v: string, i: number) => (
+                      <Badge key={i} variant="secondary" className="text-xs">
+                        #{'{'}{ v}{'}'}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => {
-                      // TODO: 미리보기 모달
-                      alert('미리보기 기능 준비 중');
-                    }}
+                    onClick={() => setPreviewTemplate(template)}
                   >
                     <Eye className="mr-1 h-3 w-3" />
                     미리보기
                   </Button>
+                  
                   <Button
-                    variant="destructive"
+                    variant="outline"
                     size="sm"
-                    onClick={() => handleDeleteTemplate(template.id)}
-                    disabled={actioningId === template.id}
+                    onClick={() => handleDuplicate(template)}
                   >
-                    {actioningId === template.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-3 w-3" />
-                    )}
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteDialog({ open: true, templateId: template.id })}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
+
+                {template.inspectionStatus === 'APPROVED' && (
+                  <Link href={`/dashboard/kakao-alimtalk/send?templateId=${template.id}`}>
+                    <Button className="w-full" size="sm">
+                      <Send className="mr-2 h-3 w-3" />
+                      이 템플릿으로 발송
+                    </Button>
+                  </Link>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle className="text-lg">💡 템플릿 작성 가이드</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div>
-            <strong>1. 변수 사용:</strong> #{"{"}변수명{"}"} 형식으로 입력하세요. 예: #{"{"}이름{"}"}, #{"{"}날짜{"}"}
-          </div>
-          <div>
-            <strong>2. 문자 수 제한:</strong> 최대 1,000자까지 입력 가능합니다.
-          </div>
-          <div>
-            <strong>3. 승인 절차:</strong> 템플릿은 카카오 검수 후 발송 가능합니다. (현재는 자동 승인)
-          </div>
-        </CardContent>
-      </Card>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, templateId: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>템플릿 삭제</DialogTitle>
+            <DialogDescription>
+              정말로 이 템플릿을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialog({ open: false, templateId: null })}
+              disabled={deleting}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteDialog.templateId && handleDelete(deleteDialog.templateId)}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  삭제 중...
+                </>
+              ) : (
+                '삭제'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewTemplate} onOpenChange={() => setPreviewTemplate(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{previewTemplate?.templateName}</DialogTitle>
+          </DialogHeader>
+          {previewTemplate && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">채널:</span>
+                  <span className="ml-2 font-medium">{previewTemplate.channelName}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">상태:</span>
+                  <span className="ml-2">{getStatusBadge(previewTemplate.inspectionStatus)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">메시지 유형:</span>
+                  <span className="ml-2">{getMessageTypeBadge(previewTemplate.messageType)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">템플릿 코드:</span>
+                  <span className="ml-2 font-mono text-xs">{previewTemplate.templateCode}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold mb-2 block">템플릿 내용</label>
+                <div className="bg-gray-50 p-4 rounded-lg border">
+                  <pre className="whitespace-pre-wrap text-sm">{previewTemplate.content}</pre>
+                </div>
+              </div>
+
+              {previewTemplate.variables && JSON.parse(previewTemplate.variables).length > 0 && (
+                <div>
+                  <label className="text-sm font-semibold mb-2 block">변수</label>
+                  <div className="flex flex-wrap gap-2">
+                    {JSON.parse(previewTemplate.variables).map((v: string, i: number) => (
+                      <Badge key={i} variant="secondary">
+                        #{'{'}{ v}{'}'}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,262 +1,388 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
+import { useKakaoAuth } from '@/hooks/useKakaoAuth';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Send, AlertCircle, CheckCircle, ArrowLeft, BookOpen, ExternalLink } from 'lucide-react';
+import { 
+  Loader2, MessageSquare, FileText, Send, History, 
+  TrendingUp, AlertCircle, CheckCircle, Clock, Calendar,
+  Users, Target, BarChart3, ArrowRight
+} from 'lucide-react';
 import Link from 'next/link';
 
-interface Template {
-  templateId: string;
-  name: string;
-  content: string;
-  buttons?: any[];
-  status: string;
+interface DashboardStats {
+  totalChannels: number;
+  activeChannels: number;
+  totalTemplates: number;
+  approvedTemplates: number;
+  totalSends: number;
+  totalSuccess: number;
+  totalFail: number;
+  totalCost: number;
+  recentSends: any[];
 }
 
-export default function KakaoAlimtalkPage() {
-  const searchParams = useSearchParams();
-  const pfIdParam = searchParams?.get('pfId');
+export default function KakaoAlimtalkDashboard() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useKakaoAuth();
   
-  const [pfId, setPfId] = useState(pfIdParam || '');
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState('');
-  const [recipientPhone, setRecipientPhone] = useState('');
-  const [variables, setVariables] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalChannels: 0,
+    activeChannels: 0,
+    totalTemplates: 0,
+    approvedTemplates: 0,
+    totalSends: 0,
+    totalSuccess: 0,
+    totalFail: 0,
+    totalCost: 0,
+    recentSends: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (pfId) {
-      fetchTemplates();
-    }
-  }, [pfId]);
-
-  useEffect(() => {
-    if (selectedTemplate) {
-      const template = templates.find(t => t.templateId === selectedTemplate);
-      if (template) {
-        // 템플릿 내용에서 변수 추출 (예: #{변수명})
-        const variablePattern = /#{(\w+)}/g;
-        const matches = template.content.matchAll(variablePattern);
-        const newVariables: Record<string, string> = {};
-        for (const match of matches) {
-          newVariables[match[1]] = '';
-        }
-        setVariables(newVariables);
-      }
-    }
-  }, [selectedTemplate, templates]);
-
-  const fetchTemplates = async () => {
-    setLoadingTemplates(true);
-    try {
-      const response = await fetch(`/api/kakao/templates/list?pfId=${pfId}`);
-      const data = await response.json();
-      if (data.success) {
-        // 승인된 템플릿만 필터링
-        const approved = data.templates.filter((t: Template) => t.status === 'APPROVED');
-        setTemplates(approved);
-      } else {
-        setMessage({ type: 'error', text: data.error || '템플릿을 불러오는데 실패했습니다' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: '템플릿을 불러오는데 실패했습니다' });
-    } finally {
-      setLoadingTemplates(false);
-    }
-  };
-
-  const handleSend = async () => {
-    if (!pfId || !selectedTemplate || !recipientPhone) {
-      setMessage({ type: 'error', text: '모든 필수 항목을 입력해주세요' });
+    if (authLoading) return;
+    
+    if (!user?.id) {
+      router.push('/login');
       return;
     }
 
-    setLoading(true);
-    setMessage(null);
+    fetchDashboardData();
+  }, [user, authLoading]);
+
+  const fetchDashboardData = async () => {
+    if (!user?.id) return;
 
     try {
-      const response = await fetch('/api/kakao/send-alimtalk', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pfId,
-          templateId: selectedTemplate,
-          to: recipientPhone,
-          variables,
-        }),
-      });
+      setLoading(true);
+      setError(null);
 
-      const data = await response.json();
+      // Fetch all data in parallel
+      const [channelsRes, templatesRes, historyRes] = await Promise.all([
+        fetch(`/api/kakao/channels?userId=${user.id}`),
+        fetch(`/api/kakao/templates?userId=${user.id}`),
+        fetch(`/api/kakao/send-history?userId=${user.id}&limit=5`)
+      ]);
 
-      if (data.success) {
-        setMessage({ type: 'success', text: '알림톡이 성공적으로 전송되었습니다!' });
-        setRecipientPhone('');
-        setVariables({});
-        setSelectedTemplate('');
-      } else {
-        setMessage({ type: 'error', text: data.error || '전송에 실패했습니다' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: '전송 중 오류가 발생했습니다' });
+      const channelsData = await channelsRes.json();
+      const templatesData = await templatesRes.json();
+      const historyData = await historyRes.json();
+
+      const newStats: DashboardStats = {
+        totalChannels: channelsData.channels?.length || 0,
+        activeChannels: channelsData.channels?.filter((c: any) => c.status === 'ACTIVE').length || 0,
+        totalTemplates: templatesData.templates?.length || 0,
+        approvedTemplates: templatesData.templates?.filter((t: any) => t.inspectionStatus === 'APPROVED').length || 0,
+        totalSends: historyData.stats?.totalSends || 0,
+        totalSuccess: historyData.stats?.totalSuccess || 0,
+        totalFail: historyData.stats?.totalFail || 0,
+        totalCost: historyData.stats?.totalCost || 0,
+        recentSends: historyData.history || []
+      };
+
+      setStats(newStats);
+    } catch (err: any) {
+      console.error('Failed to fetch dashboard data:', err);
+      setError('대시보드 데이터를 불러오는 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  const selectedTemplateData = templates.find(t => t.templateId === selectedTemplate);
+  const quickActions = [
+    {
+      title: '채널 등록',
+      description: '새로운 카카오 채널 등록',
+      icon: MessageSquare,
+      href: '/dashboard/kakao-channel/register',
+      color: 'blue'
+    },
+    {
+      title: '템플릿 등록',
+      description: '알림톡 템플릿 생성',
+      icon: FileText,
+      href: '/dashboard/kakao-alimtalk/templates/create',
+      color: 'green'
+    },
+    {
+      title: '대량 발송',
+      description: '엑셀로 한번에 발송',
+      icon: Send,
+      href: '/dashboard/kakao-alimtalk/send',
+      color: 'purple'
+    },
+    {
+      title: '발송 이력',
+      description: '발송 내역 확인',
+      icon: History,
+      href: '/dashboard/kakao-alimtalk/history',
+      color: 'orange'
+    }
+  ];
+
+  const getColorClass = (color: string) => {
+    const colors: any = {
+      blue: 'from-blue-500 to-blue-600',
+      green: 'from-green-500 to-green-600',
+      purple: 'from-purple-500 to-purple-600',
+      orange: 'from-orange-500 to-orange-600'
+    };
+    return colors[color] || colors.blue;
+  };
+
+  if (authLoading || loading) {
+    return (
+      <div className="container mx-auto p-6 max-w-7xl">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+          <span className="ml-3 text-gray-600">로딩 중...</span>
+        </div>
+      </div>
+    );
+  }
+
+  const successRate = stats.totalSuccess + stats.totalFail > 0 
+    ? ((stats.totalSuccess / (stats.totalSuccess + stats.totalFail)) * 100).toFixed(1)
+    : '0';
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <div className="mb-6 flex items-center justify-between">
-        <Link href="/dashboard/kakao-channel">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            채널 목록으로
-          </Button>
-        </Link>
-        <Link href="/dashboard/kakao-business-guide" target="_blank">
-          <Button variant="outline" size="sm">
-            <BookOpen className="w-4 h-4 mr-2" />
-            가이드 보기
-            <ExternalLink className="w-3 h-3 ml-1" />
-          </Button>
-        </Link>
+    <div className="container mx-auto p-6 max-w-7xl">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-lg">
+            <MessageSquare className="h-7 w-7 text-white" />
+          </div>
+          카카오 알림톡 대시보드
+        </h1>
+        <p className="text-gray-600">
+          채널 관리부터 대량 발송까지, 알림톡의 모든 것을 한눈에
+        </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>카카오 알림톡 전송</CardTitle>
-          <CardDescription>
-            등록된 템플릿을 사용하여 알림톡을 전송합니다
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {message && (
-            <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-              {message.type === 'success' ? (
-                <CheckCircle className="h-4 w-4" />
-              ) : (
-                <AlertCircle className="h-4 w-4" />
-              )}
-              <AlertDescription>{message.text}</AlertDescription>
-            </Alert>
-          )}
+      {error && (
+        <Alert className="mb-6 border-red-500 bg-red-50">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-red-800">{error}</AlertDescription>
+        </Alert>
+      )}
 
-          <div className="space-y-2">
-            <Label htmlFor="pfId">채널 pfId</Label>
-            <Input
-              id="pfId"
-              value={pfId}
-              onChange={(e) => setPfId(e.target.value)}
-              placeholder="pfId를 입력하세요"
-              onBlur={fetchTemplates}
-            />
-            <p className="text-sm text-gray-500">
-              채널 목록에서 확인한 pfId를 입력하세요
-            </p>
-          </div>
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {quickActions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <Link key={action.href} href={action.href}>
+              <Card className="hover:shadow-xl transition-all cursor-pointer border-2 hover:border-primary group">
+                <CardContent className="p-6">
+                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${getColorClass(action.color)} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg`}>
+                    <Icon className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-bold text-lg mb-1">{action.title}</h3>
+                  <p className="text-sm text-gray-600">{action.description}</p>
+                  <ArrowRight className="h-4 w-4 text-primary mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
+      </div>
 
-          {loadingTemplates ? (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-              <p className="mt-2 text-sm text-gray-600">템플릿 로딩 중...</p>
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              등록 채널
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-2">
+              <div className="text-3xl font-bold text-blue-600">{stats.activeChannels}</div>
+              <div className="text-sm text-gray-500 mb-1">/ {stats.totalChannels}</div>
             </div>
-          ) : templates.length > 0 ? (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="template">템플릿 선택</Label>
-                <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="템플릿을 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map((template) => (
-                      <SelectItem key={template.templateId} value={template.templateId}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <p className="text-xs text-gray-500 mt-1">활성 채널</p>
+          </CardContent>
+        </Card>
 
-              {selectedTemplateData && (
-                <div className="space-y-2">
-                  <Label>템플릿 미리보기</Label>
-                  <div className="p-4 bg-gray-50 rounded-md border text-sm whitespace-pre-wrap">
-                    {selectedTemplateData.content}
+        <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              템플릿
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-2">
+              <div className="text-3xl font-bold text-green-600">{stats.approvedTemplates}</div>
+              <div className="text-sm text-gray-500 mb-1">/ {stats.totalTemplates}</div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">승인 완료</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+              <Send className="h-4 w-4" />
+              발송 건수
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-purple-600">{stats.totalSuccess.toLocaleString()}</div>
+            <p className="text-xs text-gray-500 mt-1">성공 건수</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              성공률
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-orange-600">{successRate}%</div>
+            <p className="text-xs text-gray-500 mt-1">전체 발송 성공률</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Activity and Management */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Sends */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5 text-blue-600" />
+                최근 발송 내역
+              </CardTitle>
+              <Link href="/dashboard/kakao-alimtalk/history">
+                <Button variant="ghost" size="sm">
+                  전체보기
+                  <ArrowRight className="ml-1 h-3 w-3" />
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {stats.recentSends.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <History className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">아직 발송 이력이 없습니다</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {stats.recentSends.map((send: any) => (
+                  <div key={send.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{send.templateName}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(send.createdAt).toLocaleString('ko-KR')}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-green-600">
+                        {send.successCount}건
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {send.totalCost?.toLocaleString()} P
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Quick Links */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-purple-600" />
+              빠른 관리
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <Link href="/dashboard/kakao-channel">
+                <div className="p-4 border-2 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-500 transition-colors">
+                        <MessageSquare className="h-5 w-5 text-blue-600 group-hover:text-white" />
+                      </div>
+                      <div>
+                        <div className="font-semibold">채널 관리</div>
+                        <div className="text-xs text-gray-500">{stats.totalChannels}개 채널</div>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600" />
                   </div>
                 </div>
-              )}
+              </Link>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">수신자 전화번호</Label>
-                <Input
-                  id="phone"
-                  value={recipientPhone}
-                  onChange={(e) => setRecipientPhone(e.target.value)}
-                  placeholder="01012345678"
-                />
-              </div>
-
-              {Object.keys(variables).length > 0 && (
-                <div className="space-y-4">
-                  <Label>템플릿 변수</Label>
-                  {Object.keys(variables).map((key) => (
-                    <div key={key} className="space-y-2">
-                      <Label htmlFor={`var-${key}`} className="text-sm">
-                        #{key}
-                      </Label>
-                      <Input
-                        id={`var-${key}`}
-                        value={variables[key]}
-                        onChange={(e) =>
-                          setVariables({ ...variables, [key]: e.target.value })
-                        }
-                        placeholder={`${key} 값을 입력하세요`}
-                      />
+              <Link href="/dashboard/kakao-alimtalk/templates">
+                <div className="p-4 border-2 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-500 transition-colors">
+                        <FileText className="h-5 w-5 text-green-600 group-hover:text-white" />
+                      </div>
+                      <div>
+                        <div className="font-semibold">템플릿 관리</div>
+                        <div className="text-xs text-gray-500">{stats.totalTemplates}개 템플릿</div>
+                      </div>
                     </div>
-                  ))}
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-green-600" />
+                  </div>
                 </div>
-              )}
+              </Link>
 
-              <Button
-                onClick={handleSend}
-                disabled={loading || !selectedTemplate || !recipientPhone}
-                className="w-full"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    전송 중...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    알림톡 전송
-                  </>
-                )}
-              </Button>
-            </>
-          ) : pfId ? (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                승인된 템플릿이 없습니다. 카카오 비즈니스 센터에서 템플릿을 등록하고 승인받아주세요.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-        </CardContent>
-      </Card>
+              <Link href="/dashboard/kakao-alimtalk/send">
+                <div className="p-4 border-2 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-500 transition-colors">
+                        <Send className="h-5 w-5 text-purple-600 group-hover:text-white" />
+                      </div>
+                      <div>
+                        <div className="font-semibold">알림톡 발송</div>
+                        <div className="text-xs text-gray-500">대량 발송 준비</div>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600" />
+                  </div>
+                </div>
+              </Link>
+
+              <Link href="/dashboard/kakao-alimtalk/history">
+                <div className="p-4 border-2 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-all cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center group-hover:bg-orange-500 transition-colors">
+                        <BarChart3 className="h-5 w-5 text-orange-600 group-hover:text-white" />
+                      </div>
+                      <div>
+                        <div className="font-semibold">발송 통계</div>
+                        <div className="text-xs text-gray-500">{stats.totalSends}회 발송</div>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-orange-600" />
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -289,7 +289,10 @@ export default function SendAlimtalkPage() {
         body: JSON.stringify({
           userId: user?.id,
           channelId: selectedChannel,
+          channelName: channel?.channelName,
           solapiChannelId: channel?.solapiChannelId,
+          templateId: selectedTemplate,
+          templateName: template?.templateName,
           templateCode: template?.templateCode,
           recipients: recipients.map(r => ({
             to: r.phoneNumber,
