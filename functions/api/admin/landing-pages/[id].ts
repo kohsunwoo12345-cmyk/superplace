@@ -12,7 +12,10 @@ function parseToken(authHeader: string | null): { id: string; email: string; rol
   const token = authHeader.substring(7);
   const parts = token.split('|');
   
-  if (parts.length !== 3) {
+  // 토큰 형식: id|email|role|academyId|timestamp (5개 부분)
+  // 또는 구버전: id|email|role (3개 부분)
+  if (parts.length !== 3 && parts.length !== 5) {
+    console.warn('⚠️ 잘못된 토큰 형식:', parts.length, 'parts');
     return null;
   }
 
