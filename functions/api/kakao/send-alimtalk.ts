@@ -23,7 +23,7 @@ export async function onRequest(context: any) {
 
   try {
     const body = await request.json();
-    const { userId, channelId, solapiChannelId, templateCode, recipients } = body;
+    const { userId, channelId, solapiChannelId, templateCode, recipients, sendMode, scheduledAt } = body;
 
     if (!userId || !channelId || !solapiChannelId || !templateCode || !recipients) {
       return new Response(
@@ -33,6 +33,56 @@ export async function onRequest(context: any) {
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+    
+    // Handle scheduled send
+    if (sendMode === 'scheduled') {
+      if (!scheduledAt) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'scheduledAt is required for scheduled sends' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      try {
+        const scheduleId = `sched_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        await env.DB.prepare(`
+          INSERT INTO ScheduledAlimtalk (
+            id, userId, channelId, channelName, solapiChannelId, 
+            templateId, templateName, templateCode, 
+            recipients, scheduledAt, status, createdAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          scheduleId,
+          userId,
+          channelId,
+          body.channelName || 'Unknown',
+          solapiChannelId,
+          body.templateId || '',
+          body.templateName || 'Unknown',
+          templateCode,
+          JSON.stringify(recipients),
+          scheduledAt,
+          'PENDING',
+          new Date().toISOString()
+        ).run();
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true,
+            scheduleId,
+            message: `${recipients.length}건의 알림톡이 예약되었습니다.`,
+            scheduledAt
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (schedError) {
+        console.error('Failed to schedule:', schedError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to schedule messages' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     if (!Array.isArray(recipients) || recipients.length === 0) {

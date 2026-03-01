@@ -7,7 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Upload, FileSpreadsheet, Send, Eye, Download, AlertCircle } from 'lucide-react';
+import { Loader2, Upload, FileSpreadsheet, Send, Eye, Download, AlertCircle, Clock, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import {
@@ -81,6 +86,12 @@ export default function SendAlimtalkPage() {
   // Recipients
   const [recipients, setRecipients] = useState<MappedRecipient[]>([]);
   const [previewMode, setPreviewMode] = useState(false);
+  
+  // Scheduling
+  const [sendMode, setSendMode] = useState<'immediate' | 'scheduled'>('immediate');
+  const [scheduledDate, setScheduledDate] = useState<Date>();
+  const [scheduledHour, setScheduledHour] = useState('09');
+  const [scheduledMinute, setScheduledMinute] = useState('00');
 
   useEffect(() => {
     if (authLoading) return;
@@ -268,11 +279,30 @@ export default function SendAlimtalkPage() {
       alert('발송할 수신자가 없습니다.');
       return;
     }
+    
+    if (sendMode === 'scheduled') {
+      if (!scheduledDate) {
+        alert('발송 날짜를 선택해주세요.');
+        return;
+      }
+      
+      const scheduledDateTime = new Date(scheduledDate);
+      scheduledDateTime.setHours(parseInt(scheduledHour), parseInt(scheduledMinute), 0, 0);
+      
+      if (scheduledDateTime <= new Date()) {
+        alert('미래 시간을 선택해주세요.');
+        return;
+      }
+    }
 
     // Calculate cost (15 points per message)
     const totalCost = recipients.length * 15;
     
-    if (!confirm(`${recipients.length}명에게 알림톡을 발송하시겠습니까?\n\n예상 비용: ${totalCost} 포인트`)) {
+    const confirmMessage = sendMode === 'immediate' 
+      ? `${recipients.length}명에게 즉시 알림톡을 발송하시겠습니까?\n\n예상 비용: ${totalCost} 포인트`
+      : `${recipients.length}명에게 ${format(scheduledDate!, 'yyyy년 M월 d일', { locale: ko })} ${scheduledHour}:${scheduledMinute}에 알림톡을 예약하시겠습니까?\n\n예상 비용: ${totalCost} 포인트`;
+    
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -282,6 +312,12 @@ export default function SendAlimtalkPage() {
 
       const channel = channels.find(c => c.id === selectedChannel);
       const template = templates.find(t => t.id === selectedTemplate);
+      
+      let scheduledDateTime;
+      if (sendMode === 'scheduled' && scheduledDate) {
+        scheduledDateTime = new Date(scheduledDate);
+        scheduledDateTime.setHours(parseInt(scheduledHour), parseInt(scheduledMinute), 0, 0);
+      }
 
       const response = await fetch('/api/kakao/send-alimtalk', {
         method: 'POST',
@@ -294,6 +330,8 @@ export default function SendAlimtalkPage() {
           templateId: selectedTemplate,
           templateName: template?.templateName,
           templateCode: template?.templateCode,
+          sendMode,
+          scheduledAt: scheduledDateTime?.toISOString(),
           recipients: recipients.map(r => ({
             to: r.phoneNumber,
             variables: r.variables
@@ -304,7 +342,13 @@ export default function SendAlimtalkPage() {
       const data = await response.json();
 
       if (data.success) {
-        setSuccess(`✅ 발송 완료!\n성공: ${data.successCount}건\n실패: ${data.failCount}건`);
+        if (sendMode === 'immediate') {
+          setSuccess(`✅ 발송 완료!\n성공: ${data.successCount}건\n실패: ${data.failCount}건`);
+        } else {
+          const scheduledTime = new Date(scheduledDate!);
+          scheduledTime.setHours(parseInt(scheduledHour), parseInt(scheduledMinute), 0, 0);
+          setSuccess(`✅ 예약 완료!\n${format(scheduledTime, 'yyyy년 M월 d일 HH:mm', { locale: ko })}에 ${recipients.length}건의 알림톡이 발송됩니다.`);
+        }
         
         // Reset form after 3 seconds
         setTimeout(() => {
@@ -312,6 +356,8 @@ export default function SendAlimtalkPage() {
           setExcelData([]);
           setRecipients([]);
           setSelectedTemplate('');
+          setSendMode('immediate');
+          setScheduledDate(undefined);
         }, 3000);
       } else {
         setError(data.error || '발송에 실패했습니다.');
@@ -605,6 +651,91 @@ export default function SendAlimtalkPage() {
                 </CardContent>
               </Card>
 
+              {/* Schedule Options */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>발송 방식</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <RadioGroup value={sendMode} onValueChange={(v: any) => setSendMode(v)}>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="immediate" id="immediate" />
+                      <Label htmlFor="immediate" className="flex items-center cursor-pointer">
+                        <Send className="mr-2 h-4 w-4" />
+                        즉시 발송
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="scheduled" id="scheduled" />
+                      <Label htmlFor="scheduled" className="flex items-center cursor-pointer">
+                        <Clock className="mr-2 h-4 w-4" />
+                        예약 발송
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                  
+                  {sendMode === 'scheduled' && (
+                    <div className="space-y-3 pt-3 border-t">
+                      <div>
+                        <Label>발송 날짜</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {scheduledDate ? format(scheduledDate, 'yyyy년 M월 d일', { locale: ko }) : '날짜 선택'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={scheduledDate}
+                              onSelect={setScheduledDate}
+                              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label>시</Label>
+                          <Select value={scheduledHour} onValueChange={setScheduledHour}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 24 }, (_, i) => (
+                                <SelectItem key={i} value={i.toString().padStart(2, '0')}>
+                                  {i.toString().padStart(2, '0')}시
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div>
+                          <Label>분</Label>
+                          <Select value={scheduledMinute} onValueChange={setScheduledMinute}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {['00', '10', '20', '30', '40', '50'].map(m => (
+                                <SelectItem key={m} value={m}>{m}분</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <Button
                 onClick={handleSend}
                 disabled={sending}
@@ -614,12 +745,15 @@ export default function SendAlimtalkPage() {
                 {sending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    발송 중...
+                    {sendMode === 'immediate' ? '발송 중...' : '예약 중...'}
                   </>
                 ) : (
                   <>
-                    <Send className="mr-2 h-4 w-4" />
-                    {recipients.length}명에게 발송하기
+                    {sendMode === 'immediate' ? (
+                      <><Send className="mr-2 h-4 w-4" />{recipients.length}명에게 즉시 발송</>
+                    ) : (
+                      <><Clock className="mr-2 h-4 w-4" />{recipients.length}명에게 예약 발송</>
+                    )}
                   </>
                 )}
               </Button>

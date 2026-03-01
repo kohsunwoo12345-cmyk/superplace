@@ -5,13 +5,18 @@ import { useRouter } from 'next/navigation';
 import { useKakaoAuth } from '@/hooks/useKakaoAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { 
   Loader2, Plus, Trash2, CheckCircle, XCircle, RefreshCw, 
-  MessageSquare, ExternalLink, AlertCircle, TrendingUp, FileText
+  MessageSquare, ExternalLink, AlertCircle, FileText, Send,
+  Upload, Calendar, Clock
 } from 'lucide-react';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +25,19 @@ import {
   DialogTitle,
   DialogFooter
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 interface KakaoChannel {
   id: string;
@@ -34,6 +52,20 @@ interface KakaoChannel {
   status: string;
   createdAt: string;
   updatedAt: string;
+}
+
+interface Template {
+  id: string;
+  templateName: string;
+  templateCode: string;
+  content: string;
+  variables: string;
+  inspectionStatus: string;
+}
+
+interface Recipient {
+  phoneNumber: string;
+  variables: { [key: string]: string };
 }
 
 export default function KakaoChannelListPage() {
@@ -51,6 +83,27 @@ export default function KakaoChannelListPage() {
     channelId: null
   });
   const [deleting, setDeleting] = useState(false);
+
+  // Send Alimtalk Dialog
+  const [sendDialog, setSendDialog] = useState<{ open: boolean; channel: KakaoChannel | null }>({
+    open: false,
+    channel: null
+  });
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [sendType, setSendType] = useState<'immediate' | 'scheduled'>('immediate');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  
+  // Excel upload
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [phoneNumberColumn, setPhoneNumberColumn] = useState('');
+  const [variableMapping, setVariableMapping] = useState<{ [key: string]: string }>({});
+  const [excelColumns, setExcelColumns] = useState<string[]>([]);
+  const [excelData, setExcelData] = useState<any[]>([]);
+  
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -142,6 +195,189 @@ export default function KakaoChannelListPage() {
     }
   };
 
+  const openSendDialog = async (channel: KakaoChannel) => {
+    setSendDialog({ open: true, channel });
+    
+    // Fetch templates for this channel
+    try {
+      const response = await fetch(`/api/kakao/templates?userId=${user?.id}&channelId=${channel.id}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        const approvedTemplates = (data.templates || []).filter(
+          (t: Template) => t.inspectionStatus === 'APPROVED'
+        );
+        setTemplates(approvedTemplates);
+      }
+    } catch (err) {
+      console.error('Failed to fetch templates:', err);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setExcelFile(file);
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      if (jsonData.length === 0) {
+        setError('엑셀 파일이 비어있습니다.');
+        return;
+      }
+
+      setExcelData(jsonData);
+      const columns = Object.keys(jsonData[0] as any);
+      setExcelColumns(columns);
+
+      // Auto-detect phone number column
+      const phoneCol = columns.find(col => 
+        col.includes('전화') || col.includes('휴대폰') || col.includes('phone') || 
+        col.includes('번호') || col.toLowerCase().includes('mobile')
+      );
+      if (phoneCol) {
+        setPhoneNumberColumn(phoneCol);
+      }
+    } catch (err: any) {
+      console.error('Failed to parse Excel:', err);
+      setError('엑셀 파일을 읽는 중 오류가 발생했습니다.');
+    }
+  };
+
+  const parseVariables = (variables: string): string[] => {
+    try {
+      if (!variables) return [];
+      const parsed = JSON.parse(variables);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const generateRecipients = () => {
+    const template = templates.find(t => t.id === selectedTemplate);
+    if (!template || !phoneNumberColumn) return;
+
+    const vars = parseVariables(template.variables);
+    const newRecipients: Recipient[] = [];
+
+    excelData.forEach(row => {
+      const phoneNumber = String((row as any)[phoneNumberColumn] || '').replace(/[^0-9]/g, '');
+      if (!phoneNumber || phoneNumber.length < 10) return;
+
+      const variables: { [key: string]: string } = {};
+      vars.forEach(varName => {
+        const colName = variableMapping[varName];
+        if (colName && (row as any)[colName]) {
+          variables[varName] = String((row as any)[colName]);
+        }
+      });
+
+      newRecipients.push({ phoneNumber, variables });
+    });
+
+    setRecipients(newRecipients);
+  };
+
+  useEffect(() => {
+    if (selectedTemplate && phoneNumberColumn && excelData.length > 0) {
+      generateRecipients();
+    }
+  }, [selectedTemplate, phoneNumberColumn, variableMapping, excelData]);
+
+  const handleSend = async () => {
+    if (!sendDialog.channel || !selectedTemplate || recipients.length === 0) {
+      alert('채널, 템플릿, 수신자를 모두 확인해주세요.');
+      return;
+    }
+
+    const template = templates.find(t => t.id === selectedTemplate);
+    if (!template) return;
+
+    const totalCost = recipients.length * 15;
+    
+    let confirmMsg = `${recipients.length}명에게 알림톡을 발송하시겠습니까?\n\n예상 비용: ${totalCost} 포인트`;
+    
+    if (sendType === 'scheduled') {
+      if (!scheduledDate || !scheduledTime) {
+        alert('예약 날짜와 시간을 선택해주세요.');
+        return;
+      }
+      confirmMsg += `\n예약 시간: ${scheduledDate} ${scheduledTime}`;
+    }
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      setSending(true);
+      setError(null);
+
+      const response = await fetch('/api/kakao/send-alimtalk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id,
+          channelId: sendDialog.channel.id,
+          channelName: sendDialog.channel.channelName,
+          solapiChannelId: sendDialog.channel.solapiChannelId,
+          templateId: selectedTemplate,
+          templateName: template.templateName,
+          templateCode: template.templateCode,
+          recipients: recipients.map(r => ({
+            to: r.phoneNumber,
+            variables: r.variables
+          })),
+          sendType,
+          scheduledAt: sendType === 'scheduled' ? `${scheduledDate}T${scheduledTime}:00` : undefined
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccess(
+          sendType === 'immediate' 
+            ? `✅ 발송 완료!\n성공: ${data.successCount}건\n실패: ${data.failCount}건`
+            : `✅ 예약 완료!\n${scheduledDate} ${scheduledTime}에 ${recipients.length}건 발송 예약되었습니다.`
+        );
+        setSendDialog({ open: false, channel: null });
+        // Reset state
+        setSelectedTemplate('');
+        setExcelFile(null);
+        setRecipients([]);
+        setExcelData([]);
+      } else {
+        setError(data.error || '발송에 실패했습니다.');
+      }
+    } catch (err: any) {
+      console.error('Failed to send:', err);
+      setError('발송 중 오류가 발생했습니다.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const downloadSampleExcel = () => {
+    const template = templates.find(t => t.id === selectedTemplate);
+    const vars = template ? parseVariables(template.variables) : [];
+    
+    const sampleData: any = { '전화번호': '01012345678' };
+    vars.forEach(v => {
+      sampleData[v] = `${v} 값`;
+    });
+
+    const ws = XLSX.utils.json_to_sheet([sampleData]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "수신자목록");
+    XLSX.writeFile(wb, "알림톡_발송_샘플.xlsx");
+  };
+
   const getStatusBadge = (status: string) => {
     const config: any = {
       'ACTIVE': {
@@ -229,14 +465,14 @@ export default function KakaoChannelListPage() {
       {error && (
         <Alert className="mb-6 border-red-500 bg-red-50">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="text-red-800">{error}</AlertDescription>
+          <AlertDescription className="text-red-800 whitespace-pre-line">{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
         <Alert className="mb-6 border-green-500 bg-green-50">
           <CheckCircle className="h-4 w-4" />
-          <AlertDescription className="text-green-800">{success}</AlertDescription>
+          <AlertDescription className="text-green-800 whitespace-pre-line">{success}</AlertDescription>
         </Alert>
       )}
 
@@ -355,6 +591,18 @@ export default function KakaoChannelListPage() {
                 </div>
 
                 <div className="pt-3 border-t space-y-2">
+                  {/* 알림톡 발송 버튼 */}
+                  {channel.status === 'ACTIVE' && (
+                    <Button 
+                      onClick={() => openSendDialog(channel)}
+                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                      size="sm"
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      알림톡 발송하기
+                    </Button>
+                  )}
+                  
                   <Link href={`/dashboard/kakao-alimtalk/templates?channelId=${channel.id}`}>
                     <Button variant="outline" className="w-full" size="sm">
                       <FileText className="mr-2 h-4 w-4" />
@@ -419,6 +667,319 @@ export default function KakaoChannelListPage() {
                 </>
               ) : (
                 '삭제'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Alimtalk Dialog */}
+      <Dialog 
+        open={sendDialog.open} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setSendDialog({ open: false, channel: null });
+            setSelectedTemplate('');
+            setExcelFile(null);
+            setRecipients([]);
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-blue-600" />
+              알림톡 발송 - {sendDialog.channel?.channelName}
+            </DialogTitle>
+            <DialogDescription>
+              템플릿을 선택하고 엑셀 파일을 업로드하여 대량 발송하세요
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs value={sendType} onValueChange={(v) => setSendType(v as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="immediate" className="flex items-center gap-2">
+                <Send className="h-4 w-4" />
+                즉시 발송
+              </TabsTrigger>
+              <TabsTrigger value="scheduled" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                예약 발송
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="immediate" className="space-y-4 mt-4">
+              <div className="space-y-4">
+                {/* Template Selection */}
+                <div>
+                  <Label>템플릿 선택 *</Label>
+                  <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="템플릿을 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map(template => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.templateName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {templates.length === 0 && (
+                    <p className="text-sm text-amber-600 mt-1">
+                      승인된 템플릿이 없습니다. 
+                      <Link href="/dashboard/kakao-alimtalk/templates/create" className="underline ml-1">
+                        템플릿을 먼저 등록하세요
+                      </Link>
+                    </p>
+                  )}
+                </div>
+
+                {/* Excel Upload */}
+                {selectedTemplate && (
+                  <>
+                    <div>
+                      <Label>엑셀 파일 업로드 *</Label>
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={downloadSampleExcel}
+                          size="sm"
+                          className="mb-2"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          샘플 파일 다운로드
+                        </Button>
+                      </div>
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleFileUpload}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      {excelFile && (
+                        <p className="text-sm text-green-600 mt-2">
+                          ✅ {excelFile.name} ({excelData.length}개 행)
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Variable Mapping */}
+                    {excelColumns.length > 0 && (
+                      <div className="space-y-3">
+                        <Label>변수 매핑</Label>
+                        
+                        <div>
+                          <Label className="text-xs">전화번호 컬럼</Label>
+                          <Select value={phoneNumberColumn} onValueChange={setPhoneNumberColumn}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="전화번호 컬럼 선택" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {excelColumns.map(col => (
+                                <SelectItem key={col} value={col}>{col}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {parseVariables(templates.find(t => t.id === selectedTemplate)?.variables || '[]').map(varName => (
+                          <div key={varName}>
+                            <Label className="text-xs">#{'{'}{ varName}{'}'} 변수</Label>
+                            <Select 
+                              value={variableMapping[varName] || ''} 
+                              onValueChange={(value) => setVariableMapping(prev => ({ ...prev, [varName]: value }))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="엑셀 컬럼 선택" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {excelColumns.map(col => (
+                                  <SelectItem key={col} value={col}>{col}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Recipients Summary */}
+                    {recipients.length > 0 && (
+                      <Alert className="bg-green-50 border-green-200">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <AlertDescription className="text-green-800">
+                          ✅ {recipients.length}명의 수신자가 준비되었습니다.
+                          <br />
+                          예상 비용: {recipients.length * 15} 포인트
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="scheduled" className="space-y-4 mt-4">
+              <div className="space-y-4">
+                {/* Template Selection */}
+                <div>
+                  <Label>템플릿 선택 *</Label>
+                  <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="템플릿을 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map(template => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.templateName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Schedule Date & Time */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>예약 날짜 *</Label>
+                    <Input
+                      type="date"
+                      value={scheduledDate}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  <div>
+                    <Label>예약 시간 *</Label>
+                    <Input
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {scheduledDate && scheduledTime && (
+                  <Alert className="bg-blue-50 border-blue-200">
+                    <Clock className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-blue-800">
+                      📅 예약 시간: {scheduledDate} {scheduledTime}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Excel Upload - Same as immediate */}
+                {selectedTemplate && (
+                  <>
+                    <div>
+                      <Label>엑셀 파일 업로드 *</Label>
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={downloadSampleExcel}
+                          size="sm"
+                          className="mb-2"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          샘플 파일 다운로드
+                        </Button>
+                      </div>
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleFileUpload}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      {excelFile && (
+                        <p className="text-sm text-green-600 mt-2">
+                          ✅ {excelFile.name} ({excelData.length}개 행)
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Variable Mapping */}
+                    {excelColumns.length > 0 && (
+                      <div className="space-y-3">
+                        <Label>변수 매핑</Label>
+                        
+                        <div>
+                          <Label className="text-xs">전화번호 컬럼</Label>
+                          <Select value={phoneNumberColumn} onValueChange={setPhoneNumberColumn}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="전화번호 컬럼 선택" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {excelColumns.map(col => (
+                                <SelectItem key={col} value={col}>{col}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {parseVariables(templates.find(t => t.id === selectedTemplate)?.variables || '[]').map(varName => (
+                          <div key={varName}>
+                            <Label className="text-xs">#{'{'}{ varName}{'}'} 변수</Label>
+                            <Select 
+                              value={variableMapping[varName] || ''} 
+                              onValueChange={(value) => setVariableMapping(prev => ({ ...prev, [varName]: value }))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="엑셀 컬럼 선택" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {excelColumns.map(col => (
+                                  <SelectItem key={col} value={col}>{col}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Recipients Summary */}
+                    {recipients.length > 0 && (
+                      <Alert className="bg-green-50 border-green-200">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <AlertDescription className="text-green-800">
+                          ✅ {recipients.length}명의 수신자가 준비되었습니다.
+                          <br />
+                          예상 비용: {recipients.length * 15} 포인트
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSendDialog({ open: false, channel: null })}
+              disabled={sending}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleSend}
+              disabled={sending || !selectedTemplate || recipients.length === 0}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {sending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {sendType === 'immediate' ? '발송 중...' : '예약 중...'}
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  {sendType === 'immediate' ? `${recipients.length}명에게 발송` : `${recipients.length}명 예약 발송`}
+                </>
               )}
             </Button>
           </DialogFooter>
