@@ -15,18 +15,21 @@ export async function onRequest(context: any) {
   }
 
   try {
-    const hasApiKey = !!env.SOLAPI_API_KEY;
-    const hasApiSecret = !!env.SOLAPI_API_SECRET;
+    const hasApiKey = !!(env.SOLAPI_API_Key || env.SOLAPI_API_KEY);
+    const hasApiSecret = !!(env.SOLAPI_API_Secret || env.SOLAPI_API_SECRET);
     const testMode = env.ENABLE_KAKAO_TEST_MODE === 'true';
+
+    const apiKey = env.SOLAPI_API_Key || env.SOLAPI_API_KEY || '';
+    const apiSecret = env.SOLAPI_API_Secret || env.SOLAPI_API_SECRET || '';
 
     const config = {
       solapiConfigured: hasApiKey && hasApiSecret,
       hasApiKey: hasApiKey,
       hasApiSecret: hasApiSecret,
-      apiKeyLength: hasApiKey ? env.SOLAPI_API_KEY.length : 0,
-      apiSecretLength: hasApiSecret ? env.SOLAPI_API_SECRET.length : 0,
+      apiKeyLength: hasApiKey ? apiKey.length : 0,
+      apiSecretLength: hasApiSecret ? apiSecret.length : 0,
       testModeEnabled: testMode,
-      apiKeyPrefix: hasApiKey ? env.SOLAPI_API_KEY.substring(0, 8) + '...' : 'NOT SET',
+      apiKeyPrefix: hasApiKey ? apiKey.substring(0, 8) + '...' : 'NOT SET',
     };
 
     return new Response(

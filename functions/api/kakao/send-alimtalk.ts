@@ -42,8 +42,8 @@ export async function onRequest(context: any) {
       );
     }
 
-    const SOLAPI_API_KEY = env.SOLAPI_API_KEY;
-    const SOLAPI_API_SECRET = env.SOLAPI_API_SECRET;
+    const SOLAPI_API_KEY = env.SOLAPI_API_Key || env.SOLAPI_API_KEY;
+    const SOLAPI_API_SECRET = env.SOLAPI_API_Secret || env.SOLAPI_API_SECRET;
 
     if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
       return new Response(
