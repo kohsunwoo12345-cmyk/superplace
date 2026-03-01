@@ -2,15 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useKakaoAuth } from '@/hooks/useKakaoAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Loader2, Plus, Trash2, CheckCircle, Clock, XCircle, Send, Eye, Edit, 
-  Copy, FileText, AlertCircle, Filter, Search 
+  Loader2, Plus, Trash2, CheckCircle, Clock, XCircle, Send, Eye, 
+  Copy, FileText, AlertCircle, Search 
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -26,7 +25,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
 
@@ -55,7 +53,8 @@ interface KakaoChannel {
 
 export default function AlimtalkTemplatesPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useKakaoAuth();
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   
   const [templates, setTemplates] = useState<AlimtalkTemplate[]>([]);
   const [channels, setChannels] = useState<KakaoChannel[]>([]);
@@ -79,15 +78,40 @@ export default function AlimtalkTemplatesPage() {
   const [previewTemplate, setPreviewTemplate] = useState<AlimtalkTemplate | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
-    
-    if (!user?.id) {
+    // Check auth from localStorage
+    try {
+      const userStr = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+      
+      if (!userStr || !token) {
+        router.push('/login');
+        return;
+      }
+      
+      const userData = JSON.parse(userStr);
+      setUser(userData);
+      setAuthLoading(false);
+    } catch (err) {
+      console.error('Auth error:', err);
       router.push('/login');
-      return;
     }
+  }, []);
 
-    fetchData();
-  }, [user, authLoading, filterChannel]);
+  useEffect(() => {
+    if (!authLoading && user?.id) {
+      fetchData();
+    }
+  }, [authLoading, user, filterChannel]);
+
+  const parseVariables = (variables: string): string[] => {
+    try {
+      if (!variables || variables === '' || variables === 'null') return [];
+      const parsed = JSON.parse(variables);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  };
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -99,13 +123,14 @@ export default function AlimtalkTemplatesPage() {
       // Fetch channels
       try {
         const channelsRes = await fetch(`/api/kakao/channels?userId=${user.id}`);
-        const channelsData = await channelsRes.json();
-        if (channelsData.success) {
-          setChannels(channelsData.channels || []);
+        if (channelsRes.ok) {
+          const channelsData = await channelsRes.json();
+          if (channelsData.success) {
+            setChannels(channelsData.channels || []);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch channels:', err);
-        // Continue even if channels fail
       }
 
       // Fetch templates
@@ -117,13 +142,12 @@ export default function AlimtalkTemplatesPage() {
       const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`HTTP ${response.status}`);
       }
       
       const data = await response.json();
 
       if (data.success) {
-        // Ensure all templates have valid data
         const validTemplates = (data.templates || []).map((t: any) => ({
           ...t,
           variables: t.variables || '[]',
@@ -245,16 +269,6 @@ export default function AlimtalkTemplatesPage() {
     };
     const config = types[messageType] || { label: messageType, class: 'bg-gray-100 text-gray-800' };
     return <Badge variant="outline" className={config.class}>{config.label}</Badge>;
-  };
-
-  const parseVariables = (variables: string): string[] => {
-    try {
-      if (!variables || variables === '') return [];
-      const parsed = JSON.parse(variables);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      return [];
-    }
   };
 
   const filteredTemplates = templates.filter(template => {
@@ -382,82 +396,86 @@ export default function AlimtalkTemplatesPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTemplates.map((template) => (
-            <Card key={template.id} className="hover:shadow-xl transition-shadow border-2">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg mb-2 line-clamp-1">
-                      {template.templateName}
-                    </CardTitle>
-                    <div className="flex flex-wrap gap-2">
-                      {getStatusBadge(template.inspectionStatus)}
-                      {getMessageTypeBadge(template.messageType)}
+          {filteredTemplates.map((template) => {
+            const variables = parseVariables(template.variables);
+            
+            return (
+              <Card key={template.id} className="hover:shadow-xl transition-shadow border-2">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg mb-2 line-clamp-1">
+                        {template.templateName}
+                      </CardTitle>
+                      <div className="flex flex-wrap gap-2">
+                        {getStatusBadge(template.inspectionStatus)}
+                        {getMessageTypeBadge(template.messageType)}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  {template.channelName || '알 수 없는 채널'}
-                </p>
-              </CardHeader>
-              
-              <CardContent className="space-y-4">
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm text-gray-700 line-clamp-4 whitespace-pre-wrap">
-                    {template.content}
+                  <p className="text-xs text-gray-500 mt-2">
+                    {template.channelName}
                   </p>
-                </div>
-
-                {parseVariables(template.variables).length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {parseVariables(template.variables).map((v: string, i: number) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        #{'{'}{ v}{'}'}
-                      </Badge>
-                    ))}
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-sm text-gray-700 line-clamp-4 whitespace-pre-wrap">
+                      {template.content}
+                    </p>
                   </div>
-                )}
 
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setPreviewTemplate(template)}
-                  >
-                    <Eye className="mr-1 h-3 w-3" />
-                    미리보기
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDuplicate(template)}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDeleteDialog({ open: true, templateId: template.id })}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                  {variables.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {variables.map((v: string, i: number) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          #{'{'}{ v}{'}'}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
 
-                {template.inspectionStatus === 'APPROVED' && (
-                  <Link href={`/dashboard/kakao-alimtalk/send?templateId=${template.id}`}>
-                    <Button className="w-full" size="sm">
-                      <Send className="mr-2 h-3 w-3" />
-                      이 템플릿으로 발송
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setPreviewTemplate(template)}
+                    >
+                      <Eye className="mr-1 h-3 w-3" />
+                      미리보기
                     </Button>
-                  </Link>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDuplicate(template)}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteDialog({ open: true, templateId: template.id })}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+
+                  {template.inspectionStatus === 'APPROVED' && (
+                    <Link href={`/dashboard/kakao-alimtalk/send?templateId=${template.id}`}>
+                      <Button className="w-full" size="sm">
+                        <Send className="mr-2 h-3 w-3" />
+                        이 템플릿으로 발송
+                      </Button>
+                    </Link>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
