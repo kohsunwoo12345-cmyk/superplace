@@ -27,22 +27,17 @@ export async function onRequestGet(context: { env: Env }) {
       );
     }
 
-    // Solapi REST API 직접 호출 (Solapi 형식: YYYY-MM-DD HH:mm:ss in KST)
-    const now = new Date();
-    const kstOffset = 9 * 60; // KST is UTC+9
-    const kstDate = new Date(now.getTime() + (kstOffset - now.getTimezoneOffset()) * 60000);
-    const date = kstDate.toISOString()
-      .replace('T', ' ')
-      .substring(0, 19); // YYYY-MM-DD HH:mm:ss
-    const salt = (Math.random() + 1).toString(36).substring(2, 9);
+    // Solapi REST API 직접 호출 (ISO 8601 format)
+    const dateTime = new Date().toISOString();
+    const salt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     
     // HMAC 서명 생성
-    const signature = await generateSignature(SOLAPI_API_Secret, date, salt);
+    const signature = await generateSignature(SOLAPI_API_Secret, dateTime, salt);
     
     const response = await fetch('https://api.solapi.com/kakao/v1/plus-friends/categories', {
       method: 'GET',
       headers: {
-        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${date}, salt=${salt}, signature=${signature}`,
+        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${dateTime}, salt=${salt}, signature=${signature}`,
         'Content-Type': 'application/json',
       },
     });
@@ -57,7 +52,7 @@ export async function onRequestGet(context: { env: Env }) {
           details: errorData,
           debug: {
             url: 'https://api.solapi.com/kakao/v1/plus-friends/categories',
-            date,
+            dateTime,
             salt
           }
         }),
@@ -86,11 +81,11 @@ export async function onRequestGet(context: { env: Env }) {
   }
 }
 
-async function generateSignature(secret: string | undefined, date: string, salt: string): Promise<string> {
+async function generateSignature(secret: string | undefined, dateTime: string, salt: string): Promise<string> {
   if (!secret) {
     throw new Error('SOLAPI_API_Secret is required');
   }
-  const message = date + salt;
+  const message = dateTime + salt;
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secret);
   const messageData = encoder.encode(message);

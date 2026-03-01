@@ -88,17 +88,10 @@ export async function onRequest(context: any) {
       phoneNumber: phoneNumber.substring(0, 3) + '****'
     });
 
-    // Create HMAC signature for Solapi API (following Solapi's exact format)
-    // Date format: YYYY-MM-DD HH:mm:ss in Asia/Seoul timezone
-    const now = new Date();
-    const kstOffset = 9 * 60; // KST is UTC+9
-    const kstDate = new Date(now.getTime() + (kstOffset - now.getTimezoneOffset()) * 60000);
-    const date = kstDate.toISOString()
-      .replace('T', ' ')
-      .substring(0, 19); // YYYY-MM-DD HH:mm:ss
-    
-    const salt = (Math.random() + 1).toString(36).substring(2, 9);
-    const hmacData = date + salt;
+    // Create HMAC signature for Solapi API (ISO 8601 format)
+    const dateTime = new Date().toISOString(); // e.g., 2019-07-01T00:41:48.000Z
+    const salt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const hmacData = dateTime + salt;
     
     // Create signature using Web Crypto API
     const encoder = new TextEncoder();
@@ -119,7 +112,7 @@ export async function onRequest(context: any) {
       .join('');
 
     console.log('🔐 HMAC Auth:', {
-      date,
+      dateTime,
       salt,
       apiKey: SOLAPI_API_KEY.substring(0, 10) + '...',
       signatureLength: signatureHex.length
@@ -128,7 +121,7 @@ export async function onRequest(context: any) {
     const response = await fetch('https://api.solapi.com/kakao/v2/plus-friends/request-token', {
       method: 'POST',
       headers: {
-        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signatureHex}`,
+        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${dateTime}, salt=${salt}, signature=${signatureHex}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

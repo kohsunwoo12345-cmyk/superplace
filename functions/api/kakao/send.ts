@@ -72,15 +72,10 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       );
     }
 
-    // Solapi 메시지 발송 API 호출 (Solapi 형식: YYYY-MM-DD HH:mm:ss in KST)
-    const now = new Date();
-    const kstOffset = 9 * 60; // KST is UTC+9
-    const kstDate = new Date(now.getTime() + (kstOffset - now.getTimezoneOffset()) * 60000);
-    const date = kstDate.toISOString()
-      .replace('T', ' ')
-      .substring(0, 19); // YYYY-MM-DD HH:mm:ss
-    const salt = (Math.random() + 1).toString(36).substring(2, 9);
-    const signature = await generateSignature(SOLAPI_API_Secret, date, salt);
+    // Solapi 메시지 발송 API 호출 (ISO 8601 format)
+    const dateTime = new Date().toISOString();
+    const salt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const signature = await generateSignature(SOLAPI_API_Secret, dateTime, salt);
 
     // 메시지 구성
     const messages = recipients.map(recipient => ({
@@ -101,7 +96,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     const response = await fetch('https://api.solapi.com/messages/v4/send', {
       method: 'POST',
       headers: {
-        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${date}, salt=${salt}, signature=${signature}`,
+        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_Key}, date=${dateTime}, salt=${salt}, signature=${signature}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ messages }),
@@ -199,8 +194,8 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
   }
 }
 
-async function generateSignature(secret: string, date: string, salt: string): Promise<string> {
-  const message = date + salt;
+async function generateSignature(secret: string, dateTime: string, salt: string): Promise<string> {
+  const message = dateTime + salt;
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secret);
   const messageData = encoder.encode(message);
