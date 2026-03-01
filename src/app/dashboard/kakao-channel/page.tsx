@@ -6,7 +6,7 @@ import { useKakaoAuth } from '@/hooks/useKakaoAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Plus, Trash2, CheckCircle, XCircle, Clock, ExternalLink } from 'lucide-react';
+import { Loader2, Plus, Trash2, CheckCircle, XCircle, Clock, ExternalLink, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 interface KakaoChannel {
@@ -34,6 +34,7 @@ export default function KakaoChannelListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -99,6 +100,36 @@ export default function KakaoChannelListPage() {
     }
   };
 
+  const handleSyncChannels = async () => {
+    if (!user?.id) return;
+
+    try {
+      setSyncing(true);
+      setError(null);
+
+      const response = await fetch('/api/kakao/sync-channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(`✅ ${data.syncedCount}개의 채널이 동기화되었습니다!`);
+        // 목록 새로고침
+        await fetchChannels();
+      } else {
+        setError(data.error || '채널 동기화에 실패했습니다.');
+      }
+    } catch (err: any) {
+      console.error('Failed to sync channels:', err);
+      setError('채널 동기화 중 오류가 발생했습니다.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ACTIVE':
@@ -151,12 +182,26 @@ export default function KakaoChannelListPage() {
             등록된 카카오 비즈니스 채널을 관리하고 알림톡 템플릿을 생성할 수 있습니다.
           </p>
         </div>
-        <Link href="/dashboard/kakao-channel/register">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            새 채널 등록
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleSyncChannels}
+            disabled={syncing}
+          >
+            {syncing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Solapi 채널 동기화
           </Button>
-        </Link>
+          <Link href="/dashboard/kakao-channel/register">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              새 채널 등록
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {error && (
