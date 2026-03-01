@@ -73,32 +73,43 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     const userIdForQuery = hashStringToInt(String(userId));
     console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId, userIdHash: userIdForQuery, originalUserId: userId });
 
-    // 역할별 쿼리 생성
+    // 역할별 쿼리 생성 - 두 스키마 모두 지원
     let query = '';
     let queryParams: any[] = [];
 
     if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
       // 관리자는 모든 랜딩페이지 조회
+      // 새 스키마(createdById)와 구 스키마(user_id) 모두 지원
       query = `
         SELECT 
-          lp.id, lp.slug, lp.title, lp.createdAt, lp.createdById,
-          u.name as creatorName
+          lp.id, lp.slug, lp.title, 
+          COALESCE(lp.createdAt, lp.created_at) as createdAt,
+          COALESCE(lp.createdById, CAST(lp.user_id AS TEXT)) as createdById,
+          u.name as creatorName,
+          COALESCE(lp.views, lp.view_count, 0) as viewCount,
+          COALESCE(lp.isActive, CASE WHEN lp.status = 'active' THEN 1 ELSE 0 END, 1) as isActive
         FROM landing_pages lp
-        LEFT JOIN User u ON lp.createdById = u.id
-        ORDER BY lp.createdAt DESC
+        LEFT JOIN User u ON (lp.createdById = u.id OR CAST(lp.user_id AS TEXT) = u.id)
+        ORDER BY COALESCE(lp.createdAt, lp.created_at) DESC
       `;
     } else if (role === 'DIRECTOR' || role === 'TEACHER') {
       // 학원장/교사는 자신이 만든 것만 조회
+      // 새 스키마와 구 스키마 모두 확인
+      const userIdHash = hashStringToInt(String(userId));
       query = `
         SELECT 
-          lp.id, lp.slug, lp.title, lp.createdAt, lp.createdById,
-          u.name as creatorName
+          lp.id, lp.slug, lp.title,
+          COALESCE(lp.createdAt, lp.created_at) as createdAt,
+          COALESCE(lp.createdById, CAST(lp.user_id AS TEXT)) as createdById,
+          u.name as creatorName,
+          COALESCE(lp.views, lp.view_count, 0) as viewCount,
+          COALESCE(lp.isActive, CASE WHEN lp.status = 'active' THEN 1 ELSE 0 END, 1) as isActive
         FROM landing_pages lp
-        LEFT JOIN User u ON lp.createdById = u.id
-        WHERE lp.createdById = ?
-        ORDER BY lp.createdAt DESC
+        LEFT JOIN User u ON (lp.createdById = u.id OR CAST(lp.user_id AS TEXT) = u.id)
+        WHERE lp.createdById = ? OR lp.user_id = ?
+        ORDER BY COALESCE(lp.createdAt, lp.created_at) DESC
       `;
-      queryParams = [userId]; // TEXT ID 직접 사용
+      queryParams = [userId, userIdHash]; // TEXT ID와 해시 모두 검색
     } else {
       return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
         status: 403,
@@ -108,16 +119,20 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
 
     const landingPages = await db.prepare(query).bind(...queryParams).all();
 
+    console.log('📊 Found landing pages:', landingPages.results?.length || 0);
+
     // Parse results
     const results = (landingPages.results || []).map((lp: any) => ({
       id: lp.id,
       slug: lp.slug,
       title: lp.title,
       url: `/lp/${lp.slug}`,
-      isActive: true,
+      isActive: lp.isActive === 1,
       showQrCode: true,
-      viewCount: 0,
-      submissions: 0
+      viewCount: lp.viewCount || 0,
+      submissions: 0,
+      createdAt: lp.createdAt,
+      creatorName: lp.creatorName
     }));
 
     return new Response(

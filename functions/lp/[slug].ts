@@ -14,24 +14,41 @@ export async function onRequest(context: {
 
     console.log("🔍 Trying to fetch landing page:", slug);
 
-    // 올바른 스키마로 조회
+    // 두 스키마 모두 지원
     let landingPage = null;
     
     try {
-      console.log("🔍 Querying landing_pages table");
+      console.log("🔍 Querying landing_pages table with backward compatibility");
       landingPage = await db
         .prepare(
           `SELECT 
-            id, slug, title, subtitle, description, templateType,
-            templateHtml, customFields, thumbnailUrl, qrCodeUrl,
-            metaTitle, metaDescription, views, isActive,
-            createdById, createdAt
+            id, slug, title, subtitle, description,
+            COALESCE(templateType, template_type, 'basic') as templateType,
+            COALESCE(templateHtml, html_content) as templateHtml,
+            COALESCE(customFields, content_json) as customFields,
+            COALESCE(thumbnailUrl, thumbnail_url) as thumbnailUrl,
+            COALESCE(qrCodeUrl, qr_code_url) as qrCodeUrl,
+            COALESCE(metaTitle, og_title, title) as metaTitle,
+            COALESCE(metaDescription, og_description) as metaDescription,
+            COALESCE(views, view_count, 0) as views,
+            COALESCE(isActive, CASE WHEN status = 'active' THEN 1 ELSE 0 END, 1) as isActive,
+            COALESCE(createdById, CAST(user_id AS TEXT)) as createdById,
+            COALESCE(createdAt, created_at) as createdAt
           FROM landing_pages 
-          WHERE slug = ? AND isActive = 1`
+          WHERE slug = ? AND (isActive = 1 OR status = 'active')`
         )
         .bind(slug)
         .first();
       console.log("✅ Query result:", !!landingPage);
+      if (landingPage) {
+        console.log("📊 Landing page data:", {
+          slug: landingPage.slug,
+          title: landingPage.title,
+          hasTemplateHtml: !!landingPage.templateHtml,
+          templateHtmlLength: landingPage.templateHtml?.length || 0,
+          createdById: landingPage.createdById
+        });
+      }
     } catch (e: any) {
       console.log("❌ Query failed:", e.message);
     }
