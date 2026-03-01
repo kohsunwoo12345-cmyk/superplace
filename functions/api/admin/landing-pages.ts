@@ -532,7 +532,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       throw new Error(`INSERT succeeded but cannot find row with slug: ${slug}. Recent rows: ${recentRows.results?.length || 0}`);
     }
     
-    const insertedId = result.id;
+    // 조회 성공 시 ID 업데이트
+    insertedId = result.id;
 
     // Insert pixel scripts if provided
     if (pixelScripts && Array.isArray(pixelScripts) && pixelScripts.length > 0) {
