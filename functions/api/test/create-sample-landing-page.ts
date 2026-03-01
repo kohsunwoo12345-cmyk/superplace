@@ -133,14 +133,14 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     } catch (error: any) {
       console.log("⚠️ 신 스키마 실패, 구 스키마로 시도:", error.message);
       
-      // 구 스키마로 재시도
+      // 구 스키마로 재시도 (id 없이)
       const insertResult = await db
         .prepare(`
           INSERT INTO landing_pages 
-          (id, slug, title, template_type, html_content, status) 
-          VALUES (?, ?, ?, 'student_report', ?, 'active')
+          (slug, title, template_type, html_content, status) 
+          VALUES (?, ?, 'student_report', ?, 'active')
         `)
-        .bind(id, slug, title, htmlContent)
+        .bind(slug, title, htmlContent)
         .run();
       
       console.log("✅ 구 스키마 INSERT 성공:", JSON.stringify(insertResult));
