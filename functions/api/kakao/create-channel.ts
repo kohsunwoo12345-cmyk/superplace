@@ -45,14 +45,67 @@ export async function onRequest(context: any) {
 
     const SOLAPI_API_KEY = env.SOLAPI_API_KEY;
     const SOLAPI_API_SECRET = env.SOLAPI_API_SECRET;
+    const ENABLE_TEST_MODE = env.ENABLE_KAKAO_TEST_MODE === 'true';
 
+    // Test mode: Skip Solapi and save directly to DB
     if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
+      if (!ENABLE_TEST_MODE) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Solapi credentials not configured. Set ENABLE_KAKAO_TEST_MODE=true to test without Solapi.' 
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Test mode: Save directly to database
+      console.log('⚠️ TEST MODE: Skipping Solapi, saving directly to DB');
+      
+      const db = env.DB;
+      const channelId = `ch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const now = new Date().toISOString();
+
+      // Parse categoryCode
+      const mainCategory = categoryCode.substring(0, 3);
+      const middleCategory = categoryCode.substring(3, 6);
+      const subCategory = categoryCode.substring(6, 11);
+
+      await db.prepare(`
+        INSERT INTO KakaoChannel (
+          id, userId, userName, phoneNumber, channelName, searchId,
+          categoryCode, mainCategory, middleCategory, subCategory,
+          solapiChannelId, status, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)
+      `).bind(
+        channelId,
+        userId || 'anonymous',
+        userName || '',
+        phoneNumber,
+        channelName || searchId,
+        searchId,
+        categoryCode,
+        mainCategory,
+        middleCategory,
+        subCategory,
+        `test_${searchId}`,
+        now,
+        now
+      ).run();
+
+      // Fetch the created channel
+      const channel = await db.prepare(`
+        SELECT * FROM KakaoChannel WHERE id = ?
+      `).bind(channelId).first();
+
       return new Response(
         JSON.stringify({ 
-          success: false, 
-          error: 'Solapi credentials not configured' 
+          success: true,
+          channel,
+          testMode: true,
+          message: '테스트 모드: 카카오 채널이 등록되었습니다. (Solapi 연동 없음)'
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

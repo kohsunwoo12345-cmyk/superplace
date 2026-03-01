@@ -37,14 +37,30 @@ export async function onRequest(context: any) {
 
     const SOLAPI_API_KEY = env.SOLAPI_API_KEY;
     const SOLAPI_API_SECRET = env.SOLAPI_API_SECRET;
+    const ENABLE_TEST_MODE = env.ENABLE_KAKAO_TEST_MODE === 'true';
 
     if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
+      if (!ENABLE_TEST_MODE) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Solapi credentials not configured. Set ENABLE_KAKAO_TEST_MODE=true to test without Solapi.' 
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Test mode: Return success without actually sending SMS
+      console.log('⚠️ TEST MODE: Skipping Solapi SMS, returning mock success');
+      
       return new Response(
         JSON.stringify({ 
-          success: false, 
-          error: 'Solapi credentials not configured' 
+          success: true, 
+          message: '테스트 모드: 인증번호가 전송되었습니다. (실제 SMS 없음)',
+          testMode: true,
+          mockToken: 123456
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
