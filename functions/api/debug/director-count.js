@@ -12,10 +12,10 @@ export async function onRequestGet(context) {
     
     // Get sample directors
     const sample = await env.DB.prepare(`
-      SELECT id, name, email, academyId, created_at
+      SELECT id, name, email, academyId, createdAt
       FROM User
       WHERE role = 'DIRECTOR'
-      ORDER BY created_at DESC
+      ORDER BY createdAt DESC
       LIMIT 20
     `).all();
     
