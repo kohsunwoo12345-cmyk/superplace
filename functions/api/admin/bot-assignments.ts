@@ -88,7 +88,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         uba.botId,
         b.name as botName,
         b.profileIcon as botIcon,
-        uba.assignedAt,
+        COALESCE(uba.assignedAt, uba.createdAt) as assignedAt,
         uba.expiresAt,
         uba.isActive,
         uba.notes,
@@ -212,8 +212,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       for (const director of directors) {
         await db
           .prepare(`
-            INSERT INTO user_bot_assignments (userId, botId, assignedAt, expiresAt, isActive, notes)
-            VALUES (?, ?, datetime('now'), ?, 1, ?)
+            INSERT INTO user_bot_assignments (userId, botId, expiresAt, isActive, notes)
+            VALUES (?, ?, ?, 1, ?)
           `)
           .bind(
             director.userId,
