@@ -113,11 +113,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const chunks = chunkText(knowledgeBase, 1000);
     console.log(`  └─ Split into ${chunks.length} chunks`);
 
+    // 🔥 최적화: 최대 20개 청크만 처리 (타임아웃 방지)
+    const maxChunks = 20;
+    const chunksToProcess = chunks.slice(0, maxChunks);
+    
+    if (chunks.length > maxChunks) {
+      console.log(`  ⚠️ Limiting to ${maxChunks} chunks (original: ${chunks.length})`);
+    }
+
     // 2. 각 청크를 임베딩하여 Vectorize에 저장
     const vectors: VectorizeVector[] = [];
+    let successCount = 0;
+    let failCount = 0;
     
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
+    for (let i = 0; i < chunksToProcess.length; i++) {
+      const chunk = chunksToProcess[i];
       
       try {
         // Gemini API로 임베딩 생성
@@ -135,18 +145,26 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           }
         });
         
-        console.log(`  └─ Chunk ${i + 1}/${chunks.length} embedded (${embedding.length} dimensions)`);
+        successCount++;
+        console.log(`  └─ Chunk ${i + 1}/${chunksToProcess.length} embedded ✅`);
       } catch (embeddingError: any) {
-        console.error(`  ❌ Failed to embed chunk ${i}:`, embeddingError.message);
-        // 임베딩 실패 시 계속 진행
-        continue;
+        failCount++;
+        console.error(`  └─ Chunk ${i + 1} failed: ${embeddingError.message} ❌`);
+        
+        // 연속 3번 실패하면 중단
+        if (failCount >= 3) {
+          console.error('  ❌ Too many failures, aborting');
+          break;
+        }
       }
     }
 
     if (vectors.length === 0) {
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'Failed to generate any embeddings' 
+        error: 'Failed to generate any embeddings',
+        failCount,
+        totalChunks: chunksToProcess.length
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
@@ -162,7 +180,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return new Response(JSON.stringify({ 
         success: false,
         error: 'Failed to upload to Vectorize',
-        message: vectorizeError.message 
+        message: vectorizeError.message,
+        successCount: vectors.length
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
@@ -188,7 +207,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       message: 'Knowledge base uploaded successfully',
       vectorCount: vectors.length,
       chunkCount: chunks.length,
-      botId
+      processedChunks: chunksToProcess.length,
+      successCount,
+      failCount,
+      botId,
+      limitApplied: chunks.length > maxChunks
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
