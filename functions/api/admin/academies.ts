@@ -425,7 +425,7 @@ export async function onRequestGet(context) {
     const finalAcademies = [];
     const processedDirectorIds = new Set();
     
-    console.log(`🚀 Processing ALL ${directors.length} directors as individual academies (simple loop)...`);
+    console.log(`🚀 [v2] Processing ALL ${directors.length} directors as individual academies (simple loop)...`);
     
     // Step 1: 모든 학원장을 개별 academy로 처리 (간단한 for 루프)
     for (const director of directors) {

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Academies</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>Academy Count Test</h1>
+    <button onclick="location.reload()">Refresh</button>
+    <div id="result"></div>
+    
+    <script>
+    // Get token from URL parameter or prompt
+    const urlParams = new URLSearchParams(window.location.search);
+    let token = urlParams.get('token');
+    
+    if (!token) {
+        token = prompt('Enter JWT token:');
+    }
+    
+    if (token) {
+        fetch('/api/admin/academies', {
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const html = `
+                <h2>Results:</h2>
+                <p><strong>Success:</strong> ${data.success}</p>
+                <p><strong>Total:</strong> ${data.total}</p>
+                <p><strong>Academies Length:</strong> ${data.academies?.length || 0}</p>
+                <p><strong>Source:</strong> ${data.source}</p>
+                <hr>
+                <h3>First 5 Academies:</h3>
+                <pre>${JSON.stringify(data.academies?.slice(0, 5), null, 2)}</pre>
+            `;
+            document.getElementById('result').innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('result').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+        });
+    } else {
+        document.getElementById('result').innerHTML = '<p>No token provided</p>';
+    }
+    </script>
+</body>
+</html>
