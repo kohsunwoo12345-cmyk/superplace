@@ -27,7 +27,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 백엔드에서도 추가 검증 가능
 
     // bot_assignments 테이블이 없으면 생성
-    await db.exec(`
+    await db.prepare(`
       CREATE TABLE IF NOT EXISTS bot_assignments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         academyId TEXT NOT NULL,
@@ -40,10 +40,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `);
+    `).run();
 
     // 🆕 user_bot_assignments 테이블 생성 (학원장 개인 할당용)
-    await db.exec(`
+    await db.prepare(`
       CREATE TABLE IF NOT EXISTS user_bot_assignments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId TEXT NOT NULL,
@@ -55,7 +55,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `);
+    `).run();
 
     // 학원명과 봇 정보를 포함한 조인 쿼리
     const result = await db.prepare(`
