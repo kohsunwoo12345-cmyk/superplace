@@ -584,19 +584,22 @@ export async function onRequestGet(context) {
       // 각 학원장의 고유 ID 생성: director.id 기반
       const uniqueDirectorKey = `dir-${director.id}`;
       
-      // 이미 Academy 테이블에서 처리되지 않은 학원장만 추가
-      // (Academy 테이블에 해당 학원장의 academyId가 없는 경우)
-      const hasAcademyTableEntry = director.academy_id && processedAcademyIds.has(director.academy_id.toString());
-      
-      if (!hasAcademyTableEntry) {
+      // 중복 방지: 이미 처리된 학원장(uniqueDirectorKey 기준) 제외
+      // 🔥 핵심: Academy 테이블 여부와 관계없이 모든 학원장 추가
+      if (!processedAcademyIds.has(uniqueDirectorKey)) {
         directorsWithoutAcademy.push(director);
         console.log(`  ➕ Adding director: ${director.name} (Director ID: ${director.id}, Academy ID: ${director.academy_id || 'NULL'})`);
+      } else {
+        console.log(`  ⏭️  Skipping already processed director: ${director.name} (Director ID: ${director.id})`);
       }
     }
     
-    console.log(`✅ Found ${directorsWithoutAcademy.length} directors without academy table entries`);
-    console.log(`   - ${directorsWithoutAcademy.filter(d => d.academy_id).length} with academyId but no Academy table entry`);
-    console.log(`   - ${directorsWithoutAcademy.filter(d => !d.academy_id).length} with NULL academyId`);
+    console.log(`✅ Found ${directorsWithoutAcademy.length} directors to add as individual academies`);
+    console.log(`📊 Statistics:`);
+    console.log(`   - Total directors in DB: ${directors.length}`);
+    console.log(`   - Already processed: ${processedAcademyIds.size}`);
+    console.log(`   - New to add: ${directorsWithoutAcademy.length}`);
+    console.log(`   - Expected total academies: ${processedAcademyIds.size + directorsWithoutAcademy.length}`);
     
     if (directorsWithoutAcademy.length > 0) {
       const additionalAcademies = await Promise.all(directorsWithoutAcademy.map(async (director) => {
