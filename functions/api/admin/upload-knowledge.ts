@@ -34,6 +34,12 @@ function chunkText(text: string, chunkSize: number = 1000): string[] {
 
 // Gemini API로 텍스트 임베딩 생성
 async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
+  console.log(`🔄 Generating embedding for text (${text.length} chars)...`);
+  
+  if (!apiKey || apiKey.trim().length === 0) {
+    throw new Error('Gemini API key is empty or not configured');
+  }
+  
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
     {
@@ -49,11 +55,19 @@ async function generateEmbedding(text: string, apiKey: string): Promise<number[]
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Gemini Embedding API error: ${error}`);
+    const errorText = await response.text();
+    console.error(`❌ Gemini API error (${response.status}):`, errorText.substring(0, 200));
+    throw new Error(`Gemini Embedding API error (${response.status}): ${errorText.substring(0, 100)}`);
   }
 
   const data = await response.json();
+  
+  if (!data.embedding || !data.embedding.values) {
+    console.error('❌ Invalid embedding response:', JSON.stringify(data).substring(0, 200));
+    throw new Error('Invalid embedding response format');
+  }
+  
+  console.log(`✅ Embedding generated (${data.embedding.values.length} dimensions)`);
   return data.embedding.values;
 }
 
@@ -83,14 +97,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     if (!GOOGLE_GEMINI_API_KEY) {
+      console.error('❌ GOOGLE_GEMINI_API_KEY not configured in environment');
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'Gemini API key not configured' 
+        error: 'Gemini API key not configured',
+        message: 'GOOGLE_GEMINI_API_KEY 환경 변수가 설정되지 않았습니다. Cloudflare Pages 설정을 확인하세요.'
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
     }
+    
+    console.log(`✅ GOOGLE_GEMINI_API_KEY found (length: ${GOOGLE_GEMINI_API_KEY.length})`);
+    console.log(`✅ API KEY preview: ${GOOGLE_GEMINI_API_KEY.substring(0, 10)}...`);
 
     const body = await context.request.json() as any;
     const { botId, knowledgeBase, fileName } = body;
