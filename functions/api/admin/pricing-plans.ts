@@ -40,7 +40,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // pricing_plans 테이블 생성
+    // pricing_plans 테이블 생성 (6개월 요금 포함)
     await db.prepare(`
       CREATE TABLE IF NOT EXISTS pricing_plans (
         id TEXT PRIMARY KEY,

@@ -23,6 +23,10 @@ import {
   Package,
   FileText,
   Presentation,
+  Download,
+  Database,
+  UserMinus,
+  Filter,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
@@ -554,6 +558,141 @@ export default function AdminDashboardPage() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* 데이터 관리 & 추출 섹션 */}
+      <div>
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <Database className="h-6 w-6 text-indigo-600" />
+          데이터 관리 & 추출
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* 전체 회원 추출 */}
+          <Card className="border-2 border-indigo-100 hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-br from-indigo-50 to-white"
+                onClick={() => window.open('/api/admin/export-users?type=all', '_blank')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-indigo-900">
+                <Download className="h-5 w-5 text-indigo-600" />
+                전체 회원 DB 추출
+              </CardTitle>
+              <CardDescription>
+                모든 회원 정보를 엑셀로 내보내기
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-600">
+                <p>• 전체 사용자 정보</p>
+                <p>• 요금제 정보 포함</p>
+                <p>• CSV 형식 (Excel 호환)</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 활성 회원 추출 */}
+          <Card className="border-2 border-green-100 hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-br from-green-50 to-white"
+                onClick={() => window.open('/api/admin/export-users?type=active', '_blank')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-900">
+                <UserCheck className="h-5 w-5 text-green-600" />
+                활성 회원 DB 추출
+              </CardTitle>
+              <CardDescription>
+                최근 30일 내 활동한 회원
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-600">
+                <p>• 최근 30일 활동 회원</p>
+                <p>• 구독 상태 포함</p>
+                <p>• 활성 사용자 분석용</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 비활성/탈퇴 예정 회원 추출 */}
+          <Card className="border-2 border-red-100 hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-br from-red-50 to-white"
+                onClick={() => window.open('/api/admin/export-users?type=inactive', '_blank')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-900">
+                <UserMinus className="h-5 w-5 text-red-600" />
+                비활성 회원 DB 추출
+              </CardTitle>
+              <CardDescription>
+                90일 이상 미접속 회원
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-600">
+                <p>• 90일 이상 미접속</p>
+                <p>• 탈퇴 대상 회원</p>
+                <p>• 재활성화 캠페인용</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 구독 없는 회원 추출 */}
+          <Card className="border-2 border-yellow-100 hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-br from-yellow-50 to-white"
+                onClick={() => window.open('/api/admin/export-users?type=no-subscription', '_blank')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-yellow-900">
+                <AlertCircle className="h-5 w-5 text-yellow-600" />
+                구독 없는 회원 추출
+              </CardTitle>
+              <CardDescription>
+                요금제 미가입 학원장/선생님
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-600">
+                <p>• 구독 미가입 회원</p>
+                <p>• 학원장/선생님만</p>
+                <p>• 구독 유도용</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 요금제별 회원 추출 */}
+          <Card className="border-2 border-purple-100 hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-br from-purple-50 to-white"
+                onClick={() => router.push('/dashboard/admin/export-by-plan')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-purple-900">
+                <Filter className="h-5 w-5 text-purple-600" />
+                요금제별 회원 추출
+              </CardTitle>
+              <CardDescription>
+                특정 요금제 사용 회원만
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-600">
+                <p>• 요금제별 필터링</p>
+                <p>• 사용량 정보 포함</p>
+                <p>• 요금제 분석용</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 요금제 관리 */}
+          <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-br from-blue-50 to-white"
+                onClick={() => router.push('/dashboard/admin/pricing')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-900">
+                <CreditCard className="h-5 w-5 text-blue-600" />
+                요금제 관리
+              </CardTitle>
+              <CardDescription>
+                요금제 생성 및 수정
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-600">
+                <p>• 월간/6개월/연간 설정</p>
+                <p>• 기능 한도 설정</p>
+                <p>• 가격 관리</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
