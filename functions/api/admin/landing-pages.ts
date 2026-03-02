@@ -206,13 +206,84 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     }
 
     const creatorUserId = user.id; // 생성자 ID (User.id는 TEXT!)
+    const creatorRole = user.role ? user.role.toUpperCase() : '';
+    const creatorAcademyId = user.academyId;
+    
     console.log('✅ Creator 정보:', { 
       id: creatorUserId, 
       email: user.email, 
-      role: user.role, 
-      academyId: user.academyId,
+      role: creatorRole, 
+      academyId: creatorAcademyId,
       idType: typeof creatorUserId 
     });
+
+    // 🔒 구독 체크 (DIRECTOR/TEACHER만)
+    if (creatorRole === 'DIRECTOR' || creatorRole === 'TEACHER') {
+      // DIRECTOR의 활성 구독 확인
+      let checkUserId = creatorUserId;
+      
+      // TEACHER인 경우 해당 학원의 DIRECTOR 찾기
+      if (creatorRole === 'TEACHER' && creatorAcademyId) {
+        const director = await db.prepare(`
+          SELECT id FROM User 
+          WHERE academyId = ? AND role = 'DIRECTOR'
+          LIMIT 1
+        `).bind(creatorAcademyId).first();
+        
+        if (director) {
+          checkUserId = director.id;
+        }
+      }
+      
+      const subscription = await db.prepare(`
+        SELECT * FROM user_subscriptions 
+        WHERE userId = ? AND status = 'active'
+        ORDER BY createdAt DESC
+        LIMIT 1
+      `).bind(checkUserId).first();
+
+      if (!subscription) {
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: "SUBSCRIPTION_REQUIRED",
+            message: "랜딩페이지 생성을 위해 요금제 구독이 필요합니다."
+          }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // 만료 확인
+      const now = new Date();
+      const endDate = new Date(subscription.endDate as string);
+      if (now > endDate) {
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: "SUBSCRIPTION_EXPIRED",
+            message: "구독이 만료되었습니다. 갱신이 필요합니다."
+          }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // 랜딩페이지 한도 체크
+      const maxLandingPages = subscription.limit_maxLandingPages as number;
+      const currentLandingPages = subscription.usage_landingPages as number;
+
+      if (maxLandingPages !== -1 && currentLandingPages >= maxLandingPages) {
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: "LANDING_PAGE_LIMIT_EXCEEDED",
+            message: `랜딩페이지 생성 한도를 초과했습니다. (${currentLandingPages}/${maxLandingPages})`,
+            currentUsage: currentLandingPages,
+            maxLimit: maxLandingPages
+          }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     // ⚠️ landing_pages.user_id가 INTEGER인 경우: TEXT ID를 숫자 해시로 변환
     // User.id (TEXT)를 간단한 해시 함수로 INTEGER로 변환
