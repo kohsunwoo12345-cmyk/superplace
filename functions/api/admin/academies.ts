@@ -564,12 +564,20 @@ export async function onRequestGet(context) {
     
     // Step 2: Academy 테이블에 없지만 학원장이 있는 학원 추가
     console.log('📊 Checking for directors without academies in table...');
-    const directorsWithoutAcademy = directors.filter(d => {
-      const academyId = d.academy_id?.toString();
-      return academyId && !processedAcademyIds.has(academyId);
-    });
     
-    console.log(`✅ Found ${directorsWithoutAcademy.length} directors without academies in table`);
+    // academyId별로 그룹핑하여 첫 번째 학원장만 사용
+    const academyIdToDirector = new Map();
+    for (const director of directors) {
+      const academyId = director.academy_id?.toString();
+      if (academyId && !processedAcademyIds.has(academyId)) {
+        if (!academyIdToDirector.has(academyId)) {
+          academyIdToDirector.set(academyId, director);
+        }
+      }
+    }
+    
+    const directorsWithoutAcademy = Array.from(academyIdToDirector.values());
+    console.log(`✅ Found ${directorsWithoutAcademy.length} unique academy IDs without academies in table`);
     
     if (directorsWithoutAcademy.length > 0) {
       const additionalAcademies = await Promise.all(directorsWithoutAcademy.map(async (director) => {
