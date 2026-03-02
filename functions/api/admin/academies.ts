@@ -573,37 +573,43 @@ export async function onRequestGet(context) {
       console.log(`🎉 Built ${finalAcademies.length} academies from academies table`);
     }
     
-    // Step 2: Academy 테이블에 없지만 학원장이 있는 학원 추가
+    // Step 2: Academy 테이블에 없는 모든 학원장 추가
     console.log('📊 Checking for directors without academies in table...');
     
-    // 🔥 변경: academyId가 없는 학원장도 포함 (director ID 기반으로 academy 생성)
-    const academyIdToDirector = new Map();
+    // 🔥 핵심 변경: 각 학원장마다 개별 academy 생성 (director.id 기반)
+    // academyId가 같아도 학원장마다 별도로 표시
+    const directorsWithoutAcademy = [];
+    
     for (const director of directors) {
-      // academyId가 있으면 그것을 사용, 없으면 director.id를 academy ID로 사용
-      const academyId = (director.academy_id || `dir-${director.id}`)?.toString();
+      // 각 학원장의 고유 ID 생성: director.id 기반
+      const uniqueDirectorKey = `dir-${director.id}`;
       
-      if (!processedAcademyIds.has(academyId)) {
-        if (!academyIdToDirector.has(academyId)) {
-          academyIdToDirector.set(academyId, director);
-          console.log(`  ➕ Adding director: ${director.name} (Academy ID: ${academyId}, Has AcademyId: ${!!director.academy_id})`);
-        }
+      // 이미 Academy 테이블에서 처리되지 않은 학원장만 추가
+      // (Academy 테이블에 해당 학원장의 academyId가 없는 경우)
+      const hasAcademyTableEntry = director.academy_id && processedAcademyIds.has(director.academy_id.toString());
+      
+      if (!hasAcademyTableEntry) {
+        directorsWithoutAcademy.push(director);
+        console.log(`  ➕ Adding director: ${director.name} (Director ID: ${director.id}, Academy ID: ${director.academy_id || 'NULL'})`);
       }
     }
     
-    const directorsWithoutAcademy = Array.from(academyIdToDirector.values());
-    console.log(`✅ Found ${directorsWithoutAcademy.length} unique academy IDs without academies in table`);
-    console.log(`   - ${directorsWithoutAcademy.filter(d => d.academy_id).length} with valid academyId`);
-    console.log(`   - ${directorsWithoutAcademy.filter(d => !d.academy_id).length} without academyId (using director ID)`);
+    console.log(`✅ Found ${directorsWithoutAcademy.length} directors without academy table entries`);
+    console.log(`   - ${directorsWithoutAcademy.filter(d => d.academy_id).length} with academyId but no Academy table entry`);
+    console.log(`   - ${directorsWithoutAcademy.filter(d => !d.academy_id).length} with NULL academyId`);
     
     if (directorsWithoutAcademy.length > 0) {
       const additionalAcademies = await Promise.all(directorsWithoutAcademy.map(async (director) => {
       try {
-        // academyId가 있으면 사용, 없으면 director ID 기반으로 생성
+        // 각 학원장마다 고유한 academy ID 생성
+        // Academy 테이블이 없는 경우 director.id 기반으로 생성
         const directorAcademyId = director.academy_id || `dir-${director.id}`;
         const hasRealAcademyId = !!director.academy_id;
-        processedAcademyIds.add(directorAcademyId?.toString()); // 처리 완료 기록
+        const uniqueAcademyKey = `dir-${director.id}`; // 학원장별 고유 키
         
-        console.log(`📍 Processing director: ${director.name} (ID: ${director.id}, Academy ID: ${directorAcademyId}, Real: ${hasRealAcademyId})`);
+        processedAcademyIds.add(uniqueAcademyKey); // 중복 방지
+        
+        console.log(`📍 Processing director: ${director.name} (Director ID: ${director.id}, Academy ID: ${directorAcademyId}, Real: ${hasRealAcademyId})`);
 
         // 해당 학원의 학생 수 조회 (User + users 테이블 통합)
         let totalStudentCount = 0;
@@ -724,7 +730,7 @@ export async function onRequestGet(context) {
         const academyEmail = academyInfo?.email || academyInfo?.academy_email || director.email || '';
 
         return {
-          id: directorAcademyId?.toString() || director.id?.toString(),
+          id: uniqueAcademyKey, // 학원장별 고유 ID 사용
           name: academyName,
           address: academyAddress,
           phone: academyPhone,
@@ -732,6 +738,7 @@ export async function onRequestGet(context) {
           directorName: director.name,
           directorEmail: director.email,
           directorPhone: director.phone || '',
+          directorId: director.id, // 학원장 ID 추가
           studentCount: studentCount,
           teacherCount: teacherCount,
           directorCount: 1,
