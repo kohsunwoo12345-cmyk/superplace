@@ -535,7 +535,38 @@ export default function CreateAIBotPage() {
       
       if (response.ok) {
         console.log('✅ 봇 생성 성공:', data.botId);
-        alert("✨ AI Gem이 생성되었습니다!");
+        
+        // 🔥 Knowledge Base가 있으면 Vectorize에 업로드
+        if (formData.knowledgeBase && formData.knowledgeBase.trim().length > 0) {
+          console.log('📚 Knowledge Base 업로드 시작...');
+          try {
+            const uploadResponse = await fetch("/api/admin/upload-knowledge", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                botId: data.botId,
+                knowledgeBase: formData.knowledgeBase,
+                fileName: knowledgeFiles.length > 0 ? knowledgeFiles[0].name : 'manual_input'
+              })
+            });
+            
+            const uploadData = await uploadResponse.json();
+            
+            if (uploadResponse.ok) {
+              console.log(`✅ Vectorize 업로드 성공: ${uploadData.vectorCount}개 벡터`);
+              alert(`✨ AI Gem이 생성되었습니다!\n📚 지식 베이스: ${uploadData.vectorCount}개 청크 업로드 완료`);
+            } else {
+              console.error('❌ Vectorize 업로드 실패:', uploadData);
+              alert(`✨ AI Gem이 생성되었습니다.\n⚠️ 지식 베이스 업로드 실패: ${uploadData.error || '알 수 없는 오류'}\n\n봇은 정상 생성되었지만 RAG 기능이 작동하지 않을 수 있습니다.`);
+            }
+          } catch (uploadError) {
+            console.error('❌ Vectorize 업로드 오류:', uploadError);
+            alert(`✨ AI Gem이 생성되었습니다.\n⚠️ 지식 베이스 업로드 중 오류 발생\n\n봇은 정상 생성되었지만 RAG 기능이 작동하지 않을 수 있습니다.`);
+          }
+        } else {
+          alert("✨ AI Gem이 생성되었습니다!");
+        }
+        
         router.push("/dashboard/admin/ai-bots");
       } else {
         console.error("❌ 봇 생성 실패:", data);

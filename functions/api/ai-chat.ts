@@ -53,7 +53,6 @@ async function searchKnowledgeBase(
   botId: string,
   apiKey: string,
   vectorize: VectorizeIndex | undefined,
-  db: D1Database,
   topK: number = 5
 ): Promise<string> {
   if (!vectorize) {
@@ -68,7 +67,7 @@ async function searchKnowledgeBase(
     const queryEmbedding = await generateEmbedding(question, apiKey);
     console.log(`✅ 질문 임베딩 생성 완료 (${queryEmbedding.length}차원)`);
     
-    // 유사도 검색
+    // 유사도 검색 (메타데이터에 텍스트 포함됨)
     const searchResults = await vectorize.query(queryEmbedding, {
       topK: topK,
       filter: { botId: botId },
@@ -82,25 +81,14 @@ async function searchKnowledgeBase(
     
     console.log(`📚 ${searchResults.matches.length}개 관련 청크 발견`);
     
-    // 청크 ID로 실제 텍스트 가져오기
-    const chunkIds = searchResults.matches.map(m => m.id);
-    const placeholders = chunkIds.map(() => '?').join(',');
-    
-    const chunks = await db.prepare(`
-      SELECT id, text, fileName, chunkIndex
-      FROM knowledge_base_chunks
-      WHERE id IN (${placeholders})
-      ORDER BY chunkIndex ASC
-    `).bind(...chunkIds).all();
-    
-    if (!chunks.results || chunks.results.length === 0) {
-      console.log('⚠️ D1에서 청크 텍스트를 찾을 수 없음');
-      return '';
-    }
-    
-    // 관련 텍스트 조합
-    const relevantContext = chunks.results
-      .map((chunk: any) => chunk.text)
+    // 메타데이터에서 텍스트 추출 (Vectorize 메타데이터에 저장된 텍스트 사용)
+    const relevantContext = searchResults.matches
+      .map((match: any, index: number) => {
+        const text = match.metadata?.text || '';
+        const score = match.score?.toFixed(3) || 'N/A';
+        const fileName = match.metadata?.fileName || 'Unknown';
+        return `[관련 지식 ${index + 1}] (파일: ${fileName}, 유사도: ${score})\n${text}`;
+      })
       .join('\n\n---\n\n');
     
     console.log(`✅ RAG 컨텍스트 생성 완료 (${relevantContext.length}자)`);
@@ -176,22 +164,29 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       maxOutputTokens: bot.maxTokens || 2000
     });
     
-    // 지식 베이스 확인 - RAG 또는 기존 방식
+    // 🔥 RAG: Vectorize에서 관련 지식 검색
     let ragContext = '';
-    const useRAG = bot.knowledgeBase?.includes('RAG 활성화');
     
-    if (useRAG && context.env.VECTORIZE) {
-      console.log('🤖 RAG 모드 활성화');
+    // knowledgeBase가 있고 Vectorize가 설정되어 있으면 RAG 활성화
+    if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0 && context.env.VECTORIZE) {
+      console.log('🤖 RAG 모드 활성화 - Vectorize 검색 시작');
       ragContext = await searchKnowledgeBase(
         data.message,
         data.botId,
         apiKey,
         context.env.VECTORIZE,
-        context.env.DB,
         5 // Top 5 관련 청크
       );
-    } else if (bot.knowledgeBase && !useRAG) {
-      console.log(`📚 기존 Knowledge Base 사용: ${bot.knowledgeBase.substring(0, 200)}... (${bot.knowledgeBase.length} chars)`);
+      
+      if (ragContext) {
+        console.log(`✅ RAG 컨텍스트 적용 (${ragContext.length}자)`);
+      } else {
+        console.log('⚠️ RAG 검색 결과 없음 - 기존 Knowledge Base 사용');
+      }
+    } else if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
+      console.log(`📚 Vectorize 없음 - 기존 Knowledge Base 직접 사용 (${bot.knowledgeBase.length} chars)`);
+    } else {
+      console.log('📭 Knowledge Base 없음 - 일반 대화 모드');
     }
 
     // 대화 히스토리 구성
