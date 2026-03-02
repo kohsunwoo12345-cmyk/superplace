@@ -1,248 +1,314 @@
-# 🚨 긴급 수정 완료 - 랜딩페이지 즉시 사용 가이드
+# ✅ 긴급 수정 완료 보고서
 
-## ✅ 수정 완료 사항
-
-### 1. **CRITICAL FIX**: 테이블명 오류 해결
-- ❌ 기존: `LandingPage`, `User` (잘못된 테이블명)
-- ✅ 수정: `landing_pages`, `users` (실제 DB 테이블명)
-- **결과**: "no such table: LandingPage" 오류 완전 해결
-
-### 2. **NEW**: 상세 학생 성장 리포트 템플릿 추가
-기존 문제: 단순한 통계만 표시
-**새로운 템플릿 특징**:
-- ✅ 발견된 문제점 상세 기술
-- ✅ 개선 과정 3단계 표시
-- ✅ 개선 결과 시각화 (점수/이해도/태도 변화)
-- ✅ 19개 변수로 완전한 스토리텔링
+## 🎯 요청사항
+1. **랜딩페이지 요금제 활성화 전 차단**: 구독 없으면 랜딩페이지 생성 불가
+2. **구독 후 학생 추가 실패**: 구독 승인 후에도 학생 추가 시 오류 발생
 
 ---
 
-## 🚀 지금 바로 실행 (3단계, 5분)
+## 📋 문제 분석 및 해결
 
-### ⚡ Step 1: 자동 설치 (2분)
+### ✅ 문제 1: 랜딩페이지 구독 전 차단 안됨
 
-**URL 접속:**
-```
-https://superplacestudy.pages.dev/install-templates.html
-```
+**원인:**
+- `functions/api/admin/landing-pages.ts`의 POST 핸들러에 구독 체크 로직 없음
 
-**실행 순서:**
-1. 비밀번호 입력: `setup-templates-2026`
-2. **"⚡ 자동 설치 (테이블 + 템플릿)"** 클릭
-3. 성공 메시지 확인 (약 10초 소요)
-4. **"🔄 상세 템플릿 업데이트"** 클릭
-5. 완료 확인
+**해결책:** (커밋 5671247)
+```typescript
+// DIRECTOR/TEACHER인 경우 구독 확인
+if (creator.role === 'DIRECTOR' || creator.role === 'TEACHER') {
+  const subscription = await db.prepare(`
+    SELECT * FROM user_subscriptions 
+    WHERE userId = ? AND status = 'active'
+    ORDER BY createdAt DESC LIMIT 1
+  `).bind(creator.id).first();
 
-**예상 결과:**
-```
-✅ 자동 설치 완료!
-📊 테이블: 6개 생성
-🎨 템플릿: 5개 설치
+  if (!subscription) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'SUBSCRIPTION_REQUIRED',
+      message: '랜딩페이지 생성을 위해 요금제 구독이 필요합니다.'
+    }), { status: 403 });
+  }
 
-✅ 상세 학생 리포트 템플릿 업데이트 완료!
-🆕 새로운 상세 템플릿이 추가되었습니다!
-```
+  // 만료 확인
+  const endDate = new Date(subscription.endDate);
+  if (now > endDate) {
+    return new Response(JSON.stringify({
+      error: 'SUBSCRIPTION_EXPIRED',
+      message: '구독이 만료되었습니다.'
+    }), { status: 403 });
+  }
 
----
-
-### 📋 Step 2: 템플릿 확인 (30초)
-
-**URL 접속:**
-```
-https://superplacestudy.pages.dev/dashboard/admin/landing-pages/templates
-```
-
-**확인 사항:**
-- ✅ 템플릿 목록에 6개 표시
-- ✅ **"🌟 학생 성장 상세 리포트"** 존재 확인
-- ✅ 기본 템플릿으로 설정됨
-
----
-
-### 🎨 Step 3: 상세 리포트 생성 (2분)
-
-**URL 접속:**
-```
-https://superplacestudy.pages.dev/test-landing-create.html
+  // 생성 한도 확인
+  const currentPages = subscription.usage_landingPages || 0;
+  const maxPages = subscription.limit_maxLandingPages || -1;
+  
+  if (maxPages !== -1 && currentPages >= maxPages) {
+    return new Response(JSON.stringify({
+      error: 'LANDING_PAGE_LIMIT_EXCEEDED',
+      message: `랜딩페이지 생성 한도를 초과했습니다 (${currentPages}/${maxPages})`
+    }), { status: 403 });
+  }
+}
 ```
 
-**입력할 정보 (19개 변수):**
+**테스트:**
+```bash
+# 구독 없이 랜딩페이지 생성 시도
+curl -X POST https://superplacestudy.pages.dev/api/admin/landing-pages \
+  -H "Authorization: Bearer DIRECTOR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"slug":"test","title":"Test Page"}'
 
-#### 기본 정보
-- 학생 이름: `김철수`
-- 기간: `2024년 1학기`
-- 출석률: `95`
-- 과제 완성률: `88`
-- 평균 점수: `92`
-
-#### 문제점
-- **문제 설명**: 
-  ```
-  수학 방정식 문제 풀이 시 계산 실수가 잦았으며, 특히 분수 계산과 음수 처리에서 오류가 빈번하게 발생했습니다. 이로 인해 시험에서 아는 문제도 틀리는 경우가 많았습니다.
-  ```
-- **문제 발생 빈도**: `주 5회 이상`
-
-#### 개선 과정
-- **1단계**: 
-  ```
-  기초 계산 훈련 - 매일 10분씩 분수/음수 계산 연습 문제 풀이
-  ```
-- **2단계**: 
-  ```
-  검산 습관 형성 - 모든 문제 풀이 후 반드시 역계산으로 검증
-  ```
-- **3단계**: 
-  ```
-  오답 노트 작성 - 틀린 문제 유형별 분류 및 반복 학습
-  ```
-
-#### 개선 결과
-- **성과 설명**:
-  ```
-  3개월간의 집중 훈련 결과, 계산 실수가 90% 이상 감소했습니다. 시험에서 실수로 인한 감점이 거의 없어졌으며, 풀이 속도도 30% 향상되었습니다.
-  ```
-- **점수 변화**: 이전 `68점` → 이후 `92점`
-- **이해도 변화**: 이전 `60%` → 이후 `95%`
-- **태도 변화**: 이전 `소극적` → 이후 `적극적, 자신감 있음`
-
-#### 총평
-```
-김철수 학생은 처음에는 기초 계산에서 어려움을 겪었지만, 체계적인 훈련과 본인의 노력으로 눈에 띄는 성장을 보였습니다. 특히 검산 습관을 통해 실수를 줄이고, 오답 노트를 꾸준히 작성하며 약점을 극복한 점이 인상적입니다. 이러한 학습 태도와 방법을 유지한다면 앞으로 더욱 큰 발전이 기대됩니다.
-```
-
-- **학원 이름**: `슈퍼플레이스 학원`
-
----
-
-## 📊 생성된 랜딩페이지 구조
-
-```
-┌─────────────────────────────────┐
-│  🌟 김철수 학생 성장 리포트      │
-│  2024년 1학기                    │
-├─────────────────────────────────┤
-│  📊 통계 카드                    │
-│  출석률 95% | 과제 88% | 점수 92 │
-├─────────────────────────────────┤
-│  🔍 발견된 문제점                │
-│  ⚠️ 수학 방정식 계산 실수...     │
-│  발생 빈도: 주 5회 이상          │
-├─────────────────────────────────┤
-│  💡 개선 과정                    │
-│  ✓ 1단계: 기초 계산 훈련         │
-│  ✓ 2단계: 검산 습관 형성         │
-│  ✓ 3단계: 오답 노트 작성         │
-├─────────────────────────────────┤
-│  📈 개선 결과                    │
-│  ✅ 점수: 68점 → 92점 (+24점)    │
-│  ✅ 이해도: 60% → 95% (+35%)     │
-│  ✅ 태도: 소극적 → 적극적        │
-├─────────────────────────────────┤
-│  💬 선생님 총평                  │
-│  체계적인 훈련과 노력으로...     │
-└─────────────────────────────────┘
+# 예상 응답:
+{
+  "success": false,
+  "error": "SUBSCRIPTION_REQUIRED",
+  "message": "랜딩페이지 생성을 위해 요금제 구독이 필요합니다."
+}
 ```
 
 ---
 
-## 🔗 생성된 랜딩페이지 URL 예시
+### ✅ 문제 2: 구독 후 학생 추가 실패
 
-```
-https://superplacestudy.pages.dev/lp/student-kim-report-2024-1
+**근본 원인:**
+1. **pricing_plans 테이블의 기존 데이터가 NULL**
+   - 기존 레코드는 구 스키마로 생성됨
+   - `maxStudents`, `maxTeachers` 등의 필드는 나중에 추가되었지만 값이 없음
+
+2. **구독 할당 시 NULL 값이 복사됨**
+   ```typescript
+   // assign-subscription.ts (수정 전)
+   plan.maxStudents,     // NULL → limit_maxStudents에 NULL 저장
+   plan.maxTeachers,     // NULL → limit_maxTeachers에 NULL 저장
+   ```
+
+3. **학생 추가 시 NULL 체크 실패**
+   ```typescript
+   // users/create.ts
+   const maxStudents = subscription.limit_maxStudents; // NULL
+   const currentStudents = subscription.usage_students; // NULL 또는 0
+   
+   // NULL !== -1 이므로 체크 로직이 제대로 동작하지 않음
+   if (maxStudents !== -1 && currentStudents >= maxStudents) {
+     // ...
+   }
+   ```
+
+**해결책:** (커밋 3b150cb)
+
+1. **NULL 방어 로직 추가**
+```typescript
+// functions/api/admin/assign-subscription.ts
+// 🛡️ NULL 값 방어: NULL이면 -1(무제한)으로 처리
+const maxStudents = plan.maxStudents ?? -1;
+const maxTeachers = plan.maxTeachers ?? -1;
+const maxHomeworkChecks = plan.maxHomeworkChecks ?? -1;
+const maxAIAnalysis = plan.maxAIAnalysis ?? -1;
+const maxAIGrading = plan.maxAIGrading ?? -1;
+const maxCapabilityAnalysis = plan.maxCapabilityAnalysis ?? -1;
+const maxConceptAnalysis = plan.maxConceptAnalysis ?? -1;
+const maxSimilarProblems = plan.maxSimilarProblems ?? -1;
+const maxLandingPages = plan.maxLandingPages ?? -1;
+
+console.log('📊 구독 할당 limit 값:', {
+  maxStudents,
+  maxTeachers,
+  maxHomeworkChecks,
+  maxLandingPages,
+  planId: plan.id,
+  planName: plan.name
+});
 ```
 
-**특징:**
-- ✅ 모바일 반응형 디자인
-- ✅ 시각적 개선 차트
-- ✅ 학부모 친화적 레이아웃
-- ✅ QR 코드 자동 생성
-- ✅ 외부 공유 가능
+2. **데이터 입력 가이드**
+   - 관리자는 **Admin → Pricing** 페이지에서 각 요금제 편집 필요
+   - 모든 limit 필드에 숫자 값 입력:
+     - 최대 학생 수 (예: 30)
+     - 최대 선생님 수 (예: 5)
+     - 숙제 검사 횟수 (예: 100)
+     - AI 분석 횟수 (예: 50)
+     - AI 채점 횟수 (예: 50)
+     - 능력 분석 횟수 (예: 30)
+     - 개념 분석 횟수 (예: 30)
+     - 유사 문제 횟수 (예: 100)
+     - 랜딩페이지 수 (예: 3)
 
 ---
 
-## 🎯 실제 사용 시나리오
+## 📊 데이터 흐름
 
-### 시나리오 1: 중간고사 후 학생 리포트
 ```
-문제점: 영어 독해 속도가 느림
-개선 과정:
-  1단계: 매일 지문 1개 속독 연습
-  2단계: 핵심 문장 찾기 훈련
-  3단계: 시간 제한 문제 풀이
-결과: 독해 시간 50% 단축, 점수 15점 상승
+관리자: 요금제 생성/수정
+    ↓
+[pricing_plans 테이블]
+maxStudents, maxTeachers 등 저장
+    ↓
+관리자: 학원에 구독 할당
+    ↓
+[assign-subscription API]
+plan.maxStudents ?? -1 → limit_maxStudents
+    ↓
+[user_subscriptions 테이블]
+limit_maxStudents, usage_students 저장
+    ↓
+학원장: 학생 추가 시도
+    ↓
+[users/create API]
+✅ limit_maxStudents 체크 (NULL이면 -1로 처리)
+✅ 성공 시 usage_students 증가
+❌ 한도 초과 시 STUDENT_LIMIT_EXCEEDED
 ```
 
-### 시나리오 2: 학습 태도 개선
+---
+
+## 🧪 테스트 시나리오
+
+### 1단계: 요금제 값 입력
 ```
-문제점: 수업 중 집중력 부족
-개선 과정:
-  1단계: 수업 전 예습 습관 형성
-  2단계: 중요 내용 메모 훈련
-  3단계: 복습 시간 확보
-결과: 수업 참여도 대폭 향상, 자발적 질문 증가
+1. https://superplacestudy.pages.dev/dashboard/admin/pricing 접속
+2. 각 요금제 편집 버튼 클릭
+3. 모든 limit 필드에 숫자 입력
+4. 저장
+```
+
+### 2단계: 구독 할당
+```
+1. Admin → Academies 페이지 접속
+2. 학원 선택
+3. "Assign Subscription" 버튼 클릭
+4. 요금제 선택 및 기간 선택
+5. 할당
+```
+
+### 3단계: 구독 상태 확인
+```bash
+curl "https://superplacestudy.pages.dev/api/subscriptions/status?userId=DIRECTOR_ID"
+
+# 예상 결과:
+{
+  "success": true,
+  "hasSubscription": true,
+  "subscription": {
+    "planName": "베이직 플랜",
+    "status": "active",
+    "maxStudents": 30,        // ✅ 숫자 (NULL 아님)
+    "usedStudents": 0,        // ✅ 0
+    "maxTeachers": 5,         // ✅ 숫자
+    "usedTeachers": 0,
+    "maxLandingPages": 3,     // ✅ 숫자
+    "usedLandingPages": 0,
+    "startDate": "2026-03-02T...",
+    "endDate": "2026-04-02T...",
+    "daysRemaining": 30
+  }
+}
+```
+
+### 4단계: 학생 추가 테스트
+```
+1. 학원장 계정으로 로그인
+2. 학생 관리 페이지 접속
+3. 학생 추가 버튼 클릭
+4. 학생 정보 입력 및 저장
+
+예상 결과:
+✅ 성공: "학생이 추가되었습니다. 출석 코드: 123456"
+❌ 한도 초과 시: "학생 수 한도를 초과했습니다. (30/30)"
+```
+
+### 5단계: 랜딩페이지 생성 테스트
+```
+1. 학원장 계정으로 로그인
+2. 랜딩페이지 관리 페이지 접속
+3. 새 랜딩페이지 생성 시도
+
+구독 없으면:
+❌ "랜딩페이지 생성을 위해 요금제 구독이 필요합니다."
+
+구독 있으면:
+✅ 랜딩페이지 생성 성공
+
+한도 초과 시:
+❌ "랜딩페이지 생성 한도를 초과했습니다 (3/3)"
 ```
 
 ---
 
-## 🐛 문제 해결
+## 🔧 에러 메시지별 해결 방법
 
-### Q1: 여전히 "no such table" 오류가 나요
-**A**: Cloudflare Pages 배포 완료 대기 (현재 배포 중, 약 2-3분)
-- **Commit**: `af69dc1`
-- **Status**: 배포 진행 중
-- **예상 완료**: 2-3분 후
-
-### Q2: 템플릿이 안 보여요
-**A**: 다음 순서로 재시도:
-1. `/install-templates.html` 접속
-2. "⚡ 자동 설치" 클릭
-3. "🔄 상세 템플릿 업데이트" 클릭
-4. 브라우저 캐시 클리어 (Ctrl+Shift+R)
-
-### Q3: 랜딩페이지 생성이 안돼요
-**A**: 
-1. 로그아웃 후 재로그인
-2. localStorage 토큰 확인: `localStorage.getItem('token')`
-3. 토큰이 있으면 `/test-landing-create.html`에서 재시도
+| 에러 메시지 | 원인 | 해결 방법 |
+|-----------|------|----------|
+| `SUBSCRIPTION_REQUIRED` | 구독 없음 | Admin → Academies에서 구독 할당 |
+| `SUBSCRIPTION_EXPIRED` | 구독 만료 | 구독 갱신 또는 재할당 |
+| `STUDENT_LIMIT_EXCEEDED` | 학생 수 한도 초과 | 상위 요금제로 업그레이드 |
+| `LANDING_PAGE_LIMIT_EXCEEDED` | 랜딩페이지 한도 초과 | 상위 요금제로 업그레이드 |
 
 ---
 
-## 📦 배포 정보
+## 📁 변경된 파일
 
-- **Commit**: `af69dc1` ✅
-- **Push**: 완료 ✅
-- **Cloudflare Pages**: 배포 중 (약 2-3분)
-- **Live URL**: https://superplacestudy.pages.dev/
+1. **functions/api/admin/landing-pages.ts** (커밋 5671247)
+   - 구독 체크 로직 추가
+   - 만료 확인 및 한도 체크
 
----
+2. **functions/api/admin/assign-subscription.ts** (커밋 3b150cb)
+   - NULL 방어 로직 추가
+   - limit 값 로깅 추가
 
-## ✅ 최종 체크리스트
-
-배포 완료 후 (2-3분 후) 다음 순서로 확인:
-
-- [ ] 1. `/install-templates.html` → 자동 설치 + 템플릿 업데이트
-- [ ] 2. `/dashboard/admin/landing-pages/templates` → 6개 템플릿 확인
-- [ ] 3. `/test-landing-create.html` → 상세 리포트 생성
-- [ ] 4. 생성된 URL 접속 → 랜딩페이지 확인
-- [ ] 5. **생성된 URL 공유** → 최종 검증
+3. **CRITICAL_FIX_SUMMARY.md** (신규)
+   - 근본 원인 분석
+   - 해결 방법 상세 가이드
 
 ---
 
-## 🎉 완료 후 결과물
+## 🚀 배포 상태
 
-**생성되는 랜딩페이지:**
-- 📊 3개 통계 카드 (출석/과제/점수)
-- 🔍 문제점 상세 분석
-- 💡 3단계 개선 과정
-- 📈 3가지 개선 결과 (점수/이해도/태도)
-- 💬 선생님 총평
+**배포 URL:** https://superplacestudy.pages.dev  
+**커밋:**
+- 5671247: 랜딩페이지 구독 체크 추가
+- 3b150cb: NULL 방어 로직 추가
 
-**공유 방법:**
-- 🔗 URL 직접 공유
-- 📱 QR 코드 스캔
-- 📧 이메일 / 💬 SMS 전송
+**배포 시간:** 약 3분
 
 ---
 
-**2-3분 후 다시 테스트하고 생성된 랜딩페이지 URL을 공유해주세요!**
-**이번엔 진짜 작동합니다!** 🚀
+## ✅ 검증 체크리스트
+
+- [x] 랜딩페이지 구독 체크 로직 추가
+- [x] NULL 방어 로직 추가
+- [x] 빌드 성공
+- [x] 배포 완료
+- [ ] **관리자가 요금제 값 입력** (수동 작업 필요)
+- [ ] **구독 재할당 테스트** (관리자 작업)
+- [ ] **학생 추가 테스트** (학원장 계정)
+- [ ] **랜딩페이지 생성 테스트** (학원장 계정)
+
+---
+
+## 📞 추가 지원
+
+문제가 계속되면:
+1. **요금제 값 확인:**
+   ```bash
+   curl -H "Authorization: Bearer ADMIN_TOKEN" \
+     https://superplacestudy.pages.dev/api/admin/pricing-plans
+   ```
+   
+2. **구독 상태 확인:**
+   ```bash
+   curl "https://superplacestudy.pages.dev/api/subscriptions/status?userId=DIRECTOR_ID"
+   ```
+
+3. **브라우저 콘솔 로그 확인:**
+   - F12 → Console 탭
+   - 학생 추가 시도 시 에러 메시지 확인
+
+---
+
+**작성일:** 2026-03-02  
+**작성자:** Claude AI  
+**검증 상태:** ✅ 코드 수정 완료, 배포 완료  
+**남은 작업:** 관리자의 요금제 값 입력 (수동)
