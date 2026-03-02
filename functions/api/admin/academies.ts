@@ -147,13 +147,13 @@ export async function onRequestGet(context) {
               name,
               email,
               phone,
-              created_at as createdAt
+              createdAt
             FROM User
-            WHERE academy_id = ? AND role = ?
-            ORDER BY created_at DESC
+            WHERE academyId = ? AND role = ?
+            ORDER BY createdAt DESC
           `;
           const userStudentsResult = await env.DB.prepare(userStudentsQuery)
-            .bind(parseInt(academyId), 'STUDENT')
+            .bind(academyId, 'STUDENT')
             .all();
           const userStudents = userStudentsResult.results || [];
           console.log(`  ✅ User 테이블: ${userStudents.length}명`);
@@ -434,10 +434,10 @@ export async function onRequestGet(context) {
               const userStudentsQuery = `
                 SELECT COUNT(*) as count 
                 FROM User 
-                WHERE academy_id = ? AND role = ?
+                WHERE academyId = ? AND role = ?
               `;
               const userStudentsResult = await env.DB.prepare(userStudentsQuery)
-                .bind(parseInt(academyId), 'STUDENT')
+                .bind(academyId, 'STUDENT')
                 .first();
               totalStudentCount += (userStudentsResult?.count || 0);
             } catch (err) {
@@ -596,10 +596,10 @@ export async function onRequestGet(context) {
             const userStudentsQuery = `
               SELECT COUNT(*) as count 
               FROM User 
-              WHERE academy_id = ? AND role = ?
+              WHERE academyId = ? AND role = ?
             `;
             const userStudentsResult = await env.DB.prepare(userStudentsQuery)
-              .bind(parseInt(directorAcademyId), 'STUDENT')
+              .bind(directorAcademyId, 'STUDENT')
               .first();
             totalStudentCount += (userStudentsResult?.count || 0);
           } catch (err) {
