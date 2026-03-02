@@ -101,10 +101,18 @@ export default function AdminBotManagementPage() {
 
   const fetchAcademies = async () => {
     try {
-      const response = await fetch("/api/admin/academies");
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/admin/academies", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
+        console.log("✅ Academies loaded:", data.academies?.length || 0);
         setAcademies(data.academies || []);
+      } else {
+        console.error("❌ Failed to load academies, status:", response.status);
       }
     } catch (error) {
       console.error("학원 목록 로드 실패:", error);
@@ -113,10 +121,18 @@ export default function AdminBotManagementPage() {
 
   const fetchBots = async () => {
     try {
-      const response = await fetch("/api/admin/ai-bots");
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/admin/ai-bots", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
+        console.log("✅ Bots loaded:", data.bots?.length || 0);
         setBots(data.bots || []);
+      } else {
+        console.error("❌ Failed to load bots, status:", response.status);
       }
     } catch (error) {
       console.error("AI 봇 목록 로드 실패:", error);
@@ -125,10 +141,18 @@ export default function AdminBotManagementPage() {
 
   const fetchAssignments = async () => {
     try {
-      const response = await fetch("/api/admin/bot-assignments");
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/admin/bot-assignments", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
+        console.log("✅ Assignments loaded:", data.assignments?.length || 0);
         setAssignments(data.assignments || []);
+      } else {
+        console.error("❌ Failed to load assignments, status:", response.status);
       }
     } catch (error) {
       console.error("봇 할당 목록 로드 실패:", error);
@@ -142,9 +166,13 @@ export default function AdminBotManagementPage() {
     }
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch("/api/admin/bot-assignments", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           academyId: assignAcademyId,
           botId: assignBotId,
@@ -174,8 +202,12 @@ export default function AdminBotManagementPage() {
     }
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`/api/admin/bot-assignments/${assignmentId}`, {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (response.ok) {
