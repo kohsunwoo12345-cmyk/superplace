@@ -258,6 +258,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       folderIdType: typeof folderId,
       slug,
       title,
+      templateType,
+      templateHtmlLength: templateHtml ? templateHtml.length : 0,
+      hasTemplateHtml: !!templateHtml,
     });
 
     if (!slug || !title) {

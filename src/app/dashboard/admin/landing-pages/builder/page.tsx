@@ -249,28 +249,39 @@ export default function LandingPageBuilderPage() {
     try {
       setSaving(true);
       const token = localStorage.getItem("token");
+      
+      const payload = {
+        slug,
+        title: data.title,
+        subtitle: data.subtitle,
+        description: data.description,
+        templateType: data.template_type,
+        templateHtml: data.template_html,
+        inputData: data.input_data,
+        ogTitle: data.og_title,
+        ogDescription: data.og_description,
+        thumbnail: data.thumbnail,
+        folderId: data.folder_id,
+        showQrCode: data.show_qr_code,
+        qrCodePosition: data.qr_code_position,
+        pixelScripts: data.pixel_scripts,
+      };
+      
+      console.log("📤 Sending to API:", {
+        slug,
+        title: data.title,
+        templateType: data.template_type,
+        templateHtmlLength: data.template_html?.length || 0,
+        hasTemplateHtml: !!data.template_html,
+      });
+      
       const response = await fetch("/api/admin/landing-pages", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          slug,
-          title: data.title,
-          subtitle: data.subtitle,
-          description: data.description,
-          templateType: data.template_type,
-          templateHtml: data.template_html,
-          inputData: data.input_data,
-          ogTitle: data.og_title,
-          ogDescription: data.og_description,
-          thumbnail: data.thumbnail,
-          folderId: data.folder_id,
-          showQrCode: data.show_qr_code,
-          qrCodePosition: data.qr_code_position,
-          pixelScripts: data.pixel_scripts,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
