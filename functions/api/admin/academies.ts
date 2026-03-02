@@ -628,21 +628,20 @@ export async function onRequestGet(context) {
           }
         }
         
-          // users 테이블에서 학생 수
-          if (hasRealAcademyId) {
-            try {
-              const studentsQuery = `
-                SELECT COUNT(*) as count 
-                FROM ${userTable} 
-                WHERE ${academyIdCol} = ? AND ${roleCol} = ?
-              `;
-              const studentsResult = await env.DB.prepare(studentsQuery)
-                .bind(directorAcademyId, 'STUDENT')
-                .first();
-              totalStudentCount += (studentsResult?.count || 0);
-            } catch (err) {
-              console.log(`  └─ ${userTable} 테이블 조회 오류:`, err.message);
-            }
+        // users 테이블에서 학생 수
+        if (hasRealAcademyId) {
+          try {
+            const studentsQuery = `
+              SELECT COUNT(*) as count 
+              FROM ${userTable} 
+              WHERE ${academyIdCol} = ? AND ${roleCol} = ?
+            `;
+            const studentsResult = await env.DB.prepare(studentsQuery)
+              .bind(directorAcademyId, 'STUDENT')
+              .first();
+            totalStudentCount += (studentsResult?.count || 0);
+          } catch (err) {
+            console.log(`  └─ ${userTable} 테이블 조회 오류:`, err.message);
           }
         }
         
