@@ -27,6 +27,12 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import * as pdfjsLib from 'pdfjs-dist';
+
+// PDF.js worker 설정
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+}
 
 const GEMINI_MODELS = [
   // ✅ 작동 확인된 모델 (2024년 기준)
@@ -368,7 +374,7 @@ export default function CreateAIBotPage() {
           continue;
         }
 
-        // 지원 파일 형식 확인 (텍스트 기반만)
+        // 지원 파일 형식 확인 (PDF 포함)
         const allowedTypes = [
           'text/plain',
           'text/markdown',
@@ -376,21 +382,51 @@ export default function CreateAIBotPage() {
           'text/csv',
           'text/html',
           'application/xml',
-          'text/xml'
+          'text/xml',
+          'application/pdf' // ✅ PDF 추가
         ];
         
         const fileExtension = file.name.toLowerCase().split('.').pop();
-        const supportedExtensions = ['txt', 'md', 'json', 'csv', 'html', 'xml'];
+        const supportedExtensions = ['txt', 'md', 'json', 'csv', 'html', 'xml', 'pdf']; // ✅ PDF 추가
         
         if (!allowedTypes.includes(file.type) && !supportedExtensions.includes(fileExtension || '')) {
-          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD (Markdown), JSON, CSV, HTML, XML\n\n참고: PDF 파일은 텍스트를 복사하여 직접 붙여넣기 하거나, 텍스트로 변환 후 업로드해주세요.`);
+          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD, JSON, CSV, HTML, XML, PDF`);
           continue;
         }
 
         console.log(`📁 파일 업로드 시작: ${file.name} (${file.size} bytes, type: ${file.type})`);
 
-        // 텍스트 파일 읽기
-        const text = await file.text();
+        let text = '';
+        
+        // PDF 파일 처리
+        if (file.type === 'application/pdf' || fileExtension === 'pdf') {
+          console.log('📄 PDF 파일 파싱 중...');
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            
+            console.log(`  └─ PDF: ${pdf.numPages}페이지`);
+            
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const content = await page.getTextContent();
+              const pageText = content.items
+                .map((item: any) => item.str)
+                .join(' ');
+              text += `\n\n[페이지 ${i}]\n${pageText}`;
+            }
+            
+            console.log(`✅ PDF 파싱 완료: ${text.length}자`);
+          } catch (pdfError) {
+            console.error('❌ PDF 파싱 오류:', pdfError);
+            alert(`${file.name}: PDF 파일을 읽을 수 없습니다.\n\n${(pdfError as Error).message}`);
+            continue;
+          }
+        } 
+        // 텍스트 파일 처리
+        else {
+          text = await file.text();
+        }
         
         console.log(`✅ 파일 읽기 완료: ${file.name} (${text.length} chars)`);
         

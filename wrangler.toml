@@ -17,6 +17,11 @@ database_id = "8c106540-21b4-4fa9-8879-c4956e459ca1"
 binding = "SMS_DOCUMENTS"
 bucket_name = "superplacestudy"
 
+# Vectorize (for RAG - Knowledge Base embeddings)
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "knowledge-base-embeddings"
+
 # Environment Variables
 # Note: GOOGLE_GEMINI_API_KEY should be set in Cloudflare Pages dashboard
 # Settings > Environment variables

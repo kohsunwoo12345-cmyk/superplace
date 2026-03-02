@@ -4,6 +4,7 @@
 interface Env {
   GOOGLE_GEMINI_API_KEY: string;
   DB: D1Database;
+  VECTORIZE?: VectorizeIndex; // RAG용 벡터 DB (optional)
 }
 
 interface ChatRequest {
@@ -16,6 +17,99 @@ interface ChatRequest {
   userId?: string;
   sessionId?: string;
   imageUrl?: string; // ✅ 이미지 URL 추가
+}
+
+// Gemini Embedding API로 임베딩 생성
+async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
+  const response = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        model: 'models/text-embedding-004',
+        content: {
+          parts: [{ text }]
+        }
+      })
+    }
+  );
+  
+  if (!response.ok) {
+    console.error('❌ Embedding API error:', response.status);
+    throw new Error(`Embedding API failed: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  return data.embedding.values;
+}
+
+// RAG: 질문과 관련된 지식 베이스 청크 검색
+async function searchKnowledgeBase(
+  question: string,
+  botId: string,
+  apiKey: string,
+  vectorize: VectorizeIndex | undefined,
+  db: D1Database,
+  topK: number = 5
+): Promise<string> {
+  if (!vectorize) {
+    console.log('⚠️ Vectorize not available, using fallback');
+    return '';
+  }
+  
+  try {
+    console.log(`🔍 RAG 검색 시작: "${question.substring(0, 50)}..."`);
+    
+    // 질문 임베딩 생성
+    const queryEmbedding = await generateEmbedding(question, apiKey);
+    console.log(`✅ 질문 임베딩 생성 완료 (${queryEmbedding.length}차원)`);
+    
+    // 유사도 검색
+    const searchResults = await vectorize.query(queryEmbedding, {
+      topK: topK,
+      filter: { botId: botId },
+      returnMetadata: true
+    });
+    
+    if (!searchResults.matches || searchResults.matches.length === 0) {
+      console.log('📭 관련 지식 베이스 없음');
+      return '';
+    }
+    
+    console.log(`📚 ${searchResults.matches.length}개 관련 청크 발견`);
+    
+    // 청크 ID로 실제 텍스트 가져오기
+    const chunkIds = searchResults.matches.map(m => m.id);
+    const placeholders = chunkIds.map(() => '?').join(',');
+    
+    const chunks = await db.prepare(`
+      SELECT id, text, fileName, chunkIndex
+      FROM knowledge_base_chunks
+      WHERE id IN (${placeholders})
+      ORDER BY chunkIndex ASC
+    `).bind(...chunkIds).all();
+    
+    if (!chunks.results || chunks.results.length === 0) {
+      console.log('⚠️ D1에서 청크 텍스트를 찾을 수 없음');
+      return '';
+    }
+    
+    // 관련 텍스트 조합
+    const relevantContext = chunks.results
+      .map((chunk: any) => chunk.text)
+      .join('\n\n---\n\n');
+    
+    console.log(`✅ RAG 컨텍스트 생성 완료 (${relevantContext.length}자)`);
+    
+    return relevantContext;
+  } catch (error) {
+    console.error('❌ RAG 검색 오류:', error);
+    return '';
+  }
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -82,9 +176,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       maxOutputTokens: bot.maxTokens || 2000
     });
     
-    // 지식 베이스 확인
-    if (bot.knowledgeBase) {
-      console.log(`📚 Knowledge Base: ${bot.knowledgeBase.substring(0, 200)}... (${bot.knowledgeBase.length} chars)`);
+    // 지식 베이스 확인 - RAG 또는 기존 방식
+    let ragContext = '';
+    const useRAG = bot.knowledgeBase?.includes('RAG 활성화');
+    
+    if (useRAG && context.env.VECTORIZE) {
+      console.log('🤖 RAG 모드 활성화');
+      ragContext = await searchKnowledgeBase(
+        data.message,
+        data.botId,
+        apiKey,
+        context.env.VECTORIZE,
+        context.env.DB,
+        5 // Top 5 관련 청크
+      );
+    } else if (bot.knowledgeBase && !useRAG) {
+      console.log(`📚 기존 Knowledge Base 사용: ${bot.knowledgeBase.substring(0, 200)}... (${bot.knowledgeBase.length} chars)`);
     }
 
     // 대화 히스토리 구성
@@ -97,15 +204,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 시스템 프롬프트 + 대화 히스토리 + 현재 메시지
     const contents: any[] = [];
     
-    // 시스템 프롬프트를 첫 메시지로 (지식 베이스 포함)
-    if (bot.systemPrompt || bot.knowledgeBase) {
+    // 시스템 프롬프트를 첫 메시지로 (RAG 컨텍스트 또는 기존 지식 베이스 포함)
+    if (bot.systemPrompt || ragContext || (bot.knowledgeBase && !useRAG)) {
       let systemMessage = "";
       
       if (bot.systemPrompt) {
         systemMessage += `시스템 지침:\n${bot.systemPrompt}`;
       }
       
-      if (bot.knowledgeBase) {
+      // RAG 모드: 관련 컨텍스트만 추가
+      if (ragContext) {
+        systemMessage += `\n\n--- 관련 자료 (RAG) ---\n${ragContext}\n--- 자료 끝 ---\n\n위 자료를 참고하여 질문에 답변하세요.`;
+        console.log(`✅ RAG 컨텍스트 추가 (${ragContext.length}자)`);
+      }
+      // 기존 모드: 전체 지식 베이스 추가
+      else if (bot.knowledgeBase && !useRAG) {
         systemMessage += `\n\n--- 지식 베이스 (Knowledge Base) ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식 베이스의 정보를 참고하여 질문에 답변하세요.`;
       }
       
@@ -115,7 +228,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
       contents.push({
         role: "model",
-        parts: [{ text: "알겠습니다. 지침과 지식 베이스를 참고하여 답변하겠습니다." }]
+        parts: [{ text: "알겠습니다. 지침과 자료를 참고하여 답변하겠습니다." }]
       });
     }
     
