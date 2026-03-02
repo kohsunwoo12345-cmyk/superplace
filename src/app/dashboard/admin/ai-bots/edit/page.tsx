@@ -29,10 +29,8 @@ import {
 } from "lucide-react";
 
 const GEMINI_MODELS = [
-  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (추천)", description: "최신 실험 모델, 빠른 응답", recommended: true },
-  { value: "gemini-1.5-flash-latest", label: "Gemini 1.5 Flash", description: "안정적인 빠른 모델", recommended: false },
-  { value: "gemini-1.5-pro-latest", label: "Gemini 1.5 Pro", description: "고급 추론 능력, 복잡한 작업에 최적", recommended: false },
-  { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash-8B", description: "초고속, 비용 효율적", recommended: false },
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (추천)", description: "✅ 최신 2.5 모델, 빠르고 안정적", recommended: true },
+  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "⚠️ 최고 성능이지만 안전 필터 엄격", recommended: false },
 ];
 
 const PRESET_PROMPTS = [
@@ -241,7 +239,7 @@ export default function EditAIBotPage() {
     starterMessage3: "",
     profileIcon: "🤖",
     profileImage: "", // 이미지 URL 추가
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-2.5-flash",
     temperature: "0.7",
     maxTokens: "2000",
     topK: "40",
@@ -286,7 +284,7 @@ export default function EditAIBotPage() {
           starterMessage3: bot.starterMessage3 || "",
           profileIcon: bot.profileIcon || "🤖",
           profileImage: bot.profileImage || "",
-          model: bot.model || "gemini-2.0-flash-exp",
+          model: bot.model || "gemini-2.5-flash",
           temperature: String(bot.temperature || 0.7),
           maxTokens: String(bot.maxTokens || 2000),
           topK: String(bot.topK || 40),
