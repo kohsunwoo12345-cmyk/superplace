@@ -338,26 +338,52 @@ export async function onRequestGet(context) {
       });
     }
 
-    // 🔥 새로운 로직: academies 테이블에서 직접 조회
-    let academyTable = null;
-    if (allTables.includes('academies')) academyTable = 'academies';
-    else if (allTables.includes('Academy')) academyTable = 'Academy';
-    else if (allTables.includes('ACADEMY')) academyTable = 'ACADEMY';
-    
-    console.log('📊 Academy table found:', academyTable);
-    
+    // 🔥 새로운 로직: Academy/academies 테이블에서 직접 조회 (둘 다 조회하여 합침)
     let academiesFromTable = [];
+    const academyTables = [];
     
-    if (academyTable) {
-      // academies 테이블에서 모든 학원 조회
+    // 존재하는 모든 academy 테이블 찾기
+    if (allTables.includes('Academy')) academyTables.push('Academy');
+    if (allTables.includes('academies')) academyTables.push('academies');
+    if (allTables.includes('ACADEMY')) academyTables.push('ACADEMY');
+    
+    console.log('📊 Found academy tables:', academyTables);
+    console.log('📋 All available tables:', allTables);
+    
+    // 각 테이블에서 학원 데이터 조회하여 합침
+    for (const tableName of academyTables) {
       try {
-        const academyQuery = `SELECT * FROM ${academyTable} ORDER BY created_at DESC`;
+        const academyQuery = `SELECT * FROM ${tableName} ORDER BY createdAt DESC`;
         const academyResult = await env.DB.prepare(academyQuery).all();
-        academiesFromTable = academyResult.results || [];
-        console.log(`✅ Found ${academiesFromTable.length} academies from ${academyTable} table`);
+        const results = academyResult.results || [];
+        console.log(`✅ Found ${results.length} academies from ${tableName} table`);
+        
+        if (results.length > 0) {
+          console.log(`📋 First academy from ${tableName}:`, JSON.stringify(results[0], null, 2));
+          academiesFromTable = academiesFromTable.concat(results);
+        }
       } catch (err) {
-        console.error('❌ Error querying academies table:', err.message);
+        console.error(`❌ Error querying ${tableName} table:`, err.message);
+        console.error('❌ Error stack:', err.stack);
       }
+    }
+    
+    // ID 기준 중복 제거 (같은 ID가 여러 테이블에 있을 경우)
+    const uniqueAcademies = [];
+    const seenIds = new Set();
+    for (const academy of academiesFromTable) {
+      const academyId = academy.id?.toString();
+      if (!seenIds.has(academyId)) {
+        seenIds.add(academyId);
+        uniqueAcademies.push(academy);
+      }
+    }
+    academiesFromTable = uniqueAcademies;
+    
+    console.log(`✅ Total unique academies: ${academiesFromTable.length}`);
+    
+    if (academiesFromTable.length === 0) {
+      console.warn('⚠️ No academies found in any table! Will use directors as fallback');
     }
     
     // 학원장 정보도 조회 (학원과 매칭하기 위해)
