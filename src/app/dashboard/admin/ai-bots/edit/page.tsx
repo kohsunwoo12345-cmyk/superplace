@@ -1105,17 +1105,56 @@ export default function EditAIBotPage() {
                         type="number"
                         step="500"
                         min="100"
-                        max="20000"
+                        max="32768"
                         value={formData.maxTokens}
                         onChange={(e) => setFormData({ ...formData, maxTokens: e.target.value })}
                         className="mt-2"
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        {parseInt(formData.maxTokens) < 1000 ? "매우 짧은 답변 (~500자)" :
-                         parseInt(formData.maxTokens) < 3000 ? "짧은 답변 (~1500자)" :
-                         parseInt(formData.maxTokens) < 8000 ? "중간 길이 (~4000자)" :
-                         parseInt(formData.maxTokens) < 15000 ? "긴 답변 (~7500자)" :
-                         "매우 긴 답변 (~10000자)"} · 기본: 2000 · 최대: 20000
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, maxTokens: "1000" })}
+                          className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                        >
+                          짧게 (1000)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, maxTokens: "2000" })}
+                          className="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded-md transition-colors"
+                        >
+                          기본 (2000)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, maxTokens: "4000" })}
+                          className="px-3 py-1 text-xs bg-green-100 hover:bg-green-200 rounded-md transition-colors"
+                        >
+                          중간 (4000)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, maxTokens: "8000" })}
+                          className="px-3 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 rounded-md transition-colors"
+                        >
+                          길게 (8000)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, maxTokens: "32768" })}
+                          className="px-3 py-1 text-xs bg-purple-100 hover:bg-purple-200 rounded-md transition-colors"
+                        >
+                          최대 (32768)
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {parseInt(formData.maxTokens) < 1000 ? "⚡ 매우 짧은 답변 (~500자)" :
+                         parseInt(formData.maxTokens) < 2000 ? "📝 짧은 답변 (~1000자)" :
+                         parseInt(formData.maxTokens) < 4000 ? "📄 기본 답변 (~2000자)" :
+                         parseInt(formData.maxTokens) < 8000 ? "📋 중간 길이 (~4000자)" :
+                         parseInt(formData.maxTokens) < 16000 ? "📚 긴 답변 (~8000자)" :
+                         parseInt(formData.maxTokens) < 32768 ? "📖 매우 긴 답변 (~16000자)" :
+                         "🔥 최대 길이 (32768토큰)"} · Gemini 2.5 Flash 최대: 32,768
                       </p>
                     </div>
                   </div>
