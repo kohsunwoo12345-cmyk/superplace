@@ -576,76 +576,93 @@ export async function onRequestGet(context) {
     // Step 2: Academy 테이블에 없지만 학원장이 있는 학원 추가
     console.log('📊 Checking for directors without academies in table...');
     
-    // academyId별로 그룹핑하여 첫 번째 학원장만 사용
+    // 🔥 변경: academyId가 없는 학원장도 포함 (director ID 기반으로 academy 생성)
     const academyIdToDirector = new Map();
     for (const director of directors) {
-      const academyId = director.academy_id?.toString();
-      if (academyId && !processedAcademyIds.has(academyId)) {
+      // academyId가 있으면 그것을 사용, 없으면 director.id를 academy ID로 사용
+      const academyId = (director.academy_id || `dir-${director.id}`)?.toString();
+      
+      if (!processedAcademyIds.has(academyId)) {
         if (!academyIdToDirector.has(academyId)) {
           academyIdToDirector.set(academyId, director);
+          console.log(`  ➕ Adding director: ${director.name} (Academy ID: ${academyId}, Has AcademyId: ${!!director.academy_id})`);
         }
       }
     }
     
     const directorsWithoutAcademy = Array.from(academyIdToDirector.values());
     console.log(`✅ Found ${directorsWithoutAcademy.length} unique academy IDs without academies in table`);
+    console.log(`   - ${directorsWithoutAcademy.filter(d => d.academy_id).length} with valid academyId`);
+    console.log(`   - ${directorsWithoutAcademy.filter(d => !d.academy_id).length} without academyId (using director ID)`);
     
     if (directorsWithoutAcademy.length > 0) {
       const additionalAcademies = await Promise.all(directorsWithoutAcademy.map(async (director) => {
       try {
-        const directorAcademyId = director.academy_id;
+        // academyId가 있으면 사용, 없으면 director ID 기반으로 생성
+        const directorAcademyId = director.academy_id || `dir-${director.id}`;
+        const hasRealAcademyId = !!director.academy_id;
         processedAcademyIds.add(directorAcademyId?.toString()); // 처리 완료 기록
         
-        console.log(`📍 Processing director without academy table entry: ${director.name} (ID: ${director.id}, Academy ID: ${directorAcademyId})`);
+        console.log(`📍 Processing director: ${director.name} (ID: ${director.id}, Academy ID: ${directorAcademyId}, Real: ${hasRealAcademyId})`);
 
         // 해당 학원의 학생 수 조회 (User + users 테이블 통합)
         let totalStudentCount = 0;
         
-        // User 테이블에서 학생 수
-        if (allTables.includes('User')) {
-          try {
-            const userStudentsQuery = `
-              SELECT COUNT(*) as count 
-              FROM User 
-              WHERE academyId = ? AND role = ?
-            `;
-            const userStudentsResult = await env.DB.prepare(userStudentsQuery)
-              .bind(directorAcademyId, 'STUDENT')
-              .first();
-            totalStudentCount += (userStudentsResult?.count || 0);
-          } catch (err) {
-            console.log(`  └─ User 테이블 조회 오류:`, err.message);
+        // 실제 academyId가 있는 경우에만 학생 수 조회
+        if (hasRealAcademyId) {
+          // User 테이블에서 학생 수
+          if (allTables.includes('User')) {
+            try {
+              const userStudentsQuery = `
+                SELECT COUNT(*) as count 
+                FROM User 
+                WHERE academyId = ? AND role = ?
+              `;
+              const userStudentsResult = await env.DB.prepare(userStudentsQuery)
+                .bind(directorAcademyId, 'STUDENT')
+                .first();
+              totalStudentCount += (userStudentsResult?.count || 0);
+            } catch (err) {
+              console.log(`  └─ User 테이블 조회 오류:`, err.message);
+            }
           }
         }
         
-        // users 테이블에서 학생 수
-        try {
-          const studentsQuery = `
-            SELECT COUNT(*) as count 
-            FROM ${userTable} 
-            WHERE ${academyIdCol} = ? AND ${roleCol} = ?
-          `;
-          const studentsResult = await env.DB.prepare(studentsQuery)
-            .bind(directorAcademyId, 'STUDENT')
-            .first();
-          totalStudentCount += (studentsResult?.count || 0);
-        } catch (err) {
-          console.log(`  └─ ${userTable} 테이블 조회 오류:`, err.message);
+          // users 테이블에서 학생 수
+          if (hasRealAcademyId) {
+            try {
+              const studentsQuery = `
+                SELECT COUNT(*) as count 
+                FROM ${userTable} 
+                WHERE ${academyIdCol} = ? AND ${roleCol} = ?
+              `;
+              const studentsResult = await env.DB.prepare(studentsQuery)
+                .bind(directorAcademyId, 'STUDENT')
+                .first();
+              totalStudentCount += (studentsResult?.count || 0);
+            } catch (err) {
+              console.log(`  └─ ${userTable} 테이블 조회 오류:`, err.message);
+            }
+          }
         }
         
         const studentCount = totalStudentCount;
 
-        const teachersQuery = `
-          SELECT COUNT(*) as count 
-          FROM ${userTable} 
-          WHERE ${academyIdCol} = ? AND ${roleCol} = ?
-        `;
-        const teachersResult = await env.DB.prepare(teachersQuery)
-          .bind(directorAcademyId, 'TEACHER')
-          .first();
-        const teacherCount = teachersResult?.count || 0;
+        // 교사 수 조회 (실제 academyId가 있는 경우에만)
+        let teacherCount = 0;
+        if (hasRealAcademyId) {
+          const teachersQuery = `
+            SELECT COUNT(*) as count 
+            FROM ${userTable} 
+            WHERE ${academyIdCol} = ? AND ${roleCol} = ?
+          `;
+          const teachersResult = await env.DB.prepare(teachersQuery)
+            .bind(directorAcademyId, 'TEACHER')
+            .first();
+          teacherCount = teachersResult?.count || 0;
+        }
 
-        console.log(`  └─ ${director.name}: ${studentCount} 학생, ${teacherCount} 교사`);
+        console.log(`  └─ ${director.name}: ${studentCount} 학생, ${teacherCount} 교사 (Real academyId: ${hasRealAcademyId})`);
 
         // Academy 테이블에서 학원 정보 조회 시도
         let academyInfo = null;
