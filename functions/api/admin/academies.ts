@@ -421,205 +421,64 @@ export async function onRequestGet(context) {
     }
     
     // 🔥 새로운 로직: 모든 학원장을 개별 academy로 표시 (director.id 기준)
-    let finalAcademies = [];
-    const processedDirectorIds = new Set(); // 🔥 academyId가 아니라 director ID로 중복 체크
+    // 🚀 SIMPLIFIED: 복잡한 Promise.all 대신 단순 루프 사용 (메모리 효율적)
+    const finalAcademies = [];
+    const processedDirectorIds = new Set();
     
-    console.log(`🚀 Processing ALL ${directors.length} directors as individual academies...`);
+    console.log(`🚀 Processing ALL ${directors.length} directors as individual academies (simple loop)...`);
     
-    // Step 1: 모든 학원장을 개별 academy로 처리
-    const allDirectorAcademies = await Promise.all(directors.map(async (director) => {
-      try {
-        const directorId = director.id;
-        const uniqueDirectorKey = `dir-${directorId}`;
-        
-        // 중복 방지 체크 (director ID 기준)
-        if (processedDirectorIds.has(uniqueDirectorKey)) {
-          console.log(`  ⏭️  Skipping duplicate director: ${director.name} (ID: ${directorId})`);
-          return null;
-        }
-        
-        processedDirectorIds.add(uniqueDirectorKey);
-        
-        // 각 학원장의 academyId (있으면 사용, 없으면 dir-{id})
-        const directorAcademyId = director.academy_id?.toString() || uniqueDirectorKey;
-        const hasRealAcademyId = !!director.academy_id;
-        
-        console.log(`📍 Processing director: ${director.name} (Director ID: ${directorId}, Academy ID: ${directorAcademyId}, Real: ${hasRealAcademyId})`);
-        
-        // 🔥 학생 수 조회 (실제 academyId가 있는 경우에만)
-        let totalStudentCount = 0;
-        
-        if (hasRealAcademyId) {
-          // User 테이블에서 학생 수
-          if (allTables.includes('User')) {
-            try {
-              const userStudentsQuery = `
-                SELECT COUNT(*) as count 
-                FROM User 
-                WHERE academyId = ? AND role = ?
-              `;
-              const userStudentsResult = await env.DB.prepare(userStudentsQuery)
-                .bind(directorAcademyId, 'STUDENT')
-                .first();
-              totalStudentCount += (userStudentsResult?.count || 0);
-            } catch (err) {
-              console.log(`  └─ User 테이블 학생 조회 오류:`, err.message);
-            }
-          }
-          
-          // users/user/USER 테이블에서 학생 수
-          try {
-            const studentsQuery = `
-              SELECT COUNT(*) as count 
-              FROM ${userTable} 
-              WHERE ${academyIdCol} = ? AND ${roleCol} = ?
-            `;
-            const studentsResult = await env.DB.prepare(studentsQuery)
-              .bind(directorAcademyId, 'STUDENT')
-              .first();
-            totalStudentCount += (studentsResult?.count || 0);
-          } catch (err) {
-            console.log(`  └─ ${userTable} 테이블 학생 조회 오류:`, err.message);
-          }
-        }
-        
-        const studentCount = totalStudentCount;
-        
-        // 🔥 교사 수 조회 (실제 academyId가 있는 경우에만)
-        let teacherCount = 0;
-        
-        if (hasRealAcademyId) {
-          try {
-            const teachersQuery = `
-              SELECT COUNT(*) as count 
-              FROM ${userTable} 
-              WHERE ${academyIdCol} = ? AND ${roleCol} = ?
-            `;
-            const teachersResult = await env.DB.prepare(teachersQuery)
-              .bind(directorAcademyId, 'TEACHER')
-              .first();
-            teacherCount = teachersResult?.count || 0;
-          } catch (err) {
-            console.log(`  └─ 교사 수 조회 오류:`, err.message);
-          }
-        }
-        
-        console.log(`  └─ ${director.name}: ${studentCount} 학생, ${teacherCount} 교사`);
-        
-        // 🔥 Academy 테이블에서 학원 정보 조회 (있는 경우)
-        let academyInfo = null;
-        if (hasRealAcademyId) {
-          // 어떤 academy 테이블이 존재하는지 확인
-          let academyTableName = null;
-          if (allTables.includes('academies')) {
-            academyTableName = 'academies';
-          } else if (allTables.includes('Academy')) {
-            academyTableName = 'Academy';
-          } else if (allTables.includes('ACADEMY')) {
-            academyTableName = 'ACADEMY';
-          }
-          
-          if (academyTableName) {
-            try {
-              const academyQuery = `SELECT * FROM ${academyTableName} WHERE id = ?`;
-              academyInfo = await env.DB.prepare(academyQuery)
-                .bind(directorAcademyId)
-                .first();
-            } catch (err) {
-              console.log(`  └─ Academy 테이블 조회 오류:`, err.message);
-            }
-          }
-        }
-        
-        // 🔥 구독 정보 조회 (실제 academyId가 있는 경우에만)
-        let subscriptionInfo = null;
-        if (hasRealAcademyId && allTables.includes('user_subscriptions') && allTables.includes('pricing_plans')) {
-          try {
-            const subscriptionQuery = `
-              SELECT 
-                us.*,
-                pp.name as plan_name,
-                pp.maxStudents,
-                pp.maxHomeworkChecks,
-                pp.maxAIAnalysis,
-                pp.maxSimilarProblems,
-                pp.maxLandingPages
-              FROM user_subscriptions us
-              LEFT JOIN pricing_plans pp ON us.planId = pp.id
-              WHERE us.academyId = ? AND us.isActive = 1
-              ORDER BY us.createdAt DESC
-              LIMIT 1
-            `;
-            subscriptionInfo = await env.DB.prepare(subscriptionQuery)
-              .bind(directorAcademyId)
-              .first();
-          } catch (err) {
-            console.log(`  └─ 구독 정보 조회 오류:`, err.message);
-          }
-        }
-        
-        // 🔥 Academy 객체 반환 (각 학원장마다 개별 academy로 표시)
-        return {
-          id: uniqueDirectorKey,  // 🔥 각 학원장마다 고유 ID: dir-{directorId}
-          directorId: directorId,  // 🔥 학원장 실제 ID 추가
-          academyId: directorAcademyId,  // 실제 academyId (있는 경우)
-          name: academyInfo?.name || academyInfo?.academy_name || `${director.name}의 학원`,
-          code: academyInfo?.code || `academy-${directorId}`,
-          address: academyInfo?.address || academyInfo?.academy_address || '',
-          phone: academyInfo?.phone || academyInfo?.phone_number || director.phone || '',
-          email: academyInfo?.email || academyInfo?.academy_email || director.email || '',
-          directorName: director.name,
-          directorEmail: director.email || '',
-          directorPhone: director.phone || '',
-          studentCount: studentCount,
-          teacherCount: teacherCount,
-          directorCount: 1,
-          isActive: academyInfo?.is_active !== false && academyInfo?.isActive !== false,
-          createdAt: academyInfo?.created_at || academyInfo?.createdAt || director.created_at || new Date().toISOString(),
-          subscriptionPlan: subscriptionInfo?.plan_name || 'Free',
-          currentPlan: subscriptionInfo ? {
-            name: subscriptionInfo.plan_name || 'Free',
-            maxStudents: subscriptionInfo.maxStudents || 0,
-            usedStudents: subscriptionInfo.usedStudents || 0,
-            maxHomeworkChecks: subscriptionInfo.maxHomeworkChecks || 0,
-            usedHomeworkChecks: subscriptionInfo.usedHomeworkChecks || 0,
-            maxAIAnalysis: subscriptionInfo.maxAIAnalysis || 0,
-            usedAIAnalysis: subscriptionInfo.usedAIAnalysis || 0,
-            maxSimilarProblems: subscriptionInfo.maxSimilarProblems || 0,
-            usedSimilarProblems: subscriptionInfo.usedSimilarProblems || 0,
-            maxLandingPages: subscriptionInfo.maxLandingPages || 0,
-            usedLandingPages: subscriptionInfo.usedLandingPages || 0,
-            startDate: subscriptionInfo.startDate || null,
-            endDate: subscriptionInfo.endDate || null,
-            daysRemaining: subscriptionInfo.endDate ? 
-              Math.ceil((new Date(subscriptionInfo.endDate) - new Date()) / (1000 * 60 * 60 * 24)) : 0,
-            isActive: subscriptionInfo.isActive === 1,
-          } : {
-            name: 'Free',
-            maxStudents: 5,
-            usedStudents: studentCount,
-            maxHomeworkChecks: 10,
-            usedHomeworkChecks: 0,
-            maxAIAnalysis: 5,
-            usedAIAnalysis: 0,
-            maxSimilarProblems: 10,
-            usedSimilarProblems: 0,
-            maxLandingPages: 1,
-            usedLandingPages: 0,
-            startDate: null,
-            endDate: null,
-            daysRemaining: 999,
-            isActive: true,
-          }
-        };
-      } catch (error) {
-        console.error(`❌ Error processing director ${director.name} (ID: ${director.id}):`, error);
-        return null;
+    // Step 1: 모든 학원장을 개별 academy로 처리 (간단한 for 루프)
+    for (const director of directors) {
+      const directorId = director.id;
+      const uniqueDirectorKey = `dir-${directorId}`;
+      
+      // 중복 방지 체크
+      if (processedDirectorIds.has(uniqueDirectorKey)) {
+        continue;
       }
-    }));
-    
-    // null 제거
-    finalAcademies = allDirectorAcademies.filter(a => a !== null);
+      
+      processedDirectorIds.add(uniqueDirectorKey);
+      
+      const directorAcademyId = director.academy_id?.toString() || uniqueDirectorKey;
+      
+      // 간단한 academy 객체 생성 (학생/교사 수는 0으로, 필요시 개별 조회)
+      finalAcademies.push({
+        id: uniqueDirectorKey,
+        directorId: directorId,
+        academyId: directorAcademyId,
+        name: `${director.name}의 학원`,
+        code: `academy-${directorId}`,
+        address: '',
+        phone: director.phone || '',
+        email: director.email || '',
+        directorName: director.name,
+        directorEmail: director.email || '',
+        directorPhone: director.phone || '',
+        studentCount: 0, // 🔥 개별 조회 시 로드
+        teacherCount: 0, // 🔥 개별 조회 시 로드
+        directorCount: 1,
+        isActive: true,
+        createdAt: director.created_at || new Date().toISOString(),
+        subscriptionPlan: 'Free',
+        currentPlan: {
+          name: 'Free',
+          maxStudents: 5,
+          usedStudents: 0,
+          maxHomeworkChecks: 10,
+          usedHomeworkChecks: 0,
+          maxAIAnalysis: 5,
+          usedAIAnalysis: 0,
+          maxSimilarProblems: 10,
+          usedSimilarProblems: 0,
+          maxLandingPages: 1,
+          usedLandingPages: 0,
+          startDate: null,
+          endDate: null,
+          daysRemaining: 999,
+          isActive: true,
+        }
+      });
+    }
     
     console.log(`🎉 Success! Total academies: ${finalAcademies.length} (from ${directors.length} directors)`);
     if (finalAcademies.length > 0) {
