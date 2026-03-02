@@ -41,8 +41,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             COALESCE(s.planName, '구독 없음') as subscriptionPlan,
             COALESCE(s.status, 'none') as subscriptionStatus,
             s.endDate as subscriptionEndDate
-          FROM users u
-          LEFT JOIN academy a ON u.academyId = a.id
+          FROM User u
+          LEFT JOIN Academy a ON u.academyId = a.id
           LEFT JOIN user_subscriptions s ON u.id = s.userId AND s.status = 'active'
           WHERE u.updatedAt >= datetime('now', '-30 days')
           ORDER BY u.createdAt DESC
@@ -67,8 +67,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             COALESCE(s.status, 'none') as subscriptionStatus,
             s.endDate as subscriptionEndDate,
             CAST((julianday('now') - julianday(u.updatedAt)) AS INTEGER) as daysInactive
-          FROM users u
-          LEFT JOIN academy a ON u.academyId = a.id
+          FROM User u
+          LEFT JOIN Academy a ON u.academyId = a.id
           LEFT JOIN user_subscriptions s ON u.id = s.userId AND s.status = 'active'
           WHERE u.updatedAt < datetime('now', '-90 days')
           ORDER BY u.updatedAt ASC
@@ -104,8 +104,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             s.usage_teachers,
             s.limit_maxStudents,
             s.limit_maxTeachers
-          FROM users u
-          LEFT JOIN academy a ON u.academyId = a.id
+          FROM User u
+          LEFT JOIN Academy a ON u.academyId = a.id
           INNER JOIN user_subscriptions s ON u.id = s.userId
           WHERE s.planId = ? AND s.status = 'active'
           ORDER BY u.createdAt DESC
@@ -129,8 +129,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             u.updatedAt,
             '구독 없음' as subscriptionPlan,
             'none' as subscriptionStatus
-          FROM users u
-          LEFT JOIN academy a ON u.academyId = a.id
+          FROM User u
+          LEFT JOIN Academy a ON u.academyId = a.id
           LEFT JOIN user_subscriptions s ON u.id = s.userId AND s.status = 'active'
           WHERE s.id IS NULL AND u.role IN ('DIRECTOR', 'TEACHER')
           ORDER BY u.createdAt DESC
@@ -154,8 +154,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             COALESCE(s.planName, '구독 없음') as subscriptionPlan,
             COALESCE(s.status, 'none') as subscriptionStatus,
             s.endDate as subscriptionEndDate
-          FROM users u
-          LEFT JOIN academy a ON u.academyId = a.id
+          FROM User u
+          LEFT JOIN Academy a ON u.academyId = a.id
           LEFT JOIN user_subscriptions s ON u.id = s.userId AND s.status = 'active'
           ORDER BY u.createdAt DESC
         `;
