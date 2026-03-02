@@ -29,12 +29,12 @@ import {
 } from "lucide-react";
 import * as pdfjsLib from 'pdfjs-dist';
 
-// PDF.js worker 설정 - 여러 fallback 옵션
+// PDF.js worker 설정 - 버전 5.5.207에 맞춤
 if (typeof window !== 'undefined') {
-  // 명시적 버전 사용 (더 안정적)
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  // pdfjs-dist 5.5.207 버전의 Worker 사용
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.worker.min.mjs`;
   
-  console.log('📚 PDF.js Worker 설정:', pdfjsLib.GlobalWorkerOptions.workerSrc);
+  console.log('📚 PDF.js Worker 설정 (v5.5.207):', pdfjsLib.GlobalWorkerOptions.workerSrc);
 }
 
 const GEMINI_MODELS = [
