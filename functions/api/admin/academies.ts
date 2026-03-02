@@ -100,62 +100,119 @@ export async function onRequestGet(context) {
       const teachersResult = await env.DB.prepare(teachersQuery).bind(targetDirector.academyId).first();
       const teacherCount = teachersResult?.count || 0;
 
-      // 구독 플랜 조회
+      // 🆕 구독 정보 조회 (새로운 user_subscriptions 테이블 사용)
       let currentPlan = {
-        planName: 'Free Plan',
-        maxStudents: 5,
+        planName: '구독 없음',
+        status: 'none',
+        maxStudents: 0,
         usedStudents: studentCount,
-        maxHomeworkChecks: 10,
+        maxTeachers: 0,
+        usedTeachers: teacherCount,
+        maxHomeworkChecks: 0,
         usedHomeworkChecks: 0,
-        maxAIAnalysis: 5,
+        maxAIAnalysis: 0,
         usedAIAnalysis: 0,
-        maxSimilarProblems: 10,
+        maxAIGrading: 0,
+        usedAIGrading: 0,
+        maxCapabilityAnalysis: 0,
+        usedCapabilityAnalysis: 0,
+        maxConceptAnalysis: 0,
+        usedConceptAnalysis: 0,
+        maxSimilarProblems: 0,
         usedSimilarProblems: 0,
-        maxLandingPages: 1,
+        maxLandingPages: 0,
         usedLandingPages: 0,
-        startDate: targetDirector.createdAt || new Date().toISOString(),
-        endDate: new Date(Date.now() + 999 * 24 * 60 * 60 * 1000).toISOString(),
-        daysRemaining: 999,
-        active: true
+        startDate: null,
+        endDate: null,
+        daysRemaining: 0,
+        active: false,
+        period: null
       };
 
       try {
-        const planQuery = `
-          SELECT * FROM SubscriptionPlan 
-          WHERE academyId = ? 
+        // user_subscriptions 테이블에서 조회 (학원장의 구독 정보)
+        const subscriptionQuery = `
+          SELECT * FROM user_subscriptions 
+          WHERE userId = ? 
           AND status = 'active' 
           ORDER BY createdAt DESC 
           LIMIT 1
         `;
-        const plan = await env.DB.prepare(planQuery).bind(targetDirector.academyId).first();
+        const subscription = await env.DB.prepare(subscriptionQuery).bind(targetDirector.userId).first();
         
-        if (plan) {
+        if (subscription) {
+          const now = new Date();
+          const endDate = new Date(subscription.endDate);
+          const isExpired = now > endDate;
+          
           currentPlan = {
-            planName: plan.planName || 'Custom Plan',
-            maxStudents: plan.maxStudents || 5,
-            usedStudents: studentCount,
-            maxHomeworkChecks: plan.maxHomeworkChecks || 10,
-            usedHomeworkChecks: 0,
-            maxAIAnalysis: plan.maxAIAnalysis || 5,
-            usedAIAnalysis: 0,
-            maxSimilarProblems: plan.maxSimilarProblems || 10,
-            usedSimilarProblems: 0,
-            maxLandingPages: plan.maxLandingPages || 1,
-            usedLandingPages: 0,
-            startDate: plan.startDate || plan.createdAt,
-            endDate: plan.endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            daysRemaining: Math.ceil((new Date(plan.endDate || Date.now() + 30 * 24 * 60 * 60 * 1000).getTime() - Date.now()) / (24 * 60 * 60 * 1000)),
-            active: true
+            planName: subscription.planName || 'Unknown Plan',
+            status: isExpired ? 'expired' : 'active',
+            period: subscription.period || '1month',
+            maxStudents: subscription.limit_maxStudents || 0,
+            usedStudents: subscription.usage_students || 0,
+            maxTeachers: subscription.limit_maxTeachers || 0,
+            usedTeachers: subscription.usage_teachers || 0,
+            maxHomeworkChecks: subscription.limit_maxHomeworkChecks || 0,
+            usedHomeworkChecks: subscription.usage_homeworkChecks || 0,
+            maxAIAnalysis: subscription.limit_maxAIAnalysis || 0,
+            usedAIAnalysis: subscription.usage_aiAnalysis || 0,
+            maxAIGrading: subscription.limit_maxAIGrading || 0,
+            usedAIGrading: subscription.usage_aiGrading || 0,
+            maxCapabilityAnalysis: subscription.limit_maxCapabilityAnalysis || 0,
+            usedCapabilityAnalysis: subscription.usage_capabilityAnalysis || 0,
+            maxConceptAnalysis: subscription.limit_maxConceptAnalysis || 0,
+            usedConceptAnalysis: subscription.usage_conceptAnalysis || 0,
+            maxSimilarProblems: subscription.limit_maxSimilarProblems || 0,
+            usedSimilarProblems: subscription.usage_similarProblems || 0,
+            maxLandingPages: subscription.limit_maxLandingPages || 0,
+            usedLandingPages: subscription.usage_landingPages || 0,
+            startDate: subscription.startDate,
+            endDate: subscription.endDate,
+            daysRemaining: isExpired ? 0 : Math.ceil((endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
+            active: !isExpired,
+            autoRenew: subscription.autoRenew === 1,
+            lastPaymentAmount: subscription.lastPaymentAmount,
+            lastPaymentDate: subscription.lastPaymentDate
           };
         }
       } catch (err) {
-        console.log('⚠️ SubscriptionPlan table not found, using default plan');
+        console.log('⚠️ user_subscriptions 조회 실패:', err.message);
+      }
+
+      // 🆕 할당된 봇 수 조회
+      let assignedBotsCount = 0;
+      try {
+        const botsCountQuery = `
+          SELECT COUNT(DISTINCT botId) as count
+          FROM bot_assignments
+          WHERE academyId = ? AND isActive = 1
+        `;
+        const botsCountResult = await env.DB.prepare(botsCountQuery).bind(targetDirector.academyId).first();
+        assignedBotsCount = botsCountResult?.count || 0;
+      } catch (err) {
+        console.log('⚠️ bot_assignments 조회 실패');
+      }
+
+      // 🆕 클래스 수 조회
+      let classCount = 0;
+      try {
+        const classCountQuery = `
+          SELECT COUNT(DISTINCT id) as count
+          FROM Class
+          WHERE academyId = ?
+        `;
+        const classCountResult = await env.DB.prepare(classCountQuery).bind(targetDirector.academyId).first();
+        classCount = classCountResult?.count || 0;
+      } catch (err) {
+        console.log('⚠️ Class 조회 실패');
       }
 
       const academy = {
         id: `dir-${targetDirector.userId}`,
         academyId: targetDirector.academyId || `academy-${targetDirector.userId}`,
         name: targetDirector.academyName || `${targetDirector.name}의 학원`,
+        code: targetDirector.academyCode || `CODE-${targetDirector.academyId}`,
         address: targetDirector.address || '주소 미등록',
         phone: targetDirector.phone || '전화번호 미등록',
         email: targetDirector.email,
@@ -165,9 +222,15 @@ export async function onRequestGet(context) {
         directorPhone: targetDirector.phone || '전화번호 미등록',
         studentCount,
         teacherCount,
+        classCount,
+        assignedBotsCount,
         active: true,
         createdAt: targetDirector.createdAt || new Date().toISOString(),
         currentPlan,
+        subscriptionStatus: currentPlan.status,
+        subscriptionPlanName: currentPlan.planName,
+        subscriptionEndDate: currentPlan.endDate,
+        subscriptionDaysRemaining: currentPlan.daysRemaining,
         monthlyStats: {
           jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0,
           jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0
