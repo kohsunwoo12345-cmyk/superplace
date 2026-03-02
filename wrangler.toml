@@ -18,9 +18,11 @@ binding = "SMS_DOCUMENTS"
 bucket_name = "superplacestudy"
 
 # Vectorize (for RAG - Knowledge Base embeddings)
-[[vectorize]]
-binding = "VECTORIZE"
-index_name = "knowledge-base-embeddings"
+# TODO: Create Vectorize index first:
+# wrangler vectorize create knowledge-base-embeddings --dimensions=768 --metric=cosine
+# [[vectorize]]
+# binding = "VECTORIZE"
+# index_name = "knowledge-base-embeddings"
 
 # Environment Variables
 # Note: GOOGLE_GEMINI_API_KEY should be set in Cloudflare Pages dashboard
