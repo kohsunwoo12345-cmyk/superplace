@@ -208,39 +208,65 @@ export async function onRequestGet(context) {
         console.log('⚠️ Class 조회 실패');
       }
 
+      // 🔧 프론트엔드가 기대하는 형식으로 변환
       const academy = {
         id: `dir-${targetDirector.userId}`,
         academyId: targetDirector.academyId || `academy-${targetDirector.userId}`,
         name: targetDirector.academyName || `${targetDirector.name}의 학원`,
         code: targetDirector.academyCode || `CODE-${targetDirector.academyId}`,
+        description: targetDirector.description || undefined,
         address: targetDirector.address || '주소 미등록',
         phone: targetDirector.phone || '전화번호 미등록',
         email: targetDirector.email,
-        directorId: targetDirector.userId,
-        directorName: targetDirector.name,
-        directorEmail: targetDirector.email,
-        directorPhone: targetDirector.phone || '전화번호 미등록',
+        logoUrl: targetDirector.logoUrl || undefined,
+        subscriptionPlan: currentPlan.planName, // 프론트엔드가 기대하는 필드명
+        maxStudents: currentPlan.maxStudents, // currentPlan에서 가져오기
+        maxTeachers: currentPlan.maxTeachers, // currentPlan에서 가져오기
+        isActive: 1, // 프론트엔드가 기대하는 필드명 (1 = active)
+        createdAt: targetDirector.createdAt || new Date().toISOString(),
+        updatedAt: targetDirector.updatedAt || new Date().toISOString(),
+        director: {
+          id: targetDirector.userId,
+          name: targetDirector.name,
+          email: targetDirector.email,
+          phone: targetDirector.phone || undefined
+        },
+        students: [], // 프론트엔드가 기대하는 빈 배열
+        teachers: [], // 프론트엔드가 기대하는 빈 배열
         studentCount,
         teacherCount,
-        classCount,
-        assignedBotsCount,
-        active: true,
-        createdAt: targetDirector.createdAt || new Date().toISOString(),
-        currentPlan,
-        subscriptionStatus: currentPlan.status,
-        subscriptionPlanName: currentPlan.planName,
-        subscriptionEndDate: currentPlan.endDate,
-        subscriptionDaysRemaining: currentPlan.daysRemaining,
-        monthlyStats: {
-          jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0,
-          jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0
-        },
+        totalChats: 0,
+        attendanceCount: 0,
+        homeworkCount: 0,
+        monthlyActivity: [ // 프론트엔드가 기대하는 필드명
+          { month: 'Jan', count: 0 },
+          { month: 'Feb', count: 0 },
+          { month: 'Mar', count: 0 },
+          { month: 'Apr', count: 0 },
+          { month: 'May', count: 0 },
+          { month: 'Jun', count: 0 },
+          { month: 'Jul', count: 0 },
+          { month: 'Aug', count: 0 },
+          { month: 'Sep', count: 0 },
+          { month: 'Oct', count: 0 },
+          { month: 'Nov', count: 0 },
+          { month: 'Dec', count: 0 }
+        ],
         assignedBots: [],
         payments: [],
         revenue: {
           totalRevenue: 0,
           transactionCount: 0
-        }
+        },
+        // 🆕 추가 정보 (백엔드용)
+        directorId: targetDirector.userId,
+        classCount,
+        assignedBotsCount,
+        currentPlan, // 상세 구독 정보
+        subscriptionStatus: currentPlan.status,
+        subscriptionPlanName: currentPlan.planName,
+        subscriptionEndDate: currentPlan.endDate,
+        subscriptionDaysRemaining: currentPlan.daysRemaining
       };
 
       return new Response(JSON.stringify({ 
