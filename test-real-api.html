@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Academy API Test</title>
+</head>
+<body>
+    <h1>Academy API Test</h1>
+    <button onclick="testAPI()">Test API</button>
+    <pre id="result"></pre>
+    
+    <script>
+    async function testAPI() {
+        const token = prompt('Enter your JWT token:');
+        if (!token) return;
+        
+        try {
+            const response = await fetch('/api/admin/academies', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            console.log('Total academies:', data.total);
+            console.log('Academies count:', data.academies?.length);
+        } catch (error) {
+            document.getElementById('result').textContent = 'Error: ' + error.message;
+        }
+    }
+    </script>
+</body>
+</html>
