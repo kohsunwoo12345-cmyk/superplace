@@ -29,9 +29,12 @@ import {
 } from "lucide-react";
 import * as pdfjsLib from 'pdfjs-dist';
 
-// PDF.js worker 설정
+// PDF.js worker 설정 - 여러 fallback 옵션
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  // 명시적 버전 사용 (더 안정적)
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  
+  console.log('📚 PDF.js Worker 설정:', pdfjsLib.GlobalWorkerOptions.workerSrc);
 }
 
 const GEMINI_MODELS = [
@@ -403,9 +406,13 @@ export default function CreateAIBotPage() {
           console.log('📄 PDF 파일 파싱 중...');
           try {
             const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            console.log(`  └─ ArrayBuffer 생성 완료: ${arrayBuffer.byteLength} bytes`);
             
-            console.log(`  └─ PDF: ${pdf.numPages}페이지`);
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            console.log('  └─ PDF 로딩 태스크 생성 완료');
+            
+            const pdf = await loadingTask.promise;
+            console.log(`  └─ PDF 로드 완료: ${pdf.numPages}페이지`);
             
             for (let i = 1; i <= pdf.numPages; i++) {
               const page = await pdf.getPage(i);
@@ -414,12 +421,30 @@ export default function CreateAIBotPage() {
                 .map((item: any) => item.str)
                 .join(' ');
               text += `\n\n[페이지 ${i}]\n${pageText}`;
+              console.log(`  └─ 페이지 ${i}/${pdf.numPages} 파싱 완료 (${pageText.length}자)`);
             }
             
-            console.log(`✅ PDF 파싱 완료: ${text.length}자`);
-          } catch (pdfError) {
+            console.log(`✅ PDF 파싱 완료: 총 ${text.length}자`);
+            
+            if (text.trim().length === 0) {
+              throw new Error('PDF에서 텍스트를 추출할 수 없습니다. 이미지 기반 PDF이거나 암호화되어 있을 수 있습니다.');
+            }
+          } catch (pdfError: any) {
             console.error('❌ PDF 파싱 오류:', pdfError);
-            alert(`${file.name}: PDF 파일을 읽을 수 없습니다.\n\n${(pdfError as Error).message}`);
+            
+            let errorMessage = 'PDF 파일을 읽을 수 없습니다.';
+            
+            if (pdfError.message?.includes('Invalid PDF')) {
+              errorMessage = 'PDF 파일이 손상되었거나 올바른 PDF 형식이 아닙니다.';
+            } else if (pdfError.message?.includes('password')) {
+              errorMessage = 'PDF 파일이 암호화되어 있습니다. 암호화되지 않은 PDF를 사용하세요.';
+            } else if (pdfError.message?.includes('worker')) {
+              errorMessage = 'PDF 처리 중 오류가 발생했습니다. 페이지를 새로고침 후 다시 시도하세요.';
+            } else {
+              errorMessage = `PDF 파일을 읽을 수 없습니다.\n\n오류: ${pdfError.message || '알 수 없는 오류'}`;
+            }
+            
+            alert(`${file.name}:\n${errorMessage}`);
             continue;
           }
         } 
