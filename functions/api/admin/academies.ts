@@ -83,22 +83,89 @@ export async function onRequestGet(context) {
         });
       }
 
-      // 상세 정보 조회
-      const studentsQuery = `
-        SELECT COUNT(*) as count 
-        FROM User 
-        WHERE academyId = ? AND role = 'STUDENT'
-      `;
-      const studentsResult = await env.DB.prepare(studentsQuery).bind(targetDirector.academyId).first();
-      const studentCount = studentsResult?.count || 0;
+      // 🆕 Academy 테이블에서 실제 학원 정보 조회
+      let academyInfo = {
+        name: targetDirector.academyName || `${targetDirector.name}의 학원`,
+        code: targetDirector.academyCode || `CODE-${targetDirector.academyId}`,
+        address: targetDirector.address || '주소 미등록',
+        phone: targetDirector.phone || '전화번호 미등록',
+        email: targetDirector.email,
+        description: null,
+        logoUrl: null
+      };
+      
+      try {
+        const academyData = await env.DB.prepare(`
+          SELECT name, code, address, phone, email, description, logoUrl
+          FROM Academy
+          WHERE id = ?
+        `).bind(targetDirector.academyId).first();
+        
+        if (academyData) {
+          academyInfo = {
+            name: academyData.name || academyInfo.name,
+            code: academyData.code || academyInfo.code,
+            address: academyData.address || academyInfo.address,
+            phone: academyData.phone || academyInfo.phone,
+            email: academyData.email || academyInfo.email,
+            description: academyData.description,
+            logoUrl: academyData.logoUrl
+          };
+          console.log('✅ Academy 정보 조회 성공:', academyInfo.name);
+        }
+      } catch (err) {
+        console.log('⚠️ Academy 테이블 조회 실패, User 정보 사용');
+      }
 
-      const teachersQuery = `
-        SELECT COUNT(*) as count 
-        FROM User 
-        WHERE academyId = ? AND role = 'TEACHER'
-      `;
-      const teachersResult = await env.DB.prepare(teachersQuery).bind(targetDirector.academyId).first();
-      const teacherCount = teachersResult?.count || 0;
+      // 🆕 실제 학생 목록 조회
+      let students = [];
+      let studentCount = 0;
+      try {
+        const studentsData = await env.DB.prepare(`
+          SELECT id, name, email, phone, createdAt
+          FROM User
+          WHERE academyId = ? AND role = 'STUDENT'
+          ORDER BY createdAt DESC
+          LIMIT 500
+        `).bind(targetDirector.academyId).all();
+        
+        students = (studentsData.results || []).map(s => ({
+          id: s.id,
+          name: s.name,
+          email: s.email,
+          phone: s.phone || null,
+          createdAt: s.createdAt
+        }));
+        studentCount = students.length;
+        console.log(`✅ 학생 ${studentCount}명 조회`);
+      } catch (err) {
+        console.log('⚠️ 학생 목록 조회 실패');
+      }
+
+      // 🆕 실제 교사 목록 조회
+      let teachers = [];
+      let teacherCount = 0;
+      try {
+        const teachersData = await env.DB.prepare(`
+          SELECT id, name, email, phone, createdAt
+          FROM User
+          WHERE academyId = ? AND role = 'TEACHER'
+          ORDER BY createdAt DESC
+          LIMIT 100
+        `).bind(targetDirector.academyId).all();
+        
+        teachers = (teachersData.results || []).map(t => ({
+          id: t.id,
+          name: t.name,
+          email: t.email,
+          phone: t.phone || null,
+          createdAt: t.createdAt
+        }));
+        teacherCount = teachers.length;
+        console.log(`✅ 교사 ${teacherCount}명 조회`);
+      } catch (err) {
+        console.log('⚠️ 교사 목록 조회 실패');
+      }
 
       // 🆕 구독 정보 조회 (새로운 user_subscriptions 테이블 사용)
       let currentPlan = {
@@ -180,16 +247,28 @@ export async function onRequestGet(context) {
         console.log('⚠️ user_subscriptions 조회 실패:', err.message);
       }
 
-      // 🆕 할당된 봇 수 조회
+      // 🆕 할당된 봇 상세 목록 조회
+      let assignedBots = [];
       let assignedBotsCount = 0;
       try {
-        const botsCountQuery = `
-          SELECT COUNT(DISTINCT botId) as count
-          FROM bot_assignments
-          WHERE academyId = ? AND isActive = 1
-        `;
-        const botsCountResult = await env.DB.prepare(botsCountQuery).bind(targetDirector.academyId).first();
-        assignedBotsCount = botsCountResult?.count || 0;
+        const botsData = await env.DB.prepare(`
+          SELECT ba.id, ba.botId, ab.name, ab.description, ba.assignedAt, ba.isActive as status
+          FROM bot_assignments ba
+          LEFT JOIN ai_bots ab ON ba.botId = ab.id
+          WHERE ba.academyId = ? AND ba.isActive = 1
+          ORDER BY ba.assignedAt DESC
+        `).bind(targetDirector.academyId).all();
+        
+        assignedBots = (botsData.results || []).map(bot => ({
+          id: bot.id,
+          botId: bot.botId,
+          name: bot.name || 'Unknown Bot',
+          description: bot.description,
+          assignedAt: bot.assignedAt,
+          status: bot.status === 1 ? 'active' : 'inactive'
+        }));
+        assignedBotsCount = assignedBots.length;
+        console.log(`✅ 할당된 봇 ${assignedBotsCount}개 조회`);
       } catch (err) {
         console.log('⚠️ bot_assignments 조회 실패');
       }
@@ -208,21 +287,101 @@ export async function onRequestGet(context) {
         console.log('⚠️ Class 조회 실패');
       }
 
+      // 🆕 결제 내역 조회 (subscription_requests)
+      let payments = [];
+      try {
+        const paymentsData = await env.DB.prepare(`
+          SELECT id, planName, finalPrice as amount, status, createdAt, processedAt as approvedAt
+          FROM subscription_requests
+          WHERE userId = ?
+          ORDER BY createdAt DESC
+          LIMIT 50
+        `).bind(targetDirector.userId).all();
+        
+        payments = (paymentsData.results || []).map(p => ({
+          id: p.id,
+          planName: p.planName,
+          amount: p.amount || 0,
+          status: p.status,
+          createdAt: p.createdAt,
+          approvedAt: p.approvedAt
+        }));
+        console.log(`✅ 결제 내역 ${payments.length}건 조회`);
+      } catch (err) {
+        console.log('⚠️ 결제 내역 조회 실패');
+      }
+
+      // 🆕 활동 통계 조회 (totalChats, attendanceCount, homeworkCount)
+      let totalChats = 0;
+      let attendanceCount = 0;
+      let homeworkCount = 0;
+      
+      try {
+        // Chat 기록 조회
+        const chatsData = await env.DB.prepare(`
+          SELECT COUNT(*) as count FROM ChatMessage WHERE academyId = ?
+        `).bind(targetDirector.academyId).first();
+        totalChats = chatsData?.count || 0;
+      } catch (err) {
+        console.log('⚠️ Chat 통계 조회 실패');
+      }
+      
+      try {
+        // 출석 기록 조회
+        const attendanceData = await env.DB.prepare(`
+          SELECT COUNT(*) as count FROM Attendance WHERE academyId = ?
+        `).bind(targetDirector.academyId).first();
+        attendanceCount = attendanceData?.count || 0;
+      } catch (err) {
+        console.log('⚠️ 출석 통계 조회 실패');
+      }
+      
+      try {
+        // 숙제 기록 조회
+        const homeworkData = await env.DB.prepare(`
+          SELECT COUNT(*) as count FROM Homework WHERE academyId = ?
+        `).bind(targetDirector.academyId).first();
+        homeworkCount = homeworkData?.count || 0;
+      } catch (err) {
+        console.log('⚠️ 숙제 통계 조회 실패');
+      }
+
+      // 🆕 수익 통계 조회
+      let revenue = { totalRevenue: 0, transactionCount: 0 };
+      try {
+        const revenueData = await env.DB.prepare(`
+          SELECT 
+            SUM(CASE WHEN status = 'approved' THEN finalPrice ELSE 0 END) as totalRevenue,
+            COUNT(CASE WHEN status = 'approved' THEN 1 END) as transactionCount
+          FROM subscription_requests
+          WHERE userId = ?
+        `).bind(targetDirector.userId).first();
+        
+        if (revenueData) {
+          revenue = {
+            totalRevenue: revenueData.totalRevenue || 0,
+            transactionCount: revenueData.transactionCount || 0
+          };
+        }
+      } catch (err) {
+        console.log('⚠️ 수익 통계 조회 실패');
+      }
+
       // 🔧 프론트엔드가 기대하는 형식으로 변환
       const academy = {
         id: `dir-${targetDirector.userId}`,
         academyId: targetDirector.academyId || `academy-${targetDirector.userId}`,
-        name: targetDirector.academyName || `${targetDirector.name}의 학원`,
-        code: targetDirector.academyCode || `CODE-${targetDirector.academyId}`,
-        description: targetDirector.description || undefined,
-        address: targetDirector.address || '주소 미등록',
-        phone: targetDirector.phone || '전화번호 미등록',
-        email: targetDirector.email,
-        logoUrl: targetDirector.logoUrl || undefined,
-        subscriptionPlan: currentPlan.planName, // 프론트엔드가 기대하는 필드명
-        maxStudents: currentPlan.maxStudents, // currentPlan에서 가져오기
-        maxTeachers: currentPlan.maxTeachers, // currentPlan에서 가져오기
-        isActive: 1, // 프론트엔드가 기대하는 필드명 (1 = active)
+        name: academyInfo.name, // 🆕 Academy 테이블에서 가져온 실제 학원 이름
+        code: academyInfo.code,
+        description: academyInfo.description,
+        address: academyInfo.address,
+        phone: academyInfo.phone,
+        email: academyInfo.email,
+        logoUrl: academyInfo.logoUrl,
+        subscriptionPlan: currentPlan.planName,
+        maxStudents: currentPlan.maxStudents,
+        maxTeachers: currentPlan.maxTeachers,
+        isActive: 1,
         createdAt: targetDirector.createdAt || new Date().toISOString(),
         updatedAt: targetDirector.updatedAt || new Date().toISOString(),
         director: {
@@ -231,14 +390,14 @@ export async function onRequestGet(context) {
           email: targetDirector.email,
           phone: targetDirector.phone || undefined
         },
-        students: [], // 프론트엔드가 기대하는 빈 배열
-        teachers: [], // 프론트엔드가 기대하는 빈 배열
+        students, // 🆕 실제 학생 목록
+        teachers, // 🆕 실제 교사 목록
         studentCount,
         teacherCount,
-        totalChats: 0,
-        attendanceCount: 0,
-        homeworkCount: 0,
-        monthlyActivity: [ // 프론트엔드가 기대하는 필드명
+        totalChats, // 🆕 실제 채팅 수
+        attendanceCount, // 🆕 실제 출석 수
+        homeworkCount, // 🆕 실제 숙제 수
+        monthlyActivity: [
           { month: 'Jan', count: 0 },
           { month: 'Feb', count: 0 },
           { month: 'Mar', count: 0 },
@@ -252,17 +411,14 @@ export async function onRequestGet(context) {
           { month: 'Nov', count: 0 },
           { month: 'Dec', count: 0 }
         ],
-        assignedBots: [],
-        payments: [],
-        revenue: {
-          totalRevenue: 0,
-          transactionCount: 0
-        },
+        assignedBots, // 🆕 실제 할당된 봇 목록
+        payments, // 🆕 실제 결제 내역
+        revenue, // 🆕 실제 수익 통계
         // 🆕 추가 정보 (백엔드용)
         directorId: targetDirector.userId,
         classCount,
         assignedBotsCount,
-        currentPlan, // 상세 구독 정보
+        currentPlan,
         subscriptionStatus: currentPlan.status,
         subscriptionPlanName: currentPlan.planName,
         subscriptionEndDate: currentPlan.endDate,
