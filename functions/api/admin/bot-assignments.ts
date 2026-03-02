@@ -77,33 +77,40 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     `).all();
 
     // 🆕 학원장 개인 할당 목록도 조회 (통합 표시용)
-    const userAssignmentsResult = await db.prepare(`
-      SELECT 
-        uba.id,
-        uba.userId,
-        u.name as userName,
-        u.academyId,
-        a.name as academyName,
-        uba.botId,
-        b.name as botName,
-        b.profileIcon as botIcon,
-        uba.createdAt as assignedAt,
-        uba.expiresAt,
-        uba.isActive,
-        uba.notes,
-        'USER' as assignmentType
-      FROM user_bot_assignments uba
-      LEFT JOIN users u ON uba.userId = u.id
-      LEFT JOIN academy a ON u.academyId = a.id
-      LEFT JOIN ai_bots b ON uba.botId = b.id
-      WHERE u.role = 'DIRECTOR'
-      ORDER BY uba.createdAt DESC
-    `).all();
+    let directorAssignments: any[] = [];
+    try {
+      const userAssignmentsResult = await db.prepare(`
+        SELECT 
+          uba.id,
+          uba.userId,
+          u.name as userName,
+          u.academyId,
+          a.name as academyName,
+          uba.botId,
+          b.name as botName,
+          b.profileIcon as botIcon,
+          uba.createdAt as assignedAt,
+          uba.isActive,
+          uba.notes,
+          'USER' as assignmentType
+        FROM user_bot_assignments uba
+        LEFT JOIN users u ON uba.userId = u.id
+        LEFT JOIN academy a ON u.academyId = a.id
+        LEFT JOIN ai_bots b ON uba.botId = b.id
+        WHERE u.role = 'DIRECTOR'
+        ORDER BY uba.createdAt DESC
+      `).all();
+      directorAssignments = userAssignmentsResult.results || [];
+      console.log(`✅ 학원장 할당 ${directorAssignments.length}개 조회 성공`);
+    } catch (directorQueryError: any) {
+      console.error("⚠️ 학원장 할당 조회 실패 (테이블이 없거나 스키마가 다름):", directorQueryError.message);
+      // 실패해도 학원 할당은 표시되어야 하므로 계속 진행
+    }
 
     // 두 목록 병합
     const allAssignments = [
       ...(result.results || []),
-      ...(userAssignmentsResult.results || [])
+      ...directorAssignments
     ];
 
     return new Response(
@@ -111,7 +118,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         success: true,
         assignments: allAssignments,
         academyAssignments: result.results || [],
-        directorAssignments: userAssignmentsResult.results || [],
+        directorAssignments: directorAssignments,
         count: allAssignments.length,
       }),
       {
