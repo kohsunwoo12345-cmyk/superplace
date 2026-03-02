@@ -122,17 +122,27 @@ export default function LandingPageBuilderPage() {
 
   // 템플릿 타입 변경 핸들러
   const handleTemplateTypeChange = (templateType: string) => {
+    console.log("🔄 Template type changing to:", templateType);
     const updatedData = { ...data, template_type: templateType };
     
     // 학생 리포트 템플릿인 경우 자동으로 HTML 주입
     if (templateType === "student_report") {
       updatedData.template_html = STUDENT_GROWTH_REPORT_TEMPLATE;
       console.log("✅ Student report template loaded, length:", STUDENT_GROWTH_REPORT_TEMPLATE.length);
+      console.log("✅ updatedData.template_html.length:", updatedData.template_html.length);
     } else {
       updatedData.template_html = "";
     }
     
+    console.log("📝 setData 호출 전 - updatedData.template_type:", updatedData.template_type);
+    console.log("📝 setData 호출 전 - updatedData.template_html.length:", updatedData.template_html.length);
     setData(updatedData);
+    
+    // setData 호출 후 검증 (비동기이므로 즉시 확인 불가)
+    setTimeout(() => {
+      console.log("✅ setData 호출 후 - data.template_type:", data.template_type);
+      console.log("✅ setData 호출 후 - data.template_html.length:", data.template_html.length);
+    }, 100);
   };
 
   // 폴더 목록 불러오기
@@ -252,6 +262,11 @@ export default function LandingPageBuilderPage() {
       return;
     }
 
+    console.log("💾 handleSave 시작");
+    console.log("   data.template_type:", data.template_type);
+    console.log("   data.template_html.length:", data.template_html?.length || 0);
+    console.log("   data.template_html empty?:", !data.template_html);
+
     // 🔥 중요: 학생 리포트 템플릿인데 HTML이 비어있으면 자동 복원
     let finalTemplateHtml = data.template_html;
     if (data.template_type === "student_report" && !finalTemplateHtml) {
@@ -259,6 +274,8 @@ export default function LandingPageBuilderPage() {
       finalTemplateHtml = STUDENT_GROWTH_REPORT_TEMPLATE;
       setData(prev => ({ ...prev, template_html: finalTemplateHtml }));
       console.log("✅ Template HTML auto-restored before save, length:", finalTemplateHtml.length);
+    } else if (data.template_type === "student_report") {
+      console.log("✅ template_html이 이미 존재합니다, length:", finalTemplateHtml.length);
     }
 
     // 자동 slug 생성
