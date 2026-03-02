@@ -152,7 +152,17 @@ export default function LandingPageBuilderPage() {
       }
     };
     fetchFolders();
-  }, []);
+    
+    // 템플릿 HTML 자동 복원: template_type이 student_report인데 template_html이 비어있으면 다시 로드
+    if (data.template_type === "student_report" && !data.template_html) {
+      console.log("🔄 Restoring student report template HTML...");
+      setData(prev => ({
+        ...prev,
+        template_html: STUDENT_GROWTH_REPORT_TEMPLATE
+      }));
+      console.log("✅ Template HTML restored, length:", STUDENT_GROWTH_REPORT_TEMPLATE.length);
+    }
+  }, [data.template_type, data.template_html]);
 
   const addCustomField = (type: CustomField["type"]) => {
     const newField: CustomField = {
