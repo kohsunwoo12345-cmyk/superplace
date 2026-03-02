@@ -367,6 +367,30 @@ export async function onRequestGet(context) {
         console.log('⚠️ 수익 통계 조회 실패');
       }
 
+      // 🆕 로그인 IP 기록 조회 (user_login_logs)
+      let loginLogs = [];
+      try {
+        const logsData = await env.DB.prepare(`
+          SELECT id, ipAddress, userAgent, deviceType, country, loginAt
+          FROM user_login_logs
+          WHERE userId = ?
+          ORDER BY loginAt DESC
+          LIMIT 20
+        `).bind(targetDirector.userId).all();
+        
+        loginLogs = (logsData.results || []).map(log => ({
+          id: log.id,
+          ipAddress: log.ipAddress,
+          userAgent: log.userAgent,
+          deviceType: log.deviceType,
+          country: log.country,
+          loginAt: log.loginAt
+        }));
+        console.log(`✅ 로그인 기록 ${loginLogs.length}건 조회`);
+      } catch (err) {
+        console.log('⚠️ 로그인 기록 조회 실패:', err.message);
+      }
+
       // 🔧 프론트엔드가 기대하는 형식으로 변환
       const academy = {
         id: `dir-${targetDirector.userId}`,
@@ -414,6 +438,7 @@ export async function onRequestGet(context) {
         assignedBots, // 🆕 실제 할당된 봇 목록
         payments, // 🆕 실제 결제 내역
         revenue, // 🆕 실제 수익 통계
+        loginLogs, // 🆕 로그인 IP 기록
         // 🆕 추가 정보 (백엔드용)
         directorId: targetDirector.userId,
         classCount,

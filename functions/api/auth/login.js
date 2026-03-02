@@ -227,10 +227,83 @@ export async function onRequestPost(context) {
       );
     }
 
+    // 🆕 IP 주소 및 디바이스 정보 수집
+    const ipAddress = request.headers.get('CF-Connecting-IP') || 
+                      request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+                      request.headers.get('X-Real-IP') ||
+                      'Unknown';
+    const userAgent = request.headers.get('User-Agent') || 'Unknown';
+    const cfCountry = request.headers.get('CF-IPCountry') || null;
+    
+    // 디바이스 타입 추론
+    let deviceType = 'Unknown';
+    if (userAgent.includes('Mobile')) deviceType = 'Mobile';
+    else if (userAgent.includes('Tablet')) deviceType = 'Tablet';
+    else if (userAgent.includes('Windows') || userAgent.includes('Mac') || userAgent.includes('Linux')) deviceType = 'Desktop';
+    
+    console.log('📍 Login IP info:', { ipAddress, deviceType, country: cfCountry });
+
+    // 🆕 로그인 로그 기록 (user_login_logs 테이블)
+    try {
+      // user_login_logs 테이블 생성
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS user_login_logs (
+          id TEXT PRIMARY KEY,
+          userId TEXT NOT NULL,
+          ipAddress TEXT,
+          userAgent TEXT,
+          deviceType TEXT,
+          country TEXT,
+          loginAt TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (userId) REFERENCES User(id)
+        )
+      `).run();
+
+      // 로그 삽입
+      const logId = `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      await db.prepare(`
+        INSERT INTO user_login_logs (id, userId, ipAddress, userAgent, deviceType, country)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(
+        logId,
+        user.id,
+        ipAddress,
+        userAgent,
+        deviceType,
+        cfCountry
+      ).run();
+
+      console.log('✅ Login log recorded:', logId);
+    } catch (logError) {
+      console.error('⚠️ Failed to record login log:', logError.message);
+      // 로그 실패해도 로그인은 성공으로 처리
+    }
+
+    // 🆕 User 테이블에 최근 로그인 정보 업데이트 (User 또는 users 테이블 모두 시도)
+    try {
+      await db.prepare(`
+        UPDATE User SET 
+          lastLoginAt = datetime('now'),
+          lastLoginIp = ?
+        WHERE id = ?
+      `).bind(ipAddress, user.id).run();
+    } catch (e) {
+      try {
+        await db.prepare(`
+          UPDATE users SET 
+            lastLoginAt = datetime('now'),
+            lastLoginIp = ?
+          WHERE id = ?
+        `).bind(ipAddress, user.id).run();
+      } catch (e2) {
+        console.log('⚠️ Could not update lastLogin fields (columns may not exist)');
+      }
+    }
+
     // Generate token with academyId
     const token = `${user.id}|${user.email}|${user.role}|${user.academyId || ''}|${Date.now()}`;
 
-    console.log('✅ Login successful:', { userId: user.id, role: user.role, academyId: user.academyId });
+    console.log('✅ Login successful:', { userId: user.id, role: user.role, academyId: user.academyId, ip: ipAddress });
 
     return new Response(
       JSON.stringify({
