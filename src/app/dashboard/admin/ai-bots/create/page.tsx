@@ -29,10 +29,10 @@ import {
 } from "lucide-react";
 import * as pdfjsLib from 'pdfjs-dist';
 
-// PDF.js Worker 설정 (v5.5.207)
+// PDF.js Worker 설정 - unpkg 사용 (패키지 버전과 자동 매칭)
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.worker.min.mjs`;
-  console.log('📦 PDF.js Worker 설정 완료 (v5.5.207)');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@5.5.207/build/pdf.worker.min.mjs`;
+  console.log('📦 PDF.js Worker 설정 완료 (unpkg v5.5.207)');
 }
 
 const GEMINI_MODELS = [
