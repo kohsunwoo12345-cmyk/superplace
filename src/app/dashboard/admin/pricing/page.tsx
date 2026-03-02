@@ -157,27 +157,25 @@ export default function PricingManagePage() {
         .map(f => f.trim())
         .filter(f => f.length > 0);
 
+      // ✅ API 요구 필드명에 맞춰 수정 (pricing_1month, maxStudents 등)
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        pricing: {
-          '1month': Number(formData.monthlyPrice),
-          '6months': Number(formData.yearlyPrice) > 0 ? Number(formData.yearlyPrice) / 2 : Number(formData.monthlyPrice) * 6,
-          '12months': Number(formData.yearlyPrice) || Number(formData.monthlyPrice) * 12
-        },
-        limits: {
-          maxStudents: Number(formData.maxStudents),
-          maxTeachers: Number(formData.maxTeachers),
-          maxHomeworkChecks: Number(formData.maxHomeworkChecks),
-          maxAIAnalysis: Number(formData.maxCapabilityAnalysis),
-          maxAIGrading: Number(formData.maxAIGrading),
-          maxCapabilityAnalysis: Number(formData.maxCapabilityAnalysis),
-          maxConceptAnalysis: Number(formData.maxConceptAnalysis),
-          maxSimilarProblems: Number(formData.maxSimilarProblems),
-          maxLandingPages: Number(formData.maxLandingPages)
-        },
-        features: featuresArray,
+        pricing_1month: Number(formData.monthlyPrice),
+        pricing_6months: Number(formData.yearlyPrice) > 0 ? Number(formData.yearlyPrice) / 2 : Number(formData.monthlyPrice) * 6,
+        pricing_12months: Number(formData.yearlyPrice) || Number(formData.monthlyPrice) * 12,
+        maxStudents: Number(formData.maxStudents),
+        maxTeachers: Number(formData.maxTeachers),
+        maxHomeworkChecks: Number(formData.maxHomeworkChecks),
+        maxAIAnalysis: Number(formData.maxCapabilityAnalysis),
+        maxAIGrading: Number(formData.maxAIGrading),
+        maxCapabilityAnalysis: Number(formData.maxCapabilityAnalysis),
+        maxConceptAnalysis: Number(formData.maxConceptAnalysis),
+        maxSimilarProblems: Number(formData.maxSimilarProblems),
+        maxLandingPages: Number(formData.maxLandingPages),
+        features: JSON.stringify(featuresArray),
         isPopular: formData.isPopular,
+        isActive: true,
         color: '#3b82f6',
         order: 0
       };
