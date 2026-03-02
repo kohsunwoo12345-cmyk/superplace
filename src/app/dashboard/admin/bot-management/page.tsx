@@ -47,6 +47,9 @@ interface BotAssignment {
   expiresAt: string | null;
   isActive: boolean;
   notes?: string;
+  assignmentType?: 'ACADEMY' | 'USER'; // 🆕 학원 할당 or 학원장 개인 할당
+  userId?: string; // 🆕 학원장 개인 할당일 경우
+  userName?: string; // 🆕 학원장 이름
 }
 
 export default function AdminBotManagementPage() {
@@ -393,6 +396,17 @@ export default function AdminBotManagementPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{assignment.academyName}</h3>
+                        {/* 🆕 할당 타입 배지 */}
+                        {assignment.assignmentType === 'USER' && (
+                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded">
+                            👤 학원장 ({assignment.userName || '이름 없음'})
+                          </span>
+                        )}
+                        {assignment.assignmentType === 'ACADEMY' && (
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
+                            🏫 학원
+                          </span>
+                        )}
                         {isExpired(assignment.expiresAt) ? (
                           <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">
                             만료됨
