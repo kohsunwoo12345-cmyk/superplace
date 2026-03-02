@@ -29,12 +29,10 @@ import {
 } from "lucide-react";
 import * as pdfjsLib from 'pdfjs-dist';
 
-// PDF.js worker 설정 - 버전 5.5.207에 맞춤
+// PDF.js Worker 설정 (v5.5.207)
 if (typeof window !== 'undefined') {
-  // pdfjs-dist 5.5.207 버전의 Worker 사용
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.worker.min.mjs`;
-  
-  console.log('📚 PDF.js Worker 설정 (v5.5.207):', pdfjsLib.GlobalWorkerOptions.workerSrc);
+  console.log('📦 PDF.js Worker 설정 완료 (v5.5.207)');
 }
 
 const GEMINI_MODELS = [
@@ -377,34 +375,25 @@ export default function CreateAIBotPage() {
           continue;
         }
 
-        // 지원 파일 형식 확인 (PDF 포함)
-        const allowedTypes = [
-          'text/plain',
-          'text/markdown',
-          'application/json',
-          'text/csv',
-          'text/html',
-          'application/xml',
-          'text/xml',
-          'application/pdf' // ✅ PDF 추가
-        ];
-        
-        const fileExtension = file.name.toLowerCase().split('.').pop();
-        const supportedExtensions = ['txt', 'md', 'json', 'csv', 'html', 'xml', 'pdf']; // ✅ PDF 추가
-        
-        if (!allowedTypes.includes(file.type) && !supportedExtensions.includes(fileExtension || '')) {
-          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD, JSON, CSV, HTML, XML, PDF`);
-          continue;
-        }
-
         console.log(`📁 파일 업로드 시작: ${file.name} (${file.size} bytes, type: ${file.type})`);
 
         let text = '';
         
+        // 텍스트 파일 처리
+        if (file.type.startsWith('text/') || 
+            file.name.endsWith('.txt') || 
+            file.name.endsWith('.md') ||
+            file.name.endsWith('.json') ||
+            file.name.endsWith('.csv') ||
+            file.name.endsWith('.html') ||
+            file.name.endsWith('.xml')) {
+          text = await file.text();
+          console.log(`✅ 텍스트 파일 읽기 완료: ${text.length}자`);
+        } 
         // PDF 파일 처리
-        if (file.type === 'application/pdf' || fileExtension === 'pdf') {
-          console.log('📄 PDF 파일 파싱 중...');
+        else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
           try {
+            console.log('📄 PDF 파일 파싱 중...');
             const arrayBuffer = await file.arrayBuffer();
             console.log(`  └─ ArrayBuffer 생성 완료: ${arrayBuffer.byteLength} bytes`);
             
@@ -412,45 +401,44 @@ export default function CreateAIBotPage() {
             console.log('  └─ PDF 로딩 태스크 생성 완료');
             
             const pdf = await loadingTask.promise;
-            console.log(`  └─ PDF 로드 완료: ${pdf.numPages}페이지`);
+            console.log(`✅ PDF 로드 완료: ${pdf.numPages} 페이지`);
             
+            let pdfText = '';
             for (let i = 1; i <= pdf.numPages; i++) {
               const page = await pdf.getPage(i);
               const content = await page.getTextContent();
-              const pageText = content.items
-                .map((item: any) => item.str)
-                .join(' ');
-              text += `\n\n[페이지 ${i}]\n${pageText}`;
+              const pageText = content.items.map((item: any) => item.str).join(' ');
+              pdfText += `\n\n=== 페이지 ${i} ===\n${pageText}`;
               console.log(`  └─ 페이지 ${i}/${pdf.numPages} 파싱 완료 (${pageText.length}자)`);
             }
             
-            console.log(`✅ PDF 파싱 완료: 총 ${text.length}자`);
+            text = pdfText;
+            console.log(`✅ PDF 전체 파싱 완료: 총 ${text.length}자`);
             
             if (text.trim().length === 0) {
-              throw new Error('PDF에서 텍스트를 추출할 수 없습니다. 이미지 기반 PDF이거나 암호화되어 있을 수 있습니다.');
+              throw new Error('PDF에서 텍스트를 추출할 수 없습니다. 이미지 기반 PDF이거나 보호된 파일일 수 있습니다.');
             }
-          } catch (pdfError: any) {
-            console.error('❌ PDF 파싱 오류:', pdfError);
-            
-            let errorMessage = 'PDF 파일을 읽을 수 없습니다.';
-            
-            if (pdfError.message?.includes('Invalid PDF')) {
-              errorMessage = 'PDF 파일이 손상되었거나 올바른 PDF 형식이 아닙니다.';
-            } else if (pdfError.message?.includes('password')) {
-              errorMessage = 'PDF 파일이 암호화되어 있습니다. 암호화되지 않은 PDF를 사용하세요.';
-            } else if (pdfError.message?.includes('worker')) {
-              errorMessage = 'PDF 처리 중 오류가 발생했습니다. 페이지를 새로고침 후 다시 시도하세요.';
+          } catch (error) {
+            console.error('❌ PDF 파싱 오류:', error);
+            if (error instanceof Error) {
+              if (error.message.includes('Invalid PDF')) {
+                alert(`${file.name}:\n\nPDF 파일이 손상되었거나 올바른 PDF 형식이 아닙니다.`);
+              } else if (error.message.includes('password')) {
+                alert(`${file.name}:\n\nPDF 파일이 암호화되어 있습니다. 암호를 제거한 후 다시 업로드해 주세요.`);
+              } else if (error.message.includes('이미지 기반')) {
+                alert(`${file.name}:\n\n${error.message}`);
+              } else {
+                alert(`${file.name}:\n\nPDF 처리 중 오류가 발생했습니다:\n${error.message}`);
+              }
             } else {
-              errorMessage = `PDF 파일을 읽을 수 없습니다.\n\n오류: ${pdfError.message || '알 수 없는 오류'}`;
+              alert(`${file.name}:\n\nPDF 처리 중 알 수 없는 오류가 발생했습니다.`);
             }
-            
-            alert(`${file.name}:\n${errorMessage}`);
             continue;
           }
-        } 
-        // 텍스트 파일 처리
+        }
         else {
-          text = await file.text();
+          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD, JSON, CSV, HTML, XML\n\nPDF는 내용을 복사하여 붙여넣어 주세요.`);
+          continue;
         }
         
         console.log(`✅ 파일 읽기 완료: ${file.name} (${text.length} chars)`);
