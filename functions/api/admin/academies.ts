@@ -409,16 +409,18 @@ export async function onRequestGet(context) {
     const directors = directorsResult.results || [];
     console.log('✅ Found directors:', directors.length);
     
-    // 🔥 새로운 로직: academies 테이블 기준으로 학원 목록 구성
+    // 🔥 새로운 로직: academies 테이블 + 학원장 기준으로 학원 목록 구성
     let finalAcademies = [];
+    const processedAcademyIds = new Set();
     
+    // Step 1: academies 테이블에서 학원 조회
     if (academiesFromTable.length > 0) {
-      // academies 테이블 데이터가 있으면 이를 기준으로 구성
       console.log('📊 Building academies from academies table...');
       
-      finalAcademies = await Promise.all(academiesFromTable.map(async (academy) => {
+      const academiesFromTableData = await Promise.all(academiesFromTable.map(async (academy) => {
         try {
           const academyId = academy.id?.toString();
+          processedAcademyIds.add(academyId); // 처리된 학원 ID 기록
           console.log(`📍 Processing academy: ${academy.name} (ID: ${academyId})`);
           
           // 해당 학원의 학원장 찾기
@@ -555,20 +557,27 @@ export async function onRequestGet(context) {
       }));
       
       // null 제거
-      finalAcademies = finalAcademies.filter(a => a !== null);
+      finalAcademies = academiesFromTableData.filter(a => a !== null);
       
       console.log(`🎉 Built ${finalAcademies.length} academies from academies table`);
-      
-    } else if (directors.length > 0) {
-      // academies 테이블이 없으면 학원장 기준으로 구성 (기존 로직)
-      console.log('⚠️ No academies table found, using directors as fallback');
-
-    // 각 학원장의 학원 정보 생성
-    const academies = await Promise.all(directors.map(async (director) => {
+    }
+    
+    // Step 2: Academy 테이블에 없지만 학원장이 있는 학원 추가
+    console.log('📊 Checking for directors without academies in table...');
+    const directorsWithoutAcademy = directors.filter(d => {
+      const academyId = d.academy_id?.toString();
+      return academyId && !processedAcademyIds.has(academyId);
+    });
+    
+    console.log(`✅ Found ${directorsWithoutAcademy.length} directors without academies in table`);
+    
+    if (directorsWithoutAcademy.length > 0) {
+      const additionalAcademies = await Promise.all(directorsWithoutAcademy.map(async (director) => {
       try {
         const directorAcademyId = director.academy_id;
+        processedAcademyIds.add(directorAcademyId?.toString()); // 처리 완료 기록
         
-        console.log(`📍 Processing director ${director.name} (ID: ${director.id}, Academy ID: ${directorAcademyId})`);
+        console.log(`📍 Processing director without academy table entry: ${director.name} (ID: ${director.id}, Academy ID: ${directorAcademyId})`);
 
         // 해당 학원의 학생 수 조회 (User + users 테이블 통합)
         let totalStudentCount = 0;
@@ -585,7 +594,6 @@ export async function onRequestGet(context) {
               .bind(parseInt(directorAcademyId), 'STUDENT')
               .first();
             totalStudentCount += (userStudentsResult?.count || 0);
-            console.log(`  └─ User 테이블: ${userStudentsResult?.count || 0}명`);
           } catch (err) {
             console.log(`  └─ User 테이블 조회 오류:`, err.message);
           }
@@ -602,14 +610,12 @@ export async function onRequestGet(context) {
             .bind(directorAcademyId, 'STUDENT')
             .first();
           totalStudentCount += (studentsResult?.count || 0);
-          console.log(`  └─ ${userTable} 테이블: ${studentsResult?.count || 0}명`);
         } catch (err) {
           console.log(`  └─ ${userTable} 테이블 조회 오류:`, err.message);
         }
         
         const studentCount = totalStudentCount;
 
-        // 해당 학원의 교사 수 조회
         const teachersQuery = `
           SELECT COUNT(*) as count 
           FROM ${userTable} 
@@ -739,11 +745,11 @@ export async function onRequestGet(context) {
       }
     }));
 
-    // null 제거
-    const validAcademies = academies.filter(a => a !== null);
+    // null 제거하고 finalAcademies에 추가
+    const validAdditionalAcademies = additionalAcademies.filter(a => a !== null);
+    finalAcademies = finalAcademies.concat(validAdditionalAcademies);
     
-    console.log('🎉 Fallback: Returning', validAcademies.length, 'academies from directors');
-    finalAcademies = validAcademies;
+    console.log(`✅ Added ${validAdditionalAcademies.length} academies from directors without table entries`);
     }
     
     console.log('🎉 Success! Total academies:', finalAcademies.length);
