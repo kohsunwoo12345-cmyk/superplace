@@ -166,10 +166,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     
     // 🔥 RAG: Vectorize에서 관련 지식 검색
     let ragContext = '';
+    let useVectorizeRAG = false;
     
     // knowledgeBase가 있고 Vectorize가 설정되어 있으면 RAG 활성화
     if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0 && context.env.VECTORIZE) {
       console.log('🤖 RAG 모드 활성화 - Vectorize 검색 시작');
+      useVectorizeRAG = true;
       ragContext = await searchKnowledgeBase(
         data.message,
         data.botId,
@@ -182,6 +184,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         console.log(`✅ RAG 컨텍스트 적용 (${ragContext.length}자)`);
       } else {
         console.log('⚠️ RAG 검색 결과 없음 - 기존 Knowledge Base 사용');
+        useVectorizeRAG = false; // Vectorize 실패 시 기존 KB 사용
       }
     } else if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
       console.log(`📚 Vectorize 없음 - 기존 Knowledge Base 직접 사용 (${bot.knowledgeBase.length} chars)`);
@@ -200,21 +203,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const contents: any[] = [];
     
     // 시스템 프롬프트를 첫 메시지로 (RAG 컨텍스트 또는 기존 지식 베이스 포함)
-    if (bot.systemPrompt || ragContext || (bot.knowledgeBase && !useRAG)) {
+    if (bot.systemPrompt || ragContext || bot.knowledgeBase) {
       let systemMessage = "";
       
       if (bot.systemPrompt) {
         systemMessage += `시스템 지침:\n${bot.systemPrompt}`;
       }
       
-      // RAG 모드: 관련 컨텍스트만 추가
-      if (ragContext) {
+      // RAG 모드: Vectorize에서 검색한 관련 컨텍스트 추가
+      if (ragContext && useVectorizeRAG) {
         systemMessage += `\n\n--- 관련 자료 (RAG) ---\n${ragContext}\n--- 자료 끝 ---\n\n위 자료를 참고하여 질문에 답변하세요.`;
         console.log(`✅ RAG 컨텍스트 추가 (${ragContext.length}자)`);
       }
-      // 기존 모드: 전체 지식 베이스 추가
-      else if (bot.knowledgeBase && !useRAG) {
+      // 기존 모드: 전체 지식 베이스 추가 (Vectorize 미사용 또는 실패 시)
+      else if (bot.knowledgeBase && !useVectorizeRAG) {
         systemMessage += `\n\n--- 지식 베이스 (Knowledge Base) ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식 베이스의 정보를 참고하여 질문에 답변하세요.`;
+        console.log(`✅ Knowledge Base 추가 (${bot.knowledgeBase.length}자)`);
       }
       
       contents.push({
