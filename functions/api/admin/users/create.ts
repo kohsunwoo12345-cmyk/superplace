@@ -44,6 +44,69 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
+    // 🆕 학생 추가 시 구독 한도 체크
+    if (role && role.toUpperCase() === 'STUDENT' && academyId) {
+      // 해당 학원의 학원장 찾기
+      const director = await DB.prepare(`
+        SELECT id FROM User 
+        WHERE academyId = ? AND role = 'DIRECTOR'
+        LIMIT 1
+      `).bind(academyId).first();
+
+      if (director) {
+        // 학원장의 활성 구독 확인
+        const subscription = await DB.prepare(`
+          SELECT * FROM user_subscriptions 
+          WHERE userId = ? AND status = 'active'
+          ORDER BY createdAt DESC
+          LIMIT 1
+        `).bind(director.id).first();
+
+        if (!subscription) {
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "SUBSCRIPTION_REQUIRED",
+              message: "학원의 요금제 구독이 필요합니다. 요금제를 선택해주세요.",
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        // 구독 만료 확인
+        const now = new Date();
+        const endDate = new Date(subscription.endDate as string);
+        
+        if (now > endDate) {
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "SUBSCRIPTION_EXPIRED",
+              message: "학원의 구독이 만료되었습니다. 갱신이 필요합니다.",
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        // 학생 수 한도 체크
+        const maxStudents = subscription.limit_maxStudents as number;
+        const currentStudents = subscription.usage_students as number;
+
+        if (maxStudents !== -1 && currentStudents >= maxStudents) {
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "STUDENT_LIMIT_EXCEEDED",
+              message: `학생 수 한도를 초과했습니다. (${currentStudents}/${maxStudents})`,
+              currentUsage: currentStudents,
+              maxLimit: maxStudents,
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
     // 비밀번호 해시 생성 (SHA-256)
     const salt = 'superplace-salt-2024';
     const encoder = new TextEncoder();
@@ -104,6 +167,40 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         `).bind(codeId, userId, code, academyId || null).run();
 
         attendanceCode = code;
+
+        // 🆕 학생 추가 사용량 기록
+        if (academyId) {
+          const director = await DB.prepare(`
+            SELECT id FROM User 
+            WHERE academyId = ? AND role = 'DIRECTOR'
+            LIMIT 1
+          `).bind(academyId).first();
+
+          if (director) {
+            // 사용량 증가
+            await DB.prepare(`
+              UPDATE user_subscriptions 
+              SET usage_students = usage_students + 1,
+                  updatedAt = datetime('now')
+              WHERE userId = ? AND status = 'active'
+            `).bind(director.id).run();
+
+            // 사용 로그 기록
+            const logId = `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            await DB.prepare(`
+              INSERT INTO usage_logs (id, userId, subscriptionId, featureType, action, metadata)
+              SELECT ?, ?, id, 'student_add', 'create', ?
+              FROM user_subscriptions
+              WHERE userId = ? AND status = 'active'
+              LIMIT 1
+            `).bind(
+              logId,
+              director.id,
+              JSON.stringify({ studentId: userId, studentName: name }),
+              director.id
+            ).run();
+          }
+        }
       } catch (codeError) {
         console.error('Failed to generate attendance code:', codeError);
       }

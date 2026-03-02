@@ -54,6 +54,60 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
+    // 🆕 학원의 구독 상태 확인 (학원장 기준)
+    if (attendanceCode.academyId) {
+      // 해당 학원의 학원장 찾기
+      const director = await DB.prepare(`
+        SELECT id FROM users 
+        WHERE academyId = ? AND role = 'DIRECTOR'
+        LIMIT 1
+      `).bind(attendanceCode.academyId).first();
+
+      if (director) {
+        // 학원장의 활성 구독 확인
+        const subscription = await DB.prepare(`
+          SELECT * FROM user_subscriptions 
+          WHERE userId = ? AND status = 'active'
+          ORDER BY createdAt DESC
+          LIMIT 1
+        `).bind(director.id).first();
+
+        if (!subscription) {
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "SUBSCRIPTION_REQUIRED",
+              message: "학원의 요금제 구독이 필요합니다. 학원장에게 문의해주세요.",
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        // 구독 만료 여부 확인
+        const now = new Date();
+        const endDate = new Date(subscription.endDate as string);
+        
+        if (now > endDate) {
+          // 만료된 구독 상태 업데이트
+          await DB.prepare(`
+            UPDATE user_subscriptions 
+            SET status = 'expired', updatedAt = datetime('now')
+            WHERE id = ?
+          `).bind(subscription.id).run();
+
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "SUBSCRIPTION_EXPIRED",
+              message: "학원의 구독이 만료되었습니다. 학원장에게 갱신을 요청해주세요.",
+              expiredDate: subscription.endDate,
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
     // 만료 체크
     if (attendanceCode.expiresAt) {
       const now = new Date();
