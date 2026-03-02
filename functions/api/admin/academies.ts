@@ -409,6 +409,17 @@ export async function onRequestGet(context) {
     const directors = directorsResult.results || [];
     console.log('✅ Found directors:', directors.length);
     
+    // 디버깅: 학원장 데이터 샘플 출력
+    if (directors.length > 0) {
+      console.log('📋 First 3 directors:', JSON.stringify(directors.slice(0, 3), null, 2));
+      const directorsWithAcademyId = directors.filter(d => d.academy_id);
+      const directorsWithoutAcademyId = directors.filter(d => !d.academy_id);
+      console.log(`📊 Directors with academyId: ${directorsWithAcademyId.length}`);
+      console.log(`⚠️ Directors without academyId: ${directorsWithoutAcademyId.length}`);
+      const uniqueAcademyIds = new Set(directors.map(d => d.academy_id?.toString()).filter(Boolean));
+      console.log(`🎯 Unique academy IDs from directors: ${uniqueAcademyIds.size}`);
+    }
+    
     // 🔥 새로운 로직: academies 테이블 + 학원장 기준으로 학원 목록 구성
     let finalAcademies = [];
     const processedAcademyIds = new Set();
