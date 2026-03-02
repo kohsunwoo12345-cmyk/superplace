@@ -85,6 +85,26 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 새 구독 생성
     const subscriptionId = `sub-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
+    // 🛡️ NULL 값 방어: NULL이면 -1(무제한)으로 처리
+    const maxStudents = plan.maxStudents ?? -1;
+    const maxTeachers = plan.maxTeachers ?? -1;
+    const maxHomeworkChecks = plan.maxHomeworkChecks ?? -1;
+    const maxAIAnalysis = plan.maxAIAnalysis ?? -1;
+    const maxAIGrading = plan.maxAIGrading ?? -1;
+    const maxCapabilityAnalysis = plan.maxCapabilityAnalysis ?? -1;
+    const maxConceptAnalysis = plan.maxConceptAnalysis ?? -1;
+    const maxSimilarProblems = plan.maxSimilarProblems ?? -1;
+    const maxLandingPages = plan.maxLandingPages ?? -1;
+
+    console.log('📊 구독 할당 limit 값:', {
+      maxStudents,
+      maxTeachers,
+      maxHomeworkChecks,
+      maxLandingPages,
+      planId: plan.id,
+      planName: plan.name
+    });
+    
     await db
       .prepare(`
         INSERT INTO user_subscriptions (
@@ -104,15 +124,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         data.period,
         startDate.toISOString(),
         endDate.toISOString(),
-        plan.maxStudents,
-        plan.maxTeachers,
-        plan.maxHomeworkChecks,
-        plan.maxAIAnalysis,
-        plan.maxAIGrading,
-        plan.maxCapabilityAnalysis,
-        plan.maxConceptAnalysis,
-        plan.maxSimilarProblems,
-        plan.maxLandingPages,
+        maxStudents,
+        maxTeachers,
+        maxHomeworkChecks,
+        maxAIAnalysis,
+        maxAIGrading,
+        maxCapabilityAnalysis,
+        maxConceptAnalysis,
+        maxSimilarProblems,
+        maxLandingPages,
         startDate.toISOString()
       )
       .run();

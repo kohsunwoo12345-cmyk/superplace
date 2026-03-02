@@ -1,0 +1,45 @@
+#!/bin/bash
+# 실제 문제 진단 스크립트
+
+echo "=== 🔍 실제 문제 원인 진단 ==="
+echo ""
+
+echo "1️⃣ 랜딩페이지 차단 확인 (구독 전)"
+echo "   ❌ 예상: 구독 없으면 랜딩페이지 생성 차단"
+echo "   ✅ 실제: functions/api/admin/landing-pages.ts에 구독 체크 추가됨 (커밋 5671247)"
+echo ""
+
+echo "2️⃣ 학생 추가 실패 원인 분석"
+echo "   코드 분석 결과:"
+echo "   - Line 48-54: academyId로 DIRECTOR 찾기"
+echo "   - Line 58-63: DIRECTOR의 활성 구독 조회"
+echo "   - Line 92-93: limit_maxStudents, usage_students 필드 사용"
+echo ""
+
+echo "🎯 핵심 문제점:"
+echo ""
+echo "문제 1: 구독 할당 API가 잘못된 필드명 사용"
+echo "   - subscription-approvals.ts: limit_maxStudents, usage_students 사용 ✅"
+echo "   - assign-subscription.ts: maxStudents, usedStudents 사용 ❌"
+echo ""
+
+echo "문제 2: 데이터 불일치 가능성"
+echo "   수동 구독 할당 시 잘못된 컬럼에 값 저장됨"
+echo ""
+
+echo "=== 📋 해결 방안 ==="
+echo ""
+echo "1. assign-subscription.ts 필드명 통일"
+echo "   maxStudents → limit_maxStudents"
+echo "   usedStudents → usage_students"
+echo ""
+echo "2. 기존 데이터 확인"
+echo "   SELECT userId, status, limit_maxStudents, usage_students"
+echo "   FROM user_subscriptions WHERE status='active'"
+echo ""
+echo "3. 테스트 시나리오"
+echo "   a) 새 학원장 계정 생성"
+echo "   b) 요금제 할당 (assign-subscription API)"
+echo "   c) 학생 추가 시도"
+echo "   d) 에러 메시지 확인"
+echo ""
