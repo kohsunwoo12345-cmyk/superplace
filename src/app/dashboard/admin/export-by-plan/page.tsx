@@ -120,9 +120,9 @@ export default function ExportByPlanPage() {
               <div className="space-y-3">
                 <div className="text-sm text-gray-600">
                   <p className="font-semibold mb-2">가격:</p>
-                  <p>• 1개월: {plan.pricing['1month'].toLocaleString()}원</p>
-                  <p>• 6개월: {plan.pricing['6months'].toLocaleString()}원</p>
-                  <p>• 12개월: {plan.pricing['12months'].toLocaleString()}원</p>
+                  <p>• 1개월: {(plan.pricing?.['1month'] ?? 0).toLocaleString()}원</p>
+                  <p>• 6개월: {(plan.pricing?.['6months'] ?? 0).toLocaleString()}원</p>
+                  <p>• 12개월: {(plan.pricing?.['12months'] ?? 0).toLocaleString()}원</p>
                 </div>
                 
                 <Button
