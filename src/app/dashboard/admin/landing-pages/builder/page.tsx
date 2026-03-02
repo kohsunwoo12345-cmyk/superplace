@@ -152,8 +152,10 @@ export default function LandingPageBuilderPage() {
       }
     };
     fetchFolders();
-    
-    // 템플릿 HTML 자동 복원: template_type이 student_report인데 template_html이 비어있으면 다시 로드
+  }, []);
+  
+  // 템플릿 HTML 자동 복원 (별도 useEffect)
+  useEffect(() => {
     if (data.template_type === "student_report" && !data.template_html) {
       console.log("🔄 Restoring student report template HTML...");
       setData(prev => ({
@@ -162,7 +164,7 @@ export default function LandingPageBuilderPage() {
       }));
       console.log("✅ Template HTML restored, length:", STUDENT_GROWTH_REPORT_TEMPLATE.length);
     }
-  }, [data.template_type, data.template_html]);
+  }, [data.template_type]);
 
   const addCustomField = (type: CustomField["type"]) => {
     const newField: CustomField = {
@@ -250,6 +252,15 @@ export default function LandingPageBuilderPage() {
       return;
     }
 
+    // 🔥 중요: 학생 리포트 템플릿인데 HTML이 비어있으면 자동 복원
+    let finalTemplateHtml = data.template_html;
+    if (data.template_type === "student_report" && !finalTemplateHtml) {
+      console.warn("⚠️ template_html이 비어있습니다! 자동 복원 중...");
+      finalTemplateHtml = STUDENT_GROWTH_REPORT_TEMPLATE;
+      setData(prev => ({ ...prev, template_html: finalTemplateHtml }));
+      console.log("✅ Template HTML auto-restored before save, length:", finalTemplateHtml.length);
+    }
+
     // 자동 slug 생성
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
@@ -266,7 +277,7 @@ export default function LandingPageBuilderPage() {
         subtitle: data.subtitle,
         description: data.description,
         templateType: data.template_type,
-        templateHtml: data.template_html,
+        templateHtml: finalTemplateHtml,  // 🔥 복원된 HTML 사용
         inputData: data.input_data,
         ogTitle: data.og_title,
         ogDescription: data.og_description,
@@ -281,8 +292,8 @@ export default function LandingPageBuilderPage() {
         slug,
         title: data.title,
         templateType: data.template_type,
-        templateHtmlLength: data.template_html?.length || 0,
-        hasTemplateHtml: !!data.template_html,
+        templateHtmlLength: finalTemplateHtml?.length || 0,
+        hasTemplateHtml: !!finalTemplateHtml,
       });
       
       const response = await fetch("/api/admin/landing-pages", {
