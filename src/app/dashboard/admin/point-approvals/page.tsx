@@ -86,7 +86,16 @@ export default function PointApprovalsPage() {
         throw new Error(data.error || data.message || 'Failed to approve');
       }
 
-      alert(`포인트 충전이 승인되었습니다.\n승인된 포인트: ${data.points || 0}P`);
+      const pointsAdded = data.data?.addedPoints || data.data?.requestedPoints || 0;
+      const userName = data.data?.userName || '사용자';
+      
+      alert(
+        `✅ 포인트 충전이 승인되었습니다!\n\n` +
+        `사용자: ${userName}\n` +
+        `충전 포인트: ${pointsAdded.toLocaleString()}P\n` +
+        `지급 완료: ${new Date().toLocaleString('ko-KR')}\n\n` +
+        `💡 사용자는 이제 포인트를 사용할 수 있습니다.`
+      );
       fetchRequests();
     } catch (error: any) {
       console.error('❌ Failed to approve:', error);
