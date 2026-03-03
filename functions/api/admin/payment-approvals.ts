@@ -416,12 +416,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             id,
             name,
             max_students as maxStudents,
-            max_teachers as maxTeachers,
             max_homework_checks as maxHomeworkChecks,
             max_ai_analysis as maxAIAnalysis,
-            max_ai_grading as maxAIGrading,
-            max_capability_analysis as maxCapabilityAnalysis,
-            max_concept_analysis as maxConceptAnalysis,
             max_similar_problems as maxSimilarProblems,
             max_landing_pages as maxLandingPages
           FROM pricing_plans WHERE id = ?
@@ -432,12 +428,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (pricingPlan) {
           // Ensure all values have defaults (handle null/undefined)
           const maxStudents = pricingPlan.maxStudents ?? -1;
-          const maxTeachers = pricingPlan.maxTeachers ?? 10;
           const maxHomeworkChecks = pricingPlan.maxHomeworkChecks ?? -1;
           const maxAIAnalysis = pricingPlan.maxAIAnalysis ?? -1;
-          const maxAIGrading = pricingPlan.maxAIGrading ?? -1;
-          const maxCapabilityAnalysis = pricingPlan.maxCapabilityAnalysis ?? -1;
-          const maxConceptAnalysis = pricingPlan.maxConceptAnalysis ?? -1;
           const maxSimilarProblems = pricingPlan.maxSimilarProblems ?? -1;
           const maxLandingPages = pricingPlan.maxLandingPages ?? -1;
           
