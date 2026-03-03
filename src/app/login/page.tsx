@@ -53,7 +53,7 @@ export default function LoginPage() {
         email: data.user.email,
         name: data.user.name,
         role: data.user.role,
-        academy_id: data.user.academyId,
+        academyId: data.user.academyId,  // ✅ academyId로 통일
         academyName: data.user.academyName,
         academyCode: data.user.academyCode,
         studentCode: data.user.studentCode,
