@@ -10,18 +10,71 @@ export const onRequest: PagesFunction = async (context) => {
       const url = new URL(request.url);
       const status = url.searchParams.get('status') || 'all';
       
-      let query = 'SELECT * FROM subscription_requests';
+      // subscription_requests와 User 테이블을 JOIN하여 사용자 연락처 정보도 함께 조회
+      let query = `
+        SELECT 
+          sr.*,
+          u.phone as userPhone,
+          u.academyId
+        FROM subscription_requests sr
+        LEFT JOIN User u ON sr.userId = u.id
+      `;
       if (status !== 'all') {
-        query += ` WHERE status = '${status}'`;
+        query += ` WHERE sr.status = '${status}'`;
       }
-      query += ' ORDER BY requestedAt DESC';
+      query += ' ORDER BY sr.requestedAt DESC';
       
       const { results } = await env.DB.prepare(query).all();
+      
+      // 요금제 정보도 함께 조회하여 정확한 금액 표시
+      const requestsWithPricing = await Promise.all((results || []).map(async (request: any) => {
+        try {
+          const plan = await env.DB.prepare(`
+            SELECT 
+              id, name, 
+              price_1month, price_6months, price_12months,
+              max_students, max_homework_checks, max_ai_analysis, 
+              max_similar_problems, max_landing_pages
+            FROM pricing_plans 
+            WHERE id = ?
+          `).bind(request.planId).first();
+          
+          if (plan) {
+            // period에 따라 정확한 금액 가져오기
+            let correctPrice = 0;
+            switch (request.period) {
+              case '1month':
+                correctPrice = plan.price_1month || 0;
+                break;
+              case '6months':
+                correctPrice = plan.price_6months || 0;
+                break;
+              case '12months':
+                correctPrice = plan.price_12months || 0;
+                break;
+            }
+            
+            return {
+              ...request,
+              planInfo: {
+                name: plan.name,
+                price_1month: plan.price_1month,
+                price_6months: plan.price_6months,
+                price_12months: plan.price_12months,
+                correctPrice: correctPrice
+              }
+            };
+          }
+        } catch (err) {
+          console.log('⚠️ Failed to fetch plan info:', err);
+        }
+        return request;
+      }));
       
       return new Response(
         JSON.stringify({
           success: true,
-          requests: results || []
+          requests: requestsWithPricing || []
         }),
         {
           status: 200,
