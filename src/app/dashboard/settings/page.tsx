@@ -36,23 +36,48 @@ export default function SettingsPage() {
     setEmail(userData.email || "");
     setPhone(userData.phone || "");
     
+    console.log("사용자 정보:", userData);
+    console.log("사용자 역할:", userData.role);
+    console.log("학원 ID:", userData.academyId);
+    
     // 구독 정보 가져오기
-    if (userData.role === "DIRECTOR" && userData.academyId) {
-      fetchSubscription(userData.academyId);
+    if (userData.role === "DIRECTOR") {
+      if (userData.academyId) {
+        console.log("학원장 계정 - 구독 정보 조회");
+        fetchSubscription(userData.academyId);
+      } else {
+        console.warn("학원장 계정이지만 academyId가 없습니다.");
+        setLoadingSubscription(false);
+        setSubscription(null);
+      }
+    } else {
+      console.log("학원장이 아닌 계정 - 구독 정보 조회 건너뛰기");
+      setLoadingSubscription(false);
     }
   }, [router]);
   
   const fetchSubscription = async (academyId: string) => {
     try {
+      console.log("구독 정보 조회 시작 - academyId:", academyId);
+      
       const response = await fetch(`/api/subscription/check?academyId=${academyId}`);
+      console.log("API 응답 상태:", response.status);
+      
       const data = await response.json();
+      console.log("API 응답 데이터:", data);
       
       if (data.success && data.hasSubscription) {
+        console.log("구독 정보 설정:", data.subscription);
         setSubscription(data.subscription);
+      } else {
+        console.log("활성 구독 없음:", data.message);
+        setSubscription(null);
       }
     } catch (error) {
       console.error("구독 정보 로드 실패:", error);
+      setSubscription(null);
     } finally {
+      console.log("구독 정보 로딩 완료");
       setLoadingSubscription(false);
     }
   };
@@ -152,7 +177,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-center py-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
-            ) : subscription ? (
+            ) : subscription && subscription.planName ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-start gap-3">
@@ -249,10 +274,16 @@ export default function SettingsPage() {
               </div>
             ) : (
               <div className="text-center py-6">
-                <p className="text-gray-600 mb-4">활성화된 구독이 없습니다</p>
-                <Button onClick={() => router.push("/pricing")}>
-                  요금제 선택하기
-                </Button>
+                <p className="text-gray-600 mb-4">
+                  {user.academyId 
+                    ? "활성화된 구독이 없습니다" 
+                    : "학원 정보가 설정되지 않았습니다. 관리자에게 문의하세요."}
+                </p>
+                {user.academyId && (
+                  <Button onClick={() => router.push("/pricing")}>
+                    요금제 선택하기
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
