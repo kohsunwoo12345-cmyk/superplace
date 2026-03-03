@@ -86,30 +86,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         status: subscription.status,
         endDate: subscription.endDate,
         
-        // 현재 사용량
+        // 현재 사용량 (실제 DB 컬럼만 사용)
         usage: {
           students: subscription.current_students || 0,
-          teachers: subscription.current_teachers || 0,
           homeworkChecks: subscription.current_homework_checks || 0,
           aiAnalysis: subscription.current_ai_analysis || 0,
-          aiGrading: subscription.current_ai_grading || 0,
-          capabilityAnalysis: subscription.current_capability_analysis || 0,
-          conceptAnalysis: subscription.current_concept_analysis || 0,
           similarProblems: subscription.current_similar_problems || 0,
           landingPages: subscription.current_landing_pages || 0,
         },
         
-        // 제한
+        // 제한 (실제 DB 컬럼만 사용)
         limits: {
-          maxStudents: subscription.max_students,
-          maxTeachers: subscription.max_teachers,
-          maxHomeworkChecks: subscription.max_homework_checks,
-          maxAIAnalysis: subscription.max_ai_analysis,
-          maxAIGrading: subscription.max_ai_grading,
-          maxCapabilityAnalysis: subscription.max_capability_analysis,
-          maxConceptAnalysis: subscription.max_concept_analysis,
-          maxSimilarProblems: subscription.max_similar_problems,
-          maxLandingPages: subscription.max_landing_pages,
+          maxStudents: subscription.max_students || 0,
+          maxHomeworkChecks: subscription.max_homework_checks || 0,
+          maxAIAnalysis: subscription.max_ai_analysis || 0,
+          maxSimilarProblems: subscription.max_similar_problems || 0,
+          maxLandingPages: subscription.max_landing_pages || 0,
         }
       }
     }), {
