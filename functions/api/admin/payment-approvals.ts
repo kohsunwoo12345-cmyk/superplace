@@ -427,7 +427,20 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           FROM pricing_plans WHERE id = ?
         `).bind(approval.planId).first();
 
+        console.log('🔍 Pricing plan fetched:', pricingPlan);
+
         if (pricingPlan) {
+          // Ensure all values have defaults (handle null/undefined)
+          const maxStudents = pricingPlan.maxStudents ?? -1;
+          const maxTeachers = pricingPlan.maxTeachers ?? 10;
+          const maxHomeworkChecks = pricingPlan.maxHomeworkChecks ?? -1;
+          const maxAIAnalysis = pricingPlan.maxAIAnalysis ?? -1;
+          const maxAIGrading = pricingPlan.maxAIGrading ?? -1;
+          const maxCapabilityAnalysis = pricingPlan.maxCapabilityAnalysis ?? -1;
+          const maxConceptAnalysis = pricingPlan.maxConceptAnalysis ?? -1;
+          const maxSimilarProblems = pricingPlan.maxSimilarProblems ?? -1;
+          const maxLandingPages = pricingPlan.maxLandingPages ?? -1;
+          
           // Calculate subscription dates
           const now = new Date();
           const startDate = now.toISOString();
@@ -477,15 +490,15 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
               approval.period || '1month',
               startDate,
               endDateStr,
-              pricingPlan.maxStudents,
-              pricingPlan.maxTeachers,
-              pricingPlan.maxHomeworkChecks,
-              pricingPlan.maxAIAnalysis,
-              pricingPlan.maxAIGrading,
-              pricingPlan.maxCapabilityAnalysis,
-              pricingPlan.maxConceptAnalysis,
-              pricingPlan.maxSimilarProblems,
-              pricingPlan.maxLandingPages,
+              maxStudents,
+              maxTeachers,
+              maxHomeworkChecks,
+              maxAIAnalysis,
+              maxAIGrading,
+              maxCapabilityAnalysis,
+              maxConceptAnalysis,
+              maxSimilarProblems,
+              maxLandingPages,
               approval.amount,
               existingSub.id
             ).run();
@@ -523,15 +536,15 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
               approval.period || '1month',
               startDate,
               endDateStr,
-              pricingPlan.maxStudents,
-              pricingPlan.maxTeachers,
-              pricingPlan.maxHomeworkChecks,
-              pricingPlan.maxAIAnalysis,
-              pricingPlan.maxAIGrading,
-              pricingPlan.maxCapabilityAnalysis,
-              pricingPlan.maxConceptAnalysis,
-              pricingPlan.maxSimilarProblems,
-              pricingPlan.maxLandingPages,
+              maxStudents,
+              maxTeachers,
+              maxHomeworkChecks,
+              maxAIAnalysis,
+              maxAIGrading,
+              maxCapabilityAnalysis,
+              maxConceptAnalysis,
+              maxSimilarProblems,
+              maxLandingPages,
               approval.amount
             ).run();
           }
