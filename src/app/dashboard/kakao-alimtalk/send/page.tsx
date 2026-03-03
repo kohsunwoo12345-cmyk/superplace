@@ -1,13 +1,18 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useKakaoAuth } from '@/hooks/useKakaoAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Upload, FileSpreadsheet, Send, Eye, Download, AlertCircle, Clock, Calendar as CalendarIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Loader2, Upload, FileSpreadsheet, Send, Eye, Download, AlertCircle, 
+  Clock, Calendar as CalendarIcon, MessageSquare, Users, Zap
+} from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -22,14 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface KakaoChannel {
   id: string;
@@ -58,9 +55,10 @@ interface MappedRecipient {
   preview: string;
 }
 
-export default function SendAlimtalkPage() {
+export default function SendAlimtalkUnifiedPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useKakaoAuth();
+  const messageTextareaRef = useRef<HTMLTextAreaElement>(null);
   
   const [channels, setChannels] = useState<KakaoChannel[]>([]);
   const [templates, setTemplates] = useState<AlimtalkTemplate[]>([]);
@@ -72,6 +70,7 @@ export default function SendAlimtalkPage() {
   // Form state
   const [selectedChannel, setSelectedChannel] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [customMessage, setCustomMessage] = useState('');
   
   // Excel data
   const [excelFile, setExcelFile] = useState<File | null>(null);
@@ -85,7 +84,6 @@ export default function SendAlimtalkPage() {
   
   // Recipients
   const [recipients, setRecipients] = useState<MappedRecipient[]>([]);
-  const [previewMode, setPreviewMode] = useState(false);
   
   // Scheduling
   const [sendMode, setSendMode] = useState<'immediate' | 'scheduled'>('immediate');
@@ -103,7 +101,6 @@ export default function SendAlimtalkPage() {
 
     fetchChannels();
     
-    // Check if channelId is in URL params
     const params = new URLSearchParams(window.location.search);
     const channelId = params.get('channelId');
     if (channelId) {
@@ -120,30 +117,31 @@ export default function SendAlimtalkPage() {
   useEffect(() => {
     if (selectedTemplate) {
       const template = templates.find(t => t.id === selectedTemplate);
-      if (template && template.variables) {
-        try {
-          const vars = JSON.parse(template.variables);
-          setTemplateVariables(vars);
-          
-          // Initialize mapping
-          const mapping: { [key: string]: string } = {};
-          vars.forEach((v: string) => {
-            mapping[v] = '';
-          });
-          setVariableMapping(mapping);
-        } catch (e) {
-          setTemplateVariables([]);
+      if (template) {
+        setCustomMessage(template.content);
+        if (template.variables) {
+          try {
+            const vars = JSON.parse(template.variables);
+            setTemplateVariables(vars);
+            
+            const mapping: { [key: string]: string } = {};
+            vars.forEach((v: string) => {
+              mapping[v] = '';
+            });
+            setVariableMapping(mapping);
+          } catch (e) {
+            setTemplateVariables([]);
+          }
         }
       }
     }
   }, [selectedTemplate, templates]);
 
-  // Generate recipients when mapping is complete
   useEffect(() => {
     if (excelData.length > 0 && phoneNumberColumn && Object.keys(variableMapping).length > 0) {
       generateRecipients();
     }
-  }, [excelData, phoneNumberColumn, variableMapping]);
+  }, [excelData, phoneNumberColumn, variableMapping, customMessage]);
 
   const fetchChannels = async () => {
     if (!user?.id) return;
@@ -172,7 +170,6 @@ export default function SendAlimtalkPage() {
       const data = await response.json();
 
       if (data.success) {
-        // Only show approved templates
         const approvedTemplates = (data.templates || []).filter(
           (t: AlimtalkTemplate) => t.inspectionStatus === 'APPROVED' || t.status === 'ACTIVE'
         );
@@ -204,11 +201,9 @@ export default function SendAlimtalkPage() {
 
       setExcelData(jsonData);
       
-      // Extract column names
       const columns = Object.keys(jsonData[0]);
       setExcelColumns(columns);
 
-      // Auto-detect phone number column
       const phoneCol = columns.find(col => 
         col.includes('전화') || col.includes('휴대폰') || col.includes('phone') || 
         col.includes('번호') || col.toLowerCase().includes('mobile')
@@ -217,7 +212,6 @@ export default function SendAlimtalkPage() {
         setPhoneNumberColumn(phoneCol);
       }
 
-      // Auto-map variables if column names match
       if (templateVariables.length > 0) {
         const autoMapping: { [key: string]: string } = {};
         templateVariables.forEach(varName => {
@@ -238,8 +232,7 @@ export default function SendAlimtalkPage() {
   };
 
   const generateRecipients = () => {
-    const template = templates.find(t => t.id === selectedTemplate);
-    if (!template) return;
+    if (!customMessage) return;
 
     const newRecipients: MappedRecipient[] = [];
 
@@ -251,7 +244,6 @@ export default function SendAlimtalkPage() {
         return;
       }
 
-      // Map variables
       const variables: { [key: string]: string } = {};
       Object.keys(variableMapping).forEach(varName => {
         const colName = variableMapping[varName];
@@ -260,8 +252,7 @@ export default function SendAlimtalkPage() {
         }
       });
 
-      // Generate preview
-      let preview = template.content;
+      let preview = customMessage;
       Object.keys(variables).forEach(varName => {
         preview = preview.replace(new RegExp(`#\\{${varName}\\}`, 'g'), variables[varName]);
       });
@@ -302,7 +293,6 @@ export default function SendAlimtalkPage() {
       }
     }
 
-    // Calculate cost (15 points per message)
     const totalCost = recipients.length * 15;
     
     const confirmMessage = sendMode === 'immediate' 
@@ -357,7 +347,6 @@ export default function SendAlimtalkPage() {
           setSuccess(`✅ 예약 완료!\n${format(scheduledTime, 'yyyy년 M월 d일 HH:mm', { locale: ko })}에 ${recipients.length}건의 알림톡이 발송됩니다.`);
         }
         
-        // Reset form after 3 seconds
         setTimeout(() => {
           setExcelFile(null);
           setExcelData([]);
@@ -397,8 +386,25 @@ export default function SendAlimtalkPage() {
     XLSX.writeFile(wb, "알림톡_발송_샘플.xlsx");
   };
 
-  const getSelectedTemplate = () => {
-    return templates.find(t => t.id === selectedTemplate);
+  const insertVariable = (varName: string) => {
+    const textarea = messageTextareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = customMessage;
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    const variableText = `#{${varName}}`;
+
+    const newText = before + variableText + after;
+    setCustomMessage(newText);
+
+    setTimeout(() => {
+      textarea.focus();
+      const newPosition = start + variableText.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+    }, 0);
   };
 
   if (authLoading || loading) {
@@ -446,21 +452,7 @@ export default function SendAlimtalkPage() {
                   </div>
                   <div>
                     <h1 className="text-5xl font-black tracking-tight drop-shadow-lg">카카오 알림톡 대량 발송</h1>
-                    <p className="text-white/95 mt-2 text-xl font-medium drop-shadow">엑셀 파일을 업로드하여 여러 명에게 한 번에 알림톡을 발송할 수 있습니다</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span>대량 발송 가능</span>
-                  </div>
-                  <div className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    <span>예약 발송 지원</span>
-                  </div>
-                  <div className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full flex items-center gap-2">
-                    <FileSpreadsheet className="w-4 h-4" />
-                    <span>엑셀 업로드</span>
+                    <p className="text-white/95 mt-2 text-xl font-medium drop-shadow">간편하게 메시지를 작성하고 엑셀로 한번에 발송하세요</p>
                   </div>
                 </div>
               </div>
@@ -491,363 +483,340 @@ export default function SendAlimtalkPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Configuration */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Step 1: Select Channel & Template */}
-          <Card>
-            <CardHeader>
-              <CardTitle>1단계: 채널 및 템플릿 선택</CardTitle>
-              <CardDescription>발송할 채널과 템플릿을 선택하세요</CardDescription>
+        {/* Left: Unified Form */}
+        <div className="lg:col-span-2">
+          <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-xl">
+            <CardHeader className="bg-gradient-to-r from-yellow-100 via-amber-50 to-orange-100 border-b border-yellow-200">
+              <CardTitle className="text-2xl bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent font-black flex items-center gap-2">
+                <MessageSquare className="w-7 h-7 text-yellow-600" />
+                알림톡 작성 및 발송
+              </CardTitle>
+              <CardDescription className="text-base">모든 정보를 입력하고 발송하세요</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>카카오 채널</Label>
-                <Select value={selectedChannel} onValueChange={setSelectedChannel}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="채널을 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {channels.map(channel => (
-                      <SelectItem key={channel.id} value={channel.id}>
-                        {channel.channelName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedChannel && (
+            <CardContent className="space-y-6 pt-8">
+              {/* Channel & Template Selection */}
+              <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <Label>알림톡 템플릿</Label>
-                  <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="템플릿을 선택하세요" />
+                  <Label className="text-base font-bold">카카오 채널</Label>
+                  <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                    <SelectTrigger className="mt-2 py-6 border-2 border-yellow-200 focus:border-yellow-500 rounded-xl">
+                      <SelectValue placeholder="채널을 선택하세요" />
                     </SelectTrigger>
                     <SelectContent>
-                      {templates.map(template => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.templateName} ({template.inspectionStatus})
+                      {channels.map(channel => (
+                        <SelectItem key={channel.id} value={channel.id}>
+                          {channel.channelName}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {templates.length === 0 && (
-                    <p className="text-sm text-amber-600 mt-1">
-                      승인된 템플릿이 없습니다. <Link href="/dashboard/kakao-alimtalk/templates/create" className="underline">템플릿을 등록하세요</Link>
-                    </p>
-                  )}
                 </div>
-              )}
 
+                {selectedChannel && (
+                  <div>
+                    <Label className="text-base font-bold">알림톡 템플릿</Label>
+                    <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                      <SelectTrigger className="mt-2 py-6 border-2 border-yellow-200 focus:border-yellow-500 rounded-xl">
+                        <SelectValue placeholder="템플릿을 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templates.map(template => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.templateName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {templates.length === 0 && (
+                      <p className="text-sm text-amber-600 mt-2">
+                        승인된 템플릿이 없습니다. <Link href="/dashboard/kakao-alimtalk/templates/create" className="underline font-bold">템플릿을 등록하세요</Link>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Message Editor */}
               {selectedTemplate && (
-                <Alert className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 shadow-md">
-                  <AlertDescription>
-                    <div className="text-sm">
-                      <strong className="text-blue-900 font-black">템플릿 내용:</strong>
-                      <pre className="mt-3 whitespace-pre-wrap text-sm bg-white/80 p-5 rounded-xl shadow-inner border-2 border-blue-100 font-medium text-gray-800">
-                        {getSelectedTemplate()?.content}
-                      </pre>
+                <>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <Label className="text-base font-bold">메시지 내용</Label>
+                      <Badge className="bg-yellow-500 text-white">
+                        {customMessage.length}자
+                      </Badge>
                     </div>
+                    
+                    {/* Variable Buttons */}
                     {templateVariables.length > 0 && (
-                      <div className="mt-4">
-                        <strong className="text-sm text-blue-900 font-black">필요한 변수:</strong>
-                        <div className="flex flex-wrap gap-2 mt-2">
+                      <div className="mb-3 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border-2 border-blue-200">
+                        <Label className="text-sm font-bold text-blue-900 mb-2 block">치환문자 (클릭하여 삽입)</Label>
+                        <div className="flex flex-wrap gap-2">
                           {templateVariables.map(v => (
-                            <span key={v} className="px-3 py-2 bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-800 rounded-xl text-sm font-bold border-2 border-blue-200 shadow-sm">
+                            <Button
+                              key={v}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => insertVariable(v)}
+                              className="bg-white hover:bg-blue-100 border-2 border-blue-300 text-blue-700 font-bold rounded-lg transition-all duration-200 hover:scale-105"
+                            >
                               #{'{'}{ v}{'}'}
-                            </span>
+                            </Button>
                           ))}
                         </div>
                       </div>
                     )}
-                  </AlertDescription>
-                </Alert>
+
+                    <Textarea
+                      ref={messageTextareaRef}
+                      value={customMessage}
+                      onChange={(e) => setCustomMessage(e.target.value)}
+                      rows={15}
+                      className="resize-none border-3 border-yellow-200 focus:border-yellow-500 rounded-2xl p-6 text-base font-medium leading-relaxed"
+                      placeholder="메시지를 입력하세요..."
+                    />
+                  </div>
+
+                  {/* Excel Upload */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <Label className="text-base font-bold">엑셀 파일 업로드</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={downloadSampleExcel}
+                        size="sm"
+                        className="bg-yellow-50 hover:bg-yellow-100 border-2 border-yellow-300 text-yellow-700 font-bold"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        샘플 다운로드
+                      </Button>
+                    </div>
+
+                    <div className="border-3 border-dashed border-yellow-300 rounded-2xl p-8 text-center bg-gradient-to-br from-yellow-50 to-amber-50 hover:border-yellow-400 transition-all cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        id="excel-upload"
+                      />
+                      <label htmlFor="excel-upload" className="cursor-pointer">
+                        <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                          <FileSpreadsheet className="h-8 w-8 text-white" />
+                        </div>
+                        <p className="text-base text-gray-800 mb-1 font-bold">
+                          {excelFile ? excelFile.name : '엑셀 파일을 선택하세요'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          .xlsx, .xls 파일만 지원
+                        </p>
+                      </label>
+                    </div>
+
+                    {excelData.length > 0 && (
+                      <Alert className="mt-4 bg-green-50 border-2 border-green-300">
+                        <AlertDescription className="text-green-800 font-bold">
+                          ✅ {excelData.length}개의 행을 읽었습니다.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+
+                  {/* Variable Mapping */}
+                  {excelData.length > 0 && templateVariables.length > 0 && (
+                    <div className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200">
+                      <Label className="text-base font-bold text-purple-900 mb-4 block">변수 매핑</Label>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-semibold">전화번호 컬럼</Label>
+                          <Select value={phoneNumberColumn} onValueChange={setPhoneNumberColumn}>
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="전화번호가 있는 컬럼" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {excelColumns.map(col => (
+                                <SelectItem key={col} value={col}>{col}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {templateVariables.map(varName => (
+                          <div key={varName}>
+                            <Label className="text-sm font-semibold">#{'{'}{ varName}{'}'} 변수</Label>
+                            <Select 
+                              value={variableMapping[varName] || ''} 
+                              onValueChange={(value) => setVariableMapping(prev => ({ ...prev, [varName]: value }))}
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="엑셀 컬럼 선택" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {excelColumns.map(col => (
+                                  <SelectItem key={col} value={col}>{col}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ))}
+                      </div>
+
+                      {recipients.length > 0 && (
+                        <Alert className="mt-4 bg-green-50 border-2 border-green-300">
+                          <AlertDescription className="text-green-800 font-bold">
+                            ✅ {recipients.length}명의 수신자가 준비되었습니다.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Send Mode */}
+                  {recipients.length > 0 && (
+                    <div className="p-6 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl border-2 border-orange-200">
+                      <Label className="text-base font-bold text-orange-900 mb-4 block">발송 방식</Label>
+                      
+                      <RadioGroup value={sendMode} onValueChange={(v: any) => setSendMode(v)}>
+                        <div className="flex items-center space-x-3 p-3 bg-white rounded-xl hover:bg-orange-50 transition-colors">
+                          <RadioGroupItem value="immediate" id="immediate" />
+                          <Label htmlFor="immediate" className="flex items-center cursor-pointer font-bold">
+                            <Zap className="mr-2 h-5 w-5 text-yellow-600" />
+                            즉시 발송
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-3 p-3 bg-white rounded-xl hover:bg-orange-50 transition-colors mt-3">
+                          <RadioGroupItem value="scheduled" id="scheduled" />
+                          <Label htmlFor="scheduled" className="flex items-center cursor-pointer font-bold">
+                            <Clock className="mr-2 h-5 w-5 text-orange-600" />
+                            예약 발송
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                      
+                      {sendMode === 'scheduled' && (
+                        <div className="space-y-3 pt-4 mt-4 border-t-2 border-orange-200">
+                          <div>
+                            <Label className="font-semibold">발송 날짜</Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="w-full justify-start text-left font-normal mt-1"
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {scheduledDate ? format(scheduledDate, 'yyyy년 M월 d일', { locale: ko }) : '날짜 선택'}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={scheduledDate}
+                                  onSelect={setScheduledDate}
+                                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="font-semibold">시</Label>
+                              <Select value={scheduledHour} onValueChange={setScheduledHour}>
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: 24 }, (_, i) => (
+                                    <SelectItem key={i} value={i.toString().padStart(2, '0')}>
+                                      {i.toString().padStart(2, '0')}시
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div>
+                              <Label className="font-semibold">분</Label>
+                              <Select value={scheduledMinute} onValueChange={setScheduledMinute}>
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {['00', '10', '20', '30', '40', '50'].map(m => (
+                                    <SelectItem key={m} value={m}>{m}분</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
-
-          {/* Step 2: Upload Excel */}
-          {selectedTemplate && (
-            <Card className="border-0 shadow-2xl hover:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.3)] transition-all duration-500 bg-white/80 backdrop-blur-xl transform hover:scale-[1.01]">
-              <CardHeader className="bg-gradient-to-r from-amber-100 via-yellow-50 to-orange-100 border-b border-amber-200/50">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-gradient-to-br from-amber-600 to-orange-600 text-white rounded-2xl shadow-lg font-black text-xl">
-                    2
-                  </div>
-                  <div>
-                    <CardTitle className="text-2xl bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent font-black">
-                      엑셀 파일 업로드
-                    </CardTitle>
-                    <CardDescription className="mt-1 text-base">수신자 목록이 포함된 엑셀 파일을 업로드하세요</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6 pt-8">
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={downloadSampleExcel}
-                    size="sm"
-                    className="bg-gradient-to-r from-yellow-50 to-amber-50 hover:from-yellow-100 hover:to-amber-100 border-2 border-yellow-300 text-yellow-700 font-bold px-5 py-5 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
-                  >
-                    <Download className="mr-2 h-5 w-5" />
-                    샘플 파일 다운로드
-                  </Button>
-                </div>
-
-                <div className="border-3 border-dashed border-yellow-300 rounded-2xl p-12 text-center bg-gradient-to-br from-yellow-50 to-amber-50 hover:border-yellow-400 transition-all duration-200 hover:shadow-lg">
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    id="excel-upload"
-                  />
-                  <label htmlFor="excel-upload" className="cursor-pointer">
-                    <div className="w-20 h-20 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl transform hover:scale-110 transition-transform duration-200">
-                      <FileSpreadsheet className="h-10 w-10 text-white" />
-                    </div>
-                    <p className="text-base text-gray-800 mb-2 font-bold">
-                      {excelFile ? excelFile.name : '엑셀 파일을 선택하세요'}
-                    </p>
-                    <p className="text-sm text-gray-600 font-semibold">
-                      .xlsx, .xls 파일만 지원
-                    </p>
-                  </label>
-                </div>
-
-                {excelData.length > 0 && (
-                  <Alert className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 shadow-md">
-                    <AlertDescription className="flex items-center gap-2 text-green-800 font-bold">
-                      <div className="p-1.5 bg-green-500 rounded-lg">
-                        <Send className="w-4 h-4 text-white" />
-                      </div>
-                      ✅ {excelData.length}개의 행을 읽었습니다.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 3: Variable Mapping */}
-          {excelData.length > 0 && templateVariables.length > 0 && (
-            <Card className="border-0 shadow-2xl hover:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.3)] transition-all duration-500 bg-white/80 backdrop-blur-xl transform hover:scale-[1.01]">
-              <CardHeader className="bg-gradient-to-r from-orange-100 via-amber-50 to-yellow-100 border-b border-orange-200/50">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-gradient-to-br from-orange-600 to-yellow-600 text-white rounded-2xl shadow-lg font-black text-xl">
-                    3
-                  </div>
-                  <div>
-                    <CardTitle className="text-2xl bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent font-black">
-                      변수 매핑
-                    </CardTitle>
-                    <CardDescription className="mt-1 text-base">엑셀 컬럼을 템플릿 변수에 연결하세요</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6 pt-8">
-                {/* Phone number mapping */}
-                <div>
-                  <Label>전화번호 컬럼</Label>
-                  <Select value={phoneNumberColumn} onValueChange={setPhoneNumberColumn}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="전화번호가 있는 컬럼" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {excelColumns.map(col => (
-                        <SelectItem key={col} value={col}>{col}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Variable mappings */}
-                {templateVariables.map(varName => (
-                  <div key={varName}>
-                    <Label>#{'{'}{ varName}{'}'} 변수</Label>
-                    <Select 
-                      value={variableMapping[varName] || ''} 
-                      onValueChange={(value) => setVariableMapping(prev => ({ ...prev, [varName]: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="엑셀 컬럼 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {excelColumns.map(col => (
-                          <SelectItem key={col} value={col}>{col}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
-
-                {recipients.length > 0 && (
-                  <Alert className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 shadow-md">
-                    <AlertDescription className="flex items-center gap-2 text-green-800 font-bold">
-                      <div className="p-1.5 bg-green-500 rounded-lg">
-                        <Send className="w-4 h-4 text-white" />
-                      </div>
-                      ✅ {recipients.length}명의 수신자가 준비되었습니다.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </div>
 
-        {/* Right: Preview & Summary */}
+        {/* Right: Summary & Send */}
         <div className="space-y-8">
           {recipients.length > 0 && (
             <>
-              <Card className="border-0 shadow-2xl bg-gradient-to-br from-yellow-500 via-amber-500 to-orange-600 text-white overflow-hidden relative transform hover:scale-[1.02] transition-all duration-500">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+              {/* Summary Card */}
+              <Card className="border-0 shadow-2xl bg-gradient-to-br from-yellow-500 via-amber-500 to-orange-600 text-white overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
                 <CardHeader className="relative z-10">
-                  <CardTitle className="flex items-center gap-3 text-xl">
-                    <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg">
-                      <Send className="w-6 h-6" />
-                    </div>
-                    <span className="font-black">발송 요약</span>
+                  <CardTitle className="flex items-center gap-2 text-xl font-black">
+                    <Users className="w-6 h-6" />
+                    발송 요약
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 relative z-10">
-                  <div className="flex justify-between p-4 bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 shadow-lg">
-                    <span className="text-white/95 font-semibold">수신자 수:</span>
+                  <div className="flex justify-between p-4 bg-white/15 backdrop-blur-md rounded-xl">
+                    <span className="font-semibold">수신자 수:</span>
                     <span className="font-black text-xl">{recipients.length}명</span>
                   </div>
-                  <div className="flex justify-between p-4 bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 shadow-lg">
-                    <span className="text-white/95 font-semibold">메시지당 비용:</span>
-                    <span className="font-bold text-lg">15 포인트</span>
+                  <div className="flex justify-between p-4 bg-white/15 backdrop-blur-md rounded-xl">
+                    <span className="font-semibold">메시지당 비용:</span>
+                    <span className="font-bold">15P</span>
                   </div>
-                  <div className="border-t-2 border-white/30 pt-4 flex justify-between p-5 bg-white/25 backdrop-blur-md rounded-2xl shadow-2xl">
-                    <span className="font-black text-xl">총 예상 비용:</span>
-                    <span className="font-black text-3xl drop-shadow-lg">
-                      {recipients.length * 15}P
-                    </span>
+                  <div className="flex justify-between p-5 bg-white/25 backdrop-blur-md rounded-xl border-2 border-white/30">
+                    <span className="font-black text-lg">총 비용:</span>
+                    <span className="font-black text-3xl">{recipients.length * 15}P</span>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-xl">
-                <CardHeader className="bg-gradient-to-r from-yellow-100 to-amber-100 border-b border-yellow-200">
-                  <CardTitle className="flex items-center gap-2 text-xl bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent font-black">
-                    <Eye className="w-5 h-5 text-yellow-600" />
+              {/* Preview Card */}
+              <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-xl">
+                <CardHeader className="bg-gradient-to-r from-yellow-100 to-amber-100 border-b">
+                  <CardTitle className="flex items-center gap-2 text-lg font-black text-yellow-700">
+                    <Eye className="w-5 h-5" />
                     미리보기
                   </CardTitle>
-                  <CardDescription className="font-semibold">첫 번째 수신자의 메시지</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6">
-                  <div className="bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 border-3 border-yellow-200 rounded-2xl p-6 shadow-inner">
-                    <div className="text-xs text-gray-600 mb-3 font-bold flex items-center gap-2">
-                      <div className="p-1.5 bg-yellow-500 rounded-lg">
-                        <Send className="w-3 h-3 text-white" />
-                      </div>
+                  <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-200 rounded-xl p-5">
+                    <div className="text-xs text-gray-600 mb-3 font-bold">
                       수신: {recipients[0].phoneNumber}
                     </div>
-                    <div className="text-base whitespace-pre-wrap font-medium text-gray-800 leading-relaxed">
+                    <div className="text-sm whitespace-pre-wrap font-medium text-gray-800">
                       {recipients[0].preview}
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Schedule Options */}
-              <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-xl">
-                <CardHeader className="bg-gradient-to-r from-orange-100 to-yellow-100 border-b border-orange-200">
-                  <CardTitle className="flex items-center gap-2 text-xl bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent font-black">
-                    <Clock className="w-5 h-5 text-orange-600" />
-                    발송 방식
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6 pt-6">
-                  <RadioGroup value={sendMode} onValueChange={(v: any) => setSendMode(v)}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="immediate" id="immediate" />
-                      <Label htmlFor="immediate" className="flex items-center cursor-pointer">
-                        <Send className="mr-2 h-4 w-4" />
-                        즉시 발송
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="scheduled" id="scheduled" />
-                      <Label htmlFor="scheduled" className="flex items-center cursor-pointer">
-                        <Clock className="mr-2 h-4 w-4" />
-                        예약 발송
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                  
-                  {sendMode === 'scheduled' && (
-                    <div className="space-y-3 pt-3 border-t">
-                      <div>
-                        <Label>발송 날짜</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start text-left font-normal"
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {scheduledDate ? format(scheduledDate, 'yyyy년 M월 d일', { locale: ko }) : '날짜 선택'}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={scheduledDate}
-                              onSelect={setScheduledDate}
-                              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label>시</Label>
-                          <Select value={scheduledHour} onValueChange={setScheduledHour}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: 24 }, (_, i) => (
-                                <SelectItem key={i} value={i.toString().padStart(2, '0')}>
-                                  {i.toString().padStart(2, '0')}시
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div>
-                          <Label>분</Label>
-                          <Select value={scheduledMinute} onValueChange={setScheduledMinute}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {['00', '10', '20', '30', '40', '50'].map(m => (
-                                <SelectItem key={m} value={m}>{m}분</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
+              {/* Send Button */}
               <Button
                 onClick={handleSend}
                 disabled={sending}
-                className="w-full py-8 text-xl font-black bg-gradient-to-r from-yellow-600 via-amber-600 to-orange-600 hover:from-yellow-700 hover:via-amber-700 hover:to-orange-700 shadow-2xl hover:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.4)] transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none rounded-2xl border-2 border-white/20"
-                size="lg"
+                className="w-full py-8 text-xl font-black bg-gradient-to-r from-yellow-600 via-amber-600 to-orange-600 hover:from-yellow-700 hover:via-amber-700 hover:to-orange-700 shadow-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 rounded-2xl"
               >
                 {sending ? (
                   <>
@@ -868,69 +837,6 @@ export default function SendAlimtalkPage() {
           )}
         </div>
       </div>
-
-      {/* Recipients Table (when preview mode) */}
-      {previewMode && recipients.length > 0 && (
-        <Card className="mt-6">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>전체 수신자 목록</CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPreviewMode(false)}
-              >
-                닫기
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>전화번호</TableHead>
-                  {templateVariables.map(v => (
-                    <TableHead key={v}>{v}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recipients.slice(0, 100).map((recipient, i) => (
-                  <TableRow key={i}>
-                    <TableCell>{i + 1}</TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {recipient.phoneNumber}
-                    </TableCell>
-                    {templateVariables.map(v => (
-                      <TableCell key={v} className="text-sm">
-                        {recipient.variables[v] || '-'}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {recipients.length > 100 && (
-              <p className="text-sm text-gray-500 mt-3 text-center">
-                * 처음 100명만 표시됩니다. 전체 {recipients.length}명에게 발송됩니다.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {recipients.length > 0 && !previewMode && (
-        <div className="mt-6 text-center">
-          <Button
-            variant="outline"
-            onClick={() => setPreviewMode(true)}
-          >
-            <Eye className="mr-2 h-4 w-4" />
-            전체 수신자 목록 보기
-          </Button>
-        </div>
-      )}
       </div>
     </div>
   );
