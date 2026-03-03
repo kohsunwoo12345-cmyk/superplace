@@ -216,24 +216,37 @@ export default function CreateLandingPagePage() {
   };
 
   const handleCreateLandingPage = async () => {
-    if (!selectedStudent) {
-      alert("학생을 선택해주세요.");
-      return;
-    }
+    // HTML 직접 입력 모드일 때는 제목과 HTML만 필수
+    if (showHtmlEditor) {
+      if (!title.trim()) {
+        alert("제목을 입력해주세요.");
+        return;
+      }
+      if (!customHtml.trim()) {
+        alert("HTML 코드를 입력해주세요.");
+        return;
+      }
+    } else {
+      // 템플릿 모드일 때는 기존 검증 유지
+      if (!selectedStudent) {
+        alert("학생을 선택해주세요.");
+        return;
+      }
 
-    if (!title.trim()) {
-      alert("제목을 입력해주세요.");
-      return;
-    }
+      if (!title.trim()) {
+        alert("제목을 입력해주세요.");
+        return;
+      }
 
-    if (!startDate || !endDate) {
-      alert("기간을 선택해주세요.");
-      return;
-    }
+      if (!startDate || !endDate) {
+        alert("기간을 선택해주세요.");
+        return;
+      }
 
-    if (!selectedTemplate) {
-      alert("템플릿을 선택해주세요.");
-      return;
+      if (!selectedTemplate) {
+        alert("템플릿을 선택해주세요.");
+        return;
+      }
     }
 
     try {
@@ -272,17 +285,17 @@ export default function CreateLandingPagePage() {
         },
         body: JSON.stringify({
           slug,
-          studentId: selectedStudent,
+          studentId: showHtmlEditor ? null : selectedStudent,  // HTML 모드에서는 student 선택 안 함
           title: title.trim(),
           subtitle: subtitle.trim(),
           thumbnail,
-          templateId: selectedTemplate,
+          templateId: showHtmlEditor ? null : selectedTemplate,  // HTML 모드에서는 template 선택 안 함
           templateHtml: showHtmlEditor ? customHtml : templateHtml,  // ✅ HTML 직접 입력 또는 템플릿 HTML
           isCustomHtml: showHtmlEditor,  // ✅ 직접 입력 여부 플래그
-          startDate,
-          endDate,
-          dataOptions,
-          customFormFields,
+          startDate: showHtmlEditor ? null : startDate,  // HTML 모드에서는 날짜 선택 안 함
+          endDate: showHtmlEditor ? null : endDate,
+          dataOptions: showHtmlEditor ? {} : dataOptions,  // HTML 모드에서는 데이터 옵션 비활성화
+          customFormFields: showHtmlEditor ? [] : customFormFields,  // HTML 모드에서는 폼 필드 비활성화
           folderId: selectedFolder || null,
           isActive: true,
         }),
@@ -358,16 +371,19 @@ export default function CreateLandingPagePage() {
                 ✨ 새 학습 리포트 랜딩페이지 만들기
               </h1>
               <p className="text-gray-600 mt-2 text-lg">
-                학생을 선택하고 기간, 템플릿, 썸네일, 폼 양식을 설정하세요
+                {showHtmlEditor 
+                  ? "HTML 코드를 직접 입력하여 랜딩페이지를 만드세요"
+                  : "학생을 선택하고 기간, 템플릿, 썸네일, 폼 양식을 설정하세요"}
               </p>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 왼쪽: 학생 선택 */}
-          <div className="space-y-6">
-            <Card>
+          {/* 왼쪽: 학생 선택 (HTML 모드에서는 숨김) */}
+          {!showHtmlEditor && (
+            <div className="space-y-6">
+              <Card>
               <CardHeader>
                 <CardTitle>1️⃣ 학생 선택</CardTitle>
                 <CardDescription>
@@ -427,9 +443,10 @@ export default function CreateLandingPagePage() {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* 오른쪽: 설정 */}
-          <div className="space-y-6">
+          <div className={`space-y-6 ${showHtmlEditor ? 'lg:col-span-2' : ''}`}>
             {/* 제목 & 부제목 */}
             <Card>
               <CardHeader>
@@ -518,7 +535,8 @@ export default function CreateLandingPagePage() {
               </CardContent>
             </Card>
 
-            {/* 데이터 기간 선택 */}
+            {/* 데이터 기간 선택 (HTML 모드에서는 숨김) */}
+            {!showHtmlEditor && (
             <Card>
               <CardHeader>
                 <CardTitle>4️⃣ 데이터 기간 선택</CardTitle>
@@ -553,9 +571,10 @@ export default function CreateLandingPagePage() {
                 )}
               </CardContent>
             </Card>
+            )}
 
-            {/* 폴더 선택 */}
-            {folders.length > 0 && (
+            {/* 폴더 선택 (HTML 모드에서는 숨김) */}
+            {!showHtmlEditor && folders.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>5️⃣ 폴더 선택 (선택)</CardTitle>
@@ -682,7 +701,8 @@ export default function CreateLandingPagePage() {
               </CardContent>
             </Card>
 
-            {/* 폼 양식 필드 */}
+            {/* 폼 양식 필드 (HTML 모드에서는 숨김) */}
+            {!showHtmlEditor && (
             <Card className="border-2 border-blue-300 bg-blue-50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-blue-800">
@@ -794,8 +814,10 @@ export default function CreateLandingPagePage() {
                 )}
               </CardContent>
             </Card>
+            )}
 
-            {/* 표시할 데이터 선택 */}
+            {/* 표시할 데이터 선택 (HTML 모드에서는 숨김) */}
+            {!showHtmlEditor && (
             <Card>
               <CardHeader>
                 <CardTitle>8️⃣ 표시할 데이터 선택</CardTitle>
@@ -885,9 +907,10 @@ export default function CreateLandingPagePage() {
                 </div>
               </CardContent>
             </Card>
+            )}
 
-            {/* 선택된 학생 정보 */}
-            {selectedStudentData && (
+            {/* 선택된 학생 정보 (HTML 모드에서는 숨김) */}
+            {!showHtmlEditor && selectedStudentData && (
               <Card className="border-2 border-indigo-200 bg-indigo-50">
                 <CardHeader>
                   <CardTitle className="text-indigo-900">✅ 선택된 학생</CardTitle>
@@ -915,6 +938,7 @@ export default function CreateLandingPagePage() {
 
             {/* 액션 버튼 */}
             <div className="flex gap-3">
+              {!showHtmlEditor && (
               <Button
                 onClick={handlePreview}
                 variant="outline"
@@ -924,10 +948,11 @@ export default function CreateLandingPagePage() {
                 <Eye className="w-4 h-4 mr-2" />
                 미리보기
               </Button>
+              )}
               <Button
                 onClick={handleCreateLandingPage}
                 className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                disabled={!selectedStudent || !title.trim() || creating}
+                disabled={(showHtmlEditor ? !title.trim() || !customHtml.trim() : (!selectedStudent || !title.trim())) || creating}
               >
                 {creating ? (
                   <>
