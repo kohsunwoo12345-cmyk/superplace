@@ -39,6 +39,9 @@ interface DirectorLimitation {
   competency_daily_used: number;
   competency_monthly_used: number;
   
+  // 랜딩페이지 HTML 직접 편집 권한
+  landing_page_html_direct_edit: number;
+  
   created_at?: string;
   updated_at?: string;
 }
@@ -99,6 +102,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         competency_daily_used INTEGER DEFAULT 0,
         competency_monthly_used INTEGER DEFAULT 0,
         
+        landing_page_html_direct_edit INTEGER DEFAULT 0,
+        
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
@@ -140,6 +145,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         competency_monthly_limit: 0,
         competency_daily_used: 0,
         competency_monthly_used: 0,
+        landing_page_html_direct_edit: 0,
       };
       
       return new Response(JSON.stringify({ limitation: defaultLimitation }), {
@@ -221,6 +227,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         competency_daily_used INTEGER DEFAULT 0,
         competency_monthly_used INTEGER DEFAULT 0,
         
+        landing_page_html_direct_edit INTEGER DEFAULT 0,
+        
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
@@ -248,6 +256,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           competency_analysis_enabled = ?,
           competency_daily_limit = ?,
           competency_monthly_limit = ?,
+          landing_page_html_direct_edit = ?,
           updated_at = datetime('now')
         WHERE director_id = ?
       `).bind(
@@ -264,6 +273,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         body.competency_analysis_enabled ?? 1,
         body.competency_daily_limit ?? 0,
         body.competency_monthly_limit ?? 0,
+        body.landing_page_html_direct_edit ?? 0,
         body.director_id
       ).run();
 
@@ -277,8 +287,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           max_students,
           similar_problem_enabled, similar_problem_daily_limit, similar_problem_monthly_limit,
           weak_concept_analysis_enabled, weak_concept_daily_limit, weak_concept_monthly_limit,
-          competency_analysis_enabled, competency_daily_limit, competency_monthly_limit
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          competency_analysis_enabled, competency_daily_limit, competency_monthly_limit,
+          landing_page_html_direct_edit
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         body.director_id,
         body.academy_id,
@@ -293,7 +304,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         body.weak_concept_monthly_limit ?? 0,
         body.competency_analysis_enabled ?? 1,
         body.competency_daily_limit ?? 0,
-        body.competency_monthly_limit ?? 0
+        body.competency_monthly_limit ?? 0,
+        body.landing_page_html_direct_edit ?? 0
       ).run();
 
       console.log(`✅ Director limitation created: directorId=${body.director_id}`);
