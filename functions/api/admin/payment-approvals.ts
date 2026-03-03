@@ -156,9 +156,46 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const approvals = approvalsResult.results || [];
 
-    // For each approval, fetch pricing info if planId exists
+    // Helper function to parse notes
+    const parseNotes = (notes: string) => {
+      const parsed = {
+        applicantName: "",
+        applicantEmail: "",
+        applicantPhone: "",
+      };
+
+      if (!notes) return parsed;
+
+      // Handle both \\n (escaped in DB) and \n (actual newline)
+      const lines = notes.split(/\\n|\n/);
+      lines.forEach((line: string) => {
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith("이름:")) {
+          parsed.applicantName = trimmedLine.replace("이름:", "").trim();
+        } else if (trimmedLine.startsWith("이메일:")) {
+          parsed.applicantEmail = trimmedLine.replace("이메일:", "").trim();
+        } else if (trimmedLine.startsWith("연락처:")) {
+          parsed.applicantPhone = trimmedLine.replace("연락처:", "").trim();
+        }
+      });
+
+      return parsed;
+    };
+
+    // For each approval, fetch pricing info if planId exists AND parse notes
     const enrichedApprovals = await Promise.all(
       approvals.map(async (approval: any) => {
+        // Parse notes to extract applicant info
+        const parsedInfo = parseNotes(approval.notes || "");
+        
+        let result = {
+          ...approval,
+          applicantName: parsedInfo.applicantName,
+          applicantEmail: parsedInfo.applicantEmail,
+          applicantPhone: parsedInfo.applicantPhone,
+        };
+
+        // Fetch pricing info if planId exists
         if (approval.planId) {
           try {
             const pricing = await DB.prepare(`
@@ -168,8 +205,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             `).bind(approval.planId).first();
 
             if (pricing) {
-              return {
-                ...approval,
+              result = {
+                ...result,
                 price_1month: pricing.price_1month,
                 price_6months: pricing.price_6months,
                 price_12months: pricing.price_12months,
@@ -179,7 +216,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             console.log("⚠️ Failed to fetch pricing for planId:", approval.planId);
           }
         }
-        return approval;
+        
+        return result;
       })
     );
 
