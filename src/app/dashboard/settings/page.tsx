@@ -63,26 +63,35 @@ export default function SettingsPage() {
   
   const fetchSubscription = async (academyId: string) => {
     try {
-      console.log("구독 정보 조회 시작 - academyId:", academyId);
+      console.log("🔍 구독 정보 조회 시작 - academyId:", academyId);
       
-      const response = await fetch(`/api/subscription/check?academyId=${academyId}`);
-      console.log("API 응답 상태:", response.status);
+      // 방법 1: academyId로 조회
+      let response = await fetch(`/api/subscription/check?academyId=${academyId}`);
+      console.log("📡 API 응답 상태:", response.status);
       
-      const data = await response.json();
-      console.log("API 응답 데이터:", data);
+      let data = await response.json();
+      console.log("📦 API 응답 데이터:", JSON.stringify(data, null, 2));
       
-      if (data.success && data.hasSubscription) {
-        console.log("구독 정보 설정:", data.subscription);
+      // 방법 1 실패 시, userId로 직접 조회 시도
+      if (!data.success || !data.hasSubscription) {
+        console.log("⚠️ academyId 조회 실패, userId로 재시도");
+        response = await fetch(`/api/subscription/check?userId=${user.id}`);
+        data = await response.json();
+        console.log("📦 userId 조회 결과:", JSON.stringify(data, null, 2));
+      }
+      
+      if (data.success && data.hasSubscription && data.subscription) {
+        console.log("✅ 구독 정보 발견:", data.subscription);
         setSubscription(data.subscription);
       } else {
-        console.log("활성 구독 없음:", data.message);
+        console.log("❌ 활성 구독 없음:", data.message || "No subscription");
         setSubscription(null);
       }
     } catch (error) {
-      console.error("구독 정보 로드 실패:", error);
+      console.error("❌ 구독 정보 로드 실패:", error);
       setSubscription(null);
     } finally {
-      console.log("구독 정보 로딩 완료");
+      console.log("✅ 구독 정보 로딩 완료");
       setLoadingSubscription(false);
     }
   };
@@ -205,15 +214,16 @@ export default function SettingsPage() {
             {loadingSubscription ? (
               <div className="flex items-center justify-center py-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">구독 정보 확인 중...</span>
               </div>
-            ) : subscription && subscription.planName ? (
+            ) : subscription ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
                     <div>
                       <div className="text-sm text-gray-600">플랜</div>
-                      <div className="font-semibold text-lg">{subscription.planName}</div>
+                      <div className="font-semibold text-lg">{subscription.planName || '알 수 없음'}</div>
                     </div>
                   </div>
                   

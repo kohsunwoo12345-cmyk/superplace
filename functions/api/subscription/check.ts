@@ -10,6 +10,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const userId = url.searchParams.get('userId');
     const academyId = url.searchParams.get('academyId');
 
+    console.log('🔍 구독 조회 요청:', { userId, academyId });
+
     if (!userId && !academyId) {
       return new Response(JSON.stringify({ 
         error: "userId or academyId required" 
@@ -22,14 +24,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 사용자 ID로 구독 조회
     let subscription = null;
     if (userId) {
+      console.log('📝 userId로 조회:', userId);
       subscription = await DB.prepare(`
         SELECT * FROM user_subscriptions 
         WHERE userId = ? AND status = 'active'
         ORDER BY endDate DESC
         LIMIT 1
       `).bind(userId).first();
-    } else if (academyId) {
+      console.log('📊 userId 조회 결과:', subscription ? '발견' : '없음');
+    } 
+    
+    if (!subscription && academyId) {
       // 학원 ID로 구독 조회 (학원장 구독 확인)
+      console.log('📝 academyId로 조회:', academyId);
       subscription = await DB.prepare(`
         SELECT us.* FROM user_subscriptions us
         JOIN User u ON us.userId = u.id
@@ -39,9 +46,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ORDER BY us.endDate DESC
         LIMIT 1
       `).bind(academyId).first();
+      console.log('📊 academyId 조회 결과:', subscription ? '발견' : '없음');
     }
 
     if (!subscription) {
+      console.log('❌ 구독 없음');
       return new Response(JSON.stringify({
         success: false,
         hasSubscription: false,
@@ -52,6 +61,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         headers: { "Content-Type": "application/json" },
       });
     }
+
+    console.log('✅ 구독 발견:', subscription.planName);
 
     // 만료 확인
     const now = new Date();
