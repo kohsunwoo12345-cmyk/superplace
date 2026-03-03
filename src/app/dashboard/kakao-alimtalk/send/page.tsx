@@ -403,38 +403,94 @@ export default function SendAlimtalkPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="container mx-auto p-6 max-w-7xl">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-          <span className="ml-3 text-gray-600">로딩 중...</span>
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 flex items-center justify-center">
+        <div className="text-center relative">
+          <div className="absolute inset-0 blur-3xl bg-gradient-to-r from-yellow-400 to-orange-400 opacity-20 animate-pulse"></div>
+          <div className="relative bg-white/80 backdrop-blur-xl p-12 rounded-3xl shadow-2xl border border-white/20">
+            <Loader2 className="w-16 h-16 animate-spin text-yellow-600 mx-auto mb-6" />
+            <div className="space-y-2">
+              <p className="text-2xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
+                데이터 로딩 중
+              </p>
+              <div className="flex items-center justify-center gap-1">
+                <div className="w-2 h-2 bg-yellow-600 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-yellow-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                <div className="w-2 h-2 bg-yellow-600 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">알림톡 대량 발송</h1>
-        <p className="text-gray-600">
-          엑셀 파일을 업로드하여 여러 명에게 한 번에 알림톡을 발송할 수 있습니다.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-orange-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+      <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-amber-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+      
+      <div className="relative z-10 container mx-auto p-8 max-w-7xl">
+        {/* Premium Header */}
+        <Card className="border-0 shadow-[0_20px_70px_-15px_rgba(0,0,0,0.3)] bg-gradient-to-br from-yellow-500 via-amber-500 to-orange-500 text-white overflow-hidden relative transform hover:scale-[1.01] transition-all duration-500 mb-8">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+          <CardHeader className="relative z-10 pb-10">
+            <div className="flex items-center justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-4 bg-white/20 backdrop-blur-xl rounded-2xl shadow-2xl ring-2 ring-white/30 transform hover:rotate-6 transition-transform duration-300">
+                    <Send className="h-10 w-10 drop-shadow-lg" />
+                  </div>
+                  <div>
+                    <h1 className="text-5xl font-black tracking-tight drop-shadow-lg">카카오 알림톡 대량 발송</h1>
+                    <p className="text-white/95 mt-2 text-xl font-medium drop-shadow">엑셀 파일을 업로드하여 여러 명에게 한 번에 알림톡을 발송할 수 있습니다</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span>대량 발송 가능</span>
+                  </div>
+                  <div className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    <span>예약 발송 지원</span>
+                  </div>
+                  <div className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full flex items-center gap-2">
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>엑셀 업로드</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
 
       {error && (
-        <Alert className="mb-6 border-red-500 bg-red-50">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="text-red-800 whitespace-pre-line">{error}</AlertDescription>
+        <Alert className="mb-6 border-0 bg-gradient-to-r from-red-500 to-rose-600 shadow-xl">
+          <div className="flex items-start gap-3 text-white">
+            <div className="p-2 bg-white/20 rounded-lg">
+              <AlertCircle className="h-5 w-5" />
+            </div>
+            <AlertDescription className="text-white font-semibold whitespace-pre-line">{error}</AlertDescription>
+          </div>
         </Alert>
       )}
 
       {success && (
-        <Alert className="mb-6 border-green-500 bg-green-50">
-          <AlertDescription className="text-green-800 whitespace-pre-line">{success}</AlertDescription>
+        <Alert className="mb-6 border-0 bg-gradient-to-r from-green-500 to-emerald-600 shadow-xl">
+          <div className="flex items-start gap-3 text-white">
+            <div className="p-2 bg-white/20 rounded-lg">
+              <Send className="h-5 w-5" />
+            </div>
+            <AlertDescription className="text-white font-semibold whitespace-pre-line">{success}</AlertDescription>
+          </div>
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left: Configuration */}
         <div className="lg:col-span-2 space-y-6">
           {/* Step 1: Select Channel & Template */}
@@ -484,20 +540,20 @@ export default function SendAlimtalkPage() {
               )}
 
               {selectedTemplate && (
-                <Alert>
+                <Alert className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 shadow-md">
                   <AlertDescription>
                     <div className="text-sm">
-                      <strong>템플릿 내용:</strong>
-                      <pre className="mt-2 whitespace-pre-wrap text-xs bg-gray-50 p-3 rounded">
+                      <strong className="text-blue-900 font-black">템플릿 내용:</strong>
+                      <pre className="mt-3 whitespace-pre-wrap text-sm bg-white/80 p-5 rounded-xl shadow-inner border-2 border-blue-100 font-medium text-gray-800">
                         {getSelectedTemplate()?.content}
                       </pre>
                     </div>
                     {templateVariables.length > 0 && (
-                      <div className="mt-3">
-                        <strong className="text-sm">필요한 변수:</strong>
-                        <div className="flex flex-wrap gap-2 mt-1">
+                      <div className="mt-4">
+                        <strong className="text-sm text-blue-900 font-black">필요한 변수:</strong>
+                        <div className="flex flex-wrap gap-2 mt-2">
                           {templateVariables.map(v => (
-                            <span key={v} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                            <span key={v} className="px-3 py-2 bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-800 rounded-xl text-sm font-bold border-2 border-blue-200 shadow-sm">
                               #{'{'}{ v}{'}'}
                             </span>
                           ))}
@@ -512,25 +568,35 @@ export default function SendAlimtalkPage() {
 
           {/* Step 2: Upload Excel */}
           {selectedTemplate && (
-            <Card>
-              <CardHeader>
-                <CardTitle>2단계: 엑셀 파일 업로드</CardTitle>
-                <CardDescription>수신자 목록이 포함된 엑셀 파일을 업로드하세요</CardDescription>
+            <Card className="border-0 shadow-2xl hover:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.3)] transition-all duration-500 bg-white/80 backdrop-blur-xl transform hover:scale-[1.01]">
+              <CardHeader className="bg-gradient-to-r from-amber-100 via-yellow-50 to-orange-100 border-b border-amber-200/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-br from-amber-600 to-orange-600 text-white rounded-2xl shadow-lg font-black text-xl">
+                    2
+                  </div>
+                  <div>
+                    <CardTitle className="text-2xl bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent font-black">
+                      엑셀 파일 업로드
+                    </CardTitle>
+                    <CardDescription className="mt-1 text-base">수신자 목록이 포함된 엑셀 파일을 업로드하세요</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6 pt-8">
                 <div className="flex gap-3">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={downloadSampleExcel}
                     size="sm"
+                    className="bg-gradient-to-r from-yellow-50 to-amber-50 hover:from-yellow-100 hover:to-amber-100 border-2 border-yellow-300 text-yellow-700 font-bold px-5 py-5 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
                   >
-                    <Download className="mr-2 h-4 w-4" />
+                    <Download className="mr-2 h-5 w-5" />
                     샘플 파일 다운로드
                   </Button>
                 </div>
 
-                <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                <div className="border-3 border-dashed border-yellow-300 rounded-2xl p-12 text-center bg-gradient-to-br from-yellow-50 to-amber-50 hover:border-yellow-400 transition-all duration-200 hover:shadow-lg">
                   <input
                     type="file"
                     accept=".xlsx,.xls"
@@ -539,19 +605,24 @@ export default function SendAlimtalkPage() {
                     id="excel-upload"
                   />
                   <label htmlFor="excel-upload" className="cursor-pointer">
-                    <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                    <p className="text-sm text-gray-600 mb-1">
+                    <div className="w-20 h-20 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl transform hover:scale-110 transition-transform duration-200">
+                      <FileSpreadsheet className="h-10 w-10 text-white" />
+                    </div>
+                    <p className="text-base text-gray-800 mb-2 font-bold">
                       {excelFile ? excelFile.name : '엑셀 파일을 선택하세요'}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-sm text-gray-600 font-semibold">
                       .xlsx, .xls 파일만 지원
                     </p>
                   </label>
                 </div>
 
                 {excelData.length > 0 && (
-                  <Alert>
-                    <AlertDescription>
+                  <Alert className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 shadow-md">
+                    <AlertDescription className="flex items-center gap-2 text-green-800 font-bold">
+                      <div className="p-1.5 bg-green-500 rounded-lg">
+                        <Send className="w-4 h-4 text-white" />
+                      </div>
                       ✅ {excelData.length}개의 행을 읽었습니다.
                     </AlertDescription>
                   </Alert>
@@ -562,12 +633,21 @@ export default function SendAlimtalkPage() {
 
           {/* Step 3: Variable Mapping */}
           {excelData.length > 0 && templateVariables.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>3단계: 변수 매핑</CardTitle>
-                <CardDescription>엑셀 컬럼을 템플릿 변수에 연결하세요</CardDescription>
+            <Card className="border-0 shadow-2xl hover:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.3)] transition-all duration-500 bg-white/80 backdrop-blur-xl transform hover:scale-[1.01]">
+              <CardHeader className="bg-gradient-to-r from-orange-100 via-amber-50 to-yellow-100 border-b border-orange-200/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-br from-orange-600 to-yellow-600 text-white rounded-2xl shadow-lg font-black text-xl">
+                    3
+                  </div>
+                  <div>
+                    <CardTitle className="text-2xl bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent font-black">
+                      변수 매핑
+                    </CardTitle>
+                    <CardDescription className="mt-1 text-base">엑셀 컬럼을 템플릿 변수에 연결하세요</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6 pt-8">
                 {/* Phone number mapping */}
                 <div>
                   <Label>전화번호 컬럼</Label>
@@ -604,8 +684,11 @@ export default function SendAlimtalkPage() {
                 ))}
 
                 {recipients.length > 0 && (
-                  <Alert className="bg-green-50 border-green-200">
-                    <AlertDescription className="text-green-800">
+                  <Alert className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 shadow-md">
+                    <AlertDescription className="flex items-center gap-2 text-green-800 font-bold">
+                      <div className="p-1.5 bg-green-500 rounded-lg">
+                        <Send className="w-4 h-4 text-white" />
+                      </div>
                       ✅ {recipients.length}명의 수신자가 준비되었습니다.
                     </AlertDescription>
                   </Alert>
@@ -616,42 +699,56 @@ export default function SendAlimtalkPage() {
         </div>
 
         {/* Right: Preview & Summary */}
-        <div className="space-y-6">
+        <div className="space-y-8">
           {recipients.length > 0 && (
             <>
-              <Card>
-                <CardHeader>
-                  <CardTitle>발송 요약</CardTitle>
+              <Card className="border-0 shadow-2xl bg-gradient-to-br from-yellow-500 via-amber-500 to-orange-600 text-white overflow-hidden relative transform hover:scale-[1.02] transition-all duration-500">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+                <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
+                <CardHeader className="relative z-10">
+                  <CardTitle className="flex items-center gap-3 text-xl">
+                    <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg">
+                      <Send className="w-6 h-6" />
+                    </div>
+                    <span className="font-black">발송 요약</span>
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">수신자 수:</span>
-                    <span className="font-semibold">{recipients.length}명</span>
+                <CardContent className="space-y-4 relative z-10">
+                  <div className="flex justify-between p-4 bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 shadow-lg">
+                    <span className="text-white/95 font-semibold">수신자 수:</span>
+                    <span className="font-black text-xl">{recipients.length}명</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">메시지당 비용:</span>
-                    <span className="font-semibold">15 포인트</span>
+                  <div className="flex justify-between p-4 bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 shadow-lg">
+                    <span className="text-white/95 font-semibold">메시지당 비용:</span>
+                    <span className="font-bold text-lg">15 포인트</span>
                   </div>
-                  <div className="border-t pt-3 flex justify-between">
-                    <span className="font-semibold">총 예상 비용:</span>
-                    <span className="font-bold text-lg text-blue-600">
-                      {recipients.length * 15} 포인트
+                  <div className="border-t-2 border-white/30 pt-4 flex justify-between p-5 bg-white/25 backdrop-blur-md rounded-2xl shadow-2xl">
+                    <span className="font-black text-xl">총 예상 비용:</span>
+                    <span className="font-black text-3xl drop-shadow-lg">
+                      {recipients.length * 15}P
                     </span>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>미리보기</CardTitle>
-                  <CardDescription>첫 번째 수신자의 메시지</CardDescription>
+              <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-xl">
+                <CardHeader className="bg-gradient-to-r from-yellow-100 to-amber-100 border-b border-yellow-200">
+                  <CardTitle className="flex items-center gap-2 text-xl bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent font-black">
+                    <Eye className="w-5 h-5 text-yellow-600" />
+                    미리보기
+                  </CardTitle>
+                  <CardDescription className="font-semibold">첫 번째 수신자의 메시지</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div className="text-xs text-gray-500 mb-2">
+                <CardContent className="pt-6">
+                  <div className="bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 border-3 border-yellow-200 rounded-2xl p-6 shadow-inner">
+                    <div className="text-xs text-gray-600 mb-3 font-bold flex items-center gap-2">
+                      <div className="p-1.5 bg-yellow-500 rounded-lg">
+                        <Send className="w-3 h-3 text-white" />
+                      </div>
                       수신: {recipients[0].phoneNumber}
                     </div>
-                    <div className="text-sm whitespace-pre-wrap">
+                    <div className="text-base whitespace-pre-wrap font-medium text-gray-800 leading-relaxed">
                       {recipients[0].preview}
                     </div>
                   </div>
@@ -659,11 +756,14 @@ export default function SendAlimtalkPage() {
               </Card>
 
               {/* Schedule Options */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>발송 방식</CardTitle>
+              <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-xl">
+                <CardHeader className="bg-gradient-to-r from-orange-100 to-yellow-100 border-b border-orange-200">
+                  <CardTitle className="flex items-center gap-2 text-xl bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent font-black">
+                    <Clock className="w-5 h-5 text-orange-600" />
+                    발송 방식
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6 pt-6">
                   <RadioGroup value={sendMode} onValueChange={(v: any) => setSendMode(v)}>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="immediate" id="immediate" />
@@ -746,20 +846,20 @@ export default function SendAlimtalkPage() {
               <Button
                 onClick={handleSend}
                 disabled={sending}
-                className="w-full"
+                className="w-full py-8 text-xl font-black bg-gradient-to-r from-yellow-600 via-amber-600 to-orange-600 hover:from-yellow-700 hover:via-amber-700 hover:to-orange-700 shadow-2xl hover:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.4)] transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none rounded-2xl border-2 border-white/20"
                 size="lg"
               >
                 {sending ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-3 h-7 w-7 animate-spin" />
                     {sendMode === 'immediate' ? '발송 중...' : '예약 중...'}
                   </>
                 ) : (
                   <>
                     {sendMode === 'immediate' ? (
-                      <><Send className="mr-2 h-4 w-4" />{recipients.length}명에게 즉시 발송</>
+                      <><Send className="mr-3 h-7 w-7" />{recipients.length}명에게 즉시 발송</>
                     ) : (
-                      <><Clock className="mr-2 h-4 w-4" />{recipients.length}명에게 예약 발송</>
+                      <><Clock className="mr-3 h-7 w-7" />{recipients.length}명에게 예약 발송</>
                     )}
                   </>
                 )}
@@ -831,6 +931,7 @@ export default function SendAlimtalkPage() {
           </Button>
         </div>
       )}
+      </div>
     </div>
   );
 }
