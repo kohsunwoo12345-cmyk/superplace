@@ -3,6 +3,31 @@ interface Env {
   DB: D1Database;
 }
 
+// ============================================
+// 🔥 메모리 캐시 (Cloudflare Workers 글로벌 변수)
+// ============================================
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+
+// 글로벌 캐시 객체 (Workers 인스턴스 수명 동안 유지)
+const usageCache = new Map<string, CacheEntry>();
+const CACHE_TTL = 60 * 1000; // 60초 캐시 유지
+
+// 캐시 정리 함수 (5분마다 실행)
+function cleanExpiredCache() {
+  const now = Date.now();
+  for (const [key, entry] of usageCache.entries()) {
+    if (now - entry.timestamp > CACHE_TTL) {
+      usageCache.delete(key);
+    }
+  }
+}
+
+// 주기적으로 캐시 정리
+setInterval(cleanExpiredCache, 5 * 60 * 1000);
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
@@ -18,6 +43,29 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         headers: { "Content-Type": "application/json" },
       });
     }
+
+    // ============================================
+    // 🔥 캐시 확인 (강제 새로고침 옵션 지원)
+    // ============================================
+    const forceRefresh = url.searchParams.get('refresh') === 'true';
+    const cacheKey = `usage:${academyId || userId}`;
+    
+    if (!forceRefresh) {
+      const cached = usageCache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+        console.log(`💾 캐시 히트: ${cacheKey} (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
+        return new Response(JSON.stringify({
+          ...cached.data,
+          cached: true,
+          cacheAge: Math.round((Date.now() - cached.timestamp) / 1000)
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    
+    console.log(`🔍 캐시 미스 또는 강제 새로고침: ${cacheKey}`);
 
     // 사용자 ID로 구독 조회
     let subscription = null;
@@ -152,7 +200,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 사용량 정보 반환
-    return new Response(JSON.stringify({
+    const responseData = {
       success: true,
       hasSubscription: true,
       subscription: {
@@ -179,7 +227,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           maxLandingPages: subscription.max_landing_pages || 0,
         }
       }
-    }), {
+    };
+    
+    // ============================================
+    // 🔥 캐시에 저장
+    // ============================================
+    usageCache.set(cacheKey, {
+      data: responseData,
+      timestamp: Date.now()
+    });
+    console.log(`💾 캐시 저장: ${cacheKey}`);
+    
+    return new Response(JSON.stringify(responseData), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

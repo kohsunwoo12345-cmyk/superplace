@@ -22,6 +22,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [subscription, setSubscription] = useState<any>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [trends, setTrends] = useState<any>(null);
+  const [trendPeriod, setTrendPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -45,6 +48,8 @@ export default function SettingsPage() {
       if (userData.academyId) {
         console.log("학원장 계정 - 구독 정보 조회");
         fetchSubscription(userData.academyId);
+        fetchAlerts(userData.academyId);
+        fetchTrends(userData.academyId, trendPeriod);
       } else {
         console.warn("학원장 계정이지만 academyId가 없습니다.");
         setLoadingSubscription(false);
@@ -79,6 +84,30 @@ export default function SettingsPage() {
     } finally {
       console.log("구독 정보 로딩 완료");
       setLoadingSubscription(false);
+    }
+  };
+  
+  const fetchAlerts = async (academyId: string) => {
+    try {
+      const response = await fetch(`/api/subscription/get-usage-alerts?academyId=${academyId}&unreadOnly=true`);
+      const data = await response.json();
+      if (data.success) {
+        setAlerts(data.alerts || []);
+      }
+    } catch (error) {
+      console.error("알림 조회 실패:", error);
+    }
+  };
+  
+  const fetchTrends = async (academyId: string, period: string) => {
+    try {
+      const response = await fetch(`/api/subscription/usage-trends?academyId=${academyId}&period=${period}`);
+      const data = await response.json();
+      if (data.success) {
+        setTrends(data);
+      }
+    } catch (error) {
+      console.error("트렌드 조회 실패:", error);
     }
   };
 
@@ -351,6 +380,152 @@ export default function SettingsPage() {
                 )}
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 알림 카드 (학원장 전용) */}
+      {user?.role === "DIRECTOR" && alerts.length > 0 && (
+        <Card className="mb-6 border-orange-200 bg-gradient-to-r from-orange-50 to-red-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-orange-600" />
+              사용량 알림
+            </CardTitle>
+            <CardDescription>
+              한도 도달 알림 ({alerts.length}개)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {alerts.slice(0, 5).map((alert: any) => (
+                <div 
+                  key={alert.id} 
+                  className="p-3 bg-white rounded-lg border border-orange-200"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm text-gray-800">
+                        {alert.typeLabel}
+                      </div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        {alert.message}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(alert.createdAt).toLocaleString("ko-KR")}
+                      </div>
+                    </div>
+                    <Badge 
+                      variant={alert.threshold >= 100 ? "destructive" : "secondary"}
+                      className="ml-2"
+                    >
+                      {alert.percentage}%
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 사용량 트렌드 카드 (학원장 전용) */}
+      {user?.role === "DIRECTOR" && trends && (
+        <Card className="mb-6 border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-blue-600" />
+              사용량 트렌드
+            </CardTitle>
+            <CardDescription>
+              기간별 사용량 통계
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 flex gap-2">
+              <Button 
+                size="sm" 
+                variant={trendPeriod === 'daily' ? 'default' : 'outline'}
+                onClick={() => {
+                  setTrendPeriod('daily');
+                  if (user?.academyId) fetchTrends(user.academyId, 'daily');
+                }}
+              >
+                일별
+              </Button>
+              <Button 
+                size="sm" 
+                variant={trendPeriod === 'weekly' ? 'default' : 'outline'}
+                onClick={() => {
+                  setTrendPeriod('weekly');
+                  if (user?.academyId) fetchTrends(user.academyId, 'weekly');
+                }}
+              >
+                주별
+              </Button>
+              <Button 
+                size="sm" 
+                variant={trendPeriod === 'monthly' ? 'default' : 'outline'}
+                onClick={() => {
+                  setTrendPeriod('monthly');
+                  if (user?.academyId) fetchTrends(user.academyId, 'monthly');
+                }}
+              >
+                월별
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-white rounded-lg border">
+                <div className="text-sm text-gray-600">AI 분석</div>
+                <div className="text-2xl font-bold text-purple-600 mt-1">
+                  {trends.summary?.totalAIAnalysis || 0}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {trendPeriod === 'daily' ? '최근 30일' : trendPeriod === 'weekly' ? '최근 12주' : '최근 12개월'}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-white rounded-lg border">
+                <div className="text-sm text-gray-600">숙제 검사</div>
+                <div className="text-2xl font-bold text-green-600 mt-1">
+                  {trends.summary?.totalHomework || 0}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {trendPeriod === 'daily' ? '최근 30일' : trendPeriod === 'weekly' ? '최근 12주' : '최근 12개월'}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-white rounded-lg border">
+                <div className="text-sm text-gray-600">유사문제</div>
+                <div className="text-2xl font-bold text-orange-600 mt-1">
+                  {trends.summary?.totalSimilarProblems || 0}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {trendPeriod === 'daily' ? '최근 30일' : trendPeriod === 'weekly' ? '최근 12주' : '최근 12개월'}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-white rounded-lg border">
+                <div className="text-sm text-gray-600">랜딩페이지</div>
+                <div className="text-2xl font-bold text-pink-600 mt-1">
+                  {trends.summary?.totalLandingPages || 0}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {trendPeriod === 'daily' ? '최근 30일' : trendPeriod === 'weekly' ? '최근 12주' : '최근 12개월'}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-white rounded-lg border">
+                <div className="text-sm text-gray-600">현재 학생</div>
+                <div className="text-2xl font-bold text-blue-600 mt-1">
+                  {trends.currentUsage?.students || 0}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  활성 학생 수
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
