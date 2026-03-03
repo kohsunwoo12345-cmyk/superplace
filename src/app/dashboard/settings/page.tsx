@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Lock, Bell, Shield } from "lucide-react";
+import { User, Lock, Bell, Shield, CreditCard, Calendar, CheckCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -19,6 +20,8 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -32,7 +35,27 @@ export default function SettingsPage() {
     setName(userData.name || "");
     setEmail(userData.email || "");
     setPhone(userData.phone || "");
+    
+    // 구독 정보 가져오기
+    if (userData.role === "DIRECTOR" && userData.academyId) {
+      fetchSubscription(userData.academyId);
+    }
   }, [router]);
+  
+  const fetchSubscription = async (academyId: string) => {
+    try {
+      const response = await fetch(`/api/subscription/check?academyId=${academyId}`);
+      const data = await response.json();
+      
+      if (data.success && data.hasSubscription) {
+        setSubscription(data.subscription);
+      }
+    } catch (error) {
+      console.error("구독 정보 로드 실패:", error);
+    } finally {
+      setLoadingSubscription(false);
+    }
+  };
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,6 +134,130 @@ export default function SettingsPage() {
         <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2">설정</h1>
         <p className="text-gray-600">계정 설정을 관리합니다</p>
       </div>
+
+      {/* 원장 계정인 경우 구독 정보 표시 */}
+      {user.role === "DIRECTOR" && (
+        <Card className="mb-6 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-blue-600" />
+              현재 플랜
+            </CardTitle>
+            <CardDescription>
+              현재 구독 중인 요금제 정보입니다
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingSubscription ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : subscription ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+                    <div>
+                      <div className="text-sm text-gray-600">플랜</div>
+                      <div className="font-semibold text-lg">{subscription.planName}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <div className="text-sm text-gray-600">만료일</div>
+                      <div className="font-semibold">
+                        {new Date(subscription.endDate).toLocaleDateString("ko-KR")}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold mb-3 text-gray-700">사용 한도</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="bg-white p-3 rounded-lg border">
+                      <div className="text-xs text-gray-600">학생</div>
+                      <div className="text-lg font-bold text-blue-600">
+                        {subscription.usage.students || 0}
+                        <span className="text-sm text-gray-500">
+                          {subscription.limits.maxStudents === -1 
+                            ? " / 무제한" 
+                            : ` / ${subscription.limits.maxStudents}`}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white p-3 rounded-lg border">
+                      <div className="text-xs text-gray-600">숙제 검사</div>
+                      <div className="text-lg font-bold text-green-600">
+                        {subscription.usage.homeworkChecks || 0}
+                        <span className="text-sm text-gray-500">
+                          {subscription.limits.maxHomeworkChecks === -1 
+                            ? " / 무제한" 
+                            : ` / ${subscription.limits.maxHomeworkChecks}`}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white p-3 rounded-lg border">
+                      <div className="text-xs text-gray-600">AI 분석</div>
+                      <div className="text-lg font-bold text-purple-600">
+                        {subscription.usage.aiAnalysis || 0}
+                        <span className="text-sm text-gray-500">
+                          {subscription.limits.maxAIAnalysis === -1 
+                            ? " / 무제한" 
+                            : ` / ${subscription.limits.maxAIAnalysis}`}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white p-3 rounded-lg border">
+                      <div className="text-xs text-gray-600">유사문제</div>
+                      <div className="text-lg font-bold text-orange-600">
+                        {subscription.usage.similarProblems || 0}
+                        <span className="text-sm text-gray-500">
+                          {subscription.limits.maxSimilarProblems === -1 
+                            ? " / 무제한" 
+                            : ` / ${subscription.limits.maxSimilarProblems}`}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white p-3 rounded-lg border">
+                      <div className="text-xs text-gray-600">랜딩페이지</div>
+                      <div className="text-lg font-bold text-pink-600">
+                        {subscription.usage.landingPages || 0}
+                        <span className="text-sm text-gray-500">
+                          {subscription.limits.maxLandingPages === -1 
+                            ? " / 무제한" 
+                            : ` / ${subscription.limits.maxLandingPages}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full mt-4"
+                  onClick={() => router.push("/pricing")}
+                >
+                  플랜 업그레이드
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-gray-600 mb-4">활성화된 구독이 없습니다</p>
+                <Button onClick={() => router.push("/pricing")}>
+                  요금제 선택하기
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-4">
