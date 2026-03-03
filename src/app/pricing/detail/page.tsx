@@ -20,6 +20,7 @@ function PricingDetailContent() {
 
   const bankAccount = "746-910023-17004"; // 하나은행 계좌번호
 
+  const [period, setPeriod] = useState<"1month" | "6months" | "12months">("1month");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -97,13 +98,24 @@ function PricingDetailContent() {
         }
       }
 
+      // 선택한 기간에 따른 금액 계산
+      const priceMap: Record<string, number> = {
+        "1month": plan.price_1month || plan.monthlyPrice,
+        "6months": plan.price_6months || plan.monthlyPrice * 6,
+        "12months": plan.price_12months || plan.yearlyPrice,
+      };
+      
+      const selectedAmount = priceMap[period] || plan.monthlyPrice;
+      
       const payload = {
         academyId,
         userId,
+        planId: plan.id,
         planName: plan.name,
-        amount: plan.monthlyPrice,
+        amount: selectedAmount,
+        period: period,
         paymentMethod,
-        notes: `이름: ${formData.name}\n이메일: ${formData.email}\n연락처: ${formData.phone}`,
+        notes: `이름: ${formData.name}\n이메일: ${formData.email}\n연락처: ${formData.phone}\n기간: ${period}`,
       };
 
       const response = await fetch("/api/admin/payment-approvals", {
@@ -207,6 +219,57 @@ function PricingDetailContent() {
                 <CardTitle>결제 신청</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* 결제 기간 선택 */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">결제 기간</label>
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <button
+                      onClick={() => setPeriod("1month")}
+                      className={`p-3 border-2 rounded-lg transition-all ${
+                        period === "1month"
+                          ? "border-blue-500 bg-blue-50 font-semibold"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="text-sm">1개월</div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        ₩{(plan.price_1month || plan.monthlyPrice).toLocaleString()}
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => setPeriod("6months")}
+                      className={`p-3 border-2 rounded-lg transition-all ${
+                        period === "6months"
+                          ? "border-green-500 bg-green-50 font-semibold"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="text-sm">6개월</div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        ₩{(plan.price_6months || plan.monthlyPrice * 6).toLocaleString()}
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => setPeriod("12months")}
+                      className={`p-3 border-2 rounded-lg transition-all ${
+                        period === "12months"
+                          ? "border-purple-500 bg-purple-50 font-semibold"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="text-sm">12개월</div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        ₩{(plan.price_12months || plan.yearlyPrice).toLocaleString()}
+                      </div>
+                      {plan.yearlyPrice && plan.monthlyPrice * 12 > plan.yearlyPrice && (
+                        <div className="text-xs text-red-500 font-bold mt-1">할인</div>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
                 {/* 결제 방식 선택 */}
                 <div>
                   <label className="block text-sm font-medium mb-2">결제 방식</label>

@@ -47,8 +47,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           academyId TEXT NOT NULL,
           userId INTEGER,
+          planId TEXT,
           planName TEXT NOT NULL,
           amount REAL NOT NULL,
+          period TEXT,
           paymentMethod TEXT DEFAULT 'card',
           status TEXT DEFAULT 'pending',
           requestedAt TEXT DEFAULT (datetime('now', '+9 hours')),
@@ -109,10 +111,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         a.email as academyEmail,
         u.name as userName,
         u.email as userEmail,
-        u.phone as userPhone
+        u.phone as userPhone,
+        pp.price_1month,
+        pp.price_6months,
+        pp.price_12months
       FROM payment_approvals pa
       LEFT JOIN academy a ON pa.academyId = a.id
       LEFT JOIN users u ON pa.userId = u.id
+      LEFT JOIN pricing_plans pp ON pa.planId = pp.id
     `;
 
     const params: any[] = [];
@@ -196,9 +202,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const body = await context.request.json() as PaymentApproval;
+    const body = await context.request.json() as any;
 
-    const { academyId, userId, planName, amount, paymentMethod, notes } = body;
+    const { academyId, userId, planId, planName, amount, period, paymentMethod, notes } = body;
 
     // 필수 필드 검증
     if (!academyId || !planName || !amount) {
@@ -212,13 +218,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const result = await DB.prepare(`
-      INSERT INTO payment_approvals (academyId, userId, planName, amount, paymentMethod, notes)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO payment_approvals (academyId, userId, planId, planName, amount, period, paymentMethod, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       academyId,
       userId || null,
+      planId || null,
       planName,
       amount,
+      period || '1month',
       paymentMethod || 'card',
       notes || ''
     ).run();

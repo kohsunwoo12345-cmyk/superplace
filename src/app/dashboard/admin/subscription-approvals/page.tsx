@@ -2,170 +2,232 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
   CreditCard,
+  Building2,
   User,
-  Calendar,
-  DollarSign,
-  AlertCircle,
   Mail,
   Phone,
-  Package
+  Calendar,
+  DollarSign,
+  FileText,
 } from "lucide-react";
 
-interface SubscriptionRequest {
-  id: string;
+interface PaymentApproval {
+  id: number;
+  academyId: string;
+  academyName: string;
   userId: string;
-  userEmail: string;
-  userName: string;
-  userPhone?: string;
-  academyId?: string;
   planId: string;
   planName: string;
+  amount: number;
   period: string;
   paymentMethod: string;
-  originalPrice: number;
-  discountedPrice: number;
-  finalPrice: number;
-  paymentInfo?: string;
   status: string;
-  adminNote?: string;
   requestedAt: string;
-  processedAt?: string;
-  approvedBy?: string;
-  approvedByEmail?: string;
-  planInfo?: {
-    name: string;
-    price_1month: number;
-    price_6months: number;
-    price_12months: number;
-    correctPrice: number;
-  };
+  approvedAt: string | null;
+  transactionId: string | null;
+  notes: string;
+  price_1month: number;
+  price_6months: number;
+  price_12months: number;
+  // Parsed from notes
+  applicantName?: string;
+  applicantEmail?: string;
+  applicantPhone?: string;
 }
 
-export default function SubscriptionApprovalsPage() {
+interface Stats {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  pendingAmount: number;
+  approvedAmount: number;
+}
+
+export default function PaymentApprovalsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [requests, setRequests] = useState<SubscriptionRequest[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<SubscriptionRequest | null>(null);
-  const [adminNote, setAdminNote] = useState("");
+  const [approvals, setApprovals] = useState<PaymentApproval[]>([]);
+  const [stats, setStats] = useState<Stats>({
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    pendingAmount: 0,
+    approvedAmount: 0,
+  });
+
+  const [selectedApproval, setSelectedApproval] = useState<number | null>(null);
+  const [transactionId, setTransactionId] = useState("");
+  const [rejectedReason, setRejectedReason] = useState("");
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
+    // Check admin role
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.role !== "ADMIN") {
+          alert("관리자만 접근 가능합니다.");
+          router.push("/dashboard");
+          return;
+        }
+      } catch (e) {
+        router.push("/login");
+        return;
+      }
+    } else {
       router.push("/login");
       return;
     }
 
-    const userData = JSON.parse(storedUser);
-    const role = userData.role?.toUpperCase();
+    fetchApprovals();
+  }, [statusFilter]);
 
-    if (role !== "ADMIN" && role !== "SUPER_ADMIN") {
-      alert("관리자만 접근할 수 있습니다.");
-      router.push("/dashboard");
-      return;
-    }
+  const parseNotes = (notes: string) => {
+    const parsed = {
+      applicantName: "",
+      applicantEmail: "",
+      applicantPhone: "",
+    };
 
-    fetchRequests();
-  }, [router, statusFilter]);
+    if (!notes) return parsed;
 
-  const fetchRequests = async () => {
+    const lines = notes.split("\\n");
+    lines.forEach((line) => {
+      if (line.startsWith("이름:")) {
+        parsed.applicantName = line.replace("이름:", "").trim();
+      } else if (line.startsWith("이메일:")) {
+        parsed.applicantEmail = line.replace("이메일:", "").trim();
+      } else if (line.startsWith("연락처:")) {
+        parsed.applicantPhone = line.replace("연락처:", "").trim();
+      }
+    });
+
+    return parsed;
+  };
+
+  const fetchApprovals = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/subscription-approvals?status=${statusFilter}`);
-      
+      const url = statusFilter === "all"
+        ? "/api/admin/payment-approvals"
+        : `/api/admin/payment-approvals?status=${statusFilter}`;
+
+      const response = await fetch(url);
+
       if (response.ok) {
         const data = await response.json();
-        console.log('📊 Subscription requests:', data);
-        setRequests(data.requests || []);
+        
+        // Parse notes for each approval
+        const parsedApprovals = (data.approvals || []).map((approval: PaymentApproval) => {
+          const parsedInfo = parseNotes(approval.notes);
+          return {
+            ...approval,
+            ...parsedInfo,
+          };
+        });
+
+        setApprovals(parsedApprovals);
+        setStats(data.stats || stats);
       }
     } catch (error) {
-      console.error("요금제 신청 데이터 로드 실패:", error);
+      console.error("Failed to fetch payment approvals:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApprove = async (requestId: string) => {
-    if (!confirm("이 요금제 신청을 승인하시겠습니까?")) return;
-
-    try {
-      const storedUser = localStorage.getItem("user");
-      const userData = storedUser ? JSON.parse(storedUser) : null;
-
-      const response = await fetch(`/api/admin/subscription-approvals`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          requestId: requestId,
-          action: 'approve',
-          adminName: userData?.name || 'Admin',
-          adminEmail: userData?.email || 'admin@superplace.co.kr',
-          adminNote: adminNote.trim()
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        alert("✅ 요금제 신청이 승인되었습니다.");
-        setSelectedRequest(null);
-        setAdminNote("");
-        fetchRequests();
-      } else {
-        alert(`❌ 승인 실패: ${data.error || '알 수 없는 오류'}`);
-      }
-    } catch (error) {
-      console.error("승인 실패:", error);
-      alert("❌ 승인 중 오류가 발생했습니다.");
-    }
-  };
-
-  const handleReject = async (requestId: string) => {
-    if (!adminNote.trim()) {
-      alert("거부 사유를 입력해주세요.");
+  const handleApprove = async (approvalId: number) => {
+    if (!transactionId.trim()) {
+      alert("거래 ID를 입력해주세요.");
       return;
     }
 
-    if (!confirm("이 요금제 신청을 거부하시겠습니까?")) return;
+    if (!confirm("승인하시겠습니까?")) {
+      return;
+    }
 
     try {
-      const storedUser = localStorage.getItem("user");
-      const userData = storedUser ? JSON.parse(storedUser) : null;
+      const response = await fetch(
+        `/api/admin/payment-approvals?id=${approvalId}&action=approve`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            approvedBy: "admin-001",
+            transactionId: transactionId,
+          }),
+        }
+      );
 
-      const response = await fetch(`/api/admin/subscription-approvals`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          requestId: requestId,
-          action: 'reject',
-          adminName: userData?.name || 'Admin',
-          adminEmail: userData?.email || 'admin@superplace.co.kr',
-          adminNote: adminNote.trim()
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        alert("✅ 요금제 신청이 거부되었습니다.");
-        setSelectedRequest(null);
-        setAdminNote("");
-        fetchRequests();
+      if (response.ok) {
+        alert("승인되었습니다.");
+        setSelectedApproval(null);
+        setTransactionId("");
+        fetchApprovals();
       } else {
-        alert(`❌ 거부 실패: ${data.error || '알 수 없는 오류'}`);
+        alert("승인 처리 중 오류가 발생했습니다.");
       }
     } catch (error) {
-      console.error("거부 실패:", error);
-      alert("❌ 거부 중 오류가 발생했습니다.");
+      console.error("Approve error:", error);
+      alert("승인 처리 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleReject = async (approvalId: number) => {
+    if (!rejectedReason.trim()) {
+      alert("거절 사유를 입력해주세요.");
+      return;
+    }
+
+    if (!confirm("거절하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/admin/payment-approvals?id=${approvalId}&action=reject`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            approvedBy: "admin-001",
+            rejectedReason: rejectedReason,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        alert("거절되었습니다.");
+        setSelectedApproval(null);
+        setRejectedReason("");
+        fetchApprovals();
+      } else {
+        alert("거절 처리 중 오류가 발생했습니다.");
+      }
+    } catch (error) {
+      console.error("Reject error:", error);
+      alert("거절 처리 중 오류가 발생했습니다.");
     }
   };
 
@@ -177,273 +239,392 @@ export default function SubscriptionApprovalsPage() {
   };
 
   const formatDateTime = (dateString: string) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleString("ko-KR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const getPeriodLabel = (period: string) => {
-    switch (period) {
-      case '1month':
-        return '1개월';
-      case '6months':
-        return '6개월';
-      case '12months':
-        return '12개월 (1년)';
-      default:
-        return period;
-    }
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleString("ko-KR");
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return <Badge className="bg-yellow-500"><Clock className="w-3 h-3 mr-1" />승인 대기</Badge>;
+        return (
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+            <Clock className="w-3 h-3 mr-1" />
+            대기중
+          </Badge>
+        );
       case "approved":
-        return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />승인 완료</Badge>;
+        return (
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+            <CheckCircle2 className="w-3 h-3 mr-1" />
+            승인
+          </Badge>
+        );
       case "rejected":
-        return <Badge className="bg-red-500"><XCircle className="w-3 h-3 mr-1" />거부됨</Badge>;
+        return (
+          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+            <XCircle className="w-3 h-3 mr-1" />
+            거절
+          </Badge>
+        );
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge>{status}</Badge>;
     }
   };
 
-  const stats = {
-    total: requests.length,
-    pending: requests.filter(r => r.status === 'pending').length,
-    approved: requests.filter(r => r.status === 'approved').length,
-    rejected: requests.filter(r => r.status === 'rejected').length,
+  const getPaymentMethodBadge = (method: string) => {
+    return method === "card" ? (
+      <Badge variant="outline" className="bg-blue-50 text-blue-700">
+        <CreditCard className="w-3 h-3 mr-1" />
+        카드
+      </Badge>
+    ) : (
+      <Badge variant="outline" className="bg-green-50 text-green-700">
+        <Building2 className="w-3 h-3 mr-1" />
+        계좌이체
+      </Badge>
+    );
+  };
+
+  const getPeriodLabel = (period: string) => {
+    const labels: Record<string, string> = {
+      "1month": "1개월",
+      "6months": "6개월",
+      "12months": "12개월",
+    };
+    return labels[period] || period;
   };
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-96">
-          <div className="text-lg">로딩 중...</div>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">📝 요금제 신청 승인</h1>
-        <p className="text-gray-600">학원 요금제 신청을 승인하거나 거부합니다</p>
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">결제 승인 관리</h1>
+          <p className="text-gray-600 mt-1">
+            요금제 신청 승인 및 관리
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => router.push("/dashboard/admin")}>
+          대시보드로
+        </Button>
       </div>
 
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">전체 신청</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              전체 신청
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}건</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
 
-        <Card className="border-yellow-200 bg-yellow-50">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">승인 대기</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              대기중
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}건</div>
+            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+            <p className="text-xs text-gray-500 mt-1">
+              {formatCurrency(stats.pendingAmount)}
+            </p>
           </CardContent>
         </Card>
 
-        <Card className="border-green-200 bg-green-50">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">승인 완료</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              승인
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.approved}건</div>
+            <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
+            <p className="text-xs text-gray-500 mt-1">
+              {formatCurrency(stats.approvedAmount)}
+            </p>
           </CardContent>
         </Card>
 
-        <Card className="border-red-200 bg-red-50">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">거부됨</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              거절
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.rejected}건</div>
+            <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 필터 */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setStatusFilter("all")}
-              variant={statusFilter === "all" ? "default" : "outline"}
-            >
-              전체
-            </Button>
-            <Button
-              onClick={() => setStatusFilter("pending")}
-              variant={statusFilter === "pending" ? "default" : "outline"}
-            >
-              승인 대기
-            </Button>
-            <Button
-              onClick={() => setStatusFilter("approved")}
-              variant={statusFilter === "approved" ? "default" : "outline"}
-            >
-              승인 완료
-            </Button>
-            <Button
-              onClick={() => setStatusFilter("rejected")}
-              variant={statusFilter === "rejected" ? "default" : "outline"}
-            >
-              거부됨
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Filter Buttons */}
+      <div className="flex gap-2">
+        <Button
+          variant={statusFilter === "all" ? "default" : "outline"}
+          onClick={() => setStatusFilter("all")}
+        >
+          전체
+        </Button>
+        <Button
+          variant={statusFilter === "pending" ? "default" : "outline"}
+          onClick={() => setStatusFilter("pending")}
+        >
+          대기중
+        </Button>
+        <Button
+          variant={statusFilter === "approved" ? "default" : "outline"}
+          onClick={() => setStatusFilter("approved")}
+        >
+          승인
+        </Button>
+        <Button
+          variant={statusFilter === "rejected" ? "default" : "outline"}
+          onClick={() => setStatusFilter("rejected")}
+        >
+          거절
+        </Button>
+      </div>
 
-      {/* 신청 목록 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>요금제 신청 목록</CardTitle>
-          <CardDescription>{requests.length}개의 신청</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {requests.map((request) => (
-              <Card key={request.id} className="border-2">
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* 왼쪽: 신청자 정보 */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xl font-bold">{request.userName}</h3>
-                        {getStatusBadge(request.status)}
+      {/* Approvals List */}
+      <div className="space-y-4">
+        {approvals.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FileText className="w-12 h-12 text-gray-400 mb-4" />
+              <p className="text-gray-600">신청 내역이 없습니다.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          approvals.map((approval) => (
+            <Card key={approval.id} className="overflow-hidden">
+              <CardHeader className="bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-lg">
+                      {approval.academyName || "학원명 없음"}
+                    </CardTitle>
+                    {getStatusBadge(approval.status)}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    신청 ID: {approval.id}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* 신청자 정보 */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                      <User className="w-5 h-5" />
+                      신청자 정보
+                    </h3>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <User className="w-4 h-4 text-gray-500" />
+                        <strong>이름:</strong>
+                        <span>{approval.applicantName || "정보 없음"}</span>
                       </div>
                       
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Mail className="w-4 h-4" />
-                        <span className="text-sm">{request.userEmail}</span>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="w-4 h-4 text-gray-500" />
+                        <strong>이메일:</strong>
+                        <span>{approval.applicantEmail || "정보 없음"}</span>
                       </div>
-
-                      {request.userPhone && (
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Phone className="w-4 h-4" />
-                          <span className="text-sm">{request.userPhone}</span>
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar className="w-4 h-4" />
-                        <span className="text-sm">신청: {formatDateTime(request.requestedAt)}</span>
+                      
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="w-4 h-4 text-gray-500" />
+                        <strong>연락처:</strong>
+                        <span>{approval.applicantPhone || "정보 없음"}</span>
                       </div>
-
-                      {request.processedAt && (
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <CheckCircle className="w-4 h-4" />
-                          <span className="text-sm">처리: {formatDateTime(request.processedAt)}</span>
-                        </div>
-                      )}
-
-                      {request.adminNote && (
-                        <div className="p-3 bg-gray-50 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">관리자 메모</p>
-                          <p className="text-sm">{request.adminNote}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 오른쪽: 요금제 정보 */}
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Package className="w-5 h-5 text-blue-600" />
-                          <h4 className="text-lg font-semibold">{request.planInfo?.name || request.planName}</h4>
-                        </div>
-                        <Badge variant="outline" className="text-lg px-3 py-1">
-                          {getPeriodLabel(request.period)}
-                        </Badge>
+                      
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="w-4 h-4 text-gray-500" />
+                        <strong>신청일시:</strong>
+                        <span>{formatDateTime(approval.requestedAt)}</span>
                       </div>
-
-                      <div className="p-4 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-gray-600 mb-1">결제 금액</p>
-                        <div className="text-3xl font-bold text-blue-600">
-                          {request.planInfo?.correctPrice 
-                            ? formatCurrency(request.planInfo.correctPrice)
-                            : formatCurrency(request.finalPrice)}
-                        </div>
-                        {request.planInfo && (
-                          <div className="mt-2 text-xs text-gray-500">
-                            <p>• 1개월: {formatCurrency(request.planInfo.price_1month)}</p>
-                            <p>• 6개월: {formatCurrency(request.planInfo.price_6months)}</p>
-                            <p>• 12개월: {formatCurrency(request.planInfo.price_12months)}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      {request.paymentMethod && (
-                        <div className="flex items-center gap-2">
-                          <CreditCard className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm text-gray-600">
-                            결제 방법: {request.paymentMethod === 'card' ? '카드' : 
-                                       request.paymentMethod === 'transfer' ? '계좌이체' : 
-                                       request.paymentMethod}
-                          </span>
-                        </div>
-                      )}
-
-                      {request.status === "pending" && (
-                        <div className="space-y-2 mt-4">
-                          <Textarea
-                            placeholder="관리자 메모 (선택사항)"
-                            value={selectedRequest?.id === request.id ? adminNote : ""}
-                            onChange={(e) => {
-                              setSelectedRequest(request);
-                              setAdminNote(e.target.value);
-                            }}
-                            rows={3}
-                          />
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => handleApprove(request.id)}
-                              className="flex-1 bg-green-600 hover:bg-green-700"
-                            >
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              승인
-                            </Button>
-                            <Button
-                              onClick={() => handleReject(request.id)}
-                              variant="destructive"
-                              className="flex-1"
-                            >
-                              <XCircle className="w-4 h-4 mr-2" />
-                              거부
-                            </Button>
-                          </div>
+                      
+                      {approval.approvedAt && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="w-4 h-4 text-gray-500" />
+                          <strong>처리일시:</strong>
+                          <span>{formatDateTime(approval.approvedAt)}</span>
                         </div>
                       )}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
 
-            {requests.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>요금제 신청이 없습니다.</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                  {/* 요금제 정보 */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                      <DollarSign className="w-5 h-5" />
+                      요금제 정보
+                    </h3>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2 text-sm">
+                        <strong>요금제:</strong>
+                        <span>{approval.planName}</span>
+                      </div>
+                      
+                      <div className="flex items-start gap-2 text-sm">
+                        <strong>기간:</strong>
+                        <Badge variant="secondary">
+                          {getPeriodLabel(approval.period || "1month")}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex items-start gap-2 text-sm">
+                        <strong>금액:</strong>
+                        <span className="text-2xl font-bold text-green-600">
+                          {formatCurrency(approval.amount)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-start gap-2 text-sm">
+                        <strong>결제방법:</strong>
+                        {getPaymentMethodBadge(approval.paymentMethod)}
+                      </div>
+
+                      {/* 가격표 */}
+                      {approval.price_1month && (
+                        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                          <div className="text-xs font-semibold mb-2 text-gray-600">
+                            전체 가격표
+                          </div>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>기간</TableHead>
+                                <TableHead className="text-right">금액</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              <TableRow>
+                                <TableCell>1개월</TableCell>
+                                <TableCell className="text-right">
+                                  {formatCurrency(approval.price_1month)}
+                                </TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>6개월</TableCell>
+                                <TableCell className="text-right">
+                                  {formatCurrency(approval.price_6months)}
+                                </TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>12개월</TableCell>
+                                <TableCell className="text-right font-bold">
+                                  {formatCurrency(approval.price_12months)}
+                                </TableCell>
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 관리자 액션 */}
+                {approval.status === "pending" && (
+                  <div className="mt-6 pt-6 border-t space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {selectedApproval === approval.id ? (
+                        <>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">거래 ID</label>
+                            <Input
+                              value={transactionId}
+                              onChange={(e) => setTransactionId(e.target.value)}
+                              placeholder="거래 ID 입력"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => handleApprove(approval.id)}
+                                className="flex-1"
+                                variant="default"
+                              >
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                승인하기
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setSelectedApproval(null);
+                                  setTransactionId("");
+                                }}
+                                variant="outline"
+                              >
+                                취소
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">거절 사유</label>
+                            <Textarea
+                              value={rejectedReason}
+                              onChange={(e) => setRejectedReason(e.target.value)}
+                              placeholder="거절 사유 입력"
+                              rows={2}
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => handleReject(approval.id)}
+                                className="flex-1"
+                                variant="destructive"
+                              >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                거절하기
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setSelectedApproval(null);
+                                  setRejectedReason("");
+                                }}
+                                variant="outline"
+                              >
+                                취소
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <Button
+                          onClick={() => setSelectedApproval(approval.id)}
+                          className="w-full"
+                        >
+                          처리하기
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {approval.transactionId && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <div className="text-sm">
+                      <strong>거래 ID:</strong> {approval.transactionId}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 }
