@@ -76,32 +76,80 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 🆕 실제 학생 수 카운트 (학원장의 academyId로)
-    let actualStudentCount = 0;
-    if (academyId) {
-      const studentCountResult = await DB.prepare(`
-        SELECT COUNT(*) as count 
-        FROM User 
-        WHERE academyId = ? AND role = 'STUDENT'
-      `).bind(academyId).first();
-      actualStudentCount = studentCountResult?.count || 0;
-    } else if (userId) {
+    // ============================================
+    // 🔄 실제 사용량 카운트 (academyId 기준)
+    // ============================================
+    let targetAcademyId = academyId;
+    
+    if (!targetAcademyId && userId) {
       // userId로 조회 시 해당 사용자의 academyId 찾기
       const userAcademy = await DB.prepare(`
         SELECT academyId FROM User WHERE id = ?
       `).bind(userId).first();
-      
-      if (userAcademy?.academyId) {
-        const studentCountResult = await DB.prepare(`
-          SELECT COUNT(*) as count 
-          FROM User 
-          WHERE academyId = ? AND role = 'STUDENT'
-        `).bind(userAcademy.academyId).first();
-        actualStudentCount = studentCountResult?.count || 0;
-      }
+      targetAcademyId = userAcademy?.academyId;
     }
 
-    console.log(`📊 실제 학생 수: ${actualStudentCount}, DB 저장값: ${subscription.current_students}`);
+    let actualStudentCount = 0;
+    let actualHomeworkChecks = 0;
+    let actualAIAnalysis = 0;
+    let actualSimilarProblems = 0;
+    let actualLandingPages = 0;
+
+    if (targetAcademyId) {
+      // 1️⃣ 활성 학생 수 (퇴원하지 않은 학생만)
+      const studentCountResult = await DB.prepare(`
+        SELECT COUNT(*) as count 
+        FROM User 
+        WHERE academyId = ? 
+          AND role = 'STUDENT' 
+          AND withdrawnAt IS NULL
+      `).bind(targetAcademyId).first();
+      actualStudentCount = studentCountResult?.count || 0;
+
+      // 2️⃣ 숙제 검사 횟수 (homework_gradings 테이블)
+      const homeworkResult = await DB.prepare(`
+        SELECT COUNT(*) as count 
+        FROM homework_gradings hg
+        JOIN homework_submissions hs ON hg.submissionId = hs.id
+        WHERE hs.academyId = ?
+      `).bind(targetAcademyId).first();
+      actualHomeworkChecks = homeworkResult?.count || 0;
+
+      // 3️⃣ AI 분석 횟수 (usage_logs 테이블에서 ai_analysis 타입)
+      const aiAnalysisResult = await DB.prepare(`
+        SELECT COUNT(*) as count 
+        FROM usage_logs ul
+        JOIN User u ON ul.userId = u.id
+        WHERE u.academyId = ? 
+          AND ul.type = 'ai_analysis'
+      `).bind(targetAcademyId).first();
+      actualAIAnalysis = aiAnalysisResult?.count || 0;
+
+      // 4️⃣ 유사문제 출제 횟수 (usage_logs 테이블에서 similar_problem 타입)
+      const similarProblemsResult = await DB.prepare(`
+        SELECT COUNT(*) as count 
+        FROM usage_logs ul
+        JOIN User u ON ul.userId = u.id
+        WHERE u.academyId = ? 
+          AND ul.type = 'similar_problem'
+      `).bind(targetAcademyId).first();
+      actualSimilarProblems = similarProblemsResult?.count || 0;
+
+      // 5️⃣ 랜딩페이지 생성 수 (landing_pages 테이블)
+      const landingPagesResult = await DB.prepare(`
+        SELECT COUNT(*) as count 
+        FROM landing_pages
+        WHERE academyId = ?
+      `).bind(targetAcademyId).first();
+      actualLandingPages = landingPagesResult?.count || 0;
+
+      console.log(`📊 실제 사용량 카운트 (academyId: ${targetAcademyId})`);
+      console.log(`  - 활성 학생 수: ${actualStudentCount}`);
+      console.log(`  - 숙제 검사: ${actualHomeworkChecks}`);
+      console.log(`  - AI 분석: ${actualAIAnalysis}`);
+      console.log(`  - 유사문제: ${actualSimilarProblems}`);
+      console.log(`  - 랜딩페이지: ${actualLandingPages}`);
+    }
 
     // 사용량 정보 반환
     return new Response(JSON.stringify({
@@ -113,13 +161,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         status: subscription.status,
         endDate: subscription.endDate,
         
-        // 현재 사용량 (실제 카운트 사용)
+        // 현재 사용량 (실제 테이블에서 카운트)
         usage: {
-          students: actualStudentCount,  // 🔄 실제 학생 수
-          homeworkChecks: subscription.current_homework_checks || 0,
-          aiAnalysis: subscription.current_ai_analysis || 0,
-          similarProblems: subscription.current_similar_problems || 0,
-          landingPages: subscription.current_landing_pages || 0,
+          students: actualStudentCount,           // 🔄 활성 학생 수
+          homeworkChecks: actualHomeworkChecks,   // 🔄 실제 숙제 검사 수
+          aiAnalysis: actualAIAnalysis,           // 🔄 실제 AI 분석 수
+          similarProblems: actualSimilarProblems, // 🔄 실제 유사문제 출제 수
+          landingPages: actualLandingPages,       // 🔄 실제 랜딩페이지 수
         },
         
         // 제한 (실제 DB 컬럼만 사용)
