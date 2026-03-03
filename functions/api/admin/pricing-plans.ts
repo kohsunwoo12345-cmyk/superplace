@@ -40,7 +40,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // pricing_plans 테이블 생성 (price_* 컬럼명 사용)
+    // pricing_plans 테이블 생성 (실제 DB 스키마에 맞춤)
     await db.prepare(`
       CREATE TABLE IF NOT EXISTS pricing_plans (
         id TEXT PRIMARY KEY,
@@ -52,12 +52,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         price_12months INTEGER DEFAULT 0,
         
         max_students INTEGER DEFAULT -1,
-        max_teachers INTEGER DEFAULT -1,
         max_homework_checks INTEGER DEFAULT -1,
         max_ai_analysis INTEGER DEFAULT -1,
-        max_ai_grading INTEGER DEFAULT -1,
-        max_capability_analysis INTEGER DEFAULT -1,
-        max_concept_analysis INTEGER DEFAULT -1,
         max_similar_problems INTEGER DEFAULT -1,
         max_landing_pages INTEGER DEFAULT -1,
         
@@ -86,12 +82,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       },
       limits: {
         maxStudents: plan.max_students ?? -1,
-        maxTeachers: plan.max_teachers ?? -1,
+        maxTeachers: -1, // DB에 컬럼 없음, 기본값 사용
         maxHomeworkChecks: plan.max_homework_checks ?? -1,
         maxAIAnalysis: plan.max_ai_analysis ?? -1,
-        maxAIGrading: plan.max_ai_grading ?? -1,
-        maxCapabilityAnalysis: plan.max_capability_analysis ?? -1,
-        maxConceptAnalysis: plan.max_concept_analysis ?? -1,
+        maxAIGrading: -1, // DB에 컬럼 없음, 기본값 사용
+        maxCapabilityAnalysis: -1, // DB에 컬럼 없음, 기본값 사용
+        maxConceptAnalysis: -1, // DB에 컬럼 없음, 기본값 사용
         maxSimilarProblems: plan.max_similar_problems ?? -1,
         maxLandingPages: plan.max_landing_pages ?? -1,
       },
@@ -161,11 +157,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         INSERT INTO pricing_plans (
           id, name, description,
           price_1month, price_6months, price_12months,
-          max_students, max_teachers, max_homework_checks,
-          max_ai_analysis, max_ai_grading, max_capability_analysis,
-          max_concept_analysis, max_similar_problems, max_landing_pages,
+          max_students, max_homework_checks,
+          max_ai_analysis, max_similar_problems, max_landing_pages,
           features, isPopular, color, \`order\`, isActive
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         planId,
@@ -175,12 +170,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         data.pricing_6months,
         data.pricing_12months,
         data.maxStudents || -1,
-        data.maxTeachers || -1,
         data.maxHomeworkChecks || -1,
         data.maxAIAnalysis || -1,
-        data.maxAIGrading || -1,
-        data.maxCapabilityAnalysis || -1,
-        data.maxConceptAnalysis || -1,
         data.maxSimilarProblems || -1,
         data.maxLandingPages || -1,
         data.features || '[]',
@@ -275,12 +266,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           price_6months = ?,
           price_12months = ?,
           max_students = ?,
-          max_teachers = ?,
           max_homework_checks = ?,
           max_ai_analysis = ?,
-          max_ai_grading = ?,
-          max_capability_analysis = ?,
-          max_concept_analysis = ?,
           max_similar_problems = ?,
           max_landing_pages = ?,
           features = ?,
@@ -298,12 +285,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         data.pricing_6months,
         data.pricing_12months,
         data.maxStudents || -1,
-        data.maxTeachers || -1,
         data.maxHomeworkChecks || -1,
         data.maxAIAnalysis || -1,
-        data.maxAIGrading || -1,
-        data.maxCapabilityAnalysis || -1,
-        data.maxConceptAnalysis || -1,
         data.maxSimilarProblems || -1,
         data.maxLandingPages || -1,
         data.features || '[]',
