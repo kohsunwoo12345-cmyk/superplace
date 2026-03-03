@@ -103,6 +103,30 @@ interface AcademyDetail {
     totalRevenue: number;
     transactionCount: number;
   };
+  currentPlan?: {
+    planName: string;
+    status: string;
+    period?: string;
+    maxStudents: number;
+    usedStudents: number;
+    maxTeachers: number;
+    usedTeachers: number;
+    maxHomeworkChecks: number;
+    usedHomeworkChecks: number;
+    maxAIAnalysis: number;
+    usedAIAnalysis: number;
+    maxSimilarProblems: number;
+    usedSimilarProblems: number;
+    maxLandingPages: number;
+    usedLandingPages: number;
+    startDate?: string;
+    endDate?: string;
+    daysRemaining: number;
+    active: boolean;
+    autoRenew?: boolean;
+    lastPaymentAmount?: number;
+    lastPaymentDate?: string;
+  };
 }
 
 export default function AcademyDetailPage() {
@@ -320,7 +344,7 @@ export default function AcademyDetailPage() {
               <span className="text-3xl font-bold">{academy.studentCount}명</span>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              최대 {academy.maxStudents}명
+              최대 {academy.currentPlan?.maxStudents || academy.maxStudents}명
             </p>
           </CardContent>
         </Card>
@@ -337,7 +361,7 @@ export default function AcademyDetailPage() {
               <span className="text-3xl font-bold">{academy.teacherCount}명</span>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              최대 {academy.maxTeachers}명
+              최대 {academy.currentPlan?.maxTeachers || academy.maxTeachers}명
             </p>
           </CardContent>
         </Card>
@@ -858,7 +882,7 @@ export default function AcademyDetailPage() {
                     </Badge>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div>
                       <p className="text-sm text-gray-600">학생 제한</p>
                       <div className="flex items-center gap-2 mt-1">
@@ -867,14 +891,14 @@ export default function AcademyDetailPage() {
                             className="bg-blue-600 h-2 rounded-full"
                             style={{
                               width: `${Math.min(
-                                (academy.studentCount / academy.maxStudents) * 100,
+                                (academy.studentCount / (academy.currentPlan?.maxStudents || academy.maxStudents)) * 100,
                                 100
                               )}%`,
                             }}
                           />
                         </div>
                         <span className="text-sm font-semibold">
-                          {academy.studentCount} / {academy.maxStudents}
+                          {academy.studentCount} / {academy.currentPlan?.maxStudents || academy.maxStudents}
                         </span>
                       </div>
                     </div>
@@ -887,17 +911,117 @@ export default function AcademyDetailPage() {
                             className="bg-green-600 h-2 rounded-full"
                             style={{
                               width: `${Math.min(
-                                (academy.teacherCount / academy.maxTeachers) * 100,
+                                (academy.teacherCount / (academy.currentPlan?.maxTeachers || academy.maxTeachers)) * 100,
                                 100
                               )}%`,
                             }}
                           />
                         </div>
                         <span className="text-sm font-semibold">
-                          {academy.teacherCount} / {academy.maxTeachers}
+                          {academy.teacherCount} / {academy.currentPlan?.maxTeachers || academy.maxTeachers}
                         </span>
                       </div>
                     </div>
+
+                    {academy.currentPlan && academy.currentPlan.maxHomeworkChecks > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-600">숙제 검사 제한</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-purple-600 h-2 rounded-full"
+                              style={{
+                                width: `${Math.min(
+                                  (academy.currentPlan.usedHomeworkChecks / academy.currentPlan.maxHomeworkChecks) * 100,
+                                  100
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm font-semibold">
+                            {academy.currentPlan.usedHomeworkChecks} / {academy.currentPlan.maxHomeworkChecks}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {academy.currentPlan && academy.currentPlan.maxAIAnalysis > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-600">AI 분석 제한</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-orange-600 h-2 rounded-full"
+                              style={{
+                                width: `${Math.min(
+                                  (academy.currentPlan.usedAIAnalysis / academy.currentPlan.maxAIAnalysis) * 100,
+                                  100
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm font-semibold">
+                            {academy.currentPlan.usedAIAnalysis} / {academy.currentPlan.maxAIAnalysis}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {academy.currentPlan && academy.currentPlan.maxSimilarProblems > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-600">유사 문제 생성 제한</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-pink-600 h-2 rounded-full"
+                              style={{
+                                width: `${Math.min(
+                                  (academy.currentPlan.usedSimilarProblems / academy.currentPlan.maxSimilarProblems) * 100,
+                                  100
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm font-semibold">
+                            {academy.currentPlan.usedSimilarProblems} / {academy.currentPlan.maxSimilarProblems}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {academy.currentPlan && academy.currentPlan.maxLandingPages > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-600">랜딩 페이지 제한</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-teal-600 h-2 rounded-full"
+                              style={{
+                                width: `${Math.min(
+                                  (academy.currentPlan.usedLandingPages / academy.currentPlan.maxLandingPages) * 100,
+                                  100
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm font-semibold">
+                            {academy.currentPlan.usedLandingPages} / {academy.currentPlan.maxLandingPages}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {academy.currentPlan && academy.currentPlan.endDate && (
+                      <div className="pt-2 border-t">
+                        <p className="text-sm text-gray-600">구독 만료일</p>
+                        <p className="text-sm font-semibold mt-1">
+                          {new Date(academy.currentPlan.endDate).toLocaleDateString('ko-KR')}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          ({academy.currentPlan.daysRemaining}일 남음)
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
