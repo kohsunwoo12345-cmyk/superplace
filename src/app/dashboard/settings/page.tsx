@@ -201,65 +201,130 @@ export default function SettingsPage() {
 
                 <div className="pt-4 border-t">
                   <h4 className="font-semibold mb-3 text-gray-700">사용 한도</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <div className="bg-white p-3 rounded-lg border">
-                      <div className="text-xs text-gray-600">학생</div>
-                      <div className="text-lg font-bold text-blue-600">
-                        {subscription.usage.students || 0}
-                        <span className="text-sm text-gray-500">
-                          {subscription.limits.maxStudents === -1 
-                            ? " / 무제한" 
-                            : ` / ${subscription.limits.maxStudents}`}
-                        </span>
+                  <div className="space-y-4">
+                    {/* 학생 */}
+                    <div className="bg-white p-4 rounded-lg border">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm font-medium text-gray-700">학생</div>
+                        <div className="text-sm font-bold text-blue-600">
+                          {subscription.usage.students || 0}
+                          <span className="text-gray-500">
+                            {subscription.limits.maxStudents === -1 
+                              ? " / 무제한" 
+                              : ` / ${subscription.limits.maxStudents}`}
+                          </span>
+                        </div>
                       </div>
+                      {subscription.limits.maxStudents !== -1 && (
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ 
+                              width: `${Math.min(100, ((subscription.usage.students || 0) / subscription.limits.maxStudents) * 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                      )}
                     </div>
                     
-                    <div className="bg-white p-3 rounded-lg border">
-                      <div className="text-xs text-gray-600">숙제 검사</div>
-                      <div className="text-lg font-bold text-green-600">
-                        {subscription.usage.homeworkChecks || 0}
-                        <span className="text-sm text-gray-500">
-                          {subscription.limits.maxHomeworkChecks === -1 
-                            ? " / 무제한" 
-                            : ` / ${subscription.limits.maxHomeworkChecks}`}
-                        </span>
+                    {/* 숙제 검사 */}
+                    <div className="bg-white p-4 rounded-lg border">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm font-medium text-gray-700">숙제 검사</div>
+                        <div className="text-sm font-bold text-green-600">
+                          {subscription.usage.homeworkChecks || 0}
+                          <span className="text-gray-500">
+                            {subscription.limits.maxHomeworkChecks === -1 
+                              ? " / 무제한" 
+                              : ` / ${subscription.limits.maxHomeworkChecks}`}
+                          </span>
+                        </div>
                       </div>
+                      {subscription.limits.maxHomeworkChecks !== -1 && (
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                            style={{ 
+                              width: `${Math.min(100, ((subscription.usage.homeworkChecks || 0) / subscription.limits.maxHomeworkChecks) * 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                      )}
                     </div>
                     
-                    <div className="bg-white p-3 rounded-lg border">
-                      <div className="text-xs text-gray-600">AI 분석</div>
-                      <div className="text-lg font-bold text-purple-600">
-                        {subscription.usage.aiAnalysis || 0}
-                        <span className="text-sm text-gray-500">
-                          {subscription.limits.maxAIAnalysis === -1 
-                            ? " / 무제한" 
-                            : ` / ${subscription.limits.maxAIAnalysis}`}
-                        </span>
+                    {/* AI 분석 */}
+                    <div className="bg-white p-4 rounded-lg border">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm font-medium text-gray-700">AI 분석</div>
+                        <div className="text-sm font-bold text-purple-600">
+                          {subscription.usage.aiAnalysis || 0}
+                          <span className="text-gray-500">
+                            {subscription.limits.maxAIAnalysis === -1 
+                              ? " / 무제한" 
+                              : ` / ${subscription.limits.maxAIAnalysis}`}
+                          </span>
+                        </div>
                       </div>
+                      {subscription.limits.maxAIAnalysis !== -1 && (
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                            style={{ 
+                              width: `${Math.min(100, ((subscription.usage.aiAnalysis || 0) / subscription.limits.maxAIAnalysis) * 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                      )}
                     </div>
                     
-                    <div className="bg-white p-3 rounded-lg border">
-                      <div className="text-xs text-gray-600">유사문제</div>
-                      <div className="text-lg font-bold text-orange-600">
-                        {subscription.usage.similarProblems || 0}
-                        <span className="text-sm text-gray-500">
-                          {subscription.limits.maxSimilarProblems === -1 
-                            ? " / 무제한" 
-                            : ` / ${subscription.limits.maxSimilarProblems}`}
-                        </span>
+                    {/* 유사문제 */}
+                    <div className="bg-white p-4 rounded-lg border">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm font-medium text-gray-700">유사문제</div>
+                        <div className="text-sm font-bold text-orange-600">
+                          {subscription.usage.similarProblems || 0}
+                          <span className="text-gray-500">
+                            {subscription.limits.maxSimilarProblems === -1 
+                              ? " / 무제한" 
+                              : ` / ${subscription.limits.maxSimilarProblems}`}
+                          </span>
+                        </div>
                       </div>
+                      {subscription.limits.maxSimilarProblems !== -1 && (
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-orange-600 h-2 rounded-full transition-all duration-300"
+                            style={{ 
+                              width: `${Math.min(100, ((subscription.usage.similarProblems || 0) / subscription.limits.maxSimilarProblems) * 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                      )}
                     </div>
                     
-                    <div className="bg-white p-3 rounded-lg border">
-                      <div className="text-xs text-gray-600">랜딩페이지</div>
-                      <div className="text-lg font-bold text-pink-600">
-                        {subscription.usage.landingPages || 0}
-                        <span className="text-sm text-gray-500">
-                          {subscription.limits.maxLandingPages === -1 
-                            ? " / 무제한" 
-                            : ` / ${subscription.limits.maxLandingPages}`}
-                        </span>
+                    {/* 랜딩페이지 */}
+                    <div className="bg-white p-4 rounded-lg border">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm font-medium text-gray-700">랜딩페이지</div>
+                        <div className="text-sm font-bold text-pink-600">
+                          {subscription.usage.landingPages || 0}
+                          <span className="text-gray-500">
+                            {subscription.limits.maxLandingPages === -1 
+                              ? " / 무제한" 
+                              : ` / ${subscription.limits.maxLandingPages}`}
+                          </span>
+                        </div>
                       </div>
+                      {subscription.limits.maxLandingPages !== -1 && (
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-pink-600 h-2 rounded-full transition-all duration-300"
+                            style={{ 
+                              width: `${Math.min(100, ((subscription.usage.landingPages || 0) / subscription.limits.maxLandingPages) * 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

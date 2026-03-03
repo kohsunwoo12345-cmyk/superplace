@@ -76,6 +76,33 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
+    // 🆕 실제 학생 수 카운트 (학원장의 academyId로)
+    let actualStudentCount = 0;
+    if (academyId) {
+      const studentCountResult = await DB.prepare(`
+        SELECT COUNT(*) as count 
+        FROM User 
+        WHERE academyId = ? AND role = 'STUDENT'
+      `).bind(academyId).first();
+      actualStudentCount = studentCountResult?.count || 0;
+    } else if (userId) {
+      // userId로 조회 시 해당 사용자의 academyId 찾기
+      const userAcademy = await DB.prepare(`
+        SELECT academyId FROM User WHERE id = ?
+      `).bind(userId).first();
+      
+      if (userAcademy?.academyId) {
+        const studentCountResult = await DB.prepare(`
+          SELECT COUNT(*) as count 
+          FROM User 
+          WHERE academyId = ? AND role = 'STUDENT'
+        `).bind(userAcademy.academyId).first();
+        actualStudentCount = studentCountResult?.count || 0;
+      }
+    }
+
+    console.log(`📊 실제 학생 수: ${actualStudentCount}, DB 저장값: ${subscription.current_students}`);
+
     // 사용량 정보 반환
     return new Response(JSON.stringify({
       success: true,
@@ -86,9 +113,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         status: subscription.status,
         endDate: subscription.endDate,
         
-        // 현재 사용량 (실제 DB 컬럼만 사용)
+        // 현재 사용량 (실제 카운트 사용)
         usage: {
-          students: subscription.current_students || 0,
+          students: actualStudentCount,  // 🔄 실제 학생 수
           homeworkChecks: subscription.current_homework_checks || 0,
           aiAnalysis: subscription.current_ai_analysis || 0,
           similarProblems: subscription.current_similar_problems || 0,
