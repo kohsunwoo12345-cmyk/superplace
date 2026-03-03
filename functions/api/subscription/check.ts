@@ -3,47 +3,6 @@ interface Env {
   DB: D1Database;
 }
 
-// ============================================
-// 🔥 메모리 캐시 (Cloudflare Workers 글로벌 변수)
-// ============================================
-interface CacheEntry {
-  data: any;
-  timestamp: number;
-}
-
-// 글로벌 캐시 객체 (Workers 인스턴스 수명 동안 유지)
-const usageCache = new Map<string, CacheEntry>();
-const CACHE_TTL = 60 * 1000; // 60초 캐시 유지
-
-// 캐시 정리 함수 (필요 시 호출)
-function cleanExpiredCache() {
-  const now = Date.now();
-  for (const [key, entry] of usageCache.entries()) {
-    if (now - entry.timestamp > CACHE_TTL) {
-      usageCache.delete(key);
-    }
-  }
-}
-
-// 캐시 조회 시 만료된 항목 자동 정리
-function getCachedData(key: string): CacheEntry | null {
-  const cached = usageCache.get(key);
-  if (!cached) return null;
-  
-  const now = Date.now();
-  if (now - cached.timestamp > CACHE_TTL) {
-    usageCache.delete(key);
-    return null;
-  }
-  
-  // 10% 확률로 전체 캐시 정리 (과도한 메모리 사용 방지)
-  if (Math.random() < 0.1) {
-    cleanExpiredCache();
-  }
-  
-  return cached;
-}
-
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
@@ -60,46 +19,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // ============================================
-    // 🔥 캐시 확인 (강제 새로고침 옵션 지원)
-    // ============================================
-    const forceRefresh = url.searchParams.get('refresh') === 'true';
-    const cacheKey = `usage:${academyId || userId}`;
-    
-    // 🚨 임시로 캐시 비활성화 (디버깅용)
-    const CACHE_DISABLED = true;
-    
-    if (!forceRefresh && !CACHE_DISABLED) {
-      const cached = getCachedData(cacheKey);
-      if (cached) {
-        console.log(`💾 캐시 히트: ${cacheKey} (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
-        return new Response(JSON.stringify({
-          ...cached.data,
-          cached: true,
-          cacheAge: Math.round((Date.now() - cached.timestamp) / 1000)
-        }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    }
-    
-    console.log(`🔍 캐시 미스 또는 강제 새로고침: ${cacheKey}`);
-
     // 사용자 ID로 구독 조회
     let subscription = null;
     if (userId) {
-      console.log(`🔍 userId로 구독 조회: ${userId}`);
       subscription = await DB.prepare(`
         SELECT * FROM user_subscriptions 
         WHERE userId = ? AND status = 'active'
         ORDER BY endDate DESC
         LIMIT 1
       `).bind(userId).first();
-      console.log(`📊 userId 구독 결과:`, subscription ? '✅ 있음' : '❌ 없음');
     } else if (academyId) {
       // 학원 ID로 구독 조회 (학원장 구독 확인)
-      console.log(`🔍 academyId로 구독 조회: ${academyId}`);
       subscription = await DB.prepare(`
         SELECT us.* FROM user_subscriptions us
         JOIN User u ON us.userId = u.id
@@ -109,21 +39,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ORDER BY us.endDate DESC
         LIMIT 1
       `).bind(academyId).first();
-      console.log(`📊 academyId 구독 결과:`, subscription ? '✅ 있음' : '❌ 없음');
     }
 
     if (!subscription) {
-      console.error(`❌ 구독 없음 - userId: ${userId}, academyId: ${academyId}`);
       return new Response(JSON.stringify({
         success: false,
         hasSubscription: false,
         message: "활성화된 구독이 없습니다. 요금제를 선택해주세요.",
-        redirectTo: "/pricing",
-        debug: {
-          userId,
-          academyId,
-          timestamp: new Date().toISOString()
-        }
+        redirectTo: "/pricing"
       }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -229,7 +152,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 사용량 정보 반환
-    const responseData = {
+    return new Response(JSON.stringify({
       success: true,
       hasSubscription: true,
       subscription: {
@@ -256,20 +179,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           maxLandingPages: subscription.max_landing_pages || 0,
         }
       }
-    };
-    
-    // ============================================
-    // 🔥 캐시에 저장 (성공한 경우만)
-    // ============================================
-    if (!CACHE_DISABLED && responseData.success) {
-      usageCache.set(cacheKey, {
-        data: responseData,
-        timestamp: Date.now()
-      });
-      console.log(`💾 캐시 저장: ${cacheKey}`);
-    }
-    
-    return new Response(JSON.stringify(responseData), {
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
