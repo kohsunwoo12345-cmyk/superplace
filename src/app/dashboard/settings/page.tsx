@@ -45,15 +45,11 @@ export default function SettingsPage() {
     
     // 구독 정보 가져오기
     if (userData.role === "DIRECTOR") {
+      console.log("학원장 계정 - 구독 정보 조회");
+      fetchSubscription(userData.id, userData.academyId);
       if (userData.academyId) {
-        console.log("학원장 계정 - 구독 정보 조회");
-        fetchSubscription(userData.academyId);
         fetchAlerts(userData.academyId);
         fetchTrends(userData.academyId, trendPeriod);
-      } else {
-        console.warn("학원장 계정이지만 academyId가 없습니다.");
-        setLoadingSubscription(false);
-        setSubscription(null);
       }
     } else {
       console.log("학원장이 아닌 계정 - 구독 정보 조회 건너뛰기");
@@ -61,23 +57,24 @@ export default function SettingsPage() {
     }
   }, [router]);
   
-  const fetchSubscription = async (academyId: string) => {
+  const fetchSubscription = async (userId: string, academyId?: string) => {
     try {
-      console.log("🔍 구독 정보 조회 시작 - academyId:", academyId);
+      console.log("🔍 구독 정보 조회 시작 - userId:", userId, "academyId:", academyId);
       
-      // 방법 1: academyId로 조회
-      let response = await fetch(`/api/subscription/check?academyId=${academyId}`);
+      // 방법 1: userId로 직접 조회 (가장 확실한 방법)
+      console.log("📡 1차 시도: userId로 조회");
+      let response = await fetch(`/api/subscription/check?userId=${userId}`);
       console.log("📡 API 응답 상태:", response.status);
       
       let data = await response.json();
       console.log("📦 API 응답 데이터:", JSON.stringify(data, null, 2));
       
-      // 방법 1 실패 시, userId로 직접 조회 시도
-      if (!data.success || !data.hasSubscription) {
-        console.log("⚠️ academyId 조회 실패, userId로 재시도");
-        response = await fetch(`/api/subscription/check?userId=${user.id}`);
+      // 방법 1 실패 시, academyId로 조회 시도
+      if ((!data.success || !data.hasSubscription) && academyId) {
+        console.log("⚠️ userId 조회 실패, academyId로 재시도");
+        response = await fetch(`/api/subscription/check?academyId=${academyId}`);
         data = await response.json();
-        console.log("📦 userId 조회 결과:", JSON.stringify(data, null, 2));
+        console.log("📦 academyId 조회 결과:", JSON.stringify(data, null, 2));
       }
       
       if (data.success && data.hasSubscription && data.subscription) {
