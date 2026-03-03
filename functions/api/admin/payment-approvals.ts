@@ -117,8 +117,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
+    // Check if planId and period columns exist
+    let hasNewColumns = false;
+    try {
+      const tableInfo = await DB.prepare(`PRAGMA table_info(payment_approvals)`).all();
+      const columns = (tableInfo.results || []).map((col: any) => col.name);
+      hasNewColumns = columns.includes('planId') && columns.includes('period');
+      console.log("✅ Table columns check:", { hasNewColumns, columns: columns.join(', ') });
+    } catch (e) {
+      console.log("⚠️ Could not check table columns");
+    }
+
     // 모든 승인 요청 조회 (상태별 필터)
-    // Try to join with pricing_plans, but don't fail if planId doesn't exist
     let query = `
       SELECT 
         pa.*,
