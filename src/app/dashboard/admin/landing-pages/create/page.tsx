@@ -49,6 +49,7 @@ interface Template {
   id: string;
   name: string;
   description: string;
+  html: string;  // ✅ HTML 속성 추가
   isDefault: boolean;
 }
 
@@ -206,12 +207,26 @@ export default function CreateLandingPagePage() {
       
       const slug = `lp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       
+      // 🆕 선택된 템플릿의 HTML 가져오기
+      const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
+      const templateHtml = selectedTemplateData?.html || '';
+      
+      console.log("🔍 Selected template:", {
+        id: selectedTemplate,
+        name: selectedTemplateData?.name,
+        hasHtml: !!templateHtml,
+        htmlLength: templateHtml.length
+      });
+      
       // 디버깅: 전송할 데이터 확인
       console.log("🔍 Sending to API:", {
         studentId: selectedStudent,
         studentIdType: typeof selectedStudent,
         folderId: selectedFolder,
         folderIdType: typeof selectedFolder,
+        templateId: selectedTemplate,
+        hasTemplateHtml: !!templateHtml,
+        templateHtmlLength: templateHtml.length
       });
       
       const response = await fetch("/api/admin/landing-pages", {
@@ -227,6 +242,7 @@ export default function CreateLandingPagePage() {
           subtitle: subtitle.trim(),
           thumbnail,
           templateId: selectedTemplate,
+          templateHtml,  // ✅ 템플릿 HTML 추가
           startDate,
           endDate,
           dataOptions,
