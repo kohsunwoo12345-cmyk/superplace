@@ -74,6 +74,10 @@ interface AcademyStats {
   academyName: string;
   totalAmount: number;
   transactionCount: number;
+  pointAmount?: number;
+  botAmount?: number;
+  subscriptionAmount?: number;
+  otherAmount?: number;
 }
 
 interface MonthlyTrend {
@@ -608,24 +612,57 @@ export default function RevenuePage() {
         <CardContent>
           <div className="space-y-3">
             {academyStats.slice(0, 10).map((academy, index) => (
-              <div key={academy.academyId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className={`text-2xl ${index < 3 ? 'font-bold' : ''}`}>
-                    {index === 0 && '🥇'}
-                    {index === 1 && '🥈'}
-                    {index === 2 && '🥉'}
-                    {index > 2 && `${index + 1}.`}
+              <div key={academy.academyId} className="p-4 bg-gray-50 rounded-lg border hover:border-blue-300 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className={`text-2xl ${index < 3 ? 'font-bold' : ''}`}>
+                      {index === 0 && '🥇'}
+                      {index === 1 && '🥈'}
+                      {index === 2 && '🥉'}
+                      {index > 2 && `${index + 1}.`}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-lg">{academy.academyName}</div>
+                      <div className="text-sm text-gray-500">
+                        {academy.transactionCount}건 거래 · ID: {academy.academyId}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-semibold">{academy.academyName}</div>
-                    <div className="text-sm text-gray-500">{academy.transactionCount}건</div>
+                  <div className="text-right">
+                    <div className="text-xl font-bold text-blue-600">
+                      {formatCurrency(academy.totalAmount)}
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-blue-600">
-                    {formatCurrency(academy.totalAmount)}
+                {/* 매출 유형별 상세 */}
+                {(academy.pointAmount || academy.botAmount || academy.subscriptionAmount || academy.otherAmount) ? (
+                  <div className="mt-3 pt-3 border-t grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    {academy.pointAmount ? (
+                      <div className="bg-amber-50 p-2 rounded">
+                        <div className="text-xs text-gray-600">포인트 충전</div>
+                        <div className="font-semibold text-amber-700">{formatCurrency(academy.pointAmount)}</div>
+                      </div>
+                    ) : null}
+                    {academy.botAmount ? (
+                      <div className="bg-blue-50 p-2 rounded">
+                        <div className="text-xs text-gray-600">AI 쇼핑몰</div>
+                        <div className="font-semibold text-blue-700">{formatCurrency(academy.botAmount)}</div>
+                      </div>
+                    ) : null}
+                    {academy.subscriptionAmount ? (
+                      <div className="bg-purple-50 p-2 rounded">
+                        <div className="text-xs text-gray-600">일반 구독</div>
+                        <div className="font-semibold text-purple-700">{formatCurrency(academy.subscriptionAmount)}</div>
+                      </div>
+                    ) : null}
+                    {academy.otherAmount ? (
+                      <div className="bg-green-50 p-2 rounded">
+                        <div className="text-xs text-gray-600">기타 매출</div>
+                        <div className="font-semibold text-green-700">{formatCurrency(academy.otherAmount)}</div>
+                      </div>
+                    ) : null}
                   </div>
-                </div>
+                ) : null}
               </div>
             ))}
           </div>
