@@ -117,42 +117,60 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `).bind(targetAcademyId).first();
       actualStudentCount = studentCountResult?.count || 0;
 
-      // 2️⃣ 숙제 검사 횟수 (homework_gradings 테이블)
-      const homeworkResult = await DB.prepare(`
-        SELECT COUNT(*) as count 
-        FROM homework_gradings hg
-        JOIN homework_submissions hs ON hg.submissionId = hs.id
-        WHERE hs.academyId = ?
-      `).bind(targetAcademyId).first();
-      actualHomeworkChecks = homeworkResult?.count || 0;
+      // 2️⃣ 숙제 검사 횟수 (homework_gradings 테이블) - 테이블이 없으면 0
+      try {
+        const homeworkResult = await DB.prepare(`
+          SELECT COUNT(*) as count 
+          FROM homework_gradings
+        `).first();
+        actualHomeworkChecks = homeworkResult?.count || 0;
+      } catch (e) {
+        console.log('⚠️ homework_gradings 테이블 없음');
+        actualHomeworkChecks = 0;
+      }
 
-      // 3️⃣ AI 분석 횟수 (usage_logs 테이블에서 ai_analysis 타입)
-      const aiAnalysisResult = await DB.prepare(`
-        SELECT COUNT(*) as count 
-        FROM usage_logs ul
-        JOIN User u ON ul.userId = u.id
-        WHERE u.academyId = ? 
-          AND ul.type = 'ai_analysis'
-      `).bind(targetAcademyId).first();
-      actualAIAnalysis = aiAnalysisResult?.count || 0;
+      // 3️⃣ AI 분석 횟수 (usage_logs 테이블에서 ai_analysis 타입) - 테이블이 없으면 0
+      try {
+        const aiAnalysisResult = await DB.prepare(`
+          SELECT COUNT(*) as count 
+          FROM usage_logs ul
+          JOIN User u ON ul.userId = u.id
+          WHERE u.academyId = ? 
+            AND ul.type = 'ai_analysis'
+        `).bind(targetAcademyId).first();
+        actualAIAnalysis = aiAnalysisResult?.count || 0;
+      } catch (e) {
+        console.log('⚠️ usage_logs 테이블 없음 또는 조회 실패');
+        actualAIAnalysis = 0;
+      }
 
-      // 4️⃣ 유사문제 출제 횟수 (usage_logs 테이블에서 similar_problem 타입)
-      const similarProblemsResult = await DB.prepare(`
-        SELECT COUNT(*) as count 
-        FROM usage_logs ul
-        JOIN User u ON ul.userId = u.id
-        WHERE u.academyId = ? 
-          AND ul.type = 'similar_problem'
-      `).bind(targetAcademyId).first();
-      actualSimilarProblems = similarProblemsResult?.count || 0;
+      // 4️⃣ 유사문제 출제 횟수 (usage_logs 테이블에서 similar_problem 타입) - 테이블이 없으면 0
+      try {
+        const similarProblemsResult = await DB.prepare(`
+          SELECT COUNT(*) as count 
+          FROM usage_logs ul
+          JOIN User u ON ul.userId = u.id
+          WHERE u.academyId = ? 
+            AND ul.type = 'similar_problem'
+        `).bind(targetAcademyId).first();
+        actualSimilarProblems = similarProblemsResult?.count || 0;
+      } catch (e) {
+        console.log('⚠️ usage_logs 테이블 없음 또는 조회 실패');
+        actualSimilarProblems = 0;
+      }
 
-      // 5️⃣ 랜딩페이지 생성 수 (landing_pages 테이블)
-      const landingPagesResult = await DB.prepare(`
-        SELECT COUNT(*) as count 
-        FROM landing_pages
-        WHERE academyId = ?
-      `).bind(targetAcademyId).first();
-      actualLandingPages = landingPagesResult?.count || 0;
+      // 5️⃣ 랜딩페이지 생성 수 (landing_pages 테이블) - 테이블이 없으면 0
+      try {
+        const landingPagesResult = await DB.prepare(`
+          SELECT COUNT(*) as count 
+          FROM landing_pages
+          WHERE academyId = ?
+        `).bind(targetAcademyId).first();
+        actualLandingPages = landingPagesResult?.count || 0;
+      } catch (e) {
+        console.log('⚠️ landing_pages 테이블 없음 또는 조회 실패');
+        actualLandingPages = 0;
+      }
 
       console.log(`📊 실제 사용량 카운트 (academyId: ${targetAcademyId})`);
       console.log(`  - 활성 학생 수: ${actualStudentCount}`);
