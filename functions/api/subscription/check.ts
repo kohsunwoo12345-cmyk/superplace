@@ -15,7 +15,7 @@ interface CacheEntry {
 const usageCache = new Map<string, CacheEntry>();
 const CACHE_TTL = 60 * 1000; // 60초 캐시 유지
 
-// 캐시 정리 함수 (5분마다 실행)
+// 캐시 정리 함수 (필요 시 호출)
 function cleanExpiredCache() {
   const now = Date.now();
   for (const [key, entry] of usageCache.entries()) {
@@ -25,8 +25,24 @@ function cleanExpiredCache() {
   }
 }
 
-// 주기적으로 캐시 정리
-setInterval(cleanExpiredCache, 5 * 60 * 1000);
+// 캐시 조회 시 만료된 항목 자동 정리
+function getCachedData(key: string): CacheEntry | null {
+  const cached = usageCache.get(key);
+  if (!cached) return null;
+  
+  const now = Date.now();
+  if (now - cached.timestamp > CACHE_TTL) {
+    usageCache.delete(key);
+    return null;
+  }
+  
+  // 10% 확률로 전체 캐시 정리 (과도한 메모리 사용 방지)
+  if (Math.random() < 0.1) {
+    cleanExpiredCache();
+  }
+  
+  return cached;
+}
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
@@ -51,8 +67,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const cacheKey = `usage:${academyId || userId}`;
     
     if (!forceRefresh) {
-      const cached = usageCache.get(cacheKey);
-      if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      const cached = getCachedData(cacheKey);
+      if (cached) {
         console.log(`💾 캐시 히트: ${cacheKey} (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
         return new Response(JSON.stringify({
           ...cached.data,
