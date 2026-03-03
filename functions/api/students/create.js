@@ -77,7 +77,7 @@ export async function onRequestPost(context) {
       JOIN User u ON us.userId = u.id
       WHERE u.academyId = ? AND u.role = 'DIRECTOR' AND us.status = 'active'
       ORDER BY us.endDate DESC LIMIT 1
-    `).bind(parseInt(tokenAcademyId)).first();
+    `).bind(tokenAcademyId).first();
 
     if (!subscription) {
       logs.push('❌ 활성화된 구독이 없습니다');
