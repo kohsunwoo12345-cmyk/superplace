@@ -1264,8 +1264,8 @@ export default function ModernAIChatPage() {
           isMobile && sidebarOpen ? "absolute z-50 h-full shadow-2xl" : ""
         }`}
       >
-        {/* 사이드바 헤더 */}
-        <div className="p-4 border-b border-gray-200 space-y-3">
+        {/* 사이드바 헤더 - 고정 */}
+        <div className="flex-shrink-0 p-4 border-b border-gray-200 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-gray-900">AI 챗봇</h2>
             {isMobile && (
@@ -1298,138 +1298,141 @@ export default function ModernAIChatPage() {
           </Button>
         </div>
 
-        {/* 나의 봇 */}
-        <div className="px-3 py-3 border-b border-gray-200 bg-white">
-          <h3 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-yellow-500" />
-            나의 봇
-          </h3>
-          <div className="space-y-1">
-            {bots.length === 0 ? (
-              <p className="text-xs text-gray-500 text-center py-4">할당된 봇이 없습니다</p>
-            ) : (
-              bots.map((bot) => (
-                <button
-                  key={bot.id}
-                  onClick={() => {
-                    console.log(`🤖 봇 선택: ${bot.name} (${bot.id})`);
-                    console.log('📊 봇 기능 상태:', {
-                      enableProblemGeneration: bot.enableProblemGeneration,
-                      enableProblemGenerationType: typeof bot.enableProblemGeneration,
-                      voiceEnabled: bot.voiceEnabled,
-                      voiceEnabledType: typeof bot.voiceEnabled,
-                      voiceName: bot.voiceName
-                    });
-                    setSelectedBot(bot);
-                    // 새로운 채팅 시작
-                    createNewChat();
-                    if (isMobile) setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
-                    selectedBot?.id === bot.id
-                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md"
-                      : "hover:bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  <span className="text-xl">{bot.profileIcon || "🤖"}</span>
-                  <div className="flex-1 text-left">
-                    <div className="font-medium truncate">{bot.name}</div>
-                    {bot.description && (
-                      <div className="text-xs opacity-80 truncate">{bot.description}</div>
-                    )}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* 구분선 */}
-        <div className="border-b-2 border-gray-300 mx-3"></div>
-
-        {/* 검색 창 */}
-        <div className="px-3 py-3">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="대화 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-3 py-2 pl-9 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <svg 
-              className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-        </div>
-
-        {/* 채팅 기록 */}
-        <div className="flex-1 overflow-y-auto px-3 py-3">
-          <h3 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
-            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-            최근 대화 {searchQuery && `(${chatSessions.filter(s => 
-              s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              s.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-            ).length}개)`}
-          </h3>
-          <div className="space-y-1">
-            {chatSessions.filter(s => 
-              !searchQuery || 
-              s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              s.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-            ).length === 0 ? (
-              <p className="text-xs text-gray-500 text-center py-4">
-                {searchQuery ? "검색 결과가 없습니다" : "대화 기록이 없습니다"}
-              </p>
-            ) : (
-              chatSessions
-                .filter(s => 
-                  !searchQuery || 
-                  s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  s.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-                .map((session) => (
-                <div
-                  key={session.id}
-                  className={`group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all ${
-                    currentSessionId === session.id
-                      ? "bg-blue-50 border-l-4 border-blue-500"
-                      : "hover:bg-gray-100"
-                  }`}
-                  onClick={() => {
-                    loadSession(session.id);
-                    if (isMobile) setSidebarOpen(false);
-                  }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {session.title}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate mt-0.5">
-                      {session.lastMessage || "대화 없음"}
-                    </p>
-                  </div>
+        {/* 스크롤 가능한 컨텐츠 영역 - 나의 봇부터 채팅 기록까지 */}
+        <div className="flex-1 overflow-y-auto">
+          {/* 나의 봇 */}
+          <div className="px-3 py-3 border-b border-gray-200 bg-white">
+            <h3 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-yellow-500" />
+              나의 봇
+            </h3>
+            <div className="space-y-1">
+              {bots.length === 0 ? (
+                <p className="text-xs text-gray-500 text-center py-4">할당된 봇이 없습니다</p>
+              ) : (
+                bots.map((bot) => (
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm('이 대화를 삭제하시겠습니까?')) {
-                        deleteSession(session.id);
-                      }
+                    key={bot.id}
+                    onClick={() => {
+                      console.log(`🤖 봇 선택: ${bot.name} (${bot.id})`);
+                      console.log('📊 봇 기능 상태:', {
+                        enableProblemGeneration: bot.enableProblemGeneration,
+                        enableProblemGenerationType: typeof bot.enableProblemGeneration,
+                        voiceEnabled: bot.voiceEnabled,
+                        voiceEnabledType: typeof bot.voiceEnabled,
+                        voiceName: bot.voiceName
+                      });
+                      setSelectedBot(bot);
+                      // 새로운 채팅 시작
+                      createNewChat();
+                      if (isMobile) setSidebarOpen(false);
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-100 rounded transition-all"
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                      selectedBot?.id === bot.id
+                        ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md"
+                        : "hover:bg-gray-100 text-gray-700"
+                    }`}
                   >
-                    <Trash2 className="w-4 h-4 text-red-500" />
+                    <span className="text-xl">{bot.profileIcon || "🤖"}</span>
+                    <div className="flex-1 text-left">
+                      <div className="font-medium truncate">{bot.name}</div>
+                      {bot.description && (
+                        <div className="text-xs opacity-80 truncate">{bot.description}</div>
+                      )}
+                    </div>
                   </button>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* 구분선 */}
+          <div className="border-b-2 border-gray-300 mx-3"></div>
+
+          {/* 검색 창 */}
+          <div className="px-3 py-3">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="대화 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-2 pl-9 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <svg 
+                className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+
+          {/* 채팅 기록 */}
+          <div className="px-3 py-3">
+            <h3 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              최근 대화 {searchQuery && `(${chatSessions.filter(s => 
+                s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                s.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+              ).length}개)`}
+            </h3>
+            <div className="space-y-1">
+              {chatSessions.filter(s => 
+                !searchQuery || 
+                s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                s.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+              ).length === 0 ? (
+                <p className="text-xs text-gray-500 text-center py-4">
+                  {searchQuery ? "검색 결과가 없습니다" : "대화 기록이 없습니다"}
+                </p>
+              ) : (
+                chatSessions
+                  .filter(s => 
+                    !searchQuery || 
+                    s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    s.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map((session) => (
+                  <div
+                    key={session.id}
+                    className={`group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all ${
+                      currentSessionId === session.id
+                        ? "bg-blue-50 border-l-4 border-blue-500"
+                        : "hover:bg-gray-100"
+                    }`}
+                    onClick={() => {
+                      loadSession(session.id);
+                      if (isMobile) setSidebarOpen(false);
+                    }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {session.title}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate mt-0.5">
+                        {session.lastMessage || "대화 없음"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm('이 대화를 삭제하시겠습니까?')) {
+                          deleteSession(session.id);
+                        }
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-100 rounded transition-all"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
