@@ -66,7 +66,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const forceRefresh = url.searchParams.get('refresh') === 'true';
     const cacheKey = `usage:${academyId || userId}`;
     
-    if (!forceRefresh) {
+    // 🚨 임시로 캐시 비활성화 (디버깅용)
+    const CACHE_DISABLED = true;
+    
+    if (!forceRefresh && !CACHE_DISABLED) {
       const cached = getCachedData(cacheKey);
       if (cached) {
         console.log(`💾 캐시 히트: ${cacheKey} (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
@@ -86,14 +89,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 사용자 ID로 구독 조회
     let subscription = null;
     if (userId) {
+      console.log(`🔍 userId로 구독 조회: ${userId}`);
       subscription = await DB.prepare(`
         SELECT * FROM user_subscriptions 
         WHERE userId = ? AND status = 'active'
         ORDER BY endDate DESC
         LIMIT 1
       `).bind(userId).first();
+      console.log(`📊 userId 구독 결과:`, subscription ? '✅ 있음' : '❌ 없음');
     } else if (academyId) {
       // 학원 ID로 구독 조회 (학원장 구독 확인)
+      console.log(`🔍 academyId로 구독 조회: ${academyId}`);
       subscription = await DB.prepare(`
         SELECT us.* FROM user_subscriptions us
         JOIN User u ON us.userId = u.id
@@ -103,14 +109,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ORDER BY us.endDate DESC
         LIMIT 1
       `).bind(academyId).first();
+      console.log(`📊 academyId 구독 결과:`, subscription ? '✅ 있음' : '❌ 없음');
     }
 
     if (!subscription) {
+      console.error(`❌ 구독 없음 - userId: ${userId}, academyId: ${academyId}`);
       return new Response(JSON.stringify({
         success: false,
         hasSubscription: false,
         message: "활성화된 구독이 없습니다. 요금제를 선택해주세요.",
-        redirectTo: "/pricing"
+        redirectTo: "/pricing",
+        debug: {
+          userId,
+          academyId,
+          timestamp: new Date().toISOString()
+        }
       }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -246,13 +259,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     };
     
     // ============================================
-    // 🔥 캐시에 저장
+    // 🔥 캐시에 저장 (성공한 경우만)
     // ============================================
-    usageCache.set(cacheKey, {
-      data: responseData,
-      timestamp: Date.now()
-    });
-    console.log(`💾 캐시 저장: ${cacheKey}`);
+    if (!CACHE_DISABLED && responseData.success) {
+      usageCache.set(cacheKey, {
+        data: responseData,
+        timestamp: Date.now()
+      });
+      console.log(`💾 캐시 저장: ${cacheKey}`);
+    }
     
     return new Response(JSON.stringify(responseData), {
       status: 200,
