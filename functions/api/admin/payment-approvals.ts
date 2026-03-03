@@ -412,7 +412,19 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       if (approval.userId && approval.planId) {
         // Get pricing plan details
         const pricingPlan = await DB.prepare(`
-          SELECT * FROM pricing_plans WHERE id = ?
+          SELECT 
+            id,
+            name,
+            max_students as maxStudents,
+            max_teachers as maxTeachers,
+            max_homework_checks as maxHomeworkChecks,
+            max_ai_analysis as maxAIAnalysis,
+            max_ai_grading as maxAIGrading,
+            max_capability_analysis as maxCapabilityAnalysis,
+            max_concept_analysis as maxConceptAnalysis,
+            max_similar_problems as maxSimilarProblems,
+            max_landing_pages as maxLandingPages
+          FROM pricing_plans WHERE id = ?
         `).bind(approval.planId).first();
 
         if (pricingPlan) {
@@ -465,15 +477,15 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
               approval.period || '1month',
               startDate,
               endDateStr,
-              pricingPlan.max_students,
-              pricingPlan.max_teachers,
-              pricingPlan.max_homework_checks,
-              pricingPlan.max_ai_analysis,
-              pricingPlan.max_ai_grading,
-              pricingPlan.max_capability_analysis,
-              pricingPlan.max_concept_analysis,
-              pricingPlan.max_similar_problems,
-              pricingPlan.max_landing_pages,
+              pricingPlan.maxStudents,
+              pricingPlan.maxTeachers,
+              pricingPlan.maxHomeworkChecks,
+              pricingPlan.maxAIAnalysis,
+              pricingPlan.maxAIGrading,
+              pricingPlan.maxCapabilityAnalysis,
+              pricingPlan.maxConceptAnalysis,
+              pricingPlan.maxSimilarProblems,
+              pricingPlan.maxLandingPages,
               approval.amount,
               existingSub.id
             ).run();
@@ -511,15 +523,15 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
               approval.period || '1month',
               startDate,
               endDateStr,
-              pricingPlan.max_students,
-              pricingPlan.max_teachers,
-              pricingPlan.max_homework_checks,
-              pricingPlan.max_ai_analysis,
-              pricingPlan.max_ai_grading,
-              pricingPlan.max_capability_analysis,
-              pricingPlan.max_concept_analysis,
-              pricingPlan.max_similar_problems,
-              pricingPlan.max_landing_pages,
+              pricingPlan.maxStudents,
+              pricingPlan.maxTeachers,
+              pricingPlan.maxHomeworkChecks,
+              pricingPlan.maxAIAnalysis,
+              pricingPlan.maxAIGrading,
+              pricingPlan.maxCapabilityAnalysis,
+              pricingPlan.maxConceptAnalysis,
+              pricingPlan.maxSimilarProblems,
+              pricingPlan.maxLandingPages,
               approval.amount
             ).run();
           }
