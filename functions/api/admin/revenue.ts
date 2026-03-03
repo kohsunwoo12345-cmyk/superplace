@@ -644,11 +644,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       data.count += 1;
       data.subscription += s.amount || 0;
     });
-      const data = monthlyMap.get(month);
-      data.total += b.amount || 0;
-      data.count += 1;
-      data.bot += b.amount || 0;
-    });
 
     monthlyTrend = Array.from(monthlyMap.values()).sort((a, b) => b.month.localeCompare(a.month));
 
