@@ -48,7 +48,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         JOIN User u ON us.userId = u.id
         WHERE u.academyId = ? AND u.role = 'DIRECTOR' AND us.status = 'active'
         ORDER BY us.endDate DESC LIMIT 1
-      `).bind(parseInt(academyId)).first();
+      `).bind(academyId).first();
     }
 
     if (!subscription) {

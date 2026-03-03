@@ -38,7 +38,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           AND us.status = 'active'
         ORDER BY us.endDate DESC
         LIMIT 1
-      `).bind(parseInt(academyId)).first();
+      `).bind(academyId).first();
     }
 
     if (!subscription) {

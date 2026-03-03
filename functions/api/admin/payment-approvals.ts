@@ -369,6 +369,22 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     const { approvedBy, rejectedReason, transactionId } = body;
 
     if (action === "approve") {
+      // Get approval details
+      const approval = await DB.prepare(`
+        SELECT * FROM payment_approvals WHERE id = ?
+      `).bind(id).first();
+
+      if (!approval) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Approval not found"
+        }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      // Update payment approval status
       await DB.prepare(`
         UPDATE payment_approvals
         SET status = 'approved', 
@@ -378,24 +394,136 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         WHERE id = ?
       `).bind(approvedBy || null, transactionId || null, id).run();
 
-      // 승인 시 revenue_records에도 추가
-      const approval = await DB.prepare(`
-        SELECT * FROM payment_approvals WHERE id = ?
-      `).bind(id).first();
+      // Add to revenue_records
+      await DB.prepare(`
+        INSERT INTO revenue_records 
+        (academyId, amount, type, description, status, paymentMethod, transactionId, paidAt)
+        VALUES (?, ?, ?, ?, 'completed', ?, ?, datetime('now', '+9 hours'))
+      `).bind(
+        approval.academyId,
+        approval.amount,
+        approval.planName,
+        `${approval.planName} 구독 결제 승인`,
+        approval.paymentMethod,
+        transactionId || null
+      ).run();
 
-      if (approval) {
-        await DB.prepare(`
-          INSERT INTO revenue_records 
-          (academyId, amount, type, description, status, paymentMethod, transactionId, paidAt)
-          VALUES (?, ?, ?, ?, 'completed', ?, ?, datetime('now', '+9 hours'))
-        `).bind(
-          approval.academyId,
-          approval.amount,
-          approval.planName,
-          `${approval.planName} 구독 결제 승인`,
-          approval.paymentMethod,
-          transactionId || null
-        ).run();
+      // Create or update user_subscriptions
+      if (approval.userId && approval.planId) {
+        // Get pricing plan details
+        const pricingPlan = await DB.prepare(`
+          SELECT * FROM pricing_plans WHERE id = ?
+        `).bind(approval.planId).first();
+
+        if (pricingPlan) {
+          // Calculate subscription dates
+          const now = new Date();
+          const startDate = now.toISOString();
+          
+          const periodMonths: Record<string, number> = {
+            '1month': 1,
+            '6months': 6,
+            '12months': 12,
+          };
+          
+          const months = periodMonths[approval.period || '1month'] || 1;
+          const endDate = new Date(now);
+          endDate.setMonth(endDate.getMonth() + months);
+          const endDateStr = endDate.toISOString();
+
+          // Check if subscription exists
+          const existingSub = await DB.prepare(`
+            SELECT id FROM user_subscriptions WHERE userId = ?
+          `).bind(approval.userId).first();
+
+          if (existingSub) {
+            // Update existing subscription
+            await DB.prepare(`
+              UPDATE user_subscriptions
+              SET planId = ?,
+                  planName = ?,
+                  period = ?,
+                  status = 'active',
+                  startDate = ?,
+                  endDate = ?,
+                  max_students = ?,
+                  max_teachers = ?,
+                  max_homework_checks = ?,
+                  max_ai_analysis = ?,
+                  max_ai_grading = ?,
+                  max_capability_analysis = ?,
+                  max_concept_analysis = ?,
+                  max_similar_problems = ?,
+                  max_landing_pages = ?,
+                  lastPaymentAmount = ?,
+                  lastPaymentDate = datetime('now', '+9 hours'),
+                  updatedAt = datetime('now', '+9 hours')
+              WHERE id = ?
+            `).bind(
+              approval.planId,
+              approval.planName,
+              approval.period || '1month',
+              startDate,
+              endDateStr,
+              pricingPlan.max_students,
+              pricingPlan.max_teachers,
+              pricingPlan.max_homework_checks,
+              pricingPlan.max_ai_analysis,
+              pricingPlan.max_ai_grading,
+              pricingPlan.max_capability_analysis,
+              pricingPlan.max_concept_analysis,
+              pricingPlan.max_similar_problems,
+              pricingPlan.max_landing_pages,
+              approval.amount,
+              existingSub.id
+            ).run();
+          } else {
+            // Create new subscription
+            const subId = `sub-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            await DB.prepare(`
+              INSERT INTO user_subscriptions (
+                id, userId, planId, planName, period, status,
+                startDate, endDate,
+                current_students, current_teachers, current_homework_checks,
+                current_ai_analysis, current_ai_grading,
+                current_capability_analysis, current_concept_analysis,
+                current_similar_problems, current_landing_pages,
+                max_students, max_teachers, max_homework_checks,
+                max_ai_analysis, max_ai_grading,
+                max_capability_analysis, max_concept_analysis,
+                max_similar_problems, max_landing_pages,
+                lastPaymentAmount, lastPaymentDate,
+                autoRenew, createdAt, updatedAt, lastResetDate
+              ) VALUES (
+                ?, ?, ?, ?, ?, 'active',
+                ?, ?,
+                0, 0, 0, 0, 0, 0, 0, 0, 0,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, datetime('now', '+9 hours'),
+                0, datetime('now', '+9 hours'), datetime('now', '+9 hours'), datetime('now', '+9 hours')
+              )
+            `).bind(
+              subId,
+              approval.userId,
+              approval.planId,
+              approval.planName,
+              approval.period || '1month',
+              startDate,
+              endDateStr,
+              pricingPlan.max_students,
+              pricingPlan.max_teachers,
+              pricingPlan.max_homework_checks,
+              pricingPlan.max_ai_analysis,
+              pricingPlan.max_ai_grading,
+              pricingPlan.max_capability_analysis,
+              pricingPlan.max_concept_analysis,
+              pricingPlan.max_similar_problems,
+              pricingPlan.max_landing_pages,
+              approval.amount
+            ).run();
+          }
+        }
       }
 
       return new Response(JSON.stringify({
