@@ -319,6 +319,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       qrCodePosition = "bottom",
       pixelScripts = [],
       studentId,
+      startDate,
+      endDate,
     } = body;
 
     // 디버깅: 받은 데이터 확인
@@ -423,19 +425,187 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       htmlContent = htmlContent.replace(/\{\{subtitle\}\}/g, subtitle || '');
       htmlContent = htmlContent.replace(/\{\{description\}\}/g, description || '');
       
-      // 학생 정보 변수 치환 (기본값 설정)
-      htmlContent = htmlContent.replace(/\{\{studentName\}\}/g, '학생');
-      htmlContent = htmlContent.replace(/\{\{period\}\}/g, '2024년 1학기');
-      htmlContent = htmlContent.replace(/\{\{attendanceRate\}\}/g, '95%');
-      htmlContent = htmlContent.replace(/\{\{totalDays\}\}/g, '40');
-      htmlContent = htmlContent.replace(/\{\{presentDays\}\}/g, '38');
-      htmlContent = htmlContent.replace(/\{\{tardyDays\}\}/g, '1');
-      htmlContent = htmlContent.replace(/\{\{absentDays\}\}/g, '1');
-      htmlContent = htmlContent.replace(/\{\{homeworkRate\}\}/g, '90%');
-      htmlContent = htmlContent.replace(/\{\{homeworkCompleted\}\}/g, '36');
-      htmlContent = htmlContent.replace(/\{\{aiChatCount\}\}/g, '127');
-      htmlContent = htmlContent.replace(/\{\{academyName\}\}/g, '슈퍼플레이스 스터디');
-      htmlContent = htmlContent.replace(/\{\{directorName\}\}/g, '홍길동');
+      // ============================================
+      // 실제 데이터 조회 및 변수 치환
+      // ============================================
+      
+      // 1️⃣ 학생 정보 조회
+      let studentName = '학생';
+      let studentInfo = null;
+      
+      if (userIdStr) {
+        try {
+          studentInfo = await db.prepare(`
+            SELECT name, email 
+            FROM User 
+            WHERE id = ?
+          `).bind(userIdStr).first();
+          
+          if (studentInfo && studentInfo.name) {
+            studentName = studentInfo.name;
+            console.log('✅ 학생 정보 조회 성공:', studentName);
+          } else {
+            console.log('⚠️ 학생 정보를 찾을 수 없습니다. 기본값 사용.');
+          }
+        } catch (err) {
+          console.error('❌ 학생 정보 조회 실패:', err);
+        }
+      }
+      
+      // 2️⃣ 학원 및 원장 정보 조회
+      let academyName = '학원';
+      let directorName = '원장';
+      
+      if (creatorAcademyId) {
+        try {
+          const academyInfo = await db.prepare(`
+            SELECT a.name as academyName, u.name as directorName
+            FROM Academy a
+            LEFT JOIN User u ON a.id = u.academyId AND u.role = 'DIRECTOR'
+            WHERE a.id = ?
+            LIMIT 1
+          `).bind(creatorAcademyId).first();
+          
+          if (academyInfo) {
+            academyName = academyInfo.academyName || academyName;
+            directorName = academyInfo.directorName || directorName;
+            console.log('✅ 학원 정보 조회 성공:', academyName, '-', directorName);
+          }
+        } catch (err) {
+          console.error('❌ 학원 정보 조회 실패:', err);
+        }
+      }
+      
+      // 3️⃣ 출석 데이터 조회 및 계산
+      let attendanceRate = '0%';
+      let totalDays = '0';
+      let presentDays = '0';
+      let tardyDays = '0';
+      let absentDays = '0';
+      
+      if (userIdStr && startDate && endDate) {
+        try {
+          const attendanceData = await db.prepare(`
+            SELECT 
+              COUNT(*) as total,
+              SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) as present,
+              SUM(CASE WHEN status = 'TARDY' THEN 1 ELSE 0 END) as tardy,
+              SUM(CASE WHEN status = 'ABSENT' THEN 1 ELSE 0 END) as absent
+            FROM Attendance 
+            WHERE userId = ? AND date BETWEEN ? AND ?
+          `).bind(userIdStr, startDate, endDate).first();
+          
+          if (attendanceData && attendanceData.total > 0) {
+            const total = Number(attendanceData.total);
+            const present = Number(attendanceData.present || 0);
+            const tardy = Number(attendanceData.tardy || 0);
+            const absent = Number(attendanceData.absent || 0);
+            
+            const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+            
+            totalDays = String(total);
+            presentDays = String(present);
+            tardyDays = String(tardy);
+            absentDays = String(absent);
+            attendanceRate = `${rate}%`;
+            
+            console.log('✅ 출석 데이터 조회 성공:', { total, present, tardy, absent, rate });
+          } else {
+            console.log('⚠️ 출석 데이터가 없습니다. 기본값 사용.');
+          }
+        } catch (err) {
+          console.error('❌ 출석 데이터 조회 실패:', err);
+        }
+      }
+      
+      // 4️⃣ 숙제 데이터 조회 및 계산
+      let homeworkRate = '0%';
+      let homeworkCompleted = '0';
+      
+      if (userIdStr) {
+        try {
+          const homeworkData = await db.prepare(`
+            SELECT 
+              COUNT(*) as total,
+              SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed
+            FROM HomeworkSubmission 
+            WHERE studentId = ?
+          `).bind(userIdStr).first();
+          
+          if (homeworkData && homeworkData.total > 0) {
+            const total = Number(homeworkData.total);
+            const completed = Number(homeworkData.completed || 0);
+            const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            homeworkCompleted = String(completed);
+            homeworkRate = `${rate}%`;
+            
+            console.log('✅ 숙제 데이터 조회 성공:', { total, completed, rate });
+          } else {
+            console.log('⚠️ 숙제 데이터가 없습니다. 기본값 사용.');
+          }
+        } catch (err) {
+          console.error('❌ 숙제 데이터 조회 실패:', err);
+        }
+      }
+      
+      // 5️⃣ AI 대화 데이터 조회
+      let aiChatCount = '0';
+      
+      if (userIdStr) {
+        try {
+          const aiChatData = await db.prepare(`
+            SELECT COUNT(*) as count
+            FROM ChatSession 
+            WHERE userId = ?
+          `).bind(userIdStr).first();
+          
+          if (aiChatData) {
+            aiChatCount = String(aiChatData.count || 0);
+            console.log('✅ AI 대화 데이터 조회 성공:', aiChatCount);
+          }
+        } catch (err) {
+          console.error('❌ AI 대화 데이터 조회 실패:', err);
+        }
+      }
+      
+      // 6️⃣ 기간 표시
+      let period = '학습 기간';
+      
+      if (startDate && endDate) {
+        try {
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          
+          const startYear = start.getFullYear();
+          const startMonth = start.getMonth() + 1;
+          const endMonth = end.getMonth() + 1;
+          
+          if (startYear === end.getFullYear()) {
+            period = `${startYear}년 ${startMonth}월 ~ ${endMonth}월`;
+          } else {
+            period = `${startYear}년 ${startMonth}월 ~ ${end.getFullYear()}년 ${endMonth}월`;
+          }
+          
+          console.log('✅ 기간 설정:', period);
+        } catch (err) {
+          console.error('❌ 기간 설정 실패:', err);
+        }
+      }
+      
+      // 변수 치환
+      htmlContent = htmlContent.replace(/\{\{studentName\}\}/g, studentName);
+      htmlContent = htmlContent.replace(/\{\{period\}\}/g, period);
+      htmlContent = htmlContent.replace(/\{\{attendanceRate\}\}/g, attendanceRate);
+      htmlContent = htmlContent.replace(/\{\{totalDays\}\}/g, totalDays);
+      htmlContent = htmlContent.replace(/\{\{presentDays\}\}/g, presentDays);
+      htmlContent = htmlContent.replace(/\{\{tardyDays\}\}/g, tardyDays);
+      htmlContent = htmlContent.replace(/\{\{absentDays\}\}/g, absentDays);
+      htmlContent = htmlContent.replace(/\{\{homeworkRate\}\}/g, homeworkRate);
+      htmlContent = htmlContent.replace(/\{\{homeworkCompleted\}\}/g, homeworkCompleted);
+      htmlContent = htmlContent.replace(/\{\{aiChatCount\}\}/g, aiChatCount);
+      htmlContent = htmlContent.replace(/\{\{academyName\}\}/g, academyName);
+      htmlContent = htmlContent.replace(/\{\{directorName\}\}/g, directorName);
       
       console.log('✅ Template HTML processed, length:', htmlContent.length);
     } else {
