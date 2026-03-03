@@ -21,6 +21,7 @@ import {
   Plus,
   Trash2,
   ImageIcon,
+  Code,
 } from "lucide-react";
 
 interface Student {
@@ -79,6 +80,9 @@ export default function CreateLandingPagePage() {
   const [creating, setCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [customFormFields, setCustomFormFields] = useState<CustomFormField[]>([]);
+  const [htmlDirectEditEnabled, setHtmlDirectEditEnabled] = useState(false);
+  const [showHtmlEditor, setShowHtmlEditor] = useState(false);
+  const [customHtml, setCustomHtml] = useState("");
 
   const [dataOptions, setDataOptions] = useState<DataOptions>({
     showBasicInfo: true,
@@ -90,7 +94,38 @@ export default function CreateLandingPagePage() {
 
   useEffect(() => {
     fetchStudents();
+    checkHtmlEditPermission();
   }, []);
+
+  const checkHtmlEditPermission = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      // Get current user info
+      const userRes = await fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!userRes.ok) return;
+      
+      const userData = await userRes.json();
+      const directorId = userData.user?.id;
+      
+      if (!directorId) return;
+      
+      // Check director limitations
+      const limitRes = await fetch(`/api/admin/director-limitations?directorId=${directorId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (limitRes.ok) {
+        const data = await limitRes.json();
+        const hasPermission = data.limitation?.landing_page_html_direct_edit === 1;
+        setHtmlDirectEditEnabled(hasPermission);
+        console.log('HTML Direct Edit Permission:', hasPermission);
+      }
+    } catch (error) {
+      console.error('Failed to check HTML edit permission:', error);
+    }
+  };
 
   const fetchStudents = async () => {
     try {
@@ -242,7 +277,8 @@ export default function CreateLandingPagePage() {
           subtitle: subtitle.trim(),
           thumbnail,
           templateId: selectedTemplate,
-          templateHtml,  // ✅ 템플릿 HTML 추가
+          templateHtml: showHtmlEditor ? customHtml : templateHtml,  // ✅ HTML 직접 입력 또는 템플릿 HTML
+          isCustomHtml: showHtmlEditor,  // ✅ 직접 입력 여부 플래그
           startDate,
           endDate,
           dataOptions,
@@ -544,27 +580,65 @@ export default function CreateLandingPagePage() {
               </Card>
             )}
 
-            {/* HTML 템플릿 선택 */}
+            {/* HTML 템플릿 선택 또는 직접 입력 */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>6️⃣ HTML 템플릿 선택</CardTitle>
                     <CardDescription>
-                      랜딩페이지 레이아웃 템플릿을 선택하세요
+                      {showHtmlEditor 
+                        ? "HTML 코드를 직접 입력하여 랜딩페이지를 만드세요" 
+                        : "랜딩페이지 레이아웃 템플릿을 선택하세요"}
                     </CardDescription>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
-                  >
-                    템플릿 관리
-                  </Button>
+                  <div className="flex gap-2">
+                    {htmlDirectEditEnabled && (
+                      <Button
+                        variant={showHtmlEditor ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowHtmlEditor(!showHtmlEditor)}
+                      >
+                        <Code className="w-4 h-4 mr-2" />
+                        {showHtmlEditor ? "템플릿 선택으로" : "HTML 직접 입력"}
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push("/dashboard/admin/landing-pages/templates")}
+                    >
+                      템플릿 관리
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {templates.length === 0 ? (
+                {showHtmlEditor ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800 font-medium">⚠️ 고급 기능 주의사항</p>
+                      <ul className="text-xs text-yellow-700 mt-2 space-y-1">
+                        <li>• HTML, CSS, JavaScript 코드를 입력할 수 있습니다</li>
+                        <li>• 잘못된 코드 입력 시 페이지가 제대로 표시되지 않을 수 있습니다</li>
+                        <li>• 보안에 주의하여 신뢰할 수 있는 코드만 사용하세요</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <Label>HTML 코드 입력</Label>
+                      <Textarea
+                        value={customHtml}
+                        onChange={(e) => setCustomHtml(e.target.value)}
+                        placeholder="<!DOCTYPE html>&#10;<html>&#10;<head>&#10;  <title>랜딩페이지</title>&#10;</head>&#10;<body>&#10;  <h1>내용을 입력하세요</h1>&#10;</body>&#10;</html>"
+                        rows={15}
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <p>💡 팁: 변수를 사용하려면 <code className="bg-gray-100 px-2 py-1 rounded">{'{{studentName}}'}</code>, <code className="bg-gray-100 px-2 py-1 rounded">{'{{academyName}}'}</code> 등을 사용하세요</p>
+                    </div>
+                  </div>
+                ) : templates.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <p>템플릿이 없습니다.</p>
                     <Button

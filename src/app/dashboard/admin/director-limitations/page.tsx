@@ -48,6 +48,8 @@ interface DirectorLimitation {
   competency_monthly_limit: number;
   competency_daily_used: number;
   competency_monthly_used: number;
+  
+  landing_page_html_direct_edit: number;
 }
 
 interface Academy {
@@ -195,6 +197,7 @@ export default function DirectorLimitationsPage() {
           competency_monthly_limit: 300,
           competency_daily_used: 0,
           competency_monthly_used: 0,
+          landing_page_html_direct_edit: 0,
         };
 
         setLimitation(mockLimitation);
@@ -296,11 +299,12 @@ export default function DirectorLimitationsPage() {
         {/* Limitation Settings */}
         {selectedAcademyId && limitation && (
           <Tabs defaultValue="features" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="features">기능 활성화</TabsTrigger>
               <TabsTrigger value="daily">일일 제한</TabsTrigger>
               <TabsTrigger value="monthly">월간 제한</TabsTrigger>
               <TabsTrigger value="students">학생 수 제한</TabsTrigger>
+              <TabsTrigger value="landingpage">랜딩페이지</TabsTrigger>
             </TabsList>
 
             {/* Feature Activation */}
@@ -624,6 +628,52 @@ export default function DirectorLimitationsPage() {
                             : `현재 사용: ${limitation.competency_monthly_used || 0}회`
                         }
                       </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Landing Page Permission */}
+            <TabsContent value="landingpage" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>랜딩페이지 HTML 직접 편집 권한</CardTitle>
+                  <CardDescription>
+                    학원장이 HTML 코드를 직접 입력하여 랜딩페이지를 만들 수 있는 권한을 부여합니다
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-medium">HTML 직접 편집 기능</h3>
+                      <p className="text-sm text-gray-500">활성화 시 학원장이 랜딩페이지 생성 시 HTML 코드를 직접 입력할 수 있습니다</p>
+                    </div>
+                    <Button
+                      variant={limitation.landing_page_html_direct_edit === 1 ? "default" : "outline"}
+                      onClick={() => setLimitation({
+                        ...limitation,
+                        landing_page_html_direct_edit: limitation.landing_page_html_direct_edit === 1 ? 0 : 1
+                      })}
+                    >
+                      {limitation.landing_page_html_direct_edit === 1 ? (
+                        <><CheckCircle className="w-4 h-4 mr-2" /> 활성화</>
+                      ) : (
+                        <><XCircle className="w-4 h-4 mr-2" /> 비활성화</>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-800">주의사항</p>
+                        <ul className="text-sm text-blue-700 mt-1 list-disc list-inside space-y-1">
+                          <li>HTML 직접 편집은 고급 기능으로, HTML/CSS/JavaScript에 대한 이해가 필요합니다</li>
+                          <li>잘못된 코드 입력 시 랜딩페이지가 제대로 표시되지 않을 수 있습니다</li>
+                          <li>보안상 주의가 필요하므로 신뢰할 수 있는 학원장에게만 권한을 부여하세요</li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

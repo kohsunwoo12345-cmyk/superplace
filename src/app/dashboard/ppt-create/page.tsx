@@ -1,5 +1,4 @@
 "use client";
-// Force refresh: 2026-02-21 10:00:00 - Readonly fix applied
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -8,7 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Loader2, FileText, Plus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, FileText, Download, ChevronRight } from "lucide-react";
+import { PPTVariables, DEFAULT_PPT_VARIABLES } from "@/types/ppt-variables";
+import { createDetailedPPT } from "@/utils/ppt-generator";
 
 // PptxGenJS 타입 선언
 declare global {
@@ -20,10 +22,8 @@ declare global {
 export default function PPTCreatePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [pptTitle, setPptTitle] = useState("나의 프레젠테이션");
-  const [content, setContent] = useState("");
-  const [pageCount, setPageCount] = useState(5);
   const [pptxReady, setPptxReady] = useState(false);
+  const [data, setData] = useState<PPTVariables>(DEFAULT_PPT_VARIABLES);
 
   // CDN에서 PptxGenJS 로드
   useEffect(() => {
@@ -43,43 +43,13 @@ export default function PPTCreatePage() {
     }
   }, []);
 
-  // 내용을 페이지 수에 맞게 자동 분할
-  const splitContentIntoPages = (text: string, pages: number) => {
-    if (!text.trim()) return [];
-    
-    // 줄바꿈으로 분리
-    const lines = text.split('\n').filter(line => line.trim());
-    
-    if (lines.length === 0) return [];
-    
-    // 페이지당 줄 수 계산
-    const linesPerPage = Math.ceil(lines.length / pages);
-    
-    const slides = [];
-    for (let i = 0; i < pages; i++) {
-      const startIdx = i * linesPerPage;
-      const endIdx = Math.min(startIdx + linesPerPage, lines.length);
-      const pageLines = lines.slice(startIdx, endIdx);
-      
-      if (pageLines.length > 0) {
-        slides.push({
-          title: `${pptTitle} - ${i + 1}`,
-          content: pageLines.join('\n')
-        });
-      }
-    }
-    
-    return slides;
+  const updateField = (field: keyof PPTVariables, value: string) => {
+    setData(prev => ({ ...prev, [field]: value }));
   };
 
   const createPPT = async () => {
-    if (!pptTitle.trim()) {
-      alert("PPT 제목을 입력하세요");
-      return;
-    }
-
-    if (!content.trim()) {
-      alert("내용을 입력하세요");
+    if (!data.title.trim()) {
+      alert("제목을 입력하세요");
       return;
     }
 
@@ -91,257 +61,634 @@ export default function PPTCreatePage() {
     setLoading(true);
 
     try {
-      console.log('📤 Creating PPT:', { pptTitle, pageCount });
-
-      // 내용을 페이지 수에 맞게 분할
-      const slides = splitContentIntoPages(content, pageCount);
-      
-      if (slides.length === 0) {
-        throw new Error("생성할 슬라이드가 없습니다");
-      }
-
-      console.log('📄 Generated slides:', slides.length);
-
-      // PPT 생성 (CDN에서 로드한 PptxGenJS 사용)
-      // **중요**: Object.freeze/seal 등으로 보호된 속성을 건드리지 않음
-      let pptx;
-      try {
-        pptx = new window.PptxGenJS();
-        console.log('✅ PPT 객체 생성됨');
-      } catch (err: any) {
-        throw new Error(`PPT 객체 생성 실패: ${err.message}`);
-      }
-
-      // 첫 슬라이드 (제목 슬라이드)
-      try {
-        const titleSlide = pptx.addSlide();
-        titleSlide.addText(pptTitle, {
-          x: 1,
-          y: 2.5,
-          w: 8,
-          h: 1.5,
-          fontSize: 44,
-          bold: true,
-          color: '363636',
-          align: 'center'
-        });
-        titleSlide.addText(`총 ${slides.length}개 슬라이드`, {
-          x: 1,
-          y: 4,
-          w: 8,
-          h: 0.5,
-          fontSize: 20,
-          color: '666666',
-          align: 'center'
-        });
-        console.log('✅ 제목 슬라이드 추가됨');
-      } catch (err: any) {
-        throw new Error(`제목 슬라이드 생성 실패: ${err.message}`);
-      }
-
-      // 각 내용 슬라이드 생성
-      try {
-        slides.forEach((slideData, index) => {
-          const slide = pptx.addSlide();
-          
-          // ⚠️ background 속성은 readonly! 대신 addShape으로 배경 추가 - 제거 (기본 흰색 배경 사용)
-          
-          // 제목 추가 (상단)
-          slide.addText(slideData.title, {
-            x: 0.5,
-            y: 0.5,
-            w: 9,
-            h: 0.8,
-            fontSize: 28,
-            bold: true,
-            color: '363636',
-            align: 'center'
-          });
-          
-          // 내용 추가 (중앙)
-          if (slideData.content && slideData.content.trim()) {
-            const contentLines = slideData.content.split('\n').filter(line => line.trim());
-            
-            slide.addText(contentLines, {
-              x: 1,
-              y: 2,
-              w: 8,
-              h: 4.5,
-              fontSize: 16,
-              color: '555555',
-              align: 'left',
-              valign: 'top',
-              bullet: true
-            });
-          }
-          
-          // 슬라이드 번호 (우측 하단)
-          slide.addText(`${index + 1} / ${slides.length}`, {
-            x: 8.5,
-            y: 7,
-            w: 1,
-            h: 0.3,
-            fontSize: 12,
-            color: '999999',
-            align: 'right'
-          });
-        });
-        console.log(`✅ ${slides.length}개 내용 슬라이드 추가됨`);
-      } catch (err: any) {
-        throw new Error(`내용 슬라이드 생성 실패: ${err.message}`);
-      }
-
-      console.log('✅ PPT 객체 생성 완료');
-
-      // 파일명 생성
-      const filename = `${pptTitle.replace(/[^a-zA-Z0-9가-힣]/g, '_')}_${Date.now()}.pptx`;
-
-      // PPT 다운로드
-      console.log('📥 PPT 파일 다운로드 시작...');
-      try {
-        await pptx.writeFile({ fileName: filename });
-        console.log('✅ PPT 파일 다운로드 완료:', filename);
-        alert(`✅ PPT가 성공적으로 생성되었습니다!\n\n파일명: ${filename}\n슬라이드 수: ${slides.length + 1}개 (제목 포함)`);
-      } catch (err: any) {
-        throw new Error(`PPT 파일 저장 실패: ${err.message}`);
-      }
-
+      console.log('📤 Creating PPT with variables...');
+      const result = createDetailedPPT(data);
+      console.log('✅ PPT created:', result);
+      alert(`✅ PPT가 성공적으로 생성되었습니다!\n\n파일명: ${result.filename}`);
     } catch (error: any) {
       console.error("❌ Failed to create PPT:", error);
-      const errorMsg = error.message || String(error);
-      alert(`❌ PPT 생성 실패\n\n오류: ${errorMsg}\n\n페이지를 새로고침 후 다시 시도해주세요.`);
+      alert(`❌ PPT 생성 실패\n\n오류: ${error.message || error}\n\n페이지를 새로고침 후 다시 시도해주세요.`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto p-6 max-w-6xl">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">📊 PPT 제작</h1>
-          <p className="text-gray-600 mt-2">내용을 입력하고 페이지 수를 선택하면 자동으로 PPT가 생성됩니다</p>
+          <h1 className="text-3xl font-bold">📊 PPT 제작 (변수 기반)</h1>
+          <p className="text-gray-600 mt-2">50개 변수를 입력하면 자동으로 8-20페이지 전문 PPT가 생성됩니다</p>
         </div>
-        <Button variant="outline" onClick={() => router.back()}>
-          돌아가기
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => router.back()}>
+            돌아가기
+          </Button>
+          <Button 
+            onClick={createPPT} 
+            disabled={loading || !pptxReady}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                생성 중...
+              </>
+            ) : (
+              <>
+                <Download className="mr-2 h-4 w-4" />
+                PPT 생성
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
-      {/* PPT 제목 */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>PPT 제목</CardTitle>
-          <CardDescription>프레젠테이션의 전체 제목을 입력하세요</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Input
-            value={pptTitle}
-            onChange={(e) => setPptTitle(e.target.value)}
-            placeholder="예: 2024년 1분기 실적 보고"
-            className="text-lg"
-          />
-        </CardContent>
-      </Card>
+      {/* 변수 입력 폼 */}
+      <Tabs defaultValue="basic" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="basic">기본 정보</TabsTrigger>
+          <TabsTrigger value="student">학생 정보</TabsTrigger>
+          <TabsTrigger value="scores">성적 정보</TabsTrigger>
+          <TabsTrigger value="analysis">학습 분석</TabsTrigger>
+          <TabsTrigger value="goals">목표 및 메시지</TabsTrigger>
+        </TabsList>
 
-      {/* 페이지 수 선택 */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>페이지 수</CardTitle>
-          <CardDescription>생성할 슬라이드 개수를 선택하세요 (제목 제외)</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <Input
-              type="number"
-              min="1"
-              max="20"
-              value={pageCount}
-              onChange={(e) => setPageCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
-              className="w-32"
-            />
-            <span className="text-gray-600">페이지 (1-20)</span>
-          </div>
-        </CardContent>
-      </Card>
+        {/* 탭 1: 기본 정보 */}
+        <TabsContent value="basic">
+          <Card>
+            <CardHeader>
+              <CardTitle>기본 정보 (5개 변수)</CardTitle>
+              <CardDescription>학원 및 보고서 기본 정보를 입력하세요</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="academyName">학원명 *</Label>
+                  <Input
+                    id="academyName"
+                    value={data.academyName}
+                    onChange={(e) => updateField('academyName', e.target.value)}
+                    placeholder="예: 서울수학학원"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="presenter">발표자</Label>
+                  <Input
+                    id="presenter"
+                    value={data.presenter}
+                    onChange={(e) => updateField('presenter', e.target.value)}
+                    placeholder="예: 이선생님"
+                  />
+                </div>
+              </div>
 
-      {/* 내용 입력 */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>내용</CardTitle>
-          <CardDescription>
-            PPT에 들어갈 내용을 입력하세요. 각 줄은 자동으로 불릿 포인트로 표시되며, 
-            입력한 내용이 선택한 페이지 수에 맞게 자동으로 분배됩니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={`예시:\nAI 기술의 발전\n자동화된 업무 처리\n효율성 증대\n비용 절감\n고객 만족도 향상\n미래 전망`}
-            rows={15}
-            className="font-mono"
-          />
-          <div className="mt-2 text-sm text-gray-500">
-            💡 팁: 한 줄에 하나의 포인트를 입력하세요. 총 {content.split('\n').filter(l => l.trim()).length}개 항목
-          </div>
-        </CardContent>
-      </Card>
+              <div>
+                <Label htmlFor="title">제목 *</Label>
+                <Input
+                  id="title"
+                  value={data.title}
+                  onChange={(e) => updateField('title', e.target.value)}
+                  placeholder="예: 김민수 학생 학습 성장 보고서"
+                />
+              </div>
 
-      {/* 생성 버튼 */}
-      <div className="flex gap-4">
-        <Button
-          onClick={createPPT}
-          disabled={loading || !pptxReady}
-          className="flex-1"
-          size="lg"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              PPT 생성 중...
-            </>
-          ) : !pptxReady ? (
-            <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              라이브러리 로딩 중...
-            </>
-          ) : (
-            <>
-              <FileText className="w-5 h-5 mr-2" />
-              PPT 생성하기
-            </>
-          )}
-        </Button>
-      </div>
+              <div>
+                <Label htmlFor="subtitle">부제목</Label>
+                <Input
+                  id="subtitle"
+                  value={data.subtitle}
+                  onChange={(e) => updateField('subtitle', e.target.value)}
+                  placeholder="예: 2026년 3월 월간 학습 리포트"
+                />
+              </div>
 
-      {/* 미리보기 */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>미리보기</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-gray-600">
-              <span>제목:</span>
-              <span className="font-semibold">{pptTitle || "(제목 없음)"}</span>
+              <div>
+                <Label htmlFor="date">날짜</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={data.date}
+                  onChange={(e) => updateField('date', e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 탭 2: 학생 정보 */}
+        <TabsContent value="student">
+          <Card>
+            <CardHeader>
+              <CardTitle>학생 기본 정보 (10개 변수)</CardTitle>
+              <CardDescription>학생의 기본 정보와 출석 현황을 입력하세요</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="studentName">학생 이름 *</Label>
+                  <Input
+                    id="studentName"
+                    value={data.studentName}
+                    onChange={(e) => updateField('studentName', e.target.value)}
+                    placeholder="예: 김민수"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="studentGrade">학년</Label>
+                  <Input
+                    id="studentGrade"
+                    value={data.studentGrade}
+                    onChange={(e) => updateField('studentGrade', e.target.value)}
+                    placeholder="예: 중학교 2학년"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="studentClass">반</Label>
+                  <Input
+                    id="studentClass"
+                    value={data.studentClass}
+                    onChange={(e) => updateField('studentClass', e.target.value)}
+                    placeholder="예: A반"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="studentNumber">학번</Label>
+                  <Input
+                    id="studentNumber"
+                    value={data.studentNumber}
+                    onChange={(e) => updateField('studentNumber', e.target.value)}
+                    placeholder="예: 2024001"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="studentPhone">전화번호</Label>
+                  <Input
+                    id="studentPhone"
+                    value={data.studentPhone}
+                    onChange={(e) => updateField('studentPhone', e.target.value)}
+                    placeholder="010-1234-5678"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="parentName">학부모 이름</Label>
+                  <Input
+                    id="parentName"
+                    value={data.parentName}
+                    onChange={(e) => updateField('parentName', e.target.value)}
+                    placeholder="예: 김학부모"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="parentPhone">학부모 전화번호</Label>
+                  <Input
+                    id="parentPhone"
+                    value={data.parentPhone}
+                    onChange={(e) => updateField('parentPhone', e.target.value)}
+                    placeholder="010-8765-4321"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="enrollmentDate">등록일</Label>
+                  <Input
+                    id="enrollmentDate"
+                    type="date"
+                    value={data.enrollmentDate}
+                    onChange={(e) => updateField('enrollmentDate', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="attendanceRate">출석률</Label>
+                  <Input
+                    id="attendanceRate"
+                    value={data.attendanceRate}
+                    onChange={(e) => updateField('attendanceRate', e.target.value)}
+                    placeholder="예: 95%"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="totalClasses">총 수업 수</Label>
+                  <Input
+                    id="totalClasses"
+                    value={data.totalClasses}
+                    onChange={(e) => updateField('totalClasses', e.target.value)}
+                    placeholder="예: 40"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 탭 3: 성적 정보 */}
+        <TabsContent value="scores">
+          <Card>
+            <CardHeader>
+              <CardTitle>성적 정보 (15개 변수)</CardTitle>
+              <CardDescription>과목별 점수와 등수 정보를 입력하세요</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-5 gap-4">
+                <div>
+                  <Label htmlFor="koreanScore">국어</Label>
+                  <Input
+                    id="koreanScore"
+                    value={data.koreanScore}
+                    onChange={(e) => updateField('koreanScore', e.target.value)}
+                    placeholder="85"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="mathScore">수학</Label>
+                  <Input
+                    id="mathScore"
+                    value={data.mathScore}
+                    onChange={(e) => updateField('mathScore', e.target.value)}
+                    placeholder="92"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="englishScore">영어</Label>
+                  <Input
+                    id="englishScore"
+                    value={data.englishScore}
+                    onChange={(e) => updateField('englishScore', e.target.value)}
+                    placeholder="88"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="scienceScore">과학</Label>
+                  <Input
+                    id="scienceScore"
+                    value={data.scienceScore}
+                    onChange={(e) => updateField('scienceScore', e.target.value)}
+                    placeholder="90"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="socialScore">사회</Label>
+                  <Input
+                    id="socialScore"
+                    value={data.socialScore}
+                    onChange={(e) => updateField('socialScore', e.target.value)}
+                    placeholder="87"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="averageScore">평균 점수</Label>
+                  <Input
+                    id="averageScore"
+                    value={data.averageScore}
+                    onChange={(e) => updateField('averageScore', e.target.value)}
+                    placeholder="88.4"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="totalScore">총점</Label>
+                  <Input
+                    id="totalScore"
+                    value={data.totalScore}
+                    onChange={(e) => updateField('totalScore', e.target.value)}
+                    placeholder="442"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="rank">등수</Label>
+                  <Input
+                    id="rank"
+                    value={data.rank}
+                    onChange={(e) => updateField('rank', e.target.value)}
+                    placeholder="5"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="grade">등급</Label>
+                  <Input
+                    id="grade"
+                    value={data.grade}
+                    onChange={(e) => updateField('grade', e.target.value)}
+                    placeholder="A"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="previousAverage">이전 평균</Label>
+                  <Input
+                    id="previousAverage"
+                    value={data.previousAverage}
+                    onChange={(e) => updateField('previousAverage', e.target.value)}
+                    placeholder="82.0"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="scoreChange">점수 변화</Label>
+                  <Input
+                    id="scoreChange"
+                    value={data.scoreChange}
+                    onChange={(e) => updateField('scoreChange', e.target.value)}
+                    placeholder="+6.4"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="rankChange">등수 변화</Label>
+                  <Input
+                    id="rankChange"
+                    value={data.rankChange}
+                    onChange={(e) => updateField('rankChange', e.target.value)}
+                    placeholder="+3"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="strongestSubject">가장 강한 과목</Label>
+                  <Input
+                    id="strongestSubject"
+                    value={data.strongestSubject}
+                    onChange={(e) => updateField('strongestSubject', e.target.value)}
+                    placeholder="수학"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="weakestSubject">가장 약한 과목</Label>
+                  <Input
+                    id="weakestSubject"
+                    value={data.weakestSubject}
+                    onChange={(e) => updateField('weakestSubject', e.target.value)}
+                    placeholder="국어"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="improvementRate">향상률</Label>
+                  <Input
+                    id="improvementRate"
+                    value={data.improvementRate}
+                    onChange={(e) => updateField('improvementRate', e.target.value)}
+                    placeholder="7.8%"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 탭 4: 학습 분석 */}
+        <TabsContent value="analysis">
+          <Card>
+            <CardHeader>
+              <CardTitle>학습 분석 (10개 변수)</CardTitle>
+              <CardDescription>학습 태도와 습관에 대한 상세 분석을 입력하세요</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="strengths">강점 (줄바꿈으로 구분)</Label>
+                <Textarea
+                  id="strengths"
+                  value={data.strengths}
+                  onChange={(e) => updateField('strengths', e.target.value)}
+                  placeholder="수학적 사고력 우수&#10;문제 해결 능력 뛰어남&#10;꾸준한 학습 태도"
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="weaknesses">약점 (줄바꿈으로 구분)</Label>
+                <Textarea
+                  id="weaknesses"
+                  value={data.weaknesses}
+                  onChange={(e) => updateField('weaknesses', e.target.value)}
+                  placeholder="국어 독해 속도 개선 필요&#10;영어 듣기 연습 부족"
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="studyHabits">학습 습관</Label>
+                  <Input
+                    id="studyHabits"
+                    value={data.studyHabits}
+                    onChange={(e) => updateField('studyHabits', e.target.value)}
+                    placeholder="매일 2시간 자기주도학습"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="concentration">집중력</Label>
+                  <Input
+                    id="concentration"
+                    value={data.concentration}
+                    onChange={(e) => updateField('concentration', e.target.value)}
+                    placeholder="높음 (90%)"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="participation">참여도</Label>
+                  <Input
+                    id="participation"
+                    value={data.participation}
+                    onChange={(e) => updateField('participation', e.target.value)}
+                    placeholder="적극적"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="homework">숙제 완성도</Label>
+                  <Input
+                    id="homework"
+                    value={data.homework}
+                    onChange={(e) => updateField('homework', e.target.value)}
+                    placeholder="100% 완성"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="attitude">학습 태도</Label>
+                  <Input
+                    id="attitude"
+                    value={data.attitude}
+                    onChange={(e) => updateField('attitude', e.target.value)}
+                    placeholder="성실하고 적극적"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="progressRate">진도율</Label>
+                  <Input
+                    id="progressRate"
+                    value={data.progressRate}
+                    onChange={(e) => updateField('progressRate', e.target.value)}
+                    placeholder="95%"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="understandingLevel">이해도</Label>
+                  <Input
+                    id="understandingLevel"
+                    value={data.understandingLevel}
+                    onChange={(e) => updateField('understandingLevel', e.target.value)}
+                    placeholder="높음"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="recommendations">추천사항</Label>
+                <Textarea
+                  id="recommendations"
+                  value={data.recommendations}
+                  onChange={(e) => updateField('recommendations', e.target.value)}
+                  placeholder="국어 독해 연습 강화&#10;영어 듣기 매일 30분 권장"
+                  rows={2}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 탭 5: 목표 및 메시지 */}
+        <TabsContent value="goals">
+          <Card>
+            <CardHeader>
+              <CardTitle>목표 설정 및 메시지 (10개 변수)</CardTitle>
+              <CardDescription>단기/중기/장기 목표와 선생님 코멘트를 입력하세요</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="shortTermGoal">단기 목표 (1개월)</Label>
+                <Input
+                  id="shortTermGoal"
+                  value={data.shortTermGoal}
+                  onChange={(e) => updateField('shortTermGoal', e.target.value)}
+                  placeholder="다음 시험 수학 100점 달성"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="midTermGoal">중기 목표 (3개월)</Label>
+                <Input
+                  id="midTermGoal"
+                  value={data.midTermGoal}
+                  onChange={(e) => updateField('midTermGoal', e.target.value)}
+                  placeholder="전체 평균 90점 이상 유지"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="longTermGoal">장기 목표 (6개월)</Label>
+                <Input
+                  id="longTermGoal"
+                  value={data.longTermGoal}
+                  onChange={(e) => updateField('longTermGoal', e.target.value)}
+                  placeholder="과학고 진학 준비"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="actionPlan1">실행 계획 1</Label>
+                <Input
+                  id="actionPlan1"
+                  value={data.actionPlan1}
+                  onChange={(e) => updateField('actionPlan1', e.target.value)}
+                  placeholder="국어 독해 문제집 매일 10문제"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="actionPlan2">실행 계획 2</Label>
+                <Input
+                  id="actionPlan2"
+                  value={data.actionPlan2}
+                  onChange={(e) => updateField('actionPlan2', e.target.value)}
+                  placeholder="영어 듣기 매일 30분 연습"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="actionPlan3">실행 계획 3</Label>
+                <Input
+                  id="actionPlan3"
+                  value={data.actionPlan3}
+                  onChange={(e) => updateField('actionPlan3', e.target.value)}
+                  placeholder="수학 심화 문제 주 3회"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="expectedOutcome">기대 성과</Label>
+                <Input
+                  id="expectedOutcome"
+                  value={data.expectedOutcome}
+                  onChange={(e) => updateField('expectedOutcome', e.target.value)}
+                  placeholder="다음 시험 전과목 90점 이상"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="teacherComment">선생님 코멘트</Label>
+                <Textarea
+                  id="teacherComment"
+                  value={data.teacherComment}
+                  onChange={(e) => updateField('teacherComment', e.target.value)}
+                  placeholder="꾸준한 노력으로 성적이 크게 향상되었습니다. 국어와 영어에 조금 더 집중하면 더 좋은 결과를 기대할 수 있습니다."
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="encouragement">격려 문구</Label>
+                <Input
+                  id="encouragement"
+                  value={data.encouragement}
+                  onChange={(e) => updateField('encouragement', e.target.value)}
+                  placeholder="민수는 매우 성실한 학생입니다. 지금처럼만 하면 목표를 충분히 달성할 수 있습니다!"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="parentAdvice">학부모님께 드리는 말씀</Label>
+                <Textarea
+                  id="parentAdvice"
+                  value={data.parentAdvice}
+                  onChange={(e) => updateField('parentAdvice', e.target.value)}
+                  placeholder="가정에서도 국어 독서 시간을 늘려주시면 큰 도움이 될 것입니다."
+                  rows={2}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* PPT 라이브러리 로딩 상태 */}
+      {!pptxReady && (
+        <Card className="mt-4 bg-yellow-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <p className="text-sm text-yellow-800">PPT 라이브러리를 로딩 중입니다...</p>
             </div>
-            <div className="flex justify-between text-gray-600">
-              <span>슬라이드 수:</span>
-              <span className="font-semibold">{pageCount + 1}장 (제목 포함)</span>
-            </div>
-            <div className="flex justify-between text-gray-600">
-              <span>입력한 항목:</span>
-              <span className="font-semibold">{content.split('\n').filter(l => l.trim()).length}개</span>
-            </div>
-            <div className="mt-4 pt-4 border-t">
-              <p className="text-gray-500 text-xs">
-                💡 팁: 내용이 자동으로 {pageCount}개 페이지에 균등하게 분배됩니다
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
