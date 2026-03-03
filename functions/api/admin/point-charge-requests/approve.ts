@@ -105,10 +105,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     console.log('✅ Request status updated to APPROVED');
 
-    // 2. 사용자 포인트 증가 (users 테이블)
-    // 사용자의 academyId를 확인하고, 해당 학원의 포인트로 관리
+    // 2. 사용자 포인트 증가 (User 테이블)
+    // 사용자의 academyId와 role을 확인하고, 포인트 증가 전 상태 로깅
     const user = await env.DB.prepare(`
-      SELECT id, email, name, academyId FROM users WHERE id = ?
+      SELECT id, email, name, role, academyId, points FROM User WHERE id = ?
     `).bind(requestInfo.userId).first();
 
     if (!user) {
@@ -119,45 +119,106 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    console.log('✅ User found:', { email: user.email, academyId: user.academyId });
+    const beforePoints = user.points || 0;
+    console.log('✅ User found:', { 
+      id: user.id,
+      email: user.email, 
+      name: user.name,
+      role: user.role,
+      academyId: user.academyId,
+      currentPoints: beforePoints
+    });
 
-    // points 컬럼 추가 시도 (이미 있으면 무시됨)
+    console.log('💰 Point charge details:', {
+      requestId,
+      userId: user.id,
+      userRole: user.role,
+      academyId: user.academyId,
+      beforePoints,
+      pointsToAdd: requestInfo.requestedPoints,
+      expectedAfterPoints: beforePoints + requestInfo.requestedPoints
+    });
+
+    // points 컬럼 존재 확인 (User 테이블)
     try {
       await env.DB.prepare(`
-        ALTER TABLE users ADD COLUMN points INTEGER DEFAULT 0
+        ALTER TABLE User ADD COLUMN points INTEGER DEFAULT 0
       `).run();
-      console.log('✅ Points column added to users table');
+      console.log('✅ Points column added to User table');
     } catch (e) {
       // 컬럼이 이미 존재하면 무시
-      console.log('ℹ️ Points column already exists or error:', e);
+      console.log('ℹ️ Points column already exists in User table');
     }
 
-    // 포인트 증가 (학원별로 포인트가 분리되어 있으므로 각 사용자의 포인트를 증가)
-    // academyId가 동일한 사용자들의 포인트는 각각 독립적으로 관리됨
-    await env.DB.prepare(`
-      UPDATE users
+    // 포인트 증가 (User 테이블 사용)
+    // 원장(DIRECTOR) 또는 선생님(TEACHER) 계정에 포인트 증가
+    const updateResult = await env.DB.prepare(`
+      UPDATE User
       SET points = COALESCE(points, 0) + ?,
           updatedAt = ?
       WHERE id = ?
     `).bind(requestInfo.requestedPoints, now, requestInfo.userId).run();
 
-    console.log('✅ User points updated:', {
-      userId: requestInfo.userId,
-      academyId: user.academyId,
-      addedPoints: requestInfo.requestedPoints
+    console.log('✅ Points UPDATE query executed:', {
+      success: updateResult.success,
+      changes: updateResult.meta?.changes || 0
     });
 
-    // 최종 포인트 확인
+    // 최종 포인트 확인 (User 테이블)
     const updatedUser = await env.DB.prepare(`
-      SELECT points FROM users WHERE id = ?
+      SELECT id, email, name, role, academyId, points FROM User WHERE id = ?
     `).bind(requestInfo.userId).first();
 
-    console.log('✅ Final user points:', updatedUser?.points || 0);
+    if (!updatedUser) {
+      console.error('❌ Failed to retrieve updated user');
+      return new Response(JSON.stringify({ 
+        error: 'Failed to verify point update' 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const afterPoints = updatedUser.points || 0;
+    const actualIncrease = afterPoints - beforePoints;
+
+    console.log('✅ Point increase completed:', {
+      userId: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      role: updatedUser.role,
+      academyId: updatedUser.academyId,
+      beforePoints,
+      afterPoints,
+      expectedIncrease: requestInfo.requestedPoints,
+      actualIncrease,
+      match: actualIncrease === requestInfo.requestedPoints
+    });
+
+    // 검증: 실제 증가량과 예상 증가량 비교
+    if (actualIncrease !== requestInfo.requestedPoints) {
+      console.error('⚠️ Point increase mismatch!', {
+        expected: requestInfo.requestedPoints,
+        actual: actualIncrease
+      });
+    }
 
     return new Response(JSON.stringify({ 
       success: true,
-      message: 'Point charge approved',
-      points: updatedUser?.points || 0
+      message: `포인트 충전이 승인되었습니다. ${requestInfo.requestedPoints.toLocaleString()}P가 ${updatedUser.role === 'DIRECTOR' ? '원장' : '사용자'} 계정에 추가되었습니다.`,
+      data: {
+        userId: updatedUser.id,
+        userName: updatedUser.name,
+        userEmail: updatedUser.email,
+        userRole: updatedUser.role,
+        academyId: updatedUser.academyId,
+        beforePoints,
+        afterPoints,
+        addedPoints: actualIncrease,
+        requestedPoints: requestInfo.requestedPoints,
+        totalPrice: requestInfo.totalPrice,
+        approvedAt: now
+      }
     }), {
       headers: { 'Content-Type': 'application/json' }
     });

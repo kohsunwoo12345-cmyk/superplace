@@ -163,7 +163,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.academyId,
         a.name as academyName
       FROM PointChargeRequest pcr
-      LEFT JOIN users u ON pcr.userId = u.id
+      LEFT JOIN User u ON pcr.userId = u.id
       LEFT JOIN academy a ON u.academyId = a.id
       WHERE pcr.status = 'APPROVED'
     `;
@@ -222,7 +222,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.email as userEmail,
         a.name as academyName
       FROM BotPurchaseRequest bpr
-      LEFT JOIN users u ON bpr.userId = u.id
+      LEFT JOIN User u ON bpr.userId = u.id
       LEFT JOIN academy a ON bpr.academyId = a.id
       WHERE bpr.status = 'APPROVED'
     `;
