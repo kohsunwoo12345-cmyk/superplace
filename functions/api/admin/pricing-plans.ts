@@ -40,26 +40,26 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // pricing_plans 테이블 생성 (6개월 요금 포함)
+    // pricing_plans 테이블 생성 (price_* 컬럼명 사용)
     await db.prepare(`
       CREATE TABLE IF NOT EXISTS pricing_plans (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
         
-        pricing_1month INTEGER NOT NULL,
-        pricing_6months INTEGER NOT NULL,
-        pricing_12months INTEGER NOT NULL,
+        price_1month INTEGER DEFAULT 0,
+        price_6months INTEGER DEFAULT 0,
+        price_12months INTEGER DEFAULT 0,
         
-        maxStudents INTEGER DEFAULT -1,
-        maxTeachers INTEGER DEFAULT -1,
-        maxHomeworkChecks INTEGER DEFAULT -1,
-        maxAIAnalysis INTEGER DEFAULT -1,
-        maxAIGrading INTEGER DEFAULT -1,
-        maxCapabilityAnalysis INTEGER DEFAULT -1,
-        maxConceptAnalysis INTEGER DEFAULT -1,
-        maxSimilarProblems INTEGER DEFAULT -1,
-        maxLandingPages INTEGER DEFAULT -1,
+        max_students INTEGER DEFAULT -1,
+        max_teachers INTEGER DEFAULT -1,
+        max_homework_checks INTEGER DEFAULT -1,
+        max_ai_analysis INTEGER DEFAULT -1,
+        max_ai_grading INTEGER DEFAULT -1,
+        max_capability_analysis INTEGER DEFAULT -1,
+        max_concept_analysis INTEGER DEFAULT -1,
+        max_similar_problems INTEGER DEFAULT -1,
+        max_landing_pages INTEGER DEFAULT -1,
         
         features TEXT,
         isPopular INTEGER DEFAULT 0,
@@ -80,20 +80,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const plans = (result.results || []).map((plan: any) => ({
       ...plan,
       pricing: {
-        '1month': plan.pricing_1month ?? 0,
-        '6months': plan.pricing_6months ?? 0,
-        '12months': plan.pricing_12months ?? 0,
+        '1month': plan.price_1month ?? 0,
+        '6months': plan.price_6months ?? 0,
+        '12months': plan.price_12months ?? 0,
       },
       limits: {
-        maxStudents: plan.maxStudents ?? -1,
-        maxTeachers: plan.maxTeachers ?? -1,
-        maxHomeworkChecks: plan.maxHomeworkChecks ?? -1,
-        maxAIAnalysis: plan.maxAIAnalysis ?? -1,
-        maxAIGrading: plan.maxAIGrading ?? -1,
-        maxCapabilityAnalysis: plan.maxCapabilityAnalysis ?? -1,
-        maxConceptAnalysis: plan.maxConceptAnalysis ?? -1,
-        maxSimilarProblems: plan.maxSimilarProblems ?? -1,
-        maxLandingPages: plan.maxLandingPages ?? -1,
+        maxStudents: plan.max_students ?? -1,
+        maxTeachers: plan.max_teachers ?? -1,
+        maxHomeworkChecks: plan.max_homework_checks ?? -1,
+        maxAIAnalysis: plan.max_ai_analysis ?? -1,
+        maxAIGrading: plan.max_ai_grading ?? -1,
+        maxCapabilityAnalysis: plan.max_capability_analysis ?? -1,
+        maxConceptAnalysis: plan.max_concept_analysis ?? -1,
+        maxSimilarProblems: plan.max_similar_problems ?? -1,
+        maxLandingPages: plan.max_landing_pages ?? -1,
       },
       features: plan.features ? JSON.parse(plan.features) : [],
       isPopular: plan.isPopular === 1,
@@ -160,10 +160,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .prepare(`
         INSERT INTO pricing_plans (
           id, name, description,
-          pricing_1month, pricing_6months, pricing_12months,
-          maxStudents, maxTeachers, maxHomeworkChecks,
-          maxAIAnalysis, maxAIGrading, maxCapabilityAnalysis,
-          maxConceptAnalysis, maxSimilarProblems, maxLandingPages,
+          price_1month, price_6months, price_12months,
+          max_students, max_teachers, max_homework_checks,
+          max_ai_analysis, max_ai_grading, max_capability_analysis,
+          max_concept_analysis, max_similar_problems, max_landing_pages,
           features, isPopular, color, \`order\`, isActive
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
@@ -271,18 +271,18 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         UPDATE pricing_plans SET
           name = ?,
           description = ?,
-          pricing_1month = ?,
-          pricing_6months = ?,
-          pricing_12months = ?,
-          maxStudents = ?,
-          maxTeachers = ?,
-          maxHomeworkChecks = ?,
-          maxAIAnalysis = ?,
-          maxAIGrading = ?,
-          maxCapabilityAnalysis = ?,
-          maxConceptAnalysis = ?,
-          maxSimilarProblems = ?,
-          maxLandingPages = ?,
+          price_1month = ?,
+          price_6months = ?,
+          price_12months = ?,
+          max_students = ?,
+          max_teachers = ?,
+          max_homework_checks = ?,
+          max_ai_analysis = ?,
+          max_ai_grading = ?,
+          max_capability_analysis = ?,
+          max_concept_analysis = ?,
+          max_similar_problems = ?,
+          max_landing_pages = ?,
           features = ?,
           isPopular = ?,
           color = ?,
