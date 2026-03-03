@@ -26,6 +26,7 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  Trash2,
 } from "lucide-react";
 import {
   LineChart,
@@ -214,6 +215,36 @@ export default function AcademyDetailPage() {
       month: "long",
       day: "numeric",
     });
+  };
+
+  const handleDeleteStudent = async (studentId: number, studentName: string) => {
+    if (!confirm(`정말로 ${studentName} 학생을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 다음 항목이 모두 삭제됩니다:\n- 학생 계정\n- AI 봇 할당\n- 클래스 배정\n- 로그인 권한`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/students/${studentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(`✅ ${data.message}`);
+        // 페이지 새로고침하여 업데이트된 학생 목록 표시
+        fetchAcademyDetail();
+      } else {
+        alert(`❌ 삭제 실패: ${data.error || '알 수 없는 오류'}`);
+      }
+    } catch (error: any) {
+      console.error('Delete student error:', error);
+      alert('❌ 학생 삭제 중 오류가 발생했습니다.');
+    }
   };
 
   if (loading) {
@@ -689,19 +720,29 @@ export default function AcademyDetailPage() {
                       key={student.id}
                       className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
                     >
-                      <div>
+                      <div className="flex-1">
                         <p className="font-semibold">{student.name}</p>
                         <p className="text-sm text-gray-600">{student.email}</p>
                         {student.phone && (
                           <p className="text-sm text-gray-500">{student.phone}</p>
                         )}
                       </div>
-                      <div className="text-right">
-                        {student.createdAt && (
-                          <p className="text-xs text-gray-500">
-                            등록일: {formatDate(student.createdAt)}
-                          </p>
-                        )}
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          {student.createdAt && (
+                            <p className="text-xs text-gray-500">
+                              등록일: {formatDate(student.createdAt)}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteStudent(student.id, student.name)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          삭제
+                        </Button>
                       </div>
                     </div>
                   ))}
