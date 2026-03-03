@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
   User, Plus, Search, Mail, Phone, CheckCircle, XCircle, 
-  Eye, EyeOff, Settings, Users, Shield, Edit2, Save, X, RefreshCw 
+  Eye, EyeOff, Settings, Users, Shield, Edit2, Save, X, RefreshCw, Trash2 
 } from "lucide-react";
 
 interface Teacher {
@@ -497,6 +497,62 @@ export default function TeacherManagementPage() {
     );
   };
 
+  const handleDeleteTeacher = async (teacher: Teacher) => {
+    if (!confirm(`정말 "${teacher.name}" 교사를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      
+      console.log(`🗑️ 교사 삭제: ${teacher.name} (${teacher.id})`);
+
+      const response = await fetch(`/api/teachers/${teacher.id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert(`✅ "${teacher.name}" 교사가 삭제되었습니다.`);
+        
+        // 로컬 상태에서 제거
+        setTeachers(prev => prev.filter(t => t.id !== teacher.id));
+        
+        // 로컬스토리지의 pending 교사 목록에서도 제거
+        const pendingKey = `pending_teachers_${currentUser?.id || 'unknown'}`;
+        const pendingStr = localStorage.getItem(pendingKey);
+        if (pendingStr) {
+          try {
+            let pendingList = JSON.parse(pendingStr);
+            pendingList = pendingList.filter((t: Teacher) => t.id !== teacher.id);
+            localStorage.setItem(pendingKey, JSON.stringify(pendingList));
+            console.log("💾 로컬스토리지의 pending 교사 목록에서 제거 완료");
+          } catch (e) {
+            console.error("로컬스토리지 업데이트 오류:", e);
+          }
+        }
+        
+        // DB 동기화 확인
+        setTimeout(() => {
+          console.log("🔄 교사 삭제 DB 동기화 확인 중...");
+          loadTeachers();
+        }, 2000);
+      } else {
+        alert(`❌ 교사 삭제 실패\n\n${data.error || data.message || "알 수 없는 오류"}`);
+      }
+    } catch (error: any) {
+      console.error("교사 삭제 오류:", error);
+      alert(`❌ 오류 발생\n\n${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredTeachers = teachers.filter(teacher =>
     teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     teacher.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -679,6 +735,14 @@ export default function TeacherManagementPage() {
                           >
                             <Users className="w-4 h-4" />
                             반 배정
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTeacher(teacher)}
+                            className="flex items-center gap-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm"
+                            title="교사 삭제"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            삭제
                           </button>
                         </div>
                       </td>
