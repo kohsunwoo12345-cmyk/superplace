@@ -55,6 +55,8 @@ export default function TemplatesPage() {
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [editableHtml, setEditableHtml] = useState("");
 
   useEffect(() => {
     fetchTemplates();
@@ -199,7 +201,7 @@ export default function TemplatesPage() {
     }
   };
 
-  const handlePreview = (html: string) => {
+  const handlePreview = (html: string, enableEdit = false) => {
     // 변수를 샘플 데이터로 치환
     let previewHtml = html
       .replace(/\{\{studentName\}\}/g, "김철수")
@@ -211,7 +213,16 @@ export default function TemplatesPage() {
       .replace(/\{\{homeworkRate\}\}/g, "90%");
 
     setPreviewHtml(previewHtml);
+    setEditableHtml(html); // 원본 HTML 저장
+    setEditMode(enableEdit);
     setPreviewOpen(true);
+  };
+
+  const handleSaveFromPreview = () => {
+    setFormData({ ...formData, html: editableHtml });
+    setEditMode(false);
+    setPreviewOpen(false);
+    alert("HTML이 수정되었습니다. '생성하기' 또는 '수정하기' 버튼을 눌러 저장하세요.");
   };
 
   const handleDuplicate = (template: Template) => {
@@ -299,15 +310,21 @@ export default function TemplatesPage() {
                   </div>
                   <div>
                     <Label htmlFor="html">HTML 코드 *</Label>
+                    <div className="mb-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-xs font-semibold text-amber-800 mb-1">
+                        🔒 직접 수정 불가
+                      </p>
+                      <p className="text-xs text-amber-700">
+                        HTML 코드는 "미리보기에서 편집" 버튼을 통해서만 수정할 수 있습니다.
+                      </p>
+                    </div>
                     <Textarea
                       id="html"
                       value={formData.html}
-                      onChange={(e) =>
-                        setFormData({ ...formData, html: e.target.value })
-                      }
-                      placeholder="HTML 코드 입력..."
+                      readOnly
+                      placeholder="HTML 코드는 미리보기에서 수정하세요..."
                       rows={20}
-                      className="font-mono text-sm"
+                      className="font-mono text-sm bg-gray-50 cursor-not-allowed"
                     />
                     <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <p className="text-xs font-semibold text-blue-800 mb-2">
@@ -331,10 +348,18 @@ export default function TemplatesPage() {
                 <DialogFooter>
                   <Button
                     variant="outline"
-                    onClick={() => handlePreview(formData.html)}
+                    onClick={() => handlePreview(formData.html, false)}
                   >
                     <Eye className="w-4 h-4 mr-2" />
                     미리보기
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={() => handlePreview(formData.html, true)}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    미리보기에서 편집
                   </Button>
                   <Button
                     variant="outline"
@@ -525,17 +550,83 @@ export default function TemplatesPage() {
       </div>
 
       {/* 미리보기 다이얼로그 */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+      <Dialog open={previewOpen} onOpenChange={(open) => {
+        setPreviewOpen(open);
+        if (!open) setEditMode(false);
+      }}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>템플릿 미리보기</DialogTitle>
+            <DialogTitle>
+              {editMode ? "HTML 편집" : "템플릿 미리보기"}
+            </DialogTitle>
             <DialogDescription>
-              샘플 데이터로 렌더링된 템플릿을 확인하세요
+              {editMode 
+                ? "아래 HTML 코드를 수정하세요. 저장하면 템플릿에 반영됩니다."
+                : "샘플 데이터로 렌더링된 템플릿을 확인하세요"
+              }
             </DialogDescription>
           </DialogHeader>
-          <div className="border rounded-lg p-6 bg-white">
-            <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
-          </div>
+          {editMode ? (
+            <div className="space-y-4">
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>팁:</strong> 변수는 그대로 유지하세요 (예: {"{{studentName}}"})
+                </p>
+              </div>
+              <Textarea
+                value={editableHtml}
+                onChange={(e) => setEditableHtml(e.target.value)}
+                rows={25}
+                className="font-mono text-sm"
+                placeholder="HTML 코드를 입력하세요..."
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handlePreview(editableHtml, false)}
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  미리보기
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditMode(false);
+                    setPreviewOpen(false);
+                  }}
+                >
+                  취소
+                </Button>
+                <Button
+                  onClick={handleSaveFromPreview}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  ✅ HTML 저장
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="border rounded-lg p-6 bg-white mb-4">
+                <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditMode(true)}
+                >
+                  <Edit2 className="w-4 h-4 mr-2" />
+                  HTML 편집
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setPreviewOpen(false)}
+                >
+                  닫기
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
