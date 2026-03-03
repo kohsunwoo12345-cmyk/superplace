@@ -116,7 +116,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         description,
         price_1month as monthlyPrice,
         price_6months as price6months,
-        price_12months as price12months,
+        price_12months as price_12months,
         max_students as maxStudents,
         max_homework_checks as maxHomeworkChecks,
         max_ai_analysis as maxAIAnalysis,
@@ -169,7 +169,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         name: plan.name,
         description: plan.description || '',
         monthlyPrice: plan.monthlyPrice || 0,
-        yearlyPrice: plan.price12month || 0,
+        yearlyPrice: plan.price_12months || 0,
         maxStudents: plan.maxStudents,
         maxTeachers: 10, // 기본값
         features: features,

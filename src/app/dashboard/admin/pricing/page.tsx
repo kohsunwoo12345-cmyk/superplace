@@ -162,7 +162,9 @@ export default function PricingManagePage() {
         name: formData.name.trim(),
         description: formData.description.trim(),
         pricing_1month: Number(formData.monthlyPrice),
-        pricing_6months: Number(formData.yearlyPrice) > 0 ? Number(formData.yearlyPrice) / 2 : Number(formData.monthlyPrice) * 6,
+        pricing_6months: Number(formData.yearlyPrice) > 0 
+          ? Math.floor(Number(formData.yearlyPrice) / 2)  // 연간가격이 있으면 /2 = 6개월 가격
+          : Number(formData.monthlyPrice) * 6,            // 없으면 월간*6
         pricing_12months: Number(formData.yearlyPrice) || Number(formData.monthlyPrice) * 12,
         maxStudents: Number(formData.maxStudents),
         maxTeachers: Number(formData.maxTeachers),
