@@ -896,8 +896,8 @@ export default function ModernAIChatPage() {
         <style>
           @media print {
             @page { 
-              margin: 2cm;
-              size: A4;
+              margin: 1.5cm 1cm;
+              size: A4 portrait;
             }
             .no-print { display: none !important; }
             .editable-name { border: none !important; }
@@ -911,21 +911,27 @@ export default function ModernAIChatPage() {
             font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
             max-width: 21cm;
             margin: 0 auto;
-            padding: 2cm;
+            padding: 1.5cm 1cm;
             background: white;
             color: #000;
-            line-height: 1.6;
+            line-height: 1.4;
           }
           .header {
             text-align: center;
-            margin-bottom: 40px;
-            padding-bottom: 20px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
             border-bottom: 2px solid #000;
           }
           .academy-name {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 700;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+          }
+          .worksheet-title {
+            font-size: 16px;
+            color: #555;
+            margin-top: 5px;
           }
           .editable-name {
             display: inline-block;
@@ -942,65 +948,74 @@ export default function ModernAIChatPage() {
             background: #dbeafe;
           }
           .section-title {
-            font-size: 18px;
+            font-size: 15px;
             font-weight: 700;
-            margin: 30px 0 20px 0;
-            padding: 10px;
+            margin: 20px 0 15px 0;
+            padding: 8px 10px;
             background: #f3f4f6;
             border-left: 4px solid #2563eb;
           }
           .student-info {
-            margin-bottom: 30px;
-            font-size: 14px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            display: flex;
+            gap: 20px;
           }
           .student-info-line {
-            margin-bottom: 10px;
             display: flex;
             align-items: center;
+            flex: 1;
           }
           .student-info-label {
             font-weight: 600;
-            min-width: 80px;
+            margin-right: 8px;
           }
           .student-info-input {
             flex: 1;
             border-bottom: 1px solid #000;
-            min-height: 20px;
+            min-height: 18px;
+          }
+          .problems-container {
+            column-count: 2;
+            column-gap: 20px;
+            column-rule: 1px solid #e5e7eb;
           }
           .problem {
-            margin-bottom: 35px;
+            margin-bottom: 20px;
             page-break-inside: avoid;
+            break-inside: avoid;
           }
           .problem-number {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
+            color: #1a1a1a;
           }
           .problem-content {
-            font-size: 14px;
-            line-height: 2.0;
+            font-size: 12px;
+            line-height: 1.6;
             white-space: pre-wrap;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
           }
           .answer-space {
-            margin-top: 20px;
-            min-height: 60px;
+            margin-top: 12px;
+            min-height: 40px;
           }
           .answer-line {
             border-bottom: 1px solid #ccc;
-            height: 30px;
-            margin-bottom: 5px;
+            height: 24px;
+            margin-bottom: 4px;
           }
           .page-break {
             page-break-after: always;
+            break-after: page;
           }
         </style>
       </head>
       <body>
         <div class="header">
-          <div class="academy-name">
-            <span class="editable-name" contenteditable="true" id="academyNameEdit">${academyName}</span>
-          </div>
+          <div class="academy-name">${academyName}</div>
+          <div class="worksheet-title">학습 문제지</div>
         </div>
 
         <div class="student-info">
@@ -1015,19 +1030,22 @@ export default function ModernAIChatPage() {
         </div>
 
         ${multipleChoiceProblems.length > 0 ? `
-        <div class="section-title">객관식 문제 (1~5번)</div>
+        <div class="section-title">객관식 문제</div>
+        <div class="problems-container">
         ${multipleChoiceProblems.map((p, index) => `
           <div class="problem">
             <div class="problem-number">${p.number}. </div>
             <div class="problem-content">${p.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
           </div>
-          ${(index + 1) % 6 === 0 && index < multipleChoiceProblems.length - 1 ? '<div class="page-break"></div>' : ''}
         `).join('')}
+        </div>
+        ${multipleChoiceProblems.length > 7 ? '<div class="page-break"></div>' : ''}
         ` : ''}
 
         ${descriptiveProblems.length > 0 ? `
-        ${multipleChoiceProblems.length > 0 ? '<div class="page-break"></div>' : ''}
+        ${multipleChoiceProblems.length > 5 ? '<div class="page-break"></div>' : ''}
         <div class="section-title">서술형 문제</div>
+        <div class="problems-container">
         ${descriptiveProblems.map((p, index) => `
           <div class="problem">
             <div class="problem-number">${p.number}. </div>
@@ -1035,11 +1053,10 @@ export default function ModernAIChatPage() {
             <div class="answer-space">
               <div class="answer-line"></div>
               <div class="answer-line"></div>
-              <div class="answer-line"></div>
             </div>
           </div>
-          ${(index + 1) % 5 === 0 && index < descriptiveProblems.length - 1 ? '<div class="page-break"></div>' : ''}
         `).join('')}
+        </div>
         ` : ''}
 
         <div class="no-print" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
@@ -1052,11 +1069,8 @@ export default function ModernAIChatPage() {
         </div>
         
         <script>
-          // Focus on academy name edit on load
-          document.getElementById('academyNameEdit').addEventListener('click', function() {
-            this.focus();
-            document.execCommand('selectAll', false, null);
-          });
+          // Auto print on load (optional)
+          // window.onload = function() { setTimeout(() => window.print(), 500); };
         </script>
       </body>
       </html>
