@@ -68,6 +68,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log("⚠️ Payment approvals table already exists or error:", e);
     }
 
+    // Try to add planId and period columns if they don't exist
+    try {
+      await DB.prepare(`ALTER TABLE payment_approvals ADD COLUMN planId TEXT`).run();
+      console.log("✅ Added planId column");
+    } catch (e) {
+      console.log("⚠️ planId column might already exist");
+    }
+
+    try {
+      await DB.prepare(`ALTER TABLE payment_approvals ADD COLUMN period TEXT`).run();
+      console.log("✅ Added period column");
+    } catch (e) {
+      console.log("⚠️ period column might already exist");
+    }
+
     // 특정 승인 조회
     if (id) {
       const approval = await DB.prepare(`
@@ -103,6 +118,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 모든 승인 요청 조회 (상태별 필터)
+    // Try to join with pricing_plans, but don't fail if planId doesn't exist
     let query = `
       SELECT 
         pa.*,
@@ -111,14 +127,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         a.email as academyEmail,
         u.name as userName,
         u.email as userEmail,
-        u.phone as userPhone,
-        pp.price_1month,
-        pp.price_6months,
-        pp.price_12months
+        u.phone as userPhone
       FROM payment_approvals pa
       LEFT JOIN academy a ON pa.academyId = a.id
       LEFT JOIN users u ON pa.userId = u.id
-      LEFT JOIN pricing_plans pp ON pa.planId = pp.id
     `;
 
     const params: any[] = [];
@@ -133,6 +145,33 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const approvalsResult = await DB.prepare(query).bind(...params).all();
 
     const approvals = approvalsResult.results || [];
+
+    // For each approval, fetch pricing info if planId exists
+    const enrichedApprovals = await Promise.all(
+      approvals.map(async (approval: any) => {
+        if (approval.planId) {
+          try {
+            const pricing = await DB.prepare(`
+              SELECT price_1month, price_6months, price_12months
+              FROM pricing_plans
+              WHERE id = ?
+            `).bind(approval.planId).first();
+
+            if (pricing) {
+              return {
+                ...approval,
+                price_1month: pricing.price_1month,
+                price_6months: pricing.price_6months,
+                price_12months: pricing.price_12months,
+              };
+            }
+          } catch (e) {
+            console.log("⚠️ Failed to fetch pricing for planId:", approval.planId);
+          }
+        }
+        return approval;
+      })
+    );
 
     // 상태별 통계
     const statsResult = await DB.prepare(`
@@ -171,7 +210,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     return new Response(JSON.stringify({
       success: true,
-      approvals,
+      approvals: enrichedApprovals,
       stats
     }), {
       status: 200,
