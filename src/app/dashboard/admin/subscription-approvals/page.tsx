@@ -112,14 +112,16 @@ export default function PaymentApprovalsPage() {
 
     if (!notes) return parsed;
 
-    const lines = notes.split("\\n");
+    // Handle both \n (escaped) and actual newline characters
+    const lines = notes.split(/\\n|\n/);
     lines.forEach((line) => {
-      if (line.startsWith("이름:")) {
-        parsed.applicantName = line.replace("이름:", "").trim();
-      } else if (line.startsWith("이메일:")) {
-        parsed.applicantEmail = line.replace("이메일:", "").trim();
-      } else if (line.startsWith("연락처:")) {
-        parsed.applicantPhone = line.replace("연락처:", "").trim();
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith("이름:")) {
+        parsed.applicantName = trimmedLine.replace("이름:", "").trim();
+      } else if (trimmedLine.startsWith("이메일:")) {
+        parsed.applicantEmail = trimmedLine.replace("이메일:", "").trim();
+      } else if (trimmedLine.startsWith("연락처:")) {
+        parsed.applicantPhone = trimmedLine.replace("연락처:", "").trim();
       }
     });
 
@@ -513,21 +515,42 @@ export default function PaymentApprovalsPage() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              <TableRow>
-                                <TableCell>1개월</TableCell>
-                                <TableCell className="text-right">
+                              <TableRow className={approval.period === '1month' ? 'bg-blue-50' : ''}>
+                                <TableCell className="font-medium">
+                                  1개월
+                                  {approval.period === '1month' && (
+                                    <Badge variant="default" className="ml-2 text-xs">\u2b50 선택됨</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell className={`text-right ${
+                                  approval.period === '1month' ? 'font-bold text-blue-600' : ''
+                                }`}>
                                   {formatCurrency(approval.price_1month)}
                                 </TableCell>
                               </TableRow>
-                              <TableRow>
-                                <TableCell>6개월</TableCell>
-                                <TableCell className="text-right">
+                              <TableRow className={approval.period === '6months' ? 'bg-green-50' : ''}>
+                                <TableCell className="font-medium">
+                                  6개월
+                                  {approval.period === '6months' && (
+                                    <Badge variant="default" className="ml-2 text-xs bg-green-600">\u2b50 선택됨</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell className={`text-right ${
+                                  approval.period === '6months' ? 'font-bold text-green-600' : ''
+                                }`}>
                                   {formatCurrency(approval.price_6months)}
                                 </TableCell>
                               </TableRow>
-                              <TableRow>
-                                <TableCell>12개월</TableCell>
-                                <TableCell className="text-right font-bold">
+                              <TableRow className={approval.period === '12months' ? 'bg-purple-50' : ''}>
+                                <TableCell className="font-medium">
+                                  12개월 (연간)
+                                  {approval.period === '12months' && (
+                                    <Badge variant="default" className="ml-2 text-xs bg-purple-600">\u2b50 선택됨</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell className={`text-right ${
+                                  approval.period === '12months' ? 'font-bold text-purple-600' : ''
+                                }`}>
                                   {formatCurrency(approval.price_12months)}
                                 </TableCell>
                               </TableRow>
