@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { CreditCard, Check, Plus, Edit, Trash2, X, Save, CheckCircle, FileText, Settings } from "lucide-react";
 
 interface PricingPlan {
-  id: number;
+  id: number | string;
   name: string;
   description: string;
   monthlyPrice: number;
@@ -215,19 +215,21 @@ export default function PricingManagePage() {
     }
   };
 
-  const handleDelete = async (planId: number) => {
+  const handleDelete = async (planId: number | string) => {
     if (!confirm("이 요금제를 삭제하시겠습니까?")) return;
 
     try {
-      const response = await fetch(`/api/admin/pricing?id=${planId}`, {
+      const response = await fetch(`/api/admin/pricing-plans?id=${planId}`, {
         method: "DELETE"
       });
 
       if (response.ok) {
-        alert("요금제가 삭제되었습니다.");
+        const data = await response.json();
+        alert(data.message || "요금제가 삭제되었습니다.");
         fetchPlans();
       } else {
-        alert("요금제 삭제에 실패했습니다.");
+        const errorData = await response.json();
+        alert("요금제 삭제에 실패했습니다: " + (errorData.message || ""));
       }
     } catch (error) {
       console.error("요금제 삭제 실패:", error);
