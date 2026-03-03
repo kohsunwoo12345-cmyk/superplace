@@ -214,12 +214,16 @@ export default function AIBotAssignPage() {
     try {
       setSubmitting(true);
 
+      const token = localStorage.getItem("token");
       const response = await fetch("/api/admin/ai-bots/assign", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           botId: selectedBot,
-          userId: parseInt(selectedUser),
+          userId: selectedUser, // userId를 TEXT로 전송 (parseInt 제거)
           duration: durationNumber,
           durationUnit,
         }),
@@ -239,7 +243,9 @@ export default function AIBotAssignPage() {
         // 할당 목록 새로고침
         fetchData();
       } else {
-        alert(`❌ 할당 실패: ${data.error || "알 수 없는 오류"}`);
+        // 상세 오류 메시지 표시
+        const errorMessage = data.message || data.error || "알 수 없는 오류";
+        alert(`❌ 할당 실패\n\n${errorMessage}`);
       }
     } catch (error) {
       console.error("할당 오류:", error);
@@ -250,22 +256,27 @@ export default function AIBotAssignPage() {
   };
 
   const handleRevoke = async (assignmentId: string) => {
-    if (!confirm("정말 이 할당을 취소하시겠습니까?")) {
+    if (!confirm("정말 이 할당을 취소하시겠습니까?\n\n취소하면 구독 슬롯이 복원되어 다른 학생에게 재할당할 수 있습니다.")) {
       return;
     }
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`/api/admin/ai-bots/assignments/${assignmentId}`, {
         method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        alert("✅ 할당이 취소되었습니다.");
+        alert("✅ 할당이 취소되었습니다.\n\n구독 슬롯이 복원되어 다른 학생에게 재할당할 수 있습니다.");
         fetchData();
       } else {
-        alert(`❌ 취소 실패: ${data.error || "알 수 없는 오류"}`);
+        const errorMessage = data.message || data.error || "알 수 없는 오류";
+        alert(`❌ 취소 실패\n\n${errorMessage}`);
       }
     } catch (error) {
       console.error("취소 오류:", error);

@@ -140,21 +140,41 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // 🔒 구독 슬롯 검증 (학원장/선생님의 경우)
     if ((role === 'DIRECTOR' || role === 'TEACHER') && userAcademyId) {
-      console.log('🔍 Checking subscription slots for academy:', userAcademyId);
+      console.log('🔍 Checking subscription slots for academy:', userAcademyId, 'bot:', botId);
       
-      // 학원의 구독 정보 조회
+      // 학원의 구독 정보 조회 (컬럼명 수정: subscriptionEnd → subscriptionEndDate)
       const subscription = await DB.prepare(`
-        SELECT * FROM AcademyBotSubscription 
+        SELECT 
+          id, 
+          academyId, 
+          productId, 
+          productName,
+          totalStudentSlots, 
+          usedStudentSlots, 
+          remainingStudentSlots,
+          subscriptionStart,
+          subscriptionEnd,
+          isActive,
+          createdAt,
+          updatedAt
+        FROM AcademyBotSubscription 
         WHERE academyId = ? AND productId = ?
         ORDER BY subscriptionEnd DESC
         LIMIT 1
       `).bind(userAcademyId, botId).first() as any;
 
+      console.log('📋 Subscription query result:', subscription || 'NULL');
+
       if (!subscription) {
+        console.error('❌ No subscription found for:', { 
+          academyId: userAcademyId, 
+          productId: botId,
+          requester: { email: requestingUser.email, role }
+        });
         return new Response(JSON.stringify({
           success: false,
           error: 'No subscription found',
-          message: '이 AI 봇에 대한 구독이 없습니다.\nAI 쇼핑몰에서 구독을 신청하거나 관리자에게 문의하세요.'
+          message: '이 AI 봇에 대한 구독이 없습니다.\n\n해결 방법:\n1. AI 쇼핑몰에서 봇 구독을 신청하세요\n2. 관리자가 승인할 때까지 기다려주세요\n3. 문의사항은 관리자에게 연락하세요'
         }), {
           status: 403,
           headers: { 'Content-Type': 'application/json' }
@@ -162,34 +182,88 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       }
 
       // 구독 만료 확인
-      const subscriptionEnd = new Date(subscription.subscriptionEnd);
+      const subscriptionEndDate = subscription.subscriptionEnd || subscription.subscriptionEndDate;
+      if (!subscriptionEndDate) {
+        console.error('❌ Subscription end date is missing:', subscription);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Invalid subscription',
+          message: '구독 정보가 올바르지 않습니다. 관리자에게 문의하세요.'
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      const subscriptionEnd = new Date(subscriptionEndDate);
       const now = new Date();
       if (subscriptionEnd < now) {
+        console.error('❌ Subscription expired:', { 
+          endDate: subscriptionEndDate, 
+          now: now.toISOString() 
+        });
         return new Response(JSON.stringify({
           success: false,
           error: 'Subscription expired',
-          message: `구독이 만료되었습니다 (만료일: ${subscription.subscriptionEnd}).\n새로운 구독을 신청해주세요.`
+          message: `구독이 만료되었습니다 (만료일: ${subscriptionEndDate}).\n\n해결 방법:\n1. AI 쇼핑몰에서 새로운 구독을 신청하세요\n2. 기존 구독을 갱신하세요`
         }), {
           status: 403,
           headers: { 'Content-Type': 'application/json' }
         });
       }
+
+      console.log('✅ Subscription is active until:', subscriptionEndDate);
 
       // 남은 슬롯 확인
       const remainingSlots = subscription.remainingStudentSlots || 0;
+      const totalSlots = subscription.totalStudentSlots || 0;
+      const usedSlots = subscription.usedStudentSlots || 0;
+
+      console.log('📊 Subscription slots status:', {
+        total: totalSlots,
+        used: usedSlots,
+        remaining: remainingSlots
+      });
+
       if (remainingSlots <= 0) {
+        console.error('❌ No remaining slots:', { total: totalSlots, used: usedSlots, remaining: remainingSlots });
         return new Response(JSON.stringify({
           success: false,
           error: 'No remaining slots',
-          message: `사용 가능한 학생 슬롯이 부족합니다.\n\n현재 상태:\n- 전체 슬롯: ${subscription.totalStudentSlots}개\n- 사용 중: ${subscription.usedStudentSlots}개\n- 남은 슬롯: ${remainingSlots}개\n\n추가 슬롯이 필요한 경우 AI 쇼핑몰에서 구독을 추가 신청하세요.`
+          message: `사용 가능한 학생 슬롯이 부족합니다.\n\n현재 상태:\n- 전체 슬롯: ${totalSlots}개\n- 사용 중: ${usedSlots}개\n- 남은 슬롯: ${remainingSlots}개\n\n해결 방법:\n1. AI 쇼핑몰에서 추가 구독을 신청하세요\n2. 퇴원생이 있다면 할당을 취소한 후 재할당하세요\n3. 기존 학생의 할당을 취소하면 슬롯이 복원됩니다`
         }), {
           status: 403,
           headers: { 'Content-Type': 'application/json' }
         });
       }
 
-      console.log(`✅ Subscription slots available: ${remainingSlots}/${subscription.totalStudentSlots}`);
+      console.log(`✅ Subscription slots available: ${remainingSlots}/${totalSlots}`);
     }
+
+    // 🔒 중복 할당 방지 (이미 해당 봇을 할당받은 학생인지 확인)
+    const existingAssignment = await DB.prepare(`
+      SELECT id, startDate, endDate, status
+      FROM ai_bot_assignments 
+      WHERE userId = ? AND botId = ? AND status = 'active'
+    `).bind(userId.toString(), botId).first() as any;
+
+    if (existingAssignment) {
+      console.error('❌ Already assigned:', { 
+        userId, 
+        botId, 
+        existingAssignment: existingAssignment.id 
+      });
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Already assigned',
+        message: `이 학생은 이미 "${bot.name}" 봇을 할당받았습니다.\n\n기존 할당 정보:\n- 할당 ID: ${existingAssignment.id}\n- 시작일: ${existingAssignment.startDate}\n- 종료일: ${existingAssignment.endDate}\n- 상태: ${existingAssignment.status}\n\n기존 할당을 취소한 후 다시 시도하세요.`
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('✅ No existing assignment found, proceeding with new assignment');
 
     // 시작일 및 종료일 계산 (한국 시간 KST)
     const now = new Date();
@@ -234,7 +308,20 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     // 할당 ID 생성
     const assignmentId = `assignment-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
-    // 할당 저장
+    // 할당 저장 (userId를 문자열로 변환하여 저장)
+    const userIdStr = userId.toString();
+    
+    console.log('💾 Saving assignment:', {
+      assignmentId,
+      botId,
+      botName: bot.name,
+      userId: userIdStr,
+      userName: user.name,
+      academyId: user.academyId,
+      startDate,
+      endDate: endDateStr
+    });
+
     await DB.prepare(`
       INSERT INTO ai_bot_assignments 
       (id, botId, botName, userId, userName, userEmail, userAcademyId, startDate, endDate, duration, durationUnit, status)
@@ -243,7 +330,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       assignmentId,
       botId,
       bot.name,
-      userId,
+      userIdStr,
       user.name || '',
       user.email || '',
       user.academyId || null,
@@ -257,15 +344,33 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     if ((role === 'DIRECTOR' || role === 'TEACHER') && user.academyId) {
       console.log('📉 Decreasing subscription slot for academy:', user.academyId);
       
-      await DB.prepare(`
+      const updateResult = await DB.prepare(`
         UPDATE AcademyBotSubscription
         SET usedStudentSlots = usedStudentSlots + 1,
-            remainingStudentSlots = remainingStudentSlots - 1,
+            remainingStudentSlots = CASE 
+              WHEN remainingStudentSlots > 0 THEN remainingStudentSlots - 1 
+              ELSE 0 
+            END,
             updatedAt = datetime('now')
         WHERE academyId = ? AND productId = ?
       `).bind(user.academyId, botId).run();
 
-      console.log('✅ Subscription slot decreased');
+      console.log('✅ Subscription slot decreased:', updateResult);
+
+      // 업데이트 후 슬롯 상태 재조회
+      const updatedSubscription = await DB.prepare(`
+        SELECT totalStudentSlots, usedStudentSlots, remainingStudentSlots
+        FROM AcademyBotSubscription
+        WHERE academyId = ? AND productId = ?
+      `).bind(user.academyId, botId).first() as any;
+
+      if (updatedSubscription) {
+        console.log('📊 Updated subscription slots:', {
+          total: updatedSubscription.totalStudentSlots,
+          used: updatedSubscription.usedStudentSlots,
+          remaining: updatedSubscription.remainingStudentSlots
+        });
+      }
     }
 
     console.log("✅ AI 봇 할당 완료:", assignmentId);
