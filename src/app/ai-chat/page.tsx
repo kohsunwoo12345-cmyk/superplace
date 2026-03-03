@@ -1260,8 +1260,8 @@ export default function ModernAIChatPage() {
       <div
         className={`${
           sidebarOpen ? "w-64" : "w-0"
-        } transition-all duration-300 border-r border-gray-200 flex flex-col bg-gray-50 ${
-          isMobile && sidebarOpen ? "absolute z-50 h-full shadow-2xl" : ""
+        } transition-all duration-300 border-r border-gray-200 flex flex-col bg-gray-50 h-full ${
+          isMobile && sidebarOpen ? "absolute z-50 shadow-2xl" : ""
         }`}
       >
         {/* 사이드바 헤더 - 고정 */}
@@ -1299,7 +1299,7 @@ export default function ModernAIChatPage() {
         </div>
 
         {/* 스크롤 가능한 컨텐츠 영역 - 나의 봇부터 채팅 기록까지 */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {/* 나의 봇 */}
           <div className="px-3 py-3 border-b border-gray-200 bg-white">
             <h3 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
