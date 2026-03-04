@@ -7,7 +7,7 @@ import {
   Users, Calendar, MessageCircle, BarChart2, Settings,
   GraduationCap, Award, FileText, Clock, ExternalLink,
   DollarSign, CreditCard, Presentation, ClipboardList, Sparkles, Bot,
-  ShoppingCart, Zap, Shield, Layout, MessageSquare, Download, Database
+  ShoppingCart, Zap, Shield, Layout, MessageSquare, Download, Database, UserPlus
 } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
 
@@ -88,7 +88,8 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         { id: 'admin-seminars', href: '/dashboard/admin/seminars', icon: Presentation, text: '교육 세미나' },
         { id: 'admin-logs', href: '/dashboard/admin/logs', icon: ClipboardList, text: '상세 기록' },
         { id: 'admin-ai-bots', href: '/dashboard/admin/ai-bots', icon: MessageCircle, text: 'AI 봇 생성' },
-        { id: 'admin-bot-management', href: '/dashboard/admin/bot-management', icon: Bot, text: 'AI 봇 할당' },
+        { id: 'admin-bot-management', href: '/dashboard/admin/bot-management', icon: Bot, text: '통합 AI 봇 관리' },
+        { id: 'admin-bot-assign', href: '/dashboard/admin/ai-bots/assign', icon: UserPlus, text: 'AI 봇 할당하기' },
         { id: 'admin-store', href: '/dashboard/admin/store-management', icon: ShoppingCart, text: 'AI쇼핑몰 제품 추가' },
         { id: 'admin-landing-pages', href: '/dashboard/admin/landing-pages', icon: Layout, text: '랜딩페이지' },
         { id: 'admin-ppt-create', href: '/dashboard/ppt-create', icon: Presentation, text: 'PPT 제작' },
