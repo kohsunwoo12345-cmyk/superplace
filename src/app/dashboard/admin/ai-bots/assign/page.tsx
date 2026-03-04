@@ -550,6 +550,15 @@ export default function AIBotAssignPage() {
             </div>
           )}
 
+          {/* DIRECTOR/TEACHER용 안내 메시지 (grid 외부) */}
+          {currentUser && ['DIRECTOR', 'TEACHER'].includes(currentUser.role?.toUpperCase()) && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-800">
+                💡 학원 학생들에게 AI 봇을 할당할 수 있습니다. (퇴원생 제외)
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* AI 봇 선택 */}
             <div className="space-y-2">
@@ -598,15 +607,6 @@ export default function AIBotAssignPage() {
                     </Select>
                     <p className="text-xs text-gray-500">
                       역할별로 사용자를 필터링합니다
-                    </p>
-                  </div>
-                )}
-
-                {/* DIRECTOR/TEACHER용 안내 메시지 */}
-                {currentUser && ['DIRECTOR', 'TEACHER'].includes(currentUser.role?.toUpperCase()) && (
-                  <div className="col-span-full bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800">
-                      💡 학원 학생들에게 AI 봇을 할당할 수 있습니다. (퇴원생 제외)
                     </p>
                   </div>
                 )}
