@@ -228,7 +228,7 @@ export default function ModernAIChatPage() {
     try {
       console.log(`🔍 학원(${academyId})의 할당된 봇 조회`);
       
-      const response = await fetch(`/api/user/ai-bots?academyId=${academyId}`);
+      const response = await fetch(`/api/user/academy-bots?academyId=${academyId}`);
       if (response.ok) {
         const data = await response.json();
         console.log(`✅ 할당된 봇 ${data.count}개 발견`);
