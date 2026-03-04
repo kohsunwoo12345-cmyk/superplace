@@ -1,9 +1,5 @@
-interface Env {
-  DB: D1Database;
-}
-
 // AI 봇 목록 조회
-export const onRequestGet: PagesFunction<Env> = async (context) => {
+export async function onRequestGet(context) {
   try {
     const { DB } = context.env;
 
@@ -48,7 +44,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     ).all();
 
     // enableProblemGeneration을 명시적으로 숫자로 변환
-    const bots = (botsResult?.results || []).map((bot: any) => ({
+    const bots = (botsResult?.results || []).map((bot) => ({
       ...bot,
       enableProblemGeneration: bot.enableProblemGeneration ? Number(bot.enableProblemGeneration) : 0,
       isActive: bot.isActive ? Number(bot.isActive) : 0,
@@ -62,7 +58,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("AI bots list error:", error);
     return new Response(
       JSON.stringify({ 
@@ -75,10 +71,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }
     );
   }
-};
+}
 
 // AI 봇 생성
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export async function onRequestPost(context) {
   try {
     const { DB } = context.env;
     
@@ -93,7 +89,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    const body = await context.request.json() as any;
+    const body = await context.request.json();
 
     const {
       name,
@@ -141,7 +137,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ALTER TABLE ai_bots ADD COLUMN enableProblemGeneration INTEGER DEFAULT 0
       `).run();
       console.log('✅ enableProblemGeneration column added successfully');
-    } catch (alterError: any) {
+    } catch (alterError) {
       console.log('ℹ️ enableProblemGeneration column add attempt:', alterError.message);
     }
 
@@ -151,7 +147,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ALTER TABLE ai_bots ADD COLUMN voiceEnabled INTEGER DEFAULT 0
       `).run();
       console.log('✅ voiceEnabled column added successfully');
-    } catch (alterError: any) {
+    } catch (alterError) {
       console.log('ℹ️ voiceEnabled column add attempt:', alterError.message);
     }
 
@@ -160,7 +156,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ALTER TABLE ai_bots ADD COLUMN voiceName TEXT DEFAULT 'ko-KR-Wavenet-A'
       `).run();
       console.log('✅ voiceName column added successfully');
-    } catch (alterError: any) {
+    } catch (alterError) {
       console.log('ℹ️ voiceName column add attempt:', alterError.message);
     }
 
@@ -170,7 +166,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ALTER TABLE ai_bots ADD COLUMN knowledgeBase TEXT
       `).run();
       console.log('✅ knowledgeBase column added successfully');
-    } catch (alterError: any) {
+    } catch (alterError) {
       console.log('ℹ️ knowledgeBase column add attempt:', alterError.message);
     }
 
@@ -207,7 +203,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       ).run();
 
       console.log('✅ AI bot created successfully with all fields');
-    } catch (insertError: any) {
+    } catch (insertError) {
       // If enableProblemGeneration column doesn't exist, try without it
       if (insertError.message?.includes('enableProblemGeneration')) {
         console.log('⚠️ Retrying without enableProblemGeneration column');
@@ -246,7 +242,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       JSON.stringify({ success: true, botId, message: "AI bot created successfully" }),
       { status: 201, headers: { "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("AI bot creation error:", error);
     return new Response(
       JSON.stringify({ 
@@ -256,4 +252,4 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
-};
+}
