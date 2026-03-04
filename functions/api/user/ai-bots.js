@@ -47,12 +47,12 @@ export async function onRequestGet(context) {
     try {
       const academyBots = await db.prepare(`
         SELECT 
-          s.productId as botId,
-          s.subscriptionEnd as expiresAt
-        FROM AcademyBotSubscription s
-        WHERE s.academyId = ?
-          AND s.isActive = 1
-          AND date(s.subscriptionEnd) >= date('now')
+          productId as botId,
+          subscriptionEnd as expiresAt
+        FROM AcademyBotSubscription
+        WHERE academyId = ?
+          AND isActive = 1
+          AND date(subscriptionEnd) >= date('now')
       `).bind(academyId).all();
 
       if (academyBots.results) {
