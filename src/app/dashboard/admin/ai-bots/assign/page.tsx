@@ -45,6 +45,19 @@ interface Academy {
   directorName?: string;
 }
 
+interface AcademySubscription {
+  id: string;
+  academyId: string;
+  academyName: string;
+  botId: string;
+  botName: string;
+  totalSlots: number;
+  usedSlots: number;
+  remainingSlots: number;
+  expiresAt: string;
+  isActive: boolean;
+}
+
 interface Assignment {
   id: string;
   botId: string;
@@ -68,6 +81,7 @@ export default function AIBotAssignPage() {
   const [bots, setBots] = useState<AIBot[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [academies, setAcademies] = useState<Academy[]>([]);
+  const [academySubscriptions, setAcademySubscriptions] = useState<AcademySubscription[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   
   // 폼 상태
@@ -162,8 +176,18 @@ export default function AIBotAssignPage() {
         alert(`봇 목록 로드 실패: ${errorData.error || errorData.message || '알 수 없는 오류'}`);
       }
 
-      // 사용자 목록 조회 (자신의 학원 사용자만)
-      const usersResponse = await fetch("/api/admin/users", {
+      // 사용자 목록 조회
+      let usersEndpoint = "/api/admin/users";
+      if (role === 'DIRECTOR' || role === 'TEACHER') {
+        // 학원장/선생님: 자신의 학원 학생만 조회
+        const academyId = userData?.academyId;
+        if (academyId) {
+          usersEndpoint = `/api/admin/users?academyId=${academyId}&role=STUDENT`;
+          console.log('🔒 DIRECTOR/TEACHER: Loading only students from academy', academyId);
+        }
+      }
+      
+      const usersResponse = await fetch(usersEndpoint, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -209,6 +233,41 @@ export default function AIBotAssignPage() {
           setAcademies(academiesData.academies || []);
         } else {
           console.error('❌ Failed to load academies');
+        }
+
+        // 관리자: 모든 학원 구독 정보 조회
+        const subscriptionsResponse = await fetch("/api/admin/academy-bot-subscriptions", {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (subscriptionsResponse.ok) {
+          const subscriptionsData = await subscriptionsResponse.json();
+          console.log('✅ Academy subscriptions loaded:', subscriptionsData);
+          setAcademySubscriptions(subscriptionsData.subscriptions || []);
+        } else {
+          console.error('❌ Failed to load academy subscriptions');
+        }
+      } else if (role === 'DIRECTOR' || role === 'TEACHER') {
+        // 학원장/선생님: 자신의 학원 구독 정보 조회
+        const academyId = userData?.academyId;
+        if (academyId) {
+          const subscriptionsResponse = await fetch(`/api/user/academy-bot-subscriptions?academyId=${academyId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (subscriptionsResponse.ok) {
+            const subscriptionsData = await subscriptionsResponse.json();
+            console.log('✅ My academy subscriptions loaded:', subscriptionsData);
+            setAcademySubscriptions(subscriptionsData.subscriptions || []);
+          } else {
+            console.error('❌ Failed to load my academy subscriptions');
+          }
         }
       }
     } catch (error) {
@@ -306,6 +365,22 @@ export default function AIBotAssignPage() {
         }
       } else {
         // 개별 사용자 할당
+        
+        // 학원장/선생님의 경우 구독 슬롯 확인
+        if (currentUser?.role === 'DIRECTOR' || currentUser?.role === 'TEACHER') {
+          const subscription = (academySubscriptions || []).find(sub => sub.botId === selectedBot && sub.isActive);
+          
+          if (!subscription) {
+            alert('❌ 이 봇은 귀하의 학원에 할당되지 않았습니다.\n관리자에게 문의하세요.');
+            return;
+          }
+          
+          if (subscription.remainingSlots <= 0) {
+            alert(`❌ 남은 슬롯이 없습니다.\n\n사용 가능: ${subscription.totalSlots}명\n이미 사용: ${subscription.usedSlots}명\n남은 슬롯: ${subscription.remainingSlots}명`);
+            return;
+          }
+        }
+        
         const response = await fetch("/api/admin/ai-bots/assign", {
           method: "POST",
           headers: { 
@@ -504,37 +579,75 @@ export default function AIBotAssignPage() {
               <p className="text-xs text-gray-500">
                 활성화된 봇만 표시됩니다 ({(bots || []).filter(b => b.isActive).length}개)
               </p>
+              
+              {/* 학원장/선생님: 선택한 봇의 슬롯 정보 표시 */}
+              {(currentUser?.role === 'DIRECTOR' || currentUser?.role === 'TEACHER') && selectedBot && (
+                (() => {
+                  const subscription = (academySubscriptions || []).find(sub => sub.botId === selectedBot && sub.isActive);
+                  if (subscription) {
+                    return (
+                      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <p className="text-xs font-semibold text-blue-900 mb-1">할당 가능 슬롯 정보</p>
+                        <div className="text-xs text-blue-800 space-y-1">
+                          <p>• 총 슬롯: <span className="font-semibold">{subscription.totalSlots}명</span></p>
+                          <p>• 사용 중: <span className="font-semibold">{subscription.usedSlots}명</span></p>
+                          <p>• 남은 슬롯: <span className="font-semibold text-green-600">{subscription.remainingSlots}명</span></p>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                        <p className="text-xs text-yellow-800">⚠️ 이 봇은 귀하의 학원에 할당되지 않았습니다.</p>
+                      </div>
+                    );
+                  }
+                })()
+              )}
             </div>
 
             {/* 개별 사용자 할당 필드 */}
             {assignType === "user" && (
               <>
-                {/* 역할 필터 */}
-                <div className="space-y-2">
-                  <Label htmlFor="role-filter">사용자 역할 필터</Label>
-                  <Select value={selectedRole} onValueChange={setSelectedRole}>
-                    <SelectTrigger id="role-filter">
-                      <SelectValue placeholder="역할을 선택하세요" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        전체 ({roleStats.all}명)
-                      </SelectItem>
-                      <SelectItem value="ACADEMY">
-                        학원 원장 ({roleStats.academy}명)
-                      </SelectItem>
-                      <SelectItem value="TEACHER">
-                        선생님 ({roleStats.teacher}명)
-                      </SelectItem>
-                      <SelectItem value="STUDENT">
-                        학생 ({roleStats.student}명)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">
-                    역할별로 사용자를 필터링합니다
-                  </p>
-                </div>
+                {/* 역할 필터 - ADMIN/SUPER_ADMIN만 표시 */}
+                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="role-filter">사용자 역할 필터</Label>
+                    <Select value={selectedRole} onValueChange={setSelectedRole}>
+                      <SelectTrigger id="role-filter">
+                        <SelectValue placeholder="역할을 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          전체 ({roleStats.all}명)
+                        </SelectItem>
+                        <SelectItem value="ACADEMY">
+                          학원 원장 ({roleStats.academy}명)
+                        </SelectItem>
+                        <SelectItem value="TEACHER">
+                          선생님 ({roleStats.teacher}명)
+                        </SelectItem>
+                        <SelectItem value="STUDENT">
+                          학생 ({roleStats.student}명)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      역할별로 사용자를 필터링합니다
+                    </p>
+                  </div>
+                )}
+
+                {/* DIRECTOR/TEACHER용 안내 메시지 */}
+                {(currentUser?.role === 'DIRECTOR' || currentUser?.role === 'TEACHER') && (
+                  <div className="md:col-span-2">
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <p className="text-sm text-blue-800">
+                        📌 귀하의 학원 학생들에게만 AI 봇을 할당할 수 있습니다. (퇴원생 제외)
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* 사용자 선택 */}
                 <div className="space-y-2">
