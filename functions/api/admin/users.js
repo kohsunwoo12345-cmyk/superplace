@@ -92,6 +92,13 @@ export async function onRequestGet(context) {
       });
     }
 
+    // Parse query parameters
+    const url = new URL(request.url);
+    const queryAcademyId = url.searchParams.get('academyId');
+    const queryRole = url.searchParams.get('role');
+
+    console.log('📋 Query params:', { academyId: queryAcademyId, role: queryRole });
+
     // Build query based on role
     let query = '';
     let queryParams = [];
@@ -106,13 +113,32 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
+          u.isWithdrawn,
           a.name as academyName,
           a.code as academyCode
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
-        ORDER BY u.id DESC
-        LIMIT 1000
+        WHERE 1=1
       `;
+      
+      // Filter by academyId if provided
+      if (queryAcademyId) {
+        query += ' AND u.academyId = ?';
+        queryParams.push(queryAcademyId);
+        console.log('🏫 Filtering by academyId:', queryAcademyId);
+      }
+      
+      // Filter by role if provided
+      if (queryRole) {
+        query += ' AND u.role = ?';
+        queryParams.push(queryRole);
+        console.log('👤 Filtering by role:', queryRole);
+      }
+      
+      // Exclude withdrawn students
+      query += ' AND (u.isWithdrawn IS NULL OR u.isWithdrawn = 0)';
+      
+      query += ' ORDER BY u.id DESC LIMIT 1000';
     } else if (role === 'DIRECTOR' || role === 'TEACHER') {
       // Director/Teacher can only see users from their academy
       if (!userAcademyId) {
@@ -135,15 +161,28 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
+          u.isWithdrawn,
           a.name as academyName,
           a.code as academyCode
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
         WHERE u.academyId = ?
-        ORDER BY u.id DESC
-        LIMIT 1000
       `;
       queryParams = [userAcademyId];
+      
+      // Filter by role if provided (typically STUDENT for bot assignment)
+      if (queryRole) {
+        query += ' AND u.role = ?';
+        queryParams.push(queryRole);
+        console.log('👤 DIRECTOR/TEACHER filtering by role:', queryRole);
+      }
+      
+      // Exclude withdrawn students
+      query += ' AND (u.isWithdrawn IS NULL OR u.isWithdrawn = 0)';
+      
+      query += ' ORDER BY u.id DESC LIMIT 1000';
+      
+      console.log('🏫 DIRECTOR/TEACHER filtering by academyId:', userAcademyId);
     }
 
     console.log('📝 Executing query to fetch users for role:', role);

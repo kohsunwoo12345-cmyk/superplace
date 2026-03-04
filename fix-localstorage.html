@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>학원장 계정 localStorage 수정</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .step {
+      background: #f8f9fa;
+      padding: 20px;
+      margin: 20px 0;
+      border-left: 4px solid #667eea;
+      border-radius: 5px;
+    }
+    .step h3 {
+      margin-top: 0;
+      color: #667eea;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+      margin: 10px 0;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #764ba2;
+    }
+    .result {
+      margin: 20px 0;
+      padding: 15px;
+      border-radius: 5px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    code {
+      background: #f4f4f4;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 학원장 계정 localStorage 수정</h1>
+    
+    <div class="step">
+      <h3>📋 현재 상황</h3>
+      <p>학원장 계정(<code>wangholy1@naver.com</code>)의 localStorage에 <code>academyId</code>가 없어서 AI 챗봇을 사용할 수 없는 상태입니다.</p>
+    </div>
+
+    <div class="step">
+      <h3>✅ 해결 방법</h3>
+      <p>아래 버튼을 클릭하면 localStorage의 user 객체에 <code>academyId</code>를 추가합니다.</p>
+    </div>
+
+    <button onclick="checkCurrentUser()">1️⃣ 현재 localStorage 확인</button>
+    <div id="checkResult"></div>
+
+    <button onclick="fixLocalStorage()">2️⃣ academyId 추가하기</button>
+    <div id="fixResult"></div>
+
+    <button onclick="verifyFix()">3️⃣ 수정 결과 확인</button>
+    <div id="verifyResult"></div>
+
+    <div class="step">
+      <h3>📝 수동 수정 방법</h3>
+      <p>버튼이 작동하지 않으면 브라우저 콘솔(F12)에서 다음 명령어를 실행하세요:</p>
+      <code style="display:block; padding:10px; background:#2d3748; color:#48bb78; margin:10px 0;">
+const user = JSON.parse(localStorage.getItem('user'));<br>
+user.academyId = 'academy-1771479246368-5viyubmqk';<br>
+user.academyName = '꾸메땅학원';<br>
+localStorage.setItem('user', JSON.stringify(user));<br>
+console.log('✅ academyId 추가 완료!');<br>
+location.reload();
+      </code>
+    </div>
+  </div>
+
+  <script>
+    function checkCurrentUser() {
+      const resultDiv = document.getElementById('checkResult');
+      try {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+          resultDiv.innerHTML = '<div class="result error">❌ localStorage에 user 데이터가 없습니다.<br>로그인이 필요합니다.</div>';
+          return;
+        }
+        
+        const user = JSON.parse(userStr);
+        const hasAcademyId = !!user.academyId;
+        
+        resultDiv.innerHTML = `
+          <div class="result ${hasAcademyId ? 'success' : 'info'}">
+            <strong>현재 localStorage.user:</strong><br><br>
+            ${JSON.stringify(user, null, 2)}
+            <br><br>
+            <strong>academyId 상태:</strong> ${hasAcademyId ? '✅ 있음' : '❌ 없음'}
+          </div>
+        `;
+      } catch (e) {
+        resultDiv.innerHTML = `<div class="result error">❌ 오류: ${e.message}</div>`;
+      }
+    }
+
+    function fixLocalStorage() {
+      const resultDiv = document.getElementById('fixResult');
+      try {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+          resultDiv.innerHTML = '<div class="result error">❌ localStorage에 user 데이터가 없습니다.<br>로그인이 필요합니다.</div>';
+          return;
+        }
+        
+        const user = JSON.parse(userStr);
+        
+        // academyId 추가
+        user.academyId = 'academy-1771479246368-5viyubmqk';
+        user.academyName = '꾸메땅학원';
+        user.academyCode = 'ZQZY4EUC';
+        
+        // localStorage 업데이트
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        resultDiv.innerHTML = `
+          <div class="result success">
+            ✅ academyId 추가 완료!<br><br>
+            <strong>업데이트된 user 객체:</strong><br><br>
+            ${JSON.stringify(user, null, 2)}
+            <br><br>
+            <strong>다음 단계:</strong><br>
+            1. "3️⃣ 수정 결과 확인" 버튼 클릭<br>
+            2. AI 챗 페이지 새로고침 (F5)<br>
+            3. 할당된 봇 확인
+          </div>
+        `;
+      } catch (e) {
+        resultDiv.innerHTML = `<div class="result error">❌ 오류: ${e.message}</div>`;
+      }
+    }
+
+    function verifyFix() {
+      const resultDiv = document.getElementById('verifyResult');
+      try {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+          resultDiv.innerHTML = '<div class="result error">❌ localStorage에 user 데이터가 없습니다.</div>';
+          return;
+        }
+        
+        const user = JSON.parse(userStr);
+        const hasAcademyId = !!user.academyId;
+        const correctAcademyId = user.academyId === 'academy-1771479246368-5viyubmqk';
+        
+        if (hasAcademyId && correctAcademyId) {
+          resultDiv.innerHTML = `
+            <div class="result success">
+              ✅ 수정 완료!<br><br>
+              <strong>academyId:</strong> ${user.academyId}<br>
+              <strong>academyName:</strong> ${user.academyName}<br><br>
+              <strong>다음 단계:</strong><br>
+              <a href="https://superplacestudy.pages.dev/ai-chat" style="color:#667eea; font-weight:bold;">
+                👉 AI 챗 페이지로 이동하기
+              </a>
+            </div>
+          `;
+        } else if (hasAcademyId) {
+          resultDiv.innerHTML = `
+            <div class="result info">
+              ⚠️ academyId가 있지만 다른 값입니다.<br><br>
+              <strong>현재 값:</strong> ${user.academyId}<br>
+              <strong>예상 값:</strong> academy-1771479246368-5viyubmqk<br><br>
+              "2️⃣ academyId 추가하기" 버튼을 다시 클릭하세요.
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `
+            <div class="result error">
+              ❌ academyId가 아직 없습니다.<br><br>
+              "2️⃣ academyId 추가하기" 버튼을 클릭하세요.
+            </div>
+          `;
+        }
+      } catch (e) {
+        resultDiv.innerHTML = `<div class="result error">❌ 오류: ${e.message}</div>`;
+      }
+    }
+  </script>
+</body>
+</html>
