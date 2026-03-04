@@ -1,6 +1,26 @@
 // API: 학원장 academyId 수정
 // POST /api/admin/fix-director-academy
 
+export async function onRequestGet(context) {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      message: "POST 메서드로 요청하세요",
+      usage: {
+        method: "POST",
+        body: {
+          directorEmail: "학원장이메일",
+          academyId: "학원ID"
+        }
+      }
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+}
+
 export async function onRequestPost(context) {
   const db = context.env.DB;
   

@@ -300,6 +300,48 @@ export async function onRequestPost(context) {
       }
     }
 
+    // 🆕 DIRECTOR인데 academyId가 없으면 academy 테이블에서 찾기
+    if (user.role === 'DIRECTOR' && !user.academyId) {
+      console.log('🔍 DIRECTOR인데 academyId 없음 - academy 테이블에서 조회');
+      try {
+        const academy = await db.prepare(`
+          SELECT id, name, code
+          FROM academy
+          WHERE directorId = ? OR directorEmail = ?
+          LIMIT 1
+        `).bind(user.id, user.email).first();
+        
+        if (academy) {
+          console.log(`✅ 학원 발견: ${academy.name} (${academy.id})`);
+          user.academyId = academy.id;
+          user.academyName = academy.name;
+          user.academyCode = academy.code;
+          
+          // DB 업데이트 (User 테이블)
+          try {
+            await db.prepare(`
+              UPDATE User SET academyId = ? WHERE id = ?
+            `).bind(academy.id, user.id).run();
+            console.log('✅ User.academyId 업데이트 완료');
+          } catch (e) {
+            // users 테이블 시도
+            try {
+              await db.prepare(`
+                UPDATE users SET academyId = ? WHERE id = ?
+              `).bind(academy.id, user.id).run();
+              console.log('✅ users.academyId 업데이트 완료');
+            } catch (e2) {
+              console.warn('⚠️ academyId 업데이트 실패:', e2.message);
+            }
+          }
+        } else {
+          console.warn('⚠️ 학원을 찾을 수 없음');
+        }
+      } catch (e) {
+        console.error('❌ academyId 조회 실패:', e.message);
+      }
+    }
+
     // Generate token with academyId
     const token = `${user.id}|${user.email}|${user.role}|${user.academyId || ''}|${Date.now()}`;
 
