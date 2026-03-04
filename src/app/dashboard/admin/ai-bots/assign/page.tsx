@@ -335,24 +335,32 @@ export default function AIBotAssignPage() {
           endDate.setMonth(endDate.getMonth() + durationNumber);
         }
         
+        const payload = {
+          academyId: selectedAcademy,
+          productId: selectedBot,
+          studentCount: parseInt(studentLimit),
+          subscriptionStart: startDate.toISOString().split('T')[0],
+          subscriptionEnd: endDate.toISOString().split('T')[0],
+          pricePerStudent: 0,
+          memo: `Duration: ${durationNumber} ${durationUnit}`,
+        };
+        
+        console.log('📤 학원 할당 요청:', payload);
+        console.log('🔐 Token:', token ? `${token.substring(0, 20)}...` : 'null');
+        
         const response = await fetch("/api/admin/academy-bot-subscriptions", {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`
           },
-          body: JSON.stringify({
-            academyId: selectedAcademy,
-            productId: selectedBot, // botId를 productId로 사용
-            studentCount: parseInt(studentLimit),
-            subscriptionStart: startDate.toISOString().split('T')[0],
-            subscriptionEnd: endDate.toISOString().split('T')[0],
-            pricePerStudent: 0,
-            memo: `Duration: ${durationNumber} ${durationUnit}`,
-          }),
+          body: JSON.stringify(payload),
         });
 
+        console.log('📥 응답 상태:', response.status, response.statusText);
+        
         const data = await response.json();
+        console.log('📥 응답 데이터:', data);
 
         if (response.ok && data.success) {
           const academy = (academies || []).find(a => a.id === selectedAcademy);
@@ -374,8 +382,9 @@ export default function AIBotAssignPage() {
             fetchData(userData);
           }
         } else {
-          const errorMessage = data.message || data.error || "알 수 없는 오류";
-          alert(`❌ 학원 할당 실패\n\n${errorMessage}`);
+          const errorMessage = data.message || data.error || data.details || "알 수 없는 오류";
+          console.error('❌ 할당 실패:', { status: response.status, data });
+          alert(`❌ 학원 할당 실패\n\n상태 코드: ${response.status}\n오류: ${errorMessage}`);
         }
       } else {
         // 개별 사용자 할당
