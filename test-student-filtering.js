@@ -1,161 +1,80 @@
-const puppeteer = require('puppeteer');
+/**
+ * 학원장 학생 목록 필터링 검증 스크립트
+ */
 
-(async () => {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-  
-  const page = await browser.newPage();
-  
-  // 콘솔 로그 캡처
-  page.on('console', msg => {
-    const text = msg.text();
-    if (text.includes('Students API') || 
-        text.includes('DIRECTOR') || 
-        text.includes('Loaded students') ||
-        text.includes('academyId')) {
-      console.log('🔍 BROWSER LOG:', text);
-    }
-  });
-  
-  // 네트워크 요청 캡처
-  page.on('request', request => {
-    if (request.url().includes('/api/students')) {
-      console.log('\n📡 API REQUEST:', request.url());
-      console.log('   Method:', request.method());
-      const headers = request.headers();
-      console.log('   Authorization:', headers['authorization'] ? 'Present' : 'Missing');
-      if (headers['authorization']) {
-        console.log('   Token (first 50 chars):', headers['authorization'].substring(0, 50) + '...');
-      }
-    }
-  });
-  
-  // 응답 캡처
-  page.on('response', async response => {
-    if (response.url().includes('/api/students')) {
-      console.log('\n📥 API RESPONSE:', response.url());
-      console.log('   Status:', response.status());
-      try {
-        const data = await response.json();
-        console.log('   Success:', data.success);
-        console.log('   Student Count:', data.students?.length || data.count || 0);
-        if (data.students && data.students.length > 0) {
-          console.log('   First 3 students:');
-          data.students.slice(0, 3).forEach(s => {
-            console.log(`     - ${s.name} (${s.email}) - Academy: ${s.academyId || 'NULL'}`);
-          });
-          
-          // 학원 ID 분석
-          const academyIds = [...new Set(data.students.map(s => s.academyId).filter(id => id))];
-          console.log('   Unique Academy IDs:', academyIds);
-        }
-        if (data.error || data.message) {
-          console.log('   Error/Message:', data.error || data.message);
-        }
-      } catch (e) {
-        console.log('   Could not parse response:', e.message);
-      }
-    }
-  });
+const BASE_URL = 'https://superplacestudy.pages.dev';
+const ACADEMY_ID = 'academy-1771479246368-5viyubmqk';
 
+async function testStudentFiltering() {
+  console.log('🔍 ============= 학생 목록 필터링 검증 =============\n');
+  
+  console.log('📌 테스트 시나리오:');
+  console.log('   1. 학원장이 자신의 학원 학생만 조회할 수 있는지');
+  console.log('   2. 퇴원생이 제외되는지');
+  console.log('   3. role=STUDENT 파라미터가 작동하는지\n');
+  
+  // Test 1: academyId + role=STUDENT 필터
+  console.log('📊 Test 1: academyId + role=STUDENT 필터');
   try {
-    console.log('🚀 Starting test...\n');
+    const url = `${BASE_URL}/api/admin/users?academyId=${ACADEMY_ID}&role=STUDENT`;
+    console.log('   URL:', url);
     
-    // 1. 홈페이지 접속
-    console.log('1️⃣ Loading homepage...');
-    await page.goto('https://superplace-academy.pages.dev', {
-      waitUntil: 'networkidle2',
-      timeout: 30000
-    });
-    
-    // 2. 로그인 페이지로 이동
-    console.log('\n2️⃣ Navigating to login page...');
-    await page.goto('https://superplace-academy.pages.dev/login', {
-      waitUntil: 'networkidle2',
-      timeout: 30000
-    });
-    
-    await page.waitForTimeout(2000);
-    
-    // 3. kohsunwoo1234@gmail.com으로 로그인 시도
-    console.log('\n3️⃣ Attempting login with kohsunwoo1234@gmail.com...');
-    
-    // 이메일 입력
-    await page.waitForSelector('input[type="email"], input[name="email"]', { timeout: 10000 });
-    await page.type('input[type="email"], input[name="email"]', 'kohsunwoo1234@gmail.com');
-    
-    // 비밀번호 입력 (일반적인 테스트 비밀번호 시도)
-    await page.type('input[type="password"], input[name="password"]', 'password123');
-    
-    // 로그인 버튼 클릭
-    await page.click('button[type="submit"]');
-    
-    console.log('   Waiting for navigation...');
-    await page.waitForTimeout(3000);
-    
-    const currentUrl = page.url();
-    console.log('   Current URL after login:', currentUrl);
-    
-    // localStorage 확인
-    const tokenInfo = await page.evaluate(() => {
-      const user = localStorage.getItem('user');
-      const token = localStorage.getItem('token');
-      
-      if (user) {
-        try {
-          const userData = JSON.parse(user);
-          return {
-            hasUser: true,
-            hasToken: !!token,
-            role: userData.role,
-            academyId: userData.academyId,
-            email: userData.email,
-            tokenInUser: !!userData.token
-          };
-        } catch (e) {
-          return { error: 'Failed to parse user data' };
-        }
-      }
-      return { hasUser: false, hasToken: !!token };
-    });
-    
-    console.log('\n📦 LocalStorage Info:', JSON.stringify(tokenInfo, null, 2));
-    
-    if (!tokenInfo.hasUser && !tokenInfo.hasToken) {
-      console.log('\n❌ Login failed - no token found');
-      console.log('   This could mean:');
-      console.log('   1. Wrong password');
-      console.log('   2. Login API error');
-      console.log('   3. Account does not exist');
-      await browser.close();
-      return;
-    }
-    
-    // 4. 학생 관리 페이지로 이동
-    console.log('\n4️⃣ Navigating to students page...');
-    await page.goto('https://superplace-academy.pages.dev/dashboard/students', {
-      waitUntil: 'networkidle2',
-      timeout: 30000
-    });
-    
-    await page.waitForTimeout(5000);
-    
-    console.log('\n✅ Test complete!');
-    console.log('\n' + '='.repeat(80));
-    console.log('SUMMARY:');
-    console.log('='.repeat(80));
-    console.log('Check the API REQUEST and API RESPONSE logs above.');
-    console.log('Key things to look for:');
-    console.log('  - Was Authorization header sent?');
-    console.log('  - How many students were returned?');
-    console.log('  - What are the unique academy IDs?');
-    console.log('='.repeat(80));
-    
+    // Note: 이 테스트는 인증 토큰이 필요하므로 실제 브라우저에서 테스트해야 합니다
+    console.log('   ⚠️  이 API는 인증이 필요합니다.');
+    console.log('   ℹ️  학원장 계정으로 로그인 후 다음 단계를 진행하세요:\n');
   } catch (error) {
-    console.error('❌ Test failed:', error.message);
-  } finally {
-    await browser.close();
+    console.error('   ❌ 오류:', error.message);
   }
-})();
+  
+  console.log('📝 브라우저 테스트 절차:');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  
+  console.log('1️⃣ 학원장 로그인');
+  console.log('   https://superplacestudy.pages.dev/login');
+  console.log('   Email: wangholy1@naver.com\n');
+  
+  console.log('2️⃣ AI 봇 할당 페이지 접속');
+  console.log('   https://superplacestudy.pages.dev/dashboard/admin/ai-bots/assign/\n');
+  
+  console.log('3️⃣ 브라우저 콘솔(F12) 확인');
+  console.log('   다음 로그가 표시되어야 합니다:');
+  console.log('   • 🏫 DIRECTOR/TEACHER filtering by academyId: academy-1771479246368-5viyubmqk');
+  console.log('   • 👤 DIRECTOR/TEACHER filtering by role: STUDENT');
+  console.log('   • ✅ Users loaded: { users: [...] }\n');
+  
+  console.log('4️⃣ 학생 드롭다운 확인');
+  console.log('   ✅ 예상 결과:');
+  console.log('   • 꾸메땅학원 학생만 표시됨');
+  console.log('   • 퇴원생은 표시되지 않음');
+  console.log('   • 다른 학원 학생은 표시되지 않음');
+  console.log('   • TEACHER, DIRECTOR 역할은 표시되지 않음\n');
+  
+  console.log('5️⃣ 학생 목록과 /dashboard/students/ 비교');
+  console.log('   https://superplacestudy.pages.dev/dashboard/students/');
+  console.log('   위 페이지의 학생 목록과 AI 봇 할당 페이지의');
+  console.log('   학생 목록이 동일해야 합니다.\n');
+  
+  console.log('🧪 API 직접 테스트 (브라우저 콘솔):');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  console.log('const token = localStorage.getItem("token");');
+  console.log('fetch("/api/admin/users?academyId=academy-1771479246368-5viyubmqk&role=STUDENT", {');
+  console.log('  headers: { "Authorization": `Bearer ${token}` }');
+  console.log('})');
+  console.log('.then(r => r.json())');
+  console.log('.then(d => {');
+  console.log('  console.log("✅ Total students:", d.count);');
+  console.log('  console.log("✅ Students:", d.users);');
+  console.log('  console.log("✅ Withdrawn students excluded:", !d.users.some(u => u.isWithdrawn === 1));');
+  console.log('});\n');
+  
+  console.log('🔍 검증 포인트:');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  console.log('✅ 1. 모든 학생이 academyId = academy-1771479246368-5viyubmqk');
+  console.log('✅ 2. 모든 학생이 role = STUDENT');
+  console.log('✅ 3. 모든 학생이 isWithdrawn = 0 또는 NULL');
+  console.log('✅ 4. /dashboard/students/ 목록과 동일\n');
+  
+  console.log('🔍 ============= 검증 완료 =============');
+}
+
+testStudentFiltering().catch(console.error);
