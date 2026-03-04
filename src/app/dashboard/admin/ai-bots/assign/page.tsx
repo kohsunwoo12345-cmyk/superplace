@@ -36,6 +36,7 @@ interface User {
   name: string;
   email: string;
   role: string;
+  isWithdrawn?: boolean;
 }
 
 interface Academy {
@@ -110,6 +111,11 @@ export default function AIBotAssignPage() {
           alert('AI 봇 할당 권한이 없습니다.');
           router.push('/dashboard');
           return;
+        }
+
+        // DIRECTOR/TEACHER는 학생에게만 할당 가능하도록 설정
+        if (role === 'DIRECTOR' || role === 'TEACHER') {
+          setSelectedRole('STUDENT');
         }
 
         // userData를 직접 전달
@@ -441,21 +447,24 @@ export default function AIBotAssignPage() {
   };
 
   // 역할별로 사용자 필터링 (안전한 처리)
+  // 퇴원생 제외 + 역할 필터링
+  const activeUsers = (users || []).filter(user => !user.isWithdrawn);
+  
   const filteredUsers = selectedRole === "all" 
-    ? (users || [])
-    : (users || []).filter(user => {
+    ? activeUsers
+    : activeUsers.filter(user => {
         if (selectedRole === "ACADEMY") return user.role === "DIRECTOR" || user.role === "member";
         if (selectedRole === "TEACHER") return user.role === "TEACHER" || user.role === "user";
         if (selectedRole === "STUDENT") return user.role === "STUDENT";
         return false;
       });
 
-  // 역할별 사용자 수 (안전한 처리)
+  // 역할별 사용자 수 (안전한 처리, 퇴원생 제외)
   const roleStats = {
-    all: users?.length || 0,
-    academy: users?.filter(u => u.role === "DIRECTOR" || u.role === "member")?.length || 0,
-    teacher: users?.filter(u => u.role === "TEACHER" || u.role === "user")?.length || 0,
-    student: users?.filter(u => u.role === "STUDENT")?.length || 0,
+    all: activeUsers?.length || 0,
+    academy: activeUsers?.filter(u => u.role === "DIRECTOR" || u.role === "member")?.length || 0,
+    teacher: activeUsers?.filter(u => u.role === "TEACHER" || u.role === "user")?.length || 0,
+    student: activeUsers?.filter(u => u.role === "STUDENT")?.length || 0,
   };
 
   if (loading || !currentUser) {
@@ -564,32 +573,43 @@ export default function AIBotAssignPage() {
 
             {assignType === "user" ? (
               <>
-                {/* 역할 필터 */}
-                <div className="space-y-2">
-                  <Label htmlFor="role-filter">사용자 역할 필터</Label>
-                  <Select value={selectedRole} onValueChange={setSelectedRole}>
-                    <SelectTrigger id="role-filter">
-                      <SelectValue placeholder="역할을 선택하세요" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        전체 ({roleStats.all}명)
-                      </SelectItem>
-                      <SelectItem value="ACADEMY">
-                        학원 원장 ({roleStats.academy}명)
-                      </SelectItem>
-                      <SelectItem value="TEACHER">
-                        선생님 ({roleStats.teacher}명)
-                      </SelectItem>
-                      <SelectItem value="STUDENT">
-                        학생 ({roleStats.student}명)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">
-                    역할별로 사용자를 필터링합니다
-                  </p>
-                </div>
+                {/* 역할 필터 (ADMIN/SUPER_ADMIN만) */}
+                {currentUser && ['ADMIN', 'SUPER_ADMIN'].includes(currentUser.role?.toUpperCase()) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="role-filter">사용자 역할 필터</Label>
+                    <Select value={selectedRole} onValueChange={setSelectedRole}>
+                      <SelectTrigger id="role-filter">
+                        <SelectValue placeholder="역할을 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          전체 ({roleStats.all}명)
+                        </SelectItem>
+                        <SelectItem value="ACADEMY">
+                          학원 원장 ({roleStats.academy}명)
+                        </SelectItem>
+                        <SelectItem value="TEACHER">
+                          선생님 ({roleStats.teacher}명)
+                        </SelectItem>
+                        <SelectItem value="STUDENT">
+                          학생 ({roleStats.student}명)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      역할별로 사용자를 필터링합니다
+                    </p>
+                  </div>
+                )}
+
+                {/* DIRECTOR/TEACHER용 안내 메시지 */}
+                {currentUser && ['DIRECTOR', 'TEACHER'].includes(currentUser.role?.toUpperCase()) && (
+                  <div className="col-span-full bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      💡 학원 학생들에게 AI 봇을 할당할 수 있습니다. (퇴원생 제외)
+                    </p>
+                  </div>
+                )}
 
                 {/* 사용자 선택 */}
                 <div className="space-y-2">
@@ -607,7 +627,7 @@ export default function AIBotAssignPage() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-gray-500">
-                    {(filteredUsers || []).length}명의 사용자
+                    {(filteredUsers || []).length}명의 사용자 (퇴원생 제외)
                   </p>
                 </div>
               </>
