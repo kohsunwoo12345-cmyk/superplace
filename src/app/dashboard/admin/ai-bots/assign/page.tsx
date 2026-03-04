@@ -94,24 +94,25 @@ export default function AIBotAssignPage() {
       return;
     }
 
-    fetchData();
+    // userData를 직접 전달
+    fetchData(userData);
   }, [router]);
 
-  const fetchData = async () => {
+  const fetchData = async (userData: any) => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      console.log('🔍 Current user:', currentUser);
-      console.log('🔍 Academy ID:', currentUser?.academyId);
+      console.log('🔍 Current user:', userData);
+      console.log('🔍 Academy ID:', userData?.academyId);
       
       // 학원장/선생님은 자신의 학원에 할당된 봇만 조회
-      const role = currentUser?.role?.toUpperCase();
+      const role = userData?.role?.toUpperCase();
       let botsEndpoint = "/api/admin/ai-bots";
       
       if (role === 'DIRECTOR' || role === 'TEACHER') {
         // 학원장/선생님: 자신의 학원에 할당된 봇만
-        const academyId = currentUser?.academyId;
+        const academyId = userData?.academyId;
         if (!academyId) {
           alert('학원 정보가 없습니다. 관리자에게 문의하세요.');
           setLoading(false);
@@ -241,7 +242,11 @@ export default function AIBotAssignPage() {
         setDurationUnit("month");
         
         // 할당 목록 새로고침
-        fetchData();
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          fetchData(userData);
+        }
       } else {
         // 상세 오류 메시지 표시
         const errorMessage = data.message || data.error || "알 수 없는 오류";
@@ -273,7 +278,11 @@ export default function AIBotAssignPage() {
 
       if (response.ok && data.success) {
         alert("✅ 할당이 취소되었습니다.\n\n구독 슬롯이 복원되어 다른 학생에게 재할당할 수 있습니다.");
-        fetchData();
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          fetchData(userData);
+        }
       } else {
         const errorMessage = data.message || data.error || "알 수 없는 오류";
         alert(`❌ 취소 실패\n\n${errorMessage}`);
