@@ -281,8 +281,14 @@ export default function AIBotAssignPage() {
 
   const handleAssign = async () => {
     // 유효성 검증
-    if (!selectedBot || !duration) {
-      alert("AI 봇과 기간을 선택해주세요.");
+    if (!selectedBot) {
+      alert("AI 봇을 선택해주세요.");
+      return;
+    }
+    
+    // 학원 할당은 기간 필수
+    if (assignType === "academy" && !duration) {
+      alert("학원 할당 시 구독 기간을 선택해주세요.");
       return;
     }
 
@@ -389,21 +395,50 @@ export default function AIBotAssignPage() {
       } else {
         // 개별 사용자 할당
         
-        // 학원장/선생님의 경우 구독 슬롯 확인
+        // 🔥 학원 구독 정보 확인 (학원장/선생님/관리자 모두)
+        let subscription = null;
+        
         if (currentUser?.role === 'DIRECTOR' || currentUser?.role === 'TEACHER') {
-          const subscription = (academySubscriptions || []).find(sub => sub.botId === selectedBot && sub.isActive);
-          
-          if (!subscription) {
-            alert('❌ 이 봇은 귀하의 학원에 할당되지 않았습니다.\n관리자에게 문의하세요.');
-            return;
-          }
-          
-          if (subscription.remainingSlots <= 0) {
-            alert(`❌ 남은 슬롯이 없습니다.\n\n사용 가능: ${subscription.totalSlots}명\n이미 사용: ${subscription.usedSlots}명\n남은 슬롯: ${subscription.remainingSlots}명`);
-            return;
+          // 학원장/선생님: 자신의 학원 구독만
+          subscription = (academySubscriptions || []).find(sub => sub.botId === selectedBot && sub.isActive);
+        } else if (currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') {
+          // 관리자: 할당하려는 학생의 학원 구독 찾기
+          const targetUser = users.find(u => u.id.toString() === selectedUser);
+          if (targetUser && (targetUser as any).academyId) {
+            subscription = (academySubscriptions || []).find(
+              sub => sub.botId === selectedBot && 
+                     sub.academyId === (targetUser as any).academyId && 
+                     sub.isActive
+            );
           }
         }
         
+        if (!subscription) {
+          alert('❌ 이 봇은 학원에 구독되지 않았습니다.\n\n학생에게 봇을 할당하려면 먼저 해당 학원에 봇을 할당(구독)해야 합니다.');
+          return;
+        }
+        
+        // 슬롯 확인
+        if (subscription.remainingSlots <= 0) {
+          alert(`❌ 남은 슬롯이 없습니다.\n\n사용 가능: ${subscription.totalSlots}명\n이미 사용: ${subscription.usedSlots}명\n남은 슬롯: ${subscription.remainingSlots}명`);
+          return;
+        }
+        
+        // 🔥 학원 구독 만료일 확인
+        const subscriptionEndDate = new Date(subscription.expiresAt);
+        if (subscriptionEndDate < new Date()) {
+          alert(`❌ 학원의 봇 구독이 만료되었습니다.\n\n만료일: ${subscription.expiresAt}`);
+          return;
+        }
+        
+        console.log('📅 학원 구독 정보:', {
+          subscriptionEnd: subscription.expiresAt,
+          totalSlots: subscription.totalSlots,
+          usedSlots: subscription.usedSlots,
+          remainingSlots: subscription.remainingSlots
+        });
+        
+        // 🔥 기간은 학원 구독 기간과 동일하게 설정 (duration, durationUnit 제거)
         const response = await fetch("/api/admin/ai-bots/assign", {
           method: "POST",
           headers: { 
@@ -413,21 +448,19 @@ export default function AIBotAssignPage() {
           body: JSON.stringify({
             botId: selectedBot,
             userId: selectedUser,
-            duration: durationNumber,
-            durationUnit,
+            // 🔥 duration, durationUnit 제거 - 백엔드가 학원 구독 기간 자동 적용
           }),
         });
 
         const data = await response.json();
 
         if (response.ok && data.success) {
-          alert(`✅ AI 봇이 성공적으로 할당되었습니다!\n\n사용자: ${data.assignment.userName}\n봇: ${data.assignment.botName}\n기간: ${data.assignment.duration}${data.assignment.durationUnit === 'day' ? '일' : '개월'}\n종료일: ${data.assignment.endDate}`);
+          const endDate = data.assignment.endDate ? new Date(data.assignment.endDate).toLocaleDateString('ko-KR') : '제한 없음';
+          alert(`✅ AI 봇이 성공적으로 할당되었습니다!\n\n사용자: ${data.assignment.userName}\n봇: ${data.assignment.botName}\n종료일: ${endDate}\n\n💡 학생의 사용 기간은 학원 구독 기간과 동일합니다.`);
           
           // 폼 초기화
           setSelectedBot("");
           setSelectedUser("");
-          setDuration("1");
-          setDurationUnit("day");
           
           // 할당 목록 새로고침
           const storedUser = localStorage.getItem("user");
@@ -736,36 +769,63 @@ export default function AIBotAssignPage() {
               </>
             )}
 
-            {/* 기간 입력 */}
-            <div className="space-y-2">
-              <Label htmlFor="duration">사용 기간</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="duration"
-                  type="number"
-                  min="1"
-                  max={durationUnit === "day" ? "36500" : "1200"}
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  placeholder="기간"
-                  className="flex-1"
-                />
-                <Select value={durationUnit} onValueChange={setDurationUnit}>
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="day">일</SelectItem>
-                    <SelectItem value="month">개월</SelectItem>
-                  </SelectContent>
-                </Select>
+            {/* 기간 입력 - 학원 할당에만 표시 */}
+            {assignType === "academy" && (
+              <div className="space-y-2">
+                <Label htmlFor="duration">학원 구독 기간</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="duration"
+                    type="number"
+                    min="1"
+                    max={durationUnit === "day" ? "36500" : "1200"}
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    placeholder="기간"
+                    className="flex-1"
+                  />
+                  <Select value={durationUnit} onValueChange={setDurationUnit}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="day">일</SelectItem>
+                      <SelectItem value="month">개월</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-sm text-gray-500">
+                  {durationUnit === "day"
+                    ? "최대 36,500일(100년) 가능"
+                    : "최대 1,200개월(100년) 가능"}
+                </p>
               </div>
-              <p className="text-sm text-gray-500">
-                {durationUnit === "day"
-                  ? "최대 36,500일(100년) 가능"
-                  : "최대 1,200개월(100년) 가능"}
-              </p>
-            </div>
+            )}
+            
+            {/* 개별 사용자 할당 시 안내 메시지 */}
+            {assignType === "user" && selectedBot && (
+              <div className="md:col-span-2">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm font-semibold text-blue-900 mb-2">📅 사용 기간 안내</p>
+                  <p className="text-sm text-blue-800">
+                    학생의 AI 봇 사용 기간은 <span className="font-bold">학원 구독 기간과 자동으로 동일</span>하게 설정됩니다.
+                    별도로 기간을 선택할 필요가 없습니다.
+                  </p>
+                  {(() => {
+                    const subscription = (academySubscriptions || []).find(sub => sub.botId === selectedBot && sub.isActive);
+                    if (subscription) {
+                      const endDate = new Date(subscription.expiresAt).toLocaleDateString('ko-KR');
+                      return (
+                        <p className="text-sm text-blue-800 mt-2">
+                          ✅ 학원 구독 만료일: <span className="font-bold">{endDate}</span>
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              </div>
+            )}
 
             {/* 할당 버튼 */}
             <div className="flex items-end">

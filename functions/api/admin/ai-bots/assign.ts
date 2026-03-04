@@ -78,9 +78,9 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     const body = await request.json();
     const { botId, userId, duration, durationUnit } = body;
 
-    if (!botId || !userId || !duration || !durationUnit) {
+    if (!botId || !userId) {
       return new Response(
-        JSON.stringify({ success: false, error: "필수 필드가 누락되었습니다" }),
+        JSON.stringify({ success: false, error: "봇 ID와 사용자 ID는 필수입니다" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -138,12 +138,14 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
-    // 🔒 구독 슬롯 검증 (학원장/선생님의 경우)
+    // 🔒 구독 슬롯 검증 + 학원 구독 기간 조회
+    let subscription: any = null;
+    
     if ((role === 'DIRECTOR' || role === 'TEACHER') && userAcademyId) {
       console.log('🔍 Checking subscription slots for academy:', userAcademyId, 'bot:', botId);
       
-      // 학원의 구독 정보 조회 (컬럼명 수정: subscriptionEnd → subscriptionEndDate)
-      const subscription = await DB.prepare(`
+      // 학원의 구독 정보 조회
+      subscription = await DB.prepare(`
         SELECT 
           id, 
           academyId, 
@@ -238,6 +240,37 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       }
 
       console.log(`✅ Subscription slots available: ${remainingSlots}/${totalSlots}`);
+    } else if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+      // 🔥 관리자: 할당하려는 학생의 학원 구독 정보 조회
+      if (user.academyId) {
+        console.log('🔍 ADMIN - Fetching subscription for student academy:', user.academyId, 'bot:', botId);
+        
+        subscription = await DB.prepare(`
+          SELECT 
+            id, 
+            academyId, 
+            productId, 
+            productName,
+            totalStudentSlots, 
+            usedStudentSlots, 
+            remainingStudentSlots,
+            subscriptionStart,
+            subscriptionEnd,
+            isActive,
+            createdAt,
+            updatedAt
+          FROM AcademyBotSubscription 
+          WHERE academyId = ? AND productId = ?
+          ORDER BY subscriptionEnd DESC
+          LIMIT 1
+        `).bind(user.academyId, botId).first() as any;
+        
+        if (!subscription) {
+          console.warn('⚠️ No subscription found for student academy, allowing admin override');
+        } else {
+          console.log('✅ Found subscription for student academy:', subscription);
+        }
+      }
     }
 
     // 🔒 중복 할당 방지 (이미 해당 봇을 할당받은 학생인지 확인)
@@ -265,21 +298,61 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     console.log('✅ No existing assignment found, proceeding with new assignment');
 
-    // 시작일 및 종료일 계산 (한국 시간 KST)
+    // 🔥 시작일 및 종료일 계산 (한국 시간 KST)
     const now = new Date();
     const kstOffset = 9 * 60; // KST = UTC+9
     const kstNow = new Date(now.getTime() + kstOffset * 60 * 1000);
     const startDate = kstNow.toISOString().split('T')[0];
 
     let endDate: Date;
-    if (durationUnit === "day") {
-      endDate = new Date(kstNow.getTime() + duration * 24 * 60 * 60 * 1000);
-    } else if (durationUnit === "month") {
-      endDate = new Date(kstNow);
-      endDate.setMonth(endDate.getMonth() + duration);
+    let actualDuration: number;
+    let actualDurationUnit: string;
+    
+    // 🔥 학원 구독이 있으면 그 기간을 사용, 없으면 duration 사용
+    if (subscription && subscription.subscriptionEnd) {
+      // 학원 구독 만료일 사용
+      endDate = new Date(subscription.subscriptionEnd);
+      actualDurationUnit = 'subscription';
+      
+      // 일수 계산
+      const diffTime = endDate.getTime() - kstNow.getTime();
+      actualDuration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      console.log('📅 Using academy subscription end date:', {
+        subscriptionEnd: subscription.subscriptionEnd,
+        calculatedDays: actualDuration,
+        startDate,
+        endDate: endDate.toISOString().split('T')[0]
+      });
+    } else if (duration && durationUnit) {
+      // duration 파라미터 사용 (학원 할당 또는 관리자 할당)
+      if (durationUnit === "day") {
+        endDate = new Date(kstNow.getTime() + duration * 24 * 60 * 60 * 1000);
+      } else if (durationUnit === "month") {
+        endDate = new Date(kstNow);
+        endDate.setMonth(endDate.getMonth() + duration);
+      } else {
+        return new Response(
+          JSON.stringify({ success: false, error: "잘못된 기간 단위입니다" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      actualDuration = duration;
+      actualDurationUnit = durationUnit;
+      
+      console.log('📅 Using provided duration:', {
+        duration,
+        durationUnit,
+        startDate,
+        endDate: endDate.toISOString().split('T')[0]
+      });
     } else {
+      // 구독도 없고 duration도 없음
       return new Response(
-        JSON.stringify({ success: false, error: "잘못된 기간 단위입니다" }),
+        JSON.stringify({ 
+          success: false, 
+          error: "학원 구독 정보가 없으며, 기간도 제공되지 않았습니다.\n\n학생에게 봇을 할당하려면 먼저 해당 학원에 봇을 할당(구독)해야 합니다." 
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -336,8 +409,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       user.academyId || null,
       startDate,
       endDateStr,
-      duration,
-      durationUnit
+      actualDuration,
+      actualDurationUnit
     ).run();
 
     // 🔒 구독 슬롯 차감 (학원장/선생님의 경우)
@@ -389,9 +462,10 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           userAcademyId: user.academyId,
           startDate,
           endDate: endDateStr,
-          duration,
-          durationUnit,
+          duration: actualDuration,
+          durationUnit: actualDurationUnit,
           status: "active",
+          usedAcademySubscription: !!subscription,
         },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
