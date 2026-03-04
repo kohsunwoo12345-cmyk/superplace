@@ -4,7 +4,7 @@ interface Env {
 }
 
 // 토큰 파싱 함수
-function parseToken(authHeader: string | null): { id: string; email: string; role: string } | null {
+function parseToken(authHeader: string | null): { id: string; email: string; role: string; academyId?: string } | null {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
@@ -12,7 +12,8 @@ function parseToken(authHeader: string | null): { id: string; email: string; rol
   const token = authHeader.substring(7);
   const parts = token.split('|');
   
-  if (parts.length !== 3) {
+  // 3개 또는 5개 파트 모두 허용 (id|email|role 또는 id|email|role|academyId|timestamp)
+  if (parts.length < 3) {
     return null;
   }
 
@@ -20,6 +21,7 @@ function parseToken(authHeader: string | null): { id: string; email: string; rol
     id: parts[0],
     email: parts[1],
     role: parts[2],
+    academyId: parts[3] || undefined,
   };
 }
 
