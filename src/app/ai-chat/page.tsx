@@ -126,10 +126,11 @@ export default function ModernAIChatPage() {
       // 일반 사용자는 할당된 봇만 조회
       console.log(`👥 일반 사용자 (academyId: ${userData.academyId}) - 할당된 봇 조회`);
       fetchBots(userData.academyId);
-    } else if (userData.role === 'DIRECTOR') {
-      // 학원장인 경우 academyId를 API로 조회
-      console.log('🏫 학원장 계정 - academyId 조회 시도');
-      fetchDirectorAcademyId(userData.id);
+    } else if (userData.role === 'DIRECTOR' || userData.role === 'TEACHER') {
+      // 학원장/교사인데 academyId가 없는 경우 - 모든 학원의 봇 조회 (임시)
+      console.warn('⚠️ DIRECTOR/TEACHER인데 academyId 없음 - 모든 봇 조회');
+      console.log('🔑 임시: 모든 봇 조회');
+      fetchAllBots();
     } else {
       console.warn("⚠️ academyId가 없습니다. AI 봇을 사용할 수 없습니다.");
       console.warn("⚠️ 사용자 정보:", userData);
