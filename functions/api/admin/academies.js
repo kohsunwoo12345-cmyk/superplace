@@ -29,15 +29,22 @@ export async function onRequestGet(context) {
 
     const token = authHeader.replace('Bearer ', '');
     
-    // JWT 토큰 디코딩
+    // 토큰 파싱 (id|email|role|academyId|timestamp 형식)
+    let userId = null;
     let userEmail = null;
     let userRole = null;
+    let userAcademyId = null;
+    
     try {
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        userEmail = payload.email;
-        userRole = payload.role;
+      const parts = token.split('|');
+      if (parts.length >= 3) {
+        userId = parts[0];
+        userEmail = parts[1];
+        userRole = parts[2];
+        userAcademyId = parts[3] || null;
+        console.log('✅ 토큰 파싱 성공:', { userId, userEmail, userRole, userAcademyId });
+      } else {
+        throw new Error('Invalid token format');
       }
     } catch (e) {
       console.error('토큰 파싱 오류:', e);
@@ -61,14 +68,22 @@ export async function onRequestGet(context) {
       });
     }
 
-    // 학원장인 경우 본인의 academyId 가져오기
+    // 학원장인 경우 본인의 academyId 사용
     let directorAcademyId = null;
     if (userRole === 'DIRECTOR') {
-      const director = await env.DB.prepare(`
-        SELECT academyId FROM User WHERE email = ?
-      `).bind(userEmail).first();
-      
-      directorAcademyId = director?.academyId;
+      // 토큰에서 academyId를 먼저 확인
+      if (userAcademyId) {
+        directorAcademyId = userAcademyId;
+        console.log('✅ 토큰에서 학원 ID 사용:', directorAcademyId);
+      } else {
+        // 토큰에 없으면 DB에서 조회
+        const director = await env.DB.prepare(`
+          SELECT academyId FROM User WHERE email = ?
+        `).bind(userEmail).first();
+        
+        directorAcademyId = director?.academyId;
+        console.log('✅ DB에서 학원 ID 조회:', directorAcademyId);
+      }
       
       if (!directorAcademyId) {
         return new Response(JSON.stringify({ 
