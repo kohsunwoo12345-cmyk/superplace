@@ -271,3 +271,86 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 };
+
+// GET 메서드 - 학원 구독 목록 조회
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  try {
+    const { DB } = context.env;
+    if (!DB) {
+      return new Response(JSON.stringify({ error: 'Database not configured' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 인증 체크
+    const authHeader = context.request.headers.get('Authorization');
+    const user = parseToken(authHeader);
+
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 권한 체크 (ADMIN, SUPER_ADMIN만 전체 조회 가능)
+    if (!['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+      return new Response(JSON.stringify({ error: 'Forbidden - Admin access required' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('📋 Fetching all academy bot subscriptions');
+
+    // 모든 활성 구독 조회
+    const subscriptions = await DB.prepare(`
+      SELECT 
+        s.id,
+        s.academyId,
+        a.name as academyName,
+        s.productId as botId,
+        b.name as botName,
+        s.totalStudentSlots as totalSlots,
+        s.usedStudentSlots as usedSlots,
+        s.remainingStudentSlots as remainingSlots,
+        s.subscriptionEnd as expiresAt,
+        CASE 
+          WHEN date(s.subscriptionEnd) >= date('now') THEN 1
+          ELSE 0
+        END as isActive
+      FROM AcademyBotSubscription s
+      JOIN academy a ON s.academyId = a.id
+      JOIN ai_bots b ON s.productId = b.id
+      WHERE date(s.subscriptionEnd) >= date('now')
+      ORDER BY s.subscriptionEnd DESC
+    `).all();
+
+    console.log(`✅ Found ${subscriptions.results?.length || 0} active subscriptions`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        subscriptions: subscriptions.results || [],
+        count: subscriptions.results?.length || 0,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  } catch (error: any) {
+    console.error('❌ Failed to fetch academy bot subscriptions:', error);
+    return new Response(
+      JSON.stringify({
+        error: 'Failed to fetch academy bot subscriptions',
+        details: error.message,
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
+};
