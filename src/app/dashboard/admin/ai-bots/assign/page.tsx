@@ -36,7 +36,6 @@ interface User {
   name: string;
   email: string;
   role: string;
-  isWithdrawn?: boolean;
 }
 
 interface Assignment {
@@ -75,51 +74,29 @@ export default function AIBotAssignPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
-    
-    const initializePage = async () => {
-      try {
-        const storedUser = localStorage.getItem("user");
-        if (!storedUser) {
-          router.push("/login");
-          return;
-        }
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      router.push("/login");
+      return;
+    }
 
-        const userData = JSON.parse(storedUser);
-        if (!isMounted) return;
-        
-        setCurrentUser(userData);
-        
-        console.log("📋 User data:", userData);
-        console.log("✅ AI Bot Assign page access granted");
-
-        // 권한 체크
-        const role = userData.role?.toUpperCase();
-        if (!['ADMIN', 'SUPER_ADMIN', 'DIRECTOR', 'TEACHER'].includes(role)) {
-          alert('AI 봇 할당 권한이 없습니다.');
-          router.push('/dashboard');
-          return;
-        }
-
-        // userData를 직접 전달
-        if (isMounted) {
-          await fetchData(userData);
-        }
-      } catch (error) {
-        console.error("초기화 오류:", error);
-        if (isMounted) {
-          alert("페이지 로드 중 오류가 발생했습니다.");
-          router.push('/dashboard');
-        }
-      }
-    };
+    const userData = JSON.parse(storedUser);
+    setCurrentUser(userData);
     
-    initializePage();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    console.log("📋 User data:", userData);
+    console.log("✅ AI Bot Assign page access granted");
+
+    // 권한 체크
+    const role = userData.role?.toUpperCase();
+    if (!['ADMIN', 'SUPER_ADMIN', 'DIRECTOR', 'TEACHER'].includes(role)) {
+      alert('AI 봇 할당 권한이 없습니다.');
+      router.push('/dashboard');
+      return;
+    }
+
+    // userData를 직접 전달
+    fetchData(userData);
+  }, [router]);
 
   const fetchData = async (userData: any) => {
     try {
@@ -316,27 +293,24 @@ export default function AIBotAssignPage() {
     }
   };
 
-  // 퇴원생 제외 - 안전한 배열 처리
-  const activeUsers = (users || []).filter(user => !user?.isWithdrawn);
-
-  // 역할별로 사용자 필터링
+  // 역할별로 사용자 필터링 (안전한 배열 처리)
+  const safeUsers = users || [];
   const filteredUsers = selectedRole === "all" 
-    ? activeUsers
-    : activeUsers.filter(user => {
+    ? safeUsers 
+    : safeUsers.filter(user => {
         if (selectedRole === "ACADEMY") return user.role === "DIRECTOR" || user.role === "member";
         if (selectedRole === "TEACHER") return user.role === "TEACHER" || user.role === "user";
         if (selectedRole === "STUDENT") return user.role === "STUDENT";
         return false;
       });
 
-  // 역할별 사용자 수 (퇴원생 제외)
+  // 역할별 사용자 수 (안전한 배열 처리)
   const roleStats = {
-    all: activeUsers.length,
-    academy: activeUsers.filter(u => u?.role === "DIRECTOR" || u?.role === "member").length,
-    teacher: activeUsers.filter(u => u?.role === "TEACHER" || u?.role === "user").length,
-    student: activeUsers.filter(u => u?.role === "STUDENT").length,
+    all: safeUsers.length,
+    academy: safeUsers.filter(u => u.role === "DIRECTOR" || u.role === "member").length,
+    teacher: safeUsers.filter(u => u.role === "TEACHER" || u.role === "user").length,
+    student: safeUsers.filter(u => u.role === "STUDENT").length,
   };
-
 
   if (loading || !currentUser) {
     return (
@@ -394,7 +368,7 @@ export default function AIBotAssignPage() {
                   <SelectValue placeholder="봇을 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(bots || []).filter(bot => bot?.isActive).map((bot) => (
+                  {(bots || []).filter(bot => bot.isActive).map((bot) => (
                     <SelectItem key={bot.id} value={bot.id}>
                       {bot.name}
                     </SelectItem>
@@ -402,7 +376,7 @@ export default function AIBotAssignPage() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500">
-                활성화된 봇만 표시됩니다 ({(bots || []).filter(b => b?.isActive).length}개)
+                활성화된 봇만 표시됩니다 ({(bots || []).filter(b => b.isActive).length}개)
               </p>
             </div>
 
