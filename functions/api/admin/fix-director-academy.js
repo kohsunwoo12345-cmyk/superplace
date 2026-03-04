@@ -1,24 +1,68 @@
 // API: 학원장 academyId 수정
-// POST /api/admin/fix-director-academy
+// GET, POST /api/admin/fix-director-academy
 
 export async function onRequestGet(context) {
-  return new Response(
-    JSON.stringify({
-      success: true,
-      message: "POST 메서드로 요청하세요",
-      usage: {
-        method: "POST",
-        body: {
-          directorEmail: "학원장이메일",
-          academyId: "학원ID"
-        }
+  const db = context.env.DB;
+  
+  // 꾸메땅학원 학원장 자동 수정
+  try {
+    const directorEmail = "wangholy1@naver.com";
+    const academyId = "academy-1771479246368-5viyubmqk";
+    
+    console.log(`🔧 자동 수정: ${directorEmail} -> ${academyId}`);
+
+    // User 테이블 업데이트
+    let success = false;
+    try {
+      await db.prepare(`
+        UPDATE User 
+        SET academyId = ?
+        WHERE email = ?
+      `).bind(academyId, directorEmail).run();
+      
+      console.log('✅ User 테이블 업데이트 완료');
+      success = true;
+    } catch (e) {
+      console.log('⚠️ User 테이블 실패, users 시도:', e.message);
+      
+      try {
+        await db.prepare(`
+          UPDATE users 
+          SET academyId = ?
+          WHERE email = ?
+        `).bind(academyId, directorEmail).run();
+        
+        console.log('✅ users 테이블 업데이트 완료');
+        success = true;
+      } catch (e2) {
+        console.error('❌ 업데이트 실패:', e2.message);
       }
-    }),
-    {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
     }
-  );
+
+    return new Response(
+      JSON.stringify({
+        success: success,
+        message: success ? "academyId 자동 업데이트 완료" : "업데이트 실패",
+        directorEmail: directorEmail,
+        academyId: academyId
+      }),
+      {
+        status: success ? 200 : 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
 }
 
 export async function onRequestPost(context) {
