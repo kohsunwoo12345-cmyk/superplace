@@ -42,6 +42,7 @@ interface Academy {
   id: string;
   name: string;
   code: string;
+  address?: string;
   directorName?: string;
 }
 
@@ -323,6 +324,17 @@ export default function AIBotAssignPage() {
 
       if (assignType === "academy") {
         // 학원 전체 할당
+        
+        // 날짜 계산
+        const startDate = new Date();
+        const endDate = new Date();
+        
+        if (durationUnit === "day") {
+          endDate.setDate(endDate.getDate() + durationNumber);
+        } else {
+          endDate.setMonth(endDate.getMonth() + durationNumber);
+        }
+        
         const response = await fetch("/api/admin/academy-bot-subscriptions", {
           method: "POST",
           headers: { 
@@ -331,10 +343,12 @@ export default function AIBotAssignPage() {
           },
           body: JSON.stringify({
             academyId: selectedAcademy,
-            botId: selectedBot,
-            studentLimit: parseInt(studentLimit),
-            duration: durationNumber,
-            durationUnit,
+            productId: selectedBot, // botId를 productId로 사용
+            studentCount: parseInt(studentLimit),
+            subscriptionStart: startDate.toISOString().split('T')[0],
+            subscriptionEnd: endDate.toISOString().split('T')[0],
+            pricePerStudent: 0,
+            memo: `Duration: ${durationNumber} ${durationUnit}`,
           }),
         });
 
@@ -684,7 +698,7 @@ export default function AIBotAssignPage() {
                     <SelectContent>
                       {(academies || []).map((academy) => (
                         <SelectItem key={academy.id} value={academy.id}>
-                          {academy.name} ({academy.code})
+                          {academy.name} ({academy.code}){academy.address ? ` - ${academy.address}` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
