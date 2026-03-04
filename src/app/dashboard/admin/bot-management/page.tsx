@@ -265,11 +265,11 @@ export default function AdminBotManagementPage() {
         </div>
         <div className="flex gap-3">
           <Button
-            onClick={() => router.push("/dashboard/admin/assign-academy-bot")}
+            onClick={() => router.push("/dashboard/admin/ai-bots/assign")}
             className="bg-green-600 hover:bg-green-700"
           >
             <Plus className="w-4 h-4 mr-2" />
-            학원에 구독 할당
+            AI 봇 할당하기
           </Button>
           <Button
             onClick={() => setShowAssignModal(true)}
