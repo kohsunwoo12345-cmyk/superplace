@@ -87,6 +87,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topP = 0.95,
       botId = null,
       enableRAG = true, // RAG 활성화 여부
+      userId = null, // 🔥 추가: 사용자 ID
+      userRole = null, // 🔥 추가: 사용자 역할
+      userAcademyId = null, // 🔥 추가: 학원 ID
     } = body;
 
     if (!message) {
@@ -97,6 +100,86 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           headers: { "Content-Type": "application/json" },
         }
       );
+    }
+
+    // 🔒 학생 계정의 경우 봇 접근 권한 체크
+    if (userRole === 'STUDENT' && userId && botId && userAcademyId && DB) {
+      try {
+        console.log(`🔐 학생 계정 (${userId}) - 봇 ${botId} 접근 권한 확인 중...`);
+        
+        // 1. 학원 구독 확인
+        const subscription = await DB.prepare(
+          `SELECT * FROM AcademyBotSubscription 
+           WHERE academyId = ? AND productId = ? AND isActive = 1 AND subscriptionEnd > datetime('now')`
+        ).bind(userAcademyId, botId).first();
+        
+        if (!subscription) {
+          console.warn(`❌ 구독 만료 또는 없음: academyId=${userAcademyId}, botId=${botId}`);
+          return new Response(
+            JSON.stringify({ 
+              error: "Bot access denied", 
+              reason: "학원의 AI 봇 구독이 만료되었습니다."
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        
+        // 2. 학생 할당 확인
+        const assignment = await DB.prepare(
+          `SELECT * FROM ai_bot_assignments 
+           WHERE botId = ? AND userId = ? AND status = 'active'`
+        ).bind(botId, userId).first();
+        
+        if (!assignment) {
+          console.warn(`❌ 봇 할당 없음: userId=${userId}, botId=${botId}`);
+          return new Response(
+            JSON.stringify({ 
+              error: "Bot access denied", 
+              reason: "이 AI 봇이 할당되지 않았습니다."
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        
+        // 3. 개별 할당 기간 확인
+        const now = new Date().toISOString();
+        if (assignment.endDate && assignment.endDate < now) {
+          console.warn(`❌ 개별 할당 기간 만료: userId=${userId}, endDate=${assignment.endDate}`);
+          return new Response(
+            JSON.stringify({ 
+              error: "Bot access denied", 
+              reason: "AI 봇 사용 기간이 만료되었습니다."
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        
+        // 4. 학원 전체 할당 인원 체크 (우선순위 기반)
+        const allAssignments = await DB.prepare(
+          `SELECT userId, startDate FROM ai_bot_assignments 
+           WHERE botId = ? AND userAcademyId = ? AND status = 'active'
+           ORDER BY startDate ASC`
+        ).bind(botId, userAcademyId).all();
+        
+        const studentRank = allAssignments.results.findIndex((a: any) => a.userId === userId) + 1;
+        const totalSlots = subscription.totalStudentSlots || 999;
+        
+        if (studentRank > totalSlots) {
+          console.warn(`❌ 할당 인원 초과: rank=${studentRank}, limit=${totalSlots}`);
+          return new Response(
+            JSON.stringify({ 
+              error: "Bot access denied", 
+              reason: `학원의 AI 봇 사용 인원(${totalSlots}명)을 초과했습니다. (현재 순위: ${studentRank})`
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        
+        console.log(`✅ 봇 접근 권한 확인 완료: userId=${userId}, botId=${botId}, rank=${studentRank}/${totalSlots}`);
+      } catch (accessError: any) {
+        console.error('⚠️ 봇 접근 권한 체크 실패:', accessError);
+        // 권한 체크 실패 시에도 계속 진행 (관리자 계정 등)
+      }
     }
 
     let knowledgeContext = '';

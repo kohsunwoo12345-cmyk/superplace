@@ -276,9 +276,45 @@ export default function ModernAIChatPage() {
         console.log(`✅ 할당된 봇 ${data.count}개 발견`);
         
         if (data.bots && data.bots.length > 0) {
-          setBots(data.bots);
-          if (!selectedBot) {
-            setSelectedBot(data.bots[0]);
+          // 🔒 각 봇에 대해 접근 권한 체크 (학생만)
+          let accessibleBots = data.bots;
+          if (user?.role === 'STUDENT') {
+            console.log('🔐 학생 계정 - 봇 접근 권한 체크 중...');
+            const accessChecks = await Promise.all(
+              data.bots.map(async (bot: AIBot) => {
+                try {
+                  const checkResponse = await fetch(
+                    `/api/user/bot-access-check?userId=${user.id}&botId=${bot.id}&academyId=${academyId}`
+                  );
+                  if (checkResponse.ok) {
+                    const checkData = await checkResponse.json();
+                    return { bot, hasAccess: checkData.hasAccess, reason: checkData.reason };
+                  }
+                  return { bot, hasAccess: false, reason: 'API 오류' };
+                } catch (err) {
+                  console.error(`❌ 봇 ${bot.id} 접근 권한 체크 실패:`, err);
+                  return { bot, hasAccess: false, reason: '접근 권한 확인 실패' };
+                }
+              })
+            );
+            
+            accessibleBots = accessChecks
+              .filter(check => check.hasAccess)
+              .map(check => check.bot);
+            
+            const blockedBots = accessChecks.filter(check => !check.hasAccess);
+            if (blockedBots.length > 0) {
+              console.warn('🚫 접근 불가 봇:', blockedBots.map(b => `${b.bot.name} (${b.reason})`));
+            }
+            
+            console.log(`✅ 접근 가능한 봇: ${accessibleBots.length}/${data.bots.length}`);
+          }
+          
+          setBots(accessibleBots);
+          if (!selectedBot && accessibleBots.length > 0) {
+            setSelectedBot(accessibleBots[0]);
+          } else if (accessibleBots.length === 0) {
+            alert('사용 가능한 AI 봇이 없습니다. 구독 기간이 만료되었거나 할당 인원이 초과되었을 수 있습니다.');
           }
         } else {
           console.warn("⚠️ 할당된 봇이 없습니다");
@@ -555,6 +591,26 @@ export default function ModernAIChatPage() {
   const handleSend = async () => {
     if (!input.trim() || loading || !selectedBot) return;
 
+    // 🔒 학생 계정: 메시지 전송 전 봇 접근 권한 재확인
+    if (user?.role === 'STUDENT' && user?.academyId) {
+      try {
+        const checkResponse = await fetch(
+          `/api/user/bot-access-check?userId=${user.id}&botId=${selectedBot.id}&academyId=${user.academyId}`
+        );
+        if (checkResponse.ok) {
+          const checkData = await checkResponse.json();
+          if (!checkData.hasAccess) {
+            alert(`이 봇을 더 이상 사용할 수 없습니다.\n\n사유: ${checkData.reason}`);
+            // 봇 목록 새로고침
+            fetchBots(user.academyId);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('❌ 봇 접근 권한 재확인 실패:', err);
+      }
+    }
+
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -605,6 +661,9 @@ export default function ModernAIChatPage() {
         })),
         userId: user?.id,
         sessionId: sessionId,
+        // 🔥 권한 체크용 추가 정보
+        userRole: user?.role,
+        userAcademyId: user?.academyId,
       };
       
       console.log('📡 API 호출: POST /api/ai-chat');
@@ -1219,6 +1278,9 @@ export default function ModernAIChatPage() {
         userId: user?.id,
         sessionId: sessionId,
         imageUrl: imageUrl, // ✅ 이미지 URL 포함
+        // 🔥 권한 체크용 추가 정보
+        userRole: user?.role,
+        userAcademyId: user?.academyId,
       };
       
       console.log('📡 API 호출: POST /api/ai-chat (이미지 포함)');
