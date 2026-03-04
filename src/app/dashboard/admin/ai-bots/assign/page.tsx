@@ -74,29 +74,49 @@ export default function AIBotAssignPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      router.push("/login");
-      return;
-    }
-
-    const userData = JSON.parse(storedUser);
-    setCurrentUser(userData);
+    let mounted = true;
     
-    console.log("📋 User data:", userData);
-    console.log("✅ AI Bot Assign page access granted");
+    const initPage = async () => {
+      try {
+        const storedUser = localStorage.getItem("user");
+        if (!storedUser) {
+          router.push("/login");
+          return;
+        }
 
-    // 권한 체크
-    const role = userData.role?.toUpperCase();
-    if (!['ADMIN', 'SUPER_ADMIN', 'DIRECTOR', 'TEACHER'].includes(role)) {
-      alert('AI 봇 할당 권한이 없습니다.');
-      router.push('/dashboard');
-      return;
-    }
+        const userData = JSON.parse(storedUser);
+        
+        if (!mounted) return;
+        
+        setCurrentUser(userData);
+        
+        console.log("📋 User data:", userData);
+        console.log("✅ AI Bot Assign page access granted");
 
-    // userData를 직접 전달
-    fetchData(userData);
-  }, [router]);
+        // 권한 체크
+        const role = userData.role?.toUpperCase();
+        if (!['ADMIN', 'SUPER_ADMIN', 'DIRECTOR', 'TEACHER'].includes(role)) {
+          alert('AI 봇 할당 권한이 없습니다.');
+          router.push('/dashboard');
+          return;
+        }
+
+        // userData를 직접 전달
+        await fetchData(userData);
+      } catch (error) {
+        console.error("페이지 초기화 실패:", error);
+        if (mounted) {
+          alert("페이지 로드 중 오류가 발생했습니다. 다시 시도해주세요.");
+        }
+      }
+    };
+
+    initPage();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const fetchData = async (userData: any) => {
     try {
