@@ -1,11 +1,7 @@
 // AcademyBotSubscription 테이블 생성 API
 // 학원에 AI 봇을 할당할 때 사용하는 테이블
 
-interface Env {
-  DB: D1Database;
-}
-
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export async function onRequestPost(context) {
   try {
     const { DB } = context.env;
     
@@ -34,9 +30,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         memo TEXT,
         isActive INTEGER DEFAULT 1,
         createdAt TEXT DEFAULT (datetime('now')),
-        updatedAt TEXT DEFAULT (datetime('now')),
-        FOREIGN KEY (academyId) REFERENCES academy(id),
-        FOREIGN KEY (productId) REFERENCES ai_bots(id)
+        updatedAt TEXT DEFAULT (datetime('now'))
       )
     `).run();
     
@@ -91,7 +85,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     );
     
-  } catch (error: any) {
+  } catch (error) {
     console.error("❌ 테이블 생성 실패:", error);
     return new Response(
       JSON.stringify({
@@ -105,4 +99,4 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     );
   }
-};
+}

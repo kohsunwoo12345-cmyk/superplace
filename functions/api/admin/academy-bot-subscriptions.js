@@ -1,10 +1,7 @@
 // Cloudflare Pages Function - Academy Bot Subscription API
-interface Env {
-  DB: D1Database;
-}
 
 // 토큰 파싱 함수
-function parseToken(authHeader: string | null): { id: string; email: string; role: string; academyId?: string } | null {
+function parseToken(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
@@ -26,11 +23,11 @@ function parseToken(authHeader: string | null): { id: string; email: string; rol
 }
 
 // 랜덤 ID 생성
-function generateId(): string {
+function generateId() {
   return `sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export async function onRequestPost(context) {
   try {
     const { DB } = context.env;
     if (!DB) {
@@ -95,21 +92,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         
         console.log('✅ AcademyBotSubscription 테이블 자동 생성 완료');
       }
-    } catch (tableError: any) {
+    } catch (tableError) {
       console.error('❌ 테이블 체크/생성 오류:', tableError);
       // 테이블 생성 실패는 무시하고 계속 진행 (이미 있을 수 있음)
     }
 
     // 요청 본문 파싱
-    const body = await context.request.json() as {
-      academyId: string;
-      productId: string;
-      studentCount: number;
-      subscriptionStart: string;
-      subscriptionEnd: string;
-      pricePerStudent?: number;
-      memo?: string;
-    };
+    const body = await context.request.json();
 
     const {
       academyId,
@@ -205,21 +194,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       LIMIT 1
     `).bind(academyId, productId).first();
 
-    let subscriptionId: string;
-    let result: any;
+    let subscriptionId;
+    let result;
 
     if (existingSubscription) {
       // 기존 구독이 있으면 업데이트
-      subscriptionId = existingSubscription.id as string;
+      subscriptionId = existingSubscription.id;
       
       console.log('📝 Updating existing subscription:', subscriptionId);
       
       // 학생 슬롯 추가 및 종료일 연장
-      const newTotalSlots = (existingSubscription.totalStudentSlots as number) + studentCount;
-      const newRemainingSlots = newTotalSlots - (existingSubscription.usedStudentSlots as number);
+      const newTotalSlots = existingSubscription.totalStudentSlots + studentCount;
+      const newRemainingSlots = newTotalSlots - existingSubscription.usedStudentSlots;
       
       // 종료일 비교 - 더 늦은 날짜 사용
-      const existingEndDate = new Date(existingSubscription.subscriptionEnd as string);
+      const existingEndDate = new Date(existingSubscription.subscriptionEnd);
       const finalEndDate = endDate > existingEndDate ? subscriptionEnd : existingSubscription.subscriptionEnd;
 
       await DB.prepare(`
@@ -300,7 +289,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ Academy bot subscription error:', error);
     return new Response(
       JSON.stringify({
@@ -313,10 +302,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     );
   }
-};
+}
 
 // GET 메서드 - 학원 구독 목록 조회
-export const onRequestGet: PagesFunction<Env> = async (context) => {
+export async function onRequestGet(context) {
   try {
     const { DB } = context.env;
     if (!DB) {
@@ -383,7 +372,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ Failed to fetch academy bot subscriptions:', error);
     return new Response(
       JSON.stringify({
@@ -396,4 +385,4 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       }
     );
   }
-};
+}
