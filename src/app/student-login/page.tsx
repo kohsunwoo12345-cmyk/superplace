@@ -44,6 +44,9 @@ export default function StudentLoginPage() {
 
         console.log('✅ Role verified:', result.user.role);
 
+        // 🔒 보안: 이전 사용자의 채팅 캐시 제거
+        localStorage.removeItem('chatUserId');
+
         // 토큰과 사용자 정보 저장
         localStorage.setItem("token", result.token);
         localStorage.setItem("user", JSON.stringify(result.user));

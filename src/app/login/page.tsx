@@ -46,6 +46,9 @@ export default function LoginPage() {
 
       console.log('✅ 로그인 성공:', { userId: data.user.id, role: data.user.role });
 
+      // 🔒 보안: 이전 사용자의 채팅 캐시 제거
+      localStorage.removeItem('chatUserId');
+      
       // Store token and user info
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify({
