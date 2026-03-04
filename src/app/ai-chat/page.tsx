@@ -126,6 +126,10 @@ export default function ModernAIChatPage() {
       // 일반 사용자는 할당된 봇만 조회
       console.log(`👥 일반 사용자 (academyId: ${userData.academyId}) - 할당된 봇 조회`);
       fetchBots(userData.academyId);
+    } else if (userData.role === 'DIRECTOR') {
+      // 학원장인 경우 academyId를 API로 조회
+      console.log('🏫 학원장 계정 - academyId 조회 시도');
+      fetchDirectorAcademyId(userData.id);
     } else {
       console.warn("⚠️ academyId가 없습니다. AI 봇을 사용할 수 없습니다.");
       console.warn("⚠️ 사용자 정보:", userData);
@@ -221,6 +225,48 @@ export default function ModernAIChatPage() {
       console.error('❌ AI 봇 목록 로드 실패:', error);
       console.error('❌ 에러 스택:', (error as Error).stack);
       setBots([]);
+    }
+  };
+
+  const fetchDirectorAcademyId = async (userId: string) => {
+    try {
+      console.log(`🏫 학원장(${userId})의 학원 ID 조회 중...`);
+      
+      // User 테이블에서 academyId 조회
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/admin/users?id=${userId}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const academyId = data.user?.academyId;
+        
+        if (academyId) {
+          console.log(`✅ 학원 ID 발견: ${academyId}`);
+          // localStorage에 academyId 저장
+          const storedUser = localStorage.getItem("user");
+          if (storedUser) {
+            const userData = JSON.parse(storedUser);
+            userData.academyId = academyId;
+            localStorage.setItem("user", JSON.stringify(userData));
+            setUser(userData);
+          }
+          // 봇 조회
+          fetchBots(academyId);
+        } else {
+          console.warn("⚠️ 학원 ID를 찾을 수 없습니다");
+          alert("학원 정보가 없습니다. 관리자에게 문의하세요.");
+        }
+      } else {
+        console.error("❌ 사용자 정보 조회 실패:", response.status);
+        alert("학원 정보 조회 중 오류가 발생했습니다.");
+      }
+    } catch (error) {
+      console.error("❌ 학원 ID 조회 실패:", error);
+      alert("학원 정보 조회 중 오류가 발생했습니다.");
     }
   };
 
