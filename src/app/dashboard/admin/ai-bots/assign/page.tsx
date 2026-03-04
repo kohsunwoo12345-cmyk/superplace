@@ -38,6 +38,13 @@ interface User {
   role: string;
 }
 
+interface Academy {
+  id: string;
+  name: string;
+  code: string;
+  directorName?: string;
+}
+
 interface Assignment {
   id: string;
   botId: string;
@@ -60,12 +67,16 @@ export default function AIBotAssignPage() {
   // 데이터
   const [bots, setBots] = useState<AIBot[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [academies, setAcademies] = useState<Academy[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   
   // 폼 상태
+  const [assignType, setAssignType] = useState<"user" | "academy">("user");
   const [selectedBot, setSelectedBot] = useState("");
   const [selectedUser, setSelectedUser] = useState("");
+  const [selectedAcademy, setSelectedAcademy] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
+  const [studentLimit, setStudentLimit] = useState("30");
   const [duration, setDuration] = useState("1");
   const [durationUnit, setDurationUnit] = useState("month");
   
@@ -229,6 +240,28 @@ export default function AIBotAssignPage() {
         const errorData = await assignmentsResponse.json().catch(() => ({}));
         console.error('❌ Assignments error:', errorData);
       }
+
+      // ADMIN/SUPER_ADMIN인 경우 학원 목록 가져오기
+      if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+        console.log('📡 Fetching academies from: /api/admin/academies');
+        const academiesResponse = await fetch("/api/admin/academies", {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log(`📊 Academies Response Status: ${academiesResponse.status}`);
+        
+        if (academiesResponse.ok) {
+          const academiesData = await academiesResponse.json();
+          console.log('✅ Academies loaded:', academiesData);
+          console.log(`🏫 Total academies: ${(academiesData.academies || []).length}`);
+          setAcademies(academiesData.academies || []);
+        } else {
+          console.error(`❌ Failed to load academies - Status: ${academiesResponse.status}`);
+        }
+      }
     } catch (error) {
       console.error("데이터 로드 실패:", error);
       alert(`데이터 로드 실패: ${error}`);
@@ -238,9 +271,27 @@ export default function AIBotAssignPage() {
   };
 
   const handleAssign = async () => {
-    if (!selectedBot || !selectedUser || !duration) {
-      alert("모든 필드를 입력해주세요.");
+    // 검증
+    if (!selectedBot || !duration) {
+      alert("AI 봇과 기간을 입력해주세요.");
       return;
+    }
+
+    if (assignType === "user" && !selectedUser) {
+      alert("사용자를 선택해주세요.");
+      return;
+    }
+
+    if (assignType === "academy") {
+      if (!selectedAcademy) {
+        alert("학원을 선택해주세요.");
+        return;
+      }
+      const limitNumber = parseInt(studentLimit);
+      if (isNaN(limitNumber) || limitNumber < 1) {
+        alert("학생 수는 1 이상의 숫자여야 합니다.");
+        return;
+      }
     }
 
     const durationNumber = parseInt(duration);
@@ -263,41 +314,90 @@ export default function AIBotAssignPage() {
       setSubmitting(true);
 
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/admin/ai-bots/assign", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          botId: selectedBot,
-          userId: selectedUser, // userId를 TEXT로 전송 (parseInt 제거)
-          duration: durationNumber,
-          durationUnit,
-        }),
-      });
+      
+      if (assignType === "academy") {
+        // 학원 할당 로직 (academy-bot-subscriptions API 사용)
+        const response = await fetch("/api/admin/academy-bot-subscriptions", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            academyId: selectedAcademy,
+            productId: selectedBot,
+            studentCount: parseInt(studentLimit),
+            durationValue: durationNumber,
+            durationUnit: durationUnit
+          }),
+        });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        alert(`✅ AI 봇이 성공적으로 할당되었습니다!\n\n사용자: ${data.assignment.userName}\n봇: ${data.assignment.botName}\n기간: ${data.assignment.duration}${data.assignment.durationUnit === 'day' ? '일' : '개월'}\n종료일: ${data.assignment.endDate}`);
-        
-        // 폼 초기화
-        setSelectedBot("");
-        setSelectedUser("");
-        setDuration("1");
-        setDurationUnit("month");
-        
-        // 할당 목록 새로고침
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-          const userData = JSON.parse(storedUser);
-          fetchData(userData);
+        if (response.ok) {
+          const data = await response.json();
+          const selectedAcademyName = academies.find(a => a.id === selectedAcademy)?.name || selectedAcademy;
+          const selectedBotName = bots.find(b => b.id === selectedBot)?.name || selectedBot;
+          
+          alert(
+            `✅ 학원에 AI 봇이 할당되었습니다!\n\n` +
+            `학원: ${selectedAcademyName}\n` +
+            `AI 봇: ${selectedBotName}\n` +
+            `학생 수 제한: ${studentLimit}명\n` +
+            `기간: ${durationNumber} ${durationUnit === "day" ? "일" : "개월"}`
+          );
+          
+          // 폼 초기화
+          setSelectedBot("");
+          setSelectedAcademy("");
+          setStudentLimit("30");
+          setDuration("1");
+          
+          // 데이터 새로고침
+          const storedUser = localStorage.getItem("user");
+          if (storedUser) {
+            await fetchData(JSON.parse(storedUser));
+          }
+        } else {
+          const error = await response.json();
+          alert(error.error || "할당에 실패했습니다.");
         }
       } else {
-        // 상세 오류 메시지 표시
-        const errorMessage = data.message || data.error || "알 수 없는 오류";
-        alert(`❌ 할당 실패\n\n${errorMessage}`);
+        // 사용자 개별 할당 로직 (기존 방식)
+        const response = await fetch("/api/admin/ai-bots/assign", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            botId: selectedBot,
+            userId: selectedUser,
+            duration: durationNumber,
+            durationUnit,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          alert(`✅ AI 봇이 성공적으로 할당되었습니다!\n\n사용자: ${data.assignment.userName}\n봇: ${data.assignment.botName}\n기간: ${data.assignment.duration}${data.assignment.durationUnit === 'day' ? '일' : '개월'}\n종료일: ${data.assignment.endDate}`);
+          
+          // 폼 초기화
+          setSelectedBot("");
+          setSelectedUser("");
+          setDuration("1");
+          setDurationUnit("month");
+          
+          // 할당 목록 새로고침
+          const storedUser = localStorage.getItem("user");
+          if (storedUser) {
+            const userData = JSON.parse(storedUser);
+            fetchData(userData);
+          }
+        } else {
+          // 상세 오류 메시지 표시
+          const errorMessage = data.message || data.error || "알 수 없는 오류";
+          alert(`❌ 할당 실패\n\n${errorMessage}`);
+        }
       }
     } catch (error) {
       console.error("할당 오류:", error);
@@ -405,6 +505,42 @@ export default function AIBotAssignPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
+          {/* 할당 타입 선택 (ADMIN/SUPER_ADMIN만) */}
+          {currentUser && ['ADMIN', 'SUPER_ADMIN'].includes(currentUser.role?.toUpperCase()) && (
+            <div className="mb-6 pb-6 border-b">
+              <Label className="text-base font-semibold mb-3 block">할당 방식 선택</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="assignType"
+                    value="user"
+                    checked={assignType === "user"}
+                    onChange={(e) => setAssignType(e.target.value as "user")}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium">개별 사용자</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="assignType"
+                    value="academy"
+                    checked={assignType === "academy"}
+                    onChange={(e) => setAssignType(e.target.value as "academy")}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium">학원 전체 (여러 학생 할당 가능)</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                {assignType === "user" 
+                  ? "한 명의 사용자에게 봇을 할당합니다" 
+                  : "학원에 봇을 할당하면 원장/선생님이 여러 학생에게 할당할 수 있습니다"}
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* AI 봇 선택 */}
             <div className="space-y-2">
@@ -426,52 +562,95 @@ export default function AIBotAssignPage() {
               </p>
             </div>
 
-            {/* 역할 필터 */}
-            <div className="space-y-2">
-              <Label htmlFor="role-filter">사용자 역할 필터</Label>
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
-                <SelectTrigger id="role-filter">
-                  <SelectValue placeholder="역할을 선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    전체 ({roleStats.all}명)
-                  </SelectItem>
-                  <SelectItem value="ACADEMY">
-                    학원 원장 ({roleStats.academy}명)
-                  </SelectItem>
-                  <SelectItem value="TEACHER">
-                    선생님 ({roleStats.teacher}명)
-                  </SelectItem>
-                  <SelectItem value="STUDENT">
-                    학생 ({roleStats.student}명)
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-500">
-                역할별로 사용자를 필터링합니다
-              </p>
-            </div>
+            {assignType === "user" ? (
+              <>
+                {/* 역할 필터 */}
+                <div className="space-y-2">
+                  <Label htmlFor="role-filter">사용자 역할 필터</Label>
+                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <SelectTrigger id="role-filter">
+                      <SelectValue placeholder="역할을 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        전체 ({roleStats.all}명)
+                      </SelectItem>
+                      <SelectItem value="ACADEMY">
+                        학원 원장 ({roleStats.academy}명)
+                      </SelectItem>
+                      <SelectItem value="TEACHER">
+                        선생님 ({roleStats.teacher}명)
+                      </SelectItem>
+                      <SelectItem value="STUDENT">
+                        학생 ({roleStats.student}명)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    역할별로 사용자를 필터링합니다
+                  </p>
+                </div>
 
-            {/* 사용자 선택 */}
-            <div className="space-y-2">
-              <Label htmlFor="user">사용자 선택</Label>
-              <Select value={selectedUser} onValueChange={setSelectedUser}>
-                <SelectTrigger id="user">
-                  <SelectValue placeholder="사용자를 선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredUsers.map((user) => (
-                    <SelectItem key={user.id} value={user.id.toString()}>
-                      {user.name} ({user.email}) - {user.role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-500">
-                {filteredUsers.length}명의 사용자
-              </p>
-            </div>
+                {/* 사용자 선택 */}
+                <div className="space-y-2">
+                  <Label htmlFor="user">사용자 선택</Label>
+                  <Select value={selectedUser} onValueChange={setSelectedUser}>
+                    <SelectTrigger id="user">
+                      <SelectValue placeholder="사용자를 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredUsers.map((user) => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          {user.name} ({user.email}) - {user.role}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    {filteredUsers.length}명의 사용자
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* 학원 선택 */}
+                <div className="space-y-2">
+                  <Label htmlFor="academy">학원 선택</Label>
+                  <Select value={selectedAcademy} onValueChange={setSelectedAcademy}>
+                    <SelectTrigger id="academy">
+                      <SelectValue placeholder="학원을 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {academies.map((academy) => (
+                        <SelectItem key={academy.id} value={academy.id}>
+                          {academy.name} ({academy.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    {academies.length}개의 학원
+                  </p>
+                </div>
+
+                {/* 학생 수 제한 */}
+                <div className="space-y-2">
+                  <Label htmlFor="studentLimit">학생 수 제한 (명)</Label>
+                  <Input
+                    id="studentLimit"
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={studentLimit}
+                    onChange={(e) => setStudentLimit(e.target.value)}
+                    placeholder="예: 30"
+                  />
+                  <p className="text-xs text-gray-500">
+                    이 학원에서 봇을 할당할 수 있는 최대 학생 수
+                  </p>
+                </div>
+              </>
+            )}
 
             {/* 기간 입력 */}
             <div className="space-y-2">
@@ -508,7 +687,11 @@ export default function AIBotAssignPage() {
             <div className="flex items-end">
               <Button
                 onClick={handleAssign}
-                disabled={submitting || !selectedBot || !selectedUser}
+                disabled={
+                  submitting || 
+                  !selectedBot || 
+                  (assignType === "user" ? !selectedUser : !selectedAcademy || !studentLimit)
+                }
                 className="w-full"
                 size="lg"
               >
@@ -520,7 +703,7 @@ export default function AIBotAssignPage() {
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    봇 할당하기
+                    {assignType === "user" ? "사용자에게 할당" : "학원에 할당"}
                   </>
                 )}
               </Button>
