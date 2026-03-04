@@ -150,6 +150,9 @@ export default function AIBotAssignPage() {
       }
       
       // AI 봇 목록 조회
+      console.log(`📡 Fetching bots from: ${botsEndpoint}`);
+      console.log(`🔑 Token: ${token ? 'Present' : 'Missing'}`);
+      
       const botsResponse = await fetch(botsEndpoint, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -157,21 +160,34 @@ export default function AIBotAssignPage() {
         }
       });
       
+      console.log(`📊 Bots Response Status: ${botsResponse.status}`);
+      
       if (botsResponse.ok) {
         const botsData = await botsResponse.json();
         console.log('✅ Bots loaded:', botsData);
+        console.log(`📦 Total bots: ${(botsData.bots || []).length}`);
+        console.log(`🤖 Bot details:`, botsData.bots);
+        
         setBots(botsData.bots || []);
         
         if ((botsData.bots || []).length === 0) {
-          alert('할당된 AI 봇이 없습니다.\n관리자에게 봇 할당을 요청하세요.');
+          console.warn('⚠️ No bots found');
+          if (role === 'DIRECTOR' || role === 'TEACHER') {
+            alert('❌ 할당된 AI 봇이 없습니다.\n\n해결 방법:\n1. AI 쇼핑몰에서 봇 구독을 신청하세요\n2. 관리자의 승인을 기다려주세요\n3. 승인 후 이 페이지를 새로고침하세요');
+          } else {
+            alert('❌ AI 봇이 하나도 없습니다.\n\n해결 방법:\n1. AI 봇 생성 페이지에서 봇을 만드세요\n2. 봇을 활성화(isActive)하세요');
+          }
         }
       } else {
         const errorData = await botsResponse.json().catch(() => ({}));
         console.error('❌ Failed to load bots:', errorData);
-        alert(`봇 목록 로드 실패: ${errorData.error || errorData.message || '알 수 없는 오류'}`);
+        console.error(`❌ Response status: ${botsResponse.status}`);
+        console.error(`❌ Response statusText: ${botsResponse.statusText}`);
+        alert(`❌ 봇 목록 로드 실패\n\nStatus: ${botsResponse.status}\nError: ${errorData.error || errorData.message || '알 수 없는 오류'}`);
       }
 
       // 사용자 목록 조회 (자신의 학원 사용자만)
+      console.log('📡 Fetching users from: /api/admin/users');
       const usersResponse = await fetch("/api/admin/users", {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -179,15 +195,21 @@ export default function AIBotAssignPage() {
         }
       });
       
+      console.log(`📊 Users Response Status: ${usersResponse.status}`);
+      
       if (usersResponse.ok) {
         const usersData = await usersResponse.json();
         console.log('✅ Users loaded:', usersData);
+        console.log(`👥 Total users: ${(usersData.users || []).length}`);
         setUsers(usersData.users || []);
       } else {
-        console.error('❌ Failed to load users');
+        console.error(`❌ Failed to load users - Status: ${usersResponse.status}`);
+        const errorData = await usersResponse.json().catch(() => ({}));
+        console.error('❌ Users error:', errorData);
       }
 
       // 기존 할당 목록 조회
+      console.log('📡 Fetching assignments from: /api/admin/ai-bots/assignments');
       const assignmentsResponse = await fetch("/api/admin/ai-bots/assignments", {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -195,12 +217,17 @@ export default function AIBotAssignPage() {
         }
       });
       
+      console.log(`📊 Assignments Response Status: ${assignmentsResponse.status}`);
+      
       if (assignmentsResponse.ok) {
         const assignmentsData = await assignmentsResponse.json();
         console.log('✅ Assignments loaded:', assignmentsData);
+        console.log(`📋 Total assignments: ${(assignmentsData.assignments || []).length}`);
         setAssignments(assignmentsData.assignments || []);
       } else {
-        console.error('❌ Failed to load assignments');
+        console.error(`❌ Failed to load assignments - Status: ${assignmentsResponse.status}`);
+        const errorData = await assignmentsResponse.json().catch(() => ({}));
+        console.error('❌ Assignments error:', errorData);
       }
     } catch (error) {
       console.error("데이터 로드 실패:", error);
