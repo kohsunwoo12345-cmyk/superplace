@@ -32,13 +32,6 @@ export async function onRequestGet(context) {
 
     console.log(`🔍 사용자 봇 조회 - academyId: ${academyId}, userId: ${userId}`);
 
-    // bot_assignments 테이블 생성 (없으면)
-    try {
-      await db.prepare('CREATE TABLE IF NOT EXISTS bot_assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, academyId TEXT NOT NULL, botId TEXT NOT NULL, assignedBy TEXT, assignedAt DATETIME DEFAULT CURRENT_TIMESTAMP, expiresAt DATETIME, isActive INTEGER DEFAULT 1, notes TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP)').run();
-    } catch (e) {
-      console.log('ℹ️ bot_assignments 테이블 생성 시도:', e.message);
-    }
-
     // 봇을 모을 Set (중복 제거)
     const botIds = new Set();
     const botMap = new Map();
