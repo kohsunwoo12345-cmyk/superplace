@@ -951,7 +951,12 @@ export default function AIBotAssignPage() {
                     별도로 기간을 선택할 필요가 없습니다.
                   </p>
                   {(() => {
-                    const subscription = (academySubscriptions || []).find(sub => sub.botId === selectedBot && sub.isActive);
+                    const now = new Date();
+                    const subscription = (academySubscriptions || []).find(sub => {
+                      if (sub.botId !== selectedBot) return false;
+                      const expiresAt = new Date(sub.expiresAt);
+                      return expiresAt >= now; // 만료일이 현재 이후인 구독만
+                    });
                     if (subscription) {
                       const endDate = new Date(subscription.expiresAt).toLocaleDateString('ko-KR');
                       return (
