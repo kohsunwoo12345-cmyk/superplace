@@ -121,6 +121,14 @@ export async function onRequestPost(context: any) {
     console.log(`✅ Academy verified: ${academy.name} (${academy.id})`);
     console.log(`📦 Product ID: ${purchaseRequest.productId} (${purchaseRequest.productName})`);
     
+    // 0.5. Product의 botId 조회 (AI 챗봇 매핑용)
+    const product = await env.DB.prepare(`
+      SELECT botId FROM StoreProducts WHERE id = ?
+    `).bind(purchaseRequest.productId).first();
+    
+    const botId = product?.botId || purchaseRequest.productId; // fallback to productId
+    console.log(`🤖 Bot ID for subscription: ${botId}`);
+    
     // 1. 구매 요청 상태를 APPROVED로 업데이트
     await env.DB.prepare(`
       UPDATE BotPurchaseRequest 
@@ -137,8 +145,8 @@ export async function onRequestPost(context: any) {
     
     const existingSubscription = await env.DB.prepare(`
       SELECT * FROM AcademyBotSubscription 
-      WHERE academyId = ? AND productId = ?
-    `).bind(targetAcademyId, purchaseRequest.productId).first();
+      WHERE academyId = ? AND botId = ?
+    `).bind(targetAcademyId, botId).first();
 
     const subscriptionEndDate = new Date();
     subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + purchaseRequest.months);
@@ -164,12 +172,16 @@ export async function onRequestPost(context: any) {
         SET totalStudentSlots = ?,
             remainingStudentSlots = ?,
             subscriptionEnd = ?,
+            productId = ?,
+            productName = ?,
             updatedAt = ?
         WHERE id = ?
       `).bind(
         newTotalSlots,
         newRemainingSlots,
         newEndDate.toISOString(),
+        purchaseRequest.productId,
+        purchaseRequest.productName,
         now,
         existingSubscription.id
       ).run();
@@ -180,14 +192,15 @@ export async function onRequestPost(context: any) {
       
       await env.DB.prepare(`
         INSERT INTO AcademyBotSubscription (
-          id, academyId, productId, productName,
+          id, academyId, botId, productId, productName,
           totalStudentSlots, usedStudentSlots, remainingStudentSlots,
-          subscriptionStart, subscriptionEnd,
+          subscriptionStart, subscriptionEnd, isActive,
           createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         subscriptionId,
         targetAcademyId,  // 관리자가 선택한 학원 ID 사용
+        botId,  // AI 챗봇 ID (StoreProducts.botId)
         purchaseRequest.productId,
         purchaseRequest.productName,
         finalStudentCount,  // 관리자가 수정한 학생 수 사용
@@ -195,6 +208,7 @@ export async function onRequestPost(context: any) {
         finalStudentCount,  // 관리자가 수정한 학생 수 사용
         now,
         subscriptionEndDate.toISOString(),
+        1,  // isActive = true
         now,
         now
       ).run();
@@ -203,8 +217,16 @@ export async function onRequestPost(context: any) {
     // 3. 업데이트된 구독 정보 조회
     const updatedSubscription = await env.DB.prepare(`
       SELECT * FROM AcademyBotSubscription 
-      WHERE academyId = ? AND productId = ?
-    `).bind(targetAcademyId, purchaseRequest.productId).first();
+      WHERE academyId = ? AND botId = ?
+    `).bind(targetAcademyId, botId).first();
+    
+    console.log(`✅ Subscription created/updated:`, {
+      academyId: targetAcademyId,
+      botId,
+      productId: purchaseRequest.productId,
+      studentCount: finalStudentCount,
+      subscriptionEnd: subscriptionEndDate.toISOString()
+    });
 
     return new Response(JSON.stringify({
       success: true,
