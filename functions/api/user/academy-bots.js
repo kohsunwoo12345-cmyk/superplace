@@ -32,7 +32,7 @@ export async function onRequestGet(context) {
 
     // AcademyBotSubscription에서 할당된 봇 조회
     const subscriptions = await db.prepare(`
-      SELECT productId FROM AcademyBotSubscription
+      SELECT botId FROM AcademyBotSubscription
       WHERE academyId = ?
         AND isActive = 1
         AND date(subscriptionEnd) >= date('now')
@@ -53,8 +53,26 @@ export async function onRequestGet(context) {
       );
     }
 
-    // 봇 ID 목록
-    const botIds = subscriptions.results.map(s => s.productId);
+    // 봇 ID 목록 - botId가 null인 경우 제외
+    const botIds = subscriptions.results
+      .map(s => s.botId)
+      .filter(id => id && id !== null && id !== 'null');
+    
+    if (botIds.length === 0) {
+      console.log('⚠️ 유효한 botId가 없습니다');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          bots: [],
+          count: 0,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+    
     console.log(`✅ 할당된 봇 ID: ${botIds.join(', ')}`);
 
     // 봇 정보 조회
