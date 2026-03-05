@@ -170,6 +170,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       keywords = ''
     } = body;
 
+    console.log('📦 Creating product:', { name, category, createdBy: tokenData.id });
+
     if (!name || !category) {
       return new Response(JSON.stringify({ error: 'Name and category are required' }), {
         status: 400,
