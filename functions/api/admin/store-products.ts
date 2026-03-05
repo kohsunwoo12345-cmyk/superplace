@@ -1,22 +1,8 @@
 import type { PagesFunction } from '@cloudflare/workers-types';
+import { checkAuth } from '../../utils/auth';
 
 interface Env {
   DB: D1Database;
-}
-
-// Token parser
-function parseToken(authHeader: string | null) {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-  const token = authHeader.substring(7);
-  const parts = token.split('|');
-  if (parts.length < 3) return null;
-  return {
-    id: parts[0],
-    email: parts[1],
-    role: parts[2]
-  };
 }
 
 /**
@@ -105,22 +91,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
   try {
-    const authHeader = request.headers.get('Authorization');
-    const tokenData = parseToken(authHeader);
-
-    if (!tokenData) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    // 권한 체크
+    const auth = checkAuth(request.headers.get('Authorization'), 'admin');
+    if (!auth.authorized) {
+      return auth.response!;
     }
-
-    if (tokenData.role !== 'SUPER_ADMIN' && tokenData.role !== 'ADMIN') {
-      return new Response(JSON.stringify({ error: 'Only ADMIN or SUPER_ADMIN can create products' }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    const tokenData = auth.tokenData!;
 
     const body = await request.json();
     const {
@@ -258,9 +234,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     });
   } catch (error: any) {
     console.error('❌ Failed to create product:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error details:', {
+      name: error.name,
+      message: error.message,
+      cause: error.cause
+    });
     return new Response(JSON.stringify({ 
       error: 'Failed to create product',
-      message: error.message 
+      message: error.message,
+      details: error.stack || 'No stack trace available'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
