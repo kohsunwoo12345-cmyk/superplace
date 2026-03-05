@@ -1,8 +1,29 @@
 import type { PagesFunction } from '@cloudflare/workers-types';
-import { checkAuth } from '../../utils/auth';
 
 interface Env {
   DB: D1Database;
+}
+
+// Token parser
+function parseToken(authHeader: string | null) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  const token = authHeader.substring(7);
+  const parts = token.split('|');
+  if (parts.length < 3) return null;
+  return {
+    id: parts[0],
+    email: parts[1],
+    role: parts[2],
+    academyId: parts[3] || null
+  };
+}
+
+// Check if user has admin privileges (SUPER_ADMIN, SUPER_AD, or ADMIN)
+function isAdmin(role: string): boolean {
+  const adminRoles = ['SUPER_ADMIN', 'SUPER_AD', 'ADMIN'];
+  return adminRoles.includes(role);
 }
 
 /**
@@ -92,11 +113,30 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   try {
     // 권한 체크
-    const auth = checkAuth(request.headers.get('Authorization'), 'admin');
-    if (!auth.authorized) {
-      return auth.response!;
+    const authHeader = request.headers.get('Authorization');
+    const tokenData = parseToken(authHeader);
+
+    if (!tokenData) {
+      return new Response(JSON.stringify({ 
+        error: 'Unauthorized',
+        message: 'Invalid or missing authentication token' 
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
-    const tokenData = auth.tokenData!;
+
+    // SUPER_ADMIN, SUPER_AD, ADMIN 모두 허용 (역호환성)
+    if (!isAdmin(tokenData.role)) {
+      return new Response(JSON.stringify({ 
+        error: 'Insufficient permissions',
+        message: `Only ADMIN or SUPER_ADMIN can create products. Your role: ${tokenData.role}`,
+        yourRole: tokenData.role 
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     const body = await request.json();
     const {
