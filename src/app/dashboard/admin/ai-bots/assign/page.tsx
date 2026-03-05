@@ -284,9 +284,12 @@ export default function AIBotAssignPage() {
         if (subscriptionsResponse.ok) {
           const subscriptionsData = await subscriptionsResponse.json();
           console.log('✅ Academy subscriptions loaded:', subscriptionsData);
+          console.log('📊 Subscription count:', subscriptionsData.subscriptions?.length || 0);
+          console.log('📊 Subscription details:', JSON.stringify(subscriptionsData.subscriptions, null, 2));
           setAcademySubscriptions(subscriptionsData.subscriptions || []);
         } else {
-          console.error('❌ Failed to load academy subscriptions');
+          const errorText = await subscriptionsResponse.text();
+          console.error('❌ Failed to load academy subscriptions:', subscriptionsResponse.status, errorText);
         }
       } else if (role === 'DIRECTOR' || role === 'TEACHER') {
         // 학원장/선생님: 자신의 학원 구독 정보 조회
@@ -302,9 +305,12 @@ export default function AIBotAssignPage() {
           if (subscriptionsResponse.ok) {
             const subscriptionsData = await subscriptionsResponse.json();
             console.log('✅ My academy subscriptions loaded:', subscriptionsData);
+            console.log('📊 Subscription count:', subscriptionsData.subscriptions?.length || 0);
+            console.log('📊 Subscription details:', JSON.stringify(subscriptionsData.subscriptions, null, 2));
             setAcademySubscriptions(subscriptionsData.subscriptions || []);
           } else {
-            console.error('❌ Failed to load my academy subscriptions');
+            const errorText = await subscriptionsResponse.text();
+            console.error('❌ Failed to load my academy subscriptions:', subscriptionsResponse.status, errorText);
           }
         }
       }
@@ -716,13 +722,37 @@ export default function AIBotAssignPage() {
               {/* 학원장/선생님: 선택한 봇의 슬롯 정보 표시 */}
               {(currentUser?.role === 'DIRECTOR' || currentUser?.role === 'TEACHER') && selectedBot && (
                 (() => {
+                  // 디버깅 로그
+                  console.log('🔍 Bot selection debug:', {
+                    selectedBot,
+                    totalSubscriptions: academySubscriptions.length,
+                    subscriptions: academySubscriptions.map(s => ({
+                      botId: s.botId,
+                      botName: s.botName,
+                      expiresAt: s.expiresAt,
+                      totalSlots: s.totalSlots,
+                      remainingSlots: s.remainingSlots
+                    }))
+                  });
+                  
                   // 날짜 기반 유효성 검증 (isActive 제거)
                   const now = new Date();
                   const subscription = (academySubscriptions || []).find(sub => {
+                    console.log('🔍 Checking subscription:', {
+                      botId: sub.botId,
+                      selectedBot,
+                      match: sub.botId === selectedBot,
+                      expiresAt: sub.expiresAt,
+                      expiresAtDate: new Date(sub.expiresAt),
+                      isValid: new Date(sub.expiresAt) >= now
+                    });
+                    
                     if (sub.botId !== selectedBot) return false;
                     const expiresAt = new Date(sub.expiresAt);
                     return expiresAt >= now; // 만료일이 현재 이후인 구독만
                   });
+                  
+                  console.log('🔍 Found subscription:', subscription);
                   
                   if (subscription) {
                     const expiresAt = new Date(subscription.expiresAt);
