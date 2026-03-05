@@ -1,254 +1,192 @@
-# ⚡ 지금 바로 실행 - 403 에러 해결
+# 🚨 즉시 실행 가이드: D1 Database 마이그레이션
 
-## 🎯 현재 상황
+**문제**: `D1_ERROR: table BotPurchaseRequest has no column named email`
 
-```
-❌ https://superplace-study.vercel.app/dashboard/admin/users
-   → 사용자 목록이 표시되지 않음
-
-✅ 배포 상태: 정상
-✅ 세션 API: 정상
-🔒 관리자 API: 403 Forbidden - "권한이 없습니다."
-```
-
-**문제:** SUPER_ADMIN 계정이 없거나 로그인하지 않음
-
-## 🚀 즉시 실행 (1분)
-
-### 준비물
-**Vercel DATABASE_URL만 필요합니다:**
-
-1. https://vercel.com/dashboard 접속
-2. `superplace` 프로젝트 클릭
-3. `Settings` → `Environment Variables`
-4. `DATABASE_URL` 찾기 → 👁️ Show
-5. 전체 URL 복사 (`postgresql://...?sslmode=require`)
-
-### 실행
-
-터미널에서:
-
-```bash
-cd /home/user/webapp
-node run-fix-interactive.js
-```
-
-**화면에 나타나는 질문에 답하세요:**
-
-```
-DATABASE_URL: [여기에 붙여넣기]
-계속하시겠습니까? (y/n): y
-모든 사용자를 승인하시겠습니까? (y/n): y
-```
-
-**완료!** ✅
-
-### 확인
-
-1. **로그인**
-   ```
-   https://superplace-study.vercel.app/auth/signin
-   ```
-
-2. **스크립트가 알려준 이메일로 로그인**
-   ```
-   이메일: [스크립트 출력 확인]
-   비밀번호: [계정 생성 시 사용한 비밀번호]
-   ```
-
-3. **사용자 목록 접속**
-   ```
-   https://superplace-study.vercel.app/dashboard/admin/users
-   ```
-
-4. **성공!** ✅
-   - 사용자 목록 표시됨
-   - 통계 카드 작동
-   - 검색/필터 작동
-
-## 🔧 대안 방법
-
-### 방법 1: 환경 변수 미리 설정
-
-```bash
-export DATABASE_URL="postgresql://user:password@host:5432/db?sslmode=require"
-node run-fix-interactive.js
-```
-
-### 방법 2: 기존 스크립트 사용
-
-```bash
-export DATABASE_URL="postgresql://..."
-node run-fix.js
-```
-
-### 방법 3: 진단 먼저 실행
-
-```bash
-export DATABASE_URL="postgresql://..."
-node diagnose-api.js
-# 문제 확인 후
-node run-fix-interactive.js
-```
-
-## 📊 예상 출력
-
-```bash
-🔧 SUPER_ADMIN 자동 생성 도구
-
-============================================================
-
-이 스크립트는 다음 작업을 수행합니다:
-1. 데이터베이스 연결 테스트
-2. 첫 번째 사용자를 SUPER_ADMIN으로 업그레이드
-3. 모든 사용자 자동 승인
-
-============================================================
-
-📋 DATABASE_URL을 입력해주세요.
-   (Vercel 대시보드 → Settings → Environment Variables)
-
-DATABASE_URL: postgresql://...
-
-✅ DATABASE_URL 설정 완료
-   postgresql://user:password@host...
-
-🔌 데이터베이스 연결 테스트...
-✅ 연결 성공!
-
-👥 전체 사용자: 5명
-🔑 SUPER_ADMIN: 0명
-
-🔄 첫 번째 사용자를 SUPER_ADMIN으로 업그레이드합니다...
-📧 이메일: user@example.com
-👤 이름: User Name
-🏷️  현재 역할: DIRECTOR
-✅ 승인 상태: 승인 대기
-
-계속하시겠습니까? (y/n): y
-
-✅ SUPER_ADMIN 생성 완료!
-
-모든 사용자를 승인하시겠습니까? (y/n): y
-✅ 4명의 사용자를 승인했습니다!
-
-============================================================
-📊 최종 상태:
-전체 사용자: 5명
-SUPER_ADMIN: 1명
-학원장: 2명
-선생님: 1명
-학생: 1명
-승인됨: 5명
-승인 대기: 0명
-
-============================================================
-
-✅ 모든 작업이 완료되었습니다!
-
-다음 단계:
-1. https://superplace-study.vercel.app/auth/signin
-2. user@example.com 으로 로그인
-3. /dashboard/admin/users 접속
-4. 사용자 목록 확인
-```
-
-## ❓ 문제 해결
-
-### Q1: "DATABASE_URL이 비어있습니다" 에러
-
-**해결:**
-- Vercel 대시보드에서 DATABASE_URL 전체를 복사했는지 확인
-- `postgresql://`로 시작하는지 확인
-- `?sslmode=require`가 끝에 있는지 확인
-
-### Q2: "연결 실패" 에러
-
-**해결:**
-```bash
-# DATABASE_URL 재확인
-echo $DATABASE_URL
-
-# Vercel에서 다시 복사
-# 붙여넣을 때 줄바꿈이 들어가지 않았는지 확인
-```
-
-### Q3: "사용자가 없습니다" 메시지
-
-**해결:**
-1. 먼저 회원가입 진행: https://superplace-study.vercel.app/auth/signup
-2. 회원가입 후 다시 스크립트 실행
-
-### Q4: 로그인 후에도 403 에러
-
-**해결:**
-```bash
-# 진단 실행
-node diagnose-api.js
-
-# SUPER_ADMIN 확인
-node list-users.js
-
-# 다시 로그인 시도
-# 캐시 클리어: Ctrl+Shift+R (Windows) / Cmd+Shift+R (Mac)
-```
-
-## 🎯 핵심 요약
-
-**문제:** 403 Forbidden  
-**원인:** SUPER_ADMIN 없음  
-**해결:** 
-```bash
-cd /home/user/webapp
-node run-fix-interactive.js
-# DATABASE_URL 입력 → 자동 수정
-```
-
-**소요 시간:** 1분  
-**성공률:** 99%
-
-## 📞 긴급 지원
-
-**여전히 해결되지 않으면:**
-
-1. **진단 보고서 생성:**
-   ```bash
-   node diagnose-api.js > report.txt 2>&1
-   node list-users.js >> report.txt 2>&1
-   node check-deployment.js >> report.txt 2>&1
-   cat report.txt
-   ```
-
-2. **보고서 내용 공유**
-
-3. **Vercel 로그 확인:**
-   - https://vercel.com/dashboard
-   - Deployments → Functions → /api/admin/users
-
-## 📚 관련 문서
-
-- `URGENT_403_FIX.md` - 상세 가이드
-- `FIX_500_ERROR.md` - 500 에러 해결
-- `EMERGENCY_FIX.md` - 긴급 대응
-- `START_HERE.md` - 빠른 시작
+**해결**: Cloudflare D1 Console에서 SQL 실행 (3분 소요)
 
 ---
 
-## ✅ 지금 바로 실행하세요!
+## ⚡ 즉시 실행 (3단계)
 
-```bash
-cd /home/user/webapp
-node run-fix-interactive.js
-```
+### 1️⃣  Cloudflare Dashboard 접속 (30초)
 
-**그 다음:**
-1. 로그인: https://superplace-study.vercel.app/auth/signin
-2. 사용자 목록: /dashboard/admin/users
-3. ✅ 완료!
+**URL**: https://dash.cloudflare.com
+
+1. 왼쪽 메뉴 → **"Workers & Pages"** 클릭
+2. **"superplacestudy"** 프로젝트 클릭
+3. 상단 탭 → **"Settings"** 클릭
+4. 왼쪽 메뉴 → **"Bindings"** 클릭
+5. **"D1 database bindings"** 섹션 찾기
+6. DB 이름 오른쪽 → **"Open console"** 버튼 클릭
 
 ---
 
-**작성일:** 2026-01-31  
-**커밋:** c27430b  
-**PR:** https://github.com/kohsunwoo12345-cmyk/superplace/pull/3  
-**상태:** 🟢 실행 준비됨
+### 2️⃣  SQL 실행 (1분)
+
+**복사할 파일**: `migration.sql`
+
+D1 Console에서 **한 줄씩** 실행:
+
+```sql
+-- 현재 구조 확인
+PRAGMA table_info(BotPurchaseRequest);
+
+-- 컬럼 추가
+ALTER TABLE BotPurchaseRequest ADD COLUMN email TEXT;
+ALTER TABLE BotPurchaseRequest ADD COLUMN name TEXT;
+ALTER TABLE BotPurchaseRequest ADD COLUMN requestAcademyName TEXT;
+ALTER TABLE BotPurchaseRequest ADD COLUMN phoneNumber TEXT;
+
+-- 최종 확인
+PRAGMA table_info(BotPurchaseRequest);
+```
+
+**성공 확인**:
+마지막 PRAGMA 출력에서 다음 컬럼들이 보여야 함:
+- ✅ email
+- ✅ name
+- ✅ requestAcademyName
+- ✅ phoneNumber
+
+**⚠️  주의**: `duplicate column name` 오류는 무시 (이미 추가됨)
+
+---
+
+### 3️⃣  구매 신청 테스트 (1분)
+
+1. **쇼핑몰 접속**:
+   ```
+   https://superplacestudy.pages.dev/store
+   ```
+
+2. **AI 봇 선택** → "구매하기" 클릭
+
+3. **정보 입력**:
+   ```
+   이메일: test@test.com
+   이름: 테스트
+   학원 이름: 테스트학원
+   연락처: 010-0000-0000
+   학생 수: 10명
+   기간: 12개월
+   ```
+
+4. **"구매 신청하기"** 클릭
+
+5. **✅ 성공 메시지 확인**:
+   ```
+   구매 신청이 완료되었습니다!
+   
+   총 결제 금액: 120,000원
+   
+   입금 확인 후 관리자가 승인해드립니다.
+   ```
+
+6. **승인 페이지 확인**:
+   ```
+   https://superplacestudy.pages.dev/dashboard/admin/bot-shop-approvals
+   
+   확인 사항:
+   ✅ 이메일: test@test.com
+   ✅ 이름: 테스트
+   ✅ 학원: 테스트학원
+   ✅ 연락처: 010-0000-0000
+   ✅ 상태: 대기중
+   ```
+
+---
+
+## 📊 체크리스트
+
+### ✅ D1 Console SQL 실행
+- [ ] Cloudflare Dashboard 접속
+- [ ] D1 Console 열기
+- [ ] PRAGMA table_info 실행 (실행 전)
+- [ ] ALTER TABLE email 실행
+- [ ] ALTER TABLE name 실행
+- [ ] ALTER TABLE requestAcademyName 실행
+- [ ] ALTER TABLE phoneNumber 실행
+- [ ] PRAGMA table_info 실행 (실행 후)
+- [ ] 4개 컬럼 추가 확인
+
+### ✅ 구매 신청 테스트
+- [ ] 쇼핑몰 접속
+- [ ] AI 봇 선택
+- [ ] 구매 정보 입력
+- [ ] 구매 신청 클릭
+- [ ] ✅ 성공 메시지 확인
+
+### ✅ 승인 페이지 확인
+- [ ] 관리자 로그인
+- [ ] 승인 페이지 접속
+- [ ] 신청 목록에 표시 확인
+- [ ] 이메일 표시 확인
+- [ ] 이름 표시 확인
+- [ ] 학원명 표시 확인
+- [ ] 연락처 표시 확인
+
+---
+
+## 🔍 문제 해결
+
+### Q1: "duplicate column name" 오류
+**답변**: ✅ 정상 (이미 컬럼이 추가되어 있음, 무시하고 계속)
+
+### Q2: D1 Console이 안 보여요
+**답변**: 
+1. Cloudflare 계정 로그인 확인
+2. superplacestudy 프로젝트 권한 확인
+3. Settings → Bindings → D1 database bindings 섹션 확인
+
+### Q3: 여전히 "no column named email" 오류
+**답변**:
+1. PRAGMA table_info 실행 → email 컬럼 있는지 확인
+2. 없으면 ALTER TABLE 재실행
+3. 브라우저 캐시 클리어 (Ctrl+Shift+Delete)
+4. 시크릿 모드로 재시도
+
+### Q4: 구매 신청은 성공했는데 승인 페이지에 안 보여요
+**답변**:
+```sql
+-- D1 Console에서 실행
+SELECT * FROM BotPurchaseRequest 
+WHERE status = 'PENDING' 
+ORDER BY createdAt DESC 
+LIMIT 5;
+```
+- 데이터가 있으면: 승인 페이지 새로고침
+- 데이터가 없으면: 구매 신청 재시도
+
+---
+
+## 📁 파일 위치
+
+- **SQL 파일**: `migration.sql` (이 저장소 루트)
+- **실행 가이드**: `EXECUTE_NOW.md` (이 파일)
+- **상세 가이드**: `MIGRATION_GUIDE.md`
+
+---
+
+## ⏱️  예상 소요 시간
+
+| 단계 | 시간 |
+|------|------|
+| Cloudflare Dashboard 접속 | 30초 |
+| D1 Console SQL 실행 | 1분 |
+| 구매 신청 테스트 | 1분 |
+| 승인 페이지 확인 | 30초 |
+| **총 소요 시간** | **3분** |
+
+---
+
+## 🎯 최종 목표
+
+✅ 구매 신청 성공  
+✅ 승인 페이지에 고객 정보 표시  
+✅ 이메일, 이름, 학원명, 연락처 모두 표시
+
+---
+
+**지금 바로 시작**: https://dash.cloudflare.com
+
+**문제 발생 시**: 이 가이드의 "문제 해결" 섹션 참조
