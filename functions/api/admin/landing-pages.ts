@@ -797,6 +797,54 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       }
     }
 
+    // 🆕 랜딩페이지 생성 사용량 증가 (DIRECTOR/TEACHER만)
+    if (creatorRole === 'DIRECTOR' || creatorRole === 'TEACHER') {
+      try {
+        let updateUserId = creatorUserId;
+        
+        // TEACHER인 경우 해당 학원의 DIRECTOR 찾기
+        if (creatorRole === 'TEACHER' && creatorAcademyId) {
+          const director = await db.prepare(`
+            SELECT id FROM User 
+            WHERE academyId = ? AND role = 'DIRECTOR'
+            LIMIT 1
+          `).bind(creatorAcademyId).first();
+          
+          if (director) {
+            updateUserId = director.id;
+          }
+        }
+        
+        // 사용량 증가
+        await db.prepare(`
+          UPDATE user_subscriptions 
+          SET usage_landingPages = usage_landingPages + 1,
+              updatedAt = datetime('now')
+          WHERE userId = ? AND status = 'active'
+        `).bind(updateUserId).run();
+
+        // 사용 로그 기록
+        const logId = `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        await db.prepare(`
+          INSERT INTO usage_logs (id, userId, subscriptionId, featureType, action, metadata)
+          SELECT ?, ?, id, 'landing_page', 'create', ?
+          FROM user_subscriptions
+          WHERE userId = ? AND status = 'active'
+          LIMIT 1
+        `).bind(
+          logId,
+          updateUserId,
+          JSON.stringify({ landingPageId: insertedId, slug, title }),
+          updateUserId
+        ).run();
+        
+        console.log('✅ Landing page usage incremented for user:', updateUserId);
+      } catch (usageError) {
+        console.error('⚠️ Failed to update landing page usage:', usageError);
+        // 사용량 업데이트 실패는 랜딩페이지 생성을 방해하지 않음
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

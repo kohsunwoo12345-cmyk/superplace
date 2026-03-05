@@ -412,9 +412,9 @@ function generateProblemsFromTemplate(weaknessTypes: string[]): string {
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { GOOGLE_GEMINI_API_KEY } = context.env;
+    const { DB, GOOGLE_GEMINI_API_KEY } = context.env;
     const body = await context.request.json();
-    const { studentId, weaknessTypes, studentName } = body;
+    const { studentId, weaknessTypes, studentName, academyId } = body;
 
     if (!studentId || !weaknessTypes || weaknessTypes.length === 0) {
       return new Response(
@@ -428,6 +428,99 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`🎯 유사문제 생성 요청: ${studentName} (ID: ${studentId})`);
     console.log(`📋 약점 유형 (${weaknessTypes.length}개): ${weaknessTypes.join(', ')}`);
+
+    // 🆕 유사문제 생성 구독 한도 체크
+    if (DB && academyId) {
+      // 해당 학원의 학원장 찾기
+      const director = await DB.prepare(`
+        SELECT id FROM User 
+        WHERE academyId = ? AND role = 'DIRECTOR'
+        LIMIT 1
+      `).bind(academyId).first();
+
+      if (director) {
+        // 학원장의 활성 구독 확인
+        const subscription = await DB.prepare(`
+          SELECT * FROM user_subscriptions 
+          WHERE userId = ? AND status = 'active'
+          ORDER BY createdAt DESC
+          LIMIT 1
+        `).bind(director.id).first();
+
+        if (!subscription) {
+          console.log(`❌ 구독 없음: 학원 ${academyId}`);
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "SUBSCRIPTION_REQUIRED",
+              message: "유사문제 출제를 위해 요금제 구독이 필요합니다.",
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        // 구독 만료 확인
+        const now = new Date();
+        const endDate = new Date(subscription.endDate as string);
+        
+        if (now > endDate) {
+          console.log(`❌ 구독 만료: 학원 ${academyId}`);
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "SUBSCRIPTION_EXPIRED",
+              message: "구독이 만료되었습니다. 갱신이 필요합니다.",
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        // 유사문제 출제 한도 체크
+        const maxSimilarProblems = subscription.limit_maxSimilarProblems as number;
+        const currentSimilarProblems = subscription.usage_similarProblems as number;
+
+        if (maxSimilarProblems !== -1 && currentSimilarProblems >= maxSimilarProblems) {
+          console.log(`❌ 유사문제 출제 한도 초과: ${currentSimilarProblems}/${maxSimilarProblems}`);
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "SIMILAR_PROBLEM_LIMIT_EXCEEDED",
+              message: `유사문제 출제 한도를 초과했습니다. (${currentSimilarProblems}/${maxSimilarProblems})`,
+              currentUsage: currentSimilarProblems,
+              maxLimit: maxSimilarProblems,
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        console.log(`✅ 유사문제 출제 한도 확인: ${currentSimilarProblems}/${maxSimilarProblems}`);
+        
+        // 🆕 사용량 증가 (생성 전에 미리 증가)
+        await DB.prepare(`
+          UPDATE user_subscriptions 
+          SET usage_similarProblems = usage_similarProblems + 1,
+              updatedAt = datetime('now')
+          WHERE userId = ? AND status = 'active'
+        `).bind(director.id).run();
+
+        // 사용 로그 기록
+        const logId = `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        await DB.prepare(`
+          INSERT INTO usage_logs (id, userId, subscriptionId, featureType, action, metadata)
+          SELECT ?, ?, id, 'similar_problem', 'generate', ?
+          FROM user_subscriptions
+          WHERE userId = ? AND status = 'active'
+          LIMIT 1
+        `).bind(
+          logId,
+          director.id,
+          JSON.stringify({ studentId, studentName, weaknessTypesCount: weaknessTypes.length }),
+          director.id
+        ).run();
+        
+        console.log('✅ Similar problem usage incremented for director:', director.id);
+      }
+    }
 
     // 1차: 템플릿 기반 문제 생성 (항상 성공)
     const templateProblems = generateProblemsFromTemplate(weaknessTypes);

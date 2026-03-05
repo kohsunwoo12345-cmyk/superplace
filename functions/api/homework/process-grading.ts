@@ -85,6 +85,74 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ 제출 정보 확인: ${submission.name} (userId: ${submission.userId})`);
 
+    // 🆕 숙제 검사 구독 한도 체크
+    if (submission.academyId) {
+      // 해당 학원의 학원장 찾기
+      const director = await DB.prepare(`
+        SELECT id FROM User 
+        WHERE academyId = ? AND role = 'DIRECTOR'
+        LIMIT 1
+      `).bind(submission.academyId).first();
+
+      if (director) {
+        // 학원장의 활성 구독 확인
+        const subscription = await DB.prepare(`
+          SELECT * FROM user_subscriptions 
+          WHERE userId = ? AND status = 'active'
+          ORDER BY createdAt DESC
+          LIMIT 1
+        `).bind(director.id).first();
+
+        if (!subscription) {
+          console.log(`❌ 구독 없음: 학원 ${submission.academyId}`);
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "SUBSCRIPTION_REQUIRED",
+              message: "숙제 검사를 위해 요금제 구독이 필요합니다.",
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        // 구독 만료 확인
+        const now = new Date();
+        const endDate = new Date(subscription.endDate as string);
+        
+        if (now > endDate) {
+          console.log(`❌ 구독 만료: 학원 ${submission.academyId}`);
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "SUBSCRIPTION_EXPIRED",
+              message: "구독이 만료되었습니다. 갱신이 필요합니다.",
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        // 숙제 검사 한도 체크
+        const maxHomeworkChecks = subscription.limit_maxHomeworkChecks as number;
+        const currentHomeworkChecks = subscription.usage_homeworkChecks as number;
+
+        if (maxHomeworkChecks !== -1 && currentHomeworkChecks >= maxHomeworkChecks) {
+          console.log(`❌ 숙제 검사 한도 초과: ${currentHomeworkChecks}/${maxHomeworkChecks}`);
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: "HOMEWORK_CHECK_LIMIT_EXCEEDED",
+              message: `숙제 검사 한도를 초과했습니다. (${currentHomeworkChecks}/${maxHomeworkChecks})`,
+              currentUsage: currentHomeworkChecks,
+              maxLimit: maxHomeworkChecks,
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        console.log(`✅ 숙제 검사 한도 확인: ${currentHomeworkChecks}/${maxHomeworkChecks}`);
+      }
+    }
+
     // 제출 상태가 이미 graded인 경우 (중복 호출 방지)
     const submissionStatus = await DB.prepare(`
       SELECT status FROM homework_submissions_v2 WHERE id = ?
@@ -196,6 +264,52 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       SET status = 'graded'
       WHERE id = ?
     `).bind(submissionId).run();
+
+    // 🆕 숙제 검사 사용량 증가
+    if (submission.academyId) {
+      try {
+        const director = await DB.prepare(`
+          SELECT id FROM User 
+          WHERE academyId = ? AND role = 'DIRECTOR'
+          LIMIT 1
+        `).bind(submission.academyId).first();
+
+        if (director) {
+          // 사용량 증가
+          await DB.prepare(`
+            UPDATE user_subscriptions 
+            SET usage_homeworkChecks = usage_homeworkChecks + 1,
+                updatedAt = datetime('now')
+            WHERE userId = ? AND status = 'active'
+          `).bind(director.id).run();
+
+          // 사용 로그 기록
+          const logId = `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          await DB.prepare(`
+            INSERT INTO usage_logs (id, userId, subscriptionId, featureType, action, metadata)
+            SELECT ?, ?, id, 'homework_check', 'grade', ?
+            FROM user_subscriptions
+            WHERE userId = ? AND status = 'active'
+            LIMIT 1
+          `).bind(
+            logId,
+            director.id,
+            JSON.stringify({ 
+              submissionId, 
+              studentId: submission.userId, 
+              studentName: submission.name,
+              score: gradingResult.score 
+            }),
+            director.id
+          ).run();
+          
+          console.log('✅ Homework check usage incremented for director:', director.id);
+        }
+      } catch (usageError) {
+        console.error('⚠️ Failed to update homework check usage:', usageError);
+        // 사용량 업데이트 실패는 채점을 방해하지 않음
+      }
+    }
 
     console.log(`✅ 채점 완료: ${submissionId} -> ${gradingResult.score}점`);
 
