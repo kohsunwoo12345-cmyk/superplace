@@ -438,17 +438,50 @@ export default function AIBotAssignPage() {
       } else {
         // 개별 사용자 다중 할당
         
+        console.log('🔍 [할당 시작] 현재 상태:', {
+          currentUserRole: currentUser?.role,
+          selectedBot,
+          selectedUsersCount: selectedUsers.length,
+          totalSubscriptions: academySubscriptions.length,
+          subscriptions: academySubscriptions.map(s => ({
+            id: s.id,
+            botId: s.botId,
+            botName: s.botName,
+            academyId: s.academyId,
+            expiresAt: s.expiresAt,
+            totalSlots: s.totalSlots,
+            remainingSlots: s.remainingSlots
+          }))
+        });
+        
         // 🔥 학원 구독 정보 확인 (학원장/선생님/관리자 모두)
         let subscription = null;
         const now = new Date();
         
         if (currentUser?.role === 'DIRECTOR' || currentUser?.role === 'TEACHER') {
           // 학원장/선생님: 자신의 학원 구독만 (날짜 기반 검증)
+          console.log('🔍 [DIRECTOR/TEACHER] 구독 검색 중...', {
+            selectedBot,
+            totalSubs: academySubscriptions.length
+          });
+          
           subscription = (academySubscriptions || []).find(sub => {
+            console.log('🔍 [검사] 구독:', {
+              subBotId: sub.botId,
+              selectedBot,
+              match: sub.botId === selectedBot,
+              expiresAt: sub.expiresAt,
+              expiresAtParsed: new Date(sub.expiresAt),
+              now,
+              isValid: new Date(sub.expiresAt) >= now
+            });
+            
             if (sub.botId !== selectedBot) return false;
             const expiresAt = new Date(sub.expiresAt);
             return expiresAt >= now; // 만료일이 현재 이후
           });
+          
+          console.log('🔍 [DIRECTOR/TEACHER] 찾은 구독:', subscription);
         } else if (currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') {
           // 관리자: 첫 번째 학생의 학원 구독 찾기 (날짜 기반 검증)
           const firstTargetUser = users.find(u => u.id.toString() === selectedUsers[0]);
