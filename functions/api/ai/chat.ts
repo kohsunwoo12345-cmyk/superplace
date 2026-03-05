@@ -29,6 +29,78 @@ async function generateQueryEmbedding(text: string, apiKey: string): Promise<num
   return data.embedding.values;
 }
 
+// 학생 개인화 컨텍스트 생성
+async function buildStudentContext(
+  DB: D1Database,
+  userId: string,
+  botId: string
+): Promise<string> {
+  let context = '';
+  
+  try {
+    // 1. 학생 정보 조회
+    const user = await DB.prepare(`
+      SELECT name, email, grade, academyId
+      FROM User
+      WHERE id = ?
+    `).bind(userId).first();
+    
+    if (user) {
+      context += `\n👤 **학생 정보:**\n`;
+      context += `- 이름: ${user.name || '알 수 없음'}\n`;
+      if (user.grade) {
+        context += `- 학년: ${user.grade}\n`;
+      }
+    }
+    
+    // 2. 최근 대화 기록 (최근 5개)
+    const recentChats = await DB.prepare(`
+      SELECT message, response, createdAt
+      FROM ai_chat_logs
+      WHERE userId = ? AND botId = ?
+      ORDER BY createdAt DESC
+      LIMIT 5
+    `).bind(userId, botId).all();
+    
+    if (recentChats.results && recentChats.results.length > 0) {
+      context += `\n💬 **최근 대화 기록:**\n`;
+      recentChats.results.reverse().forEach((chat: any, idx: number) => {
+        context += `[${idx + 1}] 학생: ${chat.message}\n`;
+        context += `    AI: ${chat.response}\n`;
+      });
+    }
+    
+    // 3. 학생의 최근 숙제 (있다면)
+    try {
+      const homework = await DB.prepare(`
+        SELECT title, description, dueDate, status
+        FROM homework
+        WHERE studentId = ?
+        ORDER BY dueDate DESC
+        LIMIT 3
+      `).bind(userId).all();
+      
+      if (homework.results && homework.results.length > 0) {
+        context += `\n📚 **최근 숙제:**\n`;
+        homework.results.forEach((hw: any) => {
+          context += `- ${hw.title} (마감: ${hw.dueDate}, 상태: ${hw.status})\n`;
+          if (hw.description) {
+            context += `  설명: ${hw.description}\n`;
+          }
+        });
+      }
+    } catch (hwError) {
+      // 숙제 테이블이 없거나 오류 시 무시
+      console.log('⚠️ Homework table not available');
+    }
+    
+  } catch (error: any) {
+    console.error('⚠️ Failed to build student context:', error.message);
+  }
+  
+  return context;
+}
+
 // Vectorize에서 관련 지식 검색
 async function searchKnowledge(
   vectorize: VectorizeIndex,
@@ -183,7 +255,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     let knowledgeContext = '';
+    let studentContext = '';
     let ragEnabled = false;
+
+    // 🔥 학생 개인화 컨텍스트 생성
+    if (userId && botId && DB) {
+      try {
+        console.log(`👤 Building personalized context for user ${userId}...`);
+        studentContext = await buildStudentContext(DB, userId, botId);
+        if (studentContext) {
+          console.log(`✅ Student context built (${studentContext.length} characters)`);
+        }
+      } catch (ctxError: any) {
+        console.error('⚠️ Failed to build student context:', ctxError.message);
+      }
+    }
 
     // 🔥 RAG: Vectorize에서 관련 지식 검색
     if (enableRAG && botId && VECTORIZE && GOOGLE_GEMINI_API_KEY) {
@@ -220,9 +306,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 🔥 RAG 적용: 지식 컨텍스트를 시스템 프롬프트에 추가
     let enhancedSystemPrompt = systemPrompt || '';
     
-    if (knowledgeContext) {
+    // 학생 개인화 컨텍스트 추가
+    if (studentContext) {
       enhancedSystemPrompt = `${systemPrompt}
 
+🎯 **학생 맞춤 정보:**
+아래는 현재 대화 중인 학생의 정보입니다. 이를 참고하여 학생에게 맞춤형 답변을 제공하세요.
+
+${studentContext}
+
+---
+`;
+    }
+    
+    // 지식 베이스 컨텍스트 추가
+    if (knowledgeContext) {
+      enhancedSystemPrompt += `
 📚 **참고 지식:**
 아래는 사용자 질문과 관련된 지식 베이스 내용입니다. 이 정보를 참고하여 답변하세요.
 
@@ -230,7 +329,11 @@ ${knowledgeContext}
 
 ---
 
-위 지식을 바탕으로 사용자의 질문에 정확하고 상세하게 답변해주세요.`;
+`;
+    }
+    
+    if (studentContext || knowledgeContext) {
+      enhancedSystemPrompt += `위 정보들을 바탕으로 학생의 질문에 정확하고 맞춤형으로 답변해주세요.`;
     }
 
     const requestBody = {
