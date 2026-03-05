@@ -169,7 +169,9 @@ export default function CreateStoreProductPage() {
       });
 
       if (!response.ok) {
-        throw new Error("제품 생성에 실패했습니다.");
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error("❌ Server error:", errorData);
+        throw new Error(errorData.message || errorData.error || "제품 생성에 실패했습니다.");
       }
 
       const data = await response.json();
@@ -179,7 +181,8 @@ export default function CreateStoreProductPage() {
       router.push("/dashboard/admin/store-management");
     } catch (error) {
       console.error("Error creating product:", error);
-      alert("제품 생성 중 오류가 발생했습니다.");
+      const errorMessage = error instanceof Error ? error.message : "제품 생성 중 오류가 발생했습니다.";
+      alert(`제품 생성 실패:\n${errorMessage}`);
     } finally {
       setLoading(false);
     }
