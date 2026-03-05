@@ -108,7 +108,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.password,
           u.points,
           u.academyId, a.name as academyName,
-          u.lastLoginAt, u.lastLoginIp,
           u.createdAt, u.approved, u.grade, u.updatedAt
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
@@ -134,13 +133,33 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
+    // 최근 로그인 정보 조회
+    let lastLoginInfo = { lastLoginAt: null, lastLoginIp: null };
+    try {
+      const lastLogin = await DB.prepare(`
+        SELECT loginAt as lastLoginAt, ipAddress as lastLoginIp
+        FROM user_login_logs
+        WHERE userId = ? AND success = 1
+        ORDER BY loginAt DESC
+        LIMIT 1
+      `).bind(userId).first();
+      if (lastLogin) {
+        lastLoginInfo = {
+          lastLoginAt: lastLogin.lastLoginAt,
+          lastLoginIp: lastLogin.lastLoginIp
+        };
+      }
+    } catch (e: any) {
+      console.log('⚠️ Could not fetch last login info:', e.message);
+    }
+
     // Add default values for optional fields
     const user = {
       ...userResult,
       points: userResult.points || 0,
       balance: 0,
-      lastLoginAt: userResult.lastLoginAt || null,
-      lastLoginIp: userResult.lastLoginIp || null
+      lastLoginAt: lastLoginInfo.lastLoginAt,
+      lastLoginIp: lastLoginInfo.lastLoginIp
     };
 
     console.log('✅ User found:', { id: user.id, email: user.email });
