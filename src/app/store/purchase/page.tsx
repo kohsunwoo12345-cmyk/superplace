@@ -24,9 +24,10 @@ function PurchasePageContent() {
   // Form state
   const [studentCount, setStudentCount] = useState(10);
   const [months, setMonths] = useState(1);
-  const [depositBank, setDepositBank] = useState('');
-  const [depositorName, setDepositorName] = useState('');
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [academyName, setAcademyName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [requestMessage, setRequestMessage] = useState('');
 
   useEffect(() => {
@@ -74,8 +75,22 @@ function PurchasePageContent() {
       return;
     }
     
-    if (!depositBank || !depositorName) {
-      alert('입금 정보를 모두 입력해주세요.');
+    if (!email || !name || !academyName || !phoneNumber) {
+      alert('모든 필수 정보를 입력해주세요.');
+      return;
+    }
+    
+    // 이메일 형식 검증
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      alert('올바른 이메일 형식을 입력해주세요.');
+      return;
+    }
+    
+    // 전화번호 형식 검증 (숫자와 하이픈만)
+    const phoneRegex = /^[0-9-]+$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      alert('올바른 전화번호 형식을 입력해주세요. (숫자와 하이픈만 가능)');
       return;
     }
 
@@ -89,26 +104,6 @@ function PurchasePageContent() {
         return;
       }
 
-      // Upload file if exists
-      let attachmentUrl = '';
-      if (attachmentFile) {
-        const formData = new FormData();
-        formData.append('file', attachmentFile);
-        
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          body: formData,
-        });
-        
-        if (uploadResponse.ok) {
-          const uploadData = await uploadResponse.json();
-          attachmentUrl = uploadData.url || '';
-        }
-      }
-
       // Submit purchase request
       const purchaseData = {
         productId: product.id,
@@ -117,9 +112,10 @@ function PurchasePageContent() {
         months,
         pricePerStudent: product.pricePerStudent || product.monthlyPrice || 0,
         totalPrice: calculateTotal(),
-        depositBank,
-        depositorName,
-        attachmentUrl,
+        email,
+        name,
+        academyName,
+        phoneNumber,
         requestMessage,
       };
 
@@ -248,17 +244,17 @@ function PurchasePageContent() {
             </select>
           </div>
 
-          {/* Deposit Info */}
+          {/* Contact Info */}
           <div className="bg-white rounded-lg p-4 shadow-sm space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                입금 은행
+                이메일 <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
-                value={depositBank}
-                onChange={(e) => setDepositBank(e.target.value)}
-                placeholder="예: 국민은행"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@email.com"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
@@ -266,13 +262,13 @@ function PurchasePageContent() {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                입금자명
+                이름 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                value={depositorName}
-                onChange={(e) => setDepositorName(e.target.value)}
-                placeholder="예: 홍길동"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="홍길동"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
@@ -280,16 +276,32 @@ function PurchasePageContent() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                입금 확인 파일 (선택)
+                학원 이름 <span className="text-red-500">*</span>
               </label>
               <input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                type="text"
+                value={academyName}
+                onChange={(e) => setAcademyName(e.target.value)}
+                placeholder="슈퍼플레이스 학원"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                연락처 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="010-1234-5678"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               />
               <p className="text-xs text-gray-500 mt-1">
-                입금 확인증 스크린샷을 첨부하시면 더 빠르게 처리됩니다
+                숫자와 하이픈(-)만 입력해주세요
               </p>
             </div>
           </div>

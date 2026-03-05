@@ -53,9 +53,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       months,
       pricePerStudent,
       totalPrice,
-      depositBank,
-      depositorName,
-      attachmentUrl,
+      email,
+      name,
+      academyName,
+      phoneNumber,
       requestMessage
     } = await request.json();
 
@@ -122,9 +123,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       INSERT INTO BotPurchaseRequest (
         id, productId, productName, userId, academyId,
         studentCount, months, pricePerStudent, totalPrice,
-        depositBank, depositorName, attachmentUrl, requestMessage,
+        email, name, academyName, phoneNumber, requestMessage,
         status, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
     `).bind(
       requestId,
       productId,
@@ -135,9 +136,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       months,
       pricePerStudent,
       totalPrice,
-      depositBank || null,
-      depositorName || null,
-      attachmentUrl || null,
+      email || null,
+      name || null,
+      academyName || null,
+      phoneNumber || null,
       requestMessage || null,
       now,
       now
