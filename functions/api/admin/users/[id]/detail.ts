@@ -106,7 +106,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         SELECT 
           u.id, u.email, u.name, u.phone, u.role,
           u.password,
-          u.points, u.balance,
+          u.points,
           u.academyId, a.name as academyName,
           u.lastLoginAt, u.lastLoginIp,
           u.createdAt, u.approved, u.grade, u.updatedAt
@@ -138,7 +138,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const user = {
       ...userResult,
       points: userResult.points || 0,
-      balance: userResult.balance || 0,
+      balance: 0,
       lastLoginAt: userResult.lastLoginAt || null,
       lastLoginIp: userResult.lastLoginIp || null
     };
