@@ -59,8 +59,19 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     } = await request.json();
 
     // 유효성 검사
-    if (!productId || !productName || !studentCount || !months || !pricePerStudent) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+    if (!productId || !productName || !studentCount || !months || pricePerStudent === undefined || pricePerStudent === null) {
+      console.error('❌ Validation failed:', {
+        productId: !!productId,
+        productName: !!productName,
+        studentCount: !!studentCount,
+        months: !!months,
+        pricePerStudent,
+        hasPricePerStudent: pricePerStudent !== undefined && pricePerStudent !== null
+      });
+      return new Response(JSON.stringify({ 
+        error: 'Missing required fields',
+        details: 'productId, productName, studentCount, months, pricePerStudent are required'
+      }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
