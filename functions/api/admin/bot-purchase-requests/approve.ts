@@ -50,12 +50,22 @@ export async function onRequestPost(context: any) {
     }
 
     const body = await request.json();
-    const { requestId, studentCount: approvedStudentCount } = body;
+    const { requestId, studentCount, academyId } = body;
 
     if (!requestId) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Request ID is required'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!academyId) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Academy ID is required'
       }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
@@ -103,17 +113,20 @@ export async function onRequestPost(context: any) {
     `).bind(adminUser.id, now, now, requestId).run();
 
     // 2. 학원의 구독 정보 확인 (이미 있으면 업데이트, 없으면 생성)
+    // 관리자가 선택한 학원 ID 사용
+    const targetAcademyId = academyId;
+    
     const existingSubscription = await env.DB.prepare(`
       SELECT * FROM AcademyBotSubscription 
       WHERE academyId = ? AND productId = ?
-    `).bind(purchaseRequest.academyId, purchaseRequest.productId).first();
+    `).bind(targetAcademyId, purchaseRequest.productId).first();
 
     const subscriptionEndDate = new Date();
     subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + purchaseRequest.months);
 
     // 관리자가 수정한 학생 수 또는 요청된 학생 수 사용
-    const finalStudentCount = approvedStudentCount || purchaseRequest.studentCount;
-    console.log(`📝 Student count: requested=${purchaseRequest.studentCount}, approved=${approvedStudentCount}, final=${finalStudentCount}`);
+    const finalStudentCount = studentCount || purchaseRequest.studentCount;
+    console.log(`📝 Approval: academyId=${targetAcademyId}, studentCount: requested=${purchaseRequest.studentCount}, approved=${studentCount}, final=${finalStudentCount}`);
 
     if (existingSubscription) {
       // 기존 구독 업데이트 (학생 슬롯 추가, 기간 연장)
@@ -155,7 +168,7 @@ export async function onRequestPost(context: any) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         subscriptionId,
-        purchaseRequest.academyId,
+        targetAcademyId,  // 관리자가 선택한 학원 ID 사용
         purchaseRequest.productId,
         purchaseRequest.productName,
         finalStudentCount,  // 관리자가 수정한 학생 수 사용
@@ -172,7 +185,7 @@ export async function onRequestPost(context: any) {
     const updatedSubscription = await env.DB.prepare(`
       SELECT * FROM AcademyBotSubscription 
       WHERE academyId = ? AND productId = ?
-    `).bind(purchaseRequest.academyId, purchaseRequest.productId).first();
+    `).bind(targetAcademyId, purchaseRequest.productId).first();
 
     return new Response(JSON.stringify({
       success: true,

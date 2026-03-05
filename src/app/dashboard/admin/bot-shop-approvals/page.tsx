@@ -52,10 +52,31 @@ export default function BotShopApprovalsPage() {
   const [approving, setApproving] = useState(false);
   const [approvedStudentCount, setApprovedStudentCount] = useState<number>(0);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [academies, setAcademies] = useState<any[]>([]);
+  const [selectedAcademyId, setSelectedAcademyId] = useState<string>('');
 
   useEffect(() => {
     loadRequests();
+    loadAcademies();
   }, [statusFilter]);
+
+  const loadAcademies = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/academies', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAcademies(data.academies || []);
+      }
+    } catch (error) {
+      console.error('Failed to load academies:', error);
+    }
+  };
 
   const loadRequests = async () => {
     try {
@@ -92,7 +113,12 @@ export default function BotShopApprovalsPage() {
     }
   };
 
-  const handleApprove = async (requestId: string, studentCount: number) => {
+  const handleApprove = async (requestId: string, studentCount: number, academyId: string) => {
+    if (!academyId) {
+      alert('학원을 선택해주세요.');
+      return;
+    }
+
     if (!confirm(`${studentCount}명으로 승인하시겠습니까?`)) {
       return;
     }
@@ -108,7 +134,8 @@ export default function BotShopApprovalsPage() {
         },
         body: JSON.stringify({
           requestId,
-          approvedStudentCount: studentCount
+          studentCount,
+          academyId
         })
       });
 
@@ -175,6 +202,7 @@ export default function BotShopApprovalsPage() {
   const openModal = (request: PurchaseRequest) => {
     setSelectedRequest(request);
     setApprovedStudentCount(request.studentCount);
+    setSelectedAcademyId(request.academyId !== 'external' ? request.academyId : '');
     setRejectionReason('');
     setShowModal(true);
   };
@@ -431,6 +459,28 @@ export default function BotShopApprovalsPage() {
                 <>
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      학원 선택 <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedAcademyId}
+                      onChange={(e) => setSelectedAcademyId(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">학원을 선택하세요</option>
+                      {academies.map((academy) => (
+                        <option key={academy.id} value={academy.id}>
+                          {academy.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      봇이 할당될 학원을 선택하세요
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
                       승인할 학생 수 (수정 가능)
                     </label>
                     <input
@@ -460,7 +510,7 @@ export default function BotShopApprovalsPage() {
 
                   <div className="flex gap-3">
                     <button
-                      onClick={() => handleApprove(selectedRequest.id, approvedStudentCount)}
+                      onClick={() => handleApprove(selectedRequest.id, approvedStudentCount, selectedAcademyId)}
                       disabled={approving}
                       className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium flex items-center justify-center gap-2"
                     >
