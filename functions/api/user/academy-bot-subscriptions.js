@@ -100,7 +100,6 @@ export async function onRequestGet(context) {
           WHEN date(s.subscriptionEnd) >= date('now') AND s.isActive = 1 THEN 1
           ELSE 0
         END as isActive,
-        s.pricePerStudent,
         s.createdAt
       FROM AcademyBotSubscription s
       LEFT JOIN academy a ON s.academyId = a.id
