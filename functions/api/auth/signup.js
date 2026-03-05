@@ -214,6 +214,33 @@ export async function onRequestPost(context) {
 
     console.log('✅ User created:', { userId, email, role });
 
+    // 🆕 회원가입 로그 기록 (ActivityLog 테이블)
+    try {
+      const ip = request.headers.get('CF-Connecting-IP') || 
+                 request.headers.get('X-Forwarded-For') || 
+                 'Unknown';
+      const logId = `activity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      await db
+        .prepare(`
+          INSERT INTO ActivityLog (id, userId, action, details, ip, createdAt)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))
+        `)
+        .bind(
+          logId,
+          userId,
+          '회원가입',
+          `신규 회원 가입 - 역할: ${role}${academyId ? ', 학원 가입' : ''}`,
+          ip
+        )
+        .run();
+      
+      console.log('✅ Signup activity log created');
+    } catch (logError) {
+      console.error('⚠️ Failed to create activity log:', logError);
+      // 로그 실패는 회원가입을 방해하지 않음
+    }
+
     const responseData = {
       success: true,
       message: '회원가입이 완료되었습니다',
