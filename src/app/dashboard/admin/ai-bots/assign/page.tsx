@@ -468,15 +468,20 @@ export default function AIBotAssignPage() {
           subscription = (academySubscriptions || []).find(sub => {
             console.log('🔍 [검사] 구독:', {
               subBotId: sub.botId,
+              subBotIdType: typeof sub.botId,
               selectedBot,
-              match: sub.botId === selectedBot,
+              selectedBotType: typeof selectedBot,
+              strictMatch: sub.botId === selectedBot,
+              looseMatch: sub.botId == selectedBot,
+              stringMatch: String(sub.botId) === String(selectedBot),
               expiresAt: sub.expiresAt,
               expiresAtParsed: new Date(sub.expiresAt),
               now,
               isValid: new Date(sub.expiresAt) >= now
             });
             
-            if (sub.botId !== selectedBot) return false;
+            // 문자열로 변환하여 비교 (타입 불일치 방지)
+            if (String(sub.botId) !== String(selectedBot)) return false;
             const expiresAt = new Date(sub.expiresAt);
             return expiresAt >= now; // 만료일이 현재 이후
           });
@@ -487,7 +492,7 @@ export default function AIBotAssignPage() {
           const firstTargetUser = users.find(u => u.id.toString() === selectedUsers[0]);
           if (firstTargetUser && (firstTargetUser as any).academyId) {
             subscription = (academySubscriptions || []).find(sub => {
-              if (sub.botId !== selectedBot) return false;
+              if (String(sub.botId) !== String(selectedBot)) return false;
               if (sub.academyId !== (firstTargetUser as any).academyId) return false;
               const expiresAt = new Date(sub.expiresAt);
               return expiresAt >= now; // 만료일이 현재 이후
@@ -773,14 +778,18 @@ export default function AIBotAssignPage() {
                   const subscription = (academySubscriptions || []).find(sub => {
                     console.log('🔍 Checking subscription:', {
                       botId: sub.botId,
+                      botIdType: typeof sub.botId,
                       selectedBot,
-                      match: sub.botId === selectedBot,
+                      selectedBotType: typeof selectedBot,
+                      strictMatch: sub.botId === selectedBot,
+                      stringMatch: String(sub.botId) === String(selectedBot),
                       expiresAt: sub.expiresAt,
                       expiresAtDate: new Date(sub.expiresAt),
                       isValid: new Date(sub.expiresAt) >= now
                     });
                     
-                    if (sub.botId !== selectedBot) return false;
+                    // 문자열로 변환하여 비교
+                    if (String(sub.botId) !== String(selectedBot)) return false;
                     const expiresAt = new Date(sub.expiresAt);
                     return expiresAt >= now; // 만료일이 현재 이후인 구독만
                   });
@@ -1016,7 +1025,8 @@ export default function AIBotAssignPage() {
                   {(() => {
                     const now = new Date();
                     const subscription = (academySubscriptions || []).find(sub => {
-                      if (sub.botId !== selectedBot) return false;
+                      // 문자열로 변환하여 비교
+                      if (String(sub.botId) !== String(selectedBot)) return false;
                       const expiresAt = new Date(sub.expiresAt);
                       return expiresAt >= now; // 만료일이 현재 이후인 구독만
                     });
