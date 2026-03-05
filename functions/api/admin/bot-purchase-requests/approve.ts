@@ -119,18 +119,7 @@ export async function onRequestPost(context: any) {
     }
 
     console.log(`✅ Academy verified: ${academy.name} (${academy.id})`);
-
-    // StoreProduct 테이블에서 productId 존재 여부 확인
-    const product = await env.DB.prepare(`
-      SELECT id, name, productName FROM StoreProduct WHERE id = ?
-    `).bind(purchaseRequest.productId).first();
-
-    if (!product) {
-      console.warn(`⚠️ Product "${purchaseRequest.productId}" not found in StoreProduct table`);
-      // productId가 없어도 구독은 생성 가능 (향후 유연성을 위해 경고만 출력)
-    } else {
-      console.log(`✅ Product verified: ${product.productName || product.name} (${product.id})`);
-    }
+    console.log(`📦 Product ID: ${purchaseRequest.productId} (${purchaseRequest.productName})`);
     
     // 1. 구매 요청 상태를 APPROVED로 업데이트
     await env.DB.prepare(`
