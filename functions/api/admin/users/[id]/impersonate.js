@@ -60,10 +60,15 @@ export async function onRequestPost(context) {
       });
     }
 
-    // 대행 로그인용 토큰 생성
-    const impersonateToken = `${user.id}|${user.email}|${user.role}|${Date.now()}`;
+    // 대행 로그인용 토큰 생성 (academyId 포함)
+    const impersonateToken = `${user.id}|${user.email}|${user.role}|${user.academyId || ''}`;
 
-    console.log('👤 대행 로그인:', { adminEmail, targetUser: user.email, targetRole: user.role });
+    console.log('👤 대행 로그인:', { 
+      adminEmail, 
+      targetUser: user.email, 
+      targetRole: user.role,
+      targetAcademyId: user.academyId 
+    });
 
     // 활동 로그 기록
     try {

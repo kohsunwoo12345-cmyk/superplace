@@ -106,7 +106,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         SELECT 
           u.id, u.email, u.name, u.phone, u.role,
           u.password,
+          u.points, u.balance,
           u.academyId, a.name as academyName,
+          u.lastLoginAt, u.lastLoginIp,
           u.createdAt, u.approved, u.grade, u.updatedAt
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
@@ -135,8 +137,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // Add default values for optional fields
     const user = {
       ...userResult,
-      points: 0,
-      balance: 0,
+      points: userResult.points || 0,
+      balance: userResult.balance || 0,
       lastLoginAt: userResult.lastLoginAt || null,
       lastLoginIp: userResult.lastLoginIp || null
     };
@@ -150,15 +152,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         SELECT 
           id, userId, ipAddress as ip, userAgent, 
           success, loginAt
-        FROM login_logs
+        FROM user_login_logs
         WHERE userId = ?
         ORDER BY loginAt DESC
         LIMIT 50
       `).bind(userId).all();
       loginLogs = logs.results || [];
       console.log(`✅ Found ${loginLogs.length} login logs`);
-    } catch (e) {
-      console.log('⚠️ login_logs table not found or error:', e);
+    } catch (e: any) {
+      console.log('⚠️ user_login_logs table error:', e.message);
     }
 
     // 활동 기록 조회 (최근 100개)
@@ -166,16 +168,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
       const activities = await DB.prepare(`
         SELECT 
-          id, userId, action, details, ipAddress as ip, createdAt
-        FROM activity_logs
+          id, userId, action, details, ip, createdAt
+        FROM ActivityLog
         WHERE userId = ?
         ORDER BY createdAt DESC
         LIMIT 100
       `).bind(userId).all();
       activityLogs = activities.results || [];
       console.log(`✅ Found ${activityLogs.length} activity logs`);
-    } catch (e) {
-      console.log('⚠️ activity_logs table not found or error:', e);
+    } catch (e: any) {
+      console.log('⚠️ ActivityLog table error:', e.message);
     }
 
     // AI 봇 할당 조회
@@ -183,20 +185,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
       const bots = await DB.prepare(`
         SELECT 
-          ba.id, ba.userId, ba.botId, 
-          b.name as botName,
-          ba.createdAt as startDate,
-          ba.expiresAt as endDate,
-          ba.isActive
-        FROM bot_assignments ba
-        JOIN ai_bots b ON ba.botId = b.id
+          ba.id, ba.userId, ba.botId, ba.botName,
+          ba.startDate,
+          ba.endDate,
+          ba.status,
+          CASE 
+            WHEN ba.status = 'active' AND date(ba.endDate) >= date('now') THEN 1
+            ELSE 0
+          END as isActive
+        FROM ai_bot_assignments ba
         WHERE ba.userId = ?
         ORDER BY ba.createdAt DESC
-      `).bind(userId).all();
+      `).bind(userId.toString()).all();
       botAssignments = bots.results || [];
       console.log(`✅ Found ${botAssignments.length} bot assignments`);
-    } catch (e) {
-      console.log('⚠️ bot_assignments table not found or error:', e);
+    } catch (e: any) {
+      console.log('⚠️ ai_bot_assignments table error:', e.message);
     }
 
     // 결제 내역 조회
