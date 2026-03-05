@@ -1,0 +1,187 @@
+// FOREIGN KEY 제약 조건 상세 진단 스크립트
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('🔍 FOREIGN KEY 제약 조건 상세 진단');
+console.log('═══════════════════════════════════════════════════════════════\n');
+
+console.log('⚠️  여전히 오류 발생: D1_ERROR: FOREIGN KEY constraint failed\n');
+
+console.log('📋 Cloudflare D1 콘솔에서 다음 쿼리를 **순서대로** 실행하세요:');
+console.log('URL: https://dash.cloudflare.com');
+console.log('경로: Workers & Pages → superplacestudy → Settings → Bindings → D1 Database → Open Console\n');
+
+console.log('═'.repeat(60));
+console.log('1️⃣ AcademyBotSubscription 테이블의 외래 키 확인');
+console.log('═'.repeat(60));
+console.log('PRAGMA foreign_key_list(AcademyBotSubscription);');
+console.log('');
+console.log('📌 예상 결과:');
+console.log('   - academyId → Academy(id)');
+console.log('   - productId → ??? (어떤 테이블을 참조하는지 확인!)');
+console.log('');
+
+console.log('═'.repeat(60));
+console.log('2️⃣ 외래 키 강제 적용 상태 확인');
+console.log('═'.repeat(60));
+console.log('PRAGMA foreign_keys;');
+console.log('');
+console.log('📌 예상 결과: 1 (활성화됨)');
+console.log('');
+
+console.log('═'.repeat(60));
+console.log('3️⃣ 최근 구매 요청의 productId 확인');
+console.log('═'.repeat(60));
+console.log('SELECT id, productId, productName, status');
+console.log('FROM BotPurchaseRequest');
+console.log('ORDER BY createdAt DESC LIMIT 5;');
+console.log('');
+console.log('📌 productId 값을 복사해두세요 (예: bot-1772458232285-1zgtygvh1)');
+console.log('');
+
+console.log('═'.repeat(60));
+console.log('4️⃣ 참조 대상 테이블이 무엇인지 확인');
+console.log('═'.repeat(60));
+console.log('-- Product 관련 테이블 찾기');
+console.log("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%Product%';");
+console.log("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%Bot%';");
+console.log("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%Store%';");
+console.log('');
+
+console.log('═'.repeat(60));
+console.log('5️⃣ 해당 productId가 참조 테이블에 존재하는지 확인');
+console.log('═'.repeat(60));
+console.log('-- 위에서 찾은 테이블 이름을 사용 (예: AIBot, Product 등)');
+console.log("SELECT * FROM AIBot WHERE id = 'bot-1772458232285-1zgtygvh1';");
+console.log('-- 또는');
+console.log("SELECT * FROM Product WHERE id = 'bot-1772458232285-1zgtygvh1';");
+console.log('');
+console.log('📌 만약 레코드가 없으면 → 이것이 FK 오류의 원인!');
+console.log('');
+
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('💡 문제 해결 방법');
+console.log('═══════════════════════════════════════════════════════════════\n');
+
+console.log('🔧 방법 1: 외래 키 제약 제거 (가장 빠른 해결책)');
+console.log('─'.repeat(60));
+console.log('AcademyBotSubscription 테이블을 외래 키 제약 없이 재생성:');
+console.log('');
+console.log('-- 1. 백업 생성');
+console.log('CREATE TABLE AcademyBotSubscription_backup AS');
+console.log('SELECT * FROM AcademyBotSubscription;');
+console.log('');
+console.log('-- 2. 기존 테이블 삭제');
+console.log('DROP TABLE AcademyBotSubscription;');
+console.log('');
+console.log('-- 3. 외래 키 제약 없이 재생성');
+console.log('CREATE TABLE AcademyBotSubscription (');
+console.log('  id TEXT PRIMARY KEY,');
+console.log('  academyId TEXT NOT NULL,');
+console.log('  productId TEXT NOT NULL,');
+console.log('  productName TEXT,');
+console.log('  totalStudentSlots INTEGER DEFAULT 0,');
+console.log('  usedStudentSlots INTEGER DEFAULT 0,');
+console.log('  remainingStudentSlots INTEGER DEFAULT 0,');
+console.log('  subscriptionStart TEXT NOT NULL,');
+console.log('  subscriptionEnd TEXT NOT NULL,');
+console.log('  createdAt TEXT DEFAULT CURRENT_TIMESTAMP,');
+console.log('  updatedAt TEXT DEFAULT CURRENT_TIMESTAMP');
+console.log(');');
+console.log('');
+console.log('-- 4. 데이터 복원 (기존 데이터가 있다면)');
+console.log('INSERT INTO AcademyBotSubscription');
+console.log('SELECT * FROM AcademyBotSubscription_backup;');
+console.log('');
+console.log('-- 5. 백업 테이블 삭제');
+console.log('DROP TABLE AcademyBotSubscription_backup;');
+console.log('');
+console.log('✅ 이 방법을 사용하면 즉시 승인이 가능합니다!');
+console.log('');
+
+console.log('🔧 방법 2: 참조 데이터 추가 (데이터 무결성 유지)');
+console.log('─'.repeat(60));
+console.log('만약 productId가 참조하는 테이블(예: AIBot)에 레코드가 없다면:');
+console.log('');
+console.log('-- 예시: AIBot 테이블에 레코드 추가');
+console.log("INSERT INTO AIBot (id, name, description, createdAt, updatedAt)");
+console.log("VALUES (");
+console.log("  'bot-1772458232285-1zgtygvh1',");
+console.log("  '수학 PDF 테스트 봇',");
+console.log("  'AI 수학 튜터 봇',");
+console.log("  datetime('now'),");
+console.log("  datetime('now')");
+console.log(");");
+console.log('');
+console.log('⚠️  참조 테이블의 정확한 스키마에 맞춰 수정 필요');
+console.log('');
+
+console.log('🔧 방법 3: 외래 키 일시 비활성화 (권장하지 않음)');
+console.log('─'.repeat(60));
+console.log('PRAGMA foreign_keys = OFF;');
+console.log('-- 승인 작업 수행');
+console.log('PRAGMA foreign_keys = ON;');
+console.log('');
+console.log('⚠️  이 방법은 데이터 무결성을 깨뜨릴 수 있으므로 권장하지 않습니다.');
+console.log('');
+
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('🎯 권장 해결 순서');
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('');
+console.log('1. 위의 진단 쿼리 1~5번을 실행하여 정확한 문제 파악');
+console.log('2. productId가 참조하는 테이블 확인');
+console.log('3. 방법 1 (FK 제약 제거) 실행 ← 가장 빠른 해결책');
+console.log('4. 브라우저에서 승인 다시 테스트');
+console.log('5. 성공 확인!');
+console.log('');
+
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('📊 진단 체크리스트');
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('');
+console.log('[ ] 1. PRAGMA foreign_key_list 실행');
+console.log('[ ] 2. productId가 어떤 테이블을 참조하는지 확인');
+console.log('[ ] 3. 해당 테이블에 productId 레코드 존재 여부 확인');
+console.log('[ ] 4. 방법 1 (FK 제약 제거) SQL 실행');
+console.log('[ ] 5. 승인 페이지에서 재시도');
+console.log('[ ] 6. "✅ 승인되었습니다!" 메시지 확인');
+console.log('');
+
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('💡 빠른 해결 (복사해서 D1 콘솔에 붙여넣기)');
+console.log('═══════════════════════════════════════════════════════════════\n');
+
+console.log('-- 다음 SQL을 D1 콘솔에 복사 붙여넣기 하세요:');
+console.log('');
+console.log('-- 1. 백업');
+console.log('CREATE TABLE AcademyBotSubscription_backup AS SELECT * FROM AcademyBotSubscription;');
+console.log('');
+console.log('-- 2. 삭제');
+console.log('DROP TABLE AcademyBotSubscription;');
+console.log('');
+console.log('-- 3. FK 없이 재생성');
+console.log('CREATE TABLE AcademyBotSubscription (');
+console.log('  id TEXT PRIMARY KEY,');
+console.log('  academyId TEXT NOT NULL,');
+console.log('  productId TEXT NOT NULL,');
+console.log('  productName TEXT,');
+console.log('  totalStudentSlots INTEGER DEFAULT 0,');
+console.log('  usedStudentSlots INTEGER DEFAULT 0,');
+console.log('  remainingStudentSlots INTEGER DEFAULT 0,');
+console.log('  subscriptionStart TEXT NOT NULL,');
+console.log('  subscriptionEnd TEXT NOT NULL,');
+console.log('  createdAt TEXT DEFAULT CURRENT_TIMESTAMP,');
+console.log('  updatedAt TEXT DEFAULT CURRENT_TIMESTAMP');
+console.log(');');
+console.log('');
+console.log('-- 4. 복원 (기존 데이터가 있을 경우만)');
+console.log('INSERT INTO AcademyBotSubscription SELECT * FROM AcademyBotSubscription_backup;');
+console.log('');
+console.log('-- 5. 백업 삭제');
+console.log('DROP TABLE AcademyBotSubscription_backup;');
+console.log('');
+
+console.log('✅ 위 SQL을 실행한 후 승인 페이지에서 다시 시도하세요!');
+console.log('');
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('✨ FK 제약 제거 후 즉시 승인 가능합니다!');
+console.log('═══════════════════════════════════════════════════════════════');
