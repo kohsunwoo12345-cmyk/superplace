@@ -75,13 +75,17 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     console.log('🛒 Creating bot purchase request:', {
       productId,
+      productName,
       userId,
       academyId: userAcademyId,
       studentCount,
       months,
+      pricePerStudent,
+      totalPrice,
       email,
       name,
-      academyName
+      academyName,
+      phoneNumber
     });
 
     // BotPurchaseRequest 테이블 생성 및 마이그레이션
@@ -176,10 +180,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: any) {
-    console.error('❌ Failed to create purchase request:', error);
+    console.error('❌ Failed to create purchase request:', {
+      error: error.message,
+      stack: error.stack,
+      cause: error.cause,
+      name: error.name
+    });
     return new Response(JSON.stringify({ 
       error: 'Failed to create request',
-      message: error.message 
+      message: error.message,
+      details: error.cause?.message || error.toString()
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }

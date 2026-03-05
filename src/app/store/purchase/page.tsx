@@ -132,15 +132,29 @@ function PurchasePageContent() {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Purchase success:', result);
         alert(`구매 신청이 완료되었습니다!\n\n총 결제 금액: ${calculateTotal().toLocaleString()}원\n\n입금 확인 후 관리자가 승인해드립니다.`);
         router.push('/dashboard');
       } else {
         const error = await response.json();
-        throw new Error(error.message || '구매 신청에 실패했습니다.');
+        console.error('❌ Purchase failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error
+        });
+        const errorMessage = error.message || error.error || '구매 신청에 실패했습니다.';
+        throw new Error(`[${response.status}] ${errorMessage}`);
       }
     } catch (error: any) {
-      console.error('Purchase error:', error);
-      alert(error.message || '구매 신청 중 오류가 발생했습니다.');
+      console.error('💥 Purchase exception:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      const displayMessage = error.message || '구매 신청 중 오류가 발생했습니다.';
+      alert(`구매 신청 실패\n\n${displayMessage}\n\n자세한 내용은 콘솔(F12)을 확인하세요.`);
     } finally {
       setSubmitting(false);
     }
