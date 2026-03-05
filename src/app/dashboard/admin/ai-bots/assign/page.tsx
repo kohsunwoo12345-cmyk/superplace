@@ -432,38 +432,44 @@ export default function AIBotAssignPage() {
         
         // 🔥 학원 구독 정보 확인 (학원장/선생님/관리자 모두)
         let subscription = null;
+        const now = new Date();
         
         if (currentUser?.role === 'DIRECTOR' || currentUser?.role === 'TEACHER') {
-          // 학원장/선생님: 자신의 학원 구독만
-          subscription = (academySubscriptions || []).find(sub => sub.botId === selectedBot && sub.isActive);
+          // 학원장/선생님: 자신의 학원 구독만 (날짜 기반 검증)
+          subscription = (academySubscriptions || []).find(sub => {
+            if (sub.botId !== selectedBot) return false;
+            const expiresAt = new Date(sub.expiresAt);
+            return expiresAt >= now; // 만료일이 현재 이후
+          });
         } else if (currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') {
-          // 관리자: 첫 번째 학생의 학원 구독 찾기
+          // 관리자: 첫 번째 학생의 학원 구독 찾기 (날짜 기반 검증)
           const firstTargetUser = users.find(u => u.id.toString() === selectedUsers[0]);
           if (firstTargetUser && (firstTargetUser as any).academyId) {
-            subscription = (academySubscriptions || []).find(
-              sub => sub.botId === selectedBot && 
-                     sub.academyId === (firstTargetUser as any).academyId && 
-                     sub.isActive
-            );
+            subscription = (academySubscriptions || []).find(sub => {
+              if (sub.botId !== selectedBot) return false;
+              if (sub.academyId !== (firstTargetUser as any).academyId) return false;
+              const expiresAt = new Date(sub.expiresAt);
+              return expiresAt >= now; // 만료일이 현재 이후
+            });
           }
         }
         
         if (!subscription) {
-          alert('❌ 이 봇은 학원에 구독되지 않았습니다.\n\n학생에게 봇을 할당하려면 먼저 해당 학원에 봇을 할당(구독)해야 합니다.');
+          alert('❌ 이 봇은 학원에 구독되지 않았거나 구독이 만료되었습니다.\n\n• 구매하지 않은 경우: 관리자에게 봇 구매를 요청하세요.\n• 구독 만료된 경우: 관리자에게 구독 연장을 요청하세요.');
           return;
         }
         
         // 슬롯 확인 - 선택한 학생 수만큼 필요
         const requiredSlots = selectedUsers.length;
         if (subscription.remainingSlots < requiredSlots) {
-          alert(`❌ 남은 슬롯이 부족합니다.\n\n필요한 슬롯: ${requiredSlots}명\n남은 슬롯: ${subscription.remainingSlots}명\n\n사용 가능: ${subscription.totalSlots}명\n이미 사용: ${subscription.usedSlots}명`);
+          alert(`❌ 남은 슬롯이 부족합니다.\n\n필요한 슬롯: ${requiredSlots}명\n남은 슬롯: ${subscription.remainingSlots}명\n\n사용 가능: ${subscription.totalSlots}명\n이미 사용: ${subscription.usedSlots}명\n\n💡 해결방법:\n• 미사용 학생의 할당을 취소하여 슬롯을 확보하거나\n• 관리자에게 추가 슬롯 구매를 요청하세요.`);
           return;
         }
         
-        // 🔥 학원 구독 만료일 확인
+        // 🔥 학원 구독 만료일 확인 (이중 체크)
         const subscriptionEndDate = new Date(subscription.expiresAt);
-        if (subscriptionEndDate < new Date()) {
-          alert(`❌ 학원의 봇 구독이 만료되었습니다.\n\n만료일: ${subscription.expiresAt}`);
+        if (subscriptionEndDate < now) {
+          alert(`❌ 학원의 봇 구독이 만료되었습니다.\n\n만료일: ${subscriptionEndDate.toLocaleDateString('ko-KR')}\n\n관리자에게 구독 연장을 요청하세요.`);
           return;
         }
         
@@ -708,22 +714,44 @@ export default function AIBotAssignPage() {
               {/* 학원장/선생님: 선택한 봇의 슬롯 정보 표시 */}
               {(currentUser?.role === 'DIRECTOR' || currentUser?.role === 'TEACHER') && selectedBot && (
                 (() => {
-                  const subscription = (academySubscriptions || []).find(sub => sub.botId === selectedBot && sub.isActive);
+                  // 날짜 기반 유효성 검증 (isActive 제거)
+                  const now = new Date();
+                  const subscription = (academySubscriptions || []).find(sub => {
+                    if (sub.botId !== selectedBot) return false;
+                    const expiresAt = new Date(sub.expiresAt);
+                    return expiresAt >= now; // 만료일이 현재 이후인 구독만
+                  });
+                  
                   if (subscription) {
+                    const expiresAt = new Date(subscription.expiresAt);
+                    const isExpired = expiresAt < now;
+                    const hasSlots = subscription.remainingSlots > 0;
+                    
                     return (
-                      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                        <p className="text-xs font-semibold text-blue-900 mb-1">할당 가능 슬롯 정보</p>
-                        <div className="text-xs text-blue-800 space-y-1">
+                      <div className={`mt-2 p-3 border rounded-md ${
+                        !hasSlots ? 'bg-red-50 border-red-200' : 
+                        isExpired ? 'bg-yellow-50 border-yellow-200' : 
+                        'bg-blue-50 border-blue-200'
+                      }`}>
+                        <p className="text-xs font-semibold mb-1">할당 가능 슬롯 정보</p>
+                        <div className="text-xs space-y-1">
                           <p>• 총 슬롯: <span className="font-semibold">{subscription.totalSlots}명</span></p>
                           <p>• 사용 중: <span className="font-semibold">{subscription.usedSlots}명</span></p>
-                          <p>• 남은 슬롯: <span className="font-semibold text-green-600">{subscription.remainingSlots}명</span></p>
+                          <p>• 남은 슬롯: <span className={`font-semibold ${hasSlots ? 'text-green-600' : 'text-red-600'}`}>
+                            {subscription.remainingSlots}명
+                          </span></p>
+                          <p>• 종료일: <span className="font-semibold">{expiresAt.toLocaleDateString('ko-KR')}</span></p>
                         </div>
+                        {!hasSlots && (
+                          <p className="text-xs text-red-700 mt-2">⚠️ 남은 슬롯이 없습니다. 구독을 연장하거나 추가 구매하세요.</p>
+                        )}
                       </div>
                     );
                   } else {
                     return (
                       <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                         <p className="text-xs text-yellow-800">⚠️ 이 봇은 귀하의 학원에 할당되지 않았습니다.</p>
+                        <p className="text-xs text-yellow-700 mt-1">관리자에게 봇 구매 또는 할당을 요청하세요.</p>
                       </div>
                     );
                   }
@@ -963,6 +991,138 @@ export default function AIBotAssignPage() {
               </Button>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* 학원 구독 목록 (쇼핑몰 구매 내역) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <School className="w-5 h-5 text-blue-600" />
+            학원 AI 봇 구독 현황
+          </CardTitle>
+          <CardDescription>
+            봇 쇼핑몰에서 구매하거나 관리자에게 할당받은 AI 봇 목록
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {(academySubscriptions || []).length === 0 ? (
+            <div className="text-center py-12">
+              <Bot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">구독 중인 봇이 없습니다</p>
+              <p className="text-sm text-gray-400 mt-2">
+                관리자에게 봇 할당을 요청하거나 봇 쇼핑몰에서 구매하세요
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {(academySubscriptions || []).map((subscription) => {
+                const now = new Date();
+                const expiresAt = new Date(subscription.expiresAt);
+                const startDate = subscription.startDate ? new Date(subscription.startDate) : null;
+                const isExpired = expiresAt < now;
+                const hasSlots = subscription.remainingSlots > 0;
+                const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                
+                return (
+                  <div
+                    key={subscription.id}
+                    className={`border rounded-lg p-4 ${
+                      isExpired ? 'bg-gray-50 border-gray-300' : 
+                      !hasSlots ? 'bg-red-50 border-red-200' :
+                      'bg-white border-blue-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="font-semibold text-base">
+                            {subscription.botName || '알 수 없음'}
+                          </Badge>
+                          <Badge variant={isExpired ? "secondary" : hasSlots ? "default" : "destructive"}>
+                            {isExpired ? "만료됨" : hasSlots ? "사용 가능" : "슬롯 부족"}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          학원: {subscription.academyName || currentUser?.academyName || '알 수 없음'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+                      <div className="space-y-1">
+                        <p className="text-xs text-gray-500">총 슬롯</p>
+                        <p className="text-lg font-semibold text-gray-900">
+                          {subscription.totalSlots}명
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs text-gray-500">사용 중</p>
+                        <p className="text-lg font-semibold text-orange-600">
+                          {subscription.usedSlots}명
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs text-gray-500">남은 슬롯</p>
+                        <p className={`text-lg font-semibold ${
+                          hasSlots ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {subscription.remainingSlots}명
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs text-gray-500">
+                          {isExpired ? '만료일' : '남은 기간'}
+                        </p>
+                        <p className={`text-lg font-semibold ${
+                          isExpired ? 'text-red-600' : 
+                          daysLeft <= 7 ? 'text-orange-600' : 
+                          'text-blue-600'
+                        }`}>
+                          {isExpired ? '만료됨' : `${daysLeft}일`}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 text-sm text-gray-600 pt-3 border-t">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        시작: {startDate ? startDate.toLocaleDateString('ko-KR') : '알 수 없음'}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        종료: {expiresAt.toLocaleDateString('ko-KR')}
+                      </span>
+                    </div>
+                    
+                    {!hasSlots && !isExpired && (
+                      <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-xs text-red-700">
+                          ⚠️ 남은 슬롯이 없습니다. 미사용 학생의 할당을 취소하거나 관리자에게 추가 구매를 요청하세요.
+                        </p>
+                      </div>
+                    )}
+                    
+                    {isExpired && (
+                      <div className="mt-3 p-2 bg-gray-100 border border-gray-300 rounded">
+                        <p className="text-xs text-gray-700">
+                          ⏰ 구독이 만료되었습니다. 관리자에게 구독 연장을 요청하세요.
+                        </p>
+                      </div>
+                    )}
+                    
+                    {!isExpired && hasSlots && daysLeft <= 7 && (
+                      <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                        <p className="text-xs text-yellow-700">
+                          ⚠️ 구독 만료가 {daysLeft}일 남았습니다. 연장을 고려하세요.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
