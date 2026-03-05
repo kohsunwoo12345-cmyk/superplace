@@ -102,6 +102,36 @@ export async function onRequestPost(context: any) {
 
     // 트랜잭션 시작 (여러 작업을 원자적으로 처리)
     
+    // 0. 외래 키 제약 확인: Academy와 Product가 존재하는지 검증
+    const academy = await env.DB.prepare(`
+      SELECT id, name FROM Academy WHERE id = ?
+    `).bind(academyId).first();
+
+    if (!academy) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Selected academy does not exist',
+        details: `Academy ID "${academyId}" not found in database`
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log(`✅ Academy verified: ${academy.name} (${academy.id})`);
+
+    // StoreProduct 테이블에서 productId 존재 여부 확인
+    const product = await env.DB.prepare(`
+      SELECT id, name, productName FROM StoreProduct WHERE id = ?
+    `).bind(purchaseRequest.productId).first();
+
+    if (!product) {
+      console.warn(`⚠️ Product "${purchaseRequest.productId}" not found in StoreProduct table`);
+      // productId가 없어도 구독은 생성 가능 (향후 유연성을 위해 경고만 출력)
+    } else {
+      console.log(`✅ Product verified: ${product.productName || product.name} (${product.id})`);
+    }
+    
     // 1. 구매 요청 상태를 APPROVED로 업데이트
     await env.DB.prepare(`
       UPDATE BotPurchaseRequest 
