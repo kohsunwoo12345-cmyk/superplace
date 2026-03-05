@@ -22,6 +22,7 @@ import {
   CheckCircle,
   ArrowLeft,
   Loader2,
+  School,
 } from "lucide-react";
 
 interface AIBot {
@@ -55,6 +56,7 @@ interface AcademySubscription {
   totalSlots: number;
   usedSlots: number;
   remainingSlots: number;
+  startDate?: string;
   expiresAt: string;
   isActive: boolean;
 }
