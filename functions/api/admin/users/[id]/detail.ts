@@ -106,7 +106,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         SELECT 
           u.id, u.email, u.name, u.phone, u.role,
           u.password,
-          u.points,
           u.academyId, a.name as academyName,
           u.createdAt, u.approved, u.grade, u.updatedAt
         FROM User u
@@ -133,6 +132,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
+    // 포인트 조회 (point_transactions 테이블에서 합산)
+    let totalPoints = 0;
+    try {
+      const pointResult = await DB.prepare(`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM point_transactions
+        WHERE userId = ?
+      `).bind(userId).first();
+      totalPoints = pointResult?.total || 0;
+      console.log(`✅ Total points for user ${userId}: ${totalPoints}`);
+    } catch (e: any) {
+      console.log('⚠️ Could not fetch points:', e.message);
+    }
+
     // 최근 로그인 정보 조회
     let lastLoginInfo = { lastLoginAt: null, lastLoginIp: null };
     try {
@@ -156,7 +169,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // Add default values for optional fields
     const user = {
       ...userResult,
-      points: userResult.points || 0,
+      points: totalPoints,
       balance: 0,
       lastLoginAt: lastLoginInfo.lastLoginAt,
       lastLoginIp: lastLoginInfo.lastLoginIp
