@@ -24,13 +24,13 @@ interface PointChargeRequest {
   approvedAt?: string;
 }
 
-// 10,000원 = 11,000P (10% 보너스)
+// 포인트 충전 금액 (1P = 1원, VAT 10% 별도)
 const POINT_PRICES = {
-  1000: 10000,    // 10,000원 = 11,000P
-  5000: 50000,    // 50,000원 = 55,000P  
-  10000: 100000,  // 100,000원 = 110,000P
-  50000: 500000,  // 500,000원 = 550,000P
-  100000: 1000000 // 1,000,000원 = 1,100,000P
+  10000: 10000,    // 10,000원 → 실제 이체 11,000원 (VAT 포함) → 10,000P
+  50000: 50000,    // 50,000원 → 실제 이체 55,000원 (VAT 포함) → 50,000P
+  100000: 100000,  // 100,000원 → 실제 이체 110,000원 (VAT 포함) → 100,000P
+  500000: 500000,  // 500,000원 → 실제 이체 550,000원 (VAT 포함) → 500,000P
+  1000000: 1000000 // 1,000,000원 → 실제 이체 1,100,000원 (VAT 포함) → 1,000,000P
 };
 
 const BANK_ACCOUNT = "746-910023-17004";
@@ -89,13 +89,17 @@ export default function PointChargePage() {
   };
 
   const calculatePrice = (points: number) => {
-    // 실제 충전될 포인트 (10% 보너스 포함)
-    const actualPoints = Math.floor(points * 1.1); // 10% 보너스
+    // 요청한 포인트 = 충전될 포인트 (1P = 1원)
+    const actualPoints = points;
     
-    // 결제 금액 (포인트 / 1.1 * 10원)
-    const basePrice = points * 10;
-    const vat = 0; // VAT 제거
-    const totalPrice = basePrice;
+    // 기본 금액 (포인트와 동일)
+    const basePrice = points;
+    
+    // VAT 10%
+    const vat = Math.floor(basePrice * 0.1);
+    
+    // 실제 이체해야 할 총 금액 (기본 금액 + VAT)
+    const totalPrice = basePrice + vat;
     
     return { basePrice, vat, totalPrice, actualPoints };
   };
@@ -316,7 +320,7 @@ export default function PointChargePage() {
                 </CardTitle>
                 <CardDescription className="text-sm flex items-center gap-2 mt-1">
                   <Sparkles className="w-4 h-4 text-blue-600" />
-                  10% 보너스 포인트 제공! (10,000원 = 11,000P)
+                  1P = 1원 (VAT 10% 별도)
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
@@ -325,29 +329,29 @@ export default function PointChargePage() {
                   <div>
                     <Label className="text-sm font-semibold">충전할 금액 선택</Label>
                     <div className="grid grid-cols-2 gap-2 mt-2">
-                      {Object.entries(POINT_PRICES).map(([points, price]) => {
-                        const actualPoints = Math.floor(parseInt(points) * 1.1);
+                      {Object.entries(POINT_PRICES).map(([price, points]) => {
+                        const { basePrice, vat, totalPrice } = calculatePrice(points);
                         return (
                           <Button
-                            key={points}
+                            key={price}
                             type="button"
-                            variant={selectedPoints === parseInt(points) ? "default" : "outline"}
+                            variant={selectedPoints === points ? "default" : "outline"}
                             onClick={() => {
-                              setSelectedPoints(parseInt(points));
+                              setSelectedPoints(points);
                               setCustomPoints('');
                             }}
                             className={`h-auto py-4 flex flex-col items-center gap-1 transition-all ${
-                              selectedPoints === parseInt(points)
+                              selectedPoints === points
                                 ? 'bg-blue-600 text-white border-blue-600'
                                 : 'hover:border-blue-400 hover:bg-blue-50'
                             }`}
                           >
                             <div className="flex items-baseline gap-1">
-                              <span className="text-xl font-bold">{actualPoints.toLocaleString()}</span>
+                              <span className="text-xl font-bold">{points.toLocaleString()}</span>
                               <span className="text-sm font-semibold">P</span>
                             </div>
-                            <div className="text-xs opacity-90">{formatCurrency(price)}</div>
-                            <Badge className="bg-blue-500 text-white text-xs">+10%</Badge>
+                            <div className="text-xs opacity-90">실제 이체: {formatCurrency(totalPrice)}</div>
+                            <Badge className="bg-orange-500 text-white text-xs">VAT 포함</Badge>
                           </Button>
                         );
                       })}
@@ -378,36 +382,27 @@ export default function PointChargePage() {
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-700">충전 포인트:</span>
                         <div className="flex items-baseline gap-1">
-                          <span className="text-xl font-bold text-blue-600">
-                            {getPointsToCharge().toLocaleString()}
-                          </span>
-                          <span className="text-sm font-semibold text-blue-600">P</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-sm bg-blue-100 p-2 rounded">
-                        <span className="text-blue-800 font-semibold flex items-center gap-1">
-                          <Sparkles className="w-4 h-4" />
-                          보너스 (+10%):
-                        </span>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-lg font-bold text-blue-600">
-                            +{Math.floor(getPointsToCharge() * 0.1).toLocaleString()}
-                          </span>
-                          <span className="text-sm font-semibold text-blue-600">P</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-sm bg-green-100 p-2 rounded">
-                        <span className="text-green-800 font-semibold">실제 충전 포인트:</span>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-2xl font-bold text-green-600">
+                          <span className="text-2xl font-bold text-blue-600">
                             {priceInfo.actualPoints.toLocaleString()}
                           </span>
-                          <span className="text-base font-semibold text-green-600">P</span>
+                          <span className="text-base font-semibold text-blue-600">P</span>
                         </div>
                       </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700">기본 금액:</span>
+                        <span className="text-lg font-semibold text-gray-900">
+                          {formatCurrency(priceInfo.basePrice)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700">VAT (10%):</span>
+                        <span className="text-lg font-semibold text-gray-900">
+                          {formatCurrency(priceInfo.vat)}
+                        </span>
+                      </div>
                       <div className="border-t border-blue-300 pt-2 flex items-center justify-between">
-                        <span className="text-sm font-semibold text-gray-900">결제 금액:</span>
-                        <span className="text-2xl font-bold text-blue-600">
+                        <span className="text-sm font-semibold text-gray-900">실제 이체 금액:</span>
+                        <span className="text-2xl font-bold text-red-600">
                           {formatCurrency(priceInfo.totalPrice)}
                         </span>
                       </div>
