@@ -96,9 +96,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           months INTEGER NOT NULL,
           pricePerStudent INTEGER NOT NULL,
           totalPrice INTEGER NOT NULL,
-          depositBank TEXT,
-          depositorName TEXT,
-          attachmentUrl TEXT,
+          email TEXT,
+          name TEXT,
+          requestAcademyName TEXT,
+          phoneNumber TEXT,
           requestMessage TEXT,
           status TEXT DEFAULT 'PENDING',
           approvedBy TEXT,
@@ -123,7 +124,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       INSERT INTO BotPurchaseRequest (
         id, productId, productName, userId, academyId,
         studentCount, months, pricePerStudent, totalPrice,
-        email, name, academyName, phoneNumber, requestMessage,
+        email, name, requestAcademyName, phoneNumber, requestMessage,
         status, createdAt, updatedAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
     `).bind(

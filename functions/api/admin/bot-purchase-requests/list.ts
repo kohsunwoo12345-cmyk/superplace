@@ -63,7 +63,7 @@ export async function onRequestGet(context: any) {
         bpr.status,
         bpr.email,
         bpr.name,
-        bpr.academyName as requestAcademyName,
+        bpr.requestAcademyName,
         bpr.phoneNumber,
         bpr.requestMessage,
         bpr.rejectionReason,
