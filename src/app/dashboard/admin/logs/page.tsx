@@ -4,161 +4,75 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Search, Filter, Download, AlertCircle, CheckCircle, Info, XCircle, UserPlus, LogIn, Bot, Users, CreditCard, Package, Eye } from "lucide-react";
+import { ClipboardList, Search, Download, AlertCircle, CheckCircle, Info, XCircle, UserPlus, LogIn, Bot, Users, CreditCard } from "lucide-react";
 
 export default function LogsPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [levelFilter, setLevelFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [productViewLogs, setProductViewLogs] = useState<any[]>([]);
-  const [viewStats, setViewStats] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  // Load product view logs
+  // Load logs
   useEffect(() => {
-    loadProductViewLogs();
-  }, []);
+    loadLogs();
+  }, [categoryFilter, levelFilter, search]);
 
-  const loadProductViewLogs = async () => {
+  const loadLogs = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/product-view-logs', {
+      const params = new URLSearchParams({
+        category: categoryFilter,
+        level: levelFilter,
+        search: search,
+        limit: '100'
+      });
+      
+      const response = await fetch(`/api/admin/logs?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
       });
       
       if (response.ok) {
         const data = await response.json();
-        setProductViewLogs(data.logs || []);
-        setViewStats(data.stats || null);
+        console.log('✅ 로그 데이터:', data);
+        setLogs(data.logs || []);
+        setStats(data.stats || null);
+      } else {
+        console.error('로그 로드 실패:', response.status);
       }
     } catch (error) {
-      console.error('Failed to load product view logs:', error);
+      console.error('Failed to load logs:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const logs = [
-    {
-      id: 1,
-      timestamp: "2026-02-18 14:32:15",
-      level: "success",
-      category: "회원가입",
-      user: "newuser@academy.co.kr",
-      userName: "김영희",
-      action: "신규 회원 가입",
-      ip: "123.45.67.89",
-      details: "이메일 인증 완료, 학원장 권한",
-    },
-    {
-      id: 2,
-      timestamp: "2026-02-18 14:28:42",
-      level: "info",
-      category: "로그인",
-      user: "admin@superplace.co.kr",
-      userName: "관리자",
-      action: "로그인 성공",
-      ip: "123.45.67.90",
-      details: "관리자 대시보드 접근",
-    },
-    {
-      id: 3,
-      timestamp: "2026-02-18 14:25:33",
-      level: "success",
-      category: "봇 할당",
-      user: "director@academy.co.kr",
-      userName: "이학원",
-      action: "AI 봇 할당",
-      ip: "123.45.67.91",
-      details: "수학 학습 봇 → 서울학원",
-    },
-    {
-      id: 4,
-      timestamp: "2026-02-18 14:20:12",
-      level: "success",
-      category: "학생 추가",
-      user: "teacher@academy.co.kr",
-      userName: "박선생",
-      action: "학생 등록",
-      ip: "123.45.67.92",
-      details: "학생명: 최학생 (중2반)",
-    },
-    {
-      id: 5,
-      timestamp: "2026-02-18 14:15:45",
-      level: "success",
-      category: "결제",
-      user: "director@academy.co.kr",
-      userName: "이학원",
-      action: "결제 성공",
-      ip: "123.45.67.93",
-      details: "금액: 150,000원 (카드결제)",
-    },
-    {
-      id: 6,
-      timestamp: "2026-02-18 14:10:20",
-      level: "success",
-      category: "요금제 결제",
-      user: "director2@academy.co.kr",
-      userName: "강원장",
-      action: "프리미엄 요금제 구독",
-      ip: "123.45.67.94",
-      details: "월 300,000원 / 12개월 결제",
-    },
-    {
-      id: 7,
-      timestamp: "2026-02-18 14:05:30",
-      level: "warning",
-      category: "결제",
-      user: "director3@academy.co.kr",
-      userName: "송학원",
-      action: "결제 실패",
-      ip: "123.45.67.95",
-      details: "카드 한도 초과",
-    },
-    {
-      id: 8,
-      timestamp: "2026-02-18 14:00:15",
-      level: "info",
-      category: "로그인",
-      user: "student@academy.co.kr",
-      userName: "정학생",
-      action: "학생 로그인",
-      ip: "123.45.67.96",
-      details: "모바일 앱 접근",
-    },
-  ];
 
-  const filteredLogs = logs.filter((log) => {
-    if (categoryFilter !== "all" && log.category !== categoryFilter) return false;
-    if (levelFilter !== "all" && log.level !== levelFilter) return false;
-    if (search && !JSON.stringify(log).toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
 
   const categories = [
     { id: "all", label: "전체", icon: ClipboardList },
-    { id: "상품조회", label: "상품조회", icon: Eye },
-    { id: "회원가입", label: "회원가입", icon: UserPlus },
-    { id: "로그인", label: "로그인", icon: LogIn },
-    { id: "봇 할당", label: "봇 할당", icon: Bot },
-    { id: "학생 추가", label: "학생 추가", icon: Users },
-    { id: "결제", label: "결제", icon: CreditCard },
-    { id: "요금제 결제", label: "요금제 결제", icon: Package },
+    { id: "login", label: "로그인", icon: LogIn },
+    { id: "signup", label: "회원가입", icon: UserPlus },
+    { id: "bot_assign", label: "봇 할당", icon: Bot },
+    { id: "student_add", label: "학생 추가", icon: Users },
+    { id: "payment", label: "결제", icon: CreditCard },
   ];
 
   const getCategoryStats = (category: string) => {
-    if (category === "all") return logs.length + productViewLogs.length;
-    if (category === "상품조회") return productViewLogs.length;
-    return logs.filter(l => l.category === category).length;
+    if (!stats) return 0;
+    if (category === "all") return stats.total || 0;
+    return stats[category] || 0;
   };
 
   const getLevelIcon = (level: string) => {
     switch (level) {
       case "success":
+      case "info":
         return <CheckCircle className="w-5 h-5 text-green-600" />;
       case "warning":
         return <AlertCircle className="w-5 h-5 text-yellow-600" />;
@@ -172,6 +86,7 @@ export default function LogsPage() {
   const getLevelColor = (level: string) => {
     switch (level) {
       case "success":
+      case "info":
         return "bg-green-100 text-green-700";
       case "warning":
         return "bg-yellow-100 text-yellow-700";
@@ -179,6 +94,23 @@ export default function LogsPage() {
         return "bg-red-100 text-red-700";
       default:
         return "bg-blue-100 text-blue-700";
+    }
+  };
+
+  const formatTimestamp = (timestamp: string) => {
+    if (!timestamp) return '-';
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleString('ko-KR', { 
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch {
+      return timestamp;
     }
   };
 
@@ -244,7 +176,7 @@ export default function LogsPage() {
             <CardTitle className="text-sm font-medium text-gray-600">전체 로그</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">{logs.length}</div>
+            <div className="text-3xl font-bold text-blue-600">{stats?.total || 0}</div>
             <p className="text-sm text-gray-500 mt-2">오늘</p>
           </CardContent>
         </Card>
@@ -255,7 +187,7 @@ export default function LogsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">
-              {logs.filter((l) => l.level === "success").length}
+              {stats?.info || 0}
             </div>
             <p className="text-sm text-gray-500 mt-2">정상 처리</p>
           </CardContent>
@@ -267,7 +199,7 @@ export default function LogsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-yellow-600">
-              {logs.filter((l) => l.level === "warning").length}
+              {stats?.warning || 0}
             </div>
             <p className="text-sm text-gray-500 mt-2">주의 필요</p>
           </CardContent>
@@ -279,7 +211,7 @@ export default function LogsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-red-600">
-              {logs.filter((l) => l.level === "error").length}
+              {stats?.error || 0}
             </div>
             <p className="text-sm text-gray-500 mt-2">즉시 확인</p>
           </CardContent>
@@ -322,13 +254,60 @@ export default function LogsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Product View Logs Section */}
-          {(categoryFilter === "all" || categoryFilter === "상품조회") && (
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Eye className="w-5 h-5" />
-                상품 조회 로그
-              </h3>
+          {loading ? (
+            <div className="text-center py-12 text-gray-500">로딩 중...</div>
+          ) : logs.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">로그가 없습니다</div>
+          ) : (
+            <div className="space-y-2">
+              {logs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-start gap-4 p-4 border rounded-lg hover:bg-gray-50"
+                >
+                  <div className="mt-1">{getLevelIcon(log.level)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${getLevelColor(log.level)}`}>
+                        {log.level.toUpperCase()}
+                      </span>
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                        {log.category === 'login' ? '로그인' :
+                         log.category === 'signup' ? '회원가입' :
+                         log.category === 'bot_assign' ? '봇 할당' :
+                         log.category === 'student_add' ? '학생 추가' :
+                         log.category === 'payment' ? '결제' : log.category}
+                      </span>
+                      <span className="text-xs text-gray-500">{formatTimestamp(log.timestamp)}</span>
+                    </div>
+                    <p className="font-medium text-sm">{log.action}</p>
+                    <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
+                      <span className="font-medium">사용자: {log.userName || log.userEmail || '-'}</span>
+                      {log.userEmail && <span className="text-gray-400">({log.userEmail})</span>}
+                      {log.ip && (
+                        <Badge variant="outline" className="text-xs">
+                          IP: {log.ip}
+                        </Badge>
+                      )}
+                    </div>
+                    {log.details && <p className="text-sm text-gray-600 mt-1">{log.details}</p>}
+                    {log.userAgent && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        {log.deviceType && <span className="mr-2">[{log.deviceType}]</span>}
+                        {log.country && <span className="mr-2">📍 {log.country}</span>}
+                        {log.userAgent.substring(0, 80)}...
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
               
               {/* View Stats */}
               {viewStats && (
