@@ -17,23 +17,26 @@ export async function onRequestGet(context: any) {
 
     const token = authHeader.replace('Bearer ', '');
     
-    // 토큰으로 사용자 조회
-    const userResult = await env.DB.prepare(
-      'SELECT id, email, name, role FROM User WHERE token = ?'
-    ).bind(token).first();
-
-    if (!userResult) {
+    // 토큰 파싱 (표준 형식: id|email|role|academyId)
+    const parts = token.split('|');
+    if (parts.length < 3) {
       return new Response(JSON.stringify({ 
         success: false, 
-        error: 'Invalid token' 
+        error: 'Invalid token format' 
       }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
+    const userId = parts[0];
+    const userEmail = parts[1];
+    const userRole = parts[2];
+
+    console.log('🔐 Admin auth:', { userId, userEmail, userRole });
+
     // 관리자 권한 확인
-    if (!['SUPER_ADMIN', 'ADMIN'].includes(userResult.role)) {
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(userRole)) {
       return new Response(JSON.stringify({ 
         success: false, 
         error: 'Admin permission required' 

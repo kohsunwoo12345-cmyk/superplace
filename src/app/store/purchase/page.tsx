@@ -22,7 +22,7 @@ function PurchasePageContent() {
   const [submitting, setSubmitting] = useState(false);
   
   // Form state
-  const [studentCount, setStudentCount] = useState(10);
+  const [studentCount, setStudentCount] = useState('');
   const [months, setMonths] = useState(1);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -55,8 +55,9 @@ function PurchasePageContent() {
 
   const calculateTotal = () => {
     if (!product) return 0;
+    const count = Number(studentCount) || 0;
     const basePrice = product.pricePerStudent || product.monthlyPrice || 0;
-    return studentCount * months * basePrice;
+    return count * months * basePrice;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,8 +65,10 @@ function PurchasePageContent() {
     
     if (!product) return;
     
+    const count = Number(studentCount);
+    
     // Validation
-    if (studentCount < 1) {
+    if (!studentCount || count < 1) {
       alert('학생 수는 1명 이상이어야 합니다.');
       return;
     }
@@ -108,7 +111,7 @@ function PurchasePageContent() {
       const purchaseData = {
         productId: product.id,
         productName: product.name,
-        studentCount,
+        studentCount: count,
         months,
         pricePerStudent: product.pricePerStudent || product.monthlyPrice || 0,
         totalPrice: calculateTotal(),
@@ -210,18 +213,19 @@ function PurchasePageContent() {
           {/* Student Count */}
           <div className="bg-white rounded-lg p-4 shadow-sm">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              학생 수
+              학생 수 <span className="text-red-500">*</span>
             </label>
             <input
               type="number"
               min="1"
               value={studentCount}
-              onChange={(e) => setStudentCount(Number(e.target.value))}
+              onChange={(e) => setStudentCount(e.target.value)}
+              placeholder="학생 수를 입력하세요 (예: 10)"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              이용할 학생 수를 입력하세요
+              이용할 학생 수를 입력하세요 (최소 1명)
             </p>
           </div>
 
