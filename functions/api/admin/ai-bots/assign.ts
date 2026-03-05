@@ -149,8 +149,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         SELECT 
           id, 
           academyId, 
-          productId, 
-          productName,
+          botId, 
           totalStudentSlots, 
           usedStudentSlots, 
           remainingStudentSlots,
@@ -160,7 +159,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           createdAt,
           updatedAt
         FROM AcademyBotSubscription 
-        WHERE academyId = ? AND productId = ?
+        WHERE academyId = ? AND botId = ?
         ORDER BY subscriptionEnd DESC
         LIMIT 1
       `).bind(userAcademyId, botId).first() as any;
@@ -170,7 +169,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       if (!subscription) {
         console.error('❌ No subscription found for:', { 
           academyId: userAcademyId, 
-          productId: botId,
+          botId: botId,
           requester: { email: requestingUser.email, role }
         });
         return new Response(JSON.stringify({
@@ -249,8 +248,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           SELECT 
             id, 
             academyId, 
-            productId, 
-            productName,
+            botId, 
             totalStudentSlots, 
             usedStudentSlots, 
             remainingStudentSlots,
@@ -260,7 +258,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
             createdAt,
             updatedAt
           FROM AcademyBotSubscription 
-          WHERE academyId = ? AND productId = ?
+          WHERE academyId = ? AND botId = ?
           ORDER BY subscriptionEnd DESC
           LIMIT 1
         `).bind(user.academyId, botId).first() as any;
@@ -425,7 +423,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
               ELSE 0 
             END,
             updatedAt = datetime('now')
-        WHERE academyId = ? AND productId = ?
+        WHERE academyId = ? AND botId = ?
       `).bind(user.academyId, botId).run();
 
       console.log('✅ Subscription slot decreased:', updateResult);
@@ -434,7 +432,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       const updatedSubscription = await DB.prepare(`
         SELECT totalStudentSlots, usedStudentSlots, remainingStudentSlots
         FROM AcademyBotSubscription
-        WHERE academyId = ? AND productId = ?
+        WHERE academyId = ? AND botId = ?
       `).bind(user.academyId, botId).first() as any;
 
       if (updatedSubscription) {
