@@ -84,8 +84,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       academyName
     });
 
-    // BotPurchaseRequest 테이블 생성 (없으면)
+    // BotPurchaseRequest 테이블 생성 및 마이그레이션
     try {
+      // 1. 테이블이 없으면 생성
       await env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS BotPurchaseRequest (
           id TEXT PRIMARY KEY,
@@ -113,8 +114,26 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         )
       `).run();
       console.log('✅ BotPurchaseRequest table created or already exists');
-    } catch (e) {
-      console.log('ℹ️ Table creation error (may already exist):', e);
+
+      // 2. 기존 테이블에 컬럼 추가 (없으면)
+      const columnsToAdd = ['email', 'name', 'requestAcademyName', 'phoneNumber'];
+      for (const column of columnsToAdd) {
+        try {
+          await env.DB.prepare(`
+            ALTER TABLE BotPurchaseRequest ADD COLUMN ${column} TEXT
+          `).run();
+          console.log(`✅ Added column: ${column}`);
+        } catch (alterError: any) {
+          if (alterError.message && alterError.message.includes('duplicate column')) {
+            console.log(`ℹ️ Column ${column} already exists`);
+          } else {
+            console.error(`⚠️ Failed to add column ${column}:`, alterError.message);
+          }
+        }
+      }
+    } catch (e: any) {
+      console.log('ℹ️ Table setup error:', e.message);
+      // Continue anyway - the INSERT will fail if columns are missing
     }
 
     const requestId = `bpr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
