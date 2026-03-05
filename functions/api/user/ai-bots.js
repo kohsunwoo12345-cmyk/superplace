@@ -40,7 +40,7 @@ export async function onRequestGet(context) {
     try {
       const academyBots = await db.prepare(`
         SELECT 
-          productId as botId,
+          botId,
           subscriptionEnd as expiresAt
         FROM AcademyBotSubscription
         WHERE academyId = ?
