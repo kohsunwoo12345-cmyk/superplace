@@ -138,9 +138,43 @@ export default function AIBotAssignPage() {
       
       if (role === 'DIRECTOR' || role === 'TEACHER') {
         // 학원장/선생님: 자신의 학원에 할당된 봇만
-        const academyId = userData?.academyId;
+        let academyId = userData?.academyId;
+        
+        // 🔧 academyId가 없으면 자동 수정 시도
+        if (!academyId && role === 'DIRECTOR') {
+          console.log('🔧 DIRECTOR academyId 없음 - 자동 수정 시도');
+          try {
+            const fixResponse = await fetch('/api/admin/fix-director-academy', {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (fixResponse.ok) {
+              const fixData = await fixResponse.json();
+              console.log('✅ academyId 자동 수정 성공:', fixData);
+              
+              if (fixData.success && fixData.user?.academyId) {
+                academyId = fixData.user.academyId;
+                
+                // localStorage 업데이트
+                const updatedUser = { ...userData, academyId: academyId };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                setCurrentUser(updatedUser);
+                
+                alert(`✅ 학원 정보가 자동으로 연결되었습니다!\n\n학원: ${fixData.academy?.name || '알 수 없음'}`);
+              }
+            } else {
+              console.error('❌ academyId 자동 수정 실패');
+            }
+          } catch (fixError) {
+            console.error('❌ academyId 자동 수정 오류:', fixError);
+          }
+        }
+        
         if (!academyId) {
-          alert('학원 정보가 없습니다. 관리자에게 문의하세요.');
+          alert('학원 정보가 없습니다.\n\n다시 로그인하거나 관리자에게 문의하세요.');
           setLoading(false);
           return;
         }
