@@ -28,22 +28,20 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    // 사용자 인증
+    // 사용자 인증 (선택)
     const authHeader = request.headers.get('Authorization');
     const tokenData = parseToken(authHeader);
 
-    if (!tokenData) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    // 토큰이 있으면 검증, 없으면 외부 사용자로 처리
+    let userId = 'external-user';
+    let userAcademyId = null;
 
-    if (!tokenData.academyId) {
-      return new Response(JSON.stringify({ error: 'Academy ID is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    if (tokenData) {
+      userId = tokenData.id;
+      userAcademyId = tokenData.academyId;
+      console.log('✅ Authenticated user:', { userId, userAcademyId });
+    } else {
+      console.log('ℹ️ External user purchase request (no token)');
     }
 
     const {
@@ -77,10 +75,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     console.log('🛒 Creating bot purchase request:', {
       productId,
-      userId: tokenData.id,
-      academyId: tokenData.academyId,
+      userId,
+      academyId: userAcademyId,
       studentCount,
-      months
+      months,
+      email,
+      name,
+      academyName
     });
 
     // BotPurchaseRequest 테이블 생성 (없으면)
@@ -131,8 +132,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       requestId,
       productId,
       productName,
-      tokenData.id,
-      tokenData.academyId,
+      userId,
+      userAcademyId || 'external',
       studentCount,
       months,
       pricePerStudent,
