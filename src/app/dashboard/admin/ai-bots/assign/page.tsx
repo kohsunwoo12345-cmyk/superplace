@@ -89,6 +89,7 @@ export default function AIBotAssignPage() {
   const [assignType, setAssignType] = useState<"user" | "academy">("user");
   const [selectedBot, setSelectedBot] = useState("");
   const [selectedUser, setSelectedUser] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]); // 다중 선택
   const [selectedAcademy, setSelectedAcademy] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [studentLimit, setStudentLimit] = useState("30");
@@ -326,8 +327,8 @@ export default function AIBotAssignPage() {
       return;
     }
 
-    if (assignType === "user" && !selectedUser) {
-      alert("할당할 사용자를 선택해주세요.");
+    if (assignType === "user" && selectedUsers.length === 0) {
+      alert("할당할 학생을 최소 1명 이상 선택해주세요.");
       return;
     }
 
@@ -427,7 +428,7 @@ export default function AIBotAssignPage() {
           alert(`❌ 학원 할당 실패\n\n상태 코드: ${response.status}\n오류: ${errorMessage}`);
         }
       } else {
-        // 개별 사용자 할당
+        // 개별 사용자 다중 할당
         
         // 🔥 학원 구독 정보 확인 (학원장/선생님/관리자 모두)
         let subscription = null;
@@ -436,12 +437,12 @@ export default function AIBotAssignPage() {
           // 학원장/선생님: 자신의 학원 구독만
           subscription = (academySubscriptions || []).find(sub => sub.botId === selectedBot && sub.isActive);
         } else if (currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') {
-          // 관리자: 할당하려는 학생의 학원 구독 찾기
-          const targetUser = users.find(u => u.id.toString() === selectedUser);
-          if (targetUser && (targetUser as any).academyId) {
+          // 관리자: 첫 번째 학생의 학원 구독 찾기
+          const firstTargetUser = users.find(u => u.id.toString() === selectedUsers[0]);
+          if (firstTargetUser && (firstTargetUser as any).academyId) {
             subscription = (academySubscriptions || []).find(
               sub => sub.botId === selectedBot && 
-                     sub.academyId === (targetUser as any).academyId && 
+                     sub.academyId === (firstTargetUser as any).academyId && 
                      sub.isActive
             );
           }
@@ -452,9 +453,10 @@ export default function AIBotAssignPage() {
           return;
         }
         
-        // 슬롯 확인
-        if (subscription.remainingSlots <= 0) {
-          alert(`❌ 남은 슬롯이 없습니다.\n\n사용 가능: ${subscription.totalSlots}명\n이미 사용: ${subscription.usedSlots}명\n남은 슬롯: ${subscription.remainingSlots}명`);
+        // 슬롯 확인 - 선택한 학생 수만큼 필요
+        const requiredSlots = selectedUsers.length;
+        if (subscription.remainingSlots < requiredSlots) {
+          alert(`❌ 남은 슬롯이 부족합니다.\n\n필요한 슬롯: ${requiredSlots}명\n남은 슬롯: ${subscription.remainingSlots}명\n\n사용 가능: ${subscription.totalSlots}명\n이미 사용: ${subscription.usedSlots}명`);
           return;
         }
         
@@ -469,42 +471,75 @@ export default function AIBotAssignPage() {
           subscriptionEnd: subscription.expiresAt,
           totalSlots: subscription.totalSlots,
           usedSlots: subscription.usedSlots,
-          remainingSlots: subscription.remainingSlots
+          remainingSlots: subscription.remainingSlots,
+          requiredSlots
         });
         
-        // 🔥 기간은 학원 구독 기간과 동일하게 설정 (duration, durationUnit 제거)
-        const response = await fetch("/api/admin/ai-bots/assign", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            botId: selectedBot,
-            userId: selectedUser,
-            // 🔥 duration, durationUnit 제거 - 백엔드가 학원 구독 기간 자동 적용
-          }),
-        });
+        // 🔥 다중 할당 처리
+        const successList = [];
+        const failList = [];
+        
+        for (const userId of selectedUsers) {
+          try {
+            const response = await fetch("/api/admin/ai-bots/assign", {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                botId: selectedBot,
+                userId: userId,
+              }),
+            });
 
-        const data = await response.json();
+            const data = await response.json();
 
-        if (response.ok && data.success) {
-          const endDate = data.assignment.endDate ? new Date(data.assignment.endDate).toLocaleDateString('ko-KR') : '제한 없음';
-          alert(`✅ AI 봇이 성공적으로 할당되었습니다!\n\n사용자: ${data.assignment.userName}\n봇: ${data.assignment.botName}\n종료일: ${endDate}\n\n💡 학생의 사용 기간은 학원 구독 기간과 동일합니다.`);
-          
-          // 폼 초기화
-          setSelectedBot("");
-          setSelectedUser("");
-          
-          // 할당 목록 새로고침
-          const storedUser = localStorage.getItem("user");
-          if (storedUser) {
-            const userData = JSON.parse(storedUser);
-            fetchData(userData);
+            if (response.ok && data.success) {
+              const targetUser = users.find(u => u.id.toString() === userId);
+              successList.push(targetUser?.name || userId);
+            } else {
+              const targetUser = users.find(u => u.id.toString() === userId);
+              failList.push({
+                name: targetUser?.name || userId,
+                error: data.message || data.error || "알 수 없는 오류"
+              });
+            }
+          } catch (e) {
+            const targetUser = users.find(u => u.id.toString() === userId);
+            failList.push({
+              name: targetUser?.name || userId,
+              error: "네트워크 오류"
+            });
           }
-        } else {
-          const errorMessage = data.message || data.error || "알 수 없는 오류";
-          alert(`❌ 할당 실패\n\n${errorMessage}`);
+        }
+        
+        // 결과 표시
+        let resultMessage = '';
+        
+        if (successList.length > 0) {
+          resultMessage += `✅ 성공적으로 할당되었습니다 (${successList.length}명)\n\n`;
+          resultMessage += successList.join(', ');
+          resultMessage += `\n\n봇: ${(bots || []).find(b => b.id === selectedBot)?.name || selectedBot}`;
+          resultMessage += `\n종료일: ${new Date(subscription.expiresAt).toLocaleDateString('ko-KR')}`;
+        }
+        
+        if (failList.length > 0) {
+          resultMessage += `\n\n❌ 할당 실패 (${failList.length}명)\n\n`;
+          resultMessage += failList.map(f => `• ${f.name}: ${f.error}`).join('\n');
+        }
+        
+        alert(resultMessage);
+        
+        // 폼 초기화
+        setSelectedBot("");
+        setSelectedUsers([]);
+        
+        // 할당 목록 새로고침
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          fetchData(userData);
         }
       }
     } catch (error) {
@@ -739,23 +774,63 @@ export default function AIBotAssignPage() {
                   </div>
                 )}
 
-                {/* 사용자 선택 */}
-                <div className="space-y-2">
-                  <Label htmlFor="user">사용자 선택</Label>
-                  <Select value={selectedUser} onValueChange={setSelectedUser}>
-                    <SelectTrigger id="user">
-                      <SelectValue placeholder="사용자를 선택하세요" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredUsers.map((user) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.name} ({user.email}) - {user.role}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* 사용자 다중 선택 */}
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="users">학생 선택 (다중 선택 가능)</Label>
+                  <div className="border rounded-md p-3 max-h-64 overflow-y-auto bg-white">
+                    {filteredUsers.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">선택 가능한 학생이 없습니다</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {/* 전체 선택/해제 */}
+                        <label className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer border-b">
+                          <input
+                            type="checkbox"
+                            checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedUsers(filteredUsers.map(u => u.id.toString()));
+                              } else {
+                                setSelectedUsers([]);
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded"
+                          />
+                          <span className="text-sm font-semibold text-gray-700">
+                            전체 선택 ({selectedUsers.length}/{filteredUsers.length})
+                          </span>
+                        </label>
+                        
+                        {/* 개별 학생 */}
+                        {filteredUsers.map((user) => (
+                          <label
+                            key={user.id}
+                            className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.includes(user.id.toString())}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUsers([...selectedUsers, user.id.toString()]);
+                                } else {
+                                  setSelectedUsers(selectedUsers.filter(id => id !== user.id.toString()));
+                                }
+                              }}
+                              className="w-4 h-4 text-blue-600 rounded"
+                            />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{user.name}</p>
+                              <p className="text-xs text-gray-500">{user.email}</p>
+                            </div>
+                            <Badge variant="outline" className="text-xs">{user.role}</Badge>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500">
-                    {filteredUsers.length}명의 사용자
+                    {selectedUsers.length}명 선택됨 / 총 {filteredUsers.length}명
                   </p>
                 </div>
               </>
@@ -868,7 +943,7 @@ export default function AIBotAssignPage() {
                 disabled={
                   submitting || 
                   !selectedBot || 
-                  (assignType === "user" && !selectedUser) ||
+                  (assignType === "user" && selectedUsers.length === 0) ||
                   (assignType === "academy" && (!selectedAcademy || !studentLimit))
                 }
                 className="w-full"
