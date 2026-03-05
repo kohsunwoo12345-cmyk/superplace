@@ -100,6 +100,35 @@ export async function onRequestPost(context: any) {
 
     const now = new Date().toISOString();
 
+    // 0. AcademyBotSubscription 테이블 마이그레이션 (botId 컬럼 추가)
+    try {
+      // botId 컬럼이 없으면 추가
+      await env.DB.prepare(`
+        ALTER TABLE AcademyBotSubscription ADD COLUMN botId TEXT
+      `).run();
+      console.log('✅ Added botId column to AcademyBotSubscription');
+    } catch (e: any) {
+      if (e.message && (e.message.includes('duplicate column') || e.message.includes('already exists'))) {
+        console.log('ℹ️ botId column already exists in AcademyBotSubscription');
+      } else {
+        console.warn('⚠️ Failed to add botId column:', e.message);
+      }
+    }
+
+    // isActive 컬럼이 없으면 추가
+    try {
+      await env.DB.prepare(`
+        ALTER TABLE AcademyBotSubscription ADD COLUMN isActive INTEGER DEFAULT 1
+      `).run();
+      console.log('✅ Added isActive column to AcademyBotSubscription');
+    } catch (e: any) {
+      if (e.message && (e.message.includes('duplicate column') || e.message.includes('already exists'))) {
+        console.log('ℹ️ isActive column already exists in AcademyBotSubscription');
+      } else {
+        console.warn('⚠️ Failed to add isActive column:', e.message);
+      }
+    }
+
     // 트랜잭션 시작 (여러 작업을 원자적으로 처리)
     
     // 0. 외래 키 제약 확인: Academy와 Product가 존재하는지 검증
