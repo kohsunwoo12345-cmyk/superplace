@@ -454,6 +454,25 @@ export default function AIBotAssignPage() {
           }))
         });
         
+        // 🚨 디버깅: 사용자에게 현재 상태 표시
+        const debugInfo = `📊 디버깅 정보:\n\n` +
+          `선택한 봇 ID: ${selectedBot}\n` +
+          `봇 ID 타입: ${typeof selectedBot}\n\n` +
+          `총 구독 수: ${academySubscriptions.length}\n\n` +
+          `구독 목록:\n${academySubscriptions.map((s, i) => 
+            `${i+1}. botId: ${s.botId} (타입: ${typeof s.botId})\n   봇명: ${s.botName}\n   남은슬롯: ${s.remainingSlots}\n   만료일: ${s.expiresAt}`
+          ).join('\n\n')}`;
+        
+        console.log('🚨 디버깅 정보:', debugInfo);
+        
+        // 임시: 사용자에게 보여주기
+        if (confirm(`${debugInfo}\n\n계속 진행하시겠습니까? (확인=예, 취소=중단)`)) {
+          console.log('✅ 사용자가 계속 진행을 선택함');
+        } else {
+          console.log('❌ 사용자가 중단을 선택함');
+          return;
+        }
+        
         // 🔥 학원 구독 정보 확인 (학원장/선생님/관리자 모두)
         let subscription = null;
         const now = new Date();
@@ -501,7 +520,47 @@ export default function AIBotAssignPage() {
         }
         
         if (!subscription) {
-          alert('❌ 이 봇은 학원에 구독되지 않았거나 구독이 만료되었습니다.\n\n• 구매하지 않은 경우: 관리자에게 봇 구매를 요청하세요.\n• 구독 만료된 경우: 관리자에게 구독 연장을 요청하세요.');
+          // 🚨 구독을 찾지 못한 이유 분석
+          const matchingBotIds = academySubscriptions
+            .filter(sub => String(sub.botId) === String(selectedBot))
+            .map(sub => ({
+              botId: sub.botId,
+              expiresAt: sub.expiresAt,
+              isExpired: new Date(sub.expiresAt) < now
+            }));
+          
+          const expiredSubs = matchingBotIds.filter(s => s.isExpired);
+          const validSubs = matchingBotIds.filter(s => !s.isExpired);
+          
+          let errorMsg = '❌ 이 봇에 대한 구독을 찾을 수 없습니다.\n\n';
+          
+          if (matchingBotIds.length === 0) {
+            errorMsg += `🔍 원인: 선택한 봇 ID(${selectedBot})와 일치하는 구독이 없습니다.\n\n`;
+            errorMsg += `📋 현재 구독 중인 봇:\n`;
+            academySubscriptions.forEach((sub, i) => {
+              errorMsg += `${i+1}. ${sub.botName} (ID: ${sub.botId})\n`;
+            });
+            if (academySubscriptions.length === 0) {
+              errorMsg += '(구독 없음)\n';
+            }
+          } else if (expiredSubs.length > 0 && validSubs.length === 0) {
+            errorMsg += `🔍 원인: 구독이 만료되었습니다.\n\n`;
+            errorMsg += `만료일: ${expiredSubs[0].expiresAt}\n`;
+          }
+          
+          errorMsg += '\n💡 해결방법:\n';
+          errorMsg += '• 구매하지 않은 경우: 관리자에게 봇 구매를 요청하세요.\n';
+          errorMsg += '• 구독 만료된 경우: 관리자에게 구독 연장을 요청하세요.';
+          
+          console.error('❌ 구독 없음:', {
+            selectedBot,
+            totalSubs: academySubscriptions.length,
+            matchingBotIds,
+            expiredSubs,
+            validSubs
+          });
+          
+          alert(errorMsg);
           return;
         }
         
