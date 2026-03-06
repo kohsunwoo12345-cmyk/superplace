@@ -48,15 +48,29 @@ export async function onRequestGet(context) {
     const authHeader = context.request.headers.get('Authorization');
     const user = parseToken(authHeader);
     const academyId = user?.academyId || '1';
+    const userId = user?.userId;
+    const userRole = user?.role;
     
-    console.log(`👤 [DB CLASSES API] User: ${user?.email || 'demo'}, Academy: ${academyId}`);
+    console.log(`👤 [DB CLASSES API] User: ${user?.email || 'demo'}, Role: ${userRole}, Academy: ${academyId}`);
 
-    // Fetch classes from database
-    const classesResult = await DB.prepare(`
-      SELECT * FROM Class 
-      WHERE academyId = ? AND isActive = 1
-      ORDER BY createdAt DESC
-    `).bind(academyId).all();
+    // Fetch classes from database - filter by student enrollment if student role
+    let classesResult;
+    if (userRole === 'STUDENT' && userId) {
+      console.log(`🎓 [DB CLASSES API] Fetching classes for student: ${userId}`);
+      classesResult = await DB.prepare(`
+        SELECT c.* FROM Class c
+        INNER JOIN ClassStudent cs ON c.id = cs.classId
+        WHERE cs.studentId = ? AND c.isActive = 1
+        ORDER BY c.createdAt DESC
+      `).bind(userId).all();
+    } else {
+      console.log(`👨‍🏫 [DB CLASSES API] Fetching all classes for academy: ${academyId}`);
+      classesResult = await DB.prepare(`
+        SELECT * FROM Class 
+        WHERE academyId = ? AND isActive = 1
+        ORDER BY createdAt DESC
+      `).bind(academyId).all();
+    }
 
     const classes = classesResult.results || [];
     console.log(`📊 [DB CLASSES API] Total classes: ${classes.length}`);

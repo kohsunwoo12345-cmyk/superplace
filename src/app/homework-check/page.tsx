@@ -30,6 +30,7 @@ function HomeworkCheckContent() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [showCamera, setShowCamera] = useState(false);
@@ -99,6 +100,64 @@ function HomeworkCheckContent() {
       setStream(null);
     }
     setShowCamera(false);
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const newImages: string[] = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.startsWith('image/')) continue;
+
+      try {
+        const reader = new FileReader();
+        const imageData = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        // Compress image
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = imageData;
+        });
+
+        const canvas = document.createElement('canvas');
+        const maxWidth = 640;
+        const scale = Math.min(1, maxWidth / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          let compressed = canvas.toDataURL('image/jpeg', 0.5);
+          
+          // Further compress if needed
+          let attempts = 0;
+          while (compressed.length > 1024 * 1024 && attempts < 5) {
+            attempts++;
+            const quality = Math.max(0.3, 0.5 - (attempts * 0.1));
+            compressed = canvas.toDataURL('image/jpeg', quality);
+          }
+          
+          newImages.push(compressed);
+        }
+      } catch (error) {
+        console.error('이미지 처리 오류:', error);
+      }
+    }
+
+    setCapturedImages(prev => [...prev, ...newImages]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const capturePhoto = () => {
@@ -348,15 +407,33 @@ function HomeworkCheckContent() {
               </div>
               <h3 className="text-lg font-semibold mb-2">새 숙제 제출하기</h3>
               <p className="text-sm text-gray-600 mb-4">
-                카메라로 숙제를 찍어서 제출하세요
+                카메라로 촬영하거나 갤러리에서 선택하세요
               </p>
-              <Button
-                onClick={startCamera}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-              >
-                <Camera className="w-4 h-4 mr-2" />
-                카메라 시작
-              </Button>
+              <div className="flex gap-3 justify-center">
+                <Button
+                  onClick={startCamera}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  카메라
+                </Button>
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  variant="outline"
+                  className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                >
+                  <ImageIcon className="w-4 h-4 mr-2" />
+                  갤러리
+                </Button>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+              />
             </CardContent>
           </Card>
         )}

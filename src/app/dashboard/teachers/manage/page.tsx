@@ -315,6 +315,36 @@ export default function TeacherManagementPage() {
     }
   };
 
+  const handleDeleteTeacher = async (teacher: Teacher) => {
+    if (!confirm(`정말 ${teacher.name} 교사를 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/teachers/${teacher.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('교사가 삭제되었습니다');
+        const academyId = currentUser.academy_id || currentUser.academyId;
+        fetchTeachers(academyId, currentUser.role);
+      } else {
+        alert(`삭제 실패: ${data.message || data.error}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete teacher:', error);
+      alert('교사 삭제 중 오류가 발생했습니다');
+    }
+  };
+
   const handlePermissionChange = (
     teacher: Teacher,
     permission: keyof TeacherPermissions,
@@ -510,6 +540,14 @@ export default function TeacherManagementPage() {
                     >
                       <Settings className="w-4 h-4 mr-1" />
                       권한 설정
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteTeacher(teacher)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      삭제
                     </Button>
                   </div>
                 </div>
