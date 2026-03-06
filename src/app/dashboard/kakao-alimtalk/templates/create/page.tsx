@@ -282,6 +282,13 @@ export default function CreateTemplatePage() {
       });
 
       const data = await response.json();
+      
+      // Log full response for debugging
+      console.log('📥 API Response:', {
+        status: response.status,
+        ok: response.ok,
+        data: data
+      });
 
       if (data.success) {
         setSuccess('✅ 템플릿이 등록되었습니다! 카카오 검수가 완료되면 사용할 수 있습니다.');
@@ -289,7 +296,10 @@ export default function CreateTemplatePage() {
           router.push('/dashboard/kakao-alimtalk/templates');
         }, 2000);
       } else {
-        setError(data.error || '템플릿 등록에 실패했습니다.');
+        console.error('❌ Template registration failed:', data);
+        const errorMsg = data.error || '템플릿 등록에 실패했습니다.';
+        const detailsMsg = data.details ? JSON.stringify(data.details, null, 2) : '';
+        setError(`${errorMsg}\n\n상세 정보:\n${detailsMsg}`);
       }
     } catch (err: any) {
       console.error('Failed to create template:', err);
