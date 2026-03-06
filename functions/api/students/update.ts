@@ -53,7 +53,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       name, 
       phone, 
       email, 
-      school, 
       grade, 
       diagnostic_memo,
       password,
@@ -67,7 +66,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       }, { status: 400 });
     }
 
-    console.log('📝 학생 정보 수정:', { studentId, name, phone, school, grade });
+    console.log('📝 학생 정보 수정:', { studentId, name, phone, grade });
 
     // users 테이블 업데이트 시도
     let updated = false;
@@ -93,10 +92,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         updateFields.push('password = ?');
         updateValues.push(password);
       }
-      if (school !== undefined) {
-        updateFields.push('school = ?');
-        updateValues.push(school);
-      }
       if (grade !== undefined) {
         updateFields.push('grade = ?');
         updateValues.push(grade);
@@ -109,7 +104,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         console.log('📝 VALUES:', updateValues);
         await env.DB.prepare(query).bind(...updateValues).run();
         
-        console.log('✅ users 테이블 업데이트 성공 (school, grade 포함)');
+        console.log('✅ users 테이블 업데이트 성공');
         updated = true;
       }
     } catch (e: any) {
@@ -138,10 +133,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           updateFields.push('password = ?');
           updateValues.push(password);
         }
-        if (school !== undefined) {
-          updateFields.push('school = ?');
-          updateValues.push(school);
-        }
         if (grade !== undefined) {
           updateFields.push('grade = ?');
           updateValues.push(grade);
@@ -154,7 +145,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           console.log('📝 VALUES:', updateValues);
           await env.DB.prepare(query).bind(...updateValues).run();
           
-          console.log('✅ User 테이블 업데이트 성공 (school, grade 포함)');
+          console.log('✅ User 테이블 업데이트 성공');
           updated = true;
         }
       } catch (e2: any) {
@@ -172,14 +163,16 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         // 새로운 반 정보 삽입 (최대 3개)
         for (const classId of classIds.slice(0, 3)) {
+          const csId = `cs-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+          console.log(`  - Adding student ${studentId} to class ${classId} with id ${csId}`);
           await env.DB.prepare(`
-            INSERT INTO ClassStudent (studentId, classId, enrolledAt)
-            VALUES (?, ?, datetime('now'))
-          `).bind(studentId, classId).run();
+            INSERT INTO ClassStudent (id, studentId, classId, enrolledAt)
+            VALUES (?, ?, ?, datetime('now'))
+          `).bind(csId, studentId, classId).run();
         }
         
         console.log('✅ 반 정보 업데이트 성공');
-        updated = true;  // ← 이 줄 추가!
+        updated = true;
       } catch (e) {
         console.log('⚠️ 반 정보 업데이트 실패 (무시):', e);
       }
@@ -187,16 +180,15 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
     if (!updated) {
       console.error('❌ 최종 updated 상태: false');
-      console.error('❌ 제공된 필드:', { name, phone, email, password, school, grade, diagnostic_memo, classIds });
+      console.error('❌ 제공된 필드:', { name, phone, email, password, grade, diagnostic_memo, classIds });
       return Response.json({ 
         success: false, 
         error: "업데이트 실패",
         debug: {
           updated,
           hasUserUpdate: !!(name || phone || email || password),
-          hasStudentUpdate: !!(school !== undefined || grade !== undefined || diagnostic_memo !== undefined),
-          hasClassUpdate: !!(classIds && Array.isArray(classIds)),
-          studentUpdateError
+          hasStudentUpdate: !!(grade !== undefined || diagnostic_memo !== undefined),
+          hasClassUpdate: !!(classIds && Array.isArray(classIds))
         }
       }, { status: 500 });
     }

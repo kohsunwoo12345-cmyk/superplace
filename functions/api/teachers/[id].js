@@ -35,7 +35,28 @@ export async function onRequestDelete(context) {
 
     console.log(`👤 삭제할 교사: ${teacher.name} (${teacher.email})`);
 
-    // 1. 교사 권한 정보 삭제
+    // 1. 교사가 담당하는 반이 있는지 확인
+    try {
+      const classes = await DB.prepare(`
+        SELECT id, name FROM Class
+        WHERE teacherId = ?
+      `).bind(teacherId).all();
+      
+      if (classes.results && classes.results.length > 0) {
+        console.log(`⚠️ 교사가 ${classes.results.length}개 반을 담당 중`);
+        // 반의 teacherId를 NULL로 설정
+        await DB.prepare(`
+          UPDATE Class
+          SET teacherId = NULL
+          WHERE teacherId = ?
+        `).bind(teacherId).run();
+        console.log("✅ 반의 담당교사 해제 완료");
+      }
+    } catch (e) {
+      console.log("⚠️ Class 테이블 확인/수정 오류:", e.message);
+    }
+
+    // 2. 교사 권한 정보 삭제
     await DB.prepare(`
       DELETE FROM teacher_permissions
       WHERE teacherId = ?
