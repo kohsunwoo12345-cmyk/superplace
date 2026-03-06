@@ -141,9 +141,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const uniqueUsers = [...new Set(thisMonthRecords.map(r => r.userId))];
     const monthAttendance = uniqueUsers.length;
 
-    // 6. 전체 학생 수
+    // 6. 전체 학생 수 (퇴원생 제외)
     let totalStudents = 0;
-    const students = allUsers.filter(u => u.role === 'STUDENT');
+    // role이 STUDENT이고, status가 ACTIVE이거나 status 컬럼이 없는 경우
+    const students = allUsers.filter(u => {
+      const isStudent = u.role === 'STUDENT';
+      // status가 없으면 ACTIVE로 간주, status가 있으면 ACTIVE인 경우만 포함
+      const isActive = !u.status || u.status === 'ACTIVE';
+      return isStudent && isActive;
+    });
     
     if (role === 'SUPER_ADMIN' || role === 'ADMIN' || !academyId) {
       totalStudents = students.length;
@@ -151,7 +157,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       totalStudents = students.filter(s => String(s.academyId) === String(academyId)).length;
     }
     
-    console.log("📊 Total students:", totalStudents);
+    console.log("📊 Total active students (excluding withdrawn):", totalStudents);
 
     const attendanceRate = totalStudents > 0 ? Math.round((todayAttendance / totalStudents) * 100) : 0;
 

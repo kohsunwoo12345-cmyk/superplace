@@ -9,7 +9,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 import { 
-  TrendingUp, Users, Calendar, CheckCircle, XCircle, AlertCircle, ArrowLeft 
+  TrendingUp, Users, Calendar, CheckCircle, XCircle, AlertCircle, ArrowLeft, ClipboardCheck
 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -231,13 +231,22 @@ export default function AttendanceStatisticsPage() {
             출석 통계
           </h1>
           <p className="text-gray-600 mt-1">
-            {user.role === "ADMIN" || user.role === "SUPER_ADMIN" ? "전체" : user.academyName || "학원"} 학생 출석 현황
+            {user.role === "ADMIN" || user.role === "SUPER_ADMIN" ? "전체" : user.academyName || "학원"} 학생 출석 현황 (퇴원생 제외)
           </p>
         </div>
-        <Button variant="outline" onClick={() => router.back()}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          뒤로가기
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={() => router.push('/attendance-verify')}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <ClipboardCheck className="w-4 h-4 mr-2" />
+            출석하기
+          </Button>
+          <Button variant="outline" onClick={() => router.back()}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            뒤로가기
+          </Button>
+        </div>
       </div>
 
       {/* 통계 카드 */}
@@ -246,7 +255,7 @@ export default function AttendanceStatisticsPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
               <Users className="w-4 h-4" />
-              전체 학생
+              전체 학생 (퇴원생 제외)
             </CardTitle>
           </CardHeader>
           <CardContent>
