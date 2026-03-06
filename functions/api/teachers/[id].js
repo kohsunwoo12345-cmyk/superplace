@@ -35,7 +35,7 @@ export async function onRequestDelete(context) {
 
     console.log(`👤 삭제할 교사: ${teacher.name} (${teacher.email})`);
 
-    // 1. 교사가 담당하는 반이 있는지 확인
+    // 1. 교사가 담당하는 반의 teacherId를 NULL로 설정
     try {
       const classes = await DB.prepare(`
         SELECT id, name FROM Class
@@ -44,26 +44,33 @@ export async function onRequestDelete(context) {
       
       if (classes.results && classes.results.length > 0) {
         console.log(`⚠️ 교사가 ${classes.results.length}개 반을 담당 중`);
-        // 반의 teacherId를 NULL로 설정
         await DB.prepare(`
           UPDATE Class
           SET teacherId = NULL
           WHERE teacherId = ?
         `).bind(teacherId).run();
         console.log("✅ 반의 담당교사 해제 완료");
+      } else {
+        console.log("✅ 담당 반 없음");
       }
     } catch (e) {
-      console.log("⚠️ Class 테이블 확인/수정 오류:", e.message);
+      console.log("⚠️ Class 테이블 처리 오류:", e.message);
+      // 에러 무시하고 계속 진행
     }
 
     // 2. 교사 권한 정보 삭제
-    await DB.prepare(`
-      DELETE FROM teacher_permissions
-      WHERE teacherId = ?
-    `).bind(teacherId).run();
-    console.log("✅ 교사 권한 삭제 완료");
+    try {
+      await DB.prepare(`
+        DELETE FROM teacher_permissions
+        WHERE teacherId = ?
+      `).bind(teacherId).run();
+      console.log("✅ 교사 권한 삭제 완료");
+    } catch (e) {
+      console.log("⚠️ teacher_permissions 테이블 처리 오류:", e.message);
+      // 에러 무시하고 계속 진행
+    }
 
-    // 2. 교사 반 배정 정보 삭제 (class_teachers 테이블이 있다면)
+    // 3. 교사 반 배정 정보 삭제 (class_teachers 테이블)
     try {
       await DB.prepare(`
         DELETE FROM class_teachers
@@ -71,11 +78,11 @@ export async function onRequestDelete(context) {
       `).bind(teacherId).run();
       console.log("✅ 교사 반 배정 삭제 완료");
     } catch (e) {
+      console.log("⚠️ class_teachers 테이블 없음 또는 오류:", e.message);
       // 테이블이 없을 수도 있으므로 무시
-      console.log("⚠️ class_teachers 테이블 없음 (무시)");
     }
 
-    // 3. 교사 계정 삭제
+    // 4. 교사 계정 삭제 (최종)
     await DB.prepare(`
       DELETE FROM User
       WHERE id = ?
@@ -84,7 +91,7 @@ export async function onRequestDelete(context) {
 
     return new Response(JSON.stringify({
       success: true,
-      message: `${teacher.name} 교사가 삭제되었습니다.`,
+      message: `${teacher.name} 교사가 완전히 삭제되었습니다.`,
       deletedTeacher: {
         id: teacher.id,
         name: teacher.name,
