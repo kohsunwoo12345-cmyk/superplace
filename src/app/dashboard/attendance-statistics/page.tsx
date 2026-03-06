@@ -105,10 +105,6 @@ export default function AttendanceStatisticsPage() {
               이번 달 출석일: {statistics?.attendanceDays || 0}일
             </p>
           </div>
-          <Button variant="outline" onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            뒤로가기
-          </Button>
         </div>
 
         {/* 달력 */}
@@ -242,10 +238,6 @@ export default function AttendanceStatisticsPage() {
             <ClipboardCheck className="w-4 h-4 mr-2" />
             출석하기
           </Button>
-          <Button variant="outline" onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            뒤로가기
-          </Button>
         </div>
       </div>
 
@@ -320,7 +312,20 @@ export default function AttendanceStatisticsPage() {
               <LineChart data={weeklyData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
-                <YAxis />
+                <YAxis 
+                  domain={[0, (dataMax: number) => {
+                    if (dataMax <= 10) return 10;
+                    if (dataMax <= 50) return 50;
+                    return Math.ceil(dataMax / 50) * 50;
+                  }]}
+                  ticks={(() => {
+                    const maxValue = Math.max(...weeklyData.map((d: any) => d.count), 1);
+                    if (maxValue <= 10) return [0, 2, 4, 6, 8, 10];
+                    if (maxValue <= 50) return [0, 10, 20, 30, 40, 50];
+                    const step = Math.ceil(maxValue / 50) * 10;
+                    return Array.from({length: 6}, (_, i) => i * step);
+                  })()}
+                />
                 <Tooltip />
               <Legend />
               <Line type="monotone" dataKey="count" stroke="#3b82f6" name="출석 인원" strokeWidth={2} />
