@@ -54,20 +54,18 @@ export async function onRequest(context: any) {
         const studentQuery = `
           SELECT 
             s.id,
+            s.userId,
             u.email AS studentEmail,
             u.name AS studentName,
-            u.phone AS studentPhone,
-            s.academyId
+            u.phone AS studentPhone
           FROM students s
           LEFT JOIN users u ON s.userId = u.id
           WHERE u.email = ? 
             AND s.status = 'ACTIVE'
-            ${academyId ? 'AND s.academyId = ?' : ''}
           LIMIT 1
         `;
 
-        const studentParams = academyId ? [studentEmail, academyId] : [studentEmail];
-        const student = await db.prepare(studentQuery).bind(...studentParams).first();
+        const student = await db.prepare(studentQuery).bind(studentEmail).first();
 
         if (!student) {
           enrichedRecipients.push({
