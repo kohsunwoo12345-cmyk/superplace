@@ -76,15 +76,10 @@ export async function onRequest(context: any) {
 
         // 2. 가장 최근 랜딩페이지 조회
         const reportQuery = `
-          SELECT 
-            id,
-            title,
-            slug,
-            createdAt
+          SELECT *
           FROM landing_pages
           WHERE userId = ?
-            AND status = 'PUBLISHED'
-          ORDER BY createdAt DESC
+          ORDER BY id DESC
           LIMIT 1
         `;
 
