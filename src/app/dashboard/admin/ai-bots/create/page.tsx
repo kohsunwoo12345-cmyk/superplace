@@ -432,7 +432,9 @@ export default function CreateAIBotPage() {
               
               // 각 페이지의 텍스트 추출 (페이지당 타임아웃 10초)
               let pdfText = '';
-              console.log(`  ├─ 총 ${pdf.numPages}개 페이지 파싱 시작...`);\n              \n              for (let i = 1; i <= pdf.numPages; i++) {
+              console.log(`  ├─ 총 ${pdf.numPages}개 페이지 파싱 시작...`);
+              
+              for (let i = 1; i <= pdf.numPages; i++) {
                 try {
                   // 페이지 로드에 타임아웃 추가
                   const pagePromise = pdf.getPage(i);
@@ -457,7 +459,10 @@ export default function CreateAIBotPage() {
                   
                   if (pageText.length > 0) {
                     pdfText += `\n\n=== 페이지 ${i} ===\n${pageText}`;
-                    console.log(`  ├─ 페이지 ${i}/${pdf.numPages} 완료 (${pageText.length}자)`);\n                  } else {\n                    console.warn(`  ├─ 페이지 ${i}/${pdf.numPages} 텍스트 없음`);\n                  }
+                    console.log(`  ├─ 페이지 ${i}/${pdf.numPages} 완료 (${pageText.length}자)`);
+                  } else {
+                    console.warn(`  ├─ 페이지 ${i}/${pdf.numPages} 텍스트 없음`);
+                  }
                 } catch (pageError) {
                   console.error(`  ├─ 페이지 ${i} 파싱 실패:`, pageError);
                   // 한 페이지 실패해도 계속 진행
@@ -465,12 +470,18 @@ export default function CreateAIBotPage() {
               }
               
               text = pdfText.trim();
-              console.log(`  └─ 전체 파싱 완료: ${text.length}자 추출`);\n              console.log(`✅ PDF 처리 성공: ${file.name}\n`);\n              
+              console.log(`  └─ 전체 파싱 완료: ${text.length}자 추출`);
+              console.log(`✅ PDF 처리 성공: ${file.name}`);
+              
               if (text.length === 0) {
                 throw new Error('PDF에서 텍스트를 추출할 수 없습니다. 이미지 기반 PDF이거나 보호된 파일일 수 있습니다.');
               }
             } catch (error) {
-              console.error(`❌ PDF 파싱 오류 (${file.name}):`, error);\n              console.error(`  ├─ Name: ${(error as any)?.name}`);\n              console.error(`  ├─ Message: ${(error as any)?.message}`);\n              console.error(`  └─ Stack: ${(error as any)?.stack?.substring(0, 150)}...`);\n              
+              console.error(`❌ PDF 파싱 오류 (${file.name}):`, error);
+              console.error(`  ├─ Name: ${(error as any)?.name}`);
+              console.error(`  ├─ Message: ${(error as any)?.message}`);
+              console.error(`  └─ Stack: ${(error as any)?.stack?.substring(0, 150)}...`);
+              
               // 상세한 오류 정보
               let errorMessage = 'PDF 처리 중 오류가 발생했습니다.';
               
@@ -481,12 +492,15 @@ export default function CreateAIBotPage() {
                   errorMessage = 'PDF 파일이 암호화되어 있습니다. 암호를 제거한 후 다시 업로드해 주세요.';
                 } else if (error.message.includes('이미지 기반')) {
                   errorMessage = error.message;
-                } else if (error.message.includes('시간 초과')) {\n                  errorMessage = `PDF 처리 시간 초과: ${error.message}\n파일이 너무 크거나 복잡합니다.`;\n                } else {
+                } else if (error.message.includes('시간 초과')) {
+                  errorMessage = `PDF 처리 시간 초과: ${error.message}\n파일이 너무 크거나 복잡합니다.`;
+                } else {
                   errorMessage = `PDF 처리 중 오류:\n${error.message}`;
                 }
               }
               
-              console.error(`  └─ 최종 오류 메시지: ${errorMessage}\n`);\n              alert(`${file.name}:\n\n${errorMessage}`);
+              console.error(`  └─ 최종 오류 메시지: ${errorMessage}`);
+              alert(`${file.name}:\n\n${errorMessage}`);
               errors.push(`${file.name}: ${errorMessage}`);
               failCount++;
               continue;
