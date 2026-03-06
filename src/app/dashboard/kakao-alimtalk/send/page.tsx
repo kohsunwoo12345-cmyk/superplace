@@ -69,7 +69,14 @@ export default function SendAlimtalkPage() {
     
     fetchChannels(userData.id);
     fetchLandingPages(userData.id);
-  }, []);
+    
+    // Check for channelId in URL
+    const params = new URLSearchParams(window.location.search);
+    const channelId = params.get('channelId');
+    if (channelId) {
+      setSelectedChannel(channelId);
+    }
+  }, [router]);
 
   useEffect(() => {
     if (selectedChannel) {

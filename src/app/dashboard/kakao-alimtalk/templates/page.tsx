@@ -52,7 +52,64 @@ export default function AlimtalkTemplatesPage() {
       const data = await response.json();
       
       if (data.success) {
-        setTemplates(data.templates || []);
+        const userTemplates = data.templates || [];
+        
+        // Add default templates (5 pre-registered Solapi templates)
+        const defaultTemplates: Template[] = [
+          {
+            id: 'default-1',
+            templateCode: 'KA01TP230126085130773ZHclHN4i674',
+            templateName: '기본 템플릿 1',
+            content: '안녕하세요 #{이름}님, 기본 템플릿 1입니다.',
+            channelName: '기본',
+            status: 'ACTIVE',
+            inspectionStatus: 'APPROVED',
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: 'default-2',
+            templateCode: 'KA01TP221027002252645FPwAcO9SguY',
+            templateName: '기본 템플릿 2',
+            content: '안녕하세요 #{이름}님, 기본 템플릿 2입니다.',
+            channelName: '기본',
+            status: 'ACTIVE',
+            inspectionStatus: 'APPROVED',
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: 'default-3',
+            templateCode: 'KA01TP221025083117992xkz17KyvNbr',
+            templateName: '기본 템플릿 3',
+            content: '안녕하세요 #{이름}님, 기본 템플릿 3입니다.',
+            channelName: '기본',
+            status: 'ACTIVE',
+            inspectionStatus: 'APPROVED',
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: 'default-4',
+            templateCode: 'KA01TP240110072220677clp0DwzaW23',
+            templateName: '기본 템플릿 4',
+            content: '안녕하세요 #{이름}님, 기본 템플릿 4입니다.',
+            channelName: '기본',
+            status: 'ACTIVE',
+            inspectionStatus: 'APPROVED',
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: 'default-5',
+            templateCode: 'KA01TP230131084504073zoRX27WkwHB',
+            templateName: '기본 템플릿 5',
+            content: '안녕하세요 #{이름}님, 기본 템플릿 5입니다.',
+            channelName: '기본',
+            status: 'ACTIVE',
+            inspectionStatus: 'APPROVED',
+            createdAt: new Date().toISOString()
+          }
+        ];
+        
+        // Combine default templates with user templates
+        setTemplates([...defaultTemplates, ...userTemplates]);
       } else {
         setError(data.error || '템플릿을 불러오는데 실패했습니다.');
       }
@@ -65,6 +122,12 @@ export default function AlimtalkTemplatesPage() {
   };
 
   const handleDelete = async (templateId: string) => {
+    // Prevent deleting default templates
+    if (templateId.startsWith('default-')) {
+      alert('기본 템플릿은 삭제할 수 없습니다.');
+      return;
+    }
+
     if (!confirm('이 템플릿을 삭제하시겠습니까?')) {
       return;
     }
@@ -146,6 +209,11 @@ export default function AlimtalkTemplatesPage() {
                     <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                       {template.templateCode}
                     </span>
+                    {template.id.startsWith('default-') && (
+                      <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+                        기본 템플릿
+                      </span>
+                    )}
                     {template.inspectionStatus === 'PENDING' && (
                       <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
                         검수 대기
@@ -167,12 +235,14 @@ export default function AlimtalkTemplatesPage() {
                     등록일: {new Date(template.createdAt).toLocaleString('ko-KR')}
                   </p>
                 </div>
-                <button
-                  onClick={() => handleDelete(template.id)}
-                  className="ml-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
-                >
-                  삭제
-                </button>
+                {!template.id.startsWith('default-') && (
+                  <button
+                    onClick={() => handleDelete(template.id)}
+                    className="ml-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
+                  >
+                    삭제
+                  </button>
+                )}
               </div>
               <div className="border-t pt-4">
                 <p className="text-sm text-blue-600">
