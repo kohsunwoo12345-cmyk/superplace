@@ -48,9 +48,37 @@ export async function onRequestGet(context) {
       
       // User 테이블 조회
       try {
-        student = await DB.prepare('SELECT * FROM User WHERE id = ?').bind(requestedId).first();
+        student = await DB.prepare(`
+          SELECT 
+            u.*,
+            a.name as academyName
+          FROM User u
+          LEFT JOIN Academy a ON u.academyId = a.id
+          WHERE u.id = ?
+        `).bind(requestedId).first();
+        
         if (student && student.role === 'STUDENT') {
           console.log('✅ 학생 발견:', student.name);
+          
+          // 반 정보 조회
+          try {
+            const classInfo = await DB.prepare(`
+              SELECT c.id as classId, c.name as className
+              FROM ClassStudent cs
+              JOIN Class c ON cs.classId = c.id
+              WHERE cs.studentId = ?
+            `).bind(requestedId).all();
+            
+            if (classInfo.results && classInfo.results.length > 0) {
+              student.classes = classInfo.results;
+              student.className = classInfo.results[0].className;
+              student.classId = classInfo.results[0].classId;
+              console.log('✅ 반 정보:', student.className);
+            }
+          } catch (e) {
+            console.log('⚠️ 반 정보 조회 실패:', e.message);
+          }
+          
           return new Response(JSON.stringify({
             success: true,
             student: student,
