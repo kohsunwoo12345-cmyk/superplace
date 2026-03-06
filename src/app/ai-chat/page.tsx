@@ -141,6 +141,20 @@ export default function ModernAIChatPage() {
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
+    
+    // Web Speech API 음성 목록 미리 로드
+    if ('speechSynthesis' in window) {
+      // 음성 목록을 로드하기 위해 getVoices 호출
+      window.speechSynthesis.getVoices();
+      // 일부 브라우저는 비동기적으로 로드하므로 이벤트 리스너 추가
+      window.speechSynthesis.onvoiceschanged = () => {
+        const voices = window.speechSynthesis.getVoices();
+        console.log('🔊 Available voices loaded:', voices.length);
+        const koreanVoices = voices.filter(v => v.lang.startsWith('ko'));
+        console.log('🇰🇷 Korean voices:', koreanVoices.map(v => v.name));
+      };
+    }
+    
     return () => window.removeEventListener('resize', checkMobile);
   }, [router]);
 
@@ -782,53 +796,48 @@ export default function ModernAIChatPage() {
 
       console.log('🔊 Playing TTS for message:', messageId);
       
-      const response = await fetch('/api/ai/tts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: text,
-          voiceName: selectedBot.voiceName || 'ko-KR-Wavenet-A',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('TTS API failed');
+      // Use Web Speech API (브라우저 내장 TTS)
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // 한국어 음성 설정
+        const voices = window.speechSynthesis.getVoices();
+        const koreanVoice = voices.find(voice => voice.lang.startsWith('ko'));
+        
+        if (koreanVoice) {
+          utterance.voice = koreanVoice;
+          console.log('✅ Using Korean voice:', koreanVoice.name);
+        } else {
+          console.log('⚠️ No Korean voice found, using default');
+        }
+        
+        utterance.lang = 'ko-KR';
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        utterance.onstart = () => {
+          console.log('🔊 TTS playback started');
+        };
+        
+        utterance.onend = () => {
+          console.log('✅ TTS playback finished');
+        };
+        
+        utterance.onerror = (event) => {
+          console.error('❌ TTS error:', event);
+          alert('음성 재생 중 오류가 발생했습니다.');
+        };
+        
+        window.speechSynthesis.speak(utterance);
+      } else {
+        alert('이 브라우저는 음성 출력을 지원하지 않습니다.');
       }
-
-      const data = await response.json();
-      
-      if (!data.audioContent) {
-        throw new Error('No audio content received');
-      }
-
-      // Convert base64 audio to blob and play
-      const audioBlob = base64ToBlob(data.audioContent, 'audio/mp3');
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      
-      audio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-      };
-      
-      await audio.play();
-      console.log('✅ TTS playback started');
       
     } catch (error) {
       console.error('❌ TTS playback error:', error);
       alert('음성 재생에 실패했습니다.');
     }
-  };
-
-  const base64ToBlob = (base64: string, mimeType: string): Blob => {
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    return new Blob([byteArray], { type: mimeType });
   };
 
   const handlePrintProblems = async () => {
