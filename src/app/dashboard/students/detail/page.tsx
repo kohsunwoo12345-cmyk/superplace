@@ -878,36 +878,56 @@ function StudentDetailContent() {
 
   const printProblemsOnly = () => {
     // 문제지만 인쇄 (답안지 제외)
+    console.log('📄 문제지만 인쇄');
     const answerSheet = document.querySelector('.answer-sheet-page');
     if (answerSheet) {
-      (answerSheet as HTMLElement).style.display = 'none';
+      const element = answerSheet as HTMLElement;
+      element.style.display = 'none';
+      element.style.visibility = 'hidden';
+      element.setAttribute('data-print-hidden', 'true');
+      console.log('✅ 답안지 숨김');
     }
     setTimeout(() => {
       window.print();
       // 인쇄 후 답안지 다시 표시
       if (answerSheet) {
-        (answerSheet as HTMLElement).style.display = 'block';
+        const element = answerSheet as HTMLElement;
+        element.style.display = 'block';
+        element.style.visibility = 'visible';
+        element.removeAttribute('data-print-hidden');
+        console.log('✅ 답안지 복원');
       }
     }, 100);
   };
 
   const printAnswersOnly = () => {
     // 답안지만 인쇄
+    console.log('📚 답안지만 인쇄');
     const problemPages = document.querySelectorAll('.problem-page');
     problemPages.forEach(page => {
-      (page as HTMLElement).style.display = 'none';
+      const element = page as HTMLElement;
+      element.style.display = 'none';
+      element.style.visibility = 'hidden';
+      element.setAttribute('data-print-hidden', 'true');
     });
+    console.log(`✅ ${problemPages.length}개 문제 페이지 숨김`);
+    
     setTimeout(() => {
       window.print();
       // 인쇄 후 문제지 다시 표시
       problemPages.forEach(page => {
-        (page as HTMLElement).style.display = 'block';
+        const element = page as HTMLElement;
+        element.style.display = 'block';
+        element.style.visibility = 'visible';
+        element.removeAttribute('data-print-hidden');
       });
+      console.log('✅ 문제지 복원');
     }, 100);
   };
 
   const printAllPages = () => {
     // 모든 페이지(문제+서술형+답지)를 한 번에 인쇄
+    console.log('📋 전체 페이지 인쇄');
     setTimeout(() => window.print(), 100);
   };
 
@@ -2579,6 +2599,20 @@ function StudentDetailContent() {
                 .page-break {
                   page-break-before: always;
                   break-before: always;
+                }
+                /* 숨겨진 페이지는 인쇄하지 않음 - 우선순위 최상 */
+                [data-print-hidden="true"],
+                [data-print-hidden="true"] *,
+                .answer-sheet-page[style*="display: none"],
+                .answer-sheet-page[style*="display:none"],
+                .problem-page[style*="display: none"],
+                .problem-page[style*="display:none"] {
+                  display: none !important;
+                  visibility: hidden !important;
+                  height: 0 !important;
+                  overflow: hidden !important;
+                  position: absolute !important;
+                  left: -9999px !important;
                 }
               }
             `}</style>
