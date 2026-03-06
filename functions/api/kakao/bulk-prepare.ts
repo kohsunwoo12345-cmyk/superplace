@@ -50,17 +50,18 @@ export async function onRequest(context: any) {
       }
 
       try {
-        // 1. 학생 정보 조회 (uniqueEmail 사용)
+        // 1. 학생 정보 조회 (users.email 사용)
         const studentQuery = `
           SELECT 
             s.id,
-            s.uniqueEmail,
+            u.email AS studentEmail,
             u.name AS studentName,
+            u.phone AS studentPhone,
             s.parentPhone,
             s.academyId
           FROM students s
           LEFT JOIN users u ON s.userId = u.id
-          WHERE s.uniqueEmail = ? 
+          WHERE u.email = ? 
             AND s.status = 'ACTIVE'
             ${academyId ? 'AND s.academyId = ?' : ''}
           LIMIT 1
@@ -78,17 +79,16 @@ export async function onRequest(context: any) {
           continue;
         }
 
-        // 2. 가장 최근 리포트(랜딩페이지) 조회
+        // 2. 가장 최근 랜딩페이지 조회 (landing_pages 직접 조회)
         const reportQuery = `
           SELECT 
             id,
-            landingPageId,
-            landingPageUrl,
             title,
+            slug,
             createdAt
-          FROM student_reports
-          WHERE studentId = ? 
-            AND isActive = 1
+          FROM landing_pages
+          WHERE userId = (SELECT userId FROM students WHERE id = ?)
+            AND status = 'PUBLISHED'
           ORDER BY createdAt DESC
           LIMIT 1
         `;
@@ -106,13 +106,16 @@ export async function onRequest(context: any) {
           continue;
         }
 
-        // 3. 학생 ID를 포함한 고유 URL 생성
-        const uniqueUrl = `${report.landingPageUrl}${report.landingPageUrl.includes('?') ? '&' : '?'}studentId=${student.id}&ref=${Date.now()}`;
+        // 3. 랜딩페이지 URL 생성
+        const landingPageUrl = `https://superplacestudy.pages.dev/landing/${report.id}`;
+        
+        // 4. 학생 ID를 포함한 고유 URL 생성
+        const uniqueUrl = `${landingPageUrl}?studentId=${student.id}&ref=${Date.now()}`;
 
-        // 4. 성공적으로 매칭된 수신자 정보
+        // 5. 성공적으로 매칭된 수신자 정보
         enrichedRecipients.push({
           studentId: student.id,
-          studentEmail: student.uniqueEmail,
+          studentEmail: student.studentEmail,
           studentName: student.studentName,
           parentName: parentName || '학부모',
           parentPhone: parentPhone.replace(/[^0-9]/g, ''),
