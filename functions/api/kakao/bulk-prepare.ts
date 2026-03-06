@@ -50,7 +50,7 @@ export async function onRequest(context: any) {
       }
 
       try {
-        // 1. 사용자(학생) 정보 조회
+        // 1. 사용자(학생) 정보 조회 - 역할 상관없이 이메일로 조회
         const userQuery = `
           SELECT 
             u.id AS userId,
@@ -59,8 +59,7 @@ export async function onRequest(context: any) {
             u.phone,
             u.academyId
           FROM users u
-          WHERE u.email = ? 
-            AND u.role = 'STUDENT'
+          WHERE u.email = ?
           LIMIT 1
         `;
 
