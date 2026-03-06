@@ -66,6 +66,8 @@ export default function CreateTemplatePage() {
   // Basic fields
   const [selectedChannel, setSelectedChannel] = useState('');
   const [templateName, setTemplateName] = useState('');
+  const [solapiTemplateId, setSolapiTemplateId] = useState(''); // Solapi 템플릿 ID
+  const [useExistingTemplate, setUseExistingTemplate] = useState(true); // 기존 템플릿 사용 여부
   const [templateCode, setTemplateCode] = useState('');
   const [content, setContent] = useState('');
   const [extra, setExtra] = useState('');
@@ -198,6 +200,11 @@ export default function CreateTemplatePage() {
       return;
     }
 
+    if (!solapiTemplateId) {
+      alert('Solapi 템플릿 ID를 선택해주세요.');
+      return;
+    }
+
     const channel = channels.find(ch => ch.id === selectedChannel);
     if (!channel) {
       alert('선택한 채널을 찾을 수 없습니다.');
@@ -213,7 +220,8 @@ export default function CreateTemplatePage() {
         userId: user?.id,
         channelId: channel.id,
         solapiChannelId: channel.solapiChannelId,
-        templateCode: templateCode || `TPL_${Date.now()}`,
+        templateCode: templateCode || solapiTemplateId, // Use solapiTemplateId as templateCode
+        solapiTemplateId: solapiTemplateId, // Add solapiTemplateId
         templateName,
         content,
         messageType,
@@ -636,6 +644,23 @@ export default function CreateTemplatePage() {
                     maxLength={50}
                   />
                   <p className="text-xs text-gray-500 mt-1">수신자에게 공개되지 않습니다</p>
+                </div>
+
+                <div>
+                  <Label htmlFor="solapiTemplateId">Solapi 템플릿 ID *</Label>
+                  <Select value={solapiTemplateId} onValueChange={setSolapiTemplateId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="사용할 Solapi 템플릿을 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="KA01TP230126085130773ZHclHN4i674">KA01TP230126085130773ZHclHN4i674</SelectItem>
+                      <SelectItem value="KA01TP221027002252645FPwAcO9SguY">KA01TP221027002252645FPwAcO9SguY</SelectItem>
+                      <SelectItem value="KA01TP221025083117992xkz17KyvNbr">KA01TP221025083117992xkz17KyvNbr</SelectItem>
+                      <SelectItem value="KA01TP240110072220677clp0DwzaW23">KA01TP240110072220677clp0DwzaW23</SelectItem>
+                      <SelectItem value="KA01TP230131084504073zoRX27WkwHB">KA01TP230131084504073zoRX27WkwHB</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500 mt-1">Solapi 콘솔에 등록된 템플릿 ID를 선택하세요</p>
                 </div>
 
                 <div>

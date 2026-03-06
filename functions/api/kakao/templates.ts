@@ -65,6 +65,7 @@ export async function onRequest(context: any) {
         channelId,
         solapiChannelId,
         templateCode,
+        solapiTemplateId, // Solapi 템플릿 ID
         templateName,
         content,
         extra,
@@ -76,18 +77,18 @@ export async function onRequest(context: any) {
         variables
       } = body;
 
-      if (!userId || !channelId || !solapiChannelId || !templateName || !content) {
+      if (!userId || !channelId || !solapiTemplateId || !templateName || !content) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Missing required fields: userId, channelId, solapiChannelId, templateName, content' 
+            error: 'Missing required fields: userId, channelId, solapiTemplateId, templateName, content' 
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Generate unique template code if not provided
-      const finalTemplateCode = templateCode || `TPL_${Date.now()}`;
+      // Use solapiTemplateId as the template code
+      const finalTemplateCode = solapiTemplateId;
 
       // Solapi 템플릿은 콘솔에서 등록하는 것을 권장
       // API를 통한 등록은 복잡하고 제한적이므로, 로컬 DB에만 저장
@@ -130,8 +131,8 @@ export async function onRequest(context: any) {
         JSON.stringify({ 
           success: true, 
           template,
-          message: `템플릿이 로컬 DB에 저장되었습니다. Solapi 콘솔(https://console.solapi.com)에서 템플릿 코드 "${finalTemplateCode}"로 실제 템플릿을 등록해주세요.`,
-          warning: 'Solapi 콘솔에서 템플릿을 등록하고 검수 완료해야 발송 가능합니다.'
+          message: `템플릿이 로컬 DB에 저장되었습니다. Solapi 템플릿 ID "${finalTemplateCode}"를 사용하여 발송할 수 있습니다.`,
+          info: 'Solapi 콘솔에서 이미 등록된 템플릿을 사용합니다.'
         }),
         { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
