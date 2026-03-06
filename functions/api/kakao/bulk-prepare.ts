@@ -57,7 +57,6 @@ export async function onRequest(context: any) {
             u.email AS studentEmail,
             u.name AS studentName,
             u.phone AS studentPhone,
-            s.parentPhone,
             s.academyId
           FROM students s
           LEFT JOIN users u ON s.userId = u.id
