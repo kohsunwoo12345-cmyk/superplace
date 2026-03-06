@@ -27,14 +27,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import * as pdfjsLib from 'pdfjs-dist';
-
-// PDF.js Worker 설정 - 더 안정적인 방법
-if (typeof window !== 'undefined') {
-  // 방법 1: CDN을 통한 Worker 로드 (가장 안정적)
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.worker.min.mjs`;
-  console.log('📦 PDF.js Worker 설정 완료 (Cloudflare CDN v5.5.207)');
-}
+// PDF.js는 서버 측에서 처리하므로 클라이언트에서는 import 불필요
 
 const GEMINI_MODELS = [
   // ✅ 작동 확인된 모델 (2024년 기준)
@@ -391,71 +384,33 @@ export default function CreateAIBotPage() {
           text = await file.text();
           console.log(`✅ 텍스트 파일 읽기 완료: ${text.length}자`);
         } 
-        // PDF 파일 처리
+        // PDF 파일 처리 - 서버 측 API 호출로 변경
         else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
           try {
-            console.log('📄 PDF 파일 파싱 중...');
+            console.log('📄 PDF 파일 서버로 전송 중...');
             
-            // ArrayBuffer로 변환
-            const arrayBuffer = await file.arrayBuffer();
-            console.log(`  └─ ArrayBuffer 생성 완료: ${arrayBuffer.byteLength} bytes`);
+            // FormData 생성
+            const formData = new FormData();
+            formData.append('file', file);
             
-            // PDF 문서 로드 (Worker 비활성화로 안정성 향상)
-            const loadingTask = pdfjsLib.getDocument({
-              data: arrayBuffer,
-              useWorkerFetch: false,
-              isEvalSupported: false,
-              useSystemFonts: true,
-              disableWorker: true  // ✅ Worker 완전 비활성화
+            // 서버 API 호출
+            console.log('  └─ /api/admin/parse-pdf 호출...');
+            const response = await fetch('/api/admin/parse-pdf', {
+              method: 'POST',
+              body: formData
             });
-            console.log('  └─ PDF 로딩 태스크 생성 완료 (Worker 비활성화 모드)');
-            console.log('  └─ Promise 대기 시작... (최대 2분 대기)');
             
-            // Promise가 멈추는지 확인하기 위한 타임아웃 추가 (디버깅용)
-            let resolved = false;
-            const debugTimeout = setTimeout(() => {
-              if (!resolved) {
-                console.error('⚠️ WARNING: PDF 로드가 2분 이상 걸리고 있습니다!');
-                console.error('  → Worker가 응답하지 않거나 PDF가 매우 복잡할 수 있습니다.');
-              }
-            }, 120000);  // 2분
-            
-            const pdf = await loadingTask.promise;
-            resolved = true;
-            clearTimeout(debugTimeout);
-            console.log(`✅ PDF 로드 완료: ${pdf.numPages} 페이지`);
-            
-            // 각 페이지의 텍스트 추출
-            let pdfText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-              try {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                
-                // textContent.items의 타입 체크 및 안전한 처리
-                const pageText = textContent.items
-                  .map((item: any) => {
-                    // str 속성이 있는지 확인
-                    if (item && typeof item.str === 'string') {
-                      return item.str;
-                    }
-                    return '';
-                  })
-                  .filter(str => str.length > 0)
-                  .join(' ');
-                
-                pdfText += `\n\n=== 페이지 ${i} ===\n${pageText}`;
-                console.log(`  └─ 페이지 ${i}/${pdf.numPages} 파싱 완료 (${pageText.length}자)`);
-              } catch (pageError) {
-                console.warn(`  ⚠️ 페이지 ${i} 파싱 실패:`, pageError);
-                // 한 페이지 실패해도 계속 진행
-              }
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || `서버 오류: ${response.status}`);
             }
             
-            text = pdfText.trim();
-            console.log(`✅ PDF 전체 파싱 완료: 총 ${text.length}자`);
+            const result = await response.json();
+            console.log(`✅ PDF 파싱 완료: ${result.pages} 페이지, ${result.size}자`);
             
-            if (text.length === 0) {
+            text = result.text;
+            
+            if (!text || text.length === 0) {
               throw new Error('PDF에서 텍스트를 추출할 수 없습니다. 이미지 기반 PDF이거나 보호된 파일일 수 있습니다.');
             }
           } catch (error) {
@@ -467,7 +422,6 @@ export default function CreateAIBotPage() {
             if (error instanceof Error) {
               console.error('  └─ Error name:', error.name);
               console.error('  └─ Error message:', error.message);
-              console.error('  └─ Error stack:', error.stack);
               
               if (error.message.includes('Invalid PDF') || error.message.includes('Invalid header')) {
                 errorMessage = 'PDF 파일이 손상되었거나 올바른 PDF 형식이 아닙니다.';
