@@ -368,137 +368,187 @@ export default function CreateAIBotPage() {
     if (!files || files.length === 0) return;
 
     setUploadingFile(true);
+    
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+    
     try {
+      console.log(`📦 총 ${files.length}개 파일 업로드 시작`);
+      
       for (const file of Array.from(files)) {
-        // 파일 크기 제한 (10MB)
-        if (file.size > 10 * 1024 * 1024) {
-          alert(`${file.name}: 파일 크기는 10MB를 초과할 수 없습니다.`);
-          continue;
-        }
-
-        console.log(`📁 파일 업로드 시작: ${file.name} (${file.size} bytes, type: ${file.type})`);
-
-        let text = '';
-        
-        // 텍스트 파일 처리
-        if (file.type.startsWith('text/') || 
-            file.name.endsWith('.txt') || 
-            file.name.endsWith('.md') ||
-            file.name.endsWith('.json') ||
-            file.name.endsWith('.csv') ||
-            file.name.endsWith('.html') ||
-            file.name.endsWith('.xml')) {
-          text = await file.text();
-          console.log(`✅ 텍스트 파일 읽기 완료: ${text.length}자`);
-        } 
-        // PDF 파일 처리
-        else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-          try {
-            console.log('📄 PDF 파일 파싱 중...');
-            
-            // ArrayBuffer로 변환
-            const arrayBuffer = await file.arrayBuffer();
-            console.log(`  └─ ArrayBuffer 생성 완료: ${arrayBuffer.byteLength} bytes`);
-            
-            // PDF 문서 로드
-            const loadingTask = pdfjsLib.getDocument({
-              data: arrayBuffer,
-              useWorkerFetch: false,
-              isEvalSupported: false,
-              useSystemFonts: true
-            });
-            console.log('  └─ PDF 로딩 태스크 생성 완료');
-            
-            const pdf = await loadingTask.promise;
-            console.log(`✅ PDF 로드 완료: ${pdf.numPages} 페이지`);
-            
-            // 각 페이지의 텍스트 추출
-            let pdfText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-              try {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                
-                // textContent.items의 타입 체크 및 안전한 처리
-                const pageText = textContent.items
-                  .map((item: any) => {
-                    // str 속성이 있는지 확인
-                    if (item && typeof item.str === 'string') {
-                      return item.str;
-                    }
-                    return '';
-                  })
-                  .filter(str => str.length > 0)
-                  .join(' ');
-                
-                pdfText += `\n\n=== 페이지 ${i} ===\n${pageText}`;
-                console.log(`  └─ 페이지 ${i}/${pdf.numPages} 파싱 완료 (${pageText.length}자)`);
-              } catch (pageError) {
-                console.warn(`  ⚠️ 페이지 ${i} 파싱 실패:`, pageError);
-                // 한 페이지 실패해도 계속 진행
-              }
-            }
-            
-            text = pdfText.trim();
-            console.log(`✅ PDF 전체 파싱 완료: 총 ${text.length}자`);
-            
-            if (text.length === 0) {
-              throw new Error('PDF에서 텍스트를 추출할 수 없습니다. 이미지 기반 PDF이거나 보호된 파일일 수 있습니다.');
-            }
-          } catch (error) {
-            console.error('❌ PDF 파싱 오류:', error);
-            
-            // 상세한 오류 정보
-            let errorMessage = 'PDF 처리 중 오류가 발생했습니다.';
-            
-            if (error instanceof Error) {
-              console.error('  └─ Error name:', error.name);
-              console.error('  └─ Error message:', error.message);
-              console.error('  └─ Error stack:', error.stack);
-              
-              if (error.message.includes('Invalid PDF') || error.message.includes('Invalid header')) {
-                errorMessage = 'PDF 파일이 손상되었거나 올바른 PDF 형식이 아닙니다.';
-              } else if (error.message.includes('password') || error.message.includes('encrypted')) {
-                errorMessage = 'PDF 파일이 암호화되어 있습니다. 암호를 제거한 후 다시 업로드해 주세요.';
-              } else if (error.message.includes('이미지 기반')) {
-                errorMessage = error.message;
-              } else {
-                errorMessage = `PDF 처리 중 오류:\n${error.message}`;
-              }
-            }
-            
-            alert(`${file.name}:\n\n${errorMessage}`);
+        try {
+          // 파일 크기 제한 (10MB)
+          if (file.size > 10 * 1024 * 1024) {
+            const msg = `${file.name}: 파일 크기는 10MB를 초과할 수 없습니다.`;
+            alert(msg);
+            errors.push(msg);
+            failCount++;
             continue;
           }
-        }
-        else {
-          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD, JSON, CSV, HTML, XML\n\nPDF는 내용을 복사하여 붙여넣어 주세요.`);
-          continue;
-        }
-        
-        console.log(`✅ 파일 읽기 완료: ${file.name} (${text.length} chars)`);
-        
-        setKnowledgeFiles(prev => [
-          ...prev,
-          {
-            name: file.name,
-            content: text,
-            size: file.size
-          }
-        ]);
 
-        // knowledgeBase에 추가
-        setFormData(prev => ({
-          ...prev,
-          knowledgeBase: prev.knowledgeBase + `\n\n## 📄 ${file.name}\n\n${text}\n\n---\n`
-        }));
-        
-        console.log(`💾 Knowledge Base 업데이트 완료`);
+          console.log(`📁 파일 업로드 시작: ${file.name} (${file.size} bytes, type: ${file.type})`);
+
+          let text = '';
+          
+          // 텍스트 파일 처리
+          if (file.type.startsWith('text/') || 
+              file.name.endsWith('.txt') || 
+              file.name.endsWith('.md') ||
+              file.name.endsWith('.json') ||
+              file.name.endsWith('.csv') ||
+              file.name.endsWith('.html') ||
+              file.name.endsWith('.xml')) {
+            text = await file.text();
+            console.log(`✅ 텍스트 파일 읽기 완료: ${text.length}자`);
+          } 
+          // PDF 파일 처리
+          else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+            try {
+              console.log('📄 PDF 파일 파싱 중...');
+              
+              // ArrayBuffer로 변환
+              const arrayBuffer = await file.arrayBuffer();
+              console.log(`  └─ ArrayBuffer 생성 완료: ${arrayBuffer.byteLength} bytes`);
+              
+              // PDF 문서 로드 (타임아웃 30초)
+              const loadingTask = pdfjsLib.getDocument({
+                data: arrayBuffer,
+                useWorkerFetch: false,
+                isEvalSupported: false,
+                useSystemFonts: true,
+                verbosity: 0 // 불필요한 로그 제거
+              });
+              console.log('  └─ PDF 로딩 태스크 생성 완료');
+              
+              // 타임아웃 추가 (30초)
+              const pdfPromise = loadingTask.promise;
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('PDF 로드 시간 초과 (30초)')), 30000)
+              );
+              
+              const pdf = await Promise.race([pdfPromise, timeoutPromise]) as any;
+              console.log(`✅ PDF 로드 완료: ${pdf.numPages} 페이지`);
+              
+              // 각 페이지의 텍스트 추출 (페이지당 타임아웃 10초)
+              let pdfText = '';
+              console.log(`  ├─ 총 ${pdf.numPages}개 페이지 파싱 시작...`);\n              \n              for (let i = 1; i <= pdf.numPages; i++) {
+                try {
+                  // 페이지 로드에 타임아웃 추가
+                  const pagePromise = pdf.getPage(i);
+                  const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error(`페이지 ${i} 로드 시간 초과`)), 10000)
+                  );
+                  
+                  const page = await Promise.race([pagePromise, timeoutPromise]) as any;
+                  const textContent = await page.getTextContent();
+                  
+                  // textContent.items의 타입 체크 및 안전한 처리
+                  const pageText = textContent.items
+                    .map((item: any) => {
+                      // str 속성이 있는지 확인
+                      if (item && typeof item.str === 'string') {
+                        return item.str;
+                      }
+                      return '';
+                    })
+                    .filter(str => str.length > 0)
+                    .join(' ');
+                  
+                  if (pageText.length > 0) {
+                    pdfText += `\n\n=== 페이지 ${i} ===\n${pageText}`;
+                    console.log(`  ├─ 페이지 ${i}/${pdf.numPages} 완료 (${pageText.length}자)`);\n                  } else {\n                    console.warn(`  ├─ 페이지 ${i}/${pdf.numPages} 텍스트 없음`);\n                  }
+                } catch (pageError) {
+                  console.error(`  ├─ 페이지 ${i} 파싱 실패:`, pageError);
+                  // 한 페이지 실패해도 계속 진행
+                }
+              }
+              
+              text = pdfText.trim();
+              console.log(`  └─ 전체 파싱 완료: ${text.length}자 추출`);\n              console.log(`✅ PDF 처리 성공: ${file.name}\n`);\n              
+              if (text.length === 0) {
+                throw new Error('PDF에서 텍스트를 추출할 수 없습니다. 이미지 기반 PDF이거나 보호된 파일일 수 있습니다.');
+              }
+            } catch (error) {
+              console.error(`❌ PDF 파싱 오류 (${file.name}):`, error);\n              console.error(`  ├─ Name: ${(error as any)?.name}`);\n              console.error(`  ├─ Message: ${(error as any)?.message}`);\n              console.error(`  └─ Stack: ${(error as any)?.stack?.substring(0, 150)}...`);\n              
+              // 상세한 오류 정보
+              let errorMessage = 'PDF 처리 중 오류가 발생했습니다.';
+              
+              if (error instanceof Error) {
+                if (error.message.includes('Invalid PDF') || error.message.includes('Invalid header')) {
+                  errorMessage = 'PDF 파일이 손상되었거나 올바른 PDF 형식이 아닙니다.';
+                } else if (error.message.includes('password') || error.message.includes('encrypted')) {
+                  errorMessage = 'PDF 파일이 암호화되어 있습니다. 암호를 제거한 후 다시 업로드해 주세요.';
+                } else if (error.message.includes('이미지 기반')) {
+                  errorMessage = error.message;
+                } else if (error.message.includes('시간 초과')) {\n                  errorMessage = `PDF 처리 시간 초과: ${error.message}\n파일이 너무 크거나 복잡합니다.`;\n                } else {
+                  errorMessage = `PDF 처리 중 오류:\n${error.message}`;
+                }
+              }
+              
+              console.error(`  └─ 최종 오류 메시지: ${errorMessage}\n`);\n              alert(`${file.name}:\n\n${errorMessage}`);
+              errors.push(`${file.name}: ${errorMessage}`);
+              failCount++;
+              continue;
+            }
+          }
+          else {
+            const msg = `${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: PDF, TXT, MD, JSON, CSV, HTML, XML`;
+            alert(msg);
+            errors.push(msg);
+            failCount++;
+            continue;
+          }
+          
+          // text가 제대로 추출되었는지 확인
+          if (!text || text.length === 0) {
+            const msg = `${file.name}: 파일에서 텍스트를 추출할 수 없습니다.`;
+            console.error(`❌ ${msg}`);
+            alert(msg);
+            errors.push(msg);
+            failCount++;
+            continue;
+          }
+          
+          console.log(`✅ 파일 읽기 완료: ${file.name} (${text.length} chars)`);
+          
+          setKnowledgeFiles(prev => [
+            ...prev,
+            {
+              name: file.name,
+              content: text,
+              size: file.size
+            }
+          ]);
+
+          // knowledgeBase에 추가
+          setFormData(prev => ({
+            ...prev,
+            knowledgeBase: prev.knowledgeBase + `\n\n## 📄 ${file.name}\n\n${text}\n\n---\n`
+          }));
+          
+          console.log(`💾 Knowledge Base 업데이트 완료`);
+          successCount++;
+          
+        } catch (fileError) {
+          console.error(`❌ 파일 ${file.name} 처리 중 오류:`, fileError);
+          const errorMsg = fileError instanceof Error ? fileError.message : '알 수 없는 오류';
+          errors.push(`${file.name}: ${errorMsg}`);
+          failCount++;
+        }
       }
       
-      alert(`${files.length}개 파일이 성공적으로 업로드되었습니다.`);
+      // 결과 알림
+      console.log(`📊 업로드 완료: 성공 ${successCount}개, 실패 ${failCount}개`);
+      
+      if (successCount > 0) {
+        alert(`✅ ${successCount}개 파일이 성공적으로 업로드되었습니다.${failCount > 0 ? `\n\n⚠️ ${failCount}개 파일 실패` : ''}`);
+      } else {
+        alert(`❌ 모든 파일 업로드에 실패했습니다.\n\n${errors.slice(0, 3).join('\n')}`);
+      }
+      
     } catch (error) {
-      console.error('❌ 파일 업로드 오류:', error);
+      console.error('❌ 파일 업로드 전체 오류:', error);
       alert('파일을 읽는 중 오류가 발생했습니다.\n\n' + (error as Error).message);
     } finally {
       setUploadingFile(false);
