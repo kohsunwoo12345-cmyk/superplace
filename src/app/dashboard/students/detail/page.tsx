@@ -876,13 +876,8 @@ function StudentDetailContent() {
     );
   };
 
-  const printProblems = () => {
-    setShowAnswerSheet(false);
-    setTimeout(() => window.print(), 100);
-  };
-
-  const printAnswers = () => {
-    setShowAnswerSheet(true);
+  const printAllPages = () => {
+    // 모든 페이지(문제+서술형+답지)를 한 번에 인쇄
     setTimeout(() => window.print(), 100);
   };
 
@@ -2507,13 +2502,9 @@ function StudentDetailContent() {
         {/* 문제 생성 완료 후 버튼 */}
         {generatedProblems.length > 0 && (
           <div className="fixed bottom-4 right-4 flex gap-2 z-50 print:hidden">
-            <Button onClick={printProblems} size="lg" className="shadow-lg">
+            <Button onClick={printAllPages} size="lg" className="shadow-lg">
               <ClipboardCheck className="w-5 h-5 mr-2" />
-              시험지 인쇄
-            </Button>
-            <Button onClick={printAnswers} size="lg" variant="outline" className="shadow-lg">
-              <CheckCircle className="w-5 h-5 mr-2" />
-              답지 인쇄
+              전체 인쇄 (문제+서술형+답지)
             </Button>
           </div>
         )}
@@ -2547,59 +2538,56 @@ function StudentDetailContent() {
                 .print-header {
                   page-break-after: avoid;
                 }
+                .page-break {
+                  page-break-before: always;
+                  break-before: always;
+                }
               }
             `}</style>
             
-            {/* 시험지 */}
-            {!showAnswerSheet && (
-              <div className="print-area">
-                <div className="max-w-4xl mx-auto p-8 bg-white">
-                  {/* 시험지 헤더 */}
-                  <div className="print-header border-b-2 border-black pb-4 mb-6">
-                    <h1 className="text-3xl font-bold text-center mb-2">
-                      학습 확인 문제
-                    </h1>
-                    <div className="flex justify-between text-sm mt-4">
-                      <div>
-                        <span className="font-semibold">학생명:</span> {student?.name}
+            <div className="print-area">
+              <div className="max-w-4xl mx-auto bg-white">
+                {/* 페이지 1: 객관식 문제 */}
+                {generatedProblems.filter(p => p.options && p.options.length > 0).length > 0 && (
+                  <div className="p-8">
+                    {/* 시험지 헤더 */}
+                    <div className="print-header border-b-2 border-black pb-4 mb-6">
+                      <h1 className="text-3xl font-bold text-center mb-2">
+                        학습 확인 문제 (객관식)
+                      </h1>
+                      <div className="flex justify-between text-sm mt-4">
+                        <div>
+                          <span className="font-semibold">학생명:</span> {student?.name}
+                        </div>
+                        <div>
+                          <span className="font-semibold">출제일:</span> {new Date().toLocaleDateString('ko-KR')}
+                        </div>
                       </div>
-                      <div>
-                        <span className="font-semibold">출제일:</span> {new Date().toLocaleDateString('ko-KR')}
+                      <div className="text-sm mt-2">
+                        <span className="font-semibold">출제 개념:</span> {selectedConcepts.join(', ')}
                       </div>
                     </div>
-                    <div className="text-sm mt-2">
-                      <span className="font-semibold">출제 개념:</span> {selectedConcepts.join(', ')}
-                    </div>
-                    <div className="text-sm mt-1">
-                      <span className="font-semibold">문제 유형:</span> {
-                        selectedProblemTypes.map(type => 
-                          type === 'concept' ? '개념' : type === 'pattern' ? '유형' : '심화'
-                        ).join(', ')
-                      }
-                    </div>
-                    <div className="text-sm mt-1">
-                      <span className="font-semibold">총 문제 수:</span> {generatedProblems.length}문제
-                    </div>
-                  </div>
 
-                  {/* 문제 */}
-                  <div className="space-y-6">
-                    {generatedProblems.map((problem, idx) => (
-                      <div key={idx} className="problem-item border border-gray-300 p-4 rounded">
-                        <div className="flex items-start gap-3">
-                          <span className="font-bold text-lg">{idx + 1}.</span>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xs px-2 py-1 border border-gray-400 rounded">
-                                {problem.type === 'concept' ? '개념' : problem.type === 'pattern' ? '유형' : '심화'}
-                              </span>
-                              <span className="text-xs text-gray-600">
-                                [{problem.concept}]
-                              </span>
-                            </div>
-                            <p className="text-base whitespace-pre-wrap mb-4">{problem.question}</p>
-                            
-                            {problem.options && problem.options.length > 0 && (
+                    {/* 객관식 문제 */}
+                    <div className="space-y-6">
+                      {generatedProblems
+                        .map((problem, idx) => ({ problem, originalIdx: idx }))
+                        .filter(({ problem }) => problem.options && problem.options.length > 0)
+                        .map(({ problem, originalIdx }, displayIdx) => (
+                        <div key={originalIdx} className="problem-item border border-gray-300 p-4 rounded">
+                          <div className="flex items-start gap-3">
+                            <span className="font-bold text-lg">{displayIdx + 1}.</span>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs px-2 py-1 border border-gray-400 rounded">
+                                  {problem.type === 'concept' ? '개념' : problem.type === 'pattern' ? '유형' : '심화'}
+                                </span>
+                                <span className="text-xs text-gray-600">
+                                  [{problem.concept}]
+                                </span>
+                              </div>
+                              <p className="text-base whitespace-pre-wrap mb-4">{problem.question}</p>
+                              
                               <div className="space-y-2 ml-4">
                                 {problem.options.map((option: string, optIdx: number) => (
                                   <div key={optIdx} className="flex items-start gap-2">
@@ -2608,32 +2596,79 @@ function StudentDetailContent() {
                                   </div>
                                 ))}
                               </div>
-                            )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
 
-                            {problem.answerSpace && (
+                    {/* 시험지 푸터 */}
+                    <div className="mt-12 pt-4 border-t border-gray-300 text-sm text-gray-600">
+                      <p>※ 문제를 풀고 선생님께 제출해주세요.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 페이지 2: 서술형 문제 */}
+                {generatedProblems.filter(p => p.answerSpace || (!p.options || p.options.length === 0)).length > 0 && (
+                  <div className="p-8 page-break">
+                    {/* 서술형 헤더 */}
+                    <div className="print-header border-b-2 border-black pb-4 mb-6">
+                      <h1 className="text-3xl font-bold text-center mb-2">
+                        학습 확인 문제 (서술형)
+                      </h1>
+                      <div className="flex justify-between text-sm mt-4">
+                        <div>
+                          <span className="font-semibold">학생명:</span> {student?.name}
+                        </div>
+                        <div>
+                          <span className="font-semibold">출제일:</span> {new Date().toLocaleDateString('ko-KR')}
+                        </div>
+                      </div>
+                      <div className="text-sm mt-2">
+                        <span className="font-semibold">출제 개념:</span> {selectedConcepts.join(', ')}
+                      </div>
+                    </div>
+
+                    {/* 서술형 문제 */}
+                    <div className="space-y-6">
+                      {generatedProblems
+                        .map((problem, idx) => ({ problem, originalIdx: idx }))
+                        .filter(({ problem }) => problem.answerSpace || (!problem.options || problem.options.length === 0))
+                        .map(({ problem, originalIdx }, displayIdx) => (
+                        <div key={originalIdx} className="problem-item border border-gray-300 p-4 rounded">
+                          <div className="flex items-start gap-3">
+                            <span className="font-bold text-lg">{displayIdx + 1}.</span>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs px-2 py-1 border border-gray-400 rounded">
+                                  {problem.type === 'concept' ? '개념' : problem.type === 'pattern' ? '유형' : '심화'}
+                                </span>
+                                <span className="text-xs text-gray-600">
+                                  [{problem.concept}]
+                                </span>
+                              </div>
+                              <p className="text-base whitespace-pre-wrap mb-4">{problem.question}</p>
+
                               <div className="mt-4 pt-4 border-t border-gray-200">
                                 <p className="text-sm text-gray-600 mb-2">풀이:</p>
                                 <div className="min-h-[120px] border border-gray-300 rounded"></div>
                               </div>
-                            )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
 
-                  {/* 시험지 푸터 */}
-                  <div className="mt-12 pt-4 border-t border-gray-300 text-sm text-gray-600">
-                    <p>※ 문제를 풀고 선생님께 제출해주세요.</p>
+                    {/* 서술형 푸터 */}
+                    <div className="mt-12 pt-4 border-t border-gray-300 text-sm text-gray-600">
+                      <p>※ 문제를 풀고 선생님께 제출해주세요.</p>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                )}
 
-            {/* 답지 */}
-            {showAnswerSheet && (
-              <div className="print-area">
-                <div className="max-w-4xl mx-auto p-8 bg-white">
+                {/* 페이지 3: 답안지 */}
+                <div className="p-8 page-break">
                   {/* 답지 헤더 */}
                   <div className="print-header border-b-2 border-black pb-4 mb-6">
                     <h1 className="text-3xl font-bold text-center mb-2">
@@ -2695,7 +2730,7 @@ function StudentDetailContent() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>
