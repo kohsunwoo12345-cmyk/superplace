@@ -14,6 +14,7 @@ import {
   Eye,
   EyeOff,
   ExternalLink,
+  Code,
 } from "lucide-react";
 
 interface LandingPage {
@@ -41,6 +42,7 @@ export default function EditLandingPagePage() {
   const [subtitle, setSubtitle] = useState("");
   const [htmlContent, setHtmlContent] = useState("");
   const [editableContent, setEditableContent] = useState(""); // 프리뷰 내 편집 가능한 컨텐츠
+  const [previewKey, setPreviewKey] = useState(0); // 프리뷰 리렌더링용
   const [ogTitle, setOgTitle] = useState("");
   const [ogDescription, setOgDescription] = useState("");
   const [status, setStatus] = useState("active");
@@ -48,6 +50,7 @@ export default function EditLandingPagePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
+  const [showCodeEditor, setShowCodeEditor] = useState(false); // 코드 에디터 표시 여부
 
   useEffect(() => {
     if (id) {
@@ -72,6 +75,20 @@ export default function EditLandingPagePage() {
       `<body>${newContent}</body>`
     );
   };
+
+  // 프리뷰에서 메시지 받기 (텍스트 수정)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'TEXT_UPDATE') {
+        console.log('📝 텍스트 업데이트:', event.data.content);
+        setEditableContent(event.data.content);
+        setPreviewKey(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const fetchLandingPage = async () => {
     try {
@@ -189,7 +206,7 @@ export default function EditLandingPagePage() {
                   랜딩페이지 수정
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  프리뷰를 보면서 수정할 수 있습니다
+                  프리뷰에서 텍스트를 클릭하여 바로 수정하세요
                 </p>
               </div>
             </div>
@@ -311,25 +328,48 @@ export default function EditLandingPagePage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>페이지 컨텐츠 편집</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>페이지 컨텐츠</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCodeEditor(!showCodeEditor)}
+                  >
+                    <Code className="w-4 h-4 mr-2" />
+                    {showCodeEditor ? '코드 숨기기' : '코드 보기'}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                <div>
-                  <Label htmlFor="editableContent">HTML 컨텐츠</Label>
-                  <textarea
-                    id="editableContent"
-                    value={editableContent}
-                    onChange={(e) => setEditableContent(e.target.value)}
-                    rows={20}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
-                    placeholder="페이지 컨텐츠를 편집하세요..."
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    💡 오른쪽 프리뷰를 보면서 HTML 컨텐츠를 수정할 수 있습니다.
-                  </p>
-                  <p className="text-xs text-blue-600 mt-2">
-                    ✨ 사용 가능한 변수: {'{{'}{'{'}studentName{'}'}{'}'}, {'{{'}{'{'}period{'}'}{'}'}, {'{{'}{'{'}attendanceRate{'}'}{'}'}, {'{{'}{'{'}viewCount{'}'}{'}'}
-                  </p>
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                    <p className="text-sm text-blue-900 font-semibold mb-2">
+                      ✨ 프리뷰 내 직접 편집 기능
+                    </p>
+                    <ul className="text-xs text-blue-800 space-y-1">
+                      <li>• 프리뷰에서 텍스트를 <strong>클릭</strong>하면 바로 수정할 수 있습니다</li>
+                      <li>• 수정이 완료되면 자동으로 저장됩니다</li>
+                      <li>• HTML 코드는 수정할 수 없습니다 (안전성)</li>
+                      <li>• "저장하기" 버튼을 눌러 변경사항을 확정하세요</li>
+                    </ul>
+                  </div>
+                  
+                  {showCodeEditor && (
+                    <div>
+                      <Label htmlFor="editableContent">HTML 컨텐츠 (읽기 전용)</Label>
+                      <textarea
+                        id="editableContent"
+                        value={editableContent}
+                        readOnly
+                        rows={20}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm bg-gray-50 cursor-not-allowed"
+                        placeholder="페이지 컨텐츠"
+                      />
+                      <p className="text-xs text-amber-600 mt-2">
+                        ⚠️ 코드는 직접 수정할 수 없습니다. 프리뷰에서 텍스트를 클릭하여 수정하세요.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -341,7 +381,7 @@ export default function EditLandingPagePage() {
               <Card className="h-full">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle>실시간 프리뷰</CardTitle>
+                    <CardTitle>실시간 프리뷰 (클릭하여 수정)</CardTitle>
                     <Badge variant="secondary">
                       {landingPage.slug}
                     </Badge>
@@ -349,16 +389,121 @@ export default function EditLandingPagePage() {
                 </CardHeader>
                 <CardContent className="p-0 h-[calc(100%-5rem)] overflow-hidden">
                   <iframe
+                    key={previewKey}
                     srcDoc={`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
-  ${htmlContent.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1]?.replace(/<title>.*?<\/title>/i, '') || ''}
+  <style>
+    /* 편집 모드 스타일 */
+    [contenteditable="true"] {
+      outline: 2px dashed #3b82f6;
+      outline-offset: 2px;
+      cursor: text;
+      padding: 4px;
+      transition: all 0.2s;
+      min-height: 20px;
+    }
+    [contenteditable="true"]:hover {
+      outline-color: #2563eb;
+      background-color: rgba(59, 130, 246, 0.05);
+    }
+    [contenteditable="true"]:focus {
+      outline: 2px solid #2563eb;
+      background-color: rgba(59, 130, 246, 0.1);
+    }
+    /* 편집 안내 툴팁 */
+    .editable-hint {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #3b82f6;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 9999;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      animation: fadeIn 0.3s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+  ${htmlContent.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1]?.replace(/<title>.*?<\/title>/i, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') || ''}
 </head>
 <body>
-  ${editableContent}
+  <div class="editable-hint">✏️ 텍스트를 클릭하여 수정하세요</div>
+  <div id="editable-container">
+    ${editableContent}
+  </div>
+  <script>
+    (function() {
+      // 모든 텍스트 노드를 편집 가능하게 만들기
+      function makeTextEditable(element) {
+        if (!element || element.tagName === 'SCRIPT' || element.tagName === 'STYLE') {
+          return;
+        }
+        
+        // 텍스트가 있는 요소만 편집 가능하게
+        const hasDirectText = Array.from(element.childNodes).some(node => 
+          node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0
+        );
+        
+        if (hasDirectText && !element.hasAttribute('contenteditable')) {
+          element.setAttribute('contenteditable', 'true');
+          
+          // 수정 이벤트 리스너
+          element.addEventListener('blur', function() {
+            updateContent();
+          });
+          
+          element.addEventListener('keydown', function(e) {
+            // Enter 키로 편집 종료
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              element.blur();
+            }
+            // Escape 키로 편집 취소
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              element.blur();
+            }
+          });
+        }
+        
+        // 자식 요소들도 재귀적으로 처리
+        Array.from(element.children).forEach(child => {
+          makeTextEditable(child);
+        });
+      }
+      
+      // 전체 컨텐츠 업데이트
+      function updateContent() {
+        const container = document.getElementById('editable-container');
+        if (container) {
+          const newContent = container.innerHTML;
+          window.parent.postMessage({
+            type: 'TEXT_UPDATE',
+            content: newContent
+          }, '*');
+          console.log('✅ 텍스트 수정 완료');
+        }
+      }
+      
+      // 페이지 로드 후 실행
+      setTimeout(() => {
+        const container = document.getElementById('editable-container');
+        if (container) {
+          makeTextEditable(container);
+          console.log('✅ 편집 모드 활성화');
+        }
+      }, 100);
+    })();
+  </script>
 </body>
 </html>`}
                     className="w-full h-full border-0"
