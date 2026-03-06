@@ -104,19 +104,22 @@ export async function onRequest(context: any) {
       const SOLAPI_API_KEY = env.SOLAPI_API_Key || env.SOLAPI_API_KEY || env['SOLAPI_API_Key '];
       const SOLAPI_API_SECRET = env.SOLAPI_API_Secret || env.SOLAPI_API_SECRET;
 
-      console.log('🔑 Checking Solapi credentials:', {
-        hasApiKey: !!SOLAPI_API_KEY,
-        hasApiSecret: !!SOLAPI_API_SECRET,
-        availableKeys: Object.keys(env).filter(k => k.toLowerCase().includes('solapi'))
-      });
-
+      // Return detailed environment info for debugging
+      const envKeys = Object.keys(env || {});
+      const solapiKeys = envKeys.filter(k => k.toLowerCase().includes('solapi'));
+      
       if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
-        console.error('❌ Solapi credentials not found in environment');
         return new Response(
           JSON.stringify({ 
             success: false, 
             error: 'Solapi credentials not configured',
-            details: 'SOLAPI_API_Key or SOLAPI_API_Secret not found in environment variables'
+            debug: {
+              hasApiKey: !!SOLAPI_API_KEY,
+              hasApiSecret: !!SOLAPI_API_SECRET,
+              envKeysCount: envKeys.length,
+              solapiKeysFound: solapiKeys,
+              allEnvKeys: envKeys.slice(0, 20) // First 20 keys for debugging
+            }
           }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
