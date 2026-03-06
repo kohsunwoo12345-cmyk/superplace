@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 업로드 테스트</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.min.mjs" type="module"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        #fileInput {
+            margin: 20px 0;
+            padding: 10px;
+            border: 2px solid #4CAF50;
+        }
+        #uploadBtn {
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #uploadBtn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .log { margin: 5px 0; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>📄 PDF 업로드 직접 테스트</h1>
+    <p>PDF 파일을 선택하고 "업로드" 버튼을 클릭하세요.</p>
+    
+    <input type="file" id="fileInput" accept=".pdf" />
+    <button id="uploadBtn">업로드 시작</button>
+    
+    <div id="output"></div>
+
+    <script type="module">
+        import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.min.mjs';
+        
+        // Worker 설정
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.worker.min.mjs';
+        
+        const output = document.getElementById('output');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+            console.log(message);
+        }
+        
+        uploadBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                log('❌ 파일을 선택해주세요.', 'error');
+                return;
+            }
+            
+            uploadBtn.disabled = true;
+            output.innerHTML = '';
+            
+            try {
+                log('📁 파일 업로드 시작...', 'info');
+                log(`  ├─ 파일명: ${file.name}`, 'info');
+                log(`  ├─ 파일 크기: ${(file.size / 1024 / 1024).toFixed(2)} MB`, 'info');
+                log(`  └─ 파일 타입: ${file.type}`, 'info');
+                
+                // 파일 크기 체크
+                if (file.size > 20 * 1024 * 1024) {
+                    log('❌ 파일 크기가 20MB를 초과합니다.', 'error');
+                    return;
+                }
+                
+                // ArrayBuffer로 변환
+                log('📄 ArrayBuffer 변환 중...', 'info');
+                const arrayBuffer = await file.arrayBuffer();
+                log(`✅ ArrayBuffer 생성 완료: ${arrayBuffer.byteLength} bytes`, 'success');
+                
+                // PDF 로드
+                log('📄 PDF 문서 로드 중...', 'info');
+                const startTime = Date.now();
+                
+                const loadingTask = pdfjsLib.getDocument({
+                    data: arrayBuffer,
+                    useWorkerFetch: false,
+                    isEvalSupported: false,
+                    useSystemFonts: true
+                });
+                
+                log('  └─ PDF 로딩 태스크 생성 완료', 'info');
+                
+                const pdf = await loadingTask.promise;
+                const loadTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                log(`✅ PDF 로드 완료: ${pdf.numPages} 페이지 (${loadTime}초)`, 'success');
+                
+                // 각 페이지 파싱
+                log('📄 페이지 파싱 시작...', 'info');
+                let pdfText = '';
+                const parseStart = Date.now();
+                
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const pageStart = Date.now();
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    
+                    const pageText = textContent.items
+                        .map(item => item.str || '')
+                        .filter(str => str.length > 0)
+                        .join(' ');
+                    
+                    pdfText += `\n\n=== 페이지 ${i} ===\n${pageText}`;
+                    const pageTime = ((Date.now() - pageStart) / 1000).toFixed(2);
+                    log(`  └─ 페이지 ${i}/${pdf.numPages} 완료 (${pageText.length}자, ${pageTime}초)`, 'info');
+                }
+                
+                const parseTime = ((Date.now() - parseStart) / 1000).toFixed(2);
+                const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                
+                log(`✅ 전체 파싱 완료: ${pdfText.trim().length}자 (${parseTime}초)`, 'success');
+                log(`⏱️ 총 소요 시간: ${totalTime}초`, 'success');
+                log('', 'info');
+                log('📝 추출된 텍스트 미리보기:', 'info');
+                log(pdfText.substring(0, 500), 'info');
+                
+            } catch (error) {
+                log(`❌ 오류 발생: ${error.message}`, 'error');
+                log(`  ├─ Error name: ${error.name}`, 'error');
+                log(`  └─ Error stack: ${error.stack}`, 'error');
+                console.error('Full error:', error);
+            } finally {
+                uploadBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -400,16 +400,29 @@ export default function CreateAIBotPage() {
             const arrayBuffer = await file.arrayBuffer();
             console.log(`  └─ ArrayBuffer 생성 완료: ${arrayBuffer.byteLength} bytes`);
             
-            // PDF 문서 로드
+            // PDF 문서 로드 (Worker 비활성화로 안정성 향상)
             const loadingTask = pdfjsLib.getDocument({
               data: arrayBuffer,
               useWorkerFetch: false,
               isEvalSupported: false,
-              useSystemFonts: true
+              useSystemFonts: true,
+              disableWorker: true  // ✅ Worker 완전 비활성화
             });
-            console.log('  └─ PDF 로딩 태스크 생성 완료');
+            console.log('  └─ PDF 로딩 태스크 생성 완료 (Worker 비활성화 모드)');
+            console.log('  └─ Promise 대기 시작... (최대 2분 대기)');
+            
+            // Promise가 멈추는지 확인하기 위한 타임아웃 추가 (디버깅용)
+            let resolved = false;
+            const debugTimeout = setTimeout(() => {
+              if (!resolved) {
+                console.error('⚠️ WARNING: PDF 로드가 2분 이상 걸리고 있습니다!');
+                console.error('  → Worker가 응답하지 않거나 PDF가 매우 복잡할 수 있습니다.');
+              }
+            }, 120000);  // 2분
             
             const pdf = await loadingTask.promise;
+            resolved = true;
+            clearTimeout(debugTimeout);
             console.log(`✅ PDF 로드 완료: ${pdf.numPages} 페이지`);
             
             // 각 페이지의 텍스트 추출
