@@ -40,6 +40,7 @@ export default function EditLandingPagePage() {
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [htmlContent, setHtmlContent] = useState("");
+  const [editableContent, setEditableContent] = useState(""); // 프리뷰 내 편집 가능한 컨텐츠
   const [ogTitle, setOgTitle] = useState("");
   const [ogDescription, setOgDescription] = useState("");
   const [status, setStatus] = useState("active");
@@ -56,6 +57,21 @@ export default function EditLandingPagePage() {
       router.push("/dashboard/admin/landing-pages");
     }
   }, [id]);
+
+  // HTML에서 편집 가능한 텍스트 컨텐츠 추출
+  const extractEditableContent = (html: string): string => {
+    // body 태그 내용만 추출
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    return bodyMatch ? bodyMatch[1] : html;
+  };
+
+  // 편집된 컨텐츠로 HTML 업데이트
+  const updateHtmlWithEditedContent = (originalHtml: string, newContent: string): string => {
+    return originalHtml.replace(
+      /<body[^>]*>[\s\S]*<\/body>/i,
+      `<body>${newContent}</body>`
+    );
+  };
 
   const fetchLandingPage = async () => {
     try {
@@ -74,6 +90,7 @@ export default function EditLandingPagePage() {
         setTitle(page.title || "");
         setSubtitle(page.subtitle || "");
         setHtmlContent(page.html_content || "");
+        setEditableContent(extractEditableContent(page.html_content || ""));
         setOgTitle(page.og_title || page.title || "");
         setOgDescription(page.og_description || "");
         setStatus(page.status || "active");
@@ -102,27 +119,8 @@ export default function EditLandingPagePage() {
       setSaving(true);
       const token = localStorage.getItem("token");
 
-      // HTML 업데이트 (title, subtitle 자동 교체)
-      let updatedHtml = htmlContent;
-      if (landingPage) {
-        // 기존 제목을 새 제목으로 교체
-        updatedHtml = updatedHtml.replace(
-          new RegExp(`<title>${landingPage.title}</title>`, 'g'),
-          `<title>${title}</title>`
-        );
-        updatedHtml = updatedHtml.replace(
-          new RegExp(`<h1>${landingPage.title}</h1>`, 'g'),
-          `<h1>${title}</h1>`
-        );
-        
-        // 부제 교체 (있는 경우)
-        if (landingPage.subtitle) {
-          updatedHtml = updatedHtml.replace(
-            new RegExp(`<p class="subtitle">${landingPage.subtitle}</p>`, 'g'),
-            subtitle ? `<p class="subtitle">${subtitle}</p>` : ''
-          );
-        }
-      }
+      // 편집된 컨텐츠로 HTML 업데이트
+      const updatedHtml = updateHtmlWithEditedContent(htmlContent, editableContent);
 
       const response = await fetch(`/api/admin/landing-pages/${id}`, {
         method: "PUT",
@@ -313,24 +311,24 @@ export default function EditLandingPagePage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>HTML 편집</CardTitle>
+                <CardTitle>페이지 컨텐츠 편집</CardTitle>
               </CardHeader>
               <CardContent>
                 <div>
-                  <Label htmlFor="htmlContent">HTML 코드</Label>
+                  <Label htmlFor="editableContent">HTML 컨텐츠</Label>
                   <textarea
-                    id="htmlContent"
-                    value={htmlContent}
-                    onChange={(e) => setHtmlContent(e.target.value)}
+                    id="editableContent"
+                    value={editableContent}
+                    onChange={(e) => setEditableContent(e.target.value)}
                     rows={20}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
-                    placeholder="HTML 코드를 입력하세요..."
+                    placeholder="페이지 컨텐츠를 편집하세요..."
                   />
                   <p className="text-xs text-gray-500 mt-2">
-                    ⚠️ HTML을 직접 수정할 수 있습니다. 변경사항은 프리뷰에서 확인하세요.
+                    💡 오른쪽 프리뷰를 보면서 HTML 컨텐츠를 수정할 수 있습니다.
                   </p>
                   <p className="text-xs text-blue-600 mt-2">
-                    💡 사용 가능한 변수: {'{{'}{'{'}studentName{'}'}{'}'}, {'{{'}{'{'}period{'}'}{'}'}, {'{{'}{'{'}attendanceRate{'}'}{'}'}, {'{{'}{'{'}viewCount{'}'}{'}'}
+                    ✨ 사용 가능한 변수: {'{{'}{'{'}studentName{'}'}{'}'}, {'{{'}{'{'}period{'}'}{'}'}, {'{{'}{'{'}attendanceRate{'}'}{'}'}, {'{{'}{'{'}viewCount{'}'}{'}'}
                   </p>
                 </div>
               </CardContent>
@@ -351,7 +349,18 @@ export default function EditLandingPagePage() {
                 </CardHeader>
                 <CardContent className="p-0 h-[calc(100%-5rem)] overflow-hidden">
                   <iframe
-                    srcDoc={htmlContent}
+                    srcDoc={`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  ${htmlContent.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1]?.replace(/<title>.*?<\/title>/i, '') || ''}
+</head>
+<body>
+  ${editableContent}
+</body>
+</html>`}
                     className="w-full h-full border-0"
                     title="Landing Page Preview"
                     sandbox="allow-same-origin allow-scripts"
