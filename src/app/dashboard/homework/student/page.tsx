@@ -182,7 +182,7 @@ export default function StudentHomeworkPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => router.back()}>돌아가기</Button>
+            <p className="text-gray-500">페이지를 새로고침해주세요.</p>
           </CardContent>
         </Card>
       </div>
@@ -193,13 +193,6 @@ export default function StudentHomeworkPage() {
     <div className="container mx-auto p-4 max-w-7xl">
       {/* 헤더 */}
       <div className="mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="mb-4"
-        >
-          ← 돌아가기
-        </Button>
         <h1 className="text-3xl font-bold mb-2">📚 나의 숙제</h1>
         <p className="text-gray-600">
           {currentUser?.name}님의 숙제 현황입니다

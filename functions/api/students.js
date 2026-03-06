@@ -94,10 +94,12 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
+          u.status,
           a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
         WHERE UPPER(u.role) = 'STUDENT'
+          AND (u.status IS NULL OR u.status = 'ACTIVE')
         ORDER BY u.id DESC
       `;
     } else if (role === 'DIRECTOR' || role === 'TEACHER') {
@@ -123,10 +125,12 @@ export async function onRequestGet(context) {
           u.phone,
           u.role,
           u.academyId,
+          u.status,
           a.name as academy_name
         FROM User u
         LEFT JOIN Academy a ON u.academyId = a.id
         WHERE UPPER(u.role) = 'STUDENT' AND u.academyId = ?
+          AND (u.status IS NULL OR u.status = 'ACTIVE')
         ORDER BY u.id DESC
       `;
       params.push(academyId);

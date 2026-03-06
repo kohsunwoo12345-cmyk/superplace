@@ -14,6 +14,11 @@ import {
   Trash2,
   Edit,
   RefreshCw,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Calendar,
 } from "lucide-react";
 
 type ClassData = {
@@ -52,6 +57,9 @@ export default function ClassesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>("");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
 
   useEffect(() => {
     // 개발 환경: 토큰이 없으면 기본 테스트 토큰 설정
@@ -75,8 +83,39 @@ export default function ClassesPage() {
       console.log('✅ 테스트 사용자 설정 완료:', testUser.email);
     }
     
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    if (user) {
+      setUserRole(user.role || "");
+      setUserId(user.id?.toString() || null);
+      
+      // 학생인 경우 출석 기록도 가져오기
+      if (user.role === "STUDENT") {
+        loadAttendanceRecords(user.id);
+      }
+    }
+    
     loadClasses();
   }, []);
+
+  const loadAttendanceRecords = async (studentId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/attendance/records?userId=${studentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAttendanceRecords(data.records || []);
+        console.log('✅ 출석 기록 로드:', data.records?.length || 0);
+      }
+    } catch (error) {
+      console.error('❌ 출석 기록 로드 실패:', error);
+    }
+  };
 
   const loadClasses = async () => {
     try {
@@ -187,6 +226,141 @@ export default function ClassesPage() {
     );
   }
 
+  // 학생용 UI
+  if (userRole === "STUDENT") {
+    const myClasses = classes.filter(cls => 
+      cls.students.some(s => s.student.id === userId)
+    );
+
+    // 출석 상태 판단 함수
+    const getAttendanceStatus = (schedule: any, date: string) => {
+      const dayOfWeek = new Date(date).getDay();
+      if (schedule.dayOfWeek !== dayOfWeek) return null;
+      
+      const record = attendanceRecords.find(r => {
+        const recordDate = r.checkInTime.substring(0, 10);
+        return recordDate === date;
+      });
+      
+      if (!record) return { status: 'absent', label: '결석', color: 'bg-red-100 text-red-800' };
+      
+      const checkInTime = record.checkInTime.substring(11, 16);
+      const scheduleStart = schedule.startTime.substring(0, 5);
+      
+      if (checkInTime <= scheduleStart) {
+        return { status: 'present', label: '출석', color: 'bg-green-100 text-green-800', time: checkInTime };
+      } else {
+        return { status: 'late', label: '지각', color: 'bg-yellow-100 text-yellow-800', time: checkInTime };
+      }
+    };
+
+    // 최근 7일간의 날짜 생성
+    const last7Days = Array.from({length: 7}, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      return date.toISOString().split('T')[0];
+    });
+
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold mb-2">📚 나의 반</h1>
+          <p className="text-gray-600">내가 속한 반과 출석 현황입니다</p>
+        </div>
+
+        {myClasses.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-12">
+              <BookOpen className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-600">아직 배정된 반이 없습니다.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {myClasses.map((cls) => (
+              <Card key={cls.id} className="overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                  <CardTitle className="text-2xl">{cls.name}</CardTitle>
+                  {cls.description && (
+                    <CardDescription className="text-white/90">{cls.description}</CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent className="p-6">
+                  {/* 수업 시간표 */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Calendar className="w-5 h-5" />
+                      수업 시간표
+                    </h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      {cls.schedules.map((schedule) => {
+                        const days = ['일', '월', '화', '수', '목', '금', '토'];
+                        return (
+                          <div key={schedule.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                            <Badge variant="outline" className="min-w-[60px]">
+                              {days[schedule.dayOfWeek]}요일
+                            </Badge>
+                            <Clock className="w-4 h-4 text-gray-500" />
+                            <span className="font-medium">
+                              {schedule.startTime.substring(0, 5)} - {schedule.endTime.substring(0, 5)}
+                            </span>
+                            <Badge className="ml-auto">{schedule.subject}</Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 출석 현황 (최근 7일) */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5" />
+                      최근 출석 현황
+                    </h3>
+                    <div className="space-y-2">
+                      {last7Days.map((date) => {
+                        const dateObj = new Date(date);
+                        const dayName = ['일', '월', '화', '수', '목', '금', '토'][dateObj.getDay()];
+                        
+                        return (
+                          <div key={date} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="min-w-[100px]">
+                              <div className="font-medium">{date.substring(5)}</div>
+                              <div className="text-sm text-gray-500">{dayName}요일</div>
+                            </div>
+                            <div className="flex-1 flex flex-wrap gap-2">
+                              {cls.schedules.map((schedule) => {
+                                const status = getAttendanceStatus(schedule, date);
+                                if (!status) return null;
+                                
+                                return (
+                                  <div key={schedule.id} className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs">
+                                      {schedule.subject}
+                                    </Badge>
+                                    <Badge className={status.color}>
+                                      {status.label}
+                                      {status.time && ` (${status.time})`}
+                                    </Badge>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 학원장/선생님용 UI (기존 코드)
   return (
     <div className="container mx-auto py-8 px-4">
       {/* 헤더 */}
