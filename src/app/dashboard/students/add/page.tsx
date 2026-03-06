@@ -31,7 +31,6 @@ export default function AddStudentPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
-  const [school, setSchool] = useState("");
   const [grade, setGrade] = useState("");
   const [classField, setClassField] = useState(""); // 소속반 필드 추가
   const [parentPhone, setParentPhone] = useState(""); // 학부모 연락처 추가
@@ -171,7 +170,6 @@ export default function AddStudentPage() {
         name: name.trim() || null,
         email: email.trim() || null,
         phone: phone.trim(),
-        school: school.trim() || null,
         grade: grade || null,
         classIds: selectedClasses,
         academyId: academyId,
@@ -195,7 +193,6 @@ export default function AddStudentPage() {
           password: password,
           phone: phone.trim(),
           parentPhone: parentPhone.trim() || null,
-          school: school.trim() || null,
           grade: grade || null,
           class: classField.trim() || null,
           classIds: selectedClasses,
@@ -318,16 +315,6 @@ export default function AddStudentPage() {
               <p className="text-sm text-gray-500 mt-1">
                 학원장의 학원이 자동으로 설정됩니다
               </p>
-            </div>
-
-            <div>
-              <Label htmlFor="school">학교</Label>
-              <Input
-                id="school"
-                value={school}
-                onChange={(e) => setSchool(e.target.value)}
-                placeholder="예: 서울중학교, 강남고등학교"
-              />
             </div>
 
             <div>

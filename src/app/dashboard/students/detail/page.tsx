@@ -25,7 +25,6 @@ interface StudentDetail {
   academyName?: string;
   createdAt?: string; // Changed from created_at
   student_code?: string;
-  school?: string;
   grade?: string;
   class?: string;
   diagnostic_memo?: string;
@@ -682,7 +681,6 @@ function StudentDetailContent() {
           name: editedStudent.name,
           phone: editedStudent.phone,
           email: editedStudent.email,
-          school: editedStudent.school,
           grade: editedStudent.grade,
           diagnostic_memo: editedStudent.diagnostic_memo,
           password: editedStudent.password,
@@ -1466,25 +1464,6 @@ function StudentDetailContent() {
                         />
                       ) : (
                         <p className="font-medium">{displayEmail(student.email)}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 소속 학교 */}
-                  <div className="flex items-start gap-3">
-                    <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-500">소속 학교</p>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editedStudent?.school || ''}
-                          onChange={(e) => setEditedStudent({ ...editedStudent!, school: e.target.value })}
-                          placeholder="학교명"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      ) : (
-                        <p className="font-medium">{student.school || '미등록'}</p>
                       )}
                     </div>
                   </div>

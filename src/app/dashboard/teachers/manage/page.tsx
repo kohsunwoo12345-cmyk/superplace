@@ -316,7 +316,8 @@ export default function TeacherManagementPage() {
   };
 
   const handleDeleteTeacher = async (teacher: Teacher) => {
-    if (!confirm(`정말 ${teacher.name} 교사를 삭제하시겠습니까?`)) {
+    const confirmMessage = `정말 "${teacher.name}" 교사를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`;
+    if (!confirm(confirmMessage)) {
       return;
     }
 
