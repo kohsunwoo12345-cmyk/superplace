@@ -16,6 +16,9 @@ interface Recipient {
   name: string;
   phone: string;
   landingPageUrl?: string;
+  studentId?: string;
+  studentName?: string;
+  studentEmail?: string;
 }
 
 interface Template {
@@ -230,12 +233,12 @@ export default function SendAlimtalkPage() {
     setRecipients(updated);
   };
 
-  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -243,17 +246,82 @@ export default function SendAlimtalkPage() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-        // Map excel data to recipients
-        const mappedRecipients: Recipient[] = jsonData.map((row: any) => ({
-          name: row['이름'] || row['name'] || row['Name'] || '',
-          phone: String(row['전화번호'] || row['phone'] || row['Phone'] || row['휴대폰'] || '').replace(/[^0-9]/g, '')
-        })).filter(r => r.name && r.phone);
+        // Map excel data - 학생 이메일, 학부모 이름, 학부모 전화번호
+        const excelRecipients = jsonData.map((row: any) => ({
+          studentEmail: row['학생이메일'] || row['studentEmail'] || row['이메일'] || row['email'] || '',
+          parentName: row['학부모이름'] || row['parentName'] || row['이름'] || row['name'] || '',
+          parentPhone: String(row['학부모연락처'] || row['parentPhone'] || row['전화번호'] || row['phone'] || row['휴대폰'] || '').replace(/[^0-9]/g, '')
+        })).filter(r => r.studentEmail && r.parentPhone);
+
+        if (excelRecipients.length === 0) {
+          alert('엑셀 파일에서 학생 이메일과 학부모 연락처를 찾을 수 없습니다.\n\n필수 컬럼:\n- 학생이메일 (또는 studentEmail, 이메일, email)\n- 학부모연락처 (또는 parentPhone, 전화번호, phone)\n- 학부모이름 (또는 parentName, 이름, name)');
+          return;
+        }
+
+        // API를 통해 학생 정보 및 최신 랜딩페이지 URL 가져오기
+        setLoading(true);
+        setError('엑셀 데이터를 처리하는 중...');
+
+        const response = await fetch('/api/kakao/bulk-prepare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipients: excelRecipients,
+            academyId: user.academyId
+          })
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+          alert('데이터 처리 실패: ' + result.error);
+          setLoading(false);
+          setError('');
+          return;
+        }
+
+        // 성공적으로 매칭된 수신자만 설정
+        const readyRecipients = result.recipients.filter((r: any) => r.status === 'READY');
+        
+        const mappedRecipients: Recipient[] = readyRecipients.map((r: any) => ({
+          name: r.parentName,
+          phone: r.parentPhone,
+          landingPageUrl: r.landingPageUrl,
+          studentId: r.studentId,
+          studentName: r.studentName,
+          studentEmail: r.studentEmail
+        }));
 
         setRecipients(mappedRecipients);
-        alert(`${mappedRecipients.length}명의 수신자를 불러왔습니다.`);
+        setLoading(false);
+        setError('');
+
+        // 결과 요약
+        const { stats } = result;
+        let message = `✅ 총 ${stats.total}명 중 ${stats.ready}명 처리 완료\n\n`;
+        
+        if (stats.notFound > 0) {
+          message += `⚠️ 학생을 찾을 수 없음: ${stats.notFound}명\n`;
+        }
+        if (stats.noReport > 0) {
+          message += `⚠️ 리포트가 없음: ${stats.noReport}명\n`;
+        }
+        if (stats.missingInfo > 0) {
+          message += `⚠️ 정보 누락: ${stats.missingInfo}명\n`;
+        }
+        if (stats.error > 0) {
+          message += `❌ 오류 발생: ${stats.error}명\n`;
+        }
+
+        message += `\n각 학생의 최신 랜딩페이지 URL이 자동으로 설정되었습니다.`;
+        
+        alert(message);
+
       } catch (err) {
         console.error('Excel parsing error:', err);
         alert('엑셀 파일을 읽는 중 오류가 발생했습니다.');
+        setLoading(false);
+        setError('');
       }
     };
     reader.readAsArrayBuffer(file);
@@ -616,8 +684,14 @@ export default function SendAlimtalkPage() {
                   <label htmlFor="excel-upload">
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition">
                       <Upload className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-                      <p className="text-sm text-gray-600">
-                        엑셀 파일을 선택하세요 (이름, 전화번호 컬럼 필요)
+                      <p className="text-sm font-medium text-gray-700 mb-2">
+                        엑셀 파일을 선택하세요
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        필수 컬럼: <span className="font-semibold">학생이메일</span>, <span className="font-semibold">학부모이름</span>, <span className="font-semibold">학부모연락처</span>
+                      </p>
+                      <p className="text-xs text-blue-600 mt-2">
+                        💡 각 학생의 최신 랜딩페이지 URL이 자동으로 설정됩니다
                       </p>
                     </div>
                   </label>
