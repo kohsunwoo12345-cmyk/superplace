@@ -135,15 +135,37 @@ export async function onRequest(context: any) {
       .join('');
 
     // Prepare messages for Solapi
-    const messages = recipients.map((recipient: any) => ({
-      to: recipient.to,
-      from: solapiChannelId,
-      kakaoOptions: {
-        pfId: solapiChannelId,
-        templateId: templateCode,
-        variables: recipient.variables || {}
+    const messages = recipients.map((recipient: any) => {
+      const variables: any = {};
+      
+      // Add name variable
+      if (recipient.name) {
+        variables['이름'] = recipient.name;
+        variables['학생이름'] = recipient.name;
       }
-    }));
+      
+      // Add landing page URL variable
+      if (recipient.landingPageUrl) {
+        variables['URL'] = recipient.landingPageUrl;
+        variables['리포트URL'] = recipient.landingPageUrl;
+        variables['링크'] = recipient.landingPageUrl;
+      }
+      
+      // Add any other variables from recipient
+      if (recipient.variables) {
+        Object.assign(variables, recipient.variables);
+      }
+
+      return {
+        to: recipient.phoneNumber,
+        from: solapiChannelId,
+        kakaoOptions: {
+          pfId: solapiChannelId,
+          templateId: templateCode,
+          variables: variables
+        }
+      };
+    });
 
     // Send via Solapi (batch send)
     const response = await fetch('https://api.solapi.com/messages/v4/send-many', {
