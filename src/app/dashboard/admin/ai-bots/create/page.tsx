@@ -406,25 +406,29 @@ export default function CreateAIBotPage() {
           else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
             try {
               console.log('📄 PDF 파일 파싱 중...');
+              console.log(`  ├─ 파일명: ${file.name}`);
+              console.log(`  ├─ 파일 크기: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
               
               // ArrayBuffer로 변환
               const arrayBuffer = await file.arrayBuffer();
               console.log(`  └─ ArrayBuffer 생성 완료: ${arrayBuffer.byteLength} bytes`);
               
-              // PDF 문서 로드 (타임아웃 30초)
+              // PDF 문서 로드 (타임아웃 60초)
               const loadingTask = pdfjsLib.getDocument({
                 data: arrayBuffer,
                 useWorkerFetch: false,
                 isEvalSupported: false,
                 useSystemFonts: true,
-                verbosity: 0 // 불필요한 로그 제거
+                verbosity: 0, // 불필요한 로그 제거
+                disableAutoFetch: true, // 자동 fetch 비활성화로 속도 향상
+                disableStream: false // 스트리밍 활성화
               });
               console.log('  └─ PDF 로딩 태스크 생성 완료');
               
-              // 타임아웃 추가 (30초)
+              // 타임아웃 추가 (60초 - 대용량 PDF 지원)
               const pdfPromise = loadingTask.promise;
               const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('PDF 로드 시간 초과 (30초)')), 30000)
+                setTimeout(() => reject(new Error('PDF 로드 시간 초과 (60초)')), 60000)
               );
               
               const pdf = await Promise.race([pdfPromise, timeoutPromise]) as any;
@@ -436,10 +440,10 @@ export default function CreateAIBotPage() {
               
               for (let i = 1; i <= pdf.numPages; i++) {
                 try {
-                  // 페이지 로드에 타임아웃 추가
+                  // 페이지 로드에 타임아웃 추가 (20초로 증가)
                   const pagePromise = pdf.getPage(i);
                   const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error(`페이지 ${i} 로드 시간 초과`)), 10000)
+                    setTimeout(() => reject(new Error(`페이지 ${i} 로드 시간 초과`)), 20000)
                   );
                   
                   const page = await Promise.race([pagePromise, timeoutPromise]) as any;
