@@ -59,13 +59,6 @@ export async function onRequest(context: any) {
     } else if (method === 'POST') {
       // Create new template and register with Solapi
       const body = await request.json();
-      console.log('📥 Received template creation request:', {
-        hasUserId: !!body.userId,
-        hasChannelId: !!body.channelId,
-        hasSolapiChannelId: !!body.solapiChannelId,
-        hasTemplateName: !!body.templateName,
-        hasContent: !!body.content
-      });
 
       const {
         userId,
@@ -84,13 +77,6 @@ export async function onRequest(context: any) {
       } = body;
 
       if (!userId || !channelId || !solapiChannelId || !templateName || !content) {
-        console.error('❌ Missing required fields:', {
-          userId: !!userId,
-          channelId: !!channelId,
-          solapiChannelId: !!solapiChannelId,
-          templateName: !!templateName,
-          content: !!content
-        });
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -100,26 +86,15 @@ export async function onRequest(context: any) {
         );
       }
 
-      // Get Solapi credentials - try all possible key names
-      const SOLAPI_API_KEY = env.SOLAPI_API_Key || env.SOLAPI_API_KEY || env['SOLAPI_API_Key '];
+      // Get Solapi credentials
+      const SOLAPI_API_KEY = env.SOLAPI_API_Key || env.SOLAPI_API_KEY;
       const SOLAPI_API_SECRET = env.SOLAPI_API_Secret || env.SOLAPI_API_SECRET;
-
-      // Return detailed environment info for debugging
-      const envKeys = Object.keys(env || {});
-      const solapiKeys = envKeys.filter(k => k.toLowerCase().includes('solapi'));
       
       if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Solapi credentials not configured',
-            debug: {
-              hasApiKey: !!SOLAPI_API_KEY,
-              hasApiSecret: !!SOLAPI_API_SECRET,
-              envKeysCount: envKeys.length,
-              solapiKeysFound: solapiKeys,
-              allEnvKeys: envKeys.slice(0, 20) // First 20 keys for debugging
-            }
+            error: 'Solapi credentials not configured in environment variables'
           }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -128,21 +103,14 @@ export async function onRequest(context: any) {
       // Generate unique template code if not provided
       const finalTemplateCode = templateCode || `TPL_${Date.now()}`;
 
-      console.log('🔐 Generating HMAC signature for Solapi...');
-
-      // Create HMAC signature for Solapi API (official format)
-      const currentDate = new Date();
-      const date = currentDate.toISOString();
-      
-      // Generate salt (random string)
+      // Create HMAC signature for Solapi API
+      const date = new Date().toISOString();
       const salt = Array.from({ length: 10 }, () => 
         Math.random().toString(36).charAt(2)
       ).join('');
       
-      // HMAC data = date + salt (concatenated)
       const hmacData = date + salt;
       
-      // Generate HMAC-SHA256 signature
       const encoder = new TextEncoder();
       const keyData = encoder.encode(SOLAPI_API_SECRET);
       const messageData = encoder.encode(hmacData);
@@ -160,34 +128,30 @@ export async function onRequest(context: any) {
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
 
-      // Prepare Solapi request body
+      // Prepare Solapi request body - using correct API format
       const solapiBody: any = {
-        plusFriendId: solapiChannelId,
-        templateCode: finalTemplateCode,
-        templateName,
-        content,
-        messageType: messageType || 'BA',
+        pfId: solapiChannelId,
+        templateId: finalTemplateCode,
+        name: templateName,
+        content: content,
+        categoryCode: 'NONE',
         securityFlag: securityFlag || false
       };
 
-      if (extra) solapiBody.extra = extra;
-      if (emphasizeType && emphasizeType !== 'NONE') solapiBody.emphasizeType = emphasizeType;
-      if (buttons && buttons.length > 0) solapiBody.buttons = buttons;
-      if (inspectorComment) solapiBody.comments = [{ name: '검수자 참고', content: inspectorComment }];
-
-      console.log('📤 Registering template with Solapi:', {
-        plusFriendId: solapiChannelId,
-        templateCode: finalTemplateCode,
-        templateName,
-        contentLength: content.length,
-        messageType: messageType || 'BA',
-        hasButtons: !!(buttons && buttons.length > 0),
-        buttonCount: buttons?.length || 0
-      });
+      if (buttons && buttons.length > 0) {
+        solapiBody.buttons = buttons;
+      }
+      
+      if (emphasizeType && emphasizeType !== 'NONE') {
+        solapiBody.emphasizeType = emphasizeType;
+      }
+      
+      if (inspectorComment) {
+        solapiBody.inspectorComment = inspectorComment;
+      }
 
       // Register template with Solapi
       try {
-        // Solapi Authorization header format
         const authHeader = `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signatureHex}`;
         
         const solapiResponse = await fetch('https://api.solapi.com/kakao/v1/alimtalk/templates', {
@@ -199,48 +163,30 @@ export async function onRequest(context: any) {
           body: JSON.stringify(solapiBody)
         });
 
-        // Get response text first to handle both JSON and HTML
         const responseText = await solapiResponse.text();
         
-        // Log raw response for debugging
-        if (!solapiResponse.ok) {
-          console.error('Solapi API error response:', {
-            status: solapiResponse.status,
-            statusText: solapiResponse.statusText,
-            responsePreview: responseText.substring(0, 500),
-            authHeaderUsed: authHeader.substring(0, 50) + '...'
-          });
-        }
-
+        // Try to parse as JSON
         let solapiData;
         try {
           solapiData = JSON.parse(responseText);
         } catch (parseError: any) {
-          // Return HTML error for debugging
+          // If not JSON, return the actual response for debugging
           return new Response(
             JSON.stringify({ 
               success: false, 
-              error: 'Solapi API returned non-JSON response',
+              error: 'Solapi API error',
               details: {
                 status: solapiResponse.status,
                 statusText: solapiResponse.statusText,
-                responsePreview: responseText.substring(0, 500),
-                hint: 'Check API credentials and endpoint URL'
+                responseBody: responseText.substring(0, 1000),
+                requestBody: solapiBody
               }
             }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
-        console.log('📥 Solapi template registration response:', {
-          status: solapiResponse.status,
-          ok: solapiResponse.ok,
-          hasError: !!solapiData.error || !!solapiData.errorMessage,
-          data: solapiData
-        });
-
         if (!solapiResponse.ok) {
-          console.error('❌ Solapi API error:', solapiData);
           return new Response(
             JSON.stringify({ 
               success: false, 
@@ -252,63 +198,58 @@ export async function onRequest(context: any) {
         }
 
         // Save to database
-        console.log('💾 Saving template to database...');
         const id = `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const now = new Date().toISOString();
 
-      await db.prepare(`
-        INSERT INTO AlimtalkTemplate (
-          id, userId, channelId, templateCode, templateName, content,
-          categoryCode, messageType, emphasizeType, buttons, quickReplies, variables,
-          solapiTemplateId, status, inspectionStatus, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'PENDING', ?, ?)
-      `).bind(
-        id,
-        userId,
-        channelId,
-        finalTemplateCode,
-        templateName,
-        content,
-        null,
-        messageType || 'BA',
-        emphasizeType || 'NONE',
-        buttons ? JSON.stringify(buttons) : null,
-        null,
-        variables ? JSON.stringify(variables) : null,
-        solapiData.templateId || solapiData.id || null,
-        now,
-        now
-      ).run();
+        await db.prepare(`
+          INSERT INTO AlimtalkTemplate (
+            id, userId, channelId, templateCode, templateName, content,
+            categoryCode, messageType, emphasizeType, buttons, quickReplies, variables,
+            solapiTemplateId, status, inspectionStatus, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'PENDING', ?, ?)
+        `).bind(
+          id,
+          userId,
+          channelId,
+          finalTemplateCode,
+          templateName,
+          content,
+          null,
+          messageType || 'BA',
+          emphasizeType || 'NONE',
+          buttons ? JSON.stringify(buttons) : null,
+          null,
+          variables ? JSON.stringify(variables) : null,
+          solapiData.templateId || solapiData.id || null,
+          now,
+          now
+        ).run();
 
-      console.log('✅ Template saved to database:', id);
+        // Fetch the created template
+        const template = await db.prepare(`
+          SELECT * FROM AlimtalkTemplate WHERE id = ?
+        `).bind(id).first();
 
-      // Fetch the created template
-      const template = await db.prepare(`
-        SELECT * FROM AlimtalkTemplate WHERE id = ?
-      `).bind(id).first();
-
-      console.log('✅ Template registration complete');
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          template,
-          solapiData,
-          message: '템플릿이 Solapi에 등록되었습니다. 카카오 검수 완료 후 사용 가능합니다.' 
-        }),
-        { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            template,
+            solapiData,
+            message: '템플릿이 Solapi에 등록되었습니다. 카카오 검수 완료 후 사용 가능합니다.' 
+          }),
+          { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
 
       } catch (fetchError: any) {
-        console.error('❌ Solapi API request failed:', {
-          error: fetchError.message,
-          stack: fetchError.stack
-        });
         return new Response(
           JSON.stringify({ 
             success: false, 
             error: 'Failed to connect to Solapi API',
-            details: fetchError.message
+            details: {
+              message: fetchError.message,
+              stack: fetchError.stack,
+              requestBody: solapiBody
+            }
           }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -359,7 +300,6 @@ export async function onRequest(context: any) {
     }
 
   } catch (error: any) {
-    console.error('Templates API error:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
