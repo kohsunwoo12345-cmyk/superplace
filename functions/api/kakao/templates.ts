@@ -86,9 +86,9 @@ export async function onRequest(context: any) {
         );
       }
 
-      // Get Solapi credentials
-      const SOLAPI_API_KEY = env.SOLAPI_API_Key || env.SOLAPI_API_KEY;
-      const SOLAPI_API_SECRET = env.SOLAPI_API_Secret || env.SOLAPI_API_SECRET;
+      // Get Solapi credentials - handle space in key name
+      const SOLAPI_API_KEY = env.SOLAPI_API_Key || env.SOLAPI_API_KEY || env['SOLAPI_API_Key '] || env['SOLAPI_API_Key'];
+      const SOLAPI_API_SECRET = env.SOLAPI_API_Secret || env.SOLAPI_API_SECRET || env['SOLAPI_API_Secret'];
       
       if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
         return new Response(
