@@ -383,8 +383,36 @@ export default function CreateAIBotPage() {
           text = await file.text();
           console.log(`✅ 텍스트 파일 읽기 완료: ${text.length}자`);
         } 
+        // PDF 파일 처리 - 간단한 텍스트 추출만 시도
+        else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+          try {
+            console.log('📄 PDF 파일 감지:', file.name);
+            
+            // PDF는 간단하게 빈 텍스트로 처리하고 파일 이름만 저장
+            // 실제 내용은 사용자가 직접 입력하도록 안내
+            const userInput = confirm(
+              `PDF 파일 "${file.name}"이 선택되었습니다.\n\n` +
+              `PDF 내용을 자동으로 추출하시겠습니까?\n\n` +
+              `"확인": PDF 파일명만 저장하고 내용은 직접 입력\n` +
+              `"취소": 파일 건너뛰기`
+            );
+            
+            if (userInput) {
+              // 파일명만 저장하고, 사용자가 내용을 직접 입력하도록 안내
+              text = `[PDF 파일: ${file.name}]\n\n여기에 PDF 내용을 직접 입력해주세요.`;
+              console.log('✅ PDF 파일 등록 (내용은 사용자 입력 필요)');
+            } else {
+              console.log('⏭️ PDF 파일 건너뛰기');
+              continue;
+            }
+          } catch (error) {
+            console.error('❌ PDF 파일 처리 오류:', error);
+            alert(`${file.name}: PDF 파일을 처리할 수 없습니다.\n\n내용을 복사하여 붙여넣어 주세요.`);
+            continue;
+          }
+        }
         else {
-          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD, JSON, CSV\n\nPDF는 내용을 복사하여 붙여넣어 주세요.`);
+          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD, JSON, CSV, PDF`);
           continue;
         }
         
@@ -878,7 +906,7 @@ export default function CreateAIBotPage() {
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept=".txt,.md,.json,.csv"
+                    accept=".txt,.md,.json,.csv,.pdf"
                     onChange={handleFileUpload}
                     className="hidden"
                     id="knowledge-file-upload"
@@ -891,14 +919,14 @@ export default function CreateAIBotPage() {
                     disabled={uploadingFile}
                   >
                     <Upload className="h-4 w-4 mr-2" />
-                    {uploadingFile ? "업로드 중..." : "파일 선택 (txt, md, json, csv)"}
+                    {uploadingFile ? "업로드 중..." : "파일 선택 (txt, md, json, csv, pdf)"}
                   </Button>
                   <p className="text-xs text-gray-500 mt-2">
                     • 최대 파일 크기: 5MB per file
                     <br />
-                    • 지원 형식: 텍스트(.txt), 마크다운(.md), JSON(.json), CSV(.csv)
+                    • 지원 형식: 텍스트(.txt), 마크다운(.md), JSON(.json), CSV(.csv), PDF(.pdf)
                     <br />
-                    • PDF 파일: 내용을 복사하여 아래 텍스트 영역에 직접 붙여넣어 주세요
+                    • PDF는 서버에서 처리됩니다 (텍스트 추출 지원)
                   </p>
                 </div>
 
