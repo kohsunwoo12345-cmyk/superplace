@@ -59,6 +59,14 @@ export async function onRequest(context: any) {
     } else if (method === 'POST') {
       // Create new template and register with Solapi
       const body = await request.json();
+      console.log('📥 Received template creation request:', {
+        hasUserId: !!body.userId,
+        hasChannelId: !!body.channelId,
+        hasSolapiChannelId: !!body.solapiChannelId,
+        hasTemplateName: !!body.templateName,
+        hasContent: !!body.content
+      });
+
       const {
         userId,
         channelId,
@@ -76,6 +84,13 @@ export async function onRequest(context: any) {
       } = body;
 
       if (!userId || !channelId || !solapiChannelId || !templateName || !content) {
+        console.error('❌ Missing required fields:', {
+          userId: !!userId,
+          channelId: !!channelId,
+          solapiChannelId: !!solapiChannelId,
+          templateName: !!templateName,
+          content: !!content
+        });
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -85,19 +100,32 @@ export async function onRequest(context: any) {
         );
       }
 
-      // Get Solapi credentials
-      const SOLAPI_API_KEY = env['SOLAPI_API_Key '] || env.SOLAPI_API_Key || env.SOLAPI_API_KEY;
+      // Get Solapi credentials - try all possible key names
+      const SOLAPI_API_KEY = env.SOLAPI_API_Key || env.SOLAPI_API_KEY || env['SOLAPI_API_Key '];
       const SOLAPI_API_SECRET = env.SOLAPI_API_Secret || env.SOLAPI_API_SECRET;
 
+      console.log('🔑 Checking Solapi credentials:', {
+        hasApiKey: !!SOLAPI_API_KEY,
+        hasApiSecret: !!SOLAPI_API_SECRET,
+        availableKeys: Object.keys(env).filter(k => k.toLowerCase().includes('solapi'))
+      });
+
       if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
+        console.error('❌ Solapi credentials not found in environment');
         return new Response(
-          JSON.stringify({ success: false, error: 'Solapi credentials not configured' }),
+          JSON.stringify({ 
+            success: false, 
+            error: 'Solapi credentials not configured',
+            details: 'SOLAPI_API_Key or SOLAPI_API_Secret not found in environment variables'
+          }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       // Generate unique template code if not provided
       const finalTemplateCode = templateCode || `TPL_${Date.now()}`;
+
+      console.log('🔐 Generating HMAC signature...');
 
       // Create HMAC signature for Solapi API
       const dateTime = new Date().toISOString();
@@ -137,42 +165,51 @@ export async function onRequest(context: any) {
       if (inspectorComment) solapiBody.comments = [{ name: '검수자 참고', content: inspectorComment }];
 
       console.log('📤 Registering template with Solapi:', {
-        ...solapiBody,
-        plusFriendId: solapiChannelId.substring(0, 10) + '...'
+        plusFriendId: solapiChannelId,
+        templateCode: finalTemplateCode,
+        templateName,
+        contentLength: content.length,
+        messageType: messageType || 'BA',
+        hasButtons: !!(buttons && buttons.length > 0),
+        buttonCount: buttons?.length || 0
       });
 
       // Register template with Solapi
-      const solapiResponse = await fetch('https://api.solapi.com/kakao/v1/alimtalk/templates', {
-        method: 'POST',
-        headers: {
-          'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${dateTime}, salt=${salt}, signature=${signatureHex}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(solapiBody)
-      });
+      try {
+        const solapiResponse = await fetch('https://api.solapi.com/kakao/v1/alimtalk/templates', {
+          method: 'POST',
+          headers: {
+            'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${dateTime}, salt=${salt}, signature=${signatureHex}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(solapiBody)
+        });
 
-      const solapiData = await solapiResponse.json();
+        const solapiData = await solapiResponse.json();
 
-      console.log('📥 Solapi template registration response:', {
-        status: solapiResponse.status,
-        ok: solapiResponse.ok,
-        data: solapiData
-      });
+        console.log('📥 Solapi template registration response:', {
+          status: solapiResponse.status,
+          ok: solapiResponse.ok,
+          hasError: !!solapiData.error || !!solapiData.errorMessage,
+          data: solapiData
+        });
 
-      if (!solapiResponse.ok) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: solapiData.errorMessage || 'Failed to register template with Solapi',
-            details: solapiData
-          }),
-          { status: solapiResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+        if (!solapiResponse.ok) {
+          console.error('❌ Solapi API error:', solapiData);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: solapiData.errorMessage || solapiData.message || 'Failed to register template with Solapi',
+              details: solapiData
+            }),
+            { status: solapiResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
 
-      // Save to database
-      const id = `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const now = new Date().toISOString();
+        // Save to database
+        console.log('💾 Saving template to database...');
+        const id = `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const now = new Date().toISOString();
 
       await db.prepare(`
         INSERT INTO AlimtalkTemplate (
@@ -198,10 +235,14 @@ export async function onRequest(context: any) {
         now
       ).run();
 
+      console.log('✅ Template saved to database:', id);
+
       // Fetch the created template
       const template = await db.prepare(`
         SELECT * FROM AlimtalkTemplate WHERE id = ?
       `).bind(id).first();
+
+      console.log('✅ Template registration complete');
 
       return new Response(
         JSON.stringify({ 
@@ -212,6 +253,21 @@ export async function onRequest(context: any) {
         }),
         { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+
+      } catch (fetchError: any) {
+        console.error('❌ Solapi API request failed:', {
+          error: fetchError.message,
+          stack: fetchError.stack
+        });
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Failed to connect to Solapi API',
+            details: fetchError.message
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
     } else if (method === 'DELETE') {
       // Delete template
