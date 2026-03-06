@@ -378,9 +378,9 @@ export default function CreateAIBotPage() {
       
       for (const file of Array.from(files)) {
         try {
-          // 파일 크기 제한 (10MB)
-          if (file.size > 10 * 1024 * 1024) {
-            const msg = `${file.name}: 파일 크기는 10MB를 초과할 수 없습니다.`;
+          // 파일 크기 제한 (50MB로 증가)
+          if (file.size > 50 * 1024 * 1024) {
+            const msg = `${file.name}: 파일 크기는 50MB를 초과할 수 없습니다.`;
             alert(msg);
             errors.push(msg);
             failCount++;
@@ -413,40 +413,32 @@ export default function CreateAIBotPage() {
               const arrayBuffer = await file.arrayBuffer();
               console.log(`  └─ ArrayBuffer 생성 완료: ${arrayBuffer.byteLength} bytes`);
               
-              // PDF 문서 로드 (타임아웃 60초)
+              // PDF 문서 로드 (타임아웃 제거 - 무제한 대기)
               const loadingTask = pdfjsLib.getDocument({
                 data: arrayBuffer,
                 useWorkerFetch: false,
                 isEvalSupported: false,
                 useSystemFonts: true,
-                verbosity: 0, // 불필요한 로그 제거
-                disableAutoFetch: true, // 자동 fetch 비활성화로 속도 향상
-                disableStream: false // 스트리밍 활성화
+                verbosity: 0,
+                disableAutoFetch: true,
+                disableStream: false,
+                cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.5.207/cmaps/',
+                cMapPacked: true
               });
               console.log('  └─ PDF 로딩 태스크 생성 완료');
               
-              // 타임아웃 추가 (60초 - 대용량 PDF 지원)
-              const pdfPromise = loadingTask.promise;
-              const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('PDF 로드 시간 초과 (60초)')), 60000)
-              );
-              
-              const pdf = await Promise.race([pdfPromise, timeoutPromise]) as any;
+              // 타임아웃 제거 - 무제한 대기
+              const pdf = await loadingTask.promise;
               console.log(`✅ PDF 로드 완료: ${pdf.numPages} 페이지`);
               
-              // 각 페이지의 텍스트 추출 (페이지당 타임아웃 10초)
+              // 각 페이지의 텍스트 추출 (타임아웃 제거)
               let pdfText = '';
               console.log(`  ├─ 총 ${pdf.numPages}개 페이지 파싱 시작...`);
               
               for (let i = 1; i <= pdf.numPages; i++) {
                 try {
-                  // 페이지 로드에 타임아웃 추가 (20초로 증가)
-                  const pagePromise = pdf.getPage(i);
-                  const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error(`페이지 ${i} 로드 시간 초과`)), 20000)
-                  );
-                  
-                  const page = await Promise.race([pagePromise, timeoutPromise]) as any;
+                  // 페이지 로드 (타임아웃 제거)
+                  const page = await pdf.getPage(i);
                   const textContent = await page.getTextContent();
                   
                   // textContent.items의 타입 체크 및 안전한 처리
@@ -496,15 +488,15 @@ export default function CreateAIBotPage() {
                   errorMessage = 'PDF 파일이 암호화되어 있습니다. 암호를 제거한 후 다시 업로드해 주세요.';
                 } else if (error.message.includes('이미지 기반')) {
                   errorMessage = error.message;
-                } else if (error.message.includes('시간 초과')) {
-                  errorMessage = `PDF 처리 시간 초과: ${error.message}\n파일이 너무 크거나 복잡합니다.`;
                 } else {
+                  // 시간 초과 에러 포함 모든 에러를 일반 메시지로 처리
                   errorMessage = `PDF 처리 중 오류:\n${error.message}`;
                 }
               }
               
               console.error(`  └─ 최종 오류 메시지: ${errorMessage}`);
-              alert(`${file.name}:\n\n${errorMessage}`);
+              console.warn(`⚠️ PDF 파싱 실패했지만 계속 진행합니다.`);
+              // alert 제거 - 에러가 발생해도 팝업 없이 콘솔에만 로그
               errors.push(`${file.name}: ${errorMessage}`);
               failCount++;
               continue;
