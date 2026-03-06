@@ -60,24 +60,29 @@ export default function SendAlimtalkPage() {
   const [previewMessage, setPreviewMessage] = useState('');
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        router.push('/login');
+        return;
+      }
+      
+      const userData = JSON.parse(userStr);
+      setUser(userData);
+      
+      fetchChannels(userData.id);
+      fetchLandingPages(userData.id);
+      fetchStudents(userData.id);
+      
+      // Check for channelId in URL
+      const params = new URLSearchParams(window.location.search);
+      const channelId = params.get('channelId');
+      if (channelId) {
+        setSelectedChannel(channelId);
+      }
+    } catch (error) {
+      console.error('Initialization error:', error);
       router.push('/login');
-      return;
-    }
-    
-    const userData = JSON.parse(userStr);
-    setUser(userData);
-    
-    fetchChannels(userData.id);
-    fetchLandingPages(userData.id);
-    fetchStudents(userData.id);
-    
-    // Check for channelId in URL
-    const params = new URLSearchParams(window.location.search);
-    const channelId = params.get('channelId');
-    if (channelId) {
-      setSelectedChannel(channelId);
     }
   }, [router]);
 
