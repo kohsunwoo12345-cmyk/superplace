@@ -23,7 +23,7 @@ export async function onRequest(context: any) {
   }
 
   try {
-    const { recipients, academyId } = await request.json();
+    const { recipients } = await request.json();
 
     if (!recipients || !Array.isArray(recipients)) {
       return new Response(
@@ -50,16 +50,18 @@ export async function onRequest(context: any) {
       }
 
       try {
-        // 1. 사용자(학생) 정보 조회 - 역할 상관없이 이메일로 조회
+        // 1. 사용자(학생) 정보 조회 - 실제 DB 구조 사용
         const userQuery = `
           SELECT 
-            u.id AS userId,
-            u.email,
-            u.name,
-            u.phone,
-            u.academyId
-          FROM users u
-          WHERE u.email = ?
+            id,
+            email,
+            name,
+            phone,
+            academy_id,
+            user_type,
+            role
+          FROM users
+          WHERE email = ?
           LIMIT 1
         `;
 
@@ -69,50 +71,60 @@ export async function onRequest(context: any) {
           enrichedRecipients.push({
             ...recipient,
             status: 'NOT_FOUND',
-            error: '해당 이메일의 학생을 찾을 수 없습니다.'
+            error: '해당 이메일의 사용자를 찾을 수 없습니다.'
           });
           continue;
         }
 
-        // 2. 가장 최근 랜딩페이지 조회
-        const reportQuery = `
-          SELECT *
+        // 2. 가장 최근 랜딩페이지 조회 - 실제 DB 구조 사용
+        const landingQuery = `
+          SELECT 
+            id,
+            user_id,
+            slug,
+            title,
+            template_type,
+            status,
+            created_at
           FROM landing_pages
-          WHERE userId = ?
-          ORDER BY id DESC
+          WHERE user_id = ?
+            AND status = 'active'
+          ORDER BY created_at DESC
           LIMIT 1
         `;
 
-        const report = await db.prepare(reportQuery).bind(user.userId).first();
+        const landing = await db.prepare(landingQuery).bind(user.id).first();
 
-        if (!report) {
+        if (!landing) {
           enrichedRecipients.push({
             ...recipient,
-            studentId: user.userId,
+            studentId: user.id,
             studentName: user.name,
             status: 'NO_REPORT',
-            error: '해당 학생의 리포트가 없습니다.'
+            error: '해당 사용자의 랜딩페이지가 없습니다.'
           });
           continue;
         }
 
         // 3. 랜딩페이지 URL 생성
-        const landingPageUrl = `https://superplacestudy.pages.dev/landing/${report.id}`;
+        const landingPageUrl = `https://superplacestudy.pages.dev/landing/${landing.id}`;
         
         // 4. 학생 ID를 포함한 고유 URL 생성
-        const uniqueUrl = `${landingPageUrl}?studentId=${user.userId}&ref=${Date.now()}`;
+        const uniqueUrl = `${landingPageUrl}?studentId=${user.id}&studentEmail=${encodeURIComponent(user.email)}&ref=${Date.now()}`;
 
         // 5. 성공적으로 매칭된 수신자 정보
         enrichedRecipients.push({
-          studentId: user.userId,
+          studentId: user.id,
           studentEmail: user.email,
           studentName: user.name,
+          studentPhone: user.phone,
           parentName: parentName || '학부모',
           parentPhone: parentPhone.replace(/[^0-9]/g, ''),
           landingPageUrl: uniqueUrl,
-          reportId: report.id,
-          reportTitle: report.title,
-          reportCreatedAt: report.createdAt,
+          landingPageId: landing.id,
+          landingPageTitle: landing.title,
+          landingPageSlug: landing.slug,
+          landingPageCreatedAt: landing.created_at,
           status: 'READY'
         });
 
