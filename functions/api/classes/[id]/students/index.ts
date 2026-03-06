@@ -20,7 +20,7 @@ function getKoreanTime(): string {
 
 /**
  * GET /api/classes/[id]/students
- * 클래스에 배정된 학생 목록 조회
+ * 클래스에 배정된 학생 목록 조회 (ClassStudent 테이블 사용)
  */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
@@ -35,27 +35,28 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const classId = context.params.id as string;
     console.log('👥 Get class students:', classId);
 
-    // students 테이블에서 해당 class_id의 학생들 조회
+    // ClassStudent 테이블에서 해당 classId의 학생들 조회
     const result = await DB.prepare(`
       SELECT 
-        s.id,
-        s.user_id,
+        u.id,
         u.name,
         u.email,
         u.phone,
-        u.academy_id as academyId
-      FROM students s
-      INNER JOIN users u ON s.user_id = u.id
-      WHERE s.class_id = ?
+        u.academyId,
+        cs.enrolledAt
+      FROM ClassStudent cs
+      INNER JOIN User u ON cs.studentId = u.id
+      WHERE cs.classId = ?
       ORDER BY u.name
-    `).bind(parseInt(classId)).all();
+    `).bind(classId).all();
 
     const students = (result.results || []).map((s: any) => ({
-      id: s.user_id,
+      id: s.id,
       name: s.name,
       email: s.email,
       phone: s.phone,
-      academyId: s.academyId
+      academyId: s.academyId,
+      enrolledAt: s.enrolledAt
     }));
 
     console.log('✅ Students found:', students.length);
@@ -63,7 +64,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return new Response(
       JSON.stringify({
         success: true,
-        students: students
+        students: students,
+        count: students.length
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
@@ -83,7 +85,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 /**
  * POST /api/classes/[id]/students
- * 클래스에 학생 추가
+ * 클래스에 학생 추가 (ClassStudent 테이블 사용)
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
@@ -108,17 +110,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // 각 학생의 class_id 업데이트
+    let addedCount = 0;
+    let skippedCount = 0;
+
+    // 각 학생을 ClassStudent 테이블에 추가
     for (const studentId of studentIds) {
       try {
-        const studentIdInt = parseInt(String(studentId).split('.')[0]);
+        // 이미 등록되어 있는지 확인
+        const existing = await DB.prepare(`
+          SELECT id FROM ClassStudent
+          WHERE classId = ? AND studentId = ?
+        `).bind(classId, String(studentId)).first();
+
+        if (existing) {
+          console.log(`⚠️ Student ${studentId} already in class ${classId}`);
+          skippedCount++;
+          continue;
+        }
+
+        // ClassStudent 레코드 생성
+        const csId = `cs-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
         await DB.prepare(`
-          UPDATE students 
-          SET class_id = ? 
-          WHERE user_id = ?
-        `).bind(parseInt(classId), studentIdInt).run();
+          INSERT INTO ClassStudent (id, classId, studentId, enrolledAt)
+          VALUES (?, ?, ?, datetime('now'))
+        `).bind(csId, classId, String(studentId)).run();
         
-        console.log(`✅ Student ${studentIdInt} assigned to class ${classId}`);
+        console.log(`✅ Student ${studentId} assigned to class ${classId} with id ${csId}`);
+        addedCount++;
       } catch (error: any) {
         console.error('⚠️ Failed to assign student:', studentId, error.message);
       }
@@ -127,7 +145,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: "학생이 추가되었습니다"
+        message: `학생 ${addedCount}명이 추가되었습니다${skippedCount > 0 ? ` (${skippedCount}명은 이미 등록됨)` : ''}`,
+        added: addedCount,
+        skipped: skippedCount
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );

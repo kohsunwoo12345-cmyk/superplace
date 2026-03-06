@@ -611,21 +611,36 @@ function StudentDetailContent() {
 
   // 반 목록 불러오기 (학원별)
   const fetchClasses = async (academyId: number) => {
+    console.log('🔍 fetchClasses called with academyId:', academyId);
     if (!academyId) {
+      console.log('❌ No academyId, skipping class fetch');
       setClasses([]);
       return;
     }
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/classes?academyId=${academyId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      console.log('🔑 Token:', token ? 'exists' : 'missing');
+      
+      const response = await fetch(`/api/classes`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
+      
+      console.log('📡 Classes API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Classes loaded:', data.classes?.length || 0);
+        console.log('📋 Classes data:', data.classes);
         setClasses(data.classes || []);
+      } else {
+        console.error('❌ Classes API error:', response.status);
+        setClasses([]);
       }
     } catch (error) {
-      console.error('Failed to fetch classes:', error);
+      console.error('❌ Failed to fetch classes:', error);
       setClasses([]);
     }
   };
