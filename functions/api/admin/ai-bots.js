@@ -43,10 +43,11 @@ export async function onRequestGet(context) {
       `SELECT * FROM ai_bots ORDER BY datetime(createdAt) DESC`
     ).all();
 
-    // enableProblemGeneration을 명시적으로 숫자로 변환
+    // enableProblemGeneration, voiceEnabled를 명시적으로 숫자로 변환
     const bots = (botsResult?.results || []).map((bot) => ({
       ...bot,
       enableProblemGeneration: bot.enableProblemGeneration ? Number(bot.enableProblemGeneration) : 0,
+      voiceEnabled: bot.voiceEnabled ? Number(bot.voiceEnabled) : 0,
       isActive: bot.isActive ? Number(bot.isActive) : 0,
       temperature: bot.temperature ? Number(bot.temperature) : 0.7,
       maxTokens: bot.maxTokens ? Number(bot.maxTokens) : 2000,

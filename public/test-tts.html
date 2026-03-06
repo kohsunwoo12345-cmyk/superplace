@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>TTS 테스트</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .log {
+      background: #f5f5f5;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .error { color: red; }
+    .success { color: green; }
+    input, textarea {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔊 TTS API 테스트</h1>
+  
+  <div class="test-section">
+    <h2>테스트 1: 기본 TTS</h2>
+    <textarea id="text1" rows="3">안녕하세요. 음성 테스트입니다.</textarea>
+    <input type="text" id="voice1" value="ko-KR-Wavenet-A" placeholder="Voice Name" />
+    <button onclick="testTTS('text1', 'voice1')">음성 재생</button>
+  </div>
+
+  <div class="test-section">
+    <h2>테스트 2: 긴 텍스트</h2>
+    <textarea id="text2" rows="5">이것은 긴 텍스트입니다. 여러 문장으로 이루어져 있습니다. 음성 합성이 제대로 작동하는지 확인하는 테스트입니다.</textarea>
+    <input type="text" id="voice2" value="ko-KR-Wavenet-B" placeholder="Voice Name" />
+    <button onclick="testTTS('text2', 'voice2')">음성 재생</button>
+  </div>
+
+  <div class="test-section">
+    <h2>로그</h2>
+    <div id="log" class="log"></div>
+  </div>
+
+  <script>
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('log');
+      const timestamp = new Date().toLocaleTimeString();
+      const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+      logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    async function testTTS(textId, voiceId) {
+      const text = document.getElementById(textId).value;
+      const voiceName = document.getElementById(voiceId).value;
+
+      log(`🔊 TTS 요청 시작 - 텍스트: "${text.substring(0, 50)}...", 음성: ${voiceName}`);
+
+      try {
+        const response = await fetch('/api/ai/tts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text: text,
+            voiceName: voiceName,
+          }),
+        });
+
+        log(`📥 응답 상태: ${response.status} ${response.statusText}`);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          log(`❌ API 오류: ${JSON.stringify(errorData)}`, 'error');
+          throw new Error(`TTS API failed: ${errorData.error}`);
+        }
+
+        const data = await response.json();
+        log(`✅ 응답 받음 - audioContent 길이: ${data.audioContent?.length || 0}`, 'success');
+
+        if (!data.audioContent) {
+          log('❌ audioContent가 없습니다', 'error');
+          throw new Error('No audio content received');
+        }
+
+        // Convert base64 audio to blob and play
+        log('🔄 Base64를 Blob으로 변환 중...');
+        const audioBlob = base64ToBlob(data.audioContent, 'audio/mp3');
+        log(`✅ Blob 생성 완료 - 크기: ${audioBlob.size} bytes`, 'success');
+        
+        const audioUrl = URL.createObjectURL(audioBlob);
+        log(`🔊 Audio URL 생성: ${audioUrl.substring(0, 50)}...`);
+        
+        const audio = new Audio(audioUrl);
+        
+        audio.onloadedmetadata = () => {
+          log(`📊 오디오 메타데이터 로드됨 - 길이: ${audio.duration}초`, 'success');
+        };
+
+        audio.onended = () => {
+          log('✅ 재생 완료', 'success');
+          URL.revokeObjectURL(audioUrl);
+        };
+
+        audio.onerror = (e) => {
+          log(`❌ 오디오 재생 오류: ${e.type}`, 'error');
+        };
+        
+        await audio.play();
+        log('🔊 재생 시작!', 'success');
+        
+      } catch (error) {
+        log(`❌ TTS 오류: ${error.message}`, 'error');
+        console.error('TTS error:', error);
+      }
+    }
+
+    function base64ToBlob(base64, mimeType) {
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      return new Blob([byteArray], { type: mimeType });
+    }
+
+    log('✅ TTS 테스트 페이지 로드 완료', 'success');
+  </script>
+</body>
+</html>
