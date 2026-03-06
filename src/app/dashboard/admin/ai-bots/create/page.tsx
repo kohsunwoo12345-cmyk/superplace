@@ -552,18 +552,22 @@ export default function CreateAIBotPage() {
         // 🔥 Knowledge Base가 있으면 Vectorize에 업로드
         if (formData.knowledgeBase && formData.knowledgeBase.trim().length > 0) {
           console.log('📚 Knowledge Base 업로드 시작...');
+          console.log(`  └─ Knowledge Base 길이: ${formData.knowledgeBase.length} 자`);
+          console.log(`  └─ 파일 개수: ${knowledgeFiles.length}`);
+          console.log(`  └─ Bot ID: ${data.botId}`);
           
           // 먼저 성공 메시지 표시
-          alert(`✨ AI Gem이 생성되었습니다!\n\n📚 지식 베이스를 백그라운드에서 업로드 중입니다...\n(약 10-30초 소요)`);
+          alert(`✨ AI Gem이 생성되었습니다!\n\n📚 지식 베이스를 업로드 중입니다...\n(약 10-30초 소요)\n\n파일 ${knowledgeFiles.length}개, 총 ${formData.knowledgeBase.length}자`);
           
-          // 리다이렉트 (백그라운드 업로드는 계속 진행)
-          router.push("/dashboard/admin/ai-bots");
-          
-          // 백그라운드에서 업로드 시작
+          // 백그라운드에서 업로드 시작 (리다이렉트 전에 실행)
           try {
+            console.log('🔄 Vectorize 업로드 요청 전송 중...');
             const uploadResponse = await fetch("/api/admin/upload-knowledge", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${localStorage.getItem('token')}`
+              },
               body: JSON.stringify({
                 botId: data.botId,
                 knowledgeBase: formData.knowledgeBase,
@@ -571,17 +575,26 @@ export default function CreateAIBotPage() {
               })
             });
             
+            console.log(`📡 Upload 응답 상태: ${uploadResponse.status}`);
             const uploadData = await uploadResponse.json();
+            console.log('📡 Upload 응답 데이터:', uploadData);
             
             if (uploadResponse.ok) {
               console.log(`✅ Vectorize 업로드 성공: ${uploadData.vectorCount}개 벡터`);
+              alert(`✅ 지식 베이스 업로드 완료!\n\n벡터: ${uploadData.vectorCount}개\n청크: ${uploadData.chunkCount}개`);
             } else {
               console.error('❌ Vectorize 업로드 실패:', uploadData);
+              alert(`⚠️ 지식 베이스 업로드 실패\n\n오류: ${uploadData.error || uploadData.message || '알 수 없는 오류'}`);
             }
           } catch (uploadError) {
             console.error('❌ Vectorize 업로드 오류:', uploadError);
+            alert(`⚠️ 지식 베이스 업로드 중 오류 발생\n\n${uploadError instanceof Error ? uploadError.message : '알 수 없는 오류'}`);
           }
+          
+          // 업로드 후 리다이렉트
+          router.push("/dashboard/admin/ai-bots");
         } else {
+          console.log('ℹ️ Knowledge Base가 비어있어 업로드 건너뜀');
           alert("✨ AI Gem이 생성되었습니다!");
           router.push("/dashboard/admin/ai-bots");
         }
