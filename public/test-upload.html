@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Upload Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.min.mjs" type="module"></script>
+</head>
+<body>
+    <h1>PDF 업로드 테스트</h1>
+    <input type="file" id="fileInput" accept=".pdf" />
+    <button id="testBtn">테스트 업로드</button>
+    <div id="output" style="white-space: pre-wrap; font-family: monospace;"></div>
+
+    <script type="module">
+        import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.min.mjs';
+        
+        // Worker 설정
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.worker.min.mjs';
+        
+        const output = document.getElementById('output');
+        const log = (msg) => {
+            output.textContent += msg + '\n';
+            console.log(msg);
+        };
+
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) {
+                log('❌ 파일을 선택해주세요');
+                return;
+            }
+
+            output.textContent = '';
+            log('📁 파일 업로드 시작: ' + file.name);
+            log('📦 파일 크기: ' + (file.size / 1024 / 1024).toFixed(2) + ' MB');
+
+            try {
+                log('\n📄 ArrayBuffer 변환 중...');
+                const arrayBuffer = await file.arrayBuffer();
+                log('✅ ArrayBuffer 변환 완료: ' + arrayBuffer.byteLength + ' bytes');
+
+                log('\n📄 PDF 로딩 시작...');
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                log('✅ 로딩 태스크 생성 완료');
+
+                log('\n⏳ PDF.promise 대기 중...');
+                const startTime = Date.now();
+                
+                const pdf = await loadingTask.promise;
+                const loadTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                
+                log('✅ PDF 로드 완료! (' + loadTime + '초)');
+                log('📄 페이지 수: ' + pdf.numPages);
+
+                log('\n📝 텍스트 추출 시작...');
+                let totalText = '';
+                for (let i = 1; i <= Math.min(pdf.numPages, 3); i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str || '').join(' ');
+                    totalText += pageText + '\n';
+                    log('  └─ 페이지 ' + i + ' 완료 (' + pageText.length + '자)');
+                }
+
+                log('\n✅ 성공! 총 ' + totalText.length + '자 추출');
+                log('\n📝 미리보기:');
+                log(totalText.substring(0, 200) + '...');
+
+            } catch (error) {
+                log('\n❌ 오류 발생:');
+                log('  이름: ' + error.name);
+                log('  메시지: ' + error.message);
+                log('  스택: ' + error.stack);
+            }
+        });
+    </script>
+</body>
+</html>

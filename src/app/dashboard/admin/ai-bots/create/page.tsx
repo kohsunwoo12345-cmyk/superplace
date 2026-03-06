@@ -27,13 +27,6 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import * as pdfjsLib from 'pdfjs-dist';
-
-// PDF.js Worker 설정 (v5.5.207) - 원래 작동하던 버전
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.worker.min.mjs`;
-  console.log('📦 PDF.js Worker 설정 완료 (v5.5.207)');
-}
 
 const GEMINI_MODELS = [
   // ✅ 작동 확인된 모델 (2024년 기준)
@@ -390,62 +383,8 @@ export default function CreateAIBotPage() {
           text = await file.text();
           console.log(`✅ 텍스트 파일 읽기 완료: ${text.length}자`);
         } 
-        // PDF 파일 처리 (원래 작동하던 방식)
-        else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-          try {
-            console.log('📄 PDF 파일 파싱 중...');
-            
-            // ArrayBuffer로 변환
-            const arrayBuffer = await file.arrayBuffer();
-            console.log(`  └─ ArrayBuffer 생성 완료: ${arrayBuffer.byteLength} bytes`);
-            
-            // PDF 문서 로드
-            const loadingTask = pdfjsLib.getDocument({
-              data: arrayBuffer
-            });
-            console.log('  └─ PDF 로딩 태스크 생성 완료');
-            
-            const pdf = await loadingTask.promise;
-            console.log(`✅ PDF 로드 완료: ${pdf.numPages} 페이지`);
-            
-            // 각 페이지의 텍스트 추출
-            let pdfText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-              try {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                
-                const pageText = textContent.items
-                  .map((item: any) => {
-                    if (item && typeof item.str === 'string') {
-                      return item.str;
-                    }
-                    return '';
-                  })
-                  .filter(str => str.length > 0)
-                  .join(' ');
-                
-                pdfText += `\n\n=== 페이지 ${i} ===\n${pageText}`;
-                console.log(`  └─ 페이지 ${i}/${pdf.numPages} 파싱 완료 (${pageText.length}자)`);
-              } catch (pageError) {
-                console.warn(`  ⚠️ 페이지 ${i} 파싱 실패:`, pageError);
-              }
-            }
-            
-            text = pdfText.trim();
-            console.log(`✅ PDF 전체 파싱 완료: 총 ${text.length}자`);
-            
-            if (text.length === 0) {
-              throw new Error('PDF에서 텍스트를 추출할 수 없습니다. 이미지 기반 PDF이거나 보호된 파일일 수 있습니다.');
-            }
-          } catch (error) {
-            console.error('❌ PDF 파싱 오류:', error);
-            alert(`${file.name}: PDF 파일 처리 중 오류가 발생했습니다.\n\n${(error as Error).message}`);
-            continue;
-          }
-        }
         else {
-          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD, JSON, CSV, HTML, XML\n\nPDF는 내용을 복사하여 붙여넣어 주세요.`);
+          alert(`${file.name}: 지원하지 않는 파일 형식입니다.\n\n지원 형식: TXT, MD, JSON, CSV\n\nPDF는 내용을 복사하여 붙여넣어 주세요.`);
           continue;
         }
         
@@ -939,7 +878,7 @@ export default function CreateAIBotPage() {
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept=".txt,.md,.pdf,.json,.csv"
+                    accept=".txt,.md,.json,.csv"
                     onChange={handleFileUpload}
                     className="hidden"
                     id="knowledge-file-upload"
@@ -952,14 +891,14 @@ export default function CreateAIBotPage() {
                     disabled={uploadingFile}
                   >
                     <Upload className="h-4 w-4 mr-2" />
-                    {uploadingFile ? "업로드 중..." : "파일 선택 (txt, md, pdf, json, csv)"}
+                    {uploadingFile ? "업로드 중..." : "파일 선택 (txt, md, json, csv)"}
                   </Button>
                   <p className="text-xs text-gray-500 mt-2">
                     • 최대 파일 크기: 5MB per file
                     <br />
-                    • 지원 형식: 텍스트(.txt), 마크다운(.md), PDF(.pdf), JSON(.json), CSV(.csv)
+                    • 지원 형식: 텍스트(.txt), 마크다운(.md), JSON(.json), CSV(.csv)
                     <br />
-                    • 업로드된 내용은 AI가 답변할 때 참고 자료로 활용됩니다
+                    • PDF 파일: 내용을 복사하여 아래 텍스트 영역에 직접 붙여넣어 주세요
                   </p>
                 </div>
 
