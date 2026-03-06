@@ -12,7 +12,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
     const body = await context.request.json();
-    const { userId, code, images, image, imageUrl } = body;
+    const { userId, code, images, image, imageUrl, assignmentId } = body;
 
     if (!DB) {
       return new Response(
@@ -31,7 +31,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    console.log(`📚 숙제 제출 시작: userId=${userId}, type=${typeof userId}, imageCount=${imageArray.length}`);
+    console.log(`📚 숙제 제출 시작: userId=${userId}, assignmentId=${assignmentId || 'none'}, imageCount=${imageArray.length}`);
     
     // 이미지 크기 검증 (각 이미지 최대 2MB - Base64 인코딩 고려)
     const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
@@ -133,6 +133,67 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     console.log(`✅ 숙제 제출 완료: ${submissionId}, 이미지 ${imageArray.length}장 저장`);
+
+    // Assignment와 연결 (assignmentId가 있는 경우)
+    if (assignmentId) {
+      console.log(`🔗 숙제 과제 연결 시작: assignmentId=${assignmentId}`);
+      
+      try {
+        // homework_assignment_targets 테이블에서 해당 학생의 과제 찾기
+        const target = await DB.prepare(`
+          SELECT id, status FROM homework_assignment_targets
+          WHERE assignmentId = ? AND studentId = ?
+        `).bind(assignmentId, userId).first();
+
+        if (target) {
+          console.log(`📝 과제 타겟 발견:`, target);
+          
+          // 제출 상태로 업데이트
+          await DB.prepare(`
+            UPDATE homework_assignment_targets
+            SET status = 'submitted',
+                submittedAt = ?,
+                submissionId = ?
+            WHERE id = ?
+          `).bind(kstTimestamp, submissionId, target.id).run();
+          
+          console.log(`✅ 과제 제출 상태 업데이트 완료: ${target.id}`);
+        } else {
+          console.log(`⚠️ 과제 타겟을 찾을 수 없음 (전체 학생 대상일 수 있음)`);
+          
+          // 전체 학생 대상인 경우, target 생성
+          const assignment = await DB.prepare(`
+            SELECT id, teacherName FROM homework_assignments
+            WHERE id = ? AND status = 'active'
+          `).bind(assignmentId).first();
+          
+          if (assignment) {
+            console.log(`📚 전체 학생 대상 과제 확인: ${assignment.id}`);
+            
+            // 새 target 생성
+            const targetId = `target-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            await DB.prepare(`
+              INSERT INTO homework_assignment_targets
+              (id, assignmentId, studentId, studentName, status, submittedAt, submissionId, createdAt)
+              VALUES (?, ?, ?, ?, 'submitted', ?, ?, ?)
+            `).bind(
+              targetId,
+              assignmentId,
+              userId,
+              user.name,
+              kstTimestamp,
+              submissionId,
+              kstTimestamp
+            ).run();
+            
+            console.log(`✅ 새 과제 타겟 생성 및 제출 완료: ${targetId}`);
+          }
+        }
+      } catch (targetError: any) {
+        console.error(`❌ 과제 연결 실패 (계속 진행):`, targetError.message);
+        // 과제 연결 실패해도 제출 자체는 성공으로 처리
+      }
+    }
 
     // 6. 백그라운드에서 자동 채점 실행 (await 없이 비동기 실행)
     console.log(`🤖 자동 채점 시작: ${submissionId}`);

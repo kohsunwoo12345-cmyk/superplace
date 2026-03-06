@@ -86,54 +86,45 @@ export default function TeacherHomeworkPage() {
   const fetchStudents = async (academyId?: number) => {
     try {
       const token = localStorage.getItem("token");
-      const userStr = localStorage.getItem("user");
       
-      if (!userStr) {
-        console.error("User not found in localStorage");
+      if (!token) {
+        console.error("❌ Token not found in localStorage");
         return;
       }
-      
-      const user = JSON.parse(userStr);
-      const params = new URLSearchParams();
-      
-      // role과 userId 추가 (API 요구사항)
-      if (user.role) {
-        params.append("role", user.role);
-      }
-      if (user.id) {
-        params.append("userId", user.id.toString());
-      }
-      if (user.email) {
-        params.append("email", user.email);
-      }
-      if (academyId) {
-        params.append("academyId", academyId.toString());
-      }
 
-      console.log('📡 학생 조회 요청:', {
-        role: user.role,
-        userId: user.id,
-        email: user.email,
-        academyId
-      });
+      console.log('📡 학생 조회 요청 시작');
+      console.log('   Token:', token ? '존재함' : '없음');
+      console.log('   AcademyId:', academyId);
 
-      const response = await fetch(`/api/students?${params.toString()}`, {
+      const response = await fetch(`/api/students`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      const data = await response.json();
 
-      console.log('📦 학생 조회 응답:', data);
+      console.log('📡 학생 조회 응답 상태:', response.status);
+      
+      const data = await response.json();
+      console.log('📦 학생 조회 응답 데이터:', {
+        success: data.success,
+        count: data.students?.length || 0,
+        firstStudent: data.students?.[0] || null
+      });
 
       if (data.success) {
-        setStudents(data.students || []);
-        console.log(`✅ ${data.students?.length || 0}명 학생 로드됨`);
+        // 퇴원생 제외 필터링 (API에서 이미 필터링되지만 이중 체크)
+        const activeStudents = (data.students || []).filter((s: any) => 
+          !s.status || s.status === 'ACTIVE'
+        );
+        setStudents(activeStudents);
+        console.log(`✅ ${activeStudents.length}명 학생 로드됨 (전체: ${data.students?.length || 0})`);
       } else {
-        console.error('학생 조회 실패:', data);
+        console.error('❌ 학생 조회 실패:', data.error);
+        setStudents([]);
       }
     } catch (error) {
-      console.error("Failed to fetch students:", error);
+      console.error("❌ Failed to fetch students:", error);
+      setStudents([]);
     }
   };
 

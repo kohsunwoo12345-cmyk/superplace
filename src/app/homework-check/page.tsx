@@ -27,6 +27,7 @@ function HomeworkCheckContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const attendanceIdFromUrl = searchParams.get("attendanceId");
+  const assignmentIdFromUrl = searchParams.get("assignmentId");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -268,6 +269,7 @@ function HomeworkCheckContent() {
         body: JSON.stringify({
           userId: currentUser.id,
           attendanceRecordId: attendanceIdFromUrl ? parseInt(attendanceIdFromUrl) : null,
+          assignmentId: assignmentIdFromUrl || null,
           images: capturedImages,
         }),
       });
