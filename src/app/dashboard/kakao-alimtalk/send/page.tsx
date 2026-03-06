@@ -45,14 +45,16 @@ export default function SendAlimtalkPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [landingPages, setLandingPages] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]); // Add students list
   
   const [selectedChannel, setSelectedChannel] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [selectedLandingPage, setSelectedLandingPage] = useState('');
   
   // Recipients
-  const [inputMode, setInputMode] = useState<'manual' | 'excel'>('manual');
+  const [inputMode, setInputMode] = useState<'manual' | 'excel' | 'students'>('manual');
   const [recipients, setRecipients] = useState<Recipient[]>([{ name: '', phone: '' }]);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]); // Selected student IDs
   
   // Preview
   const [previewMessage, setPreviewMessage] = useState('');
@@ -69,6 +71,7 @@ export default function SendAlimtalkPage() {
     
     fetchChannels(userData.id);
     fetchLandingPages(userData.id);
+    fetchStudents(userData.id);
     
     // Check for channelId in URL
     const params = new URLSearchParams(window.location.search);
@@ -77,6 +80,27 @@ export default function SendAlimtalkPage() {
       setSelectedChannel(channelId);
     }
   }, [router]);
+
+  const fetchStudents = async (userId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/students', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Filter active students with valid phone numbers
+        const validStudents = (data.students || []).filter((s: any) => 
+          s.status === 'ACTIVE' && s.phoneNumber
+        );
+        setStudents(validStudents);
+      }
+    } catch (err) {
+      console.error('Failed to fetch students:', err);
+    }
+  };
 
   useEffect(() => {
     if (selectedChannel) {
@@ -88,7 +112,7 @@ export default function SendAlimtalkPage() {
     if (selectedTemplate) {
       updatePreview();
     }
-  }, [selectedTemplate, recipients, selectedLandingPage]);
+  }, [selectedTemplate, recipients, selectedLandingPage, selectedStudents, inputMode]);
 
   const fetchChannels = async (userId: string) => {
     try {
@@ -173,28 +197,42 @@ export default function SendAlimtalkPage() {
 
   const updatePreview = () => {
     const template = templates.find(t => t.id === selectedTemplate);
-    if (!template || recipients.length === 0) {
+    if (!template) {
       setPreviewMessage('');
       return;
     }
 
     // Get first recipient for preview
-    const recipient = recipients[0];
-    let message = template.content;
-
-    // Replace variables
-    if (recipient.name) {
-      message = message.replace(/#{이름}/g, recipient.name)
-                        .replace(/#{학생이름}/g, recipient.name)
-                        .replace(/#{이름}/g, recipient.name);
+    let recipient: any;
+    
+    if (inputMode === 'students' && selectedStudents.length > 0) {
+      const student = students.find(s => s.id === selectedStudents[0]);
+      if (student) {
+        recipient = { name: student.name, phone: student.phoneNumber };
+      }
+    } else if (recipients.length > 0) {
+      recipient = recipients[0];
     }
 
-    // Add landing page URL if selected
+    if (!recipient || !recipient.name) {
+      setPreviewMessage('');
+      return;
+    }
+
+    let message = template.content;
+
+    // Replace #{name} variable
+    message = message.replace(/#{name}/g, recipient.name)
+                    .replace(/#{이름}/g, recipient.name)
+                    .replace(/#{학생이름}/g, recipient.name);
+
+    // Replace #{url} variable with landing page URL
     if (selectedLandingPage) {
       const landingPage = landingPages.find(lp => lp.id === selectedLandingPage);
       if (landingPage) {
-        const uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${recipient.name}&ref=${Date.now()}`;
-        message = message.replace(/#{URL}/g, uniqueUrl)
+        const uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${recipient.name}&ref=preview`;
+        message = message.replace(/#{url}/g, uniqueUrl)
+                        .replace(/#{URL}/g, uniqueUrl)
                         .replace(/#{리포트URL}/g, uniqueUrl)
                         .replace(/#{링크}/g, uniqueUrl);
       }
@@ -209,9 +247,35 @@ export default function SendAlimtalkPage() {
       return;
     }
 
-    const validRecipients = recipients.filter(r => r.name && r.phone);
+    if (!selectedLandingPage) {
+      alert('랜딩페이지를 선택해주세요.');
+      return;
+    }
+
+    // Get recipients based on input mode
+    let validRecipients: any[] = [];
+    
+    if (inputMode === 'students') {
+      // Use selected students from DB
+      validRecipients = students
+        .filter(s => selectedStudents.includes(s.id))
+        .map(student => ({
+          name: student.name,
+          phoneNumber: student.phoneNumber.replace(/[^0-9]/g, ''),
+          studentId: student.id
+        }));
+    } else {
+      // Use manually entered or excel uploaded recipients
+      validRecipients = recipients
+        .filter(r => r.name && r.phone)
+        .map(r => ({
+          name: r.name,
+          phoneNumber: r.phone.replace(/[^0-9]/g, '')
+        }));
+    }
+
     if (validRecipients.length === 0) {
-      alert('최소 1명의 수신자를 입력해주세요.');
+      alert('최소 1명의 수신자를 선택해주세요.');
       return;
     }
 
@@ -229,22 +293,20 @@ export default function SendAlimtalkPage() {
       setSuccess('');
 
       // Prepare recipients with landing page URLs
+      const landingPage = landingPages.find(lp => lp.id === selectedLandingPage);
+      
       const preparedRecipients = validRecipients.map((recipient, index) => {
-        let landingPageUrl = '';
+        // Generate unique URL for each recipient
+        const uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${encodeURIComponent(recipient.name)}&phone=${recipient.phoneNumber}&ref=${Date.now()}_${index}`;
         
-        if (selectedLandingPage) {
-          const landingPage = landingPages.find(lp => lp.id === selectedLandingPage);
-          if (landingPage) {
-            landingPageUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${encodeURIComponent(recipient.name)}&phone=${recipient.phone}&ref=${Date.now()}_${index}`;
-          }
-        }
-
         return {
           name: recipient.name,
-          phoneNumber: recipient.phone,
-          landingPageUrl: landingPageUrl
+          phoneNumber: recipient.phoneNumber,
+          landingPageUrl: uniqueUrl
         };
       });
+
+      console.log('📤 Sending to recipients:', preparedRecipients);
 
       const response = await fetch('/api/kakao/send-alimtalk', {
         method: 'POST',
@@ -253,7 +315,7 @@ export default function SendAlimtalkPage() {
           userId: user.id,
           channelId: channel.id,
           solapiChannelId: channel.solapiChannelId,
-          templateCode: template.solapiTemplateId,
+          templateCode: template.solapiTemplateId || template.templateCode,
           recipients: preparedRecipients,
           sendMode: 'immediate'
         })
@@ -264,6 +326,7 @@ export default function SendAlimtalkPage() {
       if (data.success) {
         setSuccess(`✅ ${preparedRecipients.length}건의 알림톡이 발송되었습니다!`);
         setRecipients([{ name: '', phone: '' }]);
+        setSelectedStudents([]);
         setSelectedTemplate('');
       } else {
         setError(data.error || '발송에 실패했습니다.');
@@ -371,6 +434,13 @@ export default function SendAlimtalkPage() {
             <CardContent>
               <div className="flex gap-2 mb-4">
                 <Button
+                  variant={inputMode === 'students' ? 'default' : 'outline'}
+                  onClick={() => setInputMode('students')}
+                  className="flex-1"
+                >
+                  학생 선택
+                </Button>
+                <Button
                   variant={inputMode === 'manual' ? 'default' : 'outline'}
                   onClick={() => setInputMode('manual')}
                   className="flex-1"
@@ -383,11 +453,47 @@ export default function SendAlimtalkPage() {
                   className="flex-1"
                 >
                   <Upload className="mr-2 h-4 w-4" />
-                  엑셀 업로드
+                  엑셀
                 </Button>
               </div>
 
-              {inputMode === 'manual' ? (
+              {inputMode === 'students' ? (
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-600 mb-2">
+                    DB에서 등록된 학생을 선택하세요 ({students.length}명)
+                  </div>
+                  <div className="max-h-64 overflow-y-auto border rounded-lg p-2 space-y-2">
+                    {students.map((student) => (
+                      <label
+                        key={student.id}
+                        className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedStudents.includes(student.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStudents([...selectedStudents, student.id]);
+                            } else {
+                              setSelectedStudents(selectedStudents.filter(id => id !== student.id));
+                            }
+                          }}
+                          className="mr-3"
+                        />
+                        <div className="flex-1">
+                          <span className="font-medium">{student.name}</span>
+                          <span className="text-sm text-gray-500 ml-2">{student.phoneNumber}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedStudents.length > 0 && (
+                    <div className="text-sm text-green-600 font-medium">
+                      ✅ {selectedStudents.length}명 선택됨
+                    </div>
+                  )}
+                </div>
+              ) : inputMode === 'manual' ? (
                 <div className="space-y-3">
                   {recipients.map((recipient, index) => (
                     <div key={index} className="flex gap-2">
@@ -450,7 +556,13 @@ export default function SendAlimtalkPage() {
 
           <Button
             onClick={handleSend}
-            disabled={sending || !selectedChannel || !selectedTemplate || recipients.filter(r => r.name && r.phone).length === 0}
+            disabled={
+              sending || 
+              !selectedChannel || 
+              !selectedTemplate || 
+              !selectedLandingPage ||
+              (inputMode === 'students' ? selectedStudents.length === 0 : recipients.filter(r => r.name && r.phone).length === 0)
+            }
             className="w-full"
             size="lg"
           >
@@ -462,7 +574,10 @@ export default function SendAlimtalkPage() {
             ) : (
               <>
                 <Send className="mr-2 h-4 w-4" />
-                {recipients.filter(r => r.name && r.phone).length}명에게 발송
+                {inputMode === 'students' 
+                  ? `${selectedStudents.length}명에게 발송` 
+                  : `${recipients.filter(r => r.name && r.phone).length}명에게 발송`
+                }
               </>
             )}
           </Button>
@@ -496,24 +611,42 @@ export default function SendAlimtalkPage() {
             </CardContent>
           </Card>
 
-          {recipients.filter(r => r.name && r.phone).length > 0 && (
+          {(inputMode === 'students' ? selectedStudents.length > 0 : recipients.filter(r => r.name && r.phone).length > 0) && (
             <Card className="mt-4">
               <CardHeader>
                 <CardTitle>수신자 목록</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {recipients.filter(r => r.name && r.phone).map((recipient, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <div>
-                        <span className="font-medium">{recipient.name}</span>
-                        <span className="text-sm text-gray-600 ml-2">{recipient.phone}</span>
+                  {inputMode === 'students' ? (
+                    selectedStudents.map((studentId) => {
+                      const student = students.find(s => s.id === studentId);
+                      if (!student) return null;
+                      return (
+                        <div key={studentId} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div>
+                            <span className="font-medium">{student.name}</span>
+                            <span className="text-sm text-gray-600 ml-2">{student.phoneNumber}</span>
+                          </div>
+                          {selectedLandingPage && (
+                            <span className="text-xs text-blue-600">🔗 개인 URL</span>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    recipients.filter(r => r.name && r.phone).map((recipient, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <div>
+                          <span className="font-medium">{recipient.name}</span>
+                          <span className="text-sm text-gray-600 ml-2">{recipient.phone}</span>
+                        </div>
+                        {selectedLandingPage && (
+                          <span className="text-xs text-blue-600">🔗 개인 URL</span>
+                        )}
                       </div>
-                      {selectedLandingPage && (
-                        <span className="text-xs text-blue-600">🔗 개인 URL</span>
-                      )}
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
