@@ -130,17 +130,19 @@ export async function onRequest(context: any) {
 
       console.log('🔐 Generating HMAC signature for Solapi...');
 
-      // Create HMAC signature for Solapi API
-      const date = new Date().toISOString();
-      const salt = Math.random().toString(36).substring(2, 15);
+      // Create HMAC signature for Solapi API (official format)
+      const currentDate = new Date();
+      const date = currentDate.toISOString();
+      
+      // Generate salt (random string)
+      const salt = Array.from({ length: 10 }, () => 
+        Math.random().toString(36).charAt(2)
+      ).join('');
+      
+      // HMAC data = date + salt (concatenated)
       const hmacData = date + salt;
       
-      console.log('🔑 HMAC components:', {
-        date: date,
-        saltLength: salt.length,
-        hmacDataLength: hmacData.length
-      });
-      
+      // Generate HMAC-SHA256 signature
       const encoder = new TextEncoder();
       const keyData = encoder.encode(SOLAPI_API_SECRET);
       const messageData = encoder.encode(hmacData);
@@ -153,12 +155,10 @@ export async function onRequest(context: any) {
         ['sign']
       );
       
-      const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
-      const signatureHex = Array.from(new Uint8Array(signature))
+      const signatureBuffer = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+      const signatureHex = Array.from(new Uint8Array(signatureBuffer))
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
-
-      console.log('✅ HMAC signature generated:', signatureHex.substring(0, 20) + '...');
 
       // Prepare Solapi request body
       const solapiBody: any = {
@@ -187,42 +187,49 @@ export async function onRequest(context: any) {
 
       // Register template with Solapi
       try {
-        console.log('🌐 Calling Solapi API...');
-        console.log('   URL: https://api.solapi.com/kakao/v1/alimtalk/templates');
-        console.log('   Method: POST');
-        console.log('   API Key:', SOLAPI_API_KEY.substring(0, 10) + '...');
+        // Solapi Authorization header format
+        const authHeader = `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signatureHex}`;
         
         const solapiResponse = await fetch('https://api.solapi.com/kakao/v1/alimtalk/templates', {
           method: 'POST',
           headers: {
-            'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signatureHex}`,
+            'Authorization': authHeader,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(solapiBody)
         });
 
-        console.log('📡 Solapi response received:', {
-          status: solapiResponse.status,
-          statusText: solapiResponse.statusText,
-          ok: solapiResponse.ok,
-          headers: Object.fromEntries(solapiResponse.headers.entries())
-        });
-
-        console.log('📡 Solapi response received:', {
-          status: solapiResponse.status,
-          statusText: solapiResponse.statusText,
-          ok: solapiResponse.ok,
-          headers: Object.fromEntries(solapiResponse.headers.entries())
-        });
+        // Get response text first to handle both JSON and HTML
+        const responseText = await solapiResponse.text();
+        
+        // Log raw response for debugging
+        if (!solapiResponse.ok) {
+          console.error('Solapi API error response:', {
+            status: solapiResponse.status,
+            statusText: solapiResponse.statusText,
+            responsePreview: responseText.substring(0, 500),
+            authHeaderUsed: authHeader.substring(0, 50) + '...'
+          });
+        }
 
         let solapiData;
         try {
-          const responseText = await solapiResponse.text();
-          console.log('📄 Raw response:', responseText.substring(0, 500));
           solapiData = JSON.parse(responseText);
         } catch (parseError: any) {
-          console.error('❌ Failed to parse Solapi response:', parseError.message);
-          throw new Error('Invalid JSON response from Solapi: ' + parseError.message);
+          // Return HTML error for debugging
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'Solapi API returned non-JSON response',
+              details: {
+                status: solapiResponse.status,
+                statusText: solapiResponse.statusText,
+                responsePreview: responseText.substring(0, 500),
+                hint: 'Check API credentials and endpoint URL'
+              }
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
 
         console.log('📥 Solapi template registration response:', {
