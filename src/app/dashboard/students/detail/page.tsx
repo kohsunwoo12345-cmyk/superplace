@@ -876,6 +876,36 @@ function StudentDetailContent() {
     );
   };
 
+  const printProblemsOnly = () => {
+    // 문제지만 인쇄 (답안지 제외)
+    const answerSheet = document.querySelector('.answer-sheet-page');
+    if (answerSheet) {
+      (answerSheet as HTMLElement).style.display = 'none';
+    }
+    setTimeout(() => {
+      window.print();
+      // 인쇄 후 답안지 다시 표시
+      if (answerSheet) {
+        (answerSheet as HTMLElement).style.display = 'block';
+      }
+    }, 100);
+  };
+
+  const printAnswersOnly = () => {
+    // 답안지만 인쇄
+    const problemPages = document.querySelectorAll('.problem-page');
+    problemPages.forEach(page => {
+      (page as HTMLElement).style.display = 'none';
+    });
+    setTimeout(() => {
+      window.print();
+      // 인쇄 후 문제지 다시 표시
+      problemPages.forEach(page => {
+        (page as HTMLElement).style.display = 'block';
+      });
+    }, 100);
+  };
+
   const printAllPages = () => {
     // 모든 페이지(문제+서술형+답지)를 한 번에 인쇄
     setTimeout(() => window.print(), 100);
@@ -2502,9 +2532,17 @@ function StudentDetailContent() {
         {/* 문제 생성 완료 후 버튼 */}
         {generatedProblems.length > 0 && (
           <div className="fixed bottom-4 right-4 flex gap-2 z-50 print:hidden">
-            <Button onClick={printAllPages} size="lg" className="shadow-lg">
+            <Button onClick={printProblemsOnly} size="lg" className="shadow-lg bg-blue-600 hover:bg-blue-700">
+              <FileText className="w-5 h-5 mr-2" />
+              문제지 인쇄
+            </Button>
+            <Button onClick={printAnswersOnly} size="lg" className="shadow-lg bg-green-600 hover:bg-green-700">
+              <BookOpen className="w-5 h-5 mr-2" />
+              답안지 인쇄
+            </Button>
+            <Button onClick={printAllPages} size="lg" className="shadow-lg bg-purple-600 hover:bg-purple-700">
               <ClipboardCheck className="w-5 h-5 mr-2" />
-              전체 인쇄 (문제+서술형+답지)
+              전체 인쇄
             </Button>
           </div>
         )}
@@ -2549,7 +2587,8 @@ function StudentDetailContent() {
               <div className="max-w-4xl mx-auto bg-white">
                 {/* 페이지 1: 객관식 문제 */}
                 {generatedProblems.filter(p => p.options && p.options.length > 0).length > 0 && (
-                  <div className="p-8">
+                  <div className="p-8 problem-page"
+                    data-page-type="multiple-choice">
                     {/* 시험지 헤더 */}
                     <div className="print-header border-b-2 border-black pb-4 mb-6">
                       <h1 className="text-3xl font-bold text-center mb-2">
@@ -2611,7 +2650,8 @@ function StudentDetailContent() {
 
                 {/* 페이지 2: 서술형 문제 */}
                 {generatedProblems.filter(p => p.answerSpace || (!p.options || p.options.length === 0)).length > 0 && (
-                  <div className="p-8 page-break">
+                  <div className="p-8 page-break problem-page"
+                    data-page-type="essay">
                     {/* 서술형 헤더 */}
                     <div className="print-header border-b-2 border-black pb-4 mb-6">
                       <h1 className="text-3xl font-bold text-center mb-2">
@@ -2668,7 +2708,8 @@ function StudentDetailContent() {
                 )}
 
                 {/* 페이지 3: 답안지 */}
-                <div className="p-8 page-break">
+                <div className="p-8 page-break answer-sheet-page"
+                  data-page-type="answers">
                   {/* 답지 헤더 */}
                   <div className="print-header border-b-2 border-black pb-4 mb-6">
                     <h1 className="text-3xl font-bold text-center mb-2">
