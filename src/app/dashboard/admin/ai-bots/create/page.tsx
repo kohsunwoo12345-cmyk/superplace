@@ -27,7 +27,35 @@ import {
   Upload,
   X,
 } from "lucide-react";
-// PDF.js는 서버 측에서 처리하므로 클라이언트에서는 import 불필요
+
+// PDF.js를 동적으로 로드하는 함수
+const loadPDFJS = async () => {
+  if (typeof window === 'undefined') return null;
+  
+  // 이미 로드되었으면 반환
+  if ((window as any).pdfjsLib) {
+    return (window as any).pdfjsLib;
+  }
+  
+  // CDN에서 동적으로 로드
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      const pdfjsLib = (window as any).pdfjsLib;
+      if (pdfjsLib) {
+        // Worker 설정
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        console.log('✅ PDF.js 로드 완료 (v3.11.174)');
+        resolve(pdfjsLib);
+      } else {
+        reject(new Error('PDF.js 로드 실패'));
+      }
+    };
+    script.onerror = () => reject(new Error('PDF.js 스크립트 로드 실패'));
+    document.head.appendChild(script);
+  });
+};
 
 const GEMINI_MODELS = [
   // ✅ 작동 확인된 모델 (2024년 기준)
@@ -384,31 +412,57 @@ export default function CreateAIBotPage() {
           text = await file.text();
           console.log(`✅ 텍스트 파일 읽기 완료: ${text.length}자`);
         } 
-        // PDF 파일 처리 - 서버 측 API 호출로 변경
+        // PDF 파일 처리 - 동적 로드된 PDF.js 사용
         else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
           try {
-            console.log('📄 PDF 파일 서버로 전송 중...');
+            console.log('📄 PDF 파일 파싱 시작...');
+            console.log(`  ├─ 파일: ${file.name}`);
+            console.log(`  └─ 크기: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
             
-            // FormData 생성
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            // 서버 API 호출
-            console.log('  └─ /api/admin/parse-pdf 호출...');
-            const response = await fetch('/api/admin/parse-pdf', {
-              method: 'POST',
-              body: formData
-            });
-            
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || `서버 오류: ${response.status}`);
+            // PDF.js 동적 로드
+            console.log('📦 PDF.js 로드 중...');
+            const pdfjsLib = await loadPDFJS();
+            if (!pdfjsLib) {
+              throw new Error('PDF.js를 로드할 수 없습니다.');
             }
             
-            const result = await response.json();
-            console.log(`✅ PDF 파싱 완료: ${result.pages} 페이지, ${result.size}자`);
+            // ArrayBuffer로 변환
+            const arrayBuffer = await file.arrayBuffer();
+            console.log('✅ ArrayBuffer 변환 완료');
             
-            text = result.text;
+            // PDF 로드
+            console.log('📄 PDF 문서 로드 중...');
+            const loadingTask = pdfjsLib.getDocument({
+              data: new Uint8Array(arrayBuffer)
+            });
+            
+            const pdf = await loadingTask.promise;
+            console.log(`✅ PDF 로드 완료: ${pdf.numPages} 페이지`);
+            
+            // 각 페이지 텍스트 추출
+            let pdfText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              try {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                
+                const pageText = textContent.items
+                  .map((item: any) => item.str || '')
+                  .filter((str: string) => str.length > 0)
+                  .join(' ');
+                
+                pdfText += `\n\n=== 페이지 ${i} ===\n${pageText}`;
+                
+                if (i % 10 === 0) {
+                  console.log(`  └─ 진행: ${i}/${pdf.numPages} 페이지`);
+                }
+              } catch (pageError) {
+                console.warn(`  ⚠️ 페이지 ${i} 파싱 실패:`, pageError);
+              }
+            }
+            
+            text = pdfText.trim();
+            console.log(`✅ PDF 파싱 완료: ${text.length}자`);
             
             if (!text || text.length === 0) {
               throw new Error('PDF에서 텍스트를 추출할 수 없습니다. 이미지 기반 PDF이거나 보호된 파일일 수 있습니다.');
@@ -416,13 +470,9 @@ export default function CreateAIBotPage() {
           } catch (error) {
             console.error('❌ PDF 파싱 오류:', error);
             
-            // 상세한 오류 정보
             let errorMessage = 'PDF 처리 중 오류가 발생했습니다.';
             
             if (error instanceof Error) {
-              console.error('  └─ Error name:', error.name);
-              console.error('  └─ Error message:', error.message);
-              
               if (error.message.includes('Invalid PDF') || error.message.includes('Invalid header')) {
                 errorMessage = 'PDF 파일이 손상되었거나 올바른 PDF 형식이 아닙니다.';
               } else if (error.message.includes('password') || error.message.includes('encrypted')) {
