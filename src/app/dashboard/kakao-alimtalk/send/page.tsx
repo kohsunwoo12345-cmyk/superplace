@@ -144,7 +144,54 @@ export default function SendAlimtalkPage() {
       const response = await fetch(`/api/kakao/templates?userId=${user.id}&channelId=${channelId}`);
       const data = await response.json();
       if (data.success) {
-        setTemplates(data.templates || []);
+        const userTemplates = data.templates || [];
+        
+        // Add 5 default Solapi templates
+        const defaultTemplates: Template[] = [
+          {
+            id: 'default-1',
+            templateCode: 'KA01TP230126085130773ZHclHN4i674',
+            templateName: '기본 템플릿 1',
+            content: '안녕하세요 #{name}님, 기본 템플릿 1입니다.',
+            solapiTemplateId: 'KA01TP230126085130773ZHclHN4i674',
+            variables: 'name'
+          },
+          {
+            id: 'default-2',
+            templateCode: 'KA01TP221027002252645FPwAcO9SguY',
+            templateName: '기본 템플릿 2',
+            content: '안녕하세요 #{name}님, 기본 템플릿 2입니다.',
+            solapiTemplateId: 'KA01TP221027002252645FPwAcO9SguY',
+            variables: 'name'
+          },
+          {
+            id: 'default-3',
+            templateCode: 'KA01TP221025083117992xkz17KyvNbr',
+            templateName: '기본 템플릿 3 - 학습 안내',
+            content: '[학습 안내]\n\n안녕하세요, #{name} 학생 학부모님\n꾸메땅학원입니다.\n\n오늘 준비된 맞춤형 학습 페이지 안내드립니다.\n아래 링크를 클릭하여 이번달 리포트를 확인해 주세요!\n\n■ 학습 페이지: #{url}\n\n※ 본 메시지는 수신 동의하신 분들께 발송되는 학습 안내 정보입니다.',
+            solapiTemplateId: 'KA01TP221025083117992xkz17KyvNbr',
+            variables: 'name,url'
+          },
+          {
+            id: 'default-4',
+            templateCode: 'KA01TP240110072220677clp0DwzaW23',
+            templateName: '기본 템플릿 4',
+            content: '안녕하세요 #{name}님, 기본 템플릿 4입니다.\n링크: #{url}',
+            solapiTemplateId: 'KA01TP240110072220677clp0DwzaW23',
+            variables: 'name,url'
+          },
+          {
+            id: 'default-5',
+            templateCode: 'KA01TP230131084504073zoRX27WkwHB',
+            templateName: '기본 템플릿 5',
+            content: '안녕하세요 #{name}님, 기본 템플릿 5입니다.\n링크: #{url}',
+            solapiTemplateId: 'KA01TP230131084504073zoRX27WkwHB',
+            variables: 'name,url'
+          }
+        ];
+        
+        // Combine default templates with user templates
+        setTemplates([...defaultTemplates, ...userTemplates]);
       }
     } catch (err) {
       console.error('Failed to fetch templates:', err);
@@ -247,7 +294,15 @@ export default function SendAlimtalkPage() {
     if (selectedLandingPage) {
       const landingPage = landingPages.find(lp => lp.id === selectedLandingPage);
       if (landingPage) {
-        const uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${recipient.name}&ref=preview`;
+        // Generate URL based on whether it's a student or manual entry
+        let uniqueUrl;
+        if (inputMode === 'students' && selectedStudents.length > 0) {
+          const studentId = selectedStudents[0];
+          uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?studentId=${studentId}&ref=preview`;
+        } else {
+          uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${encodeURIComponent(recipient.name)}&ref=preview`;
+        }
+        
         message = message.replace(/#{url}/g, uniqueUrl)
                         .replace(/#{URL}/g, uniqueUrl)
                         .replace(/#{리포트URL}/g, uniqueUrl)
@@ -310,14 +365,22 @@ export default function SendAlimtalkPage() {
       const landingPage = selectedLandingPage ? landingPages.find(lp => lp.id === selectedLandingPage) : null;
       
       const preparedRecipients = validRecipients.map((recipient, index) => {
-        // Generate unique URL for each recipient only if landing page is selected
-        const uniqueUrl = landingPage 
-          ? `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${encodeURIComponent(recipient.name)}&phone=${recipient.phoneNumber}&ref=${Date.now()}_${index}`
-          : undefined;
+        // Generate unique URL for each recipient with student ID if available
+        let uniqueUrl = undefined;
+        if (landingPage) {
+          if (recipient.studentId) {
+            // Use student ID for DB students
+            uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?studentId=${recipient.studentId}&ref=${Date.now()}_${index}`;
+          } else {
+            // Use name and phone for manually entered recipients
+            uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${encodeURIComponent(recipient.name)}&phone=${recipient.phoneNumber}&ref=${Date.now()}_${index}`;
+          }
+        }
         
         return {
           name: recipient.name,
           phoneNumber: recipient.phoneNumber,
+          studentId: recipient.studentId,
           landingPageUrl: uniqueUrl
         };
       });
