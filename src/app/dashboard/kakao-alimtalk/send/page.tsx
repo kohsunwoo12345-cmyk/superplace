@@ -94,6 +94,11 @@ export default function SendAlimtalkPage() {
           'Authorization': `Bearer ${token}`
         }
       });
+      if (!response.ok) {
+        console.warn('Students API failed, using empty list');
+        setStudents([]);
+        return;
+      }
       const data = await response.json();
       if (data.success) {
         // Filter active students with valid phone numbers
@@ -104,6 +109,7 @@ export default function SendAlimtalkPage() {
       }
     } catch (err) {
       console.error('Failed to fetch students:', err);
+      setStudents([]);
     }
   };
 
@@ -148,12 +154,18 @@ export default function SendAlimtalkPage() {
   const fetchLandingPages = async (userId: string) => {
     try {
       const response = await fetch(`/api/landing/list?userId=${userId}`);
+      if (!response.ok) {
+        console.warn('Landing pages API failed, using empty list');
+        setLandingPages([]);
+        return;
+      }
       const data = await response.json();
       if (data.success) {
         setLandingPages(data.landingPages || []);
       }
     } catch (err) {
       console.error('Failed to fetch landing pages:', err);
+      setLandingPages([]);
     }
   };
 
@@ -252,10 +264,7 @@ export default function SendAlimtalkPage() {
       return;
     }
 
-    if (!selectedLandingPage) {
-      alert('랜딩페이지를 선택해주세요.');
-      return;
-    }
+    // 랜딩페이지는 선택 사항이므로 체크 제거
 
     // Get recipients based on input mode
     let validRecipients: any[] = [];
@@ -298,11 +307,13 @@ export default function SendAlimtalkPage() {
       setSuccess('');
 
       // Prepare recipients with landing page URLs
-      const landingPage = landingPages.find(lp => lp.id === selectedLandingPage);
+      const landingPage = selectedLandingPage ? landingPages.find(lp => lp.id === selectedLandingPage) : null;
       
       const preparedRecipients = validRecipients.map((recipient, index) => {
-        // Generate unique URL for each recipient
-        const uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${encodeURIComponent(recipient.name)}&phone=${recipient.phoneNumber}&ref=${Date.now()}_${index}`;
+        // Generate unique URL for each recipient only if landing page is selected
+        const uniqueUrl = landingPage 
+          ? `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${encodeURIComponent(recipient.name)}&phone=${recipient.phoneNumber}&ref=${Date.now()}_${index}`
+          : undefined;
         
         return {
           name: recipient.name,
@@ -412,12 +423,12 @@ export default function SendAlimtalkPage() {
 
               <div>
                 <Label>랜딩페이지 (선택)</Label>
-                <Select value={selectedLandingPage} onValueChange={setSelectedLandingPage}>
+                <Select value={selectedLandingPage || "none"} onValueChange={(val) => setSelectedLandingPage(val === "none" ? "" : val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="랜딩페이지를 선택하세요" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">선택 안 함</SelectItem>
+                    <SelectItem value="none">선택 안 함</SelectItem>
                     {landingPages.map(page => (
                       <SelectItem key={page.id} value={page.id}>
                         {page.title}
@@ -565,7 +576,6 @@ export default function SendAlimtalkPage() {
               sending || 
               !selectedChannel || 
               !selectedTemplate || 
-              !selectedLandingPage ||
               (inputMode === 'students' ? selectedStudents.length === 0 : recipients.filter(r => r.name && r.phone).length === 0)
             }
             className="w-full"
