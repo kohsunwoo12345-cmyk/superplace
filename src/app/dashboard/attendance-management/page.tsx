@@ -118,7 +118,8 @@ export default function AttendanceManagementPage() {
       });
 
       if (response.ok) {
-        alert('출석 상태가 업데이트되었습니다');
+        const data = await response.json();
+        alert(`✅ ${data.record?.userName || ''}님의 출석 상태가 "${getStatusText(status)}"로 변경되었습니다`);
         fetchAttendanceRecords();
       } else {
         const error = await response.json();
@@ -142,6 +143,16 @@ export default function AttendanceManagementPage() {
         return <Badge className="bg-blue-500"><AlertTriangle className="w-3 h-3 mr-1" />예외</Badge>;
       default:
         return <Badge variant="outline">미처리</Badge>;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'PRESENT': return '출석';
+      case 'LATE': return '지각';
+      case 'ABSENT': return '결석';
+      case 'EXCUSED': return '예외';
+      default: return '미처리';
     }
   };
 
@@ -208,7 +219,7 @@ export default function AttendanceManagementPage() {
             학생 목록 ({students.length}명)
           </CardTitle>
           <CardDescription>
-            각 학생의 출석 상태를 클릭하여 변경할 수 있습니다
+            각 학생의 출석 상태를 클릭하여 변경할 수 있습니다 (출석 / 지각 / 결석)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -247,43 +258,42 @@ export default function AttendanceManagementPage() {
                     <div className="flex items-center gap-2">
                       {getStatusBadge(currentStatus)}
                       
-                      <div className="flex gap-1">
+                      <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant={currentStatus === 'PRESENT' ? 'default' : 'outline'}
                           onClick={() => handleStatusUpdate(student.id, 'PRESENT')}
-                          className="text-xs"
+                          className={`text-sm px-4 py-2 ${
+                            currentStatus === 'PRESENT' 
+                              ? 'bg-green-600 hover:bg-green-700 text-white' 
+                              : 'border-green-300 hover:bg-green-50 text-green-700'
+                          }`}
                         >
-                          출석
+                          ✅ 출석
                         </Button>
                         <Button
                           size="sm"
                           variant={currentStatus === 'LATE' ? 'default' : 'outline'}
                           onClick={() => handleStatusUpdate(student.id, 'LATE')}
-                          className="text-xs"
+                          className={`text-sm px-4 py-2 ${
+                            currentStatus === 'LATE' 
+                              ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
+                              : 'border-yellow-300 hover:bg-yellow-50 text-yellow-700'
+                          }`}
                         >
-                          지각
+                          ⏰ 지각
                         </Button>
                         <Button
                           size="sm"
                           variant={currentStatus === 'ABSENT' ? 'default' : 'outline'}
                           onClick={() => handleStatusUpdate(student.id, 'ABSENT')}
-                          className="text-xs"
+                          className={`text-sm px-4 py-2 ${
+                            currentStatus === 'ABSENT' 
+                              ? 'bg-red-600 hover:bg-red-700 text-white' 
+                              : 'border-red-300 hover:bg-red-50 text-red-700'
+                          }`}
                         >
-                          결석
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={currentStatus === 'EXCUSED' ? 'default' : 'outline'}
-                          onClick={() => {
-                            const reason = prompt('예외 사유를 입력하세요:');
-                            if (reason) {
-                              handleStatusUpdate(student.id, 'EXCUSED', reason);
-                            }
-                          }}
-                          className="text-xs"
-                        >
-                          예외
+                          ❌ 결석
                         </Button>
                       </div>
                     </div>
@@ -301,13 +311,15 @@ export default function AttendanceManagementPage() {
           <div className="space-y-2 text-sm text-blue-900">
             <p className="font-semibold">📌 출석 관리 안내</p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li><strong>출석</strong>: 정상 출석 처리</li>
-              <li><strong>지각</strong>: 수업 시작 시간 이후 출석</li>
-              <li><strong>결석</strong>: 출석하지 않음</li>
-              <li><strong>예외</strong>: 특별한 사유로 인한 결석 (병가, 조퇴 등)</li>
+              <li><strong>✅ 출석</strong>: 정상 출석 처리 (수업 시간 내 출석)</li>
+              <li><strong>⏰ 지각</strong>: 수업 시작 시간 이후 출석</li>
+              <li><strong>❌ 결석</strong>: 출석하지 않음</li>
             </ul>
-            <p className="mt-4 text-blue-700">
+            <p className="mt-4 text-blue-700 bg-blue-100 p-3 rounded">
               💡 <strong>자동 처리</strong>: 매일 밤 11시에 출석하지 않은 학생은 자동으로 결석 처리됩니다
+            </p>
+            <p className="mt-2 text-blue-700 bg-blue-100 p-3 rounded">
+              ✏️ <strong>수정 가능</strong>: 학원장과 선생님은 언제든지 자동 출석 기록을 수정할 수 있습니다
             </p>
           </div>
         </CardContent>
