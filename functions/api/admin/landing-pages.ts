@@ -73,13 +73,27 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     const userIdForQuery = hashStringToInt(String(userId));
     console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId, userIdHash: userIdForQuery, originalUserId: userId });
 
-    // 🔥 최대한 단순한 쿼리 - 모든 역할이 모든 페이지 조회
-    const query = `SELECT * FROM landing_pages ORDER BY ROWID DESC`;
-    const queryParams: any[] = [];
-
-    console.log('🔍 Query:', query);
+    // 🔐 사용자별로 필터링 - 본인이 생성한 랜딩페이지만 조회
+    // ADMIN은 모든 페이지 조회, 나머지는 본인 것만 조회
+    let query = '';
+    let queryParams: any[] = [];
     
-    const landingPages = await db.prepare(query).all();
+    if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+      // 관리자는 모든 랜딩페이지 조회
+      query = `SELECT * FROM landing_pages ORDER BY ROWID DESC`;
+      console.log('🔍 Admin - 모든 랜딩페이지 조회');
+    } else {
+      // 일반 사용자는 본인이 생성한 랜딩페이지만 조회
+      query = `SELECT * FROM landing_pages WHERE user_id = ? ORDER BY ROWID DESC`;
+      queryParams.push(userIdForQuery);
+      console.log('🔍 User - 본인 랜딩페이지만 조회:', userIdForQuery);
+    }
+
+    console.log('🔍 Query:', query, 'Params:', queryParams);
+    
+    const landingPages = queryParams.length > 0 
+      ? await db.prepare(query).bind(...queryParams).all()
+      : await db.prepare(query).all();
 
     console.log('📊 Found landing pages:', landingPages.results?.length || 0);
     
