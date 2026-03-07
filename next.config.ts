@@ -1,7 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'export', // ✅ Static export - API handled by functions/ directory
+  // ⚠️ 카카오 알림톡 API를 사용하려면 아래 줄을 주석 처리하세요
+  // output: 'export', // Static export - API handled by functions/ directory
+  
   trailingSlash: true,
   images: {
     unoptimized: true,
