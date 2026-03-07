@@ -35,11 +35,7 @@ export default function SenderNumberRegisterPage() {
   };
 
   const handleFileChange = (field: keyof typeof files, file: File | null) => {
-    // 파일 크기 검증 (최대 500KB)
-    if (file && file.size > 500 * 1024) {
-      setError(`${getFileLabel(field)} 파일 크기가 너무 큽니다. (최대 500KB, 현재: ${Math.round(file.size / 1024)}KB)`);
-      return;
-    }
+    // 파일 크기 검증 제거 - R2 사용으로 크기 제한 없음
     setError('');
     setFiles(prev => ({ ...prev, [field]: file }));
   };
@@ -273,13 +269,13 @@ export default function SenderNumberRegisterPage() {
               <h3 className="font-semibold text-lg border-b pb-2">📎 필수 서류 첨부</h3>
               <Alert>
                 <AlertDescription className="text-sm">
-                  ℹ️ 각 파일은 최대 500KB까지 업로드 가능합니다. PDF, JPG, PNG 형식을 지원합니다.
+                  ℹ️ 파일 크기 제한 없이 업로드 가능합니다. PDF, JPG, PNG 형식을 지원합니다.
                 </AlertDescription>
               </Alert>
 
               <div>
                 <Label htmlFor="telecomCertificate">
-                  1. 통신사 가입증명원 * <span className="text-xs text-gray-500">(최대 500KB)</span>
+                  1. 통신사 가입증명원 *
                 </Label>
                 <Input
                   id="telecomCertificate"
@@ -298,7 +294,7 @@ export default function SenderNumberRegisterPage() {
 
               <div>
                 <Label htmlFor="businessRegistration">
-                  2. 사업자등록증 사본 * <span className="text-xs text-gray-500">(최대 500KB)</span>
+                  2. 사업자등록증 사본 *
                 </Label>
                 <Input
                   id="businessRegistration"
@@ -317,7 +313,7 @@ export default function SenderNumberRegisterPage() {
 
               <div>
                 <Label htmlFor="serviceAgreement">
-                  3. 솔라피 이용계약서 (작성 완료본) * <span className="text-xs text-gray-500">(최대 500KB)</span>
+                  3. 솔라피 이용계약서 (작성 완료본) *
                 </Label>
                 <Input
                   id="serviceAgreement"
@@ -336,7 +332,7 @@ export default function SenderNumberRegisterPage() {
 
               <div>
                 <Label htmlFor="privacyAgreement">
-                  4. 개인정보처리 위탁계약서 (작성 완료본) * <span className="text-xs text-gray-500">(최대 500KB)</span>
+                  4. 개인정보처리 위탁계약서 (작성 완료본) *
                 </Label>
                 <Input
                   id="privacyAgreement"

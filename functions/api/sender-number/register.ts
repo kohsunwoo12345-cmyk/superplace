@@ -92,61 +92,65 @@ export async function onRequest(context: { request: Request; env: Env }) {
       );
     }
 
-    // 파일 크기 체크 (각 파일 최대 500KB)
-    const MAX_FILE_SIZE = 500 * 1024; // 500KB
-    
-    const checkFileSize = (file: File, name: string) => {
-      if (file.size > MAX_FILE_SIZE) {
-        throw new Error(`${name} 파일 크기가 너무 큽니다. (최대 500KB, 현재: ${Math.round(file.size / 1024)}KB)`);
-      }
-    };
-
-    try {
-      checkFileSize(telecomCertificate, '통신사 가입증명원');
-      checkFileSize(businessRegistration, '사업자등록증');
-      checkFileSize(serviceAgreement, '이용계약서');
-      checkFileSize(privacyAgreement, '위탁계약서');
-    } catch (error: any) {
-      return new Response(
-        JSON.stringify({ error: error.message }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
     const requestId = `snr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     
-    console.log('📤 파일 처리 시작...', {
+    console.log('📤 파일 업로드 시작...', {
       telecom: `${telecomCertificate?.name} (${Math.round(telecomCertificate.size / 1024)}KB)`,
       business: `${businessRegistration?.name} (${Math.round(businessRegistration.size / 1024)}KB)`,
       service: `${serviceAgreement?.name} (${Math.round(serviceAgreement.size / 1024)}KB)`,
       privacy: `${privacyAgreement?.name} (${Math.round(privacyAgreement.size / 1024)}KB)`,
     });
 
-    // 파일을 작은 base64로 변환하는 함수 (최대 500KB)
-    const fileToBase64 = async (file: File): Promise<string> => {
+    // R2에 파일 업로드하는 함수
+    const uploadToR2 = async (file: File, key: string): Promise<string> => {
       const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
+      
+      // R2 버킷이 설정되어 있으면 업로드
+      if (env.SENDER_NUMBER_BUCKET) {
+        await env.SENDER_NUMBER_BUCKET.put(key, arrayBuffer, {
+          httpMetadata: {
+            contentType: file.type,
+          },
+        });
+        console.log(`✅ R2 업로드 성공: ${key}`);
+        return `/api/files/sender-number/${key}`;
+      } else {
+        // R2 버킷이 없으면 placeholder 반환
+        console.warn('⚠️ R2 버킷이 설정되지 않음, placeholder 사용');
+        return `placeholder_${requestId}_${key}`;
       }
-      const base64 = btoa(binary);
-      return `data:${file.type};base64,${base64}`;
     };
 
-    // 각 파일을 base64로 변환
+    // 각 파일을 R2에 업로드
     const fileUrls: any = {};
     try {
-      fileUrls.telecomCertificate = await fileToBase64(telecomCertificate);
-      fileUrls.businessRegistration = await fileToBase64(businessRegistration);
-      fileUrls.serviceAgreement = await fileToBase64(serviceAgreement);
-      fileUrls.privacyAgreement = await fileToBase64(privacyAgreement);
+      const fileExtension = (fileName: string) => fileName.split('.').pop() || 'bin';
       
-      console.log('✅ 파일 base64 변환 완료');
+      fileUrls.telecomCertificate = await uploadToR2(
+        telecomCertificate,
+        `${requestId}/telecom.${fileExtension(telecomCertificate.name)}`
+      );
+      
+      fileUrls.businessRegistration = await uploadToR2(
+        businessRegistration,
+        `${requestId}/business.${fileExtension(businessRegistration.name)}`
+      );
+      
+      fileUrls.serviceAgreement = await uploadToR2(
+        serviceAgreement,
+        `${requestId}/service.${fileExtension(serviceAgreement.name)}`
+      );
+      
+      fileUrls.privacyAgreement = await uploadToR2(
+        privacyAgreement,
+        `${requestId}/privacy.${fileExtension(privacyAgreement.name)}`
+      );
+      
+      console.log('✅ 모든 파일 업로드 완료');
     } catch (error) {
-      console.error('❌ 파일 변환 실패:', error);
+      console.error('❌ 파일 업로드 실패:', error);
       return new Response(
-        JSON.stringify({ error: "파일 처리 중 오류가 발생했습니다." }),
+        JSON.stringify({ error: "파일 업로드 중 오류가 발생했습니다." }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
