@@ -89,12 +89,31 @@ export async function onRequest(context: { request: Request; env: Env }) {
       WHERE id = ?
     `).bind(now, user.id, now, requestId).run();
 
+    // 학원장의 users 테이블에 승인된 발신번호 저장
+    // request.userId가 있으면 해당 사용자의 레코드 업데이트
+    if (request.userId) {
+      try {
+        await db.prepare(`
+          UPDATE users
+          SET approved_sender_numbers = ?
+          WHERE id = ?
+        `).bind(request.senderNumbers, request.userId).run();
+        
+        console.log(`✅ 학원장(userId: ${request.userId})의 발신번호 저장 완료:`, request.senderNumbers);
+      } catch (error: any) {
+        console.error('⚠️ 학원장 테이블 업데이트 실패:', error.message);
+        // 발신번호 저장 실패는 치명적이지 않으므로 계속 진행
+      }
+    }
+
     console.log('✅ 발신번호 등록 승인:', requestId);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: "발신번호 등록이 승인되었습니다.",
+        approvedNumbers: request.senderNumbers,
+        userId: request.userId,
       }),
       {
         status: 200,
