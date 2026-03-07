@@ -1,13 +1,21 @@
 // Migration: Add sender number and Kakao channel ID columns to users table
 // GET /api/migrations/add-sender-info-to-users
 
-interface Env {
-  DB: D1Database;
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export async function onRequestOptions() {
+  return new Response(null, { headers: corsHeaders });
 }
 
-export async function onRequest(context: { request: Request; env: Env }) {
+export async function onRequestGet(context: any) {
+  const { env } = context;
   try {
-    const db = context.env.DB;
+    console.log('🔧 Starting migration: add sender info to users');
+    const db = env.DB;
 
     // Add approved_sender_numbers column (comma-separated list)
     try {
@@ -52,11 +60,11 @@ export async function onRequest(context: { request: Request; env: Env }) {
       }),
       {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   } catch (error: any) {
-    console.error('Migration error:', error);
+    console.error('❌ Migration error:', error);
     return new Response(
       JSON.stringify({
         success: false,
@@ -64,7 +72,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
       }),
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }
