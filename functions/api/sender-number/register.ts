@@ -92,44 +92,43 @@ export async function onRequest(context: { request: Request; env: Env }) {
       );
     }
 
-    // R2에 파일 업로드 (또는 임시로 DB에 저장)
+    // 파일을 base64로 인코딩하여 저장
     const requestId = `snr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     
-    // 파일을 Blob으로 저장 (간단한 방법)
-    const fileUrls: any = {};
-    
-    // R2 버킷이 있으면 업로드, 없으면 임시 URL 생성
-    if (env.SENDER_NUMBER_BUCKET) {
-      try {
-        // 파일 업로드 로직
-        const uploadFile = async (file: File, key: string) => {
-          const arrayBuffer = await file.arrayBuffer();
-          await env.SENDER_NUMBER_BUCKET.put(key, arrayBuffer, {
-            httpMetadata: {
-              contentType: file.type,
-            },
-          });
-          return `/api/files/sender-number/${key}`;
-        };
+    console.log('📤 파일 처리 시작...', {
+      telecom: telecomCertificate?.name,
+      business: businessRegistration?.name,
+      service: serviceAgreement?.name,
+      privacy: privacyAgreement?.name,
+    });
 
-        fileUrls.telecomCertificate = await uploadFile(telecomCertificate, `${requestId}_telecom.${telecomCertificate.name.split('.').pop()}`);
-        fileUrls.businessRegistration = await uploadFile(businessRegistration, `${requestId}_business.${businessRegistration.name.split('.').pop()}`);
-        fileUrls.serviceAgreement = await uploadFile(serviceAgreement, `${requestId}_service.${serviceAgreement.name.split('.').pop()}`);
-        fileUrls.privacyAgreement = await uploadFile(privacyAgreement, `${requestId}_privacy.${privacyAgreement.name.split('.').pop()}`);
-      } catch (uploadError) {
-        console.error('파일 업로드 실패:', uploadError);
-        // R2 실패 시 대체 방법 사용
-        fileUrls.telecomCertificate = `placeholder_${requestId}_telecom`;
-        fileUrls.businessRegistration = `placeholder_${requestId}_business`;
-        fileUrls.serviceAgreement = `placeholder_${requestId}_service`;
-        fileUrls.privacyAgreement = `placeholder_${requestId}_privacy`;
+    // 파일을 base64로 변환하는 함수
+    const fileToBase64 = async (file: File): Promise<string> => {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
       }
-    } else {
-      // R2 버킷이 없을 때 임시 처리
-      fileUrls.telecomCertificate = `placeholder_${requestId}_telecom`;
-      fileUrls.businessRegistration = `placeholder_${requestId}_business`;
-      fileUrls.serviceAgreement = `placeholder_${requestId}_service`;
-      fileUrls.privacyAgreement = `placeholder_${requestId}_privacy`;
+      const base64 = btoa(binary);
+      return `data:${file.type};base64,${base64}`;
+    };
+
+    // 각 파일을 base64로 변환
+    const fileUrls: any = {};
+    try {
+      fileUrls.telecomCertificate = await fileToBase64(telecomCertificate);
+      fileUrls.businessRegistration = await fileToBase64(businessRegistration);
+      fileUrls.serviceAgreement = await fileToBase64(serviceAgreement);
+      fileUrls.privacyAgreement = await fileToBase64(privacyAgreement);
+      
+      console.log('✅ 파일 base64 변환 완료');
+    } catch (error) {
+      console.error('❌ 파일 변환 실패:', error);
+      return new Response(
+        JSON.stringify({ error: "파일 처리 중 오류가 발생했습니다." }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     // DB에 신청 정보 저장

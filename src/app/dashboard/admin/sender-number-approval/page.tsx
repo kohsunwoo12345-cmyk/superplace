@@ -279,7 +279,17 @@ export default function SenderNumberApprovalPage() {
                           variant="outline"
                           size="sm"
                           className="justify-start"
-                          onClick={() => window.open(request.fileUrls.telecomCertificate, '_blank')}
+                          onClick={() => {
+                            // base64 데이터면 직접 열기, 아니면 새 창
+                            if (request.fileUrls.telecomCertificate.startsWith('data:')) {
+                              const win = window.open();
+                              if (win) {
+                                win.document.write(`<html><head><title>통신사 가입증명원</title></head><body><img src="${request.fileUrls.telecomCertificate}" style="max-width:100%;"/></body></html>`);
+                              }
+                            } else {
+                              window.open(request.fileUrls.telecomCertificate, '_blank');
+                            }
+                          }}
                         >
                           <Eye className="h-3 w-3 mr-2" />
                           통신사 가입증명원
@@ -290,7 +300,16 @@ export default function SenderNumberApprovalPage() {
                           variant="outline"
                           size="sm"
                           className="justify-start"
-                          onClick={() => window.open(request.fileUrls.businessRegistration, '_blank')}
+                          onClick={() => {
+                            if (request.fileUrls.businessRegistration.startsWith('data:')) {
+                              const win = window.open();
+                              if (win) {
+                                win.document.write(`<html><head><title>사업자등록증</title></head><body><img src="${request.fileUrls.businessRegistration}" style="max-width:100%;"/></body></html>`);
+                              }
+                            } else {
+                              window.open(request.fileUrls.businessRegistration, '_blank');
+                            }
+                          }}
                         >
                           <Eye className="h-3 w-3 mr-2" />
                           사업자등록증
@@ -301,7 +320,16 @@ export default function SenderNumberApprovalPage() {
                           variant="outline"
                           size="sm"
                           className="justify-start"
-                          onClick={() => window.open(request.fileUrls.serviceAgreement, '_blank')}
+                          onClick={() => {
+                            if (request.fileUrls.serviceAgreement.startsWith('data:')) {
+                              const win = window.open();
+                              if (win) {
+                                win.document.write(`<html><head><title>이용계약서</title></head><body><img src="${request.fileUrls.serviceAgreement}" style="max-width:100%;"/></body></html>`);
+                              }
+                            } else {
+                              window.open(request.fileUrls.serviceAgreement, '_blank');
+                            }
+                          }}
                         >
                           <Eye className="h-3 w-3 mr-2" />
                           이용계약서
@@ -312,7 +340,16 @@ export default function SenderNumberApprovalPage() {
                           variant="outline"
                           size="sm"
                           className="justify-start"
-                          onClick={() => window.open(request.fileUrls.privacyAgreement, '_blank')}
+                          onClick={() => {
+                            if (request.fileUrls.privacyAgreement.startsWith('data:')) {
+                              const win = window.open();
+                              if (win) {
+                                win.document.write(`<html><head><title>위탁계약서</title></head><body><img src="${request.fileUrls.privacyAgreement}" style="max-width:100%;"/></body></html>`);
+                              }
+                            } else {
+                              window.open(request.fileUrls.privacyAgreement, '_blank');
+                            }
+                          }}
                         >
                           <Eye className="h-3 w-3 mr-2" />
                           위탁계약서
