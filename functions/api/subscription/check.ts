@@ -129,20 +129,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `).bind(targetAcademyId).first();
       actualStudentCount = studentCountResult?.count || 0;
 
-      // 2️⃣ 숙제 검사 횟수 (플랜 기간 동안 제출된 숙제) - Homework 테이블
+      // 2️⃣ 숙제 검사 횟수 (플랜 기간 동안 제출된 숙제) - homework_submissions 테이블
       try {
         const homeworkResult = await DB.prepare(`
           SELECT COUNT(*) as count 
-          FROM Homework h
-          JOIN User u ON h.userId = u.id
+          FROM homework_submissions hs
+          JOIN User u ON hs.userId = u.id
           WHERE u.academyId = ?
-            AND h.submittedAt IS NOT NULL
-            AND h.submittedAt >= ?
-            AND h.submittedAt <= ?
+            AND hs.submittedAt IS NOT NULL
+            AND hs.submittedAt >= ?
+            AND hs.submittedAt <= ?
         `).bind(targetAcademyId, planStartISO, planEndISO).first();
         actualHomeworkChecks = homeworkResult?.count || 0;
       } catch (e) {
-        console.log('⚠️ Homework 테이블 없음:', e);
+        console.log('⚠️ homework_submissions 테이블 없음:', e);
         actualHomeworkChecks = 0;
       }
 
