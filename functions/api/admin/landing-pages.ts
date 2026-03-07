@@ -285,6 +285,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       templateType,
       templateHtmlLength: templateHtml ? templateHtml.length : 0,
       hasTemplateHtml: !!templateHtml,
+      templateHtmlPreview: templateHtml ? templateHtml.substring(0, 100) : 'NONE'
+    });
+    
+    console.log("📋 템플릿 HTML 상태:", {
+      received: !!templateHtml,
+      length: templateHtml?.length || 0,
+      type: typeof templateHtml
     });
 
     if (!slug || !title) {
@@ -582,10 +589,14 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       htmlContent = htmlContent.replace(/\{\{academyName\}\}/g, academyName);
       htmlContent = htmlContent.replace(/\{\{directorName\}\}/g, directorName);
       
-      console.log('✅ Template HTML processed, length:', htmlContent.length);
+      console.log('✅ 변수 치환 완료');
+      console.log('📏 최종 HTML 길이:', htmlContent.length);
+      console.log('📄 HTML 미리보기 (처음 200자):', htmlContent.substring(0, 200));
     } else {
       // 기본 HTML 생성
-      console.log('⚠️ Using default HTML');
+      console.log('⚠️ templateHtml 없음 - 기본 HTML 사용');
+      console.log('🔍 templateHtml 값:', templateHtml);
+      console.log('🔍 templateId:', body.templateId);
       htmlContent = `
 <!DOCTYPE html>
 <html lang="ko">
@@ -668,10 +679,12 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         insertColumns.push('html_content');
         insertValues.push('?');
         bindValues.push(htmlContent || '');
+        console.log('✅ html_content 저장:', htmlContent ? htmlContent.length : 0, 'bytes');
       } else if (columns.includes('templateHtml')) {
         insertColumns.push('templateHtml');
         insertValues.push('?');
         bindValues.push(htmlContent || '');
+        console.log('✅ templateHtml 저장:', htmlContent ? htmlContent.length : 0, 'bytes');
       }
       
       // template_type 또는 templateType
