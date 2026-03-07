@@ -691,6 +691,14 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         bindValues.push(slug);
       }
       
+      // academyId (필수 - NOT NULL)
+      if (columns.includes('academyId')) {
+        insertColumns.push('academyId');
+        insertValues.push('?');
+        bindValues.push(creatorAcademyId || '');
+        console.log('✅ academyId 추가:', creatorAcademyId);
+      }
+      
       // html_content 또는 templateHtml
       if (columns.includes('html_content')) {
         insertColumns.push('html_content');
