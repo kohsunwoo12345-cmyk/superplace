@@ -107,8 +107,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     let actualLandingPages = 0;
 
     if (targetAcademyId) {
-      // 플랜 시작일 계산 (구독 시작일 기준)
-      const planStartDate = new Date(subscription.startDate);
+      // 플랜 시작일 계산 (구독 생성일 또는 startDate 기준)
+      // startDate가 없으면 createdAt 사용
+      const planStartDate = new Date(subscription.startDate || subscription.createdAt);
       const planStartISO = planStartDate.toISOString();
       
       // 플랜 종료일 (현재 또는 구독 종료일 중 이른 날짜)
@@ -118,6 +119,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const planEndISO = actualEndDate.toISOString();
       
       console.log(`📅 플랜 기간: ${planStartISO} ~ ${planEndISO}`);
+      console.log(`📅 구독 정보:`, {
+        startDate: subscription.startDate,
+        createdAt: subscription.createdAt,
+        endDate: subscription.endDate
+      });
 
       // 1️⃣ 활성 학생 수 (퇴원하지 않은 학생만) - 학생 수는 월별 초기화 없음
       const studentCountResult = await DB.prepare(`
@@ -211,7 +217,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         id: subscription.id,
         planName: subscription.planName,
         status: subscription.status,
-        startDate: subscription.startDate,   // 플랜 시작일 추가
+        startDate: subscription.startDate || subscription.createdAt,   // 플랜 시작일 (없으면 생성일)
         endDate: subscription.endDate,
         
         // 현재 사용량 (플랜 시작일부터 현재까지)
