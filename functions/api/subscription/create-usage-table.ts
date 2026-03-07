@@ -12,7 +12,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       CREATE TABLE IF NOT EXISTS usage_logs (
         id TEXT PRIMARY KEY,
         userId INTEGER NOT NULL,
+        subscriptionId INTEGER,
         type TEXT NOT NULL,
+        action TEXT,
         metadata TEXT,
         createdAt TEXT DEFAULT (datetime('now'))
       )
