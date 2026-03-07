@@ -138,23 +138,27 @@ export async function onRequest(context: any) {
     const messages = recipients.map((recipient: any) => {
       const variables: any = {};
       
-      // Add name variable
+      // Add name variable (multiple formats for compatibility)
       if (recipient.name) {
-        variables['이름'] = recipient.name;
-        variables['학생이름'] = recipient.name;
+        variables['name'] = recipient.name;        // #{name}
+        variables['이름'] = recipient.name;          // #{이름}
+        variables['학생이름'] = recipient.name;      // #{학생이름}
       }
       
-      // Add landing page URL variable
+      // Add landing page URL variable (multiple formats for compatibility)
       if (recipient.landingPageUrl) {
-        variables['URL'] = recipient.landingPageUrl;
-        variables['리포트URL'] = recipient.landingPageUrl;
-        variables['링크'] = recipient.landingPageUrl;
+        variables['url'] = recipient.landingPageUrl;       // #{url}
+        variables['URL'] = recipient.landingPageUrl;       // #{URL}
+        variables['리포트URL'] = recipient.landingPageUrl; // #{리포트URL}
+        variables['링크'] = recipient.landingPageUrl;      // #{링크}
       }
       
       // Add any other variables from recipient
       if (recipient.variables) {
         Object.assign(variables, recipient.variables);
       }
+
+      console.log(`   📨 Recipient: ${recipient.name} (${recipient.phoneNumber}), variables:`, variables);
 
       return {
         to: recipient.phoneNumber,
