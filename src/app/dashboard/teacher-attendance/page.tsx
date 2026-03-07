@@ -150,9 +150,17 @@ export default function TeacherAttendancePage() {
               오늘의 출석 및 숙제 제출 현황을 확인하세요
             </p>
           </div>
-          <Button onClick={() => router.push("/dashboard")} variant="outline">
-            대시보드로
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => router.push("/dashboard/attendance-management")} 
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              ✏️ 출석 수정
+            </Button>
+            <Button onClick={() => router.push("/dashboard")} variant="outline">
+              대시보드로
+            </Button>
+          </div>
         </div>
 
         {/* 날짜 선택 */}
