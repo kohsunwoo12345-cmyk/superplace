@@ -78,41 +78,36 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     let queryParams: any[] = [];
 
     if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
-      // 관리자는 모든 랜딩페이지 조회
+      // 관리자는 모든 랜딩페이지 조회 (user_id 컬럼 제외)
       query = `
         SELECT 
           lp.id, 
           COALESCE(lp.slug, 'lp-' || lp.id) as slug,
           lp.title, 
           lp.created_at as createdAt,
-          lp.user_id as createdById,
-          u.name as creatorName,
+          '' as createdById,
+          '' as creatorName,
           COALESCE(lp.view_count, 0) as viewCount,
           CASE WHEN COALESCE(lp.status, 'active') = 'active' THEN 1 ELSE 0 END as isActive
         FROM landing_pages lp
-        LEFT JOIN User u ON CAST(lp.user_id AS TEXT) = u.id
         ORDER BY lp.created_at DESC
       `;
     } else if (role === 'DIRECTOR' || role === 'TEACHER') {
-      // 학원장/교사는 자신이 만든 것만 조회
-      // user_id는 INTEGER이므로 해시값으로 비교
-      const userIdHash = hashStringToInt(String(userId));
+      // 🔧 임시: user_id 필터 제거 - 모든 페이지 보기 (컬럼 존재 여부 무관)
       query = `
         SELECT 
           lp.id, 
           COALESCE(lp.slug, 'lp-' || lp.id) as slug,
           lp.title, 
           lp.created_at as createdAt,
-          lp.user_id as createdById,
-          u.name as creatorName,
+          '' as createdById,
+          '' as creatorName,
           COALESCE(lp.view_count, 0) as viewCount,
           CASE WHEN COALESCE(lp.status, 'active') = 'active' THEN 1 ELSE 0 END as isActive
         FROM landing_pages lp
-        LEFT JOIN User u ON CAST(lp.user_id AS TEXT) = u.id
-        WHERE lp.user_id = ?
         ORDER BY lp.created_at DESC
       `;
-      queryParams = [userIdHash];
+      queryParams = [];
     } else {
       return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
         status: 403,
