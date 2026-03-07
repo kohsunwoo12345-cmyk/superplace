@@ -129,26 +129,39 @@ export default function TeacherHomeworkPage() {
     }
   };
 
-  const fetchAssignments = async (teacherId: number, academyId?: number) => {
+  const fetchAssignments = async (teacherId: string | number, academyId?: string | number) => {
     try {
       setLoading(true);
+      console.log('========== 숙제 목록 조회 시작 ==========');
+      console.log('🔑 teacherId:', teacherId, '타입:', typeof teacherId);
+      console.log('🏫 academyId:', academyId, '타입:', typeof academyId);
+      
       const params = new URLSearchParams({
-        teacherId: teacherId.toString(),
+        teacherId: String(teacherId),
       });
       if (academyId) {
-        params.append("academyId", academyId.toString());
+        params.append("academyId", String(academyId));
       }
+
+      console.log('🔗 API URL:', `/api/homework/assignments/teacher?${params.toString()}`);
 
       const response = await fetch(
         `/api/homework/assignments/teacher?${params.toString()}`
       );
+      
+      console.log('📡 HTTP 상태:', response.status);
       const data = await response.json();
+      console.log('📦 응답 데이터:', data);
 
       if (data.success) {
+        console.log('✅ 숙제 목록 조회 성공, 개수:', data.assignments?.length || 0);
         setAssignments(data.assignments || []);
+      } else {
+        console.error('❌ 숙제 목록 조회 실패:', data.error);
       }
+      console.log('========== 숙제 목록 조회 완료 ==========');
     } catch (error) {
-      console.error("Failed to fetch assignments:", error);
+      console.error("❌ 숙제 목록 조회 에러:", error);
     } finally {
       setLoading(false);
     }
@@ -169,6 +182,17 @@ export default function TeacherHomeworkPage() {
       setCreating(true);
       const token = localStorage.getItem("token");
 
+      console.log('========== 숙제 생성 시작 ==========');
+      console.log('📝 생성 데이터:', {
+        teacherId: currentUser.id,
+        teacherIdType: typeof currentUser.id,
+        academyId: currentUser.academyId,
+        academyIdType: typeof currentUser.academyId,
+        title: formData.title,
+        subject: formData.subject,
+        targetType: formData.targetType
+      });
+
       const response = await fetch("/api/homework/assignments/create", {
         method: "POST",
         headers: {
@@ -182,9 +206,12 @@ export default function TeacherHomeworkPage() {
         }),
       });
 
+      console.log('📡 생성 응답 상태:', response.status);
       const data = await response.json();
+      console.log('📦 생성 응답 데이터:', data);
 
       if (data.success) {
+        console.log('✅ 숙제 생성 성공! assignmentId:', data.assignmentId);
         alert("숙제가 성공적으로 생성되었습니다!");
         setShowCreateForm(false);
         setFormData({
@@ -195,12 +222,15 @@ export default function TeacherHomeworkPage() {
           targetType: "all",
           targetStudents: [],
         });
-        fetchAssignments(currentUser.id, currentUser.academyId);
+        console.log('🔄 목록 새로고침 시작...');
+        await fetchAssignments(currentUser.id, currentUser.academyId);
       } else {
+        console.error('❌ 숙제 생성 실패:', data.error);
         alert(`숙제 생성 실패: ${data.error}`);
       }
+      console.log('========== 숙제 생성 완료 ==========');
     } catch (error) {
-      console.error("Failed to create homework:", error);
+      console.error("❌ 숙제 생성 에러:", error);
       alert("숙제 생성 중 오류가 발생했습니다.");
     } finally {
       setCreating(false);

@@ -72,6 +72,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
+    console.log('🔍 숙제 목록 조회 시작:', {
+      teacherId,
+      teacherIdType: typeof teacherId,
+      academyId
+    });
+
     // 교사가 생성한 숙제 목록 조회
     let query = `
       SELECT 
@@ -92,12 +98,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       WHERE ha.teacherId = ?
     `;
 
-    const bindings: any[] = [parseInt(teacherId)];
+    // teacherId는 문자열 형식이므로 parseInt하지 않음
+    const bindings: any[] = [teacherId];
 
     if (academyId) {
-      // academyId를 문자열로도 비교 (DB에 "1.0" 같은 문자열로 저장될 수 있음)
-      query += ` AND (CAST(ha.academyId AS TEXT) = ? OR ha.academyId = ?)`;
-      bindings.push(String(academyId), parseInt(academyId));
+      // academyId도 문자열 형식으로 비교
+      query += ` AND ha.academyId = ?`;
+      bindings.push(academyId);
     }
 
     query += `
@@ -106,6 +113,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     `;
 
     const assignments = await DB.prepare(query).bind(...bindings).all();
+
+    console.log('📊 조회 결과:', {
+      총개수: assignments.results?.length || 0,
+      쿼리: query,
+      바인딩: bindings,
+      첫번째결과: assignments.results?.[0] || null
+    });
 
     // 각 숙제별 제출 현황 조회
     const assignmentsWithDetails = await Promise.all(

@@ -78,6 +78,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log('📝 숙제 생성 요청:', {
       teacherId,
+      teacherIdType: typeof teacherId,
       title,
       academyId: academyId || 'undefined'
     });
