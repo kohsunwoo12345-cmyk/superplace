@@ -140,6 +140,27 @@ export default function SenderNumberApprovalPage() {
     }
   };
 
+  const downloadFile = (url: string, filename: string) => {
+    if (url.startsWith('data:')) {
+      // Base64 데이터를 다운로드
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // R2 URL을 다운로드
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
@@ -275,85 +296,120 @@ export default function SenderNumberApprovalPage() {
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {request.fileUrls.telecomCertificate && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="justify-start"
-                          onClick={() => {
-                            // base64 데이터면 직접 열기, 아니면 새 창
-                            if (request.fileUrls.telecomCertificate.startsWith('data:')) {
-                              const win = window.open();
-                              if (win) {
-                                win.document.write(`<html><head><title>통신사 가입증명원</title></head><body><img src="${request.fileUrls.telecomCertificate}" style="max-width:100%;"/></body></html>`);
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="justify-start flex-1"
+                            onClick={() => {
+                              if (request.fileUrls.telecomCertificate.startsWith('data:')) {
+                                const win = window.open();
+                                if (win) {
+                                  win.document.write(`<html><head><title>통신사 가입증명원</title></head><body><img src="${request.fileUrls.telecomCertificate}" style="max-width:100%;"/></body></html>`);
+                                }
+                              } else {
+                                window.open(request.fileUrls.telecomCertificate, '_blank');
                               }
-                            } else {
-                              window.open(request.fileUrls.telecomCertificate, '_blank');
-                            }
-                          }}
-                        >
-                          <Eye className="h-3 w-3 mr-2" />
-                          통신사 가입증명원
-                        </Button>
+                            }}
+                          >
+                            <Eye className="h-3 w-3 mr-2" />
+                            통신사 가입증명원
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadFile(request.fileUrls.telecomCertificate, '통신사가입증명원.pdf')}
+                          >
+                            <Download className="h-3 w-3" />
+                          </Button>
+                        </div>
                       )}
                       {request.fileUrls.businessRegistration && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="justify-start"
-                          onClick={() => {
-                            if (request.fileUrls.businessRegistration.startsWith('data:')) {
-                              const win = window.open();
-                              if (win) {
-                                win.document.write(`<html><head><title>사업자등록증</title></head><body><img src="${request.fileUrls.businessRegistration}" style="max-width:100%;"/></body></html>`);
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="justify-start flex-1"
+                            onClick={() => {
+                              if (request.fileUrls.businessRegistration.startsWith('data:')) {
+                                const win = window.open();
+                                if (win) {
+                                  win.document.write(`<html><head><title>사업자등록증</title></head><body><img src="${request.fileUrls.businessRegistration}" style="max-width:100%;"/></body></html>`);
+                                }
+                              } else {
+                                window.open(request.fileUrls.businessRegistration, '_blank');
                               }
-                            } else {
-                              window.open(request.fileUrls.businessRegistration, '_blank');
-                            }
-                          }}
-                        >
-                          <Eye className="h-3 w-3 mr-2" />
-                          사업자등록증
-                        </Button>
+                            }}
+                          >
+                            <Eye className="h-3 w-3 mr-2" />
+                            사업자등록증
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadFile(request.fileUrls.businessRegistration, '사업자등록증.pdf')}
+                          >
+                            <Download className="h-3 w-3" />
+                          </Button>
+                        </div>
                       )}
                       {request.fileUrls.serviceAgreement && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="justify-start"
-                          onClick={() => {
-                            if (request.fileUrls.serviceAgreement.startsWith('data:')) {
-                              const win = window.open();
-                              if (win) {
-                                win.document.write(`<html><head><title>이용계약서</title></head><body><img src="${request.fileUrls.serviceAgreement}" style="max-width:100%;"/></body></html>`);
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="justify-start flex-1"
+                            onClick={() => {
+                              if (request.fileUrls.serviceAgreement.startsWith('data:')) {
+                                const win = window.open();
+                                if (win) {
+                                  win.document.write(`<html><head><title>이용계약서</title></head><body><img src="${request.fileUrls.serviceAgreement}" style="max-width:100%;"/></body></html>`);
+                                }
+                              } else {
+                                window.open(request.fileUrls.serviceAgreement, '_blank');
                               }
-                            } else {
-                              window.open(request.fileUrls.serviceAgreement, '_blank');
-                            }
-                          }}
-                        >
-                          <Eye className="h-3 w-3 mr-2" />
-                          이용계약서
-                        </Button>
+                            }}
+                          >
+                            <Eye className="h-3 w-3 mr-2" />
+                            이용계약서
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadFile(request.fileUrls.serviceAgreement, '이용계약서.pdf')}
+                          >
+                            <Download className="h-3 w-3" />
+                          </Button>
+                        </div>
                       )}
                       {request.fileUrls.privacyAgreement && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="justify-start"
-                          onClick={() => {
-                            if (request.fileUrls.privacyAgreement.startsWith('data:')) {
-                              const win = window.open();
-                              if (win) {
-                                win.document.write(`<html><head><title>위탁계약서</title></head><body><img src="${request.fileUrls.privacyAgreement}" style="max-width:100%;"/></body></html>`);
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="justify-start flex-1"
+                            onClick={() => {
+                              if (request.fileUrls.privacyAgreement.startsWith('data:')) {
+                                const win = window.open();
+                                if (win) {
+                                  win.document.write(`<html><head><title>위탁계약서</title></head><body><img src="${request.fileUrls.privacyAgreement}" style="max-width:100%;"/></body></html>`);
+                                }
+                              } else {
+                                window.open(request.fileUrls.privacyAgreement, '_blank');
                               }
-                            } else {
-                              window.open(request.fileUrls.privacyAgreement, '_blank');
-                            }
-                          }}
-                        >
-                          <Eye className="h-3 w-3 mr-2" />
-                          위탁계약서
-                        </Button>
+                            }}
+                          >
+                            <Eye className="h-3 w-3 mr-2" />
+                            위탁계약서
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadFile(request.fileUrls.privacyAgreement, '위탁계약서.pdf')}
+                          >
+                            <Download className="h-3 w-3" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
