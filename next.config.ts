@@ -1,11 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // Cloudflare Pages: Static export mode
-  // API Routes are handled by functions/ directory
-  output: 'export',
-  distDir: 'out',
-  trailingSlash: true, // Generate /path/index.html instead of /path.html
+  output: 'export', // ✅ Static export for CloudFlare Pages
+  trailingSlash: true,
   images: {
     unoptimized: true,
   },
@@ -29,6 +26,8 @@ const nextConfig: NextConfig = {
         'node:fs': false,
         'node:stream': false,
         'node:zlib': false,
+        crypto: false,
+        url: false,
       };
     }
     return config;
