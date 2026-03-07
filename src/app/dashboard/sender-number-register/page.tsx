@@ -35,7 +35,23 @@ export default function SenderNumberRegisterPage() {
   };
 
   const handleFileChange = (field: keyof typeof files, file: File | null) => {
+    // 파일 크기 검증 (최대 500KB)
+    if (file && file.size > 500 * 1024) {
+      setError(`${getFileLabel(field)} 파일 크기가 너무 큽니다. (최대 500KB, 현재: ${Math.round(file.size / 1024)}KB)`);
+      return;
+    }
+    setError('');
     setFiles(prev => ({ ...prev, [field]: file }));
+  };
+
+  const getFileLabel = (field: keyof typeof files): string => {
+    const labels: Record<keyof typeof files, string> = {
+      telecomCertificate: '통신사 가입증명원',
+      businessRegistration: '사업자등록증',
+      serviceAgreement: '이용계약서',
+      privacyAgreement: '위탁계약서',
+    };
+    return labels[field];
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -255,10 +271,15 @@ export default function SenderNumberRegisterPage() {
             {/* 서류 첨부 */}
             <div className="space-y-4">
               <h3 className="font-semibold text-lg border-b pb-2">📎 필수 서류 첨부</h3>
+              <Alert>
+                <AlertDescription className="text-sm">
+                  ℹ️ 각 파일은 최대 500KB까지 업로드 가능합니다. PDF, JPG, PNG 형식을 지원합니다.
+                </AlertDescription>
+              </Alert>
 
               <div>
                 <Label htmlFor="telecomCertificate">
-                  1. 통신사 가입증명원 *
+                  1. 통신사 가입증명원 * <span className="text-xs text-gray-500">(최대 500KB)</span>
                 </Label>
                 <Input
                   id="telecomCertificate"
@@ -270,14 +291,14 @@ export default function SenderNumberRegisterPage() {
                 {files.telecomCertificate && (
                   <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                     <CheckCircle className="h-3 w-3" />
-                    {files.telecomCertificate.name}
+                    {files.telecomCertificate.name} ({Math.round(files.telecomCertificate.size / 1024)}KB)
                   </p>
                 )}
               </div>
 
               <div>
                 <Label htmlFor="businessRegistration">
-                  2. 사업자등록증 사본 *
+                  2. 사업자등록증 사본 * <span className="text-xs text-gray-500">(최대 500KB)</span>
                 </Label>
                 <Input
                   id="businessRegistration"
@@ -289,14 +310,14 @@ export default function SenderNumberRegisterPage() {
                 {files.businessRegistration && (
                   <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                     <CheckCircle className="h-3 w-3" />
-                    {files.businessRegistration.name}
+                    {files.businessRegistration.name} ({Math.round(files.businessRegistration.size / 1024)}KB)
                   </p>
                 )}
               </div>
 
               <div>
                 <Label htmlFor="serviceAgreement">
-                  3. 솔라피 이용계약서 (작성 완료본) *
+                  3. 솔라피 이용계약서 (작성 완료본) * <span className="text-xs text-gray-500">(최대 500KB)</span>
                 </Label>
                 <Input
                   id="serviceAgreement"
@@ -308,14 +329,14 @@ export default function SenderNumberRegisterPage() {
                 {files.serviceAgreement && (
                   <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                     <CheckCircle className="h-3 w-3" />
-                    {files.serviceAgreement.name}
+                    {files.serviceAgreement.name} ({Math.round(files.serviceAgreement.size / 1024)}KB)
                   </p>
                 )}
               </div>
 
               <div>
                 <Label htmlFor="privacyAgreement">
-                  4. 개인정보처리 위탁계약서 (작성 완료본) *
+                  4. 개인정보처리 위탁계약서 (작성 완료본) * <span className="text-xs text-gray-500">(최대 500KB)</span>
                 </Label>
                 <Input
                   id="privacyAgreement"
@@ -327,7 +348,7 @@ export default function SenderNumberRegisterPage() {
                 {files.privacyAgreement && (
                   <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                     <CheckCircle className="h-3 w-3" />
-                    {files.privacyAgreement.name}
+                    {files.privacyAgreement.name} ({Math.round(files.privacyAgreement.size / 1024)}KB)
                   </p>
                 )}
               </div>

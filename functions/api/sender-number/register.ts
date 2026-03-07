@@ -92,17 +92,37 @@ export async function onRequest(context: { request: Request; env: Env }) {
       );
     }
 
-    // 파일을 base64로 인코딩하여 저장
+    // 파일 크기 체크 (각 파일 최대 500KB)
+    const MAX_FILE_SIZE = 500 * 1024; // 500KB
+    
+    const checkFileSize = (file: File, name: string) => {
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error(`${name} 파일 크기가 너무 큽니다. (최대 500KB, 현재: ${Math.round(file.size / 1024)}KB)`);
+      }
+    };
+
+    try {
+      checkFileSize(telecomCertificate, '통신사 가입증명원');
+      checkFileSize(businessRegistration, '사업자등록증');
+      checkFileSize(serviceAgreement, '이용계약서');
+      checkFileSize(privacyAgreement, '위탁계약서');
+    } catch (error: any) {
+      return new Response(
+        JSON.stringify({ error: error.message }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const requestId = `snr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     
     console.log('📤 파일 처리 시작...', {
-      telecom: telecomCertificate?.name,
-      business: businessRegistration?.name,
-      service: serviceAgreement?.name,
-      privacy: privacyAgreement?.name,
+      telecom: `${telecomCertificate?.name} (${Math.round(telecomCertificate.size / 1024)}KB)`,
+      business: `${businessRegistration?.name} (${Math.round(businessRegistration.size / 1024)}KB)`,
+      service: `${serviceAgreement?.name} (${Math.round(serviceAgreement.size / 1024)}KB)`,
+      privacy: `${privacyAgreement?.name} (${Math.round(privacyAgreement.size / 1024)}KB)`,
     });
 
-    // 파일을 base64로 변환하는 함수
+    // 파일을 작은 base64로 변환하는 함수 (최대 500KB)
     const fileToBase64 = async (file: File): Promise<string> => {
       const arrayBuffer = await file.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
