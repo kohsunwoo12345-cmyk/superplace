@@ -521,11 +521,149 @@ export default function CreateTemplatePage() {
               </CardContent>
             </Card>
 
+            {/* 템플릿 유형 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>4. 템플릿 유형 *</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition ${
+                      messageType === 'BA' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => {
+                      setMessageType('BA');
+                      setEmphasizeType('NONE');
+                    }}
+                  >
+                    <div className="font-semibold text-lg mb-1">📄 기본형 (BA)</div>
+                    <div className="text-sm text-gray-600">
+                      일반 텍스트와 버튼으로 구성된 기본 알림톡
+                    </div>
+                  </div>
+
+                  <div
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition ${
+                      messageType === 'EX' && emphasizeType === 'TEXT' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => {
+                      setMessageType('EX');
+                      setEmphasizeType('TEXT');
+                    }}
+                  >
+                    <div className="font-semibold text-lg mb-1">✨ 강조 표기형 (EX)</div>
+                    <div className="text-sm text-gray-600">
+                      제목과 부제목으로 강조된 정보 표시
+                    </div>
+                  </div>
+
+                  <div
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition ${
+                      messageType === 'EX' && emphasizeType === 'IMAGE' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => {
+                      setMessageType('EX');
+                      setEmphasizeType('IMAGE');
+                    }}
+                  >
+                    <div className="font-semibold text-lg mb-1">🖼 이미지 첨부형 (EX+IMG)</div>
+                    <div className="text-sm text-gray-600">
+                      이미지와 제목, 부제목으로 시각적 강조
+                    </div>
+                  </div>
+
+                  <div
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition ${
+                      messageType === 'MI' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => {
+                      setMessageType('MI');
+                      setEmphasizeType('NONE');
+                    }}
+                  >
+                    <div className="font-semibold text-lg mb-1">📋 복합형 (MI)</div>
+                    <div className="text-sm text-gray-600">
+                      여러 정보를 리스트 형태로 표시
+                    </div>
+                  </div>
+                </div>
+
+                {/* 강조 표기형 추가 옵션 */}
+                {messageType === 'EX' && emphasizeType === 'TEXT' && (
+                  <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="font-semibold text-blue-900">강조 표기 설정</div>
+                    <div>
+                      <Label>강조 제목 *</Label>
+                      <Input
+                        value={emphasizeTitle}
+                        onChange={e => setEmphasizeTitle(e.target.value)}
+                        placeholder="예: 중요 알림"
+                        maxLength={30}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-600 mt-1">최대 30자</p>
+                    </div>
+                    <div>
+                      <Label>강조 부제목</Label>
+                      <Input
+                        value={emphasizeSubtitle}
+                        onChange={e => setEmphasizeSubtitle(e.target.value)}
+                        placeholder="예: 확인이 필요합니다"
+                        maxLength={50}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-600 mt-1">최대 50자</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 이미지 첨부형 추가 옵션 */}
+                {messageType === 'EX' && emphasizeType === 'IMAGE' && (
+                  <div className="space-y-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="font-semibold text-purple-900">이미지 첨부 설정</div>
+                    <div>
+                      <Label>이미지 URL *</Label>
+                      <Input
+                        value={imageUrl}
+                        onChange={e => setImageUrl(e.target.value)}
+                        placeholder="https://example.com/image.jpg"
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-600 mt-1">
+                        권장: 800x400px, 최대 500KB, JPG/PNG
+                      </p>
+                    </div>
+                    <div>
+                      <Label>강조 제목 *</Label>
+                      <Input
+                        value={emphasizeTitle}
+                        onChange={e => setEmphasizeTitle(e.target.value)}
+                        placeholder="예: 이벤트 안내"
+                        maxLength={30}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>강조 부제목</Label>
+                      <Input
+                        value={emphasizeSubtitle}
+                        onChange={e => setEmphasizeSubtitle(e.target.value)}
+                        placeholder="예: 특별 혜택을 확인하세요"
+                        maxLength={50}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* 버튼 */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>4. 버튼 (선택사항)</span>
+                  <span>5. 버튼 (선택사항)</span>
                   <Button
                     type="button"
                     variant="outline"
@@ -746,9 +884,39 @@ export default function CreateTemplatePage() {
                       </span>
                       <div className="flex items-end gap-1">
                         <div className="bg-white rounded-lg max-w-[280px] shadow-sm">
+                          {/* 이미지 첨부형 - 이미지 표시 */}
+                          {messageType === 'EX' && emphasizeType === 'IMAGE' && imageUrl && (
+                            <div className="relative w-full h-32 bg-gray-200 rounded-t-lg overflow-hidden">
+                              <img 
+                                src={imageUrl} 
+                                alt="템플릿 이미지"
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="280" height="128"%3E%3Crect fill="%23e5e7eb" width="280" height="128"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af" font-size="14"%3E이미지 로드 실패%3C/text%3E%3C/svg%3E';
+                                }}
+                              />
+                            </div>
+                          )}
+                          
+                          {/* 강조 표기 (TEXT/IMAGE) */}
+                          {messageType === 'EX' && (emphasizeType === 'TEXT' || emphasizeType === 'IMAGE') && (
+                            <div className="p-3 bg-gray-50 border-b border-gray-200">
+                              {emphasizeTitle && (
+                                <div className="font-bold text-base text-gray-900 mb-1">
+                                  {emphasizeTitle}
+                                </div>
+                              )}
+                              {emphasizeSubtitle && (
+                                <div className="text-sm text-gray-600">
+                                  {emphasizeSubtitle}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
                           {/* 알림톡 본문 */}
                           <div className="p-3.5 text-[0.9rem] leading-snug">
-                            {templateName && (
+                            {templateName && messageType === 'BA' && (
                               <div className="font-bold text-base mb-2">
                                 {templateName}
                               </div>
