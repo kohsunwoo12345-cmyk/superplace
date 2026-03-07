@@ -76,26 +76,19 @@ export default function TeacherHomeworkPage() {
     if (userStr) {
       const user = JSON.parse(userStr);
       setCurrentUser(user);
-      fetchStudents(user.academyId);
+      // 즉시 학생 조회
+      fetchStudents();
       fetchAssignments(user.id, user.academyId);
     } else {
       router.push("/login");
     }
   }, []);
 
-  const fetchStudents = async (academyId?: number) => {
+  const fetchStudents = async () => {
     try {
       const token = localStorage.getItem("token");
       
-      if (!token) {
-        console.error("❌ Token not found in localStorage");
-        alert("⚠️ 로그인 토큰이 없습니다. 다시 로그인해주세요.");
-        return;
-      }
-
-      console.log('📡 학생 조회 요청 시작');
-      console.log('   Token:', token ? '존재함' : '없음');
-      console.log('   AcademyId:', academyId);
+      console.log('📡 학생 목록 조회 시작...');
 
       const response = await fetch(`/api/students`, {
         headers: {
@@ -103,43 +96,19 @@ export default function TeacherHomeworkPage() {
         },
       });
 
-      console.log('📡 학생 조회 응답 상태:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ 학생 조회 HTTP 에러:', response.status, errorText);
-        alert(`⚠️ 학생 조회 실패: ${response.status}\n${errorText.substring(0, 100)}`);
-        setStudents([]);
-        return;
-      }
-      
       const data = await response.json();
-      console.log('📦 학생 조회 응답 데이터:', {
-        success: data.success,
-        count: data.students?.length || 0,
-        firstStudent: data.students?.[0] || null,
-        allStudents: data.students
-      });
+      console.log('📦 API 응답:', data);
 
-      if (data.success) {
-        // 퇴원생 제외 필터링 (API에서 이미 필터링되지만 이중 체크)
-        const activeStudents = (data.students || []).filter((s: any) => 
-          !s.status || s.status === 'ACTIVE'
-        );
-        setStudents(activeStudents);
-        console.log(`✅ ${activeStudents.length}명 학생 로드됨 (전체: ${data.students?.length || 0})`);
-        
-        if (activeStudents.length === 0) {
-          console.warn('⚠️ 활성 학생이 0명입니다. 학생을 먼저 추가해주세요.');
-        }
+      if (data.success && data.students) {
+        // 모든 학생 표시 (간단하게)
+        setStudents(data.students);
+        console.log(`✅ ${data.students.length}명 학생 로드됨`);
       } else {
-        console.error('❌ 학생 조회 실패:', data.error);
-        alert(`⚠️ 학생 조회 실패: ${data.error || '알 수 없는 오류'}`);
+        console.error('❌ API 실패:', data);
         setStudents([]);
       }
-    } catch (error: any) {
-      console.error("❌ Failed to fetch students:", error);
-      alert(`⚠️ 학생 조회 중 오류: ${error.message}`);
+    } catch (error) {
+      console.error("❌ 에러:", error);
       setStudents([]);
     }
   };
@@ -379,21 +348,10 @@ export default function TeacherHomeworkPage() {
               {formData.targetType === "specific" && (
                 <div>
                   <Label className="text-base font-semibold">
-                    학생 선택 
-                    <span className={`ml-2 ${students.length === 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      (총 {students.length}명)
-                    </span>
+                    학생 선택 ({students.length}명)
                   </Label>
                   
-                  {/* 디버그 정보 */}
-                  <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                    <p>🔍 디버그 정보:</p>
-                    <p>• 학생 수: {students.length}명</p>
-                    <p>• API 호출 완료: {students.length >= 0 ? '✅' : '❌'}</p>
-                    <p>• 첫 번째 학생: {students[0]?.name || '없음'}</p>
-                  </div>
-                  
-                  <div className="border-2 border-indigo-200 rounded-lg p-4 max-h-60 overflow-y-auto bg-white">
+                  <div className="border-2 border-indigo-200 rounded-lg p-4 max-h-60 overflow-y-auto bg-white mt-2">
                     {students.length === 0 ? (
                       <div className="text-center py-8">
                         <Users className="w-12 h-12 text-gray-300 mx-auto mb-2" />
@@ -401,20 +359,6 @@ export default function TeacherHomeworkPage() {
                         <p className="text-gray-400 text-xs mt-1">
                           학생을 먼저 등록해주세요
                         </p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            console.log('🔄 학생 목록 재조회 시도');
-                            if (currentUser?.academyId) {
-                              fetchStudents(currentUser.academyId);
-                            }
-                          }}
-                          className="mt-3"
-                        >
-                          🔄 새로고침
-                        </Button>
                       </div>
                     ) : (
                       <div className="space-y-2">
