@@ -91,7 +91,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 선생님 정보 조회
     const teacher = await DB.prepare(`
-      SELECT id, name, academyId FROM users WHERE id = ?
+      SELECT id, name, academyId FROM User WHERE id = ?
     `).bind(teacherId).first();
 
     if (!teacher) {
@@ -138,7 +138,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       for (const studentId of targetStudents) {
         // 학생 정보 조회
         const student = await DB.prepare(`
-          SELECT id, name FROM users WHERE id = ?
+          SELECT id, name FROM User WHERE id = ?
         `).bind(studentId).first();
 
         if (student) {
