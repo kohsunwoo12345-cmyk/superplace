@@ -7,7 +7,7 @@ import {
   Users, Calendar, MessageCircle, BarChart2, Settings,
   GraduationCap, Award, FileText, Clock, ExternalLink,
   DollarSign, CreditCard, Presentation, ClipboardList, Sparkles, Bot,
-  ShoppingCart, Zap, Shield, Layout, MessageSquare, Download, Database, UserPlus, CheckCircle
+  ShoppingCart, Zap, Shield, Layout, MessageSquare, Download, Database, UserPlus, CheckCircle, Phone
 } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
 
@@ -81,6 +81,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         { id: 'admin-director-limitations', href: '/dashboard/admin/director-limitations', icon: Shield, text: '학원장 제한 설정' },
         { id: 'admin-notifications', href: '/dashboard/admin/notifications', icon: Bell, text: '알림 관리' },
         { id: 'admin-sms', href: '/dashboard/message-dashboard', icon: MessageCircle, text: '문자 발송' },
+        { id: 'admin-sender-number-approval', href: '/dashboard/admin/sender-number-approval', icon: Phone, text: '발신번호 승인' },
         { id: 'admin-kakao-channel', href: '/dashboard/kakao-channel', icon: MessageCircle, text: '카카오 채널' },
         { id: 'admin-point-approvals', href: '/dashboard/admin/point-approvals', icon: CreditCard, text: '포인트 충전 승인' },
         { id: 'admin-revenue', href: '/dashboard/admin/revenue', icon: DollarSign, text: '매출 관리' },
