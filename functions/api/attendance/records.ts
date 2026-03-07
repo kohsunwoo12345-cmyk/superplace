@@ -21,15 +21,11 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     const url = new URL(request.url);
     const date = url.searchParams.get('date');
     const academyId = url.searchParams.get('academyId');
+    const userId = url.searchParams.get('userId');
+    const startDate = url.searchParams.get('startDate');
+    const endDate = url.searchParams.get('endDate');
 
-    if (!date) {
-      return new Response(
-        JSON.stringify({ success: false, error: "date 파라미터가 필요합니다" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log('📊 출석 기록 조회:', { date, academyId });
+    console.log('📊 출석 기록 조회:', { date, academyId, userId, startDate, endDate });
 
     // 출석 기록 조회 쿼리
     let query = `
@@ -46,10 +42,19 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
         u.classId
       FROM attendance_records_v3 ar
       LEFT JOIN User u ON u.id = ar.userId
-      WHERE ar.date = ?
+      WHERE 1=1
     `;
 
-    const params: any[] = [date];
+    const params: any[] = [];
+
+    // 날짜 필터링 (단일 날짜 또는 범위)
+    if (date) {
+      query += ' AND ar.date = ?';
+      params.push(date);
+    } else if (startDate && endDate) {
+      query += ' AND ar.date >= ? AND ar.date <= ?';
+      params.push(startDate, endDate);
+    }
 
     // 학원 필터링
     if (academyId) {
@@ -57,7 +62,16 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
       params.push(academyId);
     }
 
-    query += ' ORDER BY ar.checkInTime DESC';
+    // 사용자 필터링
+    if (userId) {
+      query += ' AND ar.userId = ?';
+      params.push(userId);
+    }
+
+    query += ' ORDER BY ar.date DESC, ar.checkInTime DESC';
+
+    console.log('🔍 Executing query:', query);
+    console.log('📝 Params:', params);
 
     const result = await DB.prepare(query).bind(...params).all();
     const records = result.results || [];
