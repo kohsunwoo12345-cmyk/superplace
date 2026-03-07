@@ -81,11 +81,14 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
       // 관리자는 모든 랜딩페이지 조회
       query = `
         SELECT 
-          lp.id, lp.slug, lp.title, lp.created_at as createdAt,
+          lp.id, 
+          COALESCE(lp.slug, 'lp-' || lp.id) as slug,
+          lp.title, 
+          lp.created_at as createdAt,
           lp.user_id as createdById,
           u.name as creatorName,
-          lp.view_count as viewCount,
-          CASE WHEN lp.status = 'active' THEN 1 ELSE 0 END as isActive
+          COALESCE(lp.view_count, 0) as viewCount,
+          CASE WHEN COALESCE(lp.status, 'active') = 'active' THEN 1 ELSE 0 END as isActive
         FROM landing_pages lp
         LEFT JOIN User u ON CAST(lp.user_id AS TEXT) = u.id
         ORDER BY lp.created_at DESC
@@ -96,11 +99,14 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
       const userIdHash = hashStringToInt(String(userId));
       query = `
         SELECT 
-          lp.id, lp.slug, lp.title, lp.created_at as createdAt,
+          lp.id, 
+          COALESCE(lp.slug, 'lp-' || lp.id) as slug,
+          lp.title, 
+          lp.created_at as createdAt,
           lp.user_id as createdById,
           u.name as creatorName,
-          lp.view_count as viewCount,
-          CASE WHEN lp.status = 'active' THEN 1 ELSE 0 END as isActive
+          COALESCE(lp.view_count, 0) as viewCount,
+          CASE WHEN COALESCE(lp.status, 'active') = 'active' THEN 1 ELSE 0 END as isActive
         FROM landing_pages lp
         LEFT JOIN User u ON CAST(lp.user_id AS TEXT) = u.id
         WHERE lp.user_id = ?
@@ -379,20 +385,25 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       console.log("🔍 folderId:", folderId, "→", folderIdInt, "(no validation)");
     }
 
-    // Check if slug already exists
-    const existing = await db
-      .prepare(`SELECT id FROM landing_pages WHERE slug = ?`)
-      .bind(slug)
-      .first();
+    // Check if slug already exists (slug 컬럼이 있는 경우에만)
+    try {
+      const existing = await db
+        .prepare(`SELECT id FROM landing_pages WHERE slug = ?`)
+        .bind(slug)
+        .first();
 
-    if (existing) {
-      return new Response(
-        JSON.stringify({ error: "이미 사용 중인 slug입니다." }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      if (existing) {
+        return new Response(
+          JSON.stringify({ error: "이미 사용 중인 slug입니다." }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    } catch (slugError: any) {
+      // slug 컬럼이 없으면 무시하고 계속 진행
+      console.log('⚠️ slug 컬럼 확인 실패 (컬럼 없음 가능):', slugError.message);
     }
 
     const id = `lp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
