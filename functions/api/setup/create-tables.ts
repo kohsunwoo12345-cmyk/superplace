@@ -23,11 +23,11 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const db = context.env.DB;
     const results = [];
 
-    // 1. Create LandingPageTemplate table
-    console.log("Creating LandingPageTemplate table...");
+    // 1. Create landing_page_templates table
+    console.log("Creating landing_page_templates table...");
     try {
       await db.exec(`
-        CREATE TABLE IF NOT EXISTS LandingPageTemplate (
+        CREATE TABLE IF NOT EXISTS landing_page_templates (
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
           description TEXT,
@@ -40,24 +40,24 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
         );
       `);
-      results.push({ table: "LandingPageTemplate", status: "created" });
+      results.push({ table: "landing_page_templates", status: "created" });
     } catch (error: any) {
-      results.push({ table: "LandingPageTemplate", status: "error", error: error.message });
+      results.push({ table: "landing_page_templates", status: "error", error: error.message });
     }
 
-    // 2. Create indexes for LandingPageTemplate
+    // 2. Create indexes for landing_page_templates
     try {
       await db.exec(`
         CREATE INDEX IF NOT EXISTS idx_landing_template_creator 
-        ON LandingPageTemplate(createdById);
+        ON landing_page_templates(createdById);
       `);
       await db.exec(`
         CREATE INDEX IF NOT EXISTS idx_landing_template_default 
-        ON LandingPageTemplate(isDefault);
+        ON landing_page_templates(isDefault);
       `);
-      results.push({ index: "LandingPageTemplate indexes", status: "created" });
+      results.push({ index: "landing_page_templates indexes", status: "created" });
     } catch (error: any) {
-      results.push({ index: "LandingPageTemplate indexes", status: "error", error: error.message });
+      results.push({ index: "landing_page_templates indexes", status: "error", error: error.message });
     }
 
     // 3. Create landing_pages table if not exists
@@ -71,12 +71,14 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           subtitle TEXT,
           description TEXT,
           templateType TEXT DEFAULT 'basic',
+          html_content TEXT,
           templateHtml TEXT,
           customFields TEXT,
           thumbnailUrl TEXT,
           qrCodeUrl TEXT,
           academyId TEXT,
           folderId TEXT,
+          user_id INTEGER,
           metaTitle TEXT,
           metaDescription TEXT,
           metaKeywords TEXT,
@@ -91,6 +93,34 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       results.push({ table: "landing_pages", status: "created" });
     } catch (error: any) {
       results.push({ table: "landing_pages", status: "error", error: error.message });
+    }
+    
+    // 3.5. Add html_content column if missing
+    console.log("Adding html_content column if missing...");
+    try {
+      await db.exec(`ALTER TABLE landing_pages ADD COLUMN html_content TEXT;`);
+      results.push({ column: "html_content", status: "added" });
+    } catch (error: any) {
+      // Column already exists - this is fine
+      if (error.message.includes("duplicate column")) {
+        results.push({ column: "html_content", status: "already_exists" });
+      } else {
+        results.push({ column: "html_content", status: "error", error: error.message });
+      }
+    }
+    
+    // 3.6. Add user_id column if missing
+    console.log("Adding user_id column if missing...");
+    try {
+      await db.exec(`ALTER TABLE landing_pages ADD COLUMN user_id INTEGER;`);
+      results.push({ column: "user_id", status: "added" });
+    } catch (error: any) {
+      // Column already exists - this is fine
+      if (error.message.includes("duplicate column")) {
+        results.push({ column: "user_id", status: "already_exists" });
+      } else {
+        results.push({ column: "user_id", status: "error", error: error.message });
+      }
     }
 
     // 4. Create indexes for landing_pages
@@ -109,7 +139,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       .prepare(`
         SELECT name, sql 
         FROM sqlite_master 
-        WHERE type='table' AND name IN ('LandingPageTemplate', 'landing_pages')
+        WHERE type='table' AND name IN ('landing_page_templates', 'landing_pages')
         ORDER BY name
       `)
       .all();
