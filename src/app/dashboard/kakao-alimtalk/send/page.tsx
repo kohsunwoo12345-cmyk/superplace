@@ -103,12 +103,23 @@ export default function SendAlimtalkPage() {
         return;
       }
       const data = await response.json();
+      console.log('📋 Students data received:', data);
       if (data.success) {
+        // Map phone to phoneNumber for consistency
+        const mappedStudents = (data.students || []).map((s: any) => ({
+          ...s,
+          phoneNumber: s.phoneNumber || s.phone // Support both field names
+        }));
+        
         // Filter active students with valid phone numbers
-        const validStudents = (data.students || []).filter((s: any) => 
-          s.status === 'ACTIVE' && s.phoneNumber
+        const validStudents = mappedStudents.filter((s: any) => 
+          (!s.status || s.status === 'ACTIVE') && s.phoneNumber
         );
+        console.log(`✅ Loaded ${validStudents.length} students`);
         setStudents(validStudents);
+      } else {
+        console.warn('⚠️ Students API returned unsuccessful:', data);
+        setStudents([]);
       }
     } catch (err) {
       console.error('Failed to fetch students:', err);
@@ -123,10 +134,8 @@ export default function SendAlimtalkPage() {
   }, [selectedChannel]);
 
   useEffect(() => {
-    if (selectedTemplate) {
-      updatePreview();
-    }
-  }, [selectedTemplate, recipients, selectedLandingPage, selectedStudents, inputMode]);
+    updatePreview();
+  }, [selectedTemplate, recipients, selectedLandingPage, selectedStudents, inputMode, students, templates]);
 
   const fetchChannels = async (userId: string) => {
     try {
@@ -336,27 +345,34 @@ export default function SendAlimtalkPage() {
 
     // Get first recipient for preview
     let recipient: any;
+    let studentId: string | undefined;
     
     if (inputMode === 'students' && selectedStudents.length > 0) {
       const student = students.find(s => s.id === selectedStudents[0]);
       if (student) {
         recipient = { name: student.name, phone: student.phoneNumber };
+        studentId = student.id;
       }
-    } else if (recipients.length > 0) {
+    } else if (recipients.length > 0 && recipients[0].name && recipients[0].phone) {
       recipient = recipients[0];
     }
 
-    if (!recipient || !recipient.name) {
-      setPreviewMessage('');
-      return;
-    }
-
+    // Even without a recipient, show template content
     let message = template.content;
+    
+    // If we have a recipient, replace variables
+    if (recipient && recipient.name) {
 
-    // Replace #{name} variable
-    message = message.replace(/#{name}/g, recipient.name)
-                    .replace(/#{이름}/g, recipient.name)
-                    .replace(/#{학생이름}/g, recipient.name);
+      // Replace #{name} variable with recipient name
+      message = message.replace(/#{name}/g, recipient.name)
+                      .replace(/#{이름}/g, recipient.name)
+                      .replace(/#{학생이름}/g, recipient.name);
+    } else {
+      // No recipient - show placeholder
+      message = message.replace(/#{name}/g, '[수신자 이름]')
+                      .replace(/#{이름}/g, '[수신자 이름]')
+                      .replace(/#{학생이름}/g, '[학생 이름]');
+    }
 
     // Replace #{url} variable with landing page URL
     if (selectedLandingPage) {
@@ -364,11 +380,12 @@ export default function SendAlimtalkPage() {
       if (landingPage) {
         // Generate URL based on whether it's a student or manual entry
         let uniqueUrl;
-        if (inputMode === 'students' && selectedStudents.length > 0) {
-          const studentId = selectedStudents[0];
+        if (studentId) {
           uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?studentId=${studentId}&ref=preview`;
-        } else {
+        } else if (recipient && recipient.name) {
           uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${encodeURIComponent(recipient.name)}&ref=preview`;
+        } else {
+          uniqueUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?ref=preview`;
         }
         
         message = message.replace(/#{url}/g, uniqueUrl)
@@ -376,6 +393,12 @@ export default function SendAlimtalkPage() {
                         .replace(/#{리포트URL}/g, uniqueUrl)
                         .replace(/#{링크}/g, uniqueUrl);
       }
+    } else {
+      // No landing page selected - show placeholder for URL variables
+      message = message.replace(/#{url}/g, '[랜딩페이지 URL]')
+                      .replace(/#{URL}/g, '[랜딩페이지 URL]')
+                      .replace(/#{리포트URL}/g, '[랜딩페이지 URL]')
+                      .replace(/#{링크}/g, '[랜딩페이지 URL]');
     }
 
     setPreviewMessage(message);
