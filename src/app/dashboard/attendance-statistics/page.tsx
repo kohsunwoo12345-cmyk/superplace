@@ -149,6 +149,14 @@ export default function AttendanceStatisticsPage() {
     return todos.filter(t => t.date === dateStr);
   };
 
+  // 역할에 따라 리다이렉트
+  useEffect(() => {
+    if (user && user.role !== "STUDENT") {
+      // 선생님/관리자는 teacher-attendance 페이지로 리다이렉트
+      router.push("/dashboard/teacher-attendance");
+    }
+  }, [user, router]);
+
   if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -157,9 +165,13 @@ export default function AttendanceStatisticsPage() {
     );
   }
 
-  // 학생이 아니면 원래 페이지로
+  // 학생이 아니면 리다이렉트 (이미 useEffect에서 처리됨)
   if (user.role !== "STUDENT") {
-    return <div>선생님/관리자는 다른 페이지를 이용해주세요</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   // Calendar generation
