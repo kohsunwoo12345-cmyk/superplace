@@ -9,7 +9,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 import { 
-  TrendingUp, Users, Calendar, CheckCircle, XCircle, AlertCircle, ArrowLeft, ClipboardCheck
+  TrendingUp, Users, Calendar, CheckCircle, XCircle, AlertCircle, ArrowLeft, ClipboardCheck, Edit
 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -361,13 +361,27 @@ export default function AttendanceStatisticsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <Badge variant={record.status === "PRESENT" || record.status === "VERIFIED" ? "default" : record.status === "LATE" ? "secondary" : "outline"}>
-                      {record.status === "PRESENT" ? "출석" : record.status === "LATE" ? "지각" : record.status}
-                    </Badge>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {record.verifiedAt ? format(new Date(record.verifiedAt), "MM/dd HH:mm", { locale: ko }) : ''}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <Badge variant={record.status === "PRESENT" || record.status === "VERIFIED" ? "default" : record.status === "LATE" ? "secondary" : "outline"}>
+                        {record.status === "PRESENT" ? "출석" : record.status === "LATE" ? "지각" : record.status === "ABSENT" ? "결석" : record.status}
+                      </Badge>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {record.verifiedAt ? format(new Date(record.verifiedAt), "MM/dd HH:mm", { locale: ko }) : ''}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const recordDate = record.date || record.verifiedAt?.split('T')[0] || new Date().toISOString().split('T')[0];
+                        router.push(`/dashboard/attendance-management?date=${recordDate}`);
+                      }}
+                      className="hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
+                      title="출석 수정"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
