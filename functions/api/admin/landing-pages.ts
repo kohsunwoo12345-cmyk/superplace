@@ -260,7 +260,6 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       subtitle,
       description,
       templateType = "basic",
-      templateHtml,
       inputData = [],
       ogTitle,
       ogDescription,
@@ -272,7 +271,11 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       studentId,
       startDate,
       endDate,
+      templateId,
     } = body;
+    
+    // templateHtml은 재할당이 필요하므로 let으로 선언
+    let templateHtml = body.templateHtml;
 
     // 디버깅: 받은 데이터 확인
     console.log("🔍 API Received Data:", {
