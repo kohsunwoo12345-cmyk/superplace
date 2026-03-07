@@ -650,83 +650,155 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 </html>`;
     }
 
-    // Insert landing page - 실제 존재하는 컬럼만 사용
+    // Insert landing page - 동적으로 테이블 구조 확인 후 INSERT
     console.log("📝 랜딩페이지 생성 시작");
-    console.log("📝 데이터:", { 
-      id, 
-      slug, 
-      title, 
-      createdById: userIdOriginal,
-      templateType 
-    });
     
     let insertResult: any = null;
     let insertedId = id;
     
+    // 1. 먼저 테이블 구조 확인
+    console.log("🔍 테이블 구조 확인 중...");
+    const tableInfo = await db.prepare(`PRAGMA table_info(landing_pages)`).all();
+    const columns = tableInfo.results?.map((col: any) => col.name) || [];
+    console.log("📊 사용 가능한 컬럼:", columns);
+    
+    // 2. 사용 가능한 컬럼만 사용해서 INSERT
     try {
-      // 한 번에 모든 데이터 INSERT (신 스키마)
-      console.log("📝 INSERT 실행 - createdById:", userIdOriginal);
-      insertResult = await db
-        .prepare(`
-          INSERT INTO landing_pages 
-          (id, slug, title, subtitle, description, templateType, templateHtml, 
-           customFields, thumbnailUrl, qrCodeUrl, metaTitle, metaDescription, 
-           isActive, createdById) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-        `)
-        .bind(
-          id, 
-          slug, 
-          title, 
-          subtitle || null,
-          description || null,
-          templateType || 'basic',
-          htmlContent || null,
-          (inputData && inputData.length > 0) ? JSON.stringify(inputData) : null,
-          thumbnail || null,
-          qrCodeUrl || null,
-          ogTitle || title,
-          ogDescription || description || null,
-          userIdOriginal
-        )
-        .run();
+      // 최소한의 필수 컬럼만 사용 (id, title)
+      const insertData: any = {};
+      const insertColumns: string[] = [];
+      const insertValues: string[] = [];
+      const bindValues: any[] = [];
       
-      console.log("✅ 신규 스키마 INSERT 성공");
-      console.log("✅ insertResult:", JSON.stringify(insertResult));
+      // id 컬럼 확인 및 추가
+      if (columns.includes('id')) {
+        insertColumns.push('id');
+        insertValues.push('?');
+        bindValues.push(id);
+      }
+      
+      // title (필수)
+      if (columns.includes('title')) {
+        insertColumns.push('title');
+        insertValues.push('?');
+        bindValues.push(title);
+      }
+      
+      // slug
+      if (columns.includes('slug')) {
+        insertColumns.push('slug');
+        insertValues.push('?');
+        bindValues.push(slug);
+      }
+      
+      // html_content 또는 templateHtml
+      if (columns.includes('html_content')) {
+        insertColumns.push('html_content');
+        insertValues.push('?');
+        bindValues.push(htmlContent || '');
+      } else if (columns.includes('templateHtml')) {
+        insertColumns.push('templateHtml');
+        insertValues.push('?');
+        bindValues.push(htmlContent || '');
+      }
+      
+      // template_type 또는 templateType
+      if (columns.includes('template_type')) {
+        insertColumns.push('template_type');
+        insertValues.push('?');
+        bindValues.push(templateType || 'basic');
+      } else if (columns.includes('templateType')) {
+        insertColumns.push('templateType');
+        insertValues.push('?');
+        bindValues.push(templateType || 'basic');
+      }
+      
+      // content_json 또는 customFields
+      if (columns.includes('content_json')) {
+        insertColumns.push('content_json');
+        insertValues.push('?');
+        bindValues.push(JSON.stringify(inputData || []));
+      } else if (columns.includes('customFields')) {
+        insertColumns.push('customFields');
+        insertValues.push('?');
+        bindValues.push(JSON.stringify(inputData || []));
+      }
+      
+      // qr_code_url 또는 qrCodeUrl
+      if (columns.includes('qr_code_url')) {
+        insertColumns.push('qr_code_url');
+        insertValues.push('?');
+        bindValues.push(qrCodeUrl);
+      } else if (columns.includes('qrCodeUrl')) {
+        insertColumns.push('qrCodeUrl');
+        insertValues.push('?');
+        bindValues.push(qrCodeUrl);
+      }
+      
+      // thumbnail_url 또는 thumbnailUrl
+      if (columns.includes('thumbnail_url')) {
+        insertColumns.push('thumbnail_url');
+        insertValues.push('?');
+        bindValues.push(thumbnail);
+      } else if (columns.includes('thumbnailUrl')) {
+        insertColumns.push('thumbnailUrl');
+        insertValues.push('?');
+        bindValues.push(thumbnail);
+      }
+      
+      // og_title 또는 metaTitle
+      if (columns.includes('og_title')) {
+        insertColumns.push('og_title');
+        insertValues.push('?');
+        bindValues.push(ogTitle || title);
+      } else if (columns.includes('metaTitle')) {
+        insertColumns.push('metaTitle');
+        insertValues.push('?');
+        bindValues.push(ogTitle || title);
+      }
+      
+      // og_description 또는 metaDescription
+      if (columns.includes('og_description')) {
+        insertColumns.push('og_description');
+        insertValues.push('?');
+        bindValues.push(ogDescription || description);
+      } else if (columns.includes('metaDescription')) {
+        insertColumns.push('metaDescription');
+        insertValues.push('?');
+        bindValues.push(ogDescription || description);
+      }
+      
+      // status 또는 isActive
+      if (columns.includes('status')) {
+        insertColumns.push('status');
+        insertValues.push('?');
+        bindValues.push('active');
+      } else if (columns.includes('isActive')) {
+        insertColumns.push('isActive');
+        insertValues.push('?');
+        bindValues.push(1);
+      }
+      
+      // created_at
+      if (columns.includes('created_at')) {
+        insertColumns.push('created_at');
+        insertValues.push("datetime('now')");
+      }
+      
+      const insertSQL = `
+        INSERT INTO landing_pages (${insertColumns.join(', ')})
+        VALUES (${insertValues.join(', ')})
+      `;
+      
+      console.log("📝 동적 INSERT SQL:", insertSQL);
+      console.log("📝 Bind values count:", bindValues.length);
+      
+      insertResult = await db.prepare(insertSQL).bind(...bindValues).run();
+      console.log("✅ INSERT 성공!");
       
     } catch (error: any) {
-      console.error("❌ 신규 스키마 INSERT 실패:", error.message);
-      console.error("❌ 에러 상세:", error.stack);
-      
-      // 구 스키마로 재시도 (id 제거, AUTO INCREMENT)
-      console.log("🔄 구 스키마로 재시도...");
-      try {
-        insertResult = await db
-          .prepare(`
-            INSERT INTO landing_pages 
-            (slug, title, user_id, template_type, content_json, html_content, 
-             qr_code_url, thumbnail_url, og_title, og_description, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
-          `)
-          .bind(
-            slug,
-            title,
-            hashStringToInt(userIdOriginal),
-            templateType || 'basic',
-            JSON.stringify(inputData || []),
-            htmlContent || '',
-            qrCodeUrl || null,
-            thumbnail || null,
-            ogTitle || title,
-            ogDescription || description || null
-          )
-          .run();
-        console.log("✅ 구 스키마 INSERT 성공");
-      } catch (legacyError: any) {
-        console.error("❌ 구 스키마 INSERT도 실패:", legacyError.message);
-        console.error("❌ 구 스키마 에러 상세:", legacyError.stack);
-        throw new Error(`랜딩페이지 생성 실패: ${error.message}. 구 스키마 실패: ${legacyError.message}`);
-      }
+      console.error("❌ INSERT 실패:", error.message);
+      throw new Error(`랜딩페이지 생성 실패: ${error.message}`);
     }
 
     console.log("✅ 랜딩페이지 INSERT 완료");
