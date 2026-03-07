@@ -21,6 +21,10 @@ import {
   User,
   Award,
   TrendingUp,
+  MessageSquare,
+  Camera,
+  Send,
+  Upload,
 } from "lucide-react";
 
 interface HomeworkAssignment {
@@ -67,6 +71,9 @@ export default function StudentHomeworkPage() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [homeworkData, setHomeworkData] = useState<HomeworkData | null>(null);
+  const [submitting, setSubmitting] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
 
   useEffect(() => {
     // 로컬 스토리지에서 사용자 정보 가져오기
@@ -161,6 +168,71 @@ export default function StudentHomeworkPage() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const handleAskAI = (assignmentId: string, title: string, description: string) => {
+    // AI 챗봇으로 이동하며 숙제 정보 전달
+    router.push(`/dashboard/ai-assistant?context=homework&assignmentId=${assignmentId}&title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`);
+  };
+
+  const handleImageCapture = (e: React.ChangeEvent<HTMLInputElement>, assignmentId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSelectedImage(reader.result as string);
+      setSelectedAssignmentId(assignmentId);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmitHomework = async (assignmentId: string, imageData?: string) => {
+    if (!currentUser) return;
+    
+    const imageToSubmit = imageData || selectedImage;
+    if (!imageToSubmit) {
+      alert("숙제 사진을 먼저 촬영해주세요.");
+      return;
+    }
+
+    setSubmitting(assignmentId);
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/homework/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          assignmentId: assignmentId,
+          images: [imageToSubmit],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert("✅ " + data.message + "\n\n" + (data.note || ""));
+        // 이미지 초기화
+        setSelectedImage(null);
+        setSelectedAssignmentId(null);
+        // 숙제 목록 새로고침
+        await fetchHomework(currentUser.id, currentUser.academyId);
+        // 결과 페이지로 이동
+        router.push("/dashboard/homework/results");
+      } else {
+        alert("❌ 제출 실패: " + data.error);
+      }
+    } catch (error) {
+      console.error("Submit error:", error);
+      alert("숙제 제출 중 오류가 발생했습니다.");
+    } finally {
+      setSubmitting(null);
+    }
   };
 
   const getCompletionColor = (completion: string) => {
@@ -294,26 +366,87 @@ export default function StudentHomeworkPage() {
                   <p className="text-gray-700 mb-4 whitespace-pre-wrap">
                     {hw.description}
                   </p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar className="w-4 h-4" />
-                      <span>마감: {formatDate(hw.dueDate)}</span>
-                    </div>
-                    {hw.submissionStatus === "submitted" ? (
-                      <Badge className="bg-green-600">제출 완료</Badge>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          router.push(
-                            `/homework-check?userId=${currentUser.id}&assignmentId=${hw.id}`
-                          )
-                        }
-                      >
-                        제출하기
-                      </Button>
-                    )}
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+                    <Calendar className="w-4 h-4" />
+                    <span>마감: {formatDate(hw.dueDate)}</span>
                   </div>
+                  
+                  {hw.submissionStatus === "submitted" ? (
+                    <Badge className="bg-green-600 w-full justify-center py-2">
+                      ✅ 제출 완료
+                    </Badge>
+                  ) : (
+                    <div className="space-y-2">
+                      {/* AI 질문하기 버튼 */}
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => handleAskAI(hw.id, hw.title, hw.description)}
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        AI 질문하기
+                      </Button>
+                      
+                      {/* 사진 촬영 및 제출 */}
+                      {selectedImage && selectedAssignmentId === hw.id ? (
+                        <div className="space-y-2">
+                          <img 
+                            src={selectedImage} 
+                            alt="촬영된 숙제"
+                            className="w-full h-48 object-cover rounded border"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              className="flex-1 bg-blue-600 hover:bg-blue-700"
+                              onClick={() => handleSubmitHomework(hw.id)}
+                              disabled={submitting === hw.id}
+                            >
+                              {submitting === hw.id ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                  제출 중...
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-4 h-4 mr-2" />
+                                  제출하기
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedImage(null);
+                                setSelectedAssignmentId(null);
+                              }}
+                            >
+                              취소
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            onChange={(e) => handleImageCapture(e, hw.id)}
+                            className="hidden"
+                            id={`camera-input-today-${hw.id}`}
+                          />
+                          <Button
+                            className="w-full bg-green-600 hover:bg-green-700"
+                            onClick={() => {
+                              document.getElementById(`camera-input-today-${hw.id}`)?.click();
+                            }}
+                          >
+                            <Camera className="w-4 h-4 mr-2" />
+                            사진 촬영하고 제출하기
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -352,17 +485,87 @@ export default function StudentHomeworkPage() {
                   <p className="text-gray-700 mb-4 whitespace-pre-wrap">
                     {hw.description}
                   </p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar className="w-4 h-4" />
-                      <span>마감: {formatDate(hw.dueDate)}</span>
-                    </div>
-                    {hw.submissionStatus === "submitted" ? (
-                      <Badge className="bg-green-600">제출 완료</Badge>
-                    ) : (
-                      <Badge variant="outline">진행 중</Badge>
-                    )}
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+                    <Calendar className="w-4 h-4" />
+                    <span>마감: {formatDate(hw.dueDate)}</span>
                   </div>
+                  
+                  {hw.submissionStatus === "submitted" ? (
+                    <Badge className="bg-green-600 w-full justify-center py-2">
+                      ✅ 제출 완료
+                    </Badge>
+                  ) : (
+                    <div className="space-y-2">
+                      {/* AI 질문하기 버튼 */}
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => handleAskAI(hw.id, hw.title, hw.description)}
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        AI 질문하기
+                      </Button>
+                      
+                      {/* 사진 촬영 및 제출 */}
+                      {selectedImage && selectedAssignmentId === hw.id ? (
+                        <div className="space-y-2">
+                          <img 
+                            src={selectedImage} 
+                            alt="촬영된 숙제"
+                            className="w-full h-48 object-cover rounded border"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              className="flex-1 bg-blue-600 hover:bg-blue-700"
+                              onClick={() => handleSubmitHomework(hw.id)}
+                              disabled={submitting === hw.id}
+                            >
+                              {submitting === hw.id ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                  제출 중...
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-4 h-4 mr-2" />
+                                  제출하기
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedImage(null);
+                                setSelectedAssignmentId(null);
+                              }}
+                            >
+                              취소
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            onChange={(e) => handleImageCapture(e, hw.id)}
+                            className="hidden"
+                            id={`camera-input-upcoming-${hw.id}`}
+                          />
+                          <Button
+                            className="w-full bg-green-600 hover:bg-green-700"
+                            onClick={() => {
+                              document.getElementById(`camera-input-upcoming-${hw.id}`)?.click();
+                            }}
+                          >
+                            <Camera className="w-4 h-4 mr-2" />
+                            사진 촬영하고 제출하기
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
