@@ -135,69 +135,109 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `).bind(targetAcademyId).first();
       actualStudentCount = studentCountResult?.count || 0;
 
-      // 2️⃣ 숙제 검사 횟수 (플랜 기간 동안 제출된 숙제) - homework_submissions 테이블
+      // 2️⃣ 숙제 검사 횟수 - homework_submissions 테이블 (실제 제출된 숙제)
       try {
         const homeworkResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM homework_submissions hs
-          JOIN User u ON hs.userId = u.id
+          JOIN User u ON CAST(hs.userId AS TEXT) = u.id
           WHERE u.academyId = ?
             AND hs.submittedAt IS NOT NULL
             AND hs.submittedAt >= ?
             AND hs.submittedAt <= ?
         `).bind(targetAcademyId, planStartISO, planEndISO).first();
         actualHomeworkChecks = homeworkResult?.count || 0;
-      } catch (e) {
-        console.log('⚠️ homework_submissions 테이블 없음:', e);
+        console.log(`✅ 숙제 검사 ${actualHomeworkChecks}개`);
+      } catch (e: any) {
+        console.log('⚠️ homework_submissions 조회 실패:', e.message);
         actualHomeworkChecks = 0;
       }
 
-      // 3️⃣ AI 분석 횟수 (플랜 기간 동안) - usage_logs 테이블에서 ai_analysis 타입
+      // 3️⃣ AI 분석 (역량 분석, 부족한 개념 분석 등) - usage_logs 테이블
       try {
         const aiAnalysisResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM usage_logs ul
-          JOIN User u ON ul.userId = u.id
+          JOIN User u ON CAST(ul.userId AS TEXT) = u.id
           WHERE u.academyId = ? 
             AND ul.type = 'ai_analysis'
             AND ul.createdAt >= ?
             AND ul.createdAt <= ?
         `).bind(targetAcademyId, planStartISO, planEndISO).first();
         actualAIAnalysis = aiAnalysisResult?.count || 0;
-      } catch (e) {
-        console.log('⚠️ usage_logs 테이블 없음 또는 조회 실패:', e);
+        console.log(`✅ AI 분석 ${actualAIAnalysis}개`);
+      } catch (e: any) {
+        console.log('⚠️ usage_logs(ai_analysis) 조회 실패:', e.message);
         actualAIAnalysis = 0;
       }
 
-      // 4️⃣ 유사문제 출제 횟수 (플랜 기간 동안) - usage_logs 테이블에서 similar_problem 타입
+      // 4️⃣ 유사문제 출제 - usage_logs 테이블  
       try {
         const similarProblemsResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM usage_logs ul
-          JOIN User u ON ul.userId = u.id
+          JOIN User u ON CAST(ul.userId AS TEXT) = u.id
           WHERE u.academyId = ? 
             AND ul.type = 'similar_problem'
             AND ul.createdAt >= ?
             AND ul.createdAt <= ?
         `).bind(targetAcademyId, planStartISO, planEndISO).first();
         actualSimilarProblems = similarProblemsResult?.count || 0;
-      } catch (e) {
-        console.log('⚠️ usage_logs 테이블 없음 또는 조회 실패:', e);
+        console.log(`✅ 유사문제 ${actualSimilarProblems}개`);
+      } catch (e: any) {
+        console.log('⚠️ usage_logs(similar_problem) 조회 실패:', e.message);
         actualSimilarProblems = 0;
       }
 
-      // 5️⃣ 랜딩페이지 생성 수 (플랜 기간 동안) - landing_pages 테이블
+      // 5️⃣ 랜딩페이지 생성 수 - landing_pages 테이블 (실제 생성된 랜딩페이지)
       try {
-        const landingPagesResult = await DB.prepare(`
+        // 방법 1: academyId로 직접 조회 (새 스키마)
+        let landingPagesResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM landing_pages
           WHERE academyId = ?
-            AND createdAt >= ?
-            AND createdAt <= ?
+            AND created_at >= ?
+            AND created_at <= ?
         `).bind(targetAcademyId, planStartISO, planEndISO).first();
+        
         actualLandingPages = landingPagesResult?.count || 0;
-      } catch (e) {
-        console.log('⚠️ landing_pages 테이블 없음 또는 조회 실패:', e);
+        
+        // 방법 2: 만약 0이면 user_id로도 시도 (구 스키마)
+        if (actualLandingPages === 0) {
+          // User 테이블에서 해당 학원의 DIRECTOR/TEACHER ID 찾기
+          const academyUsers = await DB.prepare(`
+            SELECT id FROM User 
+            WHERE academyId = ? AND (role = 'DIRECTOR' OR role = 'TEACHER')
+          `).bind(targetAcademyId).all();
+          
+          if (academyUsers.results && academyUsers.results.length > 0) {
+            // user_id는 INTEGER 해시값이므로 변환
+            const userIds = academyUsers.results.map((u: any) => {
+              const str = String(u.id);
+              let hash = 0;
+              for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash = hash & hash;
+              }
+              return Math.abs(hash);
+            });
+            
+            const userIdPlaceholders = userIds.map(() => '?').join(',');
+            landingPagesResult = await DB.prepare(`
+              SELECT COUNT(*) as count 
+              FROM landing_pages
+              WHERE user_id IN (${userIdPlaceholders})
+                AND created_at >= ?
+                AND created_at <= ?
+            `).bind(...userIds, planStartISO, planEndISO).first();
+            
+            actualLandingPages = landingPagesResult?.count || 0;
+          }
+        }
+        
+        console.log(`✅ 랜딩페이지 ${actualLandingPages}개`);
+      } catch (e: any) {
+        console.log('⚠️ landing_pages 조회 실패:', e.message);
         actualLandingPages = 0;
       }
 
