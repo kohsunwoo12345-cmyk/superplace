@@ -465,7 +465,7 @@ export default function CreateTemplatePage() {
                               key={idx}
                               className="bg-white text-blue-700 px-2 py-1 rounded text-sm font-mono border border-blue-300"
                             >
-                              #{{{v}}}
+                              {`#{${v}}`}
                             </span>
                           ))}
                         </div>
