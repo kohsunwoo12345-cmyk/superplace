@@ -104,22 +104,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 제출된 숙제 정보 조회 (studentId는 문자열)
+    // Note: Using flexible column selection to handle both old and new schema
     const submittedHomework = await DB.prepare(`
       SELECT 
         hs.id,
-        hs.attendanceRecordId,
+        hs.imageUrl,
         hs.score,
         hs.feedback,
-        hs.subject,
-        hs.completion,
-        hs.effort,
-        hs.submittedAt,
-        hs.gradedAt
+        hs.submittedAt
       FROM homework_submissions hs
-      WHERE hs.userId = ?
+      WHERE hs.studentId = ? OR hs.userId = ?
       ORDER BY hs.submittedAt DESC
       LIMIT 10
-    `).bind(studentId).all();
+    `).bind(studentId, studentId).all();
 
     // 오늘의 숙제 (오늘이 마감일)
     const todayHomework = (allAssignments.results || []).filter((hw: any) => 
