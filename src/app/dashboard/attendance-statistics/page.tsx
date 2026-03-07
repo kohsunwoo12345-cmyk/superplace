@@ -6,6 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 import { 
@@ -19,6 +27,10 @@ export default function AttendanceStatisticsPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [statistics, setStatistics] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -66,6 +78,48 @@ export default function AttendanceStatisticsPage() {
       console.error("❌ Error fetching statistics:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditAttendance = (date: string, currentStatus: string) => {
+    setSelectedDate(date);
+    setSelectedStatus(currentStatus || "ABSENT");
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateAttendance = async () => {
+    if (!selectedDate || !user) return;
+    
+    setUpdating(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/attendance/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          date: selectedDate,
+          status: selectedStatus,
+        }),
+      });
+
+      if (response.ok) {
+        alert("출석 상태가 수정되었습니다.");
+        setEditDialogOpen(false);
+        // 통계 다시 불러오기
+        fetchStatistics(user);
+      } else {
+        const error = await response.json();
+        alert(`수정 실패: ${error.message || "알 수 없는 오류"}`);
+      }
+    } catch (error) {
+      console.error("Error updating attendance:", error);
+      alert("출석 수정 중 오류가 발생했습니다.");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -155,10 +209,19 @@ export default function AttendanceStatisticsPage() {
                 return (
                   <div
                     key={day}
-                    className={`p-4 border rounded-lg text-center ${bgColor} ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                    className={`relative p-4 border rounded-lg text-center ${bgColor} ${isToday ? 'ring-2 ring-blue-500' : ''} group`}
                   >
                     <div className="text-lg font-semibold">{day}</div>
                     {emoji && <div className="text-2xl mt-1">{emoji}</div>}
+                    {status && (
+                      <button
+                        onClick={() => handleEditAttendance(dateStr, status)}
+                        className="absolute top-1 right-1 p-1 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="출석 수정"
+                      >
+                        <Edit className="w-3 h-3 text-gray-600" />
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -207,6 +270,83 @@ export default function AttendanceStatisticsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 출석 수정 Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>출석 상태 수정</DialogTitle>
+              <DialogDescription>
+                {selectedDate} 날짜의 출석 상태를 변경합니다.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => setSelectedStatus("VERIFIED")}
+                  className={`p-4 border-2 rounded-lg flex items-center gap-3 transition-all ${
+                    selectedStatus === "VERIFIED" 
+                      ? "border-green-500 bg-green-50" 
+                      : "border-gray-200 hover:border-green-300"
+                  }`}
+                >
+                  <div className="text-3xl">🟢</div>
+                  <div className="text-left">
+                    <div className="font-semibold">출석</div>
+                    <div className="text-sm text-gray-600">정상 출석</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setSelectedStatus("LATE")}
+                  className={`p-4 border-2 rounded-lg flex items-center gap-3 transition-all ${
+                    selectedStatus === "LATE" 
+                      ? "border-yellow-500 bg-yellow-50" 
+                      : "border-gray-200 hover:border-yellow-300"
+                  }`}
+                >
+                  <div className="text-3xl">🟡</div>
+                  <div className="text-left">
+                    <div className="font-semibold">지각</div>
+                    <div className="text-sm text-gray-600">늦은 출석</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setSelectedStatus("ABSENT")}
+                  className={`p-4 border-2 rounded-lg flex items-center gap-3 transition-all ${
+                    selectedStatus === "ABSENT" 
+                      ? "border-red-500 bg-red-50" 
+                      : "border-gray-200 hover:border-red-300"
+                  }`}
+                >
+                  <div className="text-3xl">🔴</div>
+                  <div className="text-left">
+                    <div className="font-semibold">결석</div>
+                    <div className="text-sm text-gray-600">출석하지 않음</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setEditDialogOpen(false)}
+                disabled={updating}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={handleUpdateAttendance}
+                disabled={updating}
+              >
+                {updating ? "수정 중..." : "수정하기"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
