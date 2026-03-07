@@ -3,8 +3,8 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 # Cloudflare Pages configuration
-# @cloudflare/next-on-pages output directory
-pages_build_output_dir = ".vercel/output/static"
+# Static export output directory
+pages_build_output_dir = "out"
 
 # D1 Database (webapp-production)
 [[d1_databases]]

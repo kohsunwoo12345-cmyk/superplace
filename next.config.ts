@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // output: 'export', // ❌ 비활성화: Cloudflare Functions 사용을 위해
+  output: 'export', // ✅ Static export for CloudFlare Pages
   trailingSlash: true,
   images: {
     unoptimized: true,
