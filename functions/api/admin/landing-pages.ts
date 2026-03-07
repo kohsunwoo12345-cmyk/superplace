@@ -378,9 +378,12 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // HTML 콘텐츠 생성
     let htmlContent = '';
     
-    // 🔥 템플릿 HTML이 없으면 DB에서 가져오기
+    // 🔥 템플릿 HTML 가져오기 (우선순위)
+    // 1. 직접 제공된 templateHtml 사용
+    // 2. templateId로 DB에서 가져오기
+    // 3. templateId도 없으면 기본 템플릿 가져오기
     if (!templateHtml && templateId) {
-      console.log('⚠️ templateHtml not provided, fetching from DB...');
+      console.log('⚠️ templateHtml not provided, fetching from DB with templateId:', templateId);
       try {
         const templateData = await db.prepare(`
           SELECT html FROM landing_page_templates WHERE id = ?
@@ -388,12 +391,31 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         
         if (templateData && templateData.html) {
           templateHtml = templateData.html;
-          console.log('✅ Template loaded from DB, length:', templateHtml.length);
+          console.log('✅ Template loaded from DB by ID, length:', templateHtml.length);
         } else {
           console.error('❌ Template not found in DB:', templateId);
         }
       } catch (err) {
         console.error('❌ Failed to load template from DB:', err);
+      }
+    }
+    
+    // 🔥 여전히 템플릿이 없으면 기본 템플릿 가져오기
+    if (!templateHtml) {
+      console.log('⚠️ No template provided, fetching default template...');
+      try {
+        const defaultTemplate = await db.prepare(`
+          SELECT html FROM landing_page_templates WHERE isDefault = 1 ORDER BY createdAt DESC LIMIT 1
+        `).first();
+        
+        if (defaultTemplate && defaultTemplate.html) {
+          templateHtml = defaultTemplate.html;
+          console.log('✅ Default template loaded, length:', templateHtml.length);
+        } else {
+          console.warn('⚠️ No default template found in DB');
+        }
+      } catch (err) {
+        console.error('❌ Failed to load default template:', err);
       }
     }
     
