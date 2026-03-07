@@ -1,229 +1,188 @@
-# 🎉 요금제 시스템 최종 테스트 보고서
+# 🔴 최종 테스트 보고서
 
-## ✅ 전체 테스트 결과: 성공!
-
-### 테스트 일시
-- **날짜**: 2026-02-26
-- **시간**: 09:34 UTC
-- **테스트 사용자**: test-user-1772098439
-- **테스트 플랜**: 프로 플랜 (학생 10명 제한)
+**날짜:** 2026-03-07  
+**최종 커밋:** `2891fbef`  
+**테스트 횟수:** 8회  
+**결과:** ❌ 실패 - Cloudflare Functions 미작동
 
 ---
 
-## 📋 테스트 시나리오 및 결과
+## 📊 테스트 결과
 
-### ✅ Step 1: 요금제 목록 조회
-**결과**: 성공 ✅
+| 시도 | 변경사항 | 결과 |
+|------|----------|------|
+| 1 | output: 'export' 제거 | ❌ 빌드 실패 (재귀 오류) |
+| 2 | @cloudflare/next-on-pages 사용 | ❌ 빌드 실패 (재귀 오류) |
+| 3 | build 스크립트 복원 | ❌ 빌드 실패 (재귀 오류) |
+| 4 | output: 'export' 복원 | ✅ 빌드 성공, ❌ Functions 404 |
+| 5 | Functions를 out/ 복사 | ✅ 빌드 성공, ❌ Functions 404 |
+| 6 | test.js 추가 (TypeScript → JavaScript) | ✅ 빌드 성공, ❌ Functions 404 |
 
-- 4개 플랜 정상 조회됨
-  - 무료 플랜 (학생 5명)
-  - 스타터 (학생 30명)
-  - 프로 (학생 100명) ⭐ 인기
-  - 엔터프라이즈 (무제한)
+**일관된 결과:** `/test` API 호출 시 `404 Not Found`
 
-### ✅ Step 2: 관리자가 프로 플랜 제한 수정
-**결과**: 성공 ✅
+---
 
-- **변경 전**: 학생 100명
-- **변경 후**: 학생 10명
-- API 응답: `{"success": true, "message": "Pricing plan updated successfully"}`
+## 🔍 근본 원인 분석
 
-### ✅ Step 3: 사용자가 프로 플랜 신청
-**결과**: 성공 ✅
+### Cloudflare Pages는 Functions를 배포하지 않음
 
-- 신청 ID: `req-1772098444663-8n3x6coxi`
-- 결제 수단: 카드
-- 상태: 대기 중 (pending)
-- 메시지: "요금제 신청이 완료되었습니다. 관리자 승인 후 이용 가능합니다."
+**가능한 이유:**
 
-### ✅ Step 4: 관리자가 신청 승인
-**결과**: 성공 ✅
+1. **Cloudflare Pages 프로젝트 설정이 Functions를 비활성화함**
+   - Dashboard 설정에서 확인 필요
 
-- 구독 ID: `sub-1772098448001-hv71imx2h`
-- 승인 메시지: "요금제 신청이 승인되었습니다."
-- 구독 상태: 즉시 활성화 (active)
+2. **GitHub 연동 배포는 Functions 미지원 (추측)**
+   - Wrangler CLI를 통한 수동 배포만 Functions 지원 가능성
 
-### ✅ Step 5: 사용자 구독 정보 확인
-**결과**: 성공 ✅
+3. **빌드 프로세스가 Functions 디렉토리를 무시**
+   - Cloudflare Pages의 자동 빌드가 `/functions` 디렉토리를 감지하지 못함
 
-승인 후 즉시 확인한 구독 정보:
-```json
-{
-  "planId": "plan-pro",
-  "planName": "프로",
-  "status": "active",
-  "startDate": "2026-02-26",
-  "endDate": "2026-03-26",
-  "limits": {
-    "maxStudents": 10,          ← 관리자가 수정한 제한 즉시 적용!
-    "maxHomeworkChecks": 500,
-    "maxAIAnalysis": 200,
-    "maxSimilarProblems": 500,
-    "maxLandingPages": 10
-  },
-  "currentUsage": {
-    "students": 0,
-    "homeworkChecks": 0,
-    "aiAnalysis": 0,
-    "similarProblems": 0,
-    "landingPages": 0
-  },
-  "daysRemaining": 28
-}
+---
+
+## ✅ 확인된 사실
+
+### 로컬 구조는 정상
+```bash
+$ ls functions/
+api/  test.js  test.ts  ...
+
+$ cat functions/test.js
+// 정상적인 Cloudflare Functions 코드
+export async function onRequest() { ... }
 ```
 
-**✅ 확인 사항**:
-- 관리자가 수정한 제한(10명)이 즉시 적용됨
-- 기존 100명이 아닌 10명으로 설정됨
-- 승인과 동시에 구독 활성화
+### 빌드는 성공
+- 모든 정적 파일 생성 완료
+- `out/` 디렉토리에 HTML, CSS, JS 생성
+- 빌드 로그: "Success: Finished cloning repository files"
 
-### ✅ Step 6: 제한 체크 - 학생 11명 추가 시도
-**결과**: 정확히 작동 ✅
-
-| 학생 번호 | 결과 | 현재/제한 |
-|-----------|------|-----------|
-| 학생 1 | ✅ 성공 | 1/10 |
-| 학생 2 | ✅ 성공 | 2/10 |
-| 학생 3 | ✅ 성공 | 3/10 |
-| 학생 4 | ✅ 성공 | 4/10 |
-| 학생 5 | ✅ 성공 | 5/10 |
-| 학생 6 | ✅ 성공 | 6/10 |
-| 학생 7 | ✅ 성공 | 7/10 |
-| 학생 8 | ✅ 성공 | 8/10 |
-| 학생 9 | ✅ 성공 | 9/10 |
-| 학생 10 | ✅ 성공 | 10/10 |
-| **학생 11** | **❌ 차단** | **10/10** |
-
-**차단 메시지**: "학생 등록 한도를 초과했습니다. (10/10)"
+### Functions만 작동 안 함
+- 정적 페이지: ✅ 정상
+- Functions API: ❌ 404
 
 ---
 
-## 🎯 핵심 검증 사항
+## 🎯 해결 방법
 
-### ✅ 1. 관리자 제한 수정 기능
-- **테스트**: 프로 플랜 학생 수를 100명 → 10명으로 변경
-- **결과**: 성공 ✅
-- **검증**: 변경 후 즉시 조회 시 10명으로 반영됨
+### 방법 1: Cloudflare Dashboard 확인 (필수)
 
-### ✅ 2. 신청 및 승인 플로우
-- **테스트**: 사용자 신청 → 관리자 승인
-- **결과**: 성공 ✅
-- **검증**: 승인 즉시 구독 활성화 및 제한 적용
-
-### ✅ 3. 제한 실시간 적용
-- **테스트**: 관리자가 수정한 제한(10명)이 실제로 적용되는지 확인
-- **결과**: 성공 ✅
-- **검증**:
-  - 10명까지 정상 등록 가능
-  - 11번째 학생 등록 시 정확히 차단
-  - 차단 메시지 명확하게 표시
-
-### ✅ 4. 사용량 카운팅
-- **테스트**: 학생 추가 시 실시간 카운트 증가
-- **결과**: 성공 ✅
-- **검증**: 1/10, 2/10, 3/10... 10/10까지 정확히 카운트
-
----
-
-## 📊 최종 결과 요약
-
-| 항목 | 목표 | 결과 | 상태 |
-|------|------|------|------|
-| 요금제 목록 조회 | 4개 플랜 조회 | 4개 조회됨 | ✅ 성공 |
-| 관리자 제한 수정 | 100→10 변경 | 10명으로 변경됨 | ✅ 성공 |
-| 요금제 신청 | 신청 완료 | 신청 ID 생성 | ✅ 성공 |
-| 관리자 승인 | 승인 및 활성화 | 즉시 활성화 | ✅ 성공 |
-| 제한 적용 | 수정된 제한 적용 | 10명 제한 적용 | ✅ 성공 |
-| 사용량 카운트 | 실시간 카운트 | 1-10 정확히 카운트 | ✅ 성공 |
-| 11번째 차단 | 제한 초과 차단 | 정확히 차단됨 | ✅ 성공 |
-
-**전체 성공률**: 7/7 (100%) ✅
-
----
-
-## 🔍 추가 검증 내용
-
-### ✅ 승인 후 즉시 적용 확인
-- 승인 API 호출: `09:34:07`
-- 구독 조회: `09:34:08` (1초 후)
-- **결과**: 즉시 활성화 및 제한 적용 확인 ✅
-
-### ✅ 관리자 수정 사항 즉시 반영
-- 플랜 수정: 학생 100명 → 10명
-- 신규 신청 시: 수정된 제한(10명) 적용
-- **결과**: 즉시 반영 확인 ✅
-
-### ✅ 제한 초과 차단 메시지
-```json
-{
-  "success": false,
-  "allowed": false,
-  "error": "학생 등록 한도를 초과했습니다. (10/10)",
-  "code": "LIMIT_EXCEEDED",
-  "current": 10,
-  "limit": 10,
-  "type": "student"
-}
 ```
-- **결과**: 명확한 에러 메시지 제공 ✅
+https://dash.cloudflare.com
+→ Workers & Pages
+→ superplace-academy
+→ Settings
+→ Functions
+```
+
+**확인 사항:**
+- Functions가 활성화되어 있는지?
+- Compatibility date 설정?
+- 환경 변수가 설정되어 있는지?
+
+### 방법 2: Wrangler CLI로 직접 배포
+
+GitHub 자동 배포 대신 CLI로 직접 배포:
+
+```bash
+cd /home/user/webapp
+
+# Next.js 빌드
+npm run build
+
+# Wrangler로 배포 (Functions 포함)
+npx wrangler pages deploy out --project-name=superplace-academy
+
+# 또는
+npm run deploy
+```
+
+### 방법 3: Vercel 배포 (가장 확실한 방법)
+
+Next.js를 Vercel에 배포하면 API Routes가 즉시 작동:
+
+```bash
+npm i -g vercel
+cd /home/user/webapp
+vercel --prod
+```
 
 ---
 
-## 🎉 결론
+## 📋 D1 데이터베이스 상태
 
-### ✅ 모든 요구사항 충족
+### ✅ 테이블 생성 완료
 
-1. ✅ **관리자가 제한을 언제든 변경 가능**
-   - API를 통해 언제든지 수정 가능
-   - 즉시 반영됨
+SQL 실행 완료:
+- `homework_submissions` 테이블 ✅
+- `landing_pages` 테이블 ✅
+- `usage_logs` 테이블 ✅
 
-2. ✅ **변경된 제한이 실제 적용**
-   - 신규 신청 시 수정된 제한 적용
-   - 기존 플랜이 아닌 수정된 플랜 기준으로 작동
+### 테스트 데이터
 
-3. ✅ **승인이 실제로 작동**
-   - 신청 → 승인 플로우 정상 작동
-   - 승인 즉시 구독 활성화
-
-4. ✅ **제한이 실제로 걸림**
-   - 10명까지 성공, 11번째 정확히 차단
-   - 차단 메시지 명확하게 표시
+다음 SQL로 확인 가능:
+```sql
+SELECT COUNT(*) FROM homework_submissions;
+SELECT COUNT(*) FROM landing_pages;
+SELECT COUNT(*) FROM usage_logs;
+```
 
 ---
 
-## 📂 관련 파일
+## 🔴 현재 문제
 
-- **마이그레이션**: `/functions/api/admin/run-subscription-migration.ts`
-- **테스트 스크립트**: `/test_subscription_flow.sh`
-- **API 코드**:
-  - `/functions/api/admin/pricing-plans.ts` (요금제 CRUD)
-  - `/functions/api/subscription/request.ts` (신청)
-  - `/functions/api/admin/subscription-approvals.ts` (승인)
-  - `/functions/api/subscription/check-limit.ts` (제한 체크)
+**숙제 검사, 랜딩페이지 수가 여전히 0으로 표시**
 
----
-
-## 🚀 배포 정보
-
-- **커밋**: 24b3bce
-- **브랜치**: main
-- **배포 URL**: https://superplacestudy.pages.dev
-- **마이그레이션 URL**: https://superplacestudy.pages.dev/api/admin/run-subscription-migration
+**이유:**
+- 설정 페이지가 `/api/subscription/check` API를 호출
+- 이 API는 Cloudflare Functions (`/functions/api/subscription/check.ts`)
+- Functions가 404이므로 API 응답 없음
+- 프론트엔드는 기본값 0을 표시
 
 ---
 
-## ✅ 최종 확인 체크리스트
+## 🎯 권장 조치
 
-- [x] 요금제 조회 API 작동
-- [x] 요금제 수정 API 작동 (관리자)
-- [x] 수정된 제한 즉시 반영
-- [x] 요금제 신청 API 작동
-- [x] 관리자 승인 API 작동
-- [x] 승인 시 구독 즉시 활성화
-- [x] 제한 체크 API 작동
-- [x] 사용량 실시간 카운트
-- [x] 제한 초과 시 정확히 차단
-- [x] 차단 메시지 표시
+### 즉시 (1시간 내):
 
-**전체 시스템 정상 작동 확인!** ✅
+1. **Cloudflare Dashboard 확인**
+   - Functions 설정 확인
+   - 수동 재배포 시도
 
+2. **또는 Wrangler CLI로 배포**
+   ```bash
+   cd /home/user/webapp
+   npm run build
+   npx wrangler pages deploy out --project-name=superplace-academy
+   ```
+
+### 중기 (1일 내):
+
+**Vercel로 이전 (권장)**
+- Next.js 네이티브 지원
+- API Routes 즉시 작동
+- Functions 문제 없음
+
+---
+
+## 📝 최종 결론
+
+**완료:**
+- ✅ D1 테이블 생성
+- ✅ 테스트 데이터 추가
+- ✅ 코드 수정 (Functions API 구현)
+- ✅ Git 커밋 (커밋 2891fbef)
+
+**미완료:**
+- ❌ Cloudflare Functions 배포
+- ❌ 설정 페이지 사용량 표시
+
+**다음 단계:**
+1. Cloudflare Dashboard에서 Functions 설정 확인
+2. Wrangler CLI로 수동 배포 시도
+3. 또는 Vercel로 이전
+
+---
+
+**작성자:** Claude  
+**최종 테스트:** 2026-03-07 09:30 UTC  
+**커밋:** 2891fbef
