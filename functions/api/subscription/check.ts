@@ -121,8 +121,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       try {
         const homeworkResult = await DB.prepare(`
           SELECT COUNT(*) as count 
-          FROM homework_gradings
-        `).first();
+          FROM homework_gradings hg
+          JOIN User u ON hg.studentId = u.id
+          WHERE u.academyId = ?
+        `).bind(targetAcademyId).first();
         actualHomeworkChecks = homeworkResult?.count || 0;
       } catch (e) {
         console.log('⚠️ homework_gradings 테이블 없음');
