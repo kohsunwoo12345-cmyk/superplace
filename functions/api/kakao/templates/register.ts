@@ -74,6 +74,42 @@ export async function onRequestPost(context: any) {
       );
     }
 
+    // 학원장 정보 조회 (전화번호, 카카오 채널 ID)
+    let academyPhone = null;
+    let academyPfId = pfId; // 기본값으로 전달받은 pfId 사용
+    
+    try {
+      const userResult = await env.DB.prepare(`
+        SELECT phone, academy_name FROM users WHERE id = ?
+      `).bind(userId).first();
+      
+      if (userResult && userResult.phone) {
+        academyPhone = userResult.phone;
+        console.log('📞 학원장 전화번호 조회 성공:', academyPhone);
+      }
+      
+      // 카카오 채널 정보 조회
+      const channelResult = await env.DB.prepare(`
+        SELECT solapiChannelId, phoneNumber FROM KakaoChannel WHERE id = ? AND userId = ?
+      `).bind(channelId, userId.toString()).first();
+      
+      if (channelResult) {
+        if (channelResult.solapiChannelId) {
+          academyPfId = channelResult.solapiChannelId;
+          console.log('📱 카카오 채널 ID 조회 성공:', academyPfId);
+        }
+        if (!academyPhone && channelResult.phoneNumber) {
+          academyPhone = channelResult.phoneNumber;
+          console.log('📞 채널 전화번호 조회 성공:', academyPhone);
+        }
+      }
+    } catch (dbError) {
+      console.error('⚠️ 학원 정보 조회 실패:', dbError);
+      // 실패해도 계속 진행 (기존 정보 사용)
+    }
+    
+    console.log('🏫 학원 정보:', { academyPhone, academyPfId });
+
     // Get Solapi credentials (정확한 환경 변수명 사용)
     const SOLAPI_API_KEY = env.SOLAPI_API_Key;
     const SOLAPI_API_SECRET = env.SOLAPI_API_Secret;
@@ -90,7 +126,7 @@ export async function onRequestPost(context: any) {
 
     // Prepare template data for Solapi
     const templateData: any = {
-      pfId: pfId,
+      pfId: academyPfId, // DB에서 조회한 학원 카카오 채널 ID 사용
       templateId: templateCode,
       name: templateName,
       content: content,
@@ -98,6 +134,11 @@ export async function onRequestPost(context: any) {
       messageType: messageType || 'BA',
       securityFlag: securityFlag || false
     };
+    
+    // 학원 전화번호가 있으면 추가 (Solapi에서 사용)
+    if (academyPhone) {
+      templateData.senderKey = academyPhone; // Solapi 발신자 정보
+    }
 
     // Add buttons if provided
     if (buttons && Array.isArray(buttons) && buttons.length > 0) {
@@ -161,8 +202,8 @@ export async function onRequestPost(context: any) {
       INSERT INTO AlimtalkTemplate (
         id, userId, channelId, templateCode, templateName, content,
         categoryCode, messageType, emphasizeType, buttons, quickReplies, variables,
-        solapiTemplateId, status, inspectionStatus, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        solapiTemplateId, status, inspectionStatus, senderPhone, senderPfId, createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       id,
       userId,
@@ -179,6 +220,8 @@ export async function onRequestPost(context: any) {
       templateCode,
       'ACTIVE',
       solapiData.status || 'PENDING', // Solapi 응답의 상태 저장
+      academyPhone, // 학원 전화번호 저장
+      academyPfId,  // 학원 카카오 채널 ID 저장
       now,
       now
     ).run();
