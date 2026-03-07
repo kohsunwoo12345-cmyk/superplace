@@ -34,6 +34,10 @@ export default function AttendanceStatisticsPage() {
   const [updating, setUpdating] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
+  const [currentMonth, setCurrentMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -175,6 +179,20 @@ export default function AttendanceStatisticsPage() {
     }
   };
 
+  const goToPreviousMonth = () => {
+    const [year, month] = currentMonth.split('-').map(Number);
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevYear = month === 1 ? year - 1 : year;
+    setCurrentMonth(`${prevYear}-${String(prevMonth).padStart(2, '0')}`);
+  };
+
+  const goToNextMonth = () => {
+    const [year, month] = currentMonth.split('-').map(Number);
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    setCurrentMonth(`${nextYear}-${String(nextMonth).padStart(2, '0')}`);
+  };
+
   if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -185,19 +203,22 @@ export default function AttendanceStatisticsPage() {
 
   // 학생용 달력 뷰
   if (user.role === "STUDENT") {
-    // 현재 날짜 기본값 설정
-    const now = new Date();
-    const defaultYear = now.getFullYear();
-    const defaultMonth = now.getMonth() + 1;
-    
     // 달력 데이터 준비 (API는 이미 객체 형태로 반환)
     const calendarData: any = statistics?.calendar || {};
 
-    // 현재 월의 모든 날짜 생성
-    const thisMonth = statistics?.thisMonth || `${defaultYear}-${String(defaultMonth).padStart(2, '0')}`;
-    const [year, month] = thisMonth.split('-');
+    // currentMonth 사용
+    const [year, month] = currentMonth.split('-');
     const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
     const firstDay = new Date(parseInt(year), parseInt(month) - 1, 1).getDay();
+
+    // 해당 월의 출석 기록 필터링
+    const monthRecords = Object.entries(calendarData)
+      .filter(([date]) => date.startsWith(currentMonth))
+      .map(([date, status]) => ({ date, status }))
+      .sort((a, b) => b.date.localeCompare(a.date)); // 최신순 정렬
+
+    // 해당 월의 출석일 계산
+    const monthAttendanceDays = monthRecords.filter(r => r.status === 'VERIFIED' || r.status === 'LATE').length;
 
     return (
       <div className="space-y-6">
@@ -208,13 +229,17 @@ export default function AttendanceStatisticsPage() {
               나의 출석 현황
             </h1>
             <p className="text-gray-600 mt-1">
-              이번 달 출석일: {statistics?.attendanceDays || 0}일
+              {year}년 {month}월 출석일: {monthAttendanceDays}일
             </p>
           </div>
-          <Button variant="outline" onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            뒤로가기
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={goToPreviousMonth}>
+              이전 달
+            </Button>
+            <Button variant="outline" onClick={goToNextMonth}>
+              다음 달
+            </Button>
+          </div>
         </div>
 
         {/* 달력 */}
@@ -286,12 +311,12 @@ export default function AttendanceStatisticsPage() {
           <Card className="border-2 border-green-100">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                총 출석
+                이번 달 출석
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-600">
-                {statistics?.attendanceDays || 0}일
+                {monthAttendanceDays}일
               </div>
             </CardContent>
           </Card>
@@ -304,7 +329,7 @@ export default function AttendanceStatisticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-blue-600">
-                {Math.round(((statistics?.attendanceDays || 0) / daysInMonth) * 100)}%
+                {Math.round((monthAttendanceDays / daysInMonth) * 100)}%
               </div>
             </CardContent>
           </Card>
@@ -312,16 +337,74 @@ export default function AttendanceStatisticsPage() {
           <Card className="border-2 border-purple-100">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                이번 달
+                전체 출석
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-purple-600">
-                {month}월
+                {statistics?.attendanceDays || 0}일
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* 출석 기록 목록 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>출석 기록</CardTitle>
+            <CardDescription>{year}년 {month}월 출석 기록 ({monthRecords.length}건)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {monthRecords.length > 0 ? (
+              <div className="space-y-2">
+                {monthRecords.map((record) => {
+                  const dateObj = new Date(record.date);
+                  const dayOfWeek = ['일', '월', '화', '수', '목', '금', '토'][dateObj.getDay()];
+                  const dateStr = format(dateObj, "MM월 dd일", { locale: ko });
+                  
+                  let statusBadge = {
+                    label: '알 수 없음',
+                    color: 'bg-gray-100 text-gray-600',
+                    emoji: '⚪'
+                  };
+                  
+                  if (record.status === 'VERIFIED') {
+                    statusBadge = { label: '출석', color: 'bg-green-100 text-green-700', emoji: '🟢' };
+                  } else if (record.status === 'LATE') {
+                    statusBadge = { label: '지각', color: 'bg-yellow-100 text-yellow-700', emoji: '🟡' };
+                  } else if (record.status === 'ABSENT') {
+                    statusBadge = { label: '결석', color: 'bg-red-100 text-red-700', emoji: '🔴' };
+                  }
+
+                  return (
+                    <div 
+                      key={record.date} 
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl">{statusBadge.emoji}</div>
+                        <div>
+                          <p className="font-medium">{dateStr} ({dayOfWeek})</p>
+                          <p className="text-sm text-gray-600">{record.date}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusBadge.color}`}>
+                          {statusBadge.label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-12 text-center text-gray-500">
+                <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                <p>이번 달 출석 기록이 없습니다</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* 출석 수정 Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
