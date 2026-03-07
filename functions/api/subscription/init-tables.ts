@@ -1,4 +1,4 @@
-// 구독 사용량 카운트를 위한 필수 테이블 생성 API
+// 구독 사용량 카운트를 위한 필수 테이블 생성 API (통합)
 interface Env {
   DB: D1Database;
 }
@@ -28,21 +28,31 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           suggestions TEXT,
           submittedAt TEXT NOT NULL,
           gradedAt TEXT,
-          createdAt TEXT DEFAULT (datetime('now')),
-          FOREIGN KEY (userId) REFERENCES User(id)
+          createdAt TEXT DEFAULT (datetime('now'))
         )
       `).run();
 
-      // 테이블 존재 확인
-      const tableInfo = await DB.prepare(`
-        SELECT name FROM sqlite_master 
-        WHERE type='table' AND name='homework_submissions'
+      // 인덱스 생성
+      await DB.prepare(`
+        CREATE INDEX IF NOT EXISTS idx_homework_submissions_userId 
+        ON homework_submissions(userId)
+      `).run();
+
+      await DB.prepare(`
+        CREATE INDEX IF NOT EXISTS idx_homework_submissions_submittedAt 
+        ON homework_submissions(submittedAt)
+      `).run();
+
+      // 데이터 개수 확인
+      const hwCount = await DB.prepare(`
+        SELECT COUNT(*) as count FROM homework_submissions
       `).first();
 
       results.tables.homework_submissions = {
         created: true,
-        exists: !!tableInfo,
-        message: tableInfo ? '테이블이 성공적으로 생성되었습니다.' : '테이블이 이미 존재합니다.'
+        exists: true,
+        currentCount: hwCount?.count || 0,
+        message: 'homework_submissions 테이블 생성 완료'
       };
     } catch (e: any) {
       results.tables.homework_submissions = {
@@ -67,15 +77,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         )
       `).run();
 
-      const tableInfo = await DB.prepare(`
-        SELECT name FROM sqlite_master 
-        WHERE type='table' AND name='landing_pages'
+      // 인덱스 생성
+      await DB.prepare(`
+        CREATE INDEX IF NOT EXISTS idx_landing_pages_academyId 
+        ON landing_pages(academyId)
+      `).run();
+
+      await DB.prepare(`
+        CREATE INDEX IF NOT EXISTS idx_landing_pages_createdAt 
+        ON landing_pages(createdAt)
+      `).run();
+
+      // 데이터 개수 확인
+      const lpCount = await DB.prepare(`
+        SELECT COUNT(*) as count FROM landing_pages
       `).first();
 
       results.tables.landing_pages = {
         created: true,
-        exists: !!tableInfo,
-        message: tableInfo ? '테이블이 성공적으로 생성되었습니다.' : '테이블이 이미 존재합니다.'
+        exists: true,
+        currentCount: lpCount?.count || 0,
+        message: 'landing_pages 테이블 생성 완료'
       };
     } catch (e: any) {
       results.tables.landing_pages = {
@@ -92,32 +114,36 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           userId INTEGER NOT NULL,
           type TEXT NOT NULL,
           metadata TEXT,
-          createdAt TEXT DEFAULT (datetime('now')),
-          FOREIGN KEY (userId) REFERENCES User(id)
+          createdAt TEXT DEFAULT (datetime('now'))
         )
       `).run();
 
-      // type 인덱스 생성
-      await DB.prepare(`
-        CREATE INDEX IF NOT EXISTS idx_usage_logs_type 
-        ON usage_logs(type)
-      `).run();
-
-      // userId 인덱스 생성
+      // 인덱스 생성
       await DB.prepare(`
         CREATE INDEX IF NOT EXISTS idx_usage_logs_userId 
         ON usage_logs(userId)
       `).run();
 
-      const tableInfo = await DB.prepare(`
-        SELECT name FROM sqlite_master 
-        WHERE type='table' AND name='usage_logs'
+      await DB.prepare(`
+        CREATE INDEX IF NOT EXISTS idx_usage_logs_type 
+        ON usage_logs(type)
+      `).run();
+
+      await DB.prepare(`
+        CREATE INDEX IF NOT EXISTS idx_usage_logs_createdAt 
+        ON usage_logs(createdAt)
+      `).run();
+
+      // 데이터 개수 확인
+      const ulCount = await DB.prepare(`
+        SELECT COUNT(*) as count FROM usage_logs
       `).first();
 
       results.tables.usage_logs = {
         created: true,
-        exists: !!tableInfo,
-        message: tableInfo ? '테이블 및 인덱스가 생성되었습니다.' : '테이블이 이미 존재합니다.'
+        exists: true,
+        currentCount: ulCount?.count || 0,
+        message: 'usage_logs 테이블 생성 완료'
       };
     } catch (e: any) {
       results.tables.usage_logs = {
