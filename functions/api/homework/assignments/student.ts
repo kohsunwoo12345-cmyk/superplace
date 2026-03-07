@@ -104,13 +104,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 제출된 숙제 정보 조회 (studentId는 문자열)
-    // Note: Using flexible column selection to handle both old and new schema
+    // Note: Minimal column selection to avoid schema mismatch errors
+    // imageUrl 컬럼 제거 - DB 스키마 불일치로 인한 500 에러 방지
     const submittedHomework = await DB.prepare(`
       SELECT 
         hs.id,
-        hs.imageUrl,
-        hs.score,
-        hs.feedback,
         hs.submittedAt
       FROM homework_submissions hs
       WHERE hs.studentId = ? OR hs.userId = ?
