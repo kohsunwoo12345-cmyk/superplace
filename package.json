@@ -46,6 +46,7 @@
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.6.0",
     "recharts": "^2.15.4",
+    "solapi": "^5.5.4",
     "swr": "^2.2.4",
     "tailwind-merge": "^2.2.0",
     "tailwindcss-animate": "^1.0.7",
