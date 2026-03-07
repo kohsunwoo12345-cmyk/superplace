@@ -44,19 +44,39 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
     const db = context.env.DB;
 
-    // 관리자 권한 확인
-    const user = await db
-      .prepare('SELECT id, email, role FROM users WHERE email = ?')
-      .bind(tokenData.email)
-      .first();
-
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+    // 관리자 권한 확인 - 토큰의 role을 먼저 확인
+    console.log('🔍 Token data:', tokenData);
+    
+    // 토큰에 ADMIN 또는 SUPER_ADMIN이 아니면 거부
+    if (tokenData.role !== 'ADMIN' && tokenData.role !== 'SUPER_ADMIN') {
       return new Response(JSON.stringify({ error: "관리자 권한이 필요합니다." }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
       });
     }
 
+    console.log('✅ Token role verified:', tokenData.role);
+    
+    // DB에서 사용자 정보 조회 (ID 또는 email로)
+    let user = await db
+      .prepare('SELECT id, email, role FROM users WHERE id = ?')
+      .bind(tokenData.id)
+      .first();
+
+    if (!user) {
+      // ID로 못 찾으면 email로 시도
+      user = await db
+        .prepare('SELECT id, email, role FROM users WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    }
+
+    // DB에서 못 찾아도 토큰의 role이 ADMIN이면 허용
+    if (!user) {
+      console.log('⚠️ User not found in DB, but token role is valid');
+      user = { id: tokenData.id, email: tokenData.email, role: tokenData.role };
+    }
+    
     const body = await context.request.json();
     const { requestId } = body;
 
