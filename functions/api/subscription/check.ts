@@ -107,7 +107,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     let actualLandingPages = 0;
 
     if (targetAcademyId) {
-      // 1️⃣ 활성 학생 수 (퇴원하지 않은 학생만)
+      // 이번 달 시작일 계산 (UTC 기준)
+      const thisMonthStart = new Date();
+      thisMonthStart.setUTCDate(1);
+      thisMonthStart.setUTCHours(0, 0, 0, 0);
+      const thisMonthStartISO = thisMonthStart.toISOString();
+      
+      console.log(`📅 이번 달 시작: ${thisMonthStartISO}`);
+
+      // 1️⃣ 활성 학생 수 (퇴원하지 않은 학생만) - 학생 수는 월별 초기화 없음
       const studentCountResult = await DB.prepare(`
         SELECT COUNT(*) as count 
         FROM User 
@@ -117,21 +125,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `).bind(targetAcademyId).first();
       actualStudentCount = studentCountResult?.count || 0;
 
-      // 2️⃣ 숙제 검사 횟수 (homework_gradings 테이블) - 테이블이 없으면 0
+      // 2️⃣ 숙제 검사 횟수 (이번 달만) - homework_gradings 테이블
       try {
         const homeworkResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM homework_gradings hg
           JOIN User u ON hg.studentId = u.id
           WHERE u.academyId = ?
-        `).bind(targetAcademyId).first();
+            AND hg.createdAt >= ?
+        `).bind(targetAcademyId, thisMonthStartISO).first();
         actualHomeworkChecks = homeworkResult?.count || 0;
       } catch (e) {
-        console.log('⚠️ homework_gradings 테이블 없음');
+        console.log('⚠️ homework_gradings 테이블 없음:', e);
         actualHomeworkChecks = 0;
       }
 
-      // 3️⃣ AI 분석 횟수 (usage_logs 테이블에서 ai_analysis 타입) - 테이블이 없으면 0
+      // 3️⃣ AI 분석 횟수 (이번 달만) - usage_logs 테이블에서 ai_analysis 타입
       try {
         const aiAnalysisResult = await DB.prepare(`
           SELECT COUNT(*) as count 
@@ -139,14 +148,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           JOIN User u ON ul.userId = u.id
           WHERE u.academyId = ? 
             AND ul.type = 'ai_analysis'
-        `).bind(targetAcademyId).first();
+            AND ul.createdAt >= ?
+        `).bind(targetAcademyId, thisMonthStartISO).first();
         actualAIAnalysis = aiAnalysisResult?.count || 0;
       } catch (e) {
-        console.log('⚠️ usage_logs 테이블 없음 또는 조회 실패');
+        console.log('⚠️ usage_logs 테이블 없음 또는 조회 실패:', e);
         actualAIAnalysis = 0;
       }
 
-      // 4️⃣ 유사문제 출제 횟수 (usage_logs 테이블에서 similar_problem 타입) - 테이블이 없으면 0
+      // 4️⃣ 유사문제 출제 횟수 (이번 달만) - usage_logs 테이블에서 similar_problem 타입
       try {
         const similarProblemsResult = await DB.prepare(`
           SELECT COUNT(*) as count 
@@ -154,23 +164,25 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           JOIN User u ON ul.userId = u.id
           WHERE u.academyId = ? 
             AND ul.type = 'similar_problem'
-        `).bind(targetAcademyId).first();
+            AND ul.createdAt >= ?
+        `).bind(targetAcademyId, thisMonthStartISO).first();
         actualSimilarProblems = similarProblemsResult?.count || 0;
       } catch (e) {
-        console.log('⚠️ usage_logs 테이블 없음 또는 조회 실패');
+        console.log('⚠️ usage_logs 테이블 없음 또는 조회 실패:', e);
         actualSimilarProblems = 0;
       }
 
-      // 5️⃣ 랜딩페이지 생성 수 (landing_pages 테이블) - 테이블이 없으면 0
+      // 5️⃣ 랜딩페이지 생성 수 (이번 달만) - landing_pages 테이블
       try {
         const landingPagesResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM landing_pages
           WHERE academyId = ?
-        `).bind(targetAcademyId).first();
+            AND createdAt >= ?
+        `).bind(targetAcademyId, thisMonthStartISO).first();
         actualLandingPages = landingPagesResult?.count || 0;
       } catch (e) {
-        console.log('⚠️ landing_pages 테이블 없음 또는 조회 실패');
+        console.log('⚠️ landing_pages 테이블 없음 또는 조회 실패:', e);
         actualLandingPages = 0;
       }
 
