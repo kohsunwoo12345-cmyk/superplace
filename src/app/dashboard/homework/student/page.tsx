@@ -172,7 +172,7 @@ export default function StudentHomeworkPage() {
 
   const handleAskAI = (assignmentId: string, title: string, description: string) => {
     // AI 챗봇으로 이동하며 숙제 정보 전달
-    router.push(`/dashboard/ai-assistant?context=homework&assignmentId=${assignmentId}&title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`);
+    router.push(`/ai-chat?context=homework&assignmentId=${assignmentId}&title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`);
   };
 
   const handleImageCapture = (e: React.ChangeEvent<HTMLInputElement>, assignmentId: string) => {
