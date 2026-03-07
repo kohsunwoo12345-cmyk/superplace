@@ -61,9 +61,9 @@ export async function onRequestGet(context: any) {
 
     console.log('📋 템플릿 목록 조회:', { pfId, userId, channelId });
 
-    // Get Solapi credentials
-    const SOLAPI_API_KEY = env['SOLAPI_API_Key '] || env.SOLAPI_API_Key || env.SOLAPI_API_KEY;
-    const SOLAPI_API_SECRET = env.SOLAPI_API_Secret || env.SOLAPI_API_SECRET;
+    // Get Solapi credentials (정확한 환경 변수명 사용)
+    const SOLAPI_API_KEY = env.SOLAPI_API_Key;
+    const SOLAPI_API_SECRET = env.SOLAPI_API_Secret;
 
     if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
       return new Response(

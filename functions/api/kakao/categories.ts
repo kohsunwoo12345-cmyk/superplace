@@ -1,8 +1,8 @@
 import type { PagesFunction } from '@cloudflare/workers-types';
 
 interface Env {
-  SOLAPI_API_KEY: string;
-  SOLAPI_API_SECRET: string;
+  SOLAPI_API_Key: string;
+  SOLAPI_API_Secret: string;
 }
 
 export const onRequest: PagesFunction<Env> = async (context) => {

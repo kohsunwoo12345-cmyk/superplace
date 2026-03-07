@@ -155,9 +155,9 @@ export async function POST(request: Request) {
       const logId = `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       try {
-        // Solapi를 통한 SMS 발송
-        const apiKey = env.SOLAPI_API_KEY || env['SOLAPI_API_Key '] || env.SOLAPI_API_Key;
-        const apiSecret = env.SOLAPI_API_SECRET || env.SOLAPI_API_Secret;
+        // Solapi를 통한 SMS 발송 (정확한 환경 변수명 사용)
+        const apiKey = env.SOLAPI_API_Key;
+        const apiSecret = env.SOLAPI_API_Secret;
         
         if (!apiKey || !apiSecret) {
           throw new Error('Solapi credentials not configured');

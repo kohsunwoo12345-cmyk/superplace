@@ -3,8 +3,8 @@ import type { PagesFunction } from '@cloudflare/workers-types';
 interface Env {
   DB: D1Database;
   JWT_SECRET: string;
-  SOLAPI_API_KEY: string;
-  SOLAPI_API_SECRET: string;
+  SOLAPI_API_Key: string;
+  SOLAPI_API_Secret: string;
 }
 
 // JWT 토큰에서 사용자 정보 추출
@@ -97,8 +97,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     // Solapi API 인증 정보
-    const apiKey = env.SOLAPI_API_KEY;
-    const apiSecret = env.SOLAPI_API_SECRET;
+    const apiKey = env.SOLAPI_API_Key;
+    const apiSecret = env.SOLAPI_API_Secret;
 
     if (!apiKey || !apiSecret) {
       console.error('❌ Solapi API credentials not found');
