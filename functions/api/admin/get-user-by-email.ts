@@ -48,11 +48,11 @@ export async function onRequestGet(context: any) {
 
     // Also get KakaoChannel info for this user
     const channels = await env.DB.prepare(`
-      SELECT id, channelName, searchId, solapiChannelId, status, created_at
+      SELECT id, channelName, searchId, solapiChannelId, status, createdAt
       FROM KakaoChannel
       WHERE userId = ?
-      ORDER BY created_at DESC
-    `).bind(user.id).all();
+      ORDER BY createdAt DESC
+    `).bind(user.id.toString()).all();
 
     console.log('✅ Found user:', user.id, user.name, user.email);
     console.log('📱 Channels:', channels.results?.length || 0);
