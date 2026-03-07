@@ -88,7 +88,9 @@ export default function TeacherHomeworkPage() {
     try {
       const token = localStorage.getItem("token");
       
-      console.log('📡 학생 목록 조회 시작...');
+      console.log('========== 학생 조회 시작 ==========');
+      console.log('🔑 토큰 존재:', !!token);
+      console.log('🔗 API 경로: /api/students');
 
       const response = await fetch(`/api/students`, {
         headers: {
@@ -96,20 +98,34 @@ export default function TeacherHomeworkPage() {
         },
       });
 
+      console.log('📡 HTTP 상태:', response.status);
       const data = await response.json();
-      console.log('📦 API 응답:', data);
+      console.log('📦 전체 응답 데이터:', JSON.stringify(data, null, 2));
 
-      if (data.success && data.students) {
-        // 모든 학생 표시 (간단하게)
-        setStudents(data.students);
-        console.log(`✅ ${data.students.length}명 학생 로드됨`);
+      if (data.success) {
+        console.log('✅ API 성공');
+        console.log('👥 학생 배열:', data.students);
+        console.log('📊 학생 수:', data.students?.length || 0);
+        
+        if (data.students && data.students.length > 0) {
+          console.log('👤 첫 번째 학생:', data.students[0]);
+          setStudents(data.students);
+          alert(`✅ 학생 ${data.students.length}명 로드 완료!`);
+        } else {
+          console.warn('⚠️ 학생 배열이 비어있음');
+          setStudents([]);
+          alert('⚠️ 학생 데이터가 없습니다. 학생을 먼저 등록하세요.');
+        }
       } else {
         console.error('❌ API 실패:', data);
         setStudents([]);
+        alert(`❌ API 오류: ${data.error || data.message}`);
       }
+      console.log('========== 학생 조회 완료 ==========');
     } catch (error) {
-      console.error("❌ 에러:", error);
+      console.error("❌ fetch 에러:", error);
       setStudents([]);
+      alert(`❌ 네트워크 오류: ${error}`);
     }
   };
 
@@ -347,9 +363,23 @@ export default function TeacherHomeworkPage() {
               {/* 특정 학생 선택 */}
               {formData.targetType === "specific" && (
                 <div>
-                  <Label className="text-base font-semibold">
-                    학생 선택 ({students.length}명)
-                  </Label>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-base font-semibold">
+                      학생 선택 ({students.length}명)
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={fetchStudents}
+                      className="text-xs"
+                    >
+                      🔄 새로고침
+                    </Button>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-2 text-xs">
+                    <strong>디버그:</strong> students.length = {students.length}
+                  </div>
                   
                   <div className="border-2 border-indigo-200 rounded-lg p-4 max-h-60 overflow-y-auto bg-white mt-2">
                     {students.length === 0 ? (
