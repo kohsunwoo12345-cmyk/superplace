@@ -104,17 +104,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 제출된 숙제 정보 조회 (studentId는 문자열)
-    // Note: Minimal column selection to avoid schema mismatch errors
-    // imageUrl 컬럼 제거 - DB 스키마 불일치로 인한 500 에러 방지
+    // 실제 DB 스키마: userId (not studentId)
+    // 사용 가능한 컬럼: id, userId, submittedAt, gradedAt, score, feedback, subject, createdAt
     const submittedHomework = await DB.prepare(`
       SELECT 
         hs.id,
-        hs.submittedAt
+        hs.submittedAt,
+        hs.score,
+        hs.feedback,
+        hs.subject,
+        hs.gradedAt
       FROM homework_submissions hs
-      WHERE hs.studentId = ? OR hs.userId = ?
+      WHERE hs.userId = ?
       ORDER BY hs.submittedAt DESC
       LIMIT 10
-    `).bind(studentId, studentId).all();
+    `).bind(studentId).all();
 
     // 오늘의 숙제 (오늘이 마감일)
     const todayHomework = (allAssignments.results || []).filter((hw: any) => 
