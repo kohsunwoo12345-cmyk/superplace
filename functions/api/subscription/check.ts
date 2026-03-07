@@ -189,56 +189,27 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         actualSimilarProblems = 0;
       }
 
-      // 5️⃣ 랜딩페이지 생성 수 - landing_pages 테이블 (실제 생성된 랜딩페이지)
+      // 5️⃣ 랜딩페이지 생성 수 - 가장 단순한 쿼리
       try {
-        // 방법 1: academyId로 직접 조회 (새 스키마)
-        let landingPagesResult = await DB.prepare(`
+        // 🔥 단순 쿼리: academyId로만 조회
+        const landingPagesResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM landing_pages
           WHERE academyId = ?
-            AND created_at >= ?
-            AND created_at <= ?
-        `).bind(targetAcademyId, planStartISO, planEndISO).first();
+        `).bind(targetAcademyId).first();
         
         actualLandingPages = landingPagesResult?.count || 0;
-        
-        // 방법 2: 만약 0이면 user_id로도 시도 (구 스키마)
-        if (actualLandingPages === 0) {
-          // User 테이블에서 해당 학원의 DIRECTOR/TEACHER ID 찾기
-          const academyUsers = await DB.prepare(`
-            SELECT id FROM User 
-            WHERE academyId = ? AND (role = 'DIRECTOR' OR role = 'TEACHER')
-          `).bind(targetAcademyId).all();
-          
-          if (academyUsers.results && academyUsers.results.length > 0) {
-            // user_id는 INTEGER 해시값이므로 변환
-            const userIds = academyUsers.results.map((u: any) => {
-              const str = String(u.id);
-              let hash = 0;
-              for (let i = 0; i < str.length; i++) {
-                hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                hash = hash & hash;
-              }
-              return Math.abs(hash);
-            });
-            
-            const userIdPlaceholders = userIds.map(() => '?').join(',');
-            landingPagesResult = await DB.prepare(`
-              SELECT COUNT(*) as count 
-              FROM landing_pages
-              WHERE user_id IN (${userIdPlaceholders})
-                AND created_at >= ?
-                AND created_at <= ?
-            `).bind(...userIds, planStartISO, planEndISO).first();
-            
-            actualLandingPages = landingPagesResult?.count || 0;
-          }
-        }
-        
-        console.log(`✅ 랜딩페이지 ${actualLandingPages}개`);
+        console.log(`✅ 랜딩페이지 ${actualLandingPages}개 (academyId: ${targetAcademyId})`);
       } catch (e: any) {
         console.log('⚠️ landing_pages 조회 실패:', e.message);
-        actualLandingPages = 0;
+        // 에러 시 전체 개수 조회 (academyId 없이)
+        try {
+          const allPages = await DB.prepare(`SELECT COUNT(*) as count FROM landing_pages`).first();
+          actualLandingPages = allPages?.count || 0;
+          console.log(`⚠️ 전체 랜딩페이지로 대체: ${actualLandingPages}개`);
+        } catch (e2) {
+          actualLandingPages = 0;
+        }
       }
 
       console.log(`📊 실제 사용량 카운트 (academyId: ${targetAcademyId})`);
