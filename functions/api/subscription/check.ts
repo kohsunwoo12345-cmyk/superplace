@@ -160,14 +160,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           FROM usage_logs ul
           JOIN User u ON CAST(ul.userId AS TEXT) = u.id
           WHERE u.academyId = ? 
-            AND ul.type = 'ai_analysis'
+            AND (ul.type = 'ai_analysis' OR ul.type = 'weak_concept')
             AND ul.createdAt >= ?
             AND ul.createdAt <= ?
         `).bind(targetAcademyId, planStartISO, planEndISO).first();
         actualAIAnalysis = aiAnalysisResult?.count || 0;
-        console.log(`✅ AI 분석 ${actualAIAnalysis}개`);
+        console.log(`✅ AI 분석 (역량 분석 + 부족한 개념) ${actualAIAnalysis}개`);
       } catch (e: any) {
-        console.log('⚠️ usage_logs(ai_analysis) 조회 실패:', e.message);
+        console.log('⚠️ usage_logs(ai_analysis, weak_concept) 조회 실패:', e.message);
         actualAIAnalysis = 0;
       }
 

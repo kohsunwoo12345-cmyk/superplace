@@ -506,8 +506,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         // 사용 로그 기록
         const logId = `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         await DB.prepare(`
-          INSERT INTO usage_logs (id, userId, subscriptionId, featureType, action, metadata)
-          SELECT ?, ?, id, 'similar_problem', 'generate', ?
+          INSERT INTO usage_logs (id, userId, subscriptionId, type, action, metadata, createdAt)
+          SELECT ?, ?, id, 'similar_problem', 'generate', ?, datetime('now')
           FROM user_subscriptions
           WHERE userId = ? AND status = 'active'
           LIMIT 1
@@ -518,7 +518,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           director.id
         ).run();
         
-        console.log('✅ Similar problem usage incremented for director:', director.id);
+        console.log('✅ Similar problem usage incremented and logged for director:', director.id);
       }
     }
 

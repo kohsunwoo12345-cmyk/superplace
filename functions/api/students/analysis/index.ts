@@ -81,6 +81,37 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
+    // 🆕 AI 분석 사용량 로그 기록
+    try {
+      // studentId로부터 학생의 학원 정보 가져오기
+      const student = await DB.prepare(`
+        SELECT id, academyId FROM User WHERE id = ?
+      `).bind(parseInt(studentId)).first();
+
+      if (student && student.academyId) {
+        // 학원장 찾기
+        const director = await DB.prepare(`
+          SELECT id FROM User 
+          WHERE academyId = ? AND role = 'DIRECTOR'
+          LIMIT 1
+        `).bind(student.academyId).first();
+
+        if (director) {
+          // usage_logs에 기록
+          const logId = `log_ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          await DB.prepare(`
+            INSERT INTO usage_logs (id, userId, subscriptionId, type, action, createdAt)
+            VALUES (?, ?, 1, 'ai_analysis', 'AI 역량 분석 실행', datetime('now'))
+          `).bind(logId, director.id).run();
+          
+          console.log('✅ AI analysis usage logged for director:', director.id);
+        }
+      }
+    } catch (logError: any) {
+      console.warn('⚠️ Failed to log AI analysis usage:', logError.message);
+      // 로깅 실패해도 분석은 계속 진행
+    }
+
     // 3. Gemini API 호출 준비
     const conversationText = chatHistory
       .slice(0, 50) // 최근 50개만 분석
