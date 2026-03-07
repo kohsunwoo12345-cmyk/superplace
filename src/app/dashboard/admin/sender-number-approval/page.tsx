@@ -50,18 +50,28 @@ export default function SenderNumberApprovalPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
+      console.log('🔑 Token:', token);
+      
       const response = await fetch('/api/admin/sender-number-requests', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      console.log('📡 Response status:', response.status);
+      const data = await response.json();
+      console.log('📊 Response data:', data);
+
+      if (response.ok && data.success) {
+        console.log('✅ Requests loaded:', data.requests?.length || 0);
         setRequests(data.requests || []);
+      } else {
+        console.error('❌ API Error:', data.error);
+        alert(`데이터 조회 실패: ${data.error || '알 수 없는 오류'}`);
       }
     } catch (error) {
-      console.error('발신번호 신청 목록 조회 실패:', error);
+      console.error('❌ 발신번호 신청 목록 조회 실패:', error);
+      alert('발신번호 신청 목록 조회 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
