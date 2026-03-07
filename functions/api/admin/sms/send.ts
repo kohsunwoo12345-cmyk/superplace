@@ -147,50 +147,92 @@ export async function POST(request: Request) {
 
     const now = new Date().toISOString();
     const logIds: string[] = [];
+    let successCount = 0;
+    const failedReceivers: string[] = [];
 
-    // 각 수신자에게 발송 (실제 SMS 발송은 여기서 네이버 클라우드나 다른 SMS API를 연동)
+    // 각 수신자에게 발송
     for (const receiver of receivers) {
       const logId = `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // SMS 로그 저장
-      await db
-        .prepare(
-          `INSERT INTO SMSLog (
-            id, sender_id, sender_phone, receiver_name, receiver_phone,
-            message, message_type, status, cost, sent_at, createdById, createdAt
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .bind(
-          logId,
-          sender.id,
-          sender.phone_number,
-          receiver.name,
-          receiver.phone,
-          message,
-          messageType,
-          'success', // 실제로는 SMS API 응답에 따라 결정
-          costPerMessage,
-          reserveTime || now,
-          userId,
-          now
-        )
-        .run();
+      try {
+        // Solapi를 통한 SMS 발송
+        const apiKey = env.SOLAPI_API_KEY || env['SOLAPI_API_Key '] || env.SOLAPI_API_Key;
+        const apiSecret = env.SOLAPI_API_SECRET || env.SOLAPI_API_Secret;
+        
+        if (!apiKey || !apiSecret) {
+          throw new Error('Solapi credentials not configured');
+        }
+        
+        await sendViaSolapi(apiKey, apiSecret, sender.phone_number, receiver.phone, message);
+        
+        // SMS 로그 저장 - 성공
+        await db
+          .prepare(
+            `INSERT INTO SMSLog (
+              id, sender_id, sender_phone, receiver_name, receiver_phone,
+              message, message_type, status, cost, sent_at, createdById, createdAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            logId,
+            sender.id,
+            sender.phone_number,
+            receiver.name,
+            receiver.phone,
+            message,
+            messageType,
+            'success',
+            costPerMessage,
+            reserveTime || now,
+            userId,
+            now
+          )
+          .run();
 
-      logIds.push(logId);
-
-      // 여기에 실제 SMS 발송 로직 추가 가능
-      // 예: await sendSMS(sender.phone_number, receiver.phone, message);
+        logIds.push(logId);
+        successCount++;
+      } catch (error: any) {
+        console.error(`Failed to send to ${receiver.phone}:`, error);
+        
+        // SMS 로그 저장 - 실패
+        await db
+          .prepare(
+            `INSERT INTO SMSLog (
+              id, sender_id, sender_phone, receiver_name, receiver_phone,
+              message, message_type, status, cost, error_message, sent_at, createdById, createdAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            logId,
+            sender.id,
+            sender.phone_number,
+            receiver.name,
+            receiver.phone,
+            message,
+            messageType,
+            'failed',
+            0,
+            error.message,
+            now,
+            userId,
+            now
+          )
+          .run();
+        
+        failedReceivers.push(receiver.name);
+      }
     }
 
-    // 포인트 차감
-    const newBalance = currentBalance - totalCost;
+    // 포인트 차감 (성공한 발송에 대해서만)
+    const actualCost = costPerMessage * successCount;
+    const newBalance = currentBalance - actualCost;
     await db
       .prepare(
         `UPDATE SMSBalance 
          SET balance = ?, total_used = total_used + ?, lastUsedAt = ?, updatedAt = ?
          WHERE id = ?`
       )
-      .bind(newBalance, totalCost, now, now, 'default')
+      .bind(newBalance, actualCost, now, now, 'default')
       .run();
 
     // 거래 내역 기록
@@ -204,9 +246,9 @@ export async function POST(request: Request) {
       .bind(
         transactionId,
         'use',
-        totalCost,
+        actualCost,
         newBalance,
-        `SMS ${receivers.length}건 발송`,
+        `SMS ${successCount}건 발송`,
         userId,
         now
       )
@@ -219,7 +261,7 @@ export async function POST(request: Request) {
         sent: successCount,
         failed: failedReceivers.length,
         failedReceivers,
-        cost: totalCost,
+        cost: actualCost,
         balance: newBalance,
         logIds,
       }),

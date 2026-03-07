@@ -220,14 +220,20 @@ export async function onRequest(context: any) {
       successCount = recipients.length;
     }
 
-    // Deduct points from user (15 points per message)
-    const totalCost = successCount * 15;
+    // Deduct points from user (40 points per message)
+    const totalCost = successCount * 40;
     console.log(`💰 Deducting ${totalCost} points from user ${userId}`);
 
-    // TODO: Implement point deduction in your database
-    // await env.DB.prepare(`
-    //   UPDATE Users SET points = points - ? WHERE id = ?
-    // `).bind(totalCost, userId).run();
+    // Deduct points from user
+    try {
+      await env.DB.prepare(`
+        UPDATE User SET points = COALESCE(points, 0) - ? WHERE id = ?
+      `).bind(totalCost, userId).run();
+      console.log(`✅ Points deducted successfully: ${totalCost} points`);
+    } catch (pointError) {
+      console.error('Failed to deduct points:', pointError);
+      // Continue anyway - don't fail the entire operation
+    }
 
     // Save send history
     try {
