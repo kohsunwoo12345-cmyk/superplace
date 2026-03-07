@@ -787,6 +787,14 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         bindValues.push(1);
       }
       
+      // user_id (중요! 목록 조회 필터링에 사용됨)
+      if (columns.includes('user_id')) {
+        insertColumns.push('user_id');
+        insertValues.push('?');
+        bindValues.push(userIdForDb);
+        console.log('✅ user_id 추가:', userIdForDb);
+      }
+      
       // created_at
       if (columns.includes('created_at')) {
         insertColumns.push('created_at');
