@@ -80,26 +80,38 @@ export default function StudentHomeworkPage() {
     }
   }, []);
 
-  const fetchHomework = async (studentId: number, academyId?: number) => {
+  const fetchHomework = async (studentId: string | number, academyId?: string | number) => {
     try {
       setLoading(true);
+      console.log('========== 학생 숙제 조회 시작 ==========');
+      console.log('🔑 studentId:', studentId, '타입:', typeof studentId);
+      console.log('🏫 academyId:', academyId, '타입:', typeof academyId);
+      
       const params = new URLSearchParams({
-        studentId: studentId.toString(),
+        studentId: String(studentId),
       });
       if (academyId) {
-        params.append("academyId", academyId.toString());
+        params.append("academyId", String(academyId));
       }
 
-      console.log("📚 Fetching homework data for student:", studentId, "academy:", academyId);
+      console.log("📚 API URL:", `/api/homework/assignments/student?${params.toString()}`);
       
       const response = await fetch(
         `/api/homework/assignments/student?${params.toString()}`
       );
+      
+      console.log('📡 HTTP 상태:', response.status);
       const data = await response.json();
 
-      console.log("📚 Homework data response:", data);
+      console.log("📦 전체 응답:", data);
+      console.log("📊 통계:", data.summary);
 
       if (data.success) {
+        console.log('✅ 숙제 조회 성공!');
+        console.log('   오늘 숙제:', data.todayHomework?.length || 0, '개');
+        console.log('   다가오는 숙제:', data.upcomingHomework?.length || 0, '개');
+        console.log('   전체 숙제:', data.allAssignments?.length || 0, '개');
+        console.log('   제출한 숙제:', data.submittedHomework?.length || 0, '개');
         setHomeworkData(data);
       } else {
         console.error("❌ Failed to fetch homework:", data.error);
@@ -118,6 +130,7 @@ export default function StudentHomeworkPage() {
           }
         });
       }
+      console.log('========== 학생 숙제 조회 완료 ==========');
     } catch (error) {
       console.error("❌ Failed to fetch homework:", error);
       // 오류 발생 시에도 빈 데이터 설정

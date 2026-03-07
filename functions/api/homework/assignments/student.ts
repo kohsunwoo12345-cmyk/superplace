@@ -38,12 +38,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
+    console.log('🔍 학생 숙제 조회 시작:', {
+      studentId,
+      studentIdType: typeof studentId,
+      academyId
+    });
+
     const today = getKoreanDate();
 
-    // 학생 정보 조회
+    // 학생 정보 조회 (studentId는 문자열)
     const student = await DB.prepare(`
-      SELECT id, name, academy_id as academyId FROM users WHERE id = ?
-    `).bind(parseInt(studentId)).first();
+      SELECT id, name, academyId FROM User WHERE id = ?
+    `).bind(studentId).first();
 
     if (!student) {
       console.error("❌ Student not found:", studentId);
@@ -56,11 +62,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     console.log("✅ Student found:", student);
 
     // 학생에게 부여된 숙제 조회
-    // 1. 전체 학생 대상 (같은 학원)
-    // 2. 특정 학생 대상 (본인)
+    // 1. 전체 학생 대상 (targetType = 'all', 같은 학원)
+    // 2. 특정 학생 대상 (targetType = 'specific', 본인이 targets 테이블에 있음)
     console.log("📚 Querying homework assignments...");
-    console.log("   studentId:", studentId);
-    console.log("   student.academyId:", student.academyId);
+    console.log("   studentId:", studentId, "type:", typeof studentId);
+    console.log("   student.academyId:", student.academyId, "type:", typeof student.academyId);
     
     const allAssignments = await DB.prepare(`
       SELECT DISTINCT
@@ -79,28 +85,25 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       LEFT JOIN homework_assignment_targets hat 
         ON ha.id = hat.assignmentId AND hat.studentId = ?
       WHERE ha.status = 'active'
-        AND (
-          ha.academyId IS NULL 
-          OR CAST(ha.academyId AS TEXT) = ? 
-          OR ha.academyId = ?
-        )
+        AND ha.academyId = ?
         AND (
           ha.targetType = 'all'
-          OR (ha.targetType = 'specific' AND hat.studentId = ?)
+          OR (ha.targetType = 'specific' AND hat.studentId IS NOT NULL)
         )
         AND ha.dueDate >= ?
       ORDER BY ha.dueDate ASC, ha.createdAt DESC
     `).bind(
-      parseInt(studentId),
-      String(student.academyId),  // 문자열로 비교
-      parseInt(student.academyId || '0'),  // 정수로도 비교
-      parseInt(studentId),
+      studentId,
+      student.academyId,
       today
     ).all();
 
     console.log("✅ Found assignments:", allAssignments.results?.length || 0);
+    if (allAssignments.results && allAssignments.results.length > 0) {
+      console.log("📋 첫 번째 숙제:", allAssignments.results[0]);
+    }
 
-    // 제출된 숙제 정보 조회
+    // 제출된 숙제 정보 조회 (studentId는 문자열)
     const submittedHomework = await DB.prepare(`
       SELECT 
         hs.id,
@@ -116,7 +119,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       WHERE hs.userId = ?
       ORDER BY hs.submittedAt DESC
       LIMIT 10
-    `).bind(parseInt(studentId)).all();
+    `).bind(studentId).all();
 
     // 오늘의 숙제 (오늘이 마감일)
     const todayHomework = (allAssignments.results || []).filter((hw: any) => 
