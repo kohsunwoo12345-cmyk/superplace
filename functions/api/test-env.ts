@@ -4,8 +4,8 @@
  */
 
 interface Env {
-  'SOLAPI_API_Key '?: string;  // 주의: 끝에 공백
-  SOLAPI_API_Secret?: string;
+  DATABASE_URL?: string;
+  NEXTAUTH_SECRET?: string;
   [key: string]: any;
 }
 
@@ -15,29 +15,21 @@ export async function onRequestGet(context: { env: Env }) {
   // 모든 환경변수 키 확인
   const allKeys = Object.keys(env);
   
-  // SOLAPI 관련 키 찾기
-  const solapiRelated = allKeys.filter(key => 
-    key.toLowerCase().includes('solapi')
-  );
-  
   return new Response(
     JSON.stringify({ 
       success: true,
       totalEnvVars: allKeys.length,
       allEnvKeys: allKeys,
-      solapiRelatedKeys: solapiRelated,
       checks: {
-        'SOLAPI_API_Key ': {
-          exists: !!env['SOLAPI_API_Key '],
-          type: typeof env['SOLAPI_API_Key '],
-          length: env['SOLAPI_API_Key ']?.length || 0,
-          prefix: env['SOLAPI_API_Key ']?.substring(0, 8) || 'N/A'
+        'DATABASE_URL': {
+          exists: !!env.DATABASE_URL,
+          type: typeof env.DATABASE_URL,
+          length: env.DATABASE_URL?.length || 0
         },
-        'SOLAPI_API_Secret': {
-          exists: !!env.SOLAPI_API_Secret,
-          type: typeof env.SOLAPI_API_Secret,
-          length: env.SOLAPI_API_Secret?.length || 0,
-          prefix: env.SOLAPI_API_Secret?.substring(0, 8) || 'N/A'
+        'NEXTAUTH_SECRET': {
+          exists: !!env.NEXTAUTH_SECRET,
+          type: typeof env.NEXTAUTH_SECRET,
+          length: env.NEXTAUTH_SECRET?.length || 0
         }
       }
     }, null, 2),
