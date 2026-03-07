@@ -142,76 +142,59 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Update student status to WITHDRAWN
+    // Delete student from database (완전 삭제)
     const now = new Date().toISOString();
     
-    let updateSuccess = false;
+    let deleteSuccess = false;
     
     try {
-      // Try User table first - 최소 필드만 사용 (isWithdrawn, withdrawnAt, withdrawnReason만 사용)
-      console.log('🔄 UPDATE 실행 중:', { studentId, now, withdrawalReason });
+      // Try User table first
+      console.log('🗑️ DELETE 실행 중:', { studentId });
       
       const result = await db
-        .prepare(`
-          UPDATE User 
-          SET isWithdrawn = 1, withdrawnAt = ?, withdrawnReason = ?
-          WHERE id = ?
-        `)
-        .bind(now, withdrawalReason, studentId)
+        .prepare(`DELETE FROM User WHERE id = ?`)
+        .bind(studentId)
         .run();
       
-      console.log('✅ User 테이블 업데이트 완료:', {
+      console.log('✅ User 테이블 삭제 완료:', {
         changes: result.meta?.changes || 0,
-        duration: result.meta?.duration || 0,
-        last_row_id: result.meta?.last_row_id || 0
+        duration: result.meta?.duration || 0
       });
       
       if (result.meta?.changes > 0) {
-        updateSuccess = true;
-        console.log('✅ UPDATE 성공 - 행이 변경되었습니다');
+        deleteSuccess = true;
+        console.log('✅ DELETE 성공 - 학생이 삭제되었습니다');
       } else {
-        console.log('⚠️ UPDATE 실패 - 변경된 행이 0개입니다. 학생이 존재하지 않거나 이미 퇴원 처리되었을 수 있습니다.');
+        console.log('⚠️ DELETE 실패 - 삭제된 행이 0개입니다. 학생이 존재하지 않을 수 있습니다.');
       }
     } catch (e) {
-      console.log('⚠️ User 테이블 UPDATE 중 오류 발생:', e.message, e.cause?.message || '');
+      console.log('⚠️ User 테이블 DELETE 중 오류 발생:', e.message, e.cause?.message || '');
       
       try {
         // Try users table
         const result2 = await db
-          .prepare(`
-            UPDATE users 
-            SET isWithdrawn = 1, withdrawnAt = ?, withdrawnReason = ?
-            WHERE id = ?
-          `)
-          .bind(now, withdrawalReason, studentId)
+          .prepare(`DELETE FROM users WHERE id = ?`)
+          .bind(studentId)
           .run();
         
-        console.log('✅ users 테이블 업데이트 시도 완료, changes:', result2.meta?.changes || 0);
+        console.log('✅ users 테이블 삭제 시도 완료, changes:', result2.meta?.changes || 0);
         
         if (result2.meta?.changes > 0) {
-          updateSuccess = true;
+          deleteSuccess = true;
         }
       } catch (e2) {
         console.log('⚠️ users 테이블도 실패:', e2.message);
       }
     }
 
-    // 업데이트 후 학생 정보 재조회하여 확인 (status 컬럼 제거)
-    const updatedStudent = await db
-      .prepare('SELECT id, name, isWithdrawn FROM User WHERE id = ?')
-      .bind(studentId)
-      .first();
-    
-    console.log('📝 업데이트 후 학생 상태:', updatedStudent);
-
-    console.log('✅ Student withdrawn:', { studentId, name: student.name, updateSuccess });
+    console.log('✅ Student deleted:', { studentId, name: student.name, deleteSuccess });
 
     return new Response(JSON.stringify({
       success: true,
-      message: '학생이 퇴원 처리되었습니다',
+      message: '학생이 완전히 삭제되었습니다',
       studentId: studentId,
-      updateSuccess,
-      updatedStudent: updatedStudent
+      deleteSuccess,
+      deleted: deleteSuccess
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
