@@ -42,14 +42,31 @@ export async function onRequestGet(context: {
       );
     }
 
-    // 해당 학생의 최신 랜딩페이지 조회
+    // 학생 ID로 학생 정보 조회
+    const student = await env.DB.prepare(`
+      SELECT id, name, academyId FROM students WHERE id = ?
+    `)
+      .bind(studentId)
+      .first();
+
+    if (!student) {
+      return new Response(
+        JSON.stringify({ 
+          url: null,
+          message: "학생을 찾을 수 없습니다" 
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // 해당 학원의 최신 랜딩페이지 조회 (학생별 필터링은 나중에 추가 가능)
     const landingPage = await env.DB.prepare(`
       SELECT * FROM landing_pages
-      WHERE studentId = ?
+      WHERE academyId = ?
       ORDER BY createdAt DESC
       LIMIT 1
     `)
-      .bind(studentId)
+      .bind(student.academyId)
       .first();
 
     if (!landingPage) {
@@ -62,8 +79,8 @@ export async function onRequestGet(context: {
       );
     }
 
-    // URL 생성
-    const landingPageUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}`;
+    // URL 생성 (학생 ID를 쿼리 파라미터로 추가)
+    const landingPageUrl = `https://superplacestudy.pages.dev/landing/${landingPage.id}?student=${studentId}`;
 
     return new Response(
       JSON.stringify({
@@ -73,6 +90,10 @@ export async function onRequestGet(context: {
           id: landingPage.id,
           title: landingPage.title,
           createdAt: landingPage.createdAt,
+        },
+        studentInfo: {
+          id: student.id,
+          name: student.name,
         },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
