@@ -80,6 +80,22 @@ export default function CreateTemplatePage() {
   // Buttons
   const [buttons, setButtons] = useState<TemplateButton[]>([]);
 
+  // Variables
+  const [variables, setVariables] = useState<string[]>([]);
+  
+  // Emoji
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  
+  // Common emojis for templates
+  const commonEmojis = [
+    '📢', '📣', '📌', '📍', '📊', '📈', '📉', '📋', '📝', '✅',
+    '❌', '⭐', '🎉', '🎊', '🎁', '💡', '🔔', '⏰', '🕐', '📅',
+    '📆', '🗓', '📧', '📨', '📩', '💌', '📮', '📪', '📫', '📬',
+    '💰', '💳', '💸', '🎯', '🔥', '✨', '💫', '⚡', '🌟', '🏆',
+    '🎓', '📚', '📖', '✏️', '🖊', '🖍', '📐', '📏', '🎨', '🖼',
+    '🏫', '🏢', '🏪', '🏬', '👤', '👥', '👨‍🏫', '👩‍🏫', '🧑‍🎓', '👨‍🎓'
+  ];
+
   useEffect(() => {
     const userStr = localStorage.getItem('user');
     if (!userStr) {
@@ -157,6 +173,34 @@ export default function CreateTemplatePage() {
     setButtons(updated);
   };
 
+  // 변수 추출 함수
+  const extractVariables = (text: string) => {
+    const regex = /#\{([^}]+)\}/g;
+    const matches = text.match(regex);
+    if (matches) {
+      const vars = matches.map(m => m.replace(/#{|}/g, ''));
+      setVariables([...new Set(vars)]); // 중복 제거
+    } else {
+      setVariables([]);
+    }
+  };
+
+  // 이모지 삽입 함수
+  const insertEmoji = (emoji: string) => {
+    setContent(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  // 변수 삽입 함수
+  const insertVariable = (varName: string) => {
+    setContent(prev => prev + `#{${varName}}`);
+  };
+
+  // 내용 변경 시 변수 추출
+  useEffect(() => {
+    extractVariables(content);
+  }, [content]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -203,7 +247,8 @@ export default function CreateTemplatePage() {
         emphasizeType: emphasizeType,
         extra: extra,
         buttons: buttons.filter(btn => btn.name.trim()),
-        securityFlag: securityFlag
+        securityFlag: securityFlag,
+        variables: variables // 변수 목록 추가
       };
 
       console.log('📤 템플릿 등록 요청:', payload);
@@ -281,7 +326,7 @@ export default function CreateTemplatePage() {
         </Button>
         <h1 className="text-3xl font-bold">알림톡 템플릿 등록</h1>
         <p className="text-gray-600 mt-2">
-          Solapi를 통해 카카오 알림톡 템플릿을 등록합니다.
+          카카오 알림톡 템플릿을 등록하고 검수를 요청합니다.
         </p>
       </div>
 
@@ -356,17 +401,77 @@ export default function CreateTemplatePage() {
 
                 <div>
                   <Label htmlFor="content">템플릿 내용 *</Label>
-                  <Textarea
-                    id="content"
-                    placeholder={"안녕하세요, #{이름}님!\n\n오늘의 출석 안내입니다.\n상세 내용: #{리포트URL}"}
-                    value={content}
-                    onChange={e => setContent(e.target.value)}
-                    rows={8}
-                    className="mt-1"
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    변수는 #&#123;변수명&#125; 형식으로 입력 (예: #&#123;이름&#125;, #&#123;리포트URL&#125;)
-                  </p>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className="text-lg"
+                      >
+                        😀 이모지
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => insertVariable('변수명')}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        변수 추가
+                      </Button>
+                    </div>
+                    
+                    {/* 이모지 선택기 */}
+                    {showEmojiPicker && (
+                      <Card className="p-3">
+                        <div className="grid grid-cols-10 gap-2">
+                          {commonEmojis.map((emoji, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => insertEmoji(emoji)}
+                              className="text-2xl hover:bg-gray-100 rounded p-1 transition-colors"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </Card>
+                    )}
+                    
+                    <Textarea
+                      id="content"
+                      placeholder={"안녕하세요, #{이름}님!\n\n오늘의 출석 안내입니다.\n상세 내용: #{리포트URL}"}
+                      value={content}
+                      onChange={e => setContent(e.target.value)}
+                      rows={8}
+                      className="mt-1"
+                    />
+                    <p className="text-sm text-gray-500">
+                      변수는 #&#123;변수명&#125; 형식으로 입력 (예: #&#123;이름&#125;, #&#123;리포트URL&#125;)
+                    </p>
+                    
+                    {/* 추출된 변수 목록 */}
+                    {variables.length > 0 && (
+                      <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                        <div className="font-semibold text-sm text-blue-900 mb-2">
+                          📋 사용 중인 변수 ({variables.length}개)
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {variables.map((v, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-white text-blue-700 px-2 py-1 rounded text-sm font-mono border border-blue-300"
+                            >
+                              #{{{v}}}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -517,6 +622,42 @@ export default function CreateTemplatePage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* 템플릿 반려 사유 안내 */}
+            <Alert className="bg-red-50 border-red-200">
+              <AlertDescription>
+                <div className="space-y-2">
+                  <div className="font-bold text-red-900 flex items-center gap-2">
+                    <span className="text-xl">⚠️</span>
+                    반드시 확인해주세요
+                  </div>
+                  <div className="text-sm text-red-800">
+                    <p className="font-semibold mb-2">템플릿이 아래 사유에 해당하는 경우, 예외 없이 템플릿 등록이 반려됩니다:</p>
+                    <ul className="space-y-1.5 list-none">
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-600 mt-0.5">❌</span>
+                        <span>정확한 수신대상 및 수신사유를 검수자가 확인하기 어려운 경우</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-600 mt-0.5">❌</span>
+                        <span>불특정 다수에게 발송될 수 있는 홍보 및 광고성 문구 포함</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-600 mt-0.5">❌</span>
+                        <span>혜택 제공을 조건으로 개인정보 등록 등 특정 행위를 유도</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-600 mt-0.5">❌</span>
+                        <span>앱 설치를 유도하는 문구 포함</span>
+                      </li>
+                    </ul>
+                    <p className="mt-3 font-medium text-red-900">
+                      💡 알림톡은 명확한 수신 대상과 사유가 있는 거래/정보성 메시지만 발송 가능합니다.
+                    </p>
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
 
             {/* 제출 버튼 */}
             <div className="flex gap-4">

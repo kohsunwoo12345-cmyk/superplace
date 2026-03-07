@@ -59,6 +59,7 @@ export async function onRequestPost(context: any) {
       buttons,           // 버튼 배열
       extra,             // 부가정보 (강조 유형일 때)
       securityFlag,      // 보안 템플릿 여부
+      variables,         // 변수 목록 (배열)
     } = body;
 
     console.log('📝 템플릿 등록 신청:', { userId, channelId, pfId, templateCode, templateName });
@@ -174,7 +175,7 @@ export async function onRequestPost(context: any) {
       emphasizeType || 'NONE',
       buttons ? JSON.stringify(buttons) : null,
       null,
-      null,
+      variables ? JSON.stringify(variables) : null,
       templateCode,
       'ACTIVE',
       solapiData.status || 'PENDING', // Solapi 응답의 상태 저장
