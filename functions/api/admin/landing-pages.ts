@@ -371,9 +371,28 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // HTML 콘텐츠 생성
     let htmlContent = '';
     
+    // 🔥 템플릿 HTML이 없으면 DB에서 가져오기
+    if (!templateHtml && templateId) {
+      console.log('⚠️ templateHtml not provided, fetching from DB...');
+      try {
+        const templateData = await db.prepare(`
+          SELECT html FROM landing_page_templates WHERE id = ?
+        `).bind(templateId).first();
+        
+        if (templateData && templateData.html) {
+          templateHtml = templateData.html;
+          console.log('✅ Template loaded from DB, length:', templateHtml.length);
+        } else {
+          console.error('❌ Template not found in DB:', templateId);
+        }
+      } catch (err) {
+        console.error('❌ Failed to load template from DB:', err);
+      }
+    }
+    
     if (templateHtml) {
       // 템플릿 HTML이 제공된 경우
-      console.log('✅ Using provided template HTML, length:', templateHtml.length);
+      console.log('✅ Using template HTML, length:', templateHtml.length);
       htmlContent = templateHtml;
       
       // 기본 변수 치환
