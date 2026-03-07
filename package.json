@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npx @cloudflare/next-on-pages",
-    "postbuild": "echo 'Cloudflare Pages build complete'",
+    "build": "next build",
+    "postbuild": "echo 'Next.js build complete'",
     "pages:build": "npx @cloudflare/next-on-pages",
     "preview": "npm run pages:build && wrangler pages dev .vercel/output/static",
     "deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static --project-name=superplacestudy",
