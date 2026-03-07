@@ -157,14 +157,15 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // 템플릿 저장
     await db.prepare(`
       INSERT INTO landing_page_templates (
-        id, name, description, html, isDefault, createdAt
-      ) VALUES (?, ?, ?, ?, ?, datetime('now'))
+        id, name, description, html, isDefault, createdById, createdAt
+      ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
     `).bind(
       templateId,
       '기본 학습 리포트 템플릿',
       '그라데이션 배경과 카드 형식의 깔끔한 템플릿',
       sampleHtml,
-      1  // 기본 템플릿으로 설정
+      1,  // 기본 템플릿으로 설정
+      'system'  // 시스템 생성
     ).run();
     
     console.log('✅ 템플릿 생성 완료:', templateId);
