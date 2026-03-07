@@ -194,17 +194,6 @@ export default function CreateStudentDialog({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="class">소속반</Label>
-              <Input
-                id="class"
-                value={formData.class}
-                onChange={(e) => setFormData({ ...formData, class: e.target.value })}
-                placeholder="A반"
-                disabled={loading}
-              />
-            </div>
-
-            <div className="grid gap-2">
               <Label htmlFor="phone">학생 연락처</Label>
               <Input
                 id="phone"
@@ -212,18 +201,6 @@ export default function CreateStudentDialog({
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="010-1234-5678"
-                disabled={loading}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="parentPhone">학부모 연락처</Label>
-              <Input
-                id="parentPhone"
-                type="tel"
-                value={formData.parentPhone}
-                onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
-                placeholder="010-9876-5432"
                 disabled={loading}
               />
             </div>

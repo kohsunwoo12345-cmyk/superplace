@@ -340,29 +340,7 @@ export default function AddStudentPage() {
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="classField">소속반</Label>
-              <Input
-                id="classField"
-                value={classField}
-                onChange={(e) => setClassField(e.target.value)}
-                placeholder="예: A반, 수학반"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                학생의 학교 소속반을 입력하세요
-              </p>
-            </div>
 
-            <div>
-              <Label htmlFor="parentPhone">학부모 연락처</Label>
-              <Input
-                id="parentPhone"
-                type="tel"
-                value={parentPhone}
-                onChange={(e) => setParentPhone(e.target.value)}
-                placeholder="010-1234-5678"
-              />
-            </div>
           </CardContent>
         </Card>
 
