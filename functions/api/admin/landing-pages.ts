@@ -118,6 +118,19 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     console.log('🔍 Executing query with params:', queryParams);
     console.log('🔍 Query:', query);
     
+    // 🔍 추가 디버깅: 모든 데이터 조회
+    const allData = await db.prepare(`SELECT COUNT(*) as total FROM landing_pages`).first();
+    console.log('🔍 Total records in landing_pages table:', allData?.total);
+    
+    // 🔍 최근 5개 ROW 조회 (필터 없이)
+    const recentRows = await db.prepare(`
+      SELECT id, title, slug, created_at 
+      FROM landing_pages 
+      ORDER BY ROWID DESC 
+      LIMIT 5
+    `).all();
+    console.log('🔍 Recent 5 rows:', JSON.stringify(recentRows.results));
+    
     const landingPages = await db.prepare(query).bind(...queryParams).all();
 
     console.log('📊 Found landing pages:', landingPages.results?.length || 0);
@@ -131,6 +144,8 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
         createdById: landingPages.results[0].createdById,
         creatorName: landingPages.results[0].creatorName
       });
+    } else {
+      console.log('⚠️ No results returned from filtered query!');
     }
 
     // Parse results
