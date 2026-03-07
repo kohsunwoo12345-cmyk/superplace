@@ -243,6 +243,21 @@ export default function CreateTemplatePage() {
     return group?.categories || [];
   };
 
+  // 변수를 실제 값으로 치환하는 함수
+  const replaceVariables = (text: string) => {
+    return text
+      .replace(/#{학부모이름}/g, '김영희')
+      .replace(/#{학생이름}/g, '김민수')
+      .replace(/#{과목}/g, '수학')
+      .replace(/#{제출시간}/g, '오후 3:00')
+      .replace(/#{날짜}/g, '3월 8일')
+      .replace(/#{시간}/g, '오후 5:00')
+      .replace(/#{준비물}/g, '교재, 필기구')
+      .replace(/#{이름}/g, '김민수')
+      .replace(/#{리포트URL}/g, 'https://superplace.com/report')
+      .replace(/#\{([^}]+)\}/g, '[$1]'); // 나머지 변수는 [변수명] 형태로
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -251,8 +266,10 @@ export default function CreateTemplatePage() {
     );
   }
 
+  const selectedChannelData = channels.find(c => c.id === selectedChannel);
+
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-6">
         <Button
           variant="ghost"
@@ -281,416 +298,362 @@ export default function CreateTemplatePage() {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* 채널 선택 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>1. 카카오 채널 선택 *</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedChannel} onValueChange={setSelectedChannel}>
-              <SelectTrigger>
-                <SelectValue placeholder="채널을 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                {channels.map(ch => (
-                  <SelectItem key={ch.id} value={ch.id}>
-                    {ch.channelName} ({ch.solapiChannelId})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* 기본 정보 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>2. 기본 정보 *</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="templateCode">템플릿 코드 *</Label>
-              <Input
-                id="templateCode"
-                placeholder="예: TEST_001, ATTENDANCE_01"
-                value={templateCode}
-                onChange={e => setTemplateCode(e.target.value)}
-                className="mt-1"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                영문 대문자, 숫자, 언더스코어(_)만 사용 가능 (Solapi 템플릿 ID로 자동 사용됨)
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="templateName">템플릿 이름 *</Label>
-              <Input
-                id="templateName"
-                placeholder="예: 출석 안내 템플릿"
-                value={templateName}
-                onChange={e => setTemplateName(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="content">템플릿 내용 *</Label>
-              <Textarea
-                id="content"
-                placeholder={"안녕하세요, #{이름}님!\n\n오늘의 출석 안내입니다.\n상세 내용: #{리포트URL}"}
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                rows={8}
-                className="mt-1"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                변수는 #&#123;변수명&#125; 형식으로 입력 (예: #&#123;이름&#125;, #&#123;리포트URL&#125;)
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 카테고리 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>3. 카테고리 *</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>카테고리 그룹 *</Label>
-              <Select value={selectedGroupCode} onValueChange={(val) => {
-                setSelectedGroupCode(val);
-                setSelectedCategoryCode(''); // Reset category
-              }}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="카테고리 그룹 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categoryGroups.map(group => (
-                    <SelectItem key={group.groupCode} value={group.groupCode}>
-                      {group.groupName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedGroupCode && (
-              <div>
-                <Label>카테고리 *</Label>
-                <Select value={selectedCategoryCode} onValueChange={setSelectedCategoryCode}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="카테고리 선택" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 왼쪽: 입력 폼 */}
+        <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* 채널 선택 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>1. 카카오 채널 선택 *</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="채널을 선택하세요" />
                   </SelectTrigger>
                   <SelectContent>
-                    {getCategories().map(cat => (
-                      <SelectItem key={cat.code} value={cat.code}>
-                        {cat.name} ({cat.code})
+                    {channels.map(ch => (
+                      <SelectItem key={ch.id} value={ch.id}>
+                        {ch.channelName} ({ch.solapiChannelId})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* 메시지 유형 (4개 모두 표시) */}
-        <Card>
-          <CardHeader>
-            <CardTitle>4. 메시지 유형</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div
-                className={`border-2 rounded-lg p-4 cursor-pointer transition ${
-                  messageType === 'BA' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                }`}
-                onClick={() => setMessageType('BA')}
-              >
-                <div className="font-semibold">BA - 기본형</div>
-                <div className="text-sm text-gray-600">일반 알림톡</div>
-              </div>
-
-              <div
-                className={`border-2 rounded-lg p-4 cursor-pointer transition ${
-                  messageType === 'EX' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                }`}
-                onClick={() => setMessageType('EX')}
-              >
-                <div className="font-semibold">EX - 부가정보형</div>
-                <div className="text-sm text-gray-600">강조 표시 추가</div>
-              </div>
-
-              <div
-                className={`border-2 rounded-lg p-4 cursor-pointer transition ${
-                  messageType === 'AD' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                }`}
-                onClick={() => setMessageType('AD')}
-              >
-                <div className="font-semibold">AD - 광고추가형</div>
-                <div className="text-sm text-gray-600">광고 문구 포함</div>
-              </div>
-
-              <div
-                className={`border-2 rounded-lg p-4 cursor-pointer transition ${
-                  messageType === 'MI' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                }`}
-                onClick={() => setMessageType('MI')}
-              >
-                <div className="font-semibold">MI - 복합형</div>
-                <div className="text-sm text-gray-600">여러 정보 포함</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 강조 유형 (3개 모두 표시) */}
-        <Card>
-          <CardHeader>
-            <CardTitle>5. 강조 유형</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div
-                className={`border-2 rounded-lg p-4 cursor-pointer transition ${
-                  emphasizeType === 'NONE' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                }`}
-                onClick={() => setEmphasizeType('NONE')}
-              >
-                <div className="font-semibold">NONE</div>
-                <div className="text-sm text-gray-600">강조 없음</div>
-              </div>
-
-              <div
-                className={`border-2 rounded-lg p-4 cursor-pointer transition ${
-                  emphasizeType === 'TEXT' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                }`}
-                onClick={() => setEmphasizeType('TEXT')}
-              >
-                <div className="font-semibold">TEXT</div>
-                <div className="text-sm text-gray-600">텍스트 강조</div>
-              </div>
-
-              <div
-                className={`border-2 rounded-lg p-4 cursor-pointer transition ${
-                  emphasizeType === 'IMAGE' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                }`}
-                onClick={() => setEmphasizeType('IMAGE')}
-              >
-                <div className="font-semibold">IMAGE</div>
-                <div className="text-sm text-gray-600">이미지 강조</div>
-              </div>
-            </div>
-
-            {emphasizeType !== 'NONE' && (
-              <div className="space-y-4 mt-4 p-4 bg-gray-50 rounded-lg">
+            {/* 기본 정보 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>2. 기본 정보 *</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div>
-                  <Label>강조 제목</Label>
+                  <Label htmlFor="templateCode">템플릿 코드 *</Label>
                   <Input
-                    value={emphasizeTitle}
-                    onChange={e => setEmphasizeTitle(e.target.value)}
-                    placeholder="강조 제목 (최대 23자)"
-                    maxLength={23}
+                    id="templateCode"
+                    placeholder="예: TEST_001, ATTENDANCE_01"
+                    value={templateCode}
+                    onChange={e => setTemplateCode(e.target.value)}
+                    className="mt-1"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    영문 대문자, 숫자, 언더스코어(_)만 사용 가능 (Solapi 템플릿 ID로 자동 사용됨)
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="templateName">템플릿 이름 *</Label>
+                  <Input
+                    id="templateName"
+                    placeholder="예: 출석 안내 템플릿"
+                    value={templateName}
+                    onChange={e => setTemplateName(e.target.value)}
                     className="mt-1"
                   />
                 </div>
+
                 <div>
-                  <Label>강조 부제목</Label>
-                  <Input
-                    value={emphasizeSubtitle}
-                    onChange={e => setEmphasizeSubtitle(e.target.value)}
-                    placeholder="강조 부제목"
+                  <Label htmlFor="content">템플릿 내용 *</Label>
+                  <Textarea
+                    id="content"
+                    placeholder={"안녕하세요, #{이름}님!\n\n오늘의 출석 안내입니다.\n상세 내용: #{리포트URL}"}
+                    value={content}
+                    onChange={e => setContent(e.target.value)}
+                    rows={8}
                     className="mt-1"
                   />
+                  <p className="text-sm text-gray-500 mt-1">
+                    변수는 #&#123;변수명&#125; 형식으로 입력 (예: #&#123;이름&#125;, #&#123;리포트URL&#125;)
+                  </p>
                 </div>
-                {emphasizeType === 'IMAGE' && (
+              </CardContent>
+            </Card>
+
+            {/* 카테고리 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>3. 카테고리 *</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>카테고리 그룹 *</Label>
+                  <Select value={selectedGroupCode} onValueChange={(val) => {
+                    setSelectedGroupCode(val);
+                    setSelectedCategoryCode(''); // Reset category
+                  }}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="카테고리 그룹 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryGroups.map(group => (
+                        <SelectItem key={group.groupCode} value={group.groupCode}>
+                          {group.groupName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedGroupCode && (
                   <div>
-                    <Label>이미지 URL</Label>
-                    <Input
-                      value={imageUrl}
-                      onChange={e => setImageUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="mt-1"
-                    />
+                    <Label>카테고리 *</Label>
+                    <Select value={selectedCategoryCode} onValueChange={setSelectedCategoryCode}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="카테고리 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getCategories().map(cat => (
+                          <SelectItem key={cat.code} value={cat.code}>
+                            {cat.name} ({cat.code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* 버튼 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>6. 버튼 (선택사항)</span>
+            {/* 버튼 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>4. 버튼 (선택사항)</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addButton}
+                    disabled={buttons.length >= 5}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    버튼 추가
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {buttons.map((btn, index) => {
+                  const btnTypeInfo = getButtonTypeInfo(btn.type);
+                  return (
+                    <div key={index} className="p-4 border rounded-lg space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">버튼 {index + 1}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeButton(index)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label>버튼 타입</Label>
+                          <Select
+                            value={btn.type}
+                            onValueChange={val => updateButton(index, 'type', val)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {buttonTypes.map(bt => (
+                                <SelectItem key={bt.type} value={bt.type}>
+                                  {bt.name} ({bt.type})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {btnTypeInfo?.description}
+                          </p>
+                        </div>
+
+                        <div>
+                          <Label>버튼 이름</Label>
+                          <Input
+                            value={btn.name}
+                            onChange={e => updateButton(index, 'name', e.target.value)}
+                            placeholder="버튼 이름"
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+
+                      {btnTypeInfo?.requiresUrl && (
+                        <div className="space-y-2">
+                          <div>
+                            <Label>모바일 링크</Label>
+                            <Input
+                              value={btn.linkMo || ''}
+                              onChange={e => updateButton(index, 'linkMo', e.target.value)}
+                              placeholder="https://..."
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label>PC 링크</Label>
+                            <Input
+                              value={btn.linkPc || ''}
+                              onChange={e => updateButton(index, 'linkPc', e.target.value)}
+                              placeholder="https://..."
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {buttons.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    버튼을 추가하려면 "버튼 추가" 버튼을 클릭하세요.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 제출 버튼 */}
+            <div className="flex gap-4">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                onClick={addButton}
-                disabled={buttons.length >= 5}
+                className="flex-1"
+                onClick={() => router.back()}
+                disabled={submitting}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                버튼 추가
+                취소
               </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {buttons.map((btn, index) => {
-              const btnTypeInfo = getButtonTypeInfo(btn.type);
-              return (
-                <div key={index} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">버튼 {index + 1}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeButton(index)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>버튼 타입</Label>
-                      <Select
-                        value={btn.type}
-                        onValueChange={val => updateButton(index, 'type', val)}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {buttonTypes.map(bt => (
-                            <SelectItem key={bt.type} value={bt.type}>
-                              {bt.name} ({bt.type})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {btnTypeInfo?.description}
-                      </p>
-                    </div>
-
-                    <div>
-                      <Label>버튼 이름</Label>
-                      <Input
-                        value={btn.name}
-                        onChange={e => updateButton(index, 'name', e.target.value)}
-                        placeholder="버튼 이름"
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-
-                  {btnTypeInfo?.requiresUrl && (
-                    <div className="space-y-2">
-                      <div>
-                        <Label>모바일 링크</Label>
-                        <Input
-                          value={btn.linkMo || ''}
-                          onChange={e => updateButton(index, 'linkMo', e.target.value)}
-                          placeholder="https://..."
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label>PC 링크</Label>
-                        <Input
-                          value={btn.linkPc || ''}
-                          onChange={e => updateButton(index, 'linkPc', e.target.value)}
-                          placeholder="https://..."
-                          className="mt-1"
-                        />
-                      </div>
-                      {btn.type === 'AL' && (
-                        <>
-                          <div>
-                            <Label>iOS 스킴</Label>
-                            <Input
-                              value={btn.linkIos || ''}
-                              onChange={e => updateButton(index, 'linkIos', e.target.value)}
-                              placeholder="myapp://"
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <Label>Android 스킴</Label>
-                            <Input
-                              value={btn.linkAnd || ''}
-                              onChange={e => updateButton(index, 'linkAnd', e.target.value)}
-                              placeholder="myapp://"
-                              className="mt-1"
-                            />
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {buttons.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                버튼을 추가하려면 "버튼 추가" 버튼을 클릭하세요.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 보안 템플릿 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>7. 보안 설정</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="security"
-                checked={securityFlag}
-                onCheckedChange={(checked) => setSecurityFlag(!!checked)}
-              />
-              <label htmlFor="security" className="text-sm cursor-pointer">
-                보안 템플릿으로 등록 (OTP, 인증번호 등)
-              </label>
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    등록 중...
+                  </>
+                ) : (
+                  '템플릿 등록'
+                )}
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* 제출 버튼 */}
-        <div className="flex gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            className="flex-1"
-            onClick={() => router.back()}
-            disabled={submitting}
-          >
-            취소
-          </Button>
-          <Button
-            type="submit"
-            className="flex-1"
-            disabled={submitting}
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                등록 중...
-              </>
-            ) : (
-              '템플릿 등록'
-            )}
-          </Button>
+          </form>
         </div>
-      </form>
+
+        {/* 오른쪽: 카카오톡 미리보기 */}
+        <div className="lg:sticky lg:top-6 h-fit">
+          <Card>
+            <CardHeader>
+              <CardTitle>📱 카카오톡 미리보기</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {/* 카카오톡 미리보기 */}
+              <div className="bg-[#BACEE0] rounded-b-lg overflow-hidden" style={{ fontFamily: "'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif" }}>
+                {/* 상태 표시줄 */}
+                <div className="flex justify-between items-center px-5 py-2 text-xs font-medium text-gray-800">
+                  <span>15:00</span>
+                  <div className="flex gap-1.5 items-center">
+                    <span>📶</span>
+                    <span>📡</span>
+                    <span>🔋</span>
+                  </div>
+                </div>
+
+                {/* 헤더 */}
+                <div className="flex items-center justify-between px-3 py-2 mb-2">
+                  <div className="flex items-center gap-3">
+                    <button className="text-gray-700 px-2">
+                      ‹
+                    </button>
+                    <div className="flex items-center gap-1">
+                      <h1 className="font-semibold text-gray-800 text-lg">
+                        {selectedChannelData?.channelName || '채널명'}
+                      </h1>
+                      <span className="bg-[#d1d5da] text-white text-[9px] px-1 py-0.5 rounded-sm font-bold">ch</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-gray-700 px-2">
+                    <span>🔍</span>
+                    <span>☰</span>
+                  </div>
+                </div>
+
+                {/* 채팅 영역 */}
+                <div className="px-4 pb-4 max-h-[600px] overflow-y-auto">
+                  {/* 날짜 구분선 */}
+                  <div className="flex justify-center my-2">
+                    <div className="bg-black/10 text-white text-xs px-4 py-1.5 rounded-full font-medium">
+                      2026년 3월 8일 일요일
+                    </div>
+                  </div>
+
+                  {/* 알림톡 메시지 */}
+                  <div className="flex gap-2">
+                    <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold flex-shrink-0">
+                      {selectedChannelData?.channelName?.charAt(0) || 'A'}
+                    </div>
+                    <div className="flex flex-col gap-1 w-full">
+                      <span className="text-xs text-gray-600 font-medium">
+                        {selectedChannelData?.channelName || '채널명'}
+                      </span>
+                      <div className="flex items-end gap-1">
+                        <div className="bg-white rounded-lg max-w-[280px] shadow-sm">
+                          {/* 알림톡 본문 */}
+                          <div className="p-3.5 text-[0.9rem] leading-snug">
+                            {templateName && (
+                              <div className="font-bold text-base mb-2">
+                                {templateName}
+                              </div>
+                            )}
+                            {content ? (
+                              <div className="text-gray-800 whitespace-pre-wrap">
+                                {replaceVariables(content)}
+                              </div>
+                            ) : (
+                              <div className="text-gray-400 italic">
+                                템플릿 내용을 입력하세요...
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* 알림톡 버튼 */}
+                          {buttons.length > 0 && (
+                            <div className="border-t border-gray-200 bg-gray-50 rounded-b-lg overflow-hidden">
+                              {buttons.map((btn, idx) => (
+                                <div key={idx}>
+                                  {idx > 0 && <div className="h-[1px] bg-gray-200 w-full"></div>}
+                                  <button className="py-3 text-sm font-medium text-gray-700 w-full hover:bg-gray-100">
+                                    {btn.name || `버튼 ${idx + 1}`}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[0.7rem] text-gray-600 mb-0.5 whitespace-nowrap">오후 3:00</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 하단 입력창 */}
+                <div className="p-2 pb-6 bg-[#f5f5f5]">
+                  <div className="flex items-center justify-center p-2">
+                    <span className="text-sm text-gray-400">채팅이 불가능한 채널입니다.</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
