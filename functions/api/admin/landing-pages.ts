@@ -73,93 +73,28 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     const userIdForQuery = hashStringToInt(String(userId));
     console.log('✅ User verified:', { email: user.email, role, academyId: userAcademyId, userIdHash: userIdForQuery, originalUserId: userId });
 
-    // 역할별 쿼리 생성 - 구 스키마 사용
-    let query = '';
-    let queryParams: any[] = [];
+    // 🔥 최대한 단순한 쿼리 - 모든 역할이 모든 페이지 조회
+    const query = `SELECT * FROM landing_pages ORDER BY ROWID DESC`;
+    const queryParams: any[] = [];
 
-    if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
-      // 관리자는 모든 랜딩페이지 조회 (user_id 컬럼 제외)
-      query = `
-        SELECT 
-          lp.id, 
-          COALESCE(lp.slug, 'lp-' || lp.id) as slug,
-          lp.title, 
-          lp.created_at as createdAt,
-          '' as createdById,
-          '' as creatorName,
-          COALESCE(lp.view_count, 0) as viewCount,
-          CASE WHEN COALESCE(lp.status, 'active') = 'active' THEN 1 ELSE 0 END as isActive
-        FROM landing_pages lp
-        ORDER BY lp.created_at DESC
-      `;
-    } else if (role === 'DIRECTOR' || role === 'TEACHER') {
-      // 🔧 임시: user_id 필터 제거 - 모든 페이지 보기 (컬럼 존재 여부 무관)
-      query = `
-        SELECT 
-          lp.id, 
-          COALESCE(lp.slug, 'lp-' || lp.id) as slug,
-          lp.title, 
-          lp.created_at as createdAt,
-          '' as createdById,
-          '' as creatorName,
-          COALESCE(lp.view_count, 0) as viewCount,
-          CASE WHEN COALESCE(lp.status, 'active') = 'active' THEN 1 ELSE 0 END as isActive
-        FROM landing_pages lp
-        ORDER BY lp.created_at DESC
-      `;
-      queryParams = [];
-    } else {
-      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    console.log('🔍 Executing query with params:', queryParams);
     console.log('🔍 Query:', query);
     
-    // 🔍 추가 디버깅: 모든 데이터 조회
-    const allData = await db.prepare(`SELECT COUNT(*) as total FROM landing_pages`).first();
-    console.log('🔍 Total records in landing_pages table:', allData?.total);
-    
-    // 🔍 최근 5개 ROW 조회 (필터 없이)
-    const recentRows = await db.prepare(`
-      SELECT id, title, slug, created_at 
-      FROM landing_pages 
-      ORDER BY ROWID DESC 
-      LIMIT 5
-    `).all();
-    console.log('🔍 Recent 5 rows:', JSON.stringify(recentRows.results));
-    
-    const landingPages = await db.prepare(query).bind(...queryParams).all();
+    const landingPages = await db.prepare(query).all();
 
     console.log('📊 Found landing pages:', landingPages.results?.length || 0);
     
-    // 디버깅: 첫 번째 결과 로깅
-    if (landingPages.results && landingPages.results.length > 0) {
-      console.log('📊 First result sample:', {
-        id: landingPages.results[0].id,
-        slug: landingPages.results[0].slug,
-        title: landingPages.results[0].title,
-        createdById: landingPages.results[0].createdById,
-        creatorName: landingPages.results[0].creatorName
-      });
-    } else {
-      console.log('⚠️ No results returned from filtered query!');
-    }
-
-    // Parse results
+    // Parse results - 모든 필드를 안전하게 처리
     const results = (landingPages.results || []).map((lp: any) => ({
       id: lp.id,
-      slug: lp.slug,
-      title: lp.title,
-      url: `/lp/${lp.slug}`,
-      isActive: lp.isActive === 1,
+      slug: lp.slug || `lp-${lp.id}`,
+      title: lp.title || '제목 없음',
+      url: `/lp/${lp.slug || lp.id}`,
+      isActive: true, // 일단 모두 활성으로
       showQrCode: true,
-      viewCount: lp.viewCount || 0,
+      viewCount: lp.view_count || lp.viewCount || 0,
       submissions: 0,
-      createdAt: lp.createdAt,
-      creatorName: lp.creatorName
+      createdAt: lp.created_at || lp.createdAt || new Date().toISOString(),
+      creatorName: lp.creatorName || ''
     }));
 
     return new Response(
