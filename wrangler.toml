@@ -1,7 +1,6 @@
 name = "superplace"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
-node_compat = true
 
 # Cloudflare Pages configuration
 # Static export output directory
