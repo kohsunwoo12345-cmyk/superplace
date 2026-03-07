@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>알림톡 발송용 엑셀 샘플 생성기</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #1e40af;
+        }
+        .info-box ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .form-group {
+            margin: 25px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        .sample-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .sample-table th,
+        .sample-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #e5e7eb;
+        }
+        .sample-table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+        .sample-table tr:nth-child(even) {
+            background: #f9fafb;
+        }
+        .success-message {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 알림톡 발송용 엑셀 샘플 생성기</h1>
+        <p class="subtitle">알림톡 대량 발송을 위한 엑셀 파일을 쉽게 생성하세요</p>
+
+        <div class="info-box">
+            <h3>📋 필수 컬럼 안내</h3>
+            <p>생성될 엑셀 파일은 다음 컬럼을 포함합니다:</p>
+            <ul>
+                <li><strong>학생이메일</strong>: DB에 등록된 학생의 이메일 주소 (예: student001@kumettang.com)</li>
+                <li><strong>학부모이름</strong>: 수신자(학부모) 이름 (예: 김영희)</li>
+                <li><strong>학부모연락처</strong>: 학부모 휴대폰 번호 (예: 010-1234-5678)</li>
+            </ul>
+        </div>
+
+        <div class="info-box">
+            <h3>🎯 사용 방법</h3>
+            <ol>
+                <li>원하는 샘플 데이터 개수를 입력하세요</li>
+                <li><strong>"엑셀 샘플 생성"</strong> 버튼을 클릭하세요</li>
+                <li>다운로드된 파일(<code>alimtalk_sample.xlsx</code>)을 열어 데이터를 수정하세요</li>
+                <li>실제 학생 정보로 수정한 후 알림톡 발송 페이지에 업로드하세요</li>
+            </ol>
+        </div>
+
+        <div class="form-group">
+            <label for="rowCount">샘플 데이터 개수</label>
+            <input type="number" id="rowCount" value="10" min="1" max="1000" placeholder="생성할 샘플 개수 입력">
+        </div>
+
+        <div class="button-group">
+            <button class="btn-primary" onclick="generateSample()">
+                📥 엑셀 샘플 생성
+            </button>
+            <button class="btn-secondary" onclick="showPreview()">
+                👁️ 미리보기
+            </button>
+        </div>
+
+        <div id="successMessage" class="success-message">
+            ✅ 엑셀 파일이 다운로드되었습니다!
+        </div>
+
+        <div id="preview" style="margin-top: 30px; display: none;">
+            <h3>📊 미리보기 (처음 5개 행)</h3>
+            <table class="sample-table">
+                <thead>
+                    <tr>
+                        <th>학생이메일</th>
+                        <th>학부모이름</th>
+                        <th>학부모연락처</th>
+                    </tr>
+                </thead>
+                <tbody id="previewBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>💡 <strong>Tip</strong>: 생성된 파일의 샘플 데이터를 실제 학생 정보로 수정하여 사용하세요</p>
+            <p>🔗 <a href="https://superplacestudy.pages.dev/dashboard/kakao-alimtalk/send/" target="_blank">알림톡 발송 페이지로 이동</a></p>
+        </div>
+    </div>
+
+    <script>
+        const koreanNames = [
+            '김영희', '이철수', '박민수', '최지은', '정수진',
+            '강동원', '윤지혜', '임하늘', '한소희', '오민재',
+            '서준호', '안유진', '배성현', '황은비', '권태양'
+        ];
+
+        function generateRandomData(count) {
+            const data = [];
+            for (let i = 1; i <= count; i++) {
+                const num = String(i).padStart(3, '0');
+                data.push({
+                    '학생이메일': `student${num}@kumettang.com`,
+                    '학부모이름': koreanNames[i % koreanNames.length],
+                    '학부모연락처': `010-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`
+                });
+            }
+            return data;
+        }
+
+        function generateSample() {
+            const count = parseInt(document.getElementById('rowCount').value);
+            
+            if (!count || count < 1 || count > 1000) {
+                alert('1~1000 사이의 숫자를 입력해주세요');
+                return;
+            }
+
+            const data = generateRandomData(count);
+            
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(data);
+            
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 35 },  // 학생이메일
+                { wch: 15 },  // 학부모이름
+                { wch: 20 }   // 학부모연락처
+            ];
+            
+            XLSX.utils.book_append_sheet(wb, ws, '발송대상');
+            
+            // Download
+            XLSX.writeFile(wb, 'alimtalk_sample.xlsx');
+            
+            // Show success message
+            const msg = document.getElementById('successMessage');
+            msg.style.display = 'block';
+            setTimeout(() => {
+                msg.style.display = 'none';
+            }, 3000);
+        }
+
+        function showPreview() {
+            const count = Math.min(5, parseInt(document.getElementById('rowCount').value) || 5);
+            const data = generateRandomData(count);
+            
+            const tbody = document.getElementById('previewBody');
+            tbody.innerHTML = '';
+            
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row['학생이메일']}</td>
+                    <td>${row['학부모이름']}</td>
+                    <td>${row['학부모연락처']}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            document.getElementById('preview').style.display = 'block';
+        }
+
+        // Initial preview
+        window.addEventListener('load', () => {
+            showPreview();
+        });
+    </script>
+</body>
+</html>
