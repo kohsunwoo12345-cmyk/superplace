@@ -362,16 +362,20 @@ export default function TeacherHomeworkPage() {
               {/* 특정 학생 선택 */}
               {formData.targetType === "specific" && (
                 <div>
-                  <Label>학생 선택</Label>
-                  <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
+                  <Label>학생 선택 ({students.length}명)</Label>
+                  <div className="border-2 border-indigo-200 rounded-lg p-4 max-h-60 overflow-y-auto bg-white">
                     {students.length === 0 ? (
-                      <p className="text-gray-500 text-sm">학생이 없습니다</p>
+                      <div className="text-center py-8">
+                        <Users className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm font-medium">학생이 없습니다</p>
+                        <p className="text-gray-400 text-xs mt-1">학생을 먼저 등록해주세요</p>
+                      </div>
                     ) : (
                       <div className="space-y-2">
                         {students.map((student) => (
                           <div
                             key={student.id}
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-3 p-2 rounded hover:bg-indigo-50 transition-colors"
                           >
                             <input
                               type="checkbox"
@@ -382,13 +386,14 @@ export default function TeacherHomeworkPage() {
                               onChange={() =>
                                 toggleStudentSelection(student.id)
                               }
-                              className="w-4 h-4"
+                              className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                             />
                             <label
                               htmlFor={`student-${student.id}`}
-                              className="flex-1 cursor-pointer"
+                              className="flex-1 cursor-pointer text-sm font-medium"
                             >
-                              {student.name} ({student.email})
+                              {student.name} 
+                              <span className="text-gray-500 ml-2">({student.email})</span>
                             </label>
                           </div>
                         ))}
@@ -396,9 +401,17 @@ export default function TeacherHomeworkPage() {
                     )}
                   </div>
                   {formData.targetStudents.length > 0 && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      {formData.targetStudents.length}명 선택됨
-                    </p>
+                    <div className="mt-3 p-3 bg-indigo-50 border border-indigo-200 rounded">
+                      <p className="text-sm text-indigo-700 font-semibold">
+                        ✅ {formData.targetStudents.length}명 선택됨
+                      </p>
+                      <p className="text-xs text-indigo-600 mt-1">
+                        {students
+                          .filter(s => formData.targetStudents.includes(s.id))
+                          .map(s => s.name)
+                          .join(', ')}
+                      </p>
+                    </div>
                   )}
                 </div>
               )}

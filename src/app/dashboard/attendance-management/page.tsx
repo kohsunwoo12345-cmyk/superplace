@@ -212,17 +212,17 @@ export default function AttendanceManagementPage() {
       </Card>
 
       {/* 학생 목록 및 출석 처리 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
+      <Card className="border-2 border-indigo-200">
+        <CardHeader className="bg-indigo-50">
+          <CardTitle className="flex items-center gap-2 text-indigo-900">
+            <Users className="w-6 h-6" />
             학생 목록 ({students.length}명)
           </CardTitle>
-          <CardDescription>
-            각 학생의 출석 상태를 클릭하여 변경할 수 있습니다 (출석 / 지각 / 결석)
+          <CardDescription className="text-indigo-700 font-medium">
+            ✏️ 각 학생의 출석 상태를 클릭하여 변경할 수 있습니다 (출석 / 지각 / 결석)
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -233,13 +233,13 @@ export default function AttendanceManagementPage() {
               학생이 없습니다
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {students.map((student) => {
                 const currentStatus = getStudentStatus(student.id);
                 return (
                   <div
                     key={student.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                    className="flex items-center justify-between p-5 border-2 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
                   >
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
