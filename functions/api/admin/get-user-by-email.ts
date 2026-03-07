@@ -29,7 +29,7 @@ export async function onRequestGet(context: any) {
 
     // Search users table
     const user = await env.DB.prepare(`
-      SELECT id, name, email, role, academyId, created_at as createdAt
+      SELECT id, name, email, role, academyId, academy_id, created_at
       FROM users 
       WHERE email = ?
       LIMIT 1
@@ -48,7 +48,7 @@ export async function onRequestGet(context: any) {
 
     // Also get KakaoChannel info for this user
     const channels = await env.DB.prepare(`
-      SELECT id, channelName, searchId, solapiChannelId, status, created_at as createdAt
+      SELECT id, channelName, searchId, solapiChannelId, status, created_at
       FROM KakaoChannel
       WHERE userId = ?
       ORDER BY created_at DESC
