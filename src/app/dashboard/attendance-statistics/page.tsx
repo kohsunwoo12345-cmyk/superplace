@@ -30,7 +30,10 @@ export default function AttendanceStatisticsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
+  const [students, setStudents] = useState<any[]>([]);
+  const [studentSearchTerm, setStudentSearchTerm] = useState("");
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -42,6 +45,11 @@ export default function AttendanceStatisticsPage() {
     setUser(userData);
     
     fetchStatistics(userData);
+    
+    // 선생님/관리자는 학생 목록도 가져오기
+    if (userData.role !== "STUDENT") {
+      fetchStudents(userData);
+    }
   }, [router]);
 
   const fetchStatistics = async (userData: any) => {
@@ -81,14 +89,56 @@ export default function AttendanceStatisticsPage() {
     }
   };
 
-  const handleEditAttendance = (date: string, currentStatus: string) => {
-    setSelectedDate(date);
-    setSelectedStatus(currentStatus || "ABSENT");
+  const fetchStudents = async (userData: any) => {
+    try {
+      const token = localStorage.getItem("token");
+      const academyId = userData.academyId || userData.academy_id || userData.AcademyId;
+      
+      const params = new URLSearchParams();
+      if (academyId && userData.role !== "SUPER_ADMIN" && userData.role !== "ADMIN") {
+        params.append("academyId", academyId.toString());
+      }
+
+      const response = await fetch(`/api/students?${params}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // ACTIVE 학생만 필터링
+        const activeStudents = (data.students || []).filter((s: any) => 
+          !s.status || s.status === "ACTIVE"
+        );
+        setStudents(activeStudents);
+        console.log("✅ Students loaded:", activeStudents.length);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching students:", error);
+    }
+  };
+
+  const handleEditAttendance = (date?: string, currentStatus?: string, student?: any) => {
+    if (student) {
+      // 선생님/관리자가 학생 선택한 경우
+      setSelectedStudent(student);
+      setSelectedDate(date || new Date().toISOString().split('T')[0]);
+      setSelectedStatus(currentStatus || "VERIFIED");
+    } else {
+      // 학생 본인이 수정하는 경우
+      setSelectedStudent(null);
+      setSelectedDate(date || "");
+      setSelectedStatus(currentStatus || "ABSENT");
+    }
     setEditDialogOpen(true);
   };
 
   const handleUpdateAttendance = async () => {
-    if (!selectedDate || !user) return;
+    if (!selectedDate) return;
+    
+    const targetUserId = selectedStudent ? selectedStudent.id : user?.id;
+    if (!targetUserId) return;
     
     setUpdating(true);
     try {
@@ -100,7 +150,7 @@ export default function AttendanceStatisticsPage() {
           "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId: user.id,
+          userId: targetUserId,
           date: selectedDate,
           status: selectedStatus,
         }),
@@ -110,7 +160,9 @@ export default function AttendanceStatisticsPage() {
         alert("출석 상태가 수정되었습니다.");
         setEditDialogOpen(false);
         // 통계 다시 불러오기
-        fetchStatistics(user);
+        if (user) {
+          fetchStatistics(user);
+        }
       } else {
         const error = await response.json();
         alert(`수정 실패: ${error.message || "알 수 없는 오류"}`);
@@ -514,8 +566,12 @@ export default function AttendanceStatisticsPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        const recordDate = record.date || record.verifiedAt?.split('T')[0] || new Date().toISOString().split('T')[0];
-                        router.push(`/dashboard/attendance-management?date=${recordDate}`);
+                        const recordDate = record.verifiedAt?.split('T')[0] || record.date || new Date().toISOString().split('T')[0];
+                        const student = students.find(s => s.id === record.userId) || { 
+                          id: record.userId, 
+                          name: record.userName 
+                        };
+                        handleEditAttendance(recordDate, record.status, student);
                       }}
                       className="hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
                       title="출석 수정"
@@ -536,6 +592,158 @@ export default function AttendanceStatisticsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* 학생별 출석 수정 섹션 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>학생별 출석 수정</CardTitle>
+          <CardDescription>학생을 선택하여 출석 상태를 수정할 수 있습니다</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* 검색창 */}
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="학생 이름 검색..."
+              value={studentSearchTerm}
+              onChange={(e) => setStudentSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* 학생 목록 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+            {students
+              .filter(student => 
+                student.name?.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+                student.email?.toLowerCase().includes(studentSearchTerm.toLowerCase())
+              )
+              .map((student) => (
+                <button
+                  key={student.id}
+                  onClick={() => handleEditAttendance(undefined, "VERIFIED", student)}
+                  className="flex items-center gap-3 p-3 border rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all text-left"
+                >
+                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <span className="font-semibold text-blue-600">
+                      {student.name?.[0] || '?'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{student.name || '이름 없음'}</p>
+                    <p className="text-sm text-gray-600 truncate">{student.email || ''}</p>
+                  </div>
+                  <Edit className="w-4 h-4 text-gray-400" />
+                </button>
+              ))}
+          </div>
+
+          {students.length === 0 && (
+            <div className="py-12 text-center text-gray-500">
+              <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+              <p>학생이 없습니다</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 출석 수정 Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>출석 상태 수정</DialogTitle>
+            <DialogDescription>
+              {selectedStudent ? (
+                <>
+                  <span className="font-semibold">{selectedStudent.name}</span> 학생의 출석 상태를 수정합니다.
+                </>
+              ) : (
+                <>날짜의 출석 상태를 변경합니다.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* 날짜 선택 */}
+            <div>
+              <label className="block text-sm font-medium mb-2">날짜</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* 상태 선택 */}
+            <div>
+              <label className="block text-sm font-medium mb-2">출석 상태</label>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => setSelectedStatus("VERIFIED")}
+                  className={`p-4 border-2 rounded-lg flex items-center gap-3 transition-all ${
+                    selectedStatus === "VERIFIED" 
+                      ? "border-green-500 bg-green-50" 
+                      : "border-gray-200 hover:border-green-300"
+                  }`}
+                >
+                  <div className="text-3xl">🟢</div>
+                  <div className="text-left">
+                    <div className="font-semibold">출석</div>
+                    <div className="text-sm text-gray-600">정상 출석</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setSelectedStatus("LATE")}
+                  className={`p-4 border-2 rounded-lg flex items-center gap-3 transition-all ${
+                    selectedStatus === "LATE" 
+                      ? "border-yellow-500 bg-yellow-50" 
+                      : "border-gray-200 hover:border-yellow-300"
+                  }`}
+                >
+                  <div className="text-3xl">🟡</div>
+                  <div className="text-left">
+                    <div className="font-semibold">지각</div>
+                    <div className="text-sm text-gray-600">늦은 출석</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setSelectedStatus("ABSENT")}
+                  className={`p-4 border-2 rounded-lg flex items-center gap-3 transition-all ${
+                    selectedStatus === "ABSENT" 
+                      ? "border-red-500 bg-red-50" 
+                      : "border-gray-200 hover:border-red-300"
+                  }`}
+                >
+                  <div className="text-3xl">🔴</div>
+                  <div className="text-left">
+                    <div className="font-semibold">결석</div>
+                    <div className="text-sm text-gray-600">출석하지 않음</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditDialogOpen(false)}
+              disabled={updating}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleUpdateAttendance}
+              disabled={updating}
+            >
+              {updating ? "수정 중..." : "수정하기"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
