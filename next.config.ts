@@ -1,9 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // ⚠️ 카카오 알림톡 API를 사용하려면 아래 줄을 주석 처리하세요
-  // output: 'export', // Static export - API handled by functions/ directory
-  
+  output: 'export', // ✅ Static export for CloudFlare Pages
   trailingSlash: true,
   images: {
     unoptimized: true,
@@ -28,6 +26,8 @@ const nextConfig: NextConfig = {
         'node:fs': false,
         'node:stream': false,
         'node:zlib': false,
+        crypto: false,
+        url: false,
       };
     }
     return config;
