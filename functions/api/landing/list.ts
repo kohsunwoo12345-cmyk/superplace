@@ -27,6 +27,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     console.log(`📋 Fetching landing pages for user: ${userId}`);
 
+    // user_id를 숫자로 변환
+    const userIdNum = parseInt(userId);
+    
+    console.log(`   → Parsed userId: ${userIdNum} (type: ${typeof userIdNum})`);
+
     // 실제 DB 구조에 맞게 수정 (landing_pages 테이블, user_id, status, created_at 컬럼 사용)
     const result = await env.DB.prepare(`
       SELECT 
@@ -41,10 +46,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         updated_at
       FROM landing_pages
       WHERE user_id = ?
-        AND (status IS NULL OR status = 'PUBLISHED' OR status = 'DRAFT')
       ORDER BY created_at DESC
       LIMIT 100
-    `).bind(parseInt(userId)).all();
+    `).bind(userIdNum).all();
+    
+    console.log(`   → Query returned ${result.results?.length || 0} rows`);
 
     const landingPages = (result.results || []).map((lp: any) => ({
       id: lp.id,
