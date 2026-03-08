@@ -343,9 +343,9 @@ export async function onRequestPost(context: any) {
     const { date, salt, signature } = await createSolapiSignature(SOLAPI_API_SECRET);
 
     // Prepare template data for Solapi
+    // ⚠️ templateCode/templateId는 Solapi가 자동 생성하므로 보내지 않음
     const templateData: any = {
-      pfId: realPfId, // DB에서 조회한 실제 32자리 pfId
-      templateCode: finalTemplateCode, // ✅ templateId → templateCode로 변경
+      pfId: realPfId, // DB에서 조회한 실제 32자리 pfId (channelId)
       name: finalTemplateName, // 자동 생성된 템플릿 이름
       content: content,
       categoryCode: categoryCode || '008', // Default to 일반 카테고리
