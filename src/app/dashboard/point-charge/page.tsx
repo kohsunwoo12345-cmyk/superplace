@@ -104,11 +104,21 @@ export default function PointChargePage() {
     try {
       const token = localStorage.getItem('token');
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = user.id;
       
-      console.log('🔍 포인트 차감 내역 조회 중...', { userId });
+      // 토큰에서 userId 추출 (userId|email|role 형식)
+      const [tokenUserId] = (token || '').split('|');
       
-      const response = await fetch(`/api/debug/point-transactions?userId=${userId}`, {
+      // user 객체에서 id 추출 (문자열일 수 있음)
+      const userId = user.id || tokenUserId || '1';
+      
+      console.log('🔍 포인트 차감 내역 조회 중...', { 
+        userId, 
+        tokenUserId,
+        userObjectId: user.id,
+        fullUser: user 
+      });
+      
+      const response = await fetch(`/api/debug/point-transactions?userId=${tokenUserId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
