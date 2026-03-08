@@ -204,7 +204,8 @@ export default function CreateTemplatePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedChannel || !templateCode || !templateName || !content || !selectedCategoryCode) {
+    // templateCode는 선택사항 (비워두면 백엔드에서 자동 생성)
+    if (!selectedChannel || !templateName || !content || !selectedCategoryCode) {
       setError('모든 필수 항목을 입력해주세요.');
       return;
     }
@@ -263,7 +264,8 @@ export default function CreateTemplatePage() {
 
       if (data.success) {
         setSuccess(`✅ ${data.message}`);
-        alert(`템플릿이 등록되었습니다!\n\n템플릿 코드: ${templateCode}\n상태: ${data.template?.status || 'REG'}\n\n카카오 검수 승인 후 사용 가능합니다.`);
+        const displayCode = data.template?.templateCode || templateCode || '자동생성됨';
+        alert(`템플릿이 등록되었습니다!\n\n템플릿 코드: ${displayCode}\n상태: ${data.template?.status || 'REG'}\n\n카카오 검수 승인 후 사용 가능합니다.`);
         setTimeout(() => router.push('/dashboard/kakao-alimtalk/templates'), 2000);
       } else {
         setError(`템플릿 등록 실패: ${data.error}\n${data.details || ''}`);
@@ -375,16 +377,16 @@ export default function CreateTemplatePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="templateCode">템플릿 코드 *</Label>
+                  <Label htmlFor="templateCode">템플릿 코드 (선택사항)</Label>
                   <Input
                     id="templateCode"
-                    placeholder="예: TEST_001, ATTENDANCE_01"
+                    placeholder="비워두면 자동 생성됩니다 (예: TPL_1234567890_ABC123)"
                     value={templateCode}
                     onChange={e => setTemplateCode(e.target.value)}
                     className="mt-1"
                   />
                   <p className="text-sm text-gray-500 mt-1">
-                    영문 대문자, 숫자, 언더스코어(_)만 사용 가능 (Solapi 템플릿 ID로 자동 사용됨)
+                    💡 비워두면 시스템이 자동으로 고유한 코드를 생성합니다
                   </p>
                 </div>
 
