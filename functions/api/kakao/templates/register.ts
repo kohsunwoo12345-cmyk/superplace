@@ -344,6 +344,7 @@ export async function onRequestPost(context: any) {
 
     // Prepare template data for Solapi
     // ✅ Solapi API 공식 스펙에 맞춤
+    // ⚠️ 중요: Solapi 문서에는 "channelId"로 표기되어 있지만, 실제 API는 "pfId" 필드를 사용합니다!
     const templateData: any = {
       pfId: realPfId, // ✅ Solapi는 실제로 "pfId" 필드 사용 (문서에는 channelId로 표기)
       name: finalTemplateName, // ✅ 템플릿 이름
