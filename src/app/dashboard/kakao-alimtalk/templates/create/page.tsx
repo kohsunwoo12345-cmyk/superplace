@@ -57,7 +57,7 @@ export default function CreateTemplatePage() {
 
   // Form fields
   const [selectedChannel, setSelectedChannel] = useState('');
-  const [templateCode, setTemplateCode] = useState('');
+  // templateCode는 백엔드에서 자동 생성되므로 state 제거
   const [templateName, setTemplateName] = useState('');
   const [content, setContent] = useState('');
   
@@ -239,8 +239,7 @@ export default function CreateTemplatePage() {
       const payload = {
         userId: user.id,
         channelId: selectedChannel, // 채널 ID만 전송 (백엔드에서 pfId 조회)
-        // pfId는 백엔드에서 DB 조회로 가져옴
-        templateCode: templateCode, // 비어있으면 백엔드에서 자동 생성
+        // templateCode는 백엔드에서 자동 생성되므로 전송하지 않음
         templateName: templateName,
         content: content,
         categoryCode: selectedCategoryCode,
@@ -264,7 +263,7 @@ export default function CreateTemplatePage() {
 
       if (data.success) {
         setSuccess(`✅ ${data.message}`);
-        const displayCode = data.template?.templateCode || templateCode || '자동생성됨';
+        const displayCode = data.template?.templateCode || '자동생성됨';
         alert(`템플릿이 등록되었습니다!\n\n템플릿 코드: ${displayCode}\n상태: ${data.template?.status || 'REG'}\n\n카카오 검수 승인 후 사용 가능합니다.`);
         setTimeout(() => router.push('/dashboard/kakao-alimtalk/templates'), 2000);
       } else {
@@ -376,19 +375,7 @@ export default function CreateTemplatePage() {
                 <CardTitle>2. 기본 정보 *</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="templateCode">템플릿 코드 (선택사항)</Label>
-                  <Input
-                    id="templateCode"
-                    placeholder="비워두면 자동 생성됩니다 (예: TPL_1234567890_ABC123)"
-                    value={templateCode}
-                    onChange={e => setTemplateCode(e.target.value)}
-                    className="mt-1"
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    💡 비워두면 시스템이 자동으로 고유한 코드를 생성합니다
-                  </p>
-                </div>
+                {/* 템플릿 코드는 백엔드에서 자동 생성되므로 입력 필드 제거 */}
 
                 <div>
                   <Label htmlFor="templateName">템플릿 이름 *</Label>
