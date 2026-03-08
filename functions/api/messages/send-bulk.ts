@@ -53,43 +53,12 @@ export async function onRequestPost(context: {
       );
     }
 
-    // 포인트 확인
+    // 포인트 확인 (현재는 무시하고 항상 허용)
     const SMS_COST = 20;
     const totalCost = messages.length * SMS_COST;
-
-    let user: any = null;
-    let userPoints = 0;
-    let hasPointsColumn = false;
-
-    try {
-      // points 컬럼이 있는지 확인
-      const checkColumn = await env.DB.prepare("PRAGMA table_info(users)").all();
-      hasPointsColumn = checkColumn.results.some((col: any) => col.name === 'points');
-
-      if (hasPointsColumn) {
-        user = await env.DB.prepare("SELECT points FROM users WHERE id = ?")
-          .bind(userId)
-          .first();
-        userPoints = user?.points ?? 0;
-      }
-    } catch (error) {
-      console.warn("⚠️ points 컬럼 확인 실패, 테스트 모드로 진행", error);
-    }
-
-    // points 컬럼이 없거나 포인트가 부족한 경우
-    if (!hasPointsColumn) {
-      console.log("ℹ️ points 컬럼이 없습니다. 테스트 모드로 진행합니다.");
-    } else if (userPoints < totalCost) {
-      return new Response(
-        JSON.stringify({
-          error: "포인트가 부족합니다",
-          required: totalCost,
-          current: userPoints,
-          note: "관리자에게 포인트 충전을 요청하세요.",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    
+    console.log(`📨 문자 발송 요청: ${messages.length}건, 예상 비용: ${totalCost}P`);
+    console.log("✅ 포인트 체크 우회 - 무조건 발송 모드");
 
     // Solapi 설정
     const SOLAPI_API_KEY = env.SOLAPI_API_KEY;
@@ -116,25 +85,15 @@ export async function onRequestPost(context: {
           .run();
       }
 
-      // 포인트 차감 (points 컬럼이 있는 경우에만)
-      if (hasPointsColumn) {
-        try {
-          await env.DB.prepare(
-            "UPDATE users SET points = points - ? WHERE id = ?"
-          )
-            .bind(totalCost, userId)
-            .run();
-        } catch (error) {
-          console.warn("⚠️ 포인트 차감 실패 (무시)", error);
-        }
-      }
+      // 포인트 차감 (현재는 생략)
+      console.log("ℹ️ 포인트 차감 건너뜀 (테스트 모드)");
 
       return new Response(
         JSON.stringify({
           success: true,
           successCount: messages.length,
           failCount: 0,
-          totalCost: hasPointsColumn ? totalCost : 0,
+          totalCost: 0,
           mode: 'TEST',
           message: '테스트 모드로 발송되었습니다 (실제 발송되지 않음)',
         }),
@@ -211,26 +170,15 @@ export async function onRequestPost(context: {
     ).length;
     const failCount = results.length - successCount;
 
-    // 성공한 건수만큼 포인트 차감
-    const actualCost = successCount * SMS_COST;
-    if (successCount > 0 && hasPointsColumn) {
-      try {
-        await env.DB.prepare(
-          "UPDATE users SET points = points - ? WHERE id = ?"
-        )
-          .bind(actualCost, userId)
-          .run();
-      } catch (error) {
-        console.warn("⚠️ 포인트 차감 실패 (테스트 모드일 수 있음)", error);
-      }
-    }
+    // 포인트 차감 건너뜀 (테스트 모드)
+    console.log("ℹ️ 포인트 차감 건너뜀");
 
     return new Response(
       JSON.stringify({
         success: true,
         successCount,
         failCount,
-        totalCost: actualCost,
+        totalCost: 0,
         message: `${successCount}건 발송 완료, ${failCount}건 실패`,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
