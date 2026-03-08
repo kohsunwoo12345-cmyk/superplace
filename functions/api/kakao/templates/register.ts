@@ -92,34 +92,32 @@ async function fetchPfIdFromSolapi(
     
     const data = await response.json();
     console.log('📋 Solapi 채널 목록:', {
-      totalChannels: data.channels?.length || 0,
-      channelsPreview: data.channels?.slice(0, 3).map((c: any) => ({
-        name: c.name || c.plusFriendId || c.channelName,
-        pfId: c.pfId,
+      totalChannels: data.channelList?.length || 0,
+      channelsPreview: data.channelList?.slice(0, 3).map((c: any) => ({
+        name: c.channelName || c.searchId,
+        channelId: c.channelId, // ✅ pfId가 아닌 channelId
       })) || [],
     });
     
-    // 채널명으로 pfId 찾기 (여러 필드명 시도)
-    const channel = data.channels?.find((c: any) => 
-      c.name === channelName || 
-      c.plusFriendId === channelName || 
-      c.channelName === channelName ||
-      c.kakaoChannelName === channelName
+    // 채널명으로 channelId 찾기
+    const channel = data.channelList?.find((c: any) => 
+      c.channelName === channelName || 
+      c.searchId === channelName
     );
     
-    if (channel && channel.pfId) {
-      console.log('✅ pfId 찾기 성공:', {
+    if (channel && channel.channelId) {
+      console.log('✅ channelId 찾기 성공:', {
         channelName,
-        pfId: channel.pfId,
-        pfIdLength: channel.pfId.length,
+        channelId: channel.channelId, // ✅ Solapi의 channelId를 pfId로 사용
+        length: channel.channelId.length,
       });
-      return channel.pfId;
+      return channel.channelId; // ✅ channelId 반환
     }
     
     console.warn('⚠️ 채널을 찾을 수 없음:', {
       searchName: channelName,
-      availableChannels: data.channels?.map((c: any) => 
-        c.name || c.plusFriendId || c.channelName
+      availableChannels: data.channelList?.map((c: any) => 
+        c.channelName || c.searchId
       ) || [],
     });
     return null;
