@@ -48,6 +48,11 @@ export default function MessageSendPage() {
   const [senderNumber, setSenderNumber] = useState("");
   const [messageContent, setMessageContent] = useState("");
   const [senderNumbers, setSenderNumbers] = useState<string[]>([]);
+  
+  // 예약 발송
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
 
   // 엑셀 업로드
   const [recipients, setRecipients] = useState<RecipientRow[]>([]);
@@ -276,13 +281,37 @@ export default function MessageSendPage() {
       alert("엑셀 파일을 업로드하여 수신자를 추가해주세요.");
       return;
     }
+    
+    // 예약 발송 시간 검증
+    let scheduledDateTime: string | undefined;
+    if (isScheduled) {
+      if (!scheduledDate || !scheduledTime) {
+        alert("예약 발송 날짜와 시간을 모두 입력해주세요.");
+        return;
+      }
+      
+      // 한국 시간(KST)으로 ISO 8601 변환
+      scheduledDateTime = `${scheduledDate}T${scheduledTime}:00+09:00`;
+      const scheduledDateObj = new Date(scheduledDateTime);
+      const now = new Date();
+      
+      if (scheduledDateObj <= now) {
+        alert("예약 시간은 현재 시간 이후여야 합니다.");
+        return;
+      }
+    }
 
     console.log('✅ 발송 조건 충족, confirm 대화상자 표시');
-    const confirmed = confirm(
-      `총 ${recipients.length}명에게 SMS 발송\n` +
-      `예상 비용: ${recipients.length * SMS_COST}P\n\n` +
-      `발송하시겠습니까?`
-    );
+    const confirmMessage = isScheduled
+      ? `총 ${recipients.length}명에게 SMS 예약 발송\n` +
+        `예약 시간: ${scheduledDate} ${scheduledTime} (한국 시간)\n` +
+        `예상 비용: ${recipients.length * SMS_COST}P\n\n` +
+        `예약하시겠습니까?`
+      : `총 ${recipients.length}명에게 SMS 발송\n` +
+        `예상 비용: ${recipients.length * SMS_COST}P\n\n` +
+        `발송하시겠습니까?`;
+    
+    const confirmed = confirm(confirmMessage);
     
     console.log('📋 사용자 확인 결과:', confirmed ? '확인' : '취소');
 
@@ -300,6 +329,7 @@ export default function MessageSendPage() {
         text: replaceVariables(messageContent, recipient),
         studentId: recipient.studentId,
         studentName: recipient.studentName,
+        scheduledDate: scheduledDateTime,  // 예약 시간 추가
       }));
 
       console.log('📤 발송할 메시지:', messages);
@@ -325,7 +355,9 @@ export default function MessageSendPage() {
       });
 
       if (result.success) {
-        let message = `✅ ${result.successCount}건 발송 완료!`;
+        let message = isScheduled 
+          ? `✅ ${result.successCount}건 예약 완료!`
+          : `✅ ${result.successCount}건 발송 완료!`;
         
         if (result.failCount > 0) {
           message += `\n❌ ${result.failCount}건 실패`;
@@ -339,6 +371,10 @@ export default function MessageSendPage() {
           }
         }
         
+        if (isScheduled) {
+          message += `\n\n예약 시간: ${scheduledDate} ${scheduledTime}`;
+        }
+        
         message += `\n\n차감된 포인트: ${result.pointsDeducted}P`;
         message += `\n남은 포인트: ${result.remainingPoints}P`;
         
@@ -348,6 +384,9 @@ export default function MessageSendPage() {
           setRecipients([]);
           setMessageContent("");
           setExcelFile(null);
+          setIsScheduled(false);
+          setScheduledDate("");
+          setScheduledTime("");
         }
       } else {
         // 에러 상세 정보 표시
@@ -438,6 +477,49 @@ export default function MessageSendPage() {
               <p className="mt-2 text-sm text-gray-500">
                 {messageContent.length}자 / {Math.ceil(messageContent.length / 90)}건
               </p>
+            </div>
+            
+            {/* 예약 발송 */}
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  type="checkbox"
+                  id="scheduled"
+                  checked={isScheduled}
+                  onChange={(e) => setIsScheduled(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="scheduled" className="cursor-pointer">
+                  ⏰ 예약 발송
+                </Label>
+              </div>
+              
+              {isScheduled && (
+                <div className="space-y-3 pl-6">
+                  <div>
+                    <Label className="text-sm">발송 날짜</Label>
+                    <Input
+                      type="date"
+                      value={scheduledDate}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      className="mt-1"
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm">발송 시간 (한국 시간)</Label>
+                    <Input
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    💡 예약 시간은 한국 표준시(KST) 기준입니다.
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

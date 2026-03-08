@@ -14,6 +14,7 @@ interface Message {
   text: string;
   studentId?: string;
   studentName?: string;
+  scheduledDate?: string;  // 예약 발송 시간 (ISO 8601)
 }
 
 export async function onRequestPost(context: {
@@ -237,19 +238,41 @@ export async function onRequestPost(context: {
             authHeaderLength: authHeader.length,
           });
           
+          // Solapi API 요청 바디 구성
+          const requestBody: any = {
+            message: {
+              to: message.to.replace(/-/g, ""),
+              from: message.from.replace(/-/g, ""),
+              text: message.text,
+            },
+          };
+          
+          // 예약 발송 시간이 있으면 추가
+          if (message.scheduledDate) {
+            // ISO 8601 형식을 Solapi 형식으로 변환 (YYYY-MM-DD HH:mm:ss)
+            const scheduledTime = new Date(message.scheduledDate);
+            const year = scheduledTime.getFullYear();
+            const month = String(scheduledTime.getMonth() + 1).padStart(2, '0');
+            const day = String(scheduledTime.getDate()).padStart(2, '0');
+            const hours = String(scheduledTime.getHours()).padStart(2, '0');
+            const minutes = String(scheduledTime.getMinutes()).padStart(2, '0');
+            const seconds = String(scheduledTime.getSeconds()).padStart(2, '0');
+            
+            requestBody.message.scheduledDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            
+            console.log('⏰ 예약 발송:', {
+              input: message.scheduledDate,
+              formatted: requestBody.message.scheduledDate,
+            });
+          }
+          
           const response = await fetch("https://api.solapi.com/messages/v4/send", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "Authorization": authHeader,
             },
-            body: JSON.stringify({
-              message: {
-                to: message.to.replace(/-/g, ""),
-                from: message.from.replace(/-/g, ""),
-                text: message.text,
-              },
-            }),
+            body: JSON.stringify(requestBody),
           });
 
           const result = await response.json();
@@ -262,7 +285,19 @@ export async function onRequestPost(context: {
           });
           
           // Solapi는 HTTP 200이어도 statusCode로 성공/실패 판단
-          const isSuccess = response.ok && (result.statusCode === '2000' || result.statusCode === 2000);
+          // statusCode 2000~2999 범위는 성공
+          const statusCodeNum = typeof result.statusCode === 'string' 
+            ? parseInt(result.statusCode) 
+            : result.statusCode;
+          const isSuccess = response.ok && statusCodeNum >= 2000 && statusCodeNum < 3000;
+
+          console.log('✅ 성공 여부:', {
+            responseOk: response.ok,
+            statusCode: result.statusCode,
+            statusCodeNum,
+            isSuccess,
+            messageId: result.messageId,
+          });
 
           // DB에 로그 저장
           await env.DB.prepare(`
