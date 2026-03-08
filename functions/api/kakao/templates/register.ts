@@ -47,6 +47,64 @@ async function createSolapiSignature(apiSecret: string) {
   return { date, salt, signature: signatureHex };
 }
 
+// 🆕 Solapi API에서 채널 목록 조회하여 pfId 찾기
+async function fetchPfIdFromSolapi(
+  channelName: string, 
+  apiKey: string, 
+  apiSecret: string
+): Promise<string | null> {
+  try {
+    console.log('🔍 Solapi API에서 채널 조회 시작:', channelName);
+    
+    const { date, salt, signature } = await createSolapiSignature(apiSecret);
+    const authHeader = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
+    
+    // Solapi API: 카카오 채널 목록 조회
+    const response = await fetch('https://api.solapi.com/kakao/v2/plus-friends', {
+      method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      console.error('❌ Solapi 채널 목록 조회 실패:', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    console.log('📋 Solapi 채널 목록:', {
+      totalChannels: data.plusFriends?.length || 0,
+      channels: data.plusFriends?.map((c: any) => ({
+        name: c.plusFriendId,
+        pfId: c.pfId,
+      })) || [],
+    });
+    
+    // 채널명으로 pfId 찾기
+    const channel = data.plusFriends?.find((c: any) => 
+      c.plusFriendId === channelName || 
+      c.name === channelName
+    );
+    
+    if (channel && channel.pfId) {
+      console.log('✅ pfId 찾기 성공:', {
+        channelName,
+        pfId: channel.pfId,
+        pfIdLength: channel.pfId.length,
+      });
+      return channel.pfId;
+    }
+    
+    console.warn('⚠️ 채널을 찾을 수 없음:', channelName);
+    return null;
+  } catch (error: any) {
+    console.error('❌ Solapi API 호출 에러:', error.message);
+    return null;
+  }
+}
+
 // POST: Solapi에 템플릿 등록 신청
 export async function onRequestPost(context: any) {
   const { request, env } = context;
@@ -57,7 +115,7 @@ export async function onRequestPost(context: any) {
       userId,
       channelId,
       templateCode: userTemplateCode, // 사용자 입력 템플릿 코드 (무시하고 자동 생성)
-      templateName,      // 템플릿 이름
+      templateName: userTemplateName,      // 사용자 입력 템플릿 이름 (무시하고 자동 생성)
       content,           // 템플릿 내용
       categoryCode,      // 카테고리 코드 (예: 008, 012 등)
       messageType,       // BA (기본형), EX (부가정보형), AD (광고추가형), MI (복합형)
@@ -71,20 +129,24 @@ export async function onRequestPost(context: any) {
     // 🔧 템플릿 코드 무조건 자동 생성 (사용자 입력 무시)
     const finalTemplateCode = `TPL_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     
+    // 🔧 템플릿 이름도 자동 생성 (report_177235... 형식)
+    const finalTemplateName = `report_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    
     console.log('📝 템플릿 등록 신청:', { 
       userId, 
       channelId, 
-      userInput: userTemplateCode,
-      generated: finalTemplateCode,
-      templateName 
+      userInputCode: userTemplateCode,
+      generatedCode: finalTemplateCode,
+      userInputName: userTemplateName,
+      generatedName: finalTemplateName
     });
 
-    // 필수 필드 검증
-    if (!userId || !channelId || !templateName || !content) {
+    // 필수 필드 검증 (templateName은 자동 생성되므로 체크 제외)
+    if (!userId || !channelId || !content) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Missing required fields: userId, channelId, templateName, content' 
+          error: 'Missing required fields: userId, channelId, content' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -119,19 +181,70 @@ export async function onRequestPost(context: any) {
       });
       
       if (channelResult) {
-        if (channelResult.solapiChannelId) {
+        // DB에 pfId가 있으면 사용, 없으면 Solapi API에서 조회
+        if (channelResult.solapiChannelId && channelResult.solapiChannelId.length >= 30) {
           realPfId = channelResult.solapiChannelId;
-          console.log('✅ 실제 pfId 조회 성공:', realPfId);
+          console.log('✅ DB에서 pfId 조회 성공:', {
+            pfId: realPfId.substring(0, 10) + '...',
+            length: realPfId.length,
+          });
         } else {
-          console.error('❌ solapiChannelId가 DB에 없습니다!');
-          return new Response(
-            JSON.stringify({ 
-              success: false, 
-              error: '카카오 채널의 pfId가 등록되지 않았습니다. 채널을 먼저 연동해주세요.',
-              details: '관리자에게 문의하세요: solapiChannelId 누락'
-            }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          console.warn('⚠️ DB에 유효한 pfId 없음, Solapi API에서 조회 시도...');
+          
+          // Solapi credentials 먼저 가져오기
+          const envAny = env as any;
+          const SOLAPI_API_KEY = (envAny['SOLAPI_API_Key '] || envAny['SOLAPI_API_Key'] || envAny.SOLAPI_API_Key || envAny.SOLAPI_API_KEY)?.trim();
+          const SOLAPI_API_SECRET = (envAny.SOLAPI_API_SECRET || envAny.SOLAPI_API_Secret || envAny['SOLAPI_API_Secret'])?.trim();
+          
+          if (SOLAPI_API_KEY && SOLAPI_API_SECRET) {
+            // Solapi API에서 pfId 조회
+            const fetchedPfId = await fetchPfIdFromSolapi(
+              channelResult.channelName,
+              SOLAPI_API_KEY,
+              SOLAPI_API_SECRET
+            );
+            
+            if (fetchedPfId) {
+              realPfId = fetchedPfId;
+              console.log('✅ Solapi API에서 pfId 조회 성공:', {
+                channelName: channelResult.channelName,
+                pfId: realPfId.substring(0, 10) + '...',
+                length: realPfId.length,
+              });
+              
+              // DB에 pfId 업데이트
+              try {
+                await env.DB.prepare(`
+                  UPDATE KakaoChannel 
+                  SET solapiChannelId = ?, updatedAt = CURRENT_TIMESTAMP
+                  WHERE id = ?
+                `).bind(realPfId, channelId).run();
+                console.log('💾 DB에 pfId 저장 완료');
+              } catch (updateError: any) {
+                console.warn('⚠️ DB 업데이트 실패 (계속 진행):', updateError.message);
+              }
+            } else {
+              console.error('❌ Solapi API에서도 pfId를 찾을 수 없음');
+              return new Response(
+                JSON.stringify({ 
+                  success: false, 
+                  error: 'Solapi에서 카카오 채널을 찾을 수 없습니다.',
+                  details: `채널명: ${channelResult.channelName}. Solapi 콘솔에서 채널이 정상 연동되었는지 확인해주세요.`
+                }),
+                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          } else {
+            console.error('❌ Solapi 자격 증명 없음');
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: 'Solapi 자격 증명이 설정되지 않았습니다.',
+                details: 'SOLAPI_API_Key와 SOLAPI_API_SECRET을 환경 변수에 등록해주세요.'
+              }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
         
         if (!academyPhone && channelResult.phoneNumber) {
@@ -165,7 +278,8 @@ export async function onRequestPost(context: any) {
       academyPhone, 
       realPfId: realPfId?.substring(0, 10) + '...', 
       pfIdLength: realPfId?.length,
-      templateCode: finalTemplateCode 
+      templateCode: finalTemplateCode,
+      templateName: finalTemplateName
     });
 
     // Get Solapi credentials (여러 가능한 환경 변수명 시도)
@@ -200,7 +314,7 @@ export async function onRequestPost(context: any) {
     const templateData: any = {
       pfId: realPfId, // DB에서 조회한 실제 32자리 pfId
       templateId: finalTemplateCode,
-      name: templateName,
+      name: finalTemplateName, // 자동 생성된 템플릿 이름
       content: content,
       categoryCode: categoryCode || '008', // Default to 일반 카테고리
       messageType: messageType || 'BA',
@@ -316,7 +430,7 @@ export async function onRequestPost(context: any) {
       userId,
       channelId,
       finalTemplateCode, // 자동 생성된 코드 저장
-      templateName,
+      finalTemplateName, // 자동 생성된 이름 저장
       content,
       categoryCode || '008',
       messageType || 'BA',
@@ -339,7 +453,7 @@ export async function onRequestPost(context: any) {
         template: {
           id,
           templateCode: finalTemplateCode, // 자동 생성된 코드 반환
-          templateName,
+          templateName: finalTemplateName, // 자동 생성된 이름 반환
           status: solapiData.status,
           inspectionStatus: solapiData.inspectionStatus
         },
