@@ -345,14 +345,22 @@ export async function onRequestPost(context: any) {
     // Prepare template data for Solapi
     // ✅ Solapi API 공식 스펙에 맞춤
     const templateData: any = {
-      channelId: realPfId, // ✅ Solapi는 channelId 사용 (pfId 아님!)
-      // templateCode 제거 - Solapi API에 없는 필드!
+      // channelId는 선택 사항 - 일단 제외하고 시도
+      // channelId: realPfId, 
       name: finalTemplateName, // ✅ 템플릿 이름
       content: content, // ✅ 템플릿 내용
       categoryCode: categoryCode || '008', // ✅ 필수
       messageType: messageType || 'BA', // ✅ BA, EX, AD, MI
       securityFlag: securityFlag || false // ✅ 보안 템플릿 여부
     };
+    
+    // ✅ realPfId가 있으면 channelId로 추가 (KA01PF로 시작하는 경우에만)
+    if (realPfId && realPfId.startsWith('KA01PF')) {
+      templateData.channelId = realPfId;
+      console.log('✅ channelId 설정:', realPfId);
+    } else {
+      console.warn('⚠️  realPfId 없거나 잘못된 형식, channelId 제외');
+    }
     
     // ❌ senderKey 제거 - Solapi 템플릿 등록에는 필요없음
     // (알림톡 발송 시에만 사용)
