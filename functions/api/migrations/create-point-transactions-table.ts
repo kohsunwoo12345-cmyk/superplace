@@ -19,7 +19,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
       console.log("ℹ️ No existing table to drop");
     }
 
-    // 테이블 생성
+    // 테이블 생성 (FOREIGN KEY 제거)
     await env.DB.prepare(`
       CREATE TABLE point_transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,8 +27,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
         amount INTEGER NOT NULL,
         type TEXT NOT NULL,
         description TEXT,
-        createdAt TEXT NOT NULL,
-        FOREIGN KEY (userId) REFERENCES User(id)
+        createdAt TEXT NOT NULL
       )
     `).run();
 
