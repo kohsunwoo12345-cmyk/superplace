@@ -349,10 +349,10 @@ export async function onRequestPost(context: any) {
     const { date, salt, signature } = await createSolapiSignature(SOLAPI_API_SECRET);
 
     // Prepare template data for Solapi
-    // ✅ templateCode는 필수 필드 (영문 소문자, 숫자, 언더스코어, 최대 40자)
+    // ⚠️ templateCode 제거 시도 - Solapi가 자동 생성하도록
     const templateData: any = {
       pfId: realPfId, // DB에서 조회한 실제 32자리 pfId (channelId)
-      templateCode: finalTemplateCode, // ✅ 필수: report_69017061_uftlq7
+      // templateCode 제거 - Solapi 자동 생성
       name: finalTemplateName, // 자동 생성된 템플릿 이름
       content: content,
       categoryCode: categoryCode || '008', // Default to 일반 카테고리
