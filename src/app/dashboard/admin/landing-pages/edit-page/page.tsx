@@ -154,12 +154,21 @@ export default function EditLandingPagePage() {
       // htmlContent는 이미 editableContent 변경 시 자동 업데이트됨
       // 추가 업데이트 불필요, htmlContent를 그대로 사용
       
-      // 디버깅: 저장할 내용 확인
-      console.log('💾 저장할 데이터:', {
+      // 디버깅: 저장할 내용 확인 (매우 상세하게)
+      console.log('💾 ===== 저장 시작 =====');
+      console.log('💾 제목:', title.trim());
+      console.log('💾 상태:', status);
+      console.log('💾 HTML 전체 길이:', htmlContent.length);
+      console.log('💾 HTML 미리보기 (처음 500자):', htmlContent.substring(0, 500));
+      console.log('💾 HTML 미리보기 (body 부분):', htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1]?.substring(0, 300));
+      
+      const requestBody = {
         title: title.trim(),
-        htmlContentLength: htmlContent.length,
-        htmlContentPreview: htmlContent.substring(0, 200)
-      });
+        html_content: htmlContent,
+        status,
+      };
+      
+      console.log('💾 전송할 데이터:', JSON.stringify(requestBody).substring(0, 500));
 
       const response = await fetch(`/api/admin/landing-pages/${id}`, {
         method: "PUT",
@@ -167,23 +176,23 @@ export default function EditLandingPagePage() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          title: title.trim(),
-          html_content: htmlContent,
-          status,
-          // subtitle, og_title, og_description, thumbnail_url은 DB에 없음
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('💾 응답 상태:', response.status, response.statusText);
+      
+      const responseData = await response.json();
+      console.log('💾 응답 데이터:', responseData);
+
       if (response.ok) {
+        console.log('✅ 저장 성공!');
         alert("랜딩페이지가 수정되었습니다!");
         router.push("/dashboard/admin/landing-pages");
       } else {
-        const error = await response.json();
-        console.error("❌ Update failed:", error);
-        const errorMsg = `수정 실패: ${error.error || "알 수 없는 오류"}
-상세: ${error.details || "N/A"}
-에러명: ${error.errorName || "N/A"}`;
+        console.error("❌ Update failed:", responseData);
+        const errorMsg = `수정 실패: ${responseData.error || "알 수 없는 오류"}
+상세: ${responseData.details || "N/A"}
+에러명: ${responseData.errorName || "N/A"}`;
         alert(errorMsg);
       }
     } catch (error: any) {
@@ -511,11 +520,17 @@ export default function EditLandingPagePage() {
         const container = document.getElementById('editable-container');
         if (container) {
           const newContent = container.innerHTML;
+          console.log('📤 [iframe] postMessage 전송 중...', {
+            contentLength: newContent.length,
+            contentPreview: newContent.substring(0, 200)
+          });
           window.parent.postMessage({
             type: 'TEXT_UPDATE',
             content: newContent
           }, '*');
-          console.log('✅ 텍스트 수정 완료');
+          console.log('✅ [iframe] 텍스트 수정 완료 및 postMessage 전송됨');
+        } else {
+          console.error('❌ [iframe] editable-container를 찾을 수 없음');
         }
       }
       
