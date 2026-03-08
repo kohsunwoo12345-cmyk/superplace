@@ -11,9 +11,17 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
   try {
     console.log("🔧 Creating point_transactions table...");
 
+    // 기존 테이블 삭제 (이미 잘못된 스키마로 생성된 경우 대비)
+    try {
+      await env.DB.prepare(`DROP TABLE IF EXISTS point_transactions`).run();
+      console.log("🗑️ Dropped existing point_transactions table");
+    } catch (dropError) {
+      console.log("ℹ️ No existing table to drop");
+    }
+
     // 테이블 생성
     await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS point_transactions (
+      CREATE TABLE point_transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId INTEGER NOT NULL,
         amount INTEGER NOT NULL,
