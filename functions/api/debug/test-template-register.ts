@@ -37,7 +37,7 @@ async function createSolapiSignature(apiSecret: string) {
 export const onRequestOptions: PagesFunction = async () => {
   return new Response(null, {
     status: 204,
-    headers: cors Headers
+    headers: corsHeaders
   });
 };
 
