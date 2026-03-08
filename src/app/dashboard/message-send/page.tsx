@@ -113,12 +113,44 @@ export default function MessageSendPage() {
 
       // 엑셀 데이터를 RecipientRow 형식으로 변환
       const parsedRecipients: RecipientRow[] = jsonData.map((row: any) => {
+        // 전화번호 정규화: 숫자만 추출 후 010 형식으로 변환
+        let phoneRaw = String(row['학부모연락처'] || row['연락처'] || row['전화번호'] || '').trim();
+        
+        // 숫자만 추출
+        let phoneDigits = phoneRaw.replace(/[^0-9]/g, '');
+        
+        // 010으로 시작하지 않으면 010 추가
+        if (phoneDigits.length === 9 || phoneDigits.length === 10) {
+          if (!phoneDigits.startsWith('010')) {
+            phoneDigits = '010' + phoneDigits;
+          }
+        } else if (phoneDigits.length === 8) {
+          // 8자리면 010 + 1 + 나머지
+          phoneDigits = '0101' + phoneDigits;
+        }
+        
+        // 하이픈 추가 (010-XXXX-XXXX 형식)
+        let formattedPhone = '';
+        if (phoneDigits.length === 11) {
+          formattedPhone = `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 7)}-${phoneDigits.slice(7, 11)}`;
+        } else if (phoneDigits.length === 10) {
+          formattedPhone = `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6, 10)}`;
+        } else {
+          formattedPhone = phoneDigits; // 그대로 사용
+        }
+        
         const recipient = {
           studentName: row['학생이름'] || row['이름'] || row['name'] || '',
           studentId: row['학생아이디'] || row['학생ID'] || row['studentId'] || '',
-          parentPhone: row['학부모연락처'] || row['연락처'] || row['전화번호'] || '',
+          parentPhone: formattedPhone,
         };
-        console.log('📝 파싱된 행:', { raw: row, parsed: recipient });
+        console.log('📝 파싱된 행:', { 
+          raw: row, 
+          phoneRaw, 
+          phoneDigits, 
+          formattedPhone,
+          parsed: recipient 
+        });
         return recipient;
       }).filter(r => {
         const valid = r.parentPhone && r.studentName;
@@ -315,10 +347,30 @@ export default function MessageSendPage() {
       });
 
       if (result.success) {
-        alert(`✅ ${result.successCount}건 발송 완료!`);
-        setRecipients([]);
-        setMessageContent("");
-        setExcelFile(null);
+        let message = `✅ ${result.successCount}건 발송 완료!`;
+        
+        if (result.failCount > 0) {
+          message += `\n❌ ${result.failCount}건 실패`;
+          
+          // 실패한 메시지 상세 정보 표시
+          if (result.failedMessages && result.failedMessages.length > 0) {
+            message += '\n\n실패 상세:';
+            result.failedMessages.forEach((failed: any) => {
+              message += `\n- ${failed.studentName} (${failed.to}): ${failed.error}`;
+            });
+          }
+        }
+        
+        message += `\n\n차감된 포인트: ${result.pointsDeducted}P`;
+        message += `\n남은 포인트: ${result.remainingPoints}P`;
+        
+        alert(message);
+        
+        if (result.successCount > 0) {
+          setRecipients([]);
+          setMessageContent("");
+          setExcelFile(null);
+        }
       } else {
         // 에러 상세 정보 표시
         const errorMsg = result.message || result.error || result.details || JSON.stringify(result);

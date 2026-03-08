@@ -310,6 +310,24 @@ export async function onRequestPost(context: {
       (r) => r.status === "fulfilled" && r.value.success
     ).length;
     const failCount = results.length - successCount;
+    
+    // 실패한 메시지 정보 수집
+    const failedMessages = results
+      .map((r, index) => {
+        if (r.status === "rejected" || (r.status === "fulfilled" && !r.value.success)) {
+          const msg = messages[index];
+          const error = r.status === "rejected" 
+            ? r.reason?.message 
+            : (r.value as any).error;
+          return {
+            to: msg.to,
+            studentName: msg.studentName,
+            error: error || 'Unknown error',
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
 
     // 성공한 메시지만 포인트 차감 (이메일 기준)
     let actualCost = 0;
@@ -350,6 +368,7 @@ export async function onRequestPost(context: {
         message: `${successCount}건 발송 완료, ${failCount}건 실패`,
         pointsDeducted: actualCost,
         remainingPoints: currentPoints - actualCost,
+        failedMessages: failedMessages, // 실패한 메시지 상세 정보
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
