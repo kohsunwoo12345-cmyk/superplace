@@ -405,6 +405,22 @@ export default function MessageHistoryPage() {
                         {message.messageContent}
                       </div>
 
+                      {/* 수신자 미리보기 */}
+                      {message.recipients && message.recipients.length > 0 && (
+                        <div className="text-xs text-gray-500 mt-2 flex flex-wrap gap-2">
+                          {message.recipients.slice(0, 3).map((recipient: any, idx: number) => (
+                            <div key={idx} className="px-2 py-1 bg-gray-100 rounded">
+                              {recipient.studentName || '수신자'} ({recipient.to})
+                            </div>
+                          ))}
+                          {message.recipients.length > 3 && (
+                            <div className="px-2 py-1 bg-gray-100 rounded">
+                              외 {message.recipients.length - 3}명
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* 네 번째 줄: 통계 정보 */}
                       <div className="flex items-center gap-4 text-sm">
                         <div className="flex items-center gap-1">
@@ -538,42 +554,45 @@ export default function MessageHistoryPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm">
-                    수신자 목록 ({selectedMessage.recipients?.length || 0}명)
+                    발송 결과 ({selectedMessage.sendResults?.length || 0}명)
                   </CardTitle>
+                  <CardDescription className="text-xs">
+                    성공: {selectedMessage.successCount}명 / 실패: {selectedMessage.failCount}명
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2 max-h-80 overflow-y-auto">
-                    {selectedMessage.recipients?.map((recipient: any, index: number) => (
+                    {selectedMessage.sendResults?.map((result: any, index: number) => (
                       <div
                         key={index}
-                        className="p-3 bg-gray-50 rounded border flex items-center justify-between"
+                        className="p-3 bg-gray-50 rounded border"
                       >
-                        <div>
-                          <div className="font-medium">{recipient.studentName}</div>
-                          <div className="text-sm text-gray-600">
-                            {recipient.parentPhone}
-                          </div>
-                          {recipient.landingPageUrl && (
-                            <div className="text-xs text-teal-600 mt-1 flex items-center gap-1">
-                              <LinkIcon className="w-3 h-3" />
-                              <a
-                                href={recipient.landingPageUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:underline truncate"
-                              >
-                                {recipient.landingPageUrl}
-                              </a>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="font-medium">{result.studentName || '수신자'}</div>
+                              {result.status === "SUCCESS" ? (
+                                <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />성공</Badge>
+                              ) : (
+                                <Badge className="bg-red-500"><XCircle className="w-3 h-3 mr-1" />실패</Badge>
+                              )}
                             </div>
-                          )}
+                            <div className="text-sm text-gray-600 flex items-center gap-2">
+                              <Phone className="w-3 h-3" />
+                              {result.to}
+                            </div>
+                            {result.cost > 0 && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                사용 포인트: {result.cost}P
+                              </div>
+                            )}
+                            {result.error && (
+                              <div className="text-xs text-red-600 mt-1 p-2 bg-red-50 rounded">
+                                오류: {result.error}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {recipient.status === "success" ? (
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                        ) : recipient.status === "failed" ? (
-                          <XCircle className="w-5 h-5 text-red-500" />
-                        ) : (
-                          <Clock className="w-5 h-5 text-yellow-500" />
-                        )}
                       </div>
                     ))}
                   </div>
