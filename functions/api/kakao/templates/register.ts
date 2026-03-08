@@ -373,11 +373,20 @@ export async function onRequestPost(context: any) {
     // Add emphasize type and extra if provided
     if (emphasizeType && emphasizeType !== 'NONE') {
       templateData.emphasizeType = emphasizeType;
-      // ✅ extra는 JSON 문자열로 변환
+      
+      // ✅ Solapi 요구사항: emphasizeTitle과 emphasizeSubtitle 필드 사용
       if (extra && typeof extra === 'object') {
-        templateData.extra = JSON.stringify(extra);
+        templateData.emphasizeTitle = extra.title || extra.emphasizeTitle || '';
+        templateData.emphasizeSubtitle = extra.description || extra.subtitle || extra.emphasizeSubtitle || '';
       } else if (extra && typeof extra === 'string') {
-        templateData.extra = extra;
+        // JSON 문자열인 경우 파싱
+        try {
+          const parsed = JSON.parse(extra);
+          templateData.emphasizeTitle = parsed.title || parsed.emphasizeTitle || '';
+          templateData.emphasizeSubtitle = parsed.description || parsed.subtitle || parsed.emphasizeSubtitle || '';
+        } catch (e) {
+          console.warn('⚠️ extra JSON 파싱 실패:', extra);
+        }
       }
     }
 
