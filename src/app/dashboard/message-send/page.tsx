@@ -113,55 +113,22 @@ export default function MessageSendPage() {
 
       // 엑셀 데이터를 RecipientRow 형식으로 변환
       const parsedRecipients: RecipientRow[] = jsonData.map((row: any) => {
-        // 전화번호 정규화: 숫자만 추출 후 010 형식으로 변환
+        // 전화번호: 엑셀 원본 그대로 사용 (변환 없음)
         let phoneRaw = String(row['학부모연락처'] || row['연락처'] || row['전화번호'] || '').trim();
-        
-        // 숫자만 추출
-        let phoneDigits = phoneRaw.replace(/[^0-9]/g, '');
-        
-        // 길이별 처리
-        if (phoneDigits.length === 11) {
-          // 11자리: 이미 완전한 번호 (010-XXXX-XXXX)
-          // 그대로 사용
-        } else if (phoneDigits.length === 10) {
-          // 10자리: 
-          // - 010으로 시작 → 그대로 (잘못된 번호지만 그대로 전달)
-          // - 010으로 시작 안함 → 010 추가
-          if (!phoneDigits.startsWith('010')) {
-            phoneDigits = '010' + phoneDigits;
-          }
-        } else if (phoneDigits.length === 9) {
-          // 9자리: 1XXXXXXXX → 0101XXXXXXXX
-          phoneDigits = '010' + phoneDigits;
-        } else if (phoneDigits.length === 8) {
-          // 8자리: 지역번호 없는 경우 → 010 추가
-          phoneDigits = '010' + phoneDigits;
-        }
-        
-        // 하이픈 추가 (010-XXXX-XXXX 형식)
-        let formattedPhone = '';
-        if (phoneDigits.length === 11) {
-          formattedPhone = `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 7)}-${phoneDigits.slice(7, 11)}`;
-        } else if (phoneDigits.length === 10) {
-          formattedPhone = `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6, 10)}`;
-        } else {
-          // 비정상적인 길이는 그대로
-          formattedPhone = phoneDigits;
-        }
         
         const recipient = {
           studentName: row['학생이름'] || row['이름'] || row['name'] || '',
           studentId: row['학생아이디'] || row['학생ID'] || row['studentId'] || '',
-          parentPhone: formattedPhone,
+          parentPhone: phoneRaw,  // 원본 그대로
         };
+        
         console.log('📝 파싱된 행:', { 
           raw: row, 
           phoneRaw, 
-          phoneDigits, 
-          phoneLength: phoneDigits.length,
-          formattedPhone,
+          finalPhone: phoneRaw,
           parsed: recipient 
         });
+        
         return recipient;
       }).filter(r => {
         const valid = r.parentPhone && r.studentName;
