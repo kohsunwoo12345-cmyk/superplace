@@ -151,6 +151,19 @@ export default function EditLandingPagePage() {
       setSaving(true);
       const token = localStorage.getItem("token");
 
+      // 🔥 중요: 저장 전에 iframe에서 최신 내용을 강제로 가져오기
+      console.log('🔄 저장 전 iframe에서 최신 내용 요청...');
+      
+      // iframe에 최신 내용 요청 메시지 전송
+      const iframe = document.querySelector('iframe[title="Landing Page Preview"]') as HTMLIFrameElement;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: 'REQUEST_CONTENT' }, '*');
+        console.log('📤 iframe에 REQUEST_CONTENT 메시지 전송');
+        
+        // 응답 대기 (최대 500ms)
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
       // htmlContent는 이미 editableContent 변경 시 자동 업데이트됨
       // 추가 업데이트 불필요, htmlContent를 그대로 사용
       
@@ -490,8 +503,16 @@ export default function EditLandingPagePage() {
         if (hasDirectText && !element.hasAttribute('contenteditable')) {
           element.setAttribute('contenteditable', 'true');
           
-          // 수정 이벤트 리스너
+          // 실시간 수정 이벤트 (입력 중에도 감지)
+          element.addEventListener('input', function() {
+            console.log('⌨️ [iframe] 텍스트 입력 중...');
+            // 디바운스 없이 즉시 업데이트
+            updateContent();
+          });
+          
+          // blur 이벤트 (포커스 잃을 때)
           element.addEventListener('blur', function() {
+            console.log('👉 [iframe] 포커스 아웃 (blur)');
             updateContent();
           });
           
@@ -542,6 +563,14 @@ export default function EditLandingPagePage() {
           console.log('✅ 편집 모드 활성화');
         }
       }, 100);
+      
+      // 부모 창에서 최신 내용 요청 시 응답
+      window.addEventListener('message', function(event) {
+        if (event.data.type === 'REQUEST_CONTENT') {
+          console.log('📨 [iframe] 부모 창에서 최신 내용 요청 받음');
+          updateContent();
+        }
+      });
     })();
   </script>
 </body>
