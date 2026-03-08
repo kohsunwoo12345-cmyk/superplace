@@ -238,9 +238,9 @@ export default function CreateTemplatePage() {
 
       const payload = {
         userId: user.id,
-        channelId: selectedChannel,
-        pfId: channel.solapiChannelId,
-        templateCode: templateCode,
+        channelId: selectedChannel, // 채널 ID만 전송 (백엔드에서 pfId 조회)
+        // pfId는 백엔드에서 DB 조회로 가져옴
+        templateCode: templateCode, // 비어있으면 백엔드에서 자동 생성
         templateName: templateName,
         content: content,
         categoryCode: selectedCategoryCode,
