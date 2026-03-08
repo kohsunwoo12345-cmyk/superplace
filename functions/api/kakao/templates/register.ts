@@ -203,15 +203,22 @@ export async function onRequestPost(context: any) {
       });
       
       if (channelResult) {
-        // DB에 pfId가 있으면 사용, 없으면 Solapi API에서 조회
-        if (channelResult.solapiChannelId && channelResult.solapiChannelId.length >= 30) {
+        // DB에 유효한 pfId(KA01PF로 시작하고 30자 이상)가 있으면 사용, 없으면 Solapi API에서 조회
+        const isValidPfId = channelResult.solapiChannelId && 
+                           channelResult.solapiChannelId.length >= 30 &&
+                           channelResult.solapiChannelId.startsWith('KA01PF');
+        
+        if (isValidPfId) {
           realPfId = channelResult.solapiChannelId;
           console.log('✅ DB에서 pfId 조회 성공:', {
             pfId: realPfId.substring(0, 10) + '...',
             length: realPfId.length,
           });
         } else {
-          console.warn('⚠️ DB에 유효한 pfId 없음, Solapi API에서 조회 시도...');
+          console.warn('⚠️ DB에 유효한 pfId 없음, Solapi API에서 조회 시도...', {
+            currentValue: channelResult.solapiChannelId,
+            length: channelResult.solapiChannelId?.length || 0,
+          });
           
           // Solapi credentials 먼저 가져오기
           const envAny = env as any;
