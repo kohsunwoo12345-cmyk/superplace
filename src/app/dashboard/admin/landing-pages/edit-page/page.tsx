@@ -80,9 +80,13 @@ export default function EditLandingPagePage() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'TEXT_UPDATE') {
-        console.log('📝 텍스트 업데이트:', event.data.content);
+        console.log('📝 텍스트 업데이트 수신:', {
+          contentLength: event.data.content?.length || 0,
+          contentPreview: event.data.content?.substring(0, 200)
+        });
         setEditableContent(event.data.content);
         setPreviewKey(prev => prev + 1);
+        console.log('✅ editableContent 상태 업데이트 완료');
       }
     };
 
@@ -138,6 +142,15 @@ export default function EditLandingPagePage() {
 
       // 편집된 컨텐츠로 HTML 업데이트
       const updatedHtml = updateHtmlWithEditedContent(htmlContent, editableContent);
+      
+      // 디버깅: 저장할 내용 확인
+      console.log('💾 저장할 데이터:', {
+        title: title.trim(),
+        htmlContentLength: htmlContent.length,
+        editableContentLength: editableContent.length,
+        updatedHtmlLength: updatedHtml.length,
+        editableContentPreview: editableContent.substring(0, 200)
+      });
 
       const response = await fetch(`/api/admin/landing-pages/${id}`, {
         method: "PUT",
