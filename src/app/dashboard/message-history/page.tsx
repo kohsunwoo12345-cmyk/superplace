@@ -210,15 +210,6 @@ export default function MessageHistoryPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push("/dashboard/admin/sms")}
-            className="whitespace-nowrap"
-          >
-            <Send className="w-4 h-4 mr-1" />
-            대시보드
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
             onClick={() => router.push("/dashboard/message-send")}
             className="whitespace-nowrap"
           >

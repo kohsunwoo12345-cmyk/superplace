@@ -26,7 +26,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    // 토큰에서 사용자 정보 추출
+    // 토큰 검증 (간단한 방식)
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -35,8 +35,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const token = authHeader.substring(7);
-    const user = await getUserFromToken(token, env.JWT_SECRET);
+    const token = authHeader.replace('Bearer ', '');
+    const [userIdStr, email, role] = token.split('|');
+    const userId = userIdStr;
+
+    if (!userId || !email) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     // 발송 이력 조회
     const result = await env.DB.prepare(`
@@ -55,12 +63,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         status,
         sendResults,
         sentAt,
+        scheduledAt,
         createdAt
       FROM MessageSendHistory
       WHERE userId = ?
       ORDER BY createdAt DESC
       LIMIT 100
-    `).bind(user.id || user.userId).all();
+    `).bind(userId).all();
 
     const history = (result.results || []).map((row: any) => ({
       ...row,

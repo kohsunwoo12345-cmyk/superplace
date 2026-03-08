@@ -374,30 +374,7 @@ export default function MessageSendPage() {
       });
 
       if (result.success) {
-        let message = isScheduled 
-          ? `✅ ${result.successCount}건 예약 완료!`
-          : `✅ ${result.successCount}건 발송 완료!`;
-        
-        if (result.failCount > 0) {
-          message += `\n❌ ${result.failCount}건 실패`;
-          
-          // 실패한 메시지 상세 정보 표시
-          if (result.failedMessages && result.failedMessages.length > 0) {
-            message += '\n\n실패 상세:';
-            result.failedMessages.forEach((failed: any) => {
-              message += `\n- ${failed.studentName} (${failed.to}): ${failed.error}`;
-            });
-          }
-        }
-        
-        if (isScheduled) {
-          message += `\n\n예약 시간: ${scheduledDate} ${scheduledTime}`;
-        }
-        
-        message += `\n\n차감된 포인트: ${result.pointsDeducted}P`;
-        message += `\n남은 포인트: ${result.remainingPoints}P`;
-        
-        alert(message);
+        alert('발송 완료!');
         
         if (result.successCount > 0) {
           setRecipients([]);

@@ -371,6 +371,8 @@ export async function onRequestPost(context: {
     // 성공한 메시지만 포인트 차감 (이메일 기준)
     let actualCost = 0;
     try {
+      console.log(`💰 포인트 차감 시작: userId=${userId}, email=${email}`);
+      
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         if (result.status === "fulfilled" && result.value.success) {
@@ -378,6 +380,9 @@ export async function onRequestPost(context: {
           actualCost += cost;
           
           const message = messages[i];
+          
+          console.log(`💳 포인트 차감 중: ${cost}P - ${message.to}`);
+          
           await env.DB.prepare(`
             INSERT INTO point_transactions (userId, userEmail, amount, type, description, createdAt)
             VALUES (?, ?, ?, ?, ?, datetime('now'))
@@ -395,6 +400,7 @@ export async function onRequestPost(context: {
       
       console.log(`✅ 포인트 차감 완료: ${actualCost}P (성공 ${successCount}건)`);
     } catch (error) {
+      console.error("❌ 포인트 차감 실패:", error);
       console.warn("⚠️ 포인트 차감 실패", error);
     }
     
