@@ -34,14 +34,18 @@ export async function onRequestPost(context: {
 
     const token = authHeader.replace("Bearer ", "");
     const [userIdStr, email, role] = token.split("|");
-    const userId = parseInt(userIdStr);
+    
+    // userId는 문자열로 유지 (예: "1" 또는 "user-xxxx")
+    const userId = userIdStr;
 
-    if (!userId || isNaN(userId)) {
+    if (!userId || !email) {
       return new Response(
         JSON.stringify({ error: "유효하지 않은 토큰입니다" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
+    
+    console.log(`🔐 인증 정보: userId=${userId}, email=${email}, role=${role}`);
 
     // 요청 본문 파싱
     const body = await request.json();
