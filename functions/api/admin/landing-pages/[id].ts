@@ -279,8 +279,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       // updateValues.push(thumbnail_url || null);
     }
 
-    // updated_at 자동 업데이트
-    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    // updated_at 자동 업데이트 - 실제 컬럼명은 updatedAt
+    updateFields.push('updatedAt = CURRENT_TIMESTAMP');
 
     // 업데이트할 필드가 없으면 에러
     if (updateFields.length === 1) { // updated_at만 있는 경우
