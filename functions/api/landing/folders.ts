@@ -15,6 +15,27 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
 
     const db = context.env.DB;
 
+    // Check if LandingPageFolder table exists
+    const tableCheck = await db
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='LandingPageFolder'`)
+      .first();
+
+    // If table doesn't exist, return empty array
+    if (!tableCheck) {
+      console.log("⚠️ LandingPageFolder table does not exist");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          folders: [],
+          message: "LandingPageFolder table not found. Returning empty list.",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // Get all folders with page count
     const folders = await db
       .prepare(
@@ -43,6 +64,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     return new Response(
       JSON.stringify({
         error: error.message || "폴더 목록 조회 중 오류가 발생했습니다.",
+        details: error.stack || error.toString(),
       }),
       {
         status: 500,
