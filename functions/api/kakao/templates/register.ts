@@ -14,15 +14,15 @@ export async function onRequestOptions() {
   return new Response(null, { headers: corsHeaders });
 }
 
-// Create HMAC signature for Solapi
+// Create HMAC signature for Solapi (동일한 서명 방식 사용)
 async function createSolapiSignature(apiSecret: string) {
-  const dateTime = new Date().toISOString();
-  const salt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  const hmacData = dateTime + salt;
+  const date = new Date().toISOString();
+  const salt = Math.random().toString(36).substring(2, 15);
+  const message = date + salt;
   
   const encoder = new TextEncoder();
   const keyData = encoder.encode(apiSecret);
-  const messageData = encoder.encode(hmacData);
+  const messageData = encoder.encode(message);
   
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
@@ -33,11 +33,18 @@ async function createSolapiSignature(apiSecret: string) {
   );
   
   const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+  
+  // ArrayBuffer를 hex 문자열로 변환
   const signatureHex = Array.from(new Uint8Array(signature))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
+  
+  console.log('✅ 서명 생성 완료:', {
+    signatureLength: signatureHex.length,
+    signaturePreview: signatureHex.substring(0, 16) + '...',
+  });
 
-  return { dateTime, salt, signature: signatureHex };
+  return { date, salt, signature: signatureHex };
 }
 
 // POST: Solapi에 템플릿 등록 신청
@@ -110,19 +117,33 @@ export async function onRequestPost(context: any) {
     
     console.log('🏫 학원 정보:', { academyPhone, academyPfId });
 
-    // Get Solapi credentials (정확한 환경 변수명 사용)
-    const SOLAPI_API_KEY = env.SOLAPI_API_Key;
-    const SOLAPI_API_SECRET = env.SOLAPI_API_Secret;
+    // Get Solapi credentials (여러 가능한 환경 변수명 시도)
+    const envAny = env as any;
+    const SOLAPI_API_KEY = (envAny['SOLAPI_API_Key '] || envAny['SOLAPI_API_Key'] || envAny.SOLAPI_API_Key || envAny.SOLAPI_API_KEY)?.trim();
+    const SOLAPI_API_SECRET = (envAny.SOLAPI_API_SECRET || envAny.SOLAPI_API_Secret || envAny['SOLAPI_API_Secret'])?.trim();
+
+    console.log('🔑 Solapi 자격 증명:', {
+      keyExists: !!SOLAPI_API_KEY,
+      secretExists: !!SOLAPI_API_SECRET,
+      keyPreview: SOLAPI_API_KEY?.substring(0, 8) + '...',
+    });
 
     if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Solapi credentials not configured' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Solapi credentials not configured',
+          details: {
+            keyExists: !!SOLAPI_API_KEY,
+            secretExists: !!SOLAPI_API_SECRET,
+          }
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Create HMAC signature
-    const { dateTime, salt, signature } = await createSolapiSignature(SOLAPI_API_SECRET);
+    const { date, salt, signature } = await createSolapiSignature(SOLAPI_API_SECRET);
 
     // Prepare template data for Solapi
     const templateData: any = {
@@ -162,12 +183,18 @@ export async function onRequestPost(context: any) {
     }
 
     console.log('🚀 Solapi API 호출:', templateData);
+    console.log('🔐 인증 헤더:', {
+      apiKeyPreview: SOLAPI_API_KEY?.substring(0, 8) + '...',
+      date,
+      salt,
+      signaturePreview: signature.substring(0, 16) + '...',
+    });
 
     // Call Solapi API to register template
     const solapiResponse = await fetch('https://api.solapi.com/kakao/v1/templates', {
       method: 'POST',
       headers: {
-        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${dateTime}, salt=${salt}, signature=${signature}`,
+        'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(templateData)
@@ -277,19 +304,42 @@ export async function onRequestGet(context: any) {
 
     console.log('🔍 템플릿 상태 조회:', { templateId, pfId });
 
-    // Get Solapi credentials (정확한 환경 변수명 사용)
-    const SOLAPI_API_KEY = env.SOLAPI_API_Key;
-    const SOLAPI_API_SECRET = env.SOLAPI_API_Secret;
+    // Get Solapi credentials (여러 가능한 환경 변수명 시도)
+    const envAny = env as any;
+    const SOLAPI_API_KEY = (envAny['SOLAPI_API_Key '] || envAny['SOLAPI_API_Key'] || envAny.SOLAPI_API_Key || envAny.SOLAPI_API_KEY)?.trim();
+    const SOLAPI_API_SECRET = (envAny.SOLAPI_API_SECRET || envAny.SOLAPI_API_Secret || envAny['SOLAPI_API_Secret'])?.trim();
+
+    console.log('🔑 Solapi 자격 증명:', {
+      keyExists: !!SOLAPI_API_KEY,
+      secretExists: !!SOLAPI_API_SECRET,
+      keyPreview: SOLAPI_API_KEY?.substring(0, 8) + '...',
+    });
 
     if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Solapi credentials not configured' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Solapi credentials not configured',
+          details: {
+            keyExists: !!SOLAPI_API_KEY,
+            secretExists: !!SOLAPI_API_SECRET,
+          }
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Create HMAC signature
-    const { dateTime, salt, signature } = await createSolapiSignature(SOLAPI_API_SECRET);
+    const { date, salt, signature } = await createSolapiSignature(SOLAPI_API_SECRET);
+
+    console.log('🔍 템플릿 상태 조회 요청:', {
+      templateId,
+      pfId,
+      apiKeyPreview: SOLAPI_API_KEY?.substring(0, 8) + '...',
+      date,
+      salt,
+      signaturePreview: signature.substring(0, 16) + '...',
+    });
 
     // Call Solapi API to get template status
     const solapiResponse = await fetch(
@@ -297,7 +347,7 @@ export async function onRequestGet(context: any) {
       {
         method: 'GET',
         headers: {
-          'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${dateTime}, salt=${salt}, signature=${signature}`,
+          'Authorization': `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`,
         }
       }
     );
