@@ -154,30 +154,61 @@ export default function EditLandingPagePage() {
       // 🔥 중요: 저장 전에 iframe에서 최신 내용을 강제로 가져오기
       console.log('🔄 저장 전 iframe에서 최신 내용 요청...');
       
-      // iframe에 최신 내용 요청 메시지 전송
+      // iframe에 최신 내용 요청 메시지 전송하고 응답 대기
+      let latestHtmlContent = htmlContent;
       const iframe = document.querySelector('iframe[title="Landing Page Preview"]') as HTMLIFrameElement;
+      
       if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage({ type: 'REQUEST_CONTENT' }, '*');
         console.log('📤 iframe에 REQUEST_CONTENT 메시지 전송');
         
-        // 응답 대기 (최대 500ms)
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Promise로 응답을 기다림
+        const contentPromise = new Promise<string>((resolve) => {
+          const handler = (event: MessageEvent) => {
+            if (event.data.type === 'TEXT_UPDATE') {
+              console.log('📥 iframe으로부터 최신 내용 수신:', {
+                contentLength: event.data.content?.length,
+                contentPreview: event.data.content?.substring(0, 200)
+              });
+              window.removeEventListener('message', handler);
+              
+              // 수신한 내용으로 HTML 업데이트
+              const updatedHtml = updateHtmlWithEditedContent(htmlContent, event.data.content);
+              console.log('✅ HTML 업데이트 완료:', { 
+                originalLength: htmlContent.length, 
+                updatedLength: updatedHtml.length 
+              });
+              resolve(updatedHtml);
+            }
+          };
+          
+          window.addEventListener('message', handler);
+          
+          // 타임아웃 (1초)
+          setTimeout(() => {
+            window.removeEventListener('message', handler);
+            console.warn('⚠️ iframe 응답 타임아웃, 기존 htmlContent 사용');
+            resolve(htmlContent);
+          }, 1000);
+        });
+        
+        iframe.contentWindow.postMessage({ type: 'REQUEST_CONTENT' }, '*');
+        
+        // 응답 대기
+        latestHtmlContent = await contentPromise;
+        console.log('✅ 최신 HTML 적용 완료:', latestHtmlContent.length, '자');
       }
-
-      // htmlContent는 이미 editableContent 변경 시 자동 업데이트됨
-      // 추가 업데이트 불필요, htmlContent를 그대로 사용
       
       // 디버깅: 저장할 내용 확인 (매우 상세하게)
       console.log('💾 ===== 저장 시작 =====');
       console.log('💾 제목:', title.trim());
       console.log('💾 상태:', status);
-      console.log('💾 HTML 전체 길이:', htmlContent.length);
-      console.log('💾 HTML 미리보기 (처음 500자):', htmlContent.substring(0, 500));
-      console.log('💾 HTML 미리보기 (body 부분):', htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1]?.substring(0, 300));
+      console.log('💾 HTML 전체 길이:', latestHtmlContent.length);
+      console.log('💾 HTML 미리보기 (처음 500자):', latestHtmlContent.substring(0, 500));
+      console.log('💾 HTML 미리보기 (body 부분):', latestHtmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1]?.substring(0, 300));
       
       const requestBody = {
         title: title.trim(),
-        html_content: htmlContent,
+        html_content: latestHtmlContent,
         status,
       };
       
