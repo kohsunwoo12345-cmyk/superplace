@@ -113,14 +113,23 @@ export default function MessageSendPage() {
 
       // 엑셀 데이터를 RecipientRow 형식으로 변환
       const parsedRecipients: RecipientRow[] = jsonData.map((row: any) => {
-        return {
+        const recipient = {
           studentName: row['학생이름'] || row['이름'] || row['name'] || '',
           studentId: row['학생아이디'] || row['학생ID'] || row['studentId'] || '',
           parentPhone: row['학부모연락처'] || row['연락처'] || row['전화번호'] || '',
         };
-      }).filter(r => r.parentPhone && r.studentName);
+        console.log('📝 파싱된 행:', { raw: row, parsed: recipient });
+        return recipient;
+      }).filter(r => {
+        const valid = r.parentPhone && r.studentName;
+        if (!valid) {
+          console.warn('⚠️ 필터링된 행:', r, '(연락처 또는 이름 없음)');
+        }
+        return valid;
+      });
 
       console.log('✅ 파싱된 수신자:', parsedRecipients);
+      console.log('📊 수신자 수:', parsedRecipients.length);
 
       // 메시지에 {랜딩페이지URL} 변수가 있을 때만 랜딩페이지 조회
       const needsLandingPage = messageContent.includes('{랜딩페이지URL}');
@@ -268,6 +277,9 @@ export default function MessageSendPage() {
         studentId: recipient.studentId,
         studentName: recipient.studentName,
       }));
+
+      console.log('📤 발송할 메시지:', messages);
+      console.log('📊 메시지 수:', messages.length);
 
       const response = await fetch("/api/messages/send-bulk", {
         method: "POST",
