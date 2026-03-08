@@ -120,22 +120,42 @@ export async function onRequestPost(context: {
     }
 
     // Solapi 설정 (대소문자 정확히)
-    const SOLAPI_API_KEY = env.SOLAPI_API_Key;
-    const SOLAPI_API_SECRET = env.SOLAPI_API_Secret;
+    const SOLAPI_API_KEY = env.SOLAPI_API_Key?.trim();
+    const SOLAPI_API_SECRET = env.SOLAPI_API_Secret?.trim();
 
-    console.log('🔑 Solapi 키 확인:', {
+    const keyDebugInfo = {
       keyExists: !!SOLAPI_API_KEY,
       secretExists: !!SOLAPI_API_SECRET,
       keyLength: SOLAPI_API_KEY?.length || 0,
       secretLength: SOLAPI_API_SECRET?.length || 0,
-      keyHasSpaces: SOLAPI_API_KEY?.includes(' ') || false,
-      secretHasSpaces: SOLAPI_API_SECRET?.includes(' ') || false,
-      keyTrimmed: SOLAPI_API_KEY?.trim().length === SOLAPI_API_KEY?.length,
-      secretTrimmed: SOLAPI_API_SECRET?.trim().length === SOLAPI_API_SECRET?.length,
-    });
+      keyHasSpaces: env.SOLAPI_API_Key?.includes(' ') || false,
+      secretHasSpaces: env.SOLAPI_API_Secret?.includes(' ') || false,
+      keyTrimmed: env.SOLAPI_API_Key?.trim().length === env.SOLAPI_API_Key?.length,
+      secretTrimmed: env.SOLAPI_API_Secret?.trim().length === env.SOLAPI_API_Secret?.length,
+    };
+    
+    console.log('🔑 Solapi 키 확인:', keyDebugInfo);
 
     if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
       console.warn("⚠️ Solapi 키가 설정되지 않았습니다. 테스트 모드로 동작합니다.");
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Solapi API 키가 설정되지 않았습니다",
+          mode: 'TEST',
+          debug: {
+            message: 'Cloudflare 환경변수를 확인하세요',
+            requiredVars: ['SOLAPI_API_Key', 'SOLAPI_API_Secret'],
+            keyDebugInfo,
+          },
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    
+    // 테스트 모드 대신 실제 발송 시도
+    console.log('✅ Solapi 키 존재. 실제 발송 시도...');
       
       // 테스트 모드: DB에만 기록
       for (const message of messages) {

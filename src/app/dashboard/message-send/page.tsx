@@ -279,6 +279,14 @@ export default function MessageSendPage() {
       });
 
       const result = await response.json();
+      
+      // 상세 응답 로깅
+      console.log('📬 서버 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        result,
+      });
 
       if (result.success) {
         alert(`✅ ${result.successCount}건 발송 완료!`);
@@ -286,7 +294,10 @@ export default function MessageSendPage() {
         setMessageContent("");
         setExcelFile(null);
       } else {
-        alert(`발송 실패: ${result.error}`);
+        // 에러 상세 정보 표시
+        const errorMsg = result.message || result.error || result.details || JSON.stringify(result);
+        console.error('❌ 발송 실패:', result);
+        alert(`발송 실패: ${errorMsg}`);
       }
     } catch (error) {
       console.error("발송 오류:", error);
