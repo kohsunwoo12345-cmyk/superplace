@@ -15,50 +15,49 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
 
     const db = context.env.DB;
 
-    // Check if LandingPageFolder table exists
-    const tableCheck = await db
-      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='LandingPageFolder'`)
-      .first();
+    try {
+      // Try to get all folders with page count
+      const folders = await db
+        .prepare(
+          `SELECT 
+            f.id, f.name, f.description, f.createdAt, f.updatedAt,
+            COUNT(lp.id) as pagesCount
+          FROM LandingPageFolder f
+          LEFT JOIN LandingPage lp ON lp.folderId = f.id AND lp.isActive = 1
+          GROUP BY f.id
+          ORDER BY f.createdAt DESC`
+        )
+        .all();
 
-    // If table doesn't exist, return empty array
-    if (!tableCheck) {
-      console.log("⚠️ LandingPageFolder table does not exist");
       return new Response(
         JSON.stringify({
           success: true,
-          folders: [],
-          message: "LandingPageFolder table not found. Returning empty list.",
+          folders: folders.results || [],
         }),
         {
           status: 200,
           headers: { "Content-Type": "application/json" },
         }
       );
-    }
-
-    // Get all folders with page count
-    const folders = await db
-      .prepare(
-        `SELECT 
-          f.id, f.name, f.description, f.createdAt, f.updatedAt,
-          COUNT(lp.id) as pagesCount
-        FROM LandingPageFolder f
-        LEFT JOIN LandingPage lp ON lp.folderId = f.id AND lp.isActive = 1
-        GROUP BY f.id
-        ORDER BY f.createdAt DESC`
-      )
-      .all();
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        folders: folders.results || [],
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
+    } catch (dbError: any) {
+      // If table doesn't exist, return empty array instead of 500 error
+      if (dbError.message && dbError.message.includes("no such table")) {
+        console.log("⚠️ LandingPageFolder table does not exist, returning empty array");
+        return new Response(
+          JSON.stringify({
+            success: true,
+            folders: [],
+            message: "폴더 기능이 아직 활성화되지 않았습니다.",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
       }
-    );
+      // Re-throw other database errors
+      throw dbError;
+    }
   } catch (error: any) {
     console.error("폴더 목록 조회 오류:", error);
     return new Response(
