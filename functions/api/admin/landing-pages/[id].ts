@@ -238,46 +238,35 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     }
 
     if (subtitle !== undefined) {
-      // subtitle 컬럼이 실제 DB에 없음 - 스킵
+      // subtitle 컬럼은 실제 DB에 없음 - 스킵
       console.log('⚠️ Skipping subtitle - column does not exist in DB');
-      // updateFields.push('subtitle = ?');
-      // updateValues.push(subtitle?.trim() || null);
     }
 
     if (html_content !== undefined) {
-      // templateHtml 컬럼 확인 필요 - 임시 스킵
-      console.log('⚠️ Skipping html_content - need to verify column name');
-      // updateFields.push('templateHtml = ?');
-      // updateValues.push(html_content || null);
+      // 실제 컬럼명: html_content (존재함!)
+      updateFields.push('html_content = ?');
+      updateValues.push(html_content || null);
     }
 
     if (og_title !== undefined) {
-      // ogTitle 컬럼 확인 필요 - 임시 스킵
-      console.log('⚠️ Skipping og_title - need to verify column name');
-      // updateFields.push('ogTitle = ?');
-      // updateValues.push(og_title?.trim() || null);
+      // og_title 컬럼은 DB에 없음 - 스킵
+      console.log('⚠️ Skipping og_title - column does not exist in DB');
     }
 
     if (og_description !== undefined) {
-      // ogDescription 컬럼 확인 필요 - 임시 스킵
-      console.log('⚠️ Skipping og_description - need to verify column name');
-      // updateFields.push('ogDescription = ?');
-      // updateValues.push(og_description?.trim() || null);
+      // og_description 컬럼은 DB에 없음 - 스킵
+      console.log('⚠️ Skipping og_description - column does not exist in DB');
     }
 
     if (status !== undefined) {
-      // isActive 컬럼 확인 필요 - 임시 스킵
-      console.log('⚠️ Skipping status - need to verify column name');
-      // const isActive = status === 'active' ? 1 : 0;
-      // updateFields.push('isActive = ?');
-      // updateValues.push(isActive);
+      // 실제 컬럼명: status (TEXT 타입! - 'active', 'draft' 등 문자열)
+      updateFields.push('status = ?');
+      updateValues.push(status || 'draft');
     }
 
     if (thumbnail_url !== undefined) {
-      // thumbnail 컬럼 확인 필요 - 임시 스킵
-      console.log('⚠️ Skipping thumbnail_url - need to verify column name');
-      // updateFields.push('thumbnail = ?');
-      // updateValues.push(thumbnail_url || null);
+      // thumbnail_url 컬럼은 DB에 없음 - 스킵
+      console.log('⚠️ Skipping thumbnail_url - column does not exist in DB');
     }
 
     // updatedAt 컬럼이 실제 DB에 없을 수 있으므로 제거
