@@ -128,6 +128,10 @@ export async function onRequestPost(context: {
       secretExists: !!SOLAPI_API_SECRET,
       keyLength: SOLAPI_API_KEY?.length || 0,
       secretLength: SOLAPI_API_SECRET?.length || 0,
+      keyHasSpaces: SOLAPI_API_KEY?.includes(' ') || false,
+      secretHasSpaces: SOLAPI_API_SECRET?.includes(' ') || false,
+      keyTrimmed: SOLAPI_API_KEY?.trim().length === SOLAPI_API_KEY?.length,
+      secretTrimmed: SOLAPI_API_SECRET?.trim().length === SOLAPI_API_SECRET?.length,
     });
 
     if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
@@ -195,17 +199,29 @@ export async function onRequestPost(context: {
     // 실제 Solapi 발송
     console.log('📤 Solapi 실제 발송 시작...');
     
-    // Solapi REST API 인증을 위한 HMAC 서명 생성 함수
-    async function createSolapiSignature(apiKey: string, apiSecret: string) {
+    // Solapi REST API 인증을 위한 HMAC 서명 생성 (Cloudflare Workers 환경)
+    async function createSolapiSignature(apiSecret: string) {
       const date = new Date().toISOString();
       const salt = crypto.randomUUID();
+      
+      // Solapi 서명 데이터 형식: date + salt
       const data = date + salt;
       
-      // HMAC-SHA256 서명 생성
+      console.log('🔐 서명 생성:', {
+        date,
+        salt,
+        data,
+        secretLength: apiSecret?.length,
+      });
+      
+      // HMAC-SHA256 서명 생성 (crypto.subtle 사용)
       const encoder = new TextEncoder();
-      const key = await crypto.subtle.importKey(
+      const keyData = encoder.encode(apiSecret);
+      const messageData = encoder.encode(data);
+      
+      const cryptoKey = await crypto.subtle.importKey(
         'raw',
-        encoder.encode(apiSecret),
+        keyData,
         { name: 'HMAC', hash: 'SHA-256' },
         false,
         ['sign']
@@ -213,14 +229,19 @@ export async function onRequestPost(context: {
       
       const signature = await crypto.subtle.sign(
         'HMAC',
-        key,
-        encoder.encode(data)
+        cryptoKey,
+        messageData
       );
       
       // ArrayBuffer를 hex 문자열로 변환
       const signatureHex = Array.from(new Uint8Array(signature))
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
+      
+      console.log('✅ 서명 생성 완료:', {
+        signatureLength: signatureHex.length,
+        signaturePreview: signatureHex.substring(0, 16) + '...',
+      });
       
       return { signature: signatureHex, date, salt };
     }
@@ -229,20 +250,22 @@ export async function onRequestPost(context: {
       messages.map(async (message) => {
         try {
           // Solapi API 인증 정보 생성
-          const { signature, date, salt } = await createSolapiSignature(SOLAPI_API_KEY, SOLAPI_API_SECRET);
+          const { signature, date, salt } = await createSolapiSignature(SOLAPI_API_SECRET);
+          
+          const authHeader = `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`;
           
           console.log('🔐 Solapi 요청:', {
             to: message.to,
             from: message.from,
-            apiKey: SOLAPI_API_KEY?.substring(0, 8) + '...',
-            signatureLength: signature.length,
+            apiKeyPreview: SOLAPI_API_KEY?.substring(0, 8) + '...',
+            authHeaderLength: authHeader.length,
           });
           
           const response = await fetch("https://api.solapi.com/messages/v4/send", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`,
+              "Authorization": authHeader,
             },
             body: JSON.stringify({
               message: {
