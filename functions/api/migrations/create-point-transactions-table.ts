@@ -14,13 +14,13 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     // 테이블 생성
     await env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS point_transactions (
-        id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER NOT NULL,
         amount INTEGER NOT NULL,
         type TEXT NOT NULL,
         description TEXT,
         createdAt TEXT NOT NULL,
-        FOREIGN KEY (userId) REFERENCES users(id)
+        FOREIGN KEY (userId) REFERENCES User(id)
       )
     `).run();
 
@@ -34,12 +34,11 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     console.log("✅ Index created");
 
     // 테스트 데이터 추가 (사용자 ID 208에게 10,000P)
-    const testId = `pt_${Date.now()}_test`;
     await env.DB.prepare(`
-      INSERT INTO point_transactions (id, userId, amount, type, description, createdAt)
-      VALUES (?, ?, ?, ?, ?, datetime('now'))
+      INSERT INTO point_transactions (userId, amount, type, description, createdAt)
+      VALUES (?, ?, ?, ?, datetime('now'))
     `)
-      .bind(testId, '208', 10000, 'CHARGE', '초기 테스트 포인트')
+      .bind(208, 10000, 'CHARGE', '초기 테스트 포인트')
       .run();
 
     console.log("✅ Test data added (10,000P for user 208)");
@@ -49,7 +48,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
         success: true,
         message: "point_transactions table created successfully",
         testData: {
-          userId: '208',
+          userId: 208,
           amount: 10000,
           type: 'CHARGE',
         },
