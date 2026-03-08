@@ -197,20 +197,22 @@ export async function onRequestPost(context: {
     const results = await Promise.allSettled(
       messages.map(async (message) => {
         try {
-          // Solapi API 호출 (Authorization 헤더 수정)
-          const authHeader = `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, signature=${SOLAPI_API_SECRET}`;
+          // Solapi API v4는 간단한 인증 방식 사용
+          // API Key와 Secret을 base64로 인코딩
+          const credentials = btoa(`${SOLAPI_API_KEY}:${SOLAPI_API_SECRET}`);
           
           console.log('🔐 Solapi 요청:', {
             to: message.to,
             from: message.from,
-            authHeaderLength: authHeader.length,
+            keyLength: SOLAPI_API_KEY?.length,
+            secretLength: SOLAPI_API_SECRET?.length,
           });
           
           const response = await fetch("https://api.solapi.com/messages/v4/send", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": authHeader,
+              "Authorization": `Basic ${credentials}`,
             },
             body: JSON.stringify({
               message: {
