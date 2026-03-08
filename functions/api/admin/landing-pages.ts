@@ -102,7 +102,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
       id: lp.id,
       slug: lp.slug || `lp-${lp.id}`,
       title: lp.title || '제목 없음',
-      url: `/lp/${lp.slug || lp.id}`,
+      url: `/api/landing/${lp.slug || lp.id}`, // API URL로 직접 연결
       isActive: true, // 일단 모두 활성으로
       showQrCode: true,
       viewCount: lp.view_count || lp.viewCount || 0,
