@@ -41,7 +41,7 @@ export default function MessageDashboardPage() {
                 문자 발송하기
               </Button>
               <p className="text-sm text-gray-500 mt-3">
-                비용: 20 포인트/건
+                비용: SMS 40P/건, LMS 95P/건
               </p>
             </CardContent>
           </Card>
@@ -110,8 +110,8 @@ export default function MessageDashboardPage() {
             <CardTitle className="text-blue-900">💡 SMS 문자 발송 안내</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-blue-800 space-y-2">
-            <p>• <strong>SMS</strong>: 최대 90자 (20 포인트/건)</p>
-            <p>• <strong>LMS</strong>: 90자 초과 ~ 2,000자 (20 포인트/건)</p>
+            <p>• <strong>SMS</strong>: 최대 90바이트 (한글 45자) - 40P/건</p>
+            <p>• <strong>LMS</strong>: 90바이트 초과 ~ 2,000바이트 (한글 1,000자) - 95P/건</p>
             <p>• 발신번호는 사전에 등록 및 승인되어야 합니다</p>
             <p>• 변수 사용 가능: {`{{학생명}}, {{학부모명}}, {{성적}}, {{URL}}`} 등</p>
           </CardContent>

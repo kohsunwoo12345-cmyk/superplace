@@ -24,6 +24,16 @@ interface PointChargeRequest {
   approvedAt?: string;
 }
 
+interface PointTransaction {
+  id: string;
+  userId: string;
+  userEmail: string;
+  amount: number;
+  type: string;
+  description: string;
+  createdAt: string;
+}
+
 // 포인트 충전 금액 (1P = 1원, VAT 10% 별도)
 const POINT_PRICES = {
   10000: 10000,    // 10,000원 → 실제 이체 11,000원 (VAT 포함) → 10,000P
@@ -47,11 +57,13 @@ export default function PointChargePage() {
   const [requestMessage, setRequestMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [myRequests, setMyRequests] = useState<PointChargeRequest[]>([]);
+  const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>([]);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchCurrentPoints();
     fetchMyRequests();
+    fetchPointTransactions();
   }, []);
 
   const fetchCurrentPoints = async () => {
@@ -85,6 +97,32 @@ export default function PointChargePage() {
       }
     } catch (error) {
       console.error('Failed to fetch requests:', error);
+    }
+  };
+
+  const fetchPointTransactions = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = user.id;
+      
+      console.log('🔍 포인트 차감 내역 조회 중...', { userId });
+      
+      const response = await fetch(`/api/debug/point-transactions?userId=${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ 포인트 트랜잭션 데이터:', data);
+        setPointTransactions(data.userTransactions || []);
+      } else {
+        console.error('❌ 포인트 트랜잭션 조회 실패:', response.status);
+      }
+    } catch (error) {
+      console.error('Failed to fetch point transactions:', error);
     }
   };
 
@@ -556,6 +594,49 @@ export default function PointChargePage() {
           </div>
         </div>
 
+        {/* Point Transactions History */}
+        <Card className="mt-8 border border-red-200 shadow-sm">
+          <CardHeader className="border-b bg-red-50">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-red-600" />
+              포인트 차감 내역
+            </CardTitle>
+            <CardDescription className="text-sm">문자 발송으로 차감된 포인트 내역을 확인할 수 있습니다</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {pointTransactions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Clock className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">차감 내역이 없습니다</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                {pointTransactions.map((transaction) => (
+                  <div key={transaction.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <div className="flex items-baseline gap-1 mb-1">
+                          <p className={`text-2xl font-bold ${transaction.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {transaction.amount > 0 ? '+' : ''}{transaction.amount.toLocaleString()}
+                          </p>
+                          <span className="text-lg font-semibold text-gray-600">P</span>
+                        </div>
+                        <p className="text-xs text-gray-500">{formatDate(transaction.createdAt)}</p>
+                      </div>
+                      <Badge variant={transaction.amount < 0 ? 'destructive' : 'default'}>
+                        {transaction.type}
+                      </Badge>
+                    </div>
+                    <div className="text-sm">
+                      <p className="text-gray-700">{transaction.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Info Card */}
         <Card className="mt-8 border border-gray-200 bg-gray-50">
           <CardHeader className="pb-3">
@@ -568,7 +649,7 @@ export default function PointChargePage() {
             </p>
             <p className="flex items-start gap-2">
               <span className="text-blue-600">•</span>
-              <span>SMS: 20P/건, 카카오톡: 15P/건</span>
+              <span>SMS: 40P/건, LMS: 95P/건</span>
             </p>
             <p className="flex items-start gap-2">
               <span className="text-blue-600">•</span>

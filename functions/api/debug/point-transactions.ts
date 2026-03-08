@@ -28,17 +28,17 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     
     console.log('All transactions:', allData);
     
-    // 3. 특정 사용자 데이터 조회
+    // 3. 특정 사용자 데이터 조회 (userId를 문자열로 처리)
     const userData = await env.DB.prepare(`
-      SELECT * FROM point_transactions WHERE userId = ? ORDER BY createdAt DESC
-    `).bind(parseInt(userId)).all();
+      SELECT * FROM point_transactions WHERE userId = ? ORDER BY createdAt DESC LIMIT 50
+    `).bind(userId).all();
     
     console.log(`User ${userId} transactions:`, userData);
     
     // 4. 포인트 합계
     const pointSum = await env.DB.prepare(`
       SELECT COALESCE(SUM(amount), 0) as total FROM point_transactions WHERE userId = ?
-    `).bind(parseInt(userId)).first();
+    `).bind(userId).first();
     
     console.log(`User ${userId} total points:`, pointSum);
     
@@ -47,7 +47,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
       allTransactions: allData.results,
       userTransactions: userData.results,
       totalPoints: pointSum?.total || 0,
-      userId: parseInt(userId),
+      userId: userId,
     }, null, 2), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
