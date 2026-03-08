@@ -125,9 +125,20 @@ export async function onRequestPost(context: {
 
     // Solapi 설정 (대소문자 정확히)
     // 동적 접근으로 환경변수 읽기 (Cloudflare Pages Functions 호환)
+    // 공백 포함 변수명도 처리
     const envAny = env as any;
-    const SOLAPI_API_KEY = (envAny['SOLAPI_API_Key'] || envAny.SOLAPI_API_Key || envAny.SOLAPI_API_KEY)?.trim();
-    const SOLAPI_API_SECRET = (envAny['SOLAPI_API_Secret'] || envAny.SOLAPI_API_Secret || envAny.SOLAPI_API_SECRET)?.trim();
+    const SOLAPI_API_KEY = (
+      envAny['SOLAPI_API_Key'] || 
+      envAny['SOLAPI_API_Key '] ||  // 공백 포함 버전
+      envAny.SOLAPI_API_Key || 
+      envAny.SOLAPI_API_KEY
+    )?.trim();
+    const SOLAPI_API_SECRET = (
+      envAny['SOLAPI_API_Secret'] || 
+      envAny['SOLAPI_API_Secret '] ||  // 공백 포함 버전
+      envAny.SOLAPI_API_Secret || 
+      envAny.SOLAPI_API_SECRET
+    )?.trim();
 
     const keyDebugInfo = {
       keyExists: !!SOLAPI_API_KEY,
@@ -135,8 +146,8 @@ export async function onRequestPost(context: {
       keyLength: SOLAPI_API_KEY?.length || 0,
       secretLength: SOLAPI_API_SECRET?.length || 0,
       // 원본 환경변수 확인
-      rawKey: envAny['SOLAPI_API_Key'] || envAny.SOLAPI_API_Key || envAny.SOLAPI_API_KEY || 'NOT_FOUND',
-      rawSecret: envAny['SOLAPI_API_Secret'] || envAny.SOLAPI_API_Secret || envAny.SOLAPI_API_SECRET || 'NOT_FOUND',
+      rawKey: SOLAPI_API_KEY || 'NOT_FOUND',
+      rawSecret: SOLAPI_API_SECRET || 'NOT_FOUND',
       // 모든 환경변수 키 목록
       envKeys: Object.keys(env).filter(k => k.includes('SOLAPI') || k.includes('solapi')),
     };
