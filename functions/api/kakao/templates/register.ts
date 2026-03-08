@@ -484,8 +484,12 @@ export async function onRequestPost(context: any) {
           details: solapiData,
           code: solapiData.errorCode,
           validation: {
+            realPfIdValue: realPfId, // ✅ 실제 값 전체
             pfId: realPfId,
             pfIdLength: realPfId?.length,
+            pfIdType: typeof realPfId,
+            pfIdIsNull: realPfId === null,
+            pfIdIsUndefined: realPfId === undefined,
             templateId: finalTemplateCode,
             hasExtra: !!templateData.extra,
             extraType: typeof templateData.extra,
