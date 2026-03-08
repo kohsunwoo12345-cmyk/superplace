@@ -345,7 +345,7 @@ export async function onRequestPost(context: any) {
     // Prepare template data for Solapi
     const templateData: any = {
       pfId: realPfId, // DB에서 조회한 실제 32자리 pfId
-      templateId: finalTemplateCode,
+      templateCode: finalTemplateCode, // ✅ templateId → templateCode로 변경
       name: finalTemplateName, // 자동 생성된 템플릿 이름
       content: content,
       categoryCode: categoryCode || '008', // Default to 일반 카테고리
