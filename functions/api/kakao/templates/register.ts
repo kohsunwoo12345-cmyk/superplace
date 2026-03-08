@@ -57,7 +57,7 @@ export async function onRequestPost(context: any) {
       userId,
       channelId,
       pfId,              // 프론트에서 받은 pfId (채널명 또는 실제 pfId)
-      finalTemplateCode as templateCode,      // 사용자가 정한 템플릿 코드 (비어있으면 자동 생성)
+      templateCode,      // 사용자가 정한 템플릿 코드 (비어있으면 자동 생성)
       templateName,      // 템플릿 이름
       content,           // 템플릿 내용
       categoryCode,      // 카테고리 코드 (예: 008, 012 등)
@@ -306,13 +306,13 @@ export async function onRequestPost(context: any) {
       INSERT INTO AlimtalkTemplate (
         id, userId, channelId, templateCode, templateName, content,
         categoryCode, messageType, emphasizeType, buttons, quickReplies, variables,
-        finalTemplateCode, status, inspectionStatus, senderPhone, senderPfId, createdAt, updatedAt
+        solapiTemplateId, status, inspectionStatus, senderPhone, senderPfId, createdAt, updatedAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       id,
       userId,
       channelId,
-      templateCode,
+      finalTemplateCode, // 자동 생성된 코드 저장
       templateName,
       content,
       categoryCode || '008',
@@ -321,7 +321,7 @@ export async function onRequestPost(context: any) {
       buttons ? JSON.stringify(buttons) : null,
       null,
       variables ? JSON.stringify(variables) : null,
-      templateCode,
+      finalTemplateCode, // solapiTemplateId
       'ACTIVE',
       solapiData.status || 'PENDING', // Solapi 응답의 상태 저장
       academyPhone, // 학원 전화번호 저장
@@ -335,7 +335,7 @@ export async function onRequestPost(context: any) {
         success: true, 
         template: {
           id,
-          templateCode,
+          templateCode: finalTemplateCode, // 자동 생성된 코드 반환
           templateName,
           status: solapiData.status,
           inspectionStatus: solapiData.inspectionStatus
