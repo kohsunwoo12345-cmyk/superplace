@@ -343,15 +343,15 @@ export async function onRequestPost(context: any) {
     const { date, salt, signature } = await createSolapiSignature(SOLAPI_API_SECRET);
 
     // Prepare template data for Solapi
-    // ✅ templateCode는 필수 - UUID 기반 완전 고유 코드
+    // ✅ Solapi API 공식 스펙에 맞춤
     const templateData: any = {
-      pfId: realPfId, // DB에서 조회한 실제 32자리 pfId (channelId)
-      templateCode: finalTemplateCode, // UUID 기반 고유 코드
-      name: finalTemplateName, // 자동 생성된 템플릿 이름
-      content: content,
-      categoryCode: categoryCode || '008', // Default to 일반 카테고리
-      messageType: messageType || 'BA',
-      securityFlag: securityFlag || false
+      channelId: realPfId, // ✅ Solapi는 channelId 사용 (pfId 아님!)
+      // templateCode 제거 - Solapi API에 없는 필드!
+      name: finalTemplateName, // ✅ 템플릿 이름
+      content: content, // ✅ 템플릿 내용
+      categoryCode: categoryCode || '008', // ✅ 필수
+      messageType: messageType || 'BA', // ✅ BA, EX, AD, MI
+      securityFlag: securityFlag || false // ✅ 보안 템플릿 여부
     };
     
     // ❌ senderKey 제거 - Solapi 템플릿 등록에는 필요없음
