@@ -194,25 +194,55 @@ export async function onRequestPost(context: {
 
     // 실제 Solapi 발송
     console.log('📤 Solapi 실제 발송 시작...');
+    
+    // Solapi REST API 인증을 위한 HMAC 서명 생성 함수
+    async function createSolapiSignature(apiKey: string, apiSecret: string) {
+      const date = new Date().toISOString();
+      const salt = crypto.randomUUID();
+      const data = date + salt;
+      
+      // HMAC-SHA256 서명 생성
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(apiSecret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      
+      const signature = await crypto.subtle.sign(
+        'HMAC',
+        key,
+        encoder.encode(data)
+      );
+      
+      // ArrayBuffer를 hex 문자열로 변환
+      const signatureHex = Array.from(new Uint8Array(signature))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      
+      return { signature: signatureHex, date, salt };
+    }
+    
     const results = await Promise.allSettled(
       messages.map(async (message) => {
         try {
-          // Solapi API v4는 간단한 인증 방식 사용
-          // API Key와 Secret을 base64로 인코딩
-          const credentials = btoa(`${SOLAPI_API_KEY}:${SOLAPI_API_SECRET}`);
+          // Solapi API 인증 정보 생성
+          const { signature, date, salt } = await createSolapiSignature(SOLAPI_API_KEY, SOLAPI_API_SECRET);
           
           console.log('🔐 Solapi 요청:', {
             to: message.to,
             from: message.from,
-            keyLength: SOLAPI_API_KEY?.length,
-            secretLength: SOLAPI_API_SECRET?.length,
+            apiKey: SOLAPI_API_KEY?.substring(0, 8) + '...',
+            signatureLength: signature.length,
           });
           
           const response = await fetch("https://api.solapi.com/messages/v4/send", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Basic ${credentials}`,
+              "Authorization": `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`,
             },
             body: JSON.stringify({
               message: {
