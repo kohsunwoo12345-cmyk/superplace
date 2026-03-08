@@ -489,6 +489,9 @@ export async function onRequestPost(context: any) {
             templateId: finalTemplateCode,
             hasExtra: !!templateData.extra,
             extraType: typeof templateData.extra,
+          },
+          debug: {
+            sentToSolapi: templateData // ← 실제 전송 데이터 포함!
           }
         }),
         { status: solapiResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
