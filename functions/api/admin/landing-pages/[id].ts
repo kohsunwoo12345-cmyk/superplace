@@ -226,14 +226,16 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     }
 
     console.log('📝 Updating landing page:', id);
+    console.log('📝 Request body:', JSON.stringify(body).substring(0, 500));
 
     // 업데이트 쿼리 생성
     const updateFields: string[] = [];
     const updateValues: any[] = [];
 
-    if (title) {
+    // D1은 undefined를 허용하지 않으므로 명시적으로 체크
+    if (title !== undefined) {
       updateFields.push('title = ?');
-      updateValues.push(title.trim());
+      updateValues.push(title.trim() || null);
     }
 
     if (subtitle !== undefined) {
@@ -241,14 +243,14 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       updateValues.push(subtitle?.trim() || null);
     }
 
-    if (html_content) {
+    if (html_content !== undefined) {
       updateFields.push('html_content = ?');
-      updateValues.push(html_content);
+      updateValues.push(html_content || null);
     }
 
-    if (og_title) {
+    if (og_title !== undefined) {
       updateFields.push('og_title = ?');
-      updateValues.push(og_title.trim());
+      updateValues.push(og_title?.trim() || null);
     }
 
     if (og_description !== undefined) {
@@ -256,9 +258,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       updateValues.push(og_description?.trim() || null);
     }
 
-    if (status) {
+    if (status !== undefined) {
       updateFields.push('status = ?');
-      updateValues.push(status);
+      updateValues.push(status || null);
     }
 
     if (thumbnail_url !== undefined) {
@@ -269,10 +271,22 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     // updated_at 자동 업데이트
     updateFields.push('updated_at = CURRENT_TIMESTAMP');
 
+    // 업데이트할 필드가 없으면 에러
+    if (updateFields.length === 1) { // updated_at만 있는 경우
+      return new Response(JSON.stringify({ error: 'No fields to update' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     // ID 추가
     updateValues.push(id);
 
     const updateQuery = `UPDATE landing_pages SET ${updateFields.join(', ')} WHERE id = ?`;
+    
+    console.log('📝 Update query:', updateQuery);
+    console.log('📝 Update values length:', updateValues.length);
+    console.log('📝 Update fields:', updateFields);
 
     await DB.prepare(updateQuery).bind(...updateValues).run();
 
