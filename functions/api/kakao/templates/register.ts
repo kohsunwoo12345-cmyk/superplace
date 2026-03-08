@@ -150,9 +150,8 @@ export async function onRequestPost(context: any) {
 
     // 🔧 템플릿 코드 무조건 자동 생성 (사용자 입력 무시)
     // Solapi templateCode: 영문 소문자, 숫자, 언더스코어만 가능, 최대 40자
-    // UUID v4 기반 완전 고유 코드 생성
-    const uuid = crypto.randomUUID().replace(/-/g, '').substring(0, 16);
-    const finalTemplateCode = `alimtalk_${uuid}`; // 예: alimtalk_a1b2c3d4e5f67890
+    // 매우 단순한 형식: 숫자만 사용
+    const finalTemplateCode = `test${Date.now()}`; // 예: test1772971891234
     
     // 🔧 템플릿 이름도 자동 생성
     const timestamp = Date.now().toString();
