@@ -489,9 +489,18 @@ export async function onRequestPost(context: any) {
             templateId: finalTemplateCode,
             hasExtra: !!templateData.extra,
             extraType: typeof templateData.extra,
-          },
-          debug: {
-            sentToSolapi: templateData // ← 실제 전송 데이터 포함!
+            // ✅ 실제 전송 데이터 직접 포함
+            sentData: {
+              pfId: templateData.pfId,
+              name: templateData.name,
+              categoryCode: templateData.categoryCode,
+              messageType: templateData.messageType,
+              emphasizeType: templateData.emphasizeType,
+              extra: templateData.extra,
+              emphasizeTitle: templateData.emphasizeTitle,
+              emphasizeSubtitle: templateData.emphasizeSubtitle,
+              securityFlag: templateData.securityFlag,
+            }
           }
         }),
         { status: solapiResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
