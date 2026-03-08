@@ -55,7 +55,7 @@ export async function onRequestPost(context) {
 
     // Authorization 헤더에서 사용자 정보 추출
     const authHeader = context.request.headers.get('Authorization');
-    let tokenAcademyId = academyId;
+    let tokenAcademyId = academyId || null;
     let tokenUserId = null;
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -63,10 +63,13 @@ export async function onRequestPost(context) {
       const parts = token.split('|');
       if (parts.length >= 4) {
         tokenUserId = parts[0];
-        tokenAcademyId = parts[3] || academyId;
+        tokenAcademyId = parts[3] || academyId || null;
         logs.push(`✅ 토큰에서 userId: ${tokenUserId}, academyId: ${tokenAcademyId}`);
       }
     }
+    
+    // D1은 undefined를 허용하지 않으므로 null로 변환
+    tokenAcademyId = tokenAcademyId || null;
 
     // 🔒 구독 확인 및 사용량 체크
     logs.push('🔒 구독 확인 중...');
@@ -158,6 +161,7 @@ export async function onRequestPost(context) {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'STUDENT', ?, datetime('now'), datetime('now'))
       `;
       
+      // D1은 undefined를 허용하지 않으므로 모든 값을 null로 변환
       const params = [
         studentId, 
         finalEmail, 
@@ -168,7 +172,7 @@ export async function onRequestPost(context) {
         school || null,
         grade || null,
         studentClass || null,
-        tokenAcademyId
+        tokenAcademyId || null
       ];
       
       logs.push(`📝 SQL 파라미터: ${JSON.stringify(params)}`);
@@ -197,7 +201,7 @@ export async function onRequestPost(context) {
             phone || null, 
             parentPhone || null,
             grade || null,
-            tokenAcademyId
+            tokenAcademyId || null
           ];
           
           await DB.prepare(query).bind(...minimalParams).run();
