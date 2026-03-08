@@ -149,13 +149,13 @@ export async function onRequestPost(context: any) {
     } = body;
 
     // 🔧 템플릿 코드 무조건 자동 생성 (사용자 입력 무시)
-    // Solapi 요구사항: 짧고 간단한 형식 (영문 대문자, 숫자, 언더스코어)
-    const timestamp = Date.now().toString().slice(-10); // 마지막 10자리만 사용
-    const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const finalTemplateCode = `T${timestamp}${randomStr}`; // 예: T2968473866WXTMK4
+    // Solapi templateCode: 영문 소문자, 숫자, 언더스코어만 가능, 최대 40자
+    const timestamp = Date.now().toString().slice(-8); // 마지막 8자리
+    const randomStr = Math.random().toString(36).substring(2, 8); // 소문자
+    const finalTemplateCode = `report_${timestamp}_${randomStr}`; // 예: report_69017061_uftlq7
     
     // 🔧 템플릿 이름도 자동 생성 (report_177235... 형식)
-    const finalTemplateName = `report_${timestamp}_${randomStr}`;
+    const finalTemplateName = `report_${timestamp}_${randomStr.toUpperCase()}`;
     
     console.log('📝 템플릿 등록 신청:', { 
       userId, 
@@ -343,9 +343,10 @@ export async function onRequestPost(context: any) {
     const { date, salt, signature } = await createSolapiSignature(SOLAPI_API_SECRET);
 
     // Prepare template data for Solapi
-    // ⚠️ templateCode/templateId는 Solapi가 자동 생성하므로 보내지 않음
+    // ✅ templateCode는 필수 필드 (영문 소문자, 숫자, 언더스코어, 최대 40자)
     const templateData: any = {
       pfId: realPfId, // DB에서 조회한 실제 32자리 pfId (channelId)
+      templateCode: finalTemplateCode, // ✅ 필수: report_69017061_uftlq7
       name: finalTemplateName, // 자동 생성된 템플릿 이름
       content: content,
       categoryCode: categoryCode || '008', // Default to 일반 카테고리
