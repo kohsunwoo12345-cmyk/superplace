@@ -257,8 +257,12 @@ export async function onRequestPost(context: {
           console.log('📬 Solapi 응답:', {
             status: response.status,
             ok: response.ok,
+            statusCode: result.statusCode,
             result,
           });
+          
+          // Solapi는 HTTP 200이어도 statusCode로 성공/실패 판단
+          const isSuccess = response.ok && (result.statusCode === '2000' || result.statusCode === 2000);
 
           // DB에 로그 저장
           await env.DB.prepare(`
@@ -270,15 +274,15 @@ export async function onRequestPost(context: {
               message.from,
               message.to,
               message.text,
-              response.ok ? 'SUCCESS' : 'FAILED',
-              response.ok ? 'Sent' : (result.errorMessage || result.error || JSON.stringify(result)),
+              isSuccess ? 'SUCCESS' : 'FAILED',
+              isSuccess ? `Sent (${result.messageId})` : (result.errorMessage || result.statusMessage || JSON.stringify(result)),
               message.studentId || null,
               message.studentName || null
             )
             .run();
 
-          if (!response.ok) {
-            throw new Error(`Solapi Error: ${result.errorMessage || result.error || JSON.stringify(result)}`);
+          if (!isSuccess) {
+            throw new Error(`Solapi Error: ${result.errorMessage || result.statusMessage || JSON.stringify(result)}`);
           }
 
           return { success: true, message };
