@@ -114,34 +114,43 @@ export default function MessageSendPage() {
       // 엑셀 데이터를 RecipientRow 형식으로 변환
       const parsedRecipients: RecipientRow[] = jsonData.map((row: any) => {
         return {
-          parentPhone: row['학부모연락처'] || row['연락처'] || row['전화번호'] || '',
-          studentId: row['학생아이디'] || row['학생ID'] || row['studentId'] || '',
           studentName: row['학생이름'] || row['이름'] || row['name'] || '',
+          studentId: row['학생아이디'] || row['학생ID'] || row['studentId'] || '',
+          parentPhone: row['학부모연락처'] || row['연락처'] || row['전화번호'] || '',
         };
       }).filter(r => r.parentPhone && r.studentName);
 
       console.log('✅ 파싱된 수신자:', parsedRecipients);
 
-      // 학생 ID로 최신 랜딩페이지 조회
+      // 메시지에 {랜딩페이지URL} 변수가 있을 때만 랜딩페이지 조회
+      const needsLandingPage = messageContent.includes('{랜딩페이지URL}');
       const token = localStorage.getItem('token');
-      const enrichedRecipients = await Promise.all(
-        parsedRecipients.map(async (recipient) => {
-          if (recipient.studentId) {
-            try {
-              const res = await fetch(`/api/landing-pages/latest?studentId=${recipient.studentId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (res.ok) {
-                const data = await res.json();
-                recipient.landingPageUrl = data.url || '';
+      
+      let enrichedRecipients = parsedRecipients;
+      
+      if (needsLandingPage) {
+        console.log('🔍 랜딩페이지 URL 조회 시작...');
+        enrichedRecipients = await Promise.all(
+          parsedRecipients.map(async (recipient) => {
+            if (recipient.studentId) {
+              try {
+                const res = await fetch(`/api/landing-pages/latest?studentId=${recipient.studentId}`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  recipient.landingPageUrl = data.url || '';
+                }
+              } catch (error) {
+                console.error('랜딩페이지 조회 실패:', recipient.studentId, error);
               }
-            } catch (error) {
-              console.error('랜딩페이지 조회 실패:', recipient.studentId, error);
             }
-          }
-          return recipient;
-        })
-      );
+            return recipient;
+          })
+        );
+      } else {
+        console.log('ℹ️ 랜딩페이지URL 변수 없음, 조회 생략');
+      }
 
       setRecipients(enrichedRecipients);
       alert(`✅ ${enrichedRecipients.length}명의 수신자를 불러왔습니다.`);
@@ -151,16 +160,66 @@ export default function MessageSendPage() {
     }
   };
 
-  const downloadTemplate = () => {
-    const template = [
-      { '학부모연락처': '010-1234-5678', '학생아이디': 'student-001', '학생이름': '홍길동' },
-      { '학부모연락처': '010-9876-5432', '학생아이디': 'student-002', '학생이름': '김철수' },
-    ];
-
-    const worksheet = XLSX.utils.json_to_sheet(template);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, '수신자목록');
-    XLSX.writeFile(workbook, '문자발송_템플릿.xlsx');
+  const downloadTemplate = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // 실제 학생 데이터 가져오기
+      const response = await fetch('/api/students', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const students = data.students || [];
+        
+        if (students.length > 0) {
+          // 실제 학생 데이터로 템플릿 생성 (학부모연락처는 빈 칸)
+          const template = students.map((student: any) => ({
+            '학생이름': student.name || '',
+            '학생아이디': student.id || '',
+            '학부모연락처': '', // 빈 칸으로 남김
+          }));
+          
+          const worksheet = XLSX.utils.json_to_sheet(template);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, '수신자목록');
+          XLSX.writeFile(workbook, '문자발송_템플릿.xlsx');
+          
+          alert(`✅ ${students.length}명의 학생 데이터로 템플릿이 생성되었습니다.`);
+        } else {
+          // 학생이 없으면 샘플 템플릿 제공
+          const template = [
+            { '학생이름': '홍길동', '학생아이디': 'student-001', '학부모연락처': '' },
+            { '학생이름': '김철수', '학생아이디': 'student-002', '학부모연락처': '' },
+          ];
+          
+          const worksheet = XLSX.utils.json_to_sheet(template);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, '수신자목록');
+          XLSX.writeFile(workbook, '문자발송_템플릿.xlsx');
+          
+          alert('ℹ️ 등록된 학생이 없어 샘플 템플릿을 제공합니다.');
+        }
+      } else {
+        throw new Error('학생 데이터를 불러올 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('템플릿 생성 실패:', error);
+      
+      // 오류 시 샘플 템플릿 제공
+      const template = [
+        { '학생이름': '홍길동', '학생아이디': 'student-001', '학부모연락처': '' },
+        { '학생이름': '김철수', '학생아이디': 'student-002', '학부모연락처': '' },
+      ];
+      
+      const worksheet = XLSX.utils.json_to_sheet(template);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '수신자목록');
+      XLSX.writeFile(workbook, '문자발송_템플릿.xlsx');
+      
+      alert('⚠️ 학생 데이터 로딩 실패. 샘플 템플릿을 제공합니다.');
+    }
   };
 
   const replaceVariables = (message: string, recipient: RecipientRow): string => {

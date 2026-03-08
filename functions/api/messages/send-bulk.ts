@@ -4,8 +4,8 @@
 
 interface Env {
   DB: D1Database;
-  SOLAPI_API_KEY: string;
-  SOLAPI_API_SECRET: string;
+  SOLAPI_API_Key: string;  // 대소문자 정확히
+  SOLAPI_API_Secret: string;  // 대소문자 정확히
 }
 
 interface Message {
@@ -119,9 +119,16 @@ export async function onRequestPost(context: {
       );
     }
 
-    // Solapi 설정
-    const SOLAPI_API_KEY = env.SOLAPI_API_KEY;
-    const SOLAPI_API_SECRET = env.SOLAPI_API_SECRET;
+    // Solapi 설정 (대소문자 정확히)
+    const SOLAPI_API_KEY = env.SOLAPI_API_Key;
+    const SOLAPI_API_SECRET = env.SOLAPI_API_Secret;
+
+    console.log('🔑 Solapi 키 확인:', {
+      keyExists: !!SOLAPI_API_KEY,
+      secretExists: !!SOLAPI_API_SECRET,
+      keyLength: SOLAPI_API_KEY?.length || 0,
+      secretLength: SOLAPI_API_SECRET?.length || 0,
+    });
 
     if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
       console.warn("⚠️ Solapi 키가 설정되지 않았습니다. 테스트 모드로 동작합니다.");
@@ -186,15 +193,24 @@ export async function onRequestPost(context: {
     }
 
     // 실제 Solapi 발송
+    console.log('📤 Solapi 실제 발송 시작...');
     const results = await Promise.allSettled(
       messages.map(async (message) => {
         try {
-          // Solapi API 호출
+          // Solapi API 호출 (Authorization 헤더 수정)
+          const authHeader = `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, signature=${SOLAPI_API_SECRET}`;
+          
+          console.log('🔐 Solapi 요청:', {
+            to: message.to,
+            from: message.from,
+            authHeaderLength: authHeader.length,
+          });
+          
           const response = await fetch("https://api.solapi.com/messages/v4/send", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${SOLAPI_API_KEY}:${SOLAPI_API_SECRET}`,
+              "Authorization": authHeader,
             },
             body: JSON.stringify({
               message: {
@@ -206,6 +222,12 @@ export async function onRequestPost(context: {
           });
 
           const result = await response.json();
+          
+          console.log('📬 Solapi 응답:', {
+            status: response.status,
+            ok: response.ok,
+            result,
+          });
 
           // DB에 로그 저장
           await env.DB.prepare(`
@@ -218,13 +240,17 @@ export async function onRequestPost(context: {
               message.to,
               message.text,
               response.ok ? 'SUCCESS' : 'FAILED',
-              response.ok ? 'Sent' : result.error || 'Unknown error',
+              response.ok ? 'Sent' : (result.errorMessage || result.error || JSON.stringify(result)),
               message.studentId || null,
               message.studentName || null
             )
             .run();
 
-          return { success: response.ok, message };
+          if (!response.ok) {
+            throw new Error(`Solapi Error: ${result.errorMessage || result.error || JSON.stringify(result)}`);
+          }
+
+          return { success: true, message };
         } catch (error: any) {
           // 실패 로그 저장
           await env.DB.prepare(`
