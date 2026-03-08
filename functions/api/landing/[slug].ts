@@ -25,9 +25,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 랜딩페이지 조회
+    // 랜딩페이지 조회 (status 체크 제거 - DB에 is_active 컬럼 없음)
     const landingPage = await DB.prepare(`
-      SELECT * FROM landing_pages WHERE slug = ? AND is_active = 1
+      SELECT * FROM landing_pages WHERE slug = ?
     `).bind(slug).first();
 
     if (!landingPage) {
@@ -42,8 +42,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       UPDATE landing_pages SET view_count = view_count + 1 WHERE id = ?
     `).bind(landingPage.id).run();
 
-    // HTML 템플릿 렌더링
-    let html = (landingPage.html_template as string) || '';
+    // HTML 컨텐츠 가져오기 (실제 DB 컬럼명은 html_content)
+    let html = (landingPage.html_content as string) || '';
 
     // 변수 치환
     const replacements: Record<string, string> = {
