@@ -150,11 +150,17 @@ export async function onRequestPost(context: any) {
 
     // 🔧 템플릿 코드 무조건 자동 생성 (사용자 입력 무시)
     // Solapi templateCode: 영문 소문자, 숫자, 언더스코어만 가능, 최대 40자
-    const timestamp = Date.now().toString(); // 전체 타임스탬프
-    const randomStr = Math.random().toString(36).substring(2, 10); // 소문자 8자리
-    const finalTemplateCode = `rpt_${timestamp}_${randomStr}`; // 예: rpt_1772971234567_a8b9c0d1
+    // 완전히 고유한 코드를 위해 crypto 사용
+    const timestamp = Date.now().toString();
+    const randomBytes = crypto.getRandomValues(new Uint8Array(8));
+    const randomStr = Array.from(randomBytes)
+      .map(b => b.toString(36))
+      .join('')
+      .substring(0, 12)
+      .toLowerCase();
+    const finalTemplateCode = `rpt_${timestamp}_${randomStr}`; // 예: rpt_1772971234567_a8b9c0d1e2f3
     
-    // 🔧 템플릿 이름도 자동 생성 (report_177235... 형식)
+    // 🔧 템플릿 이름도 자동 생성
     const finalTemplateName = `report_${timestamp}_${randomStr.toUpperCase()}`;
     
     console.log('📝 템플릿 등록 신청:', { 
@@ -374,19 +380,38 @@ export async function onRequestPost(context: any) {
     if (emphasizeType && emphasizeType !== 'NONE') {
       templateData.emphasizeType = emphasizeType;
       
+      console.log('🔍 Emphasize 처리:', {
+        emphasizeType,
+        hasExtra: !!extra,
+        extraType: typeof extra,
+        extra: extra,
+      });
+      
       // ✅ Solapi 요구사항: emphasizeTitle과 emphasizeSubtitle 필드 사용
       if (extra && typeof extra === 'object') {
         templateData.emphasizeTitle = extra.title || extra.emphasizeTitle || '';
         templateData.emphasizeSubtitle = extra.description || extra.subtitle || extra.emphasizeSubtitle || '';
+        
+        console.log('✅ Emphasize 필드 설정:', {
+          emphasizeTitle: templateData.emphasizeTitle,
+          emphasizeSubtitle: templateData.emphasizeSubtitle,
+        });
       } else if (extra && typeof extra === 'string') {
         // JSON 문자열인 경우 파싱
         try {
           const parsed = JSON.parse(extra);
           templateData.emphasizeTitle = parsed.title || parsed.emphasizeTitle || '';
           templateData.emphasizeSubtitle = parsed.description || parsed.subtitle || parsed.emphasizeSubtitle || '';
+          
+          console.log('✅ Emphasize 필드 설정 (파싱):', {
+            emphasizeTitle: templateData.emphasizeTitle,
+            emphasizeSubtitle: templateData.emphasizeSubtitle,
+          });
         } catch (e) {
           console.warn('⚠️ extra JSON 파싱 실패:', extra);
         }
+      } else {
+        console.warn('⚠️ extra가 없거나 잘못된 형식:', { extra, type: typeof extra });
       }
     }
 
