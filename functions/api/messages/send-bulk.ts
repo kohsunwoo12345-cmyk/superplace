@@ -154,68 +154,6 @@ export async function onRequestPost(context: {
       );
     }
     
-    // 테스트 모드 대신 실제 발송 시도
-    console.log('✅ Solapi 키 존재. 실제 발송 시도...');
-      
-      // 테스트 모드: DB에만 기록
-      for (const message of messages) {
-        await env.DB.prepare(`
-          INSERT INTO sms_logs (userId, senderNumber, recipientNumber, content, status, studentId, studentName, createdAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-        `)
-          .bind(
-            userId,
-            message.from,
-            message.to,
-            message.text,
-            'TEST_SUCCESS',
-            message.studentId || null,
-            message.studentName || null
-          )
-          .run();
-      }
-
-      // 포인트 차감 (point_transactions에 기록 - 이메일 기준)
-      try {
-        // 각 메시지별 비용 차감
-        for (let i = 0; i < messages.length; i++) {
-          const message = messages[i];
-          const cost = messageCosts[i];
-          
-          await env.DB.prepare(`
-            INSERT INTO point_transactions (userId, userEmail, amount, type, description, createdAt)
-            VALUES (?, ?, ?, ?, ?, datetime('now'))
-          `)
-            .bind(
-              userId,
-              email,
-              -cost, // 음수로 차감
-              'SMS_SEND',
-              `문자 발송 (테스트): ${message.to} - ${message.studentName || '수신자'}`
-            )
-            .run();
-        }
-        
-        console.log(`✅ 포인트 차감 완료: ${totalCost}P (테스트 모드)`);
-      } catch (error) {
-        console.warn("⚠️ 포인트 차감 실패 (테스트 모드)", error);
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          successCount: messages.length,
-          failCount: 0,
-          totalCost,
-          mode: 'TEST',
-          message: '테스트 모드로 발송되었습니다 (실제 발송되지 않음)',
-          pointsDeducted: totalCost,
-          remainingPoints: currentPoints - totalCost,
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
     // 실제 Solapi 발송
     console.log('📤 Solapi 실제 발송 시작...');
     
