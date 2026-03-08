@@ -32,13 +32,13 @@ export async function onRequestGet(context: {
     bracket_SOLAPI_API_Key: envAny['SOLAPI_API_Key'],
     bracket_SOLAPI_API_Secret: envAny['SOLAPI_API_Secret'],
     
+    // 공백 포함 버전
+    space_SOLAPI_API_Key: envAny['SOLAPI_API_Key '],
+    space_SOLAPI_API_Secret: envAny['SOLAPI_API_Secret '],
+    
     // 대문자 버전
     upper_SOLAPI_API_KEY: envAny['SOLAPI_API_KEY'],
     upper_SOLAPI_API_SECRET: envAny['SOLAPI_API_SECRET'],
-    
-    // 언더스코어 하나
-    single_SOLAPI_API_Key: envAny['SOLAPI_API_Key'],
-    single_SOLAPI_API_Secret: envAny['SOLAPI_API_Secret'],
   };
   
   const result = {
@@ -54,8 +54,20 @@ export async function onRequestGet(context: {
       preview: typeof value === 'string' ? value.substring(0, 8) + '...' : 'N/A',
     })),
     finalValues: {
-      key: envAny['SOLAPI_API_Key'] || envAny.SOLAPI_API_Key || envAny.SOLAPI_API_KEY || 'NOT_FOUND',
-      secret: envAny['SOLAPI_API_Secret'] || envAny.SOLAPI_API_Secret || envAny.SOLAPI_API_SECRET || 'NOT_FOUND',
+      key: (
+        envAny['SOLAPI_API_Key'] || 
+        envAny['SOLAPI_API_Key '] ||  // 공백 포함
+        envAny.SOLAPI_API_Key || 
+        envAny.SOLAPI_API_KEY || 
+        'NOT_FOUND'
+      ),
+      secret: (
+        envAny['SOLAPI_API_Secret'] || 
+        envAny['SOLAPI_API_Secret '] ||  // 공백 포함
+        envAny.SOLAPI_API_Secret || 
+        envAny.SOLAPI_API_SECRET || 
+        'NOT_FOUND'
+      ),
     },
   };
   
