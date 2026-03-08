@@ -36,7 +36,19 @@ interface UserInfo {
   academyName?: string;
 }
 
-const SMS_COST = 20; // 20 포인트/건
+// 메시지 타입별 비용
+const SMS_COST = 40;  // 단문 SMS: 90바이트 이하
+const LMS_COST = 95;  // 장문 LMS: 2000바이트 이하
+
+// 메시지 비용 계산 함수
+const calculateMessageCost = (text: string): number => {
+  const byteLength = new TextEncoder().encode(text).length;
+  if (byteLength <= 90) {
+    return SMS_COST;  // 40P
+  } else {
+    return LMS_COST;  // 95P
+  }
+};
 
 export default function MessageSendPage() {
   const router = useRouter();
@@ -302,13 +314,20 @@ export default function MessageSendPage() {
     }
 
     console.log('✅ 발송 조건 충족, confirm 대화상자 표시');
+    
+    // 각 메시지의 실제 비용 계산
+    const totalCost = recipients.reduce((sum, recipient) => {
+      const text = replaceVariables(messageContent, recipient);
+      return sum + calculateMessageCost(text);
+    }, 0);
+    
     const confirmMessage = isScheduled
       ? `총 ${recipients.length}명에게 SMS 예약 발송\n` +
         `예약 시간: ${scheduledDate} ${scheduledTime} (한국 시간)\n` +
-        `예상 비용: ${recipients.length * SMS_COST}P\n\n` +
+        `예상 비용: ${totalCost}P\n\n` +
         `예약하시겠습니까?`
       : `총 ${recipients.length}명에게 SMS 발송\n` +
-        `예상 비용: ${recipients.length * SMS_COST}P\n\n` +
+        `예상 비용: ${totalCost}P\n\n` +
         `발송하시겠습니까?`;
     
     const confirmed = confirm(confirmMessage);
@@ -562,7 +581,9 @@ export default function MessageSendPage() {
                 <div className="flex items-center justify-between mb-2">
                   <Label>수신자 목록 ({recipients.length}명)</Label>
                   <Badge variant="outline">
-                    예상 비용: {recipients.length * SMS_COST}P
+                    예상 비용: {recipients.reduce((sum, r) => 
+                      sum + calculateMessageCost(replaceVariables(messageContent, r)), 0
+                    )}P
                   </Badge>
                 </div>
                 <div className="max-h-96 overflow-y-auto border rounded-lg p-3 space-y-2">

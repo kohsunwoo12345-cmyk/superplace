@@ -397,6 +397,69 @@ export async function onRequestPost(context: {
     } catch (error) {
       console.warn("⚠️ 포인트 차감 실패", error);
     }
+    
+    // 발송 내역 저장
+    try {
+      const recipientsData = messages.map(msg => ({
+        to: msg.to,
+        studentId: msg.studentId,
+        studentName: msg.studentName,
+      }));
+      
+      const sendResults = results.map((r, index) => {
+        const msg = messages[index];
+        if (r.status === "fulfilled" && r.value.success) {
+          return {
+            to: msg.to,
+            studentName: msg.studentName,
+            status: 'SUCCESS',
+            cost: messageCosts[index],
+          };
+        } else {
+          const error = r.status === "rejected" ? r.reason?.message : (r.value as any).error;
+          return {
+            to: msg.to,
+            studentName: msg.studentName,
+            status: 'FAILED',
+            error: error || 'Unknown error',
+            cost: 0,
+          };
+        }
+      });
+      
+      // 예약 발송인지 즉시 발송인지 확인
+      const isScheduled = messages[0]?.scheduledDate ? true : false;
+      const scheduledAt = messages[0]?.scheduledDate || null;
+      
+      await env.DB.prepare(`
+        INSERT INTO MessageSendHistory (
+          userId, messageType, senderNumber, recipientCount, recipients,
+          messageContent, pointsUsed, pointCostPerMessage, successCount, failCount,
+          status, sendResults, sentAt, scheduledAt, createdAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `)
+        .bind(
+          userId,
+          actualCost <= 40 * messages.length ? 'SMS' : 'LMS',  // 평균 비용으로 타입 결정
+          messages[0].from,
+          messages.length,
+          JSON.stringify(recipientsData),
+          messages[0].text.substring(0, 100) + (messages[0].text.length > 100 ? '...' : ''),
+          actualCost,
+          Math.round(actualCost / messages.length),  // 평균 비용
+          successCount,
+          failCount,
+          successCount === messages.length ? 'COMPLETED' : failCount === messages.length ? 'FAILED' : 'PARTIAL',
+          JSON.stringify(sendResults),
+          isScheduled ? null : new Date().toISOString(),
+          scheduledAt,
+        )
+        .run();
+      
+      console.log('✅ 발송 내역 저장 완료');
+    } catch (error) {
+      console.warn('⚠️ 발송 내역 저장 실패:', error);
+    }
 
     return new Response(
       JSON.stringify({
