@@ -356,6 +356,35 @@ export async function onRequestPost(context: any) {
     
     console.log('✅ pfId 설정:', realPfId);
     
+    // ✅ pfId 검증 - null이거나 잘못된 형식이면 에러 반환
+    if (!realPfId || typeof realPfId !== 'string' || !realPfId.startsWith('KA01PF')) {
+      console.error('❌ pfId 검증 실패:', {
+        realPfId,
+        type: typeof realPfId,
+        isNull: realPfId === null,
+        isUndefined: realPfId === undefined,
+      });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'pfId validation failed',
+          details: {
+            realPfId,
+            pfIdType: typeof realPfId,
+            expectedFormat: 'KA01PF...',
+            message: 'pfId must be a valid Solapi channel ID starting with KA01PF'
+          }
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log('✅ pfId 검증 성공:', {
+      pfId: realPfId.substring(0, 15) + '...',
+      length: realPfId.length,
+      startsWithKA01PF: realPfId.startsWith('KA01PF')
+    });
+    
     // ❌ senderKey 제거 - Solapi 템플릿 등록에는 필요없음
     // (알림톡 발송 시에만 사용)
 
