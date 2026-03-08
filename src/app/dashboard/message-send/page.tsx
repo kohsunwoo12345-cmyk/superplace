@@ -119,14 +119,23 @@ export default function MessageSendPage() {
         // 숫자만 추출
         let phoneDigits = phoneRaw.replace(/[^0-9]/g, '');
         
-        // 010으로 시작하지 않으면 010 추가
-        if (phoneDigits.length === 9 || phoneDigits.length === 10) {
+        // 길이별 처리
+        if (phoneDigits.length === 11) {
+          // 11자리: 이미 완전한 번호 (010-XXXX-XXXX)
+          // 그대로 사용
+        } else if (phoneDigits.length === 10) {
+          // 10자리: 
+          // - 010으로 시작 → 그대로 (잘못된 번호지만 그대로 전달)
+          // - 010으로 시작 안함 → 010 추가
           if (!phoneDigits.startsWith('010')) {
             phoneDigits = '010' + phoneDigits;
           }
+        } else if (phoneDigits.length === 9) {
+          // 9자리: 1XXXXXXXX → 0101XXXXXXXX
+          phoneDigits = '010' + phoneDigits;
         } else if (phoneDigits.length === 8) {
-          // 8자리면 010 + 1 + 나머지
-          phoneDigits = '0101' + phoneDigits;
+          // 8자리: 지역번호 없는 경우 → 010 추가
+          phoneDigits = '010' + phoneDigits;
         }
         
         // 하이픈 추가 (010-XXXX-XXXX 형식)
@@ -136,7 +145,8 @@ export default function MessageSendPage() {
         } else if (phoneDigits.length === 10) {
           formattedPhone = `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6, 10)}`;
         } else {
-          formattedPhone = phoneDigits; // 그대로 사용
+          // 비정상적인 길이는 그대로
+          formattedPhone = phoneDigits;
         }
         
         const recipient = {
@@ -148,6 +158,7 @@ export default function MessageSendPage() {
           raw: row, 
           phoneRaw, 
           phoneDigits, 
+          phoneLength: phoneDigits.length,
           formattedPhone,
           parsed: recipient 
         });
