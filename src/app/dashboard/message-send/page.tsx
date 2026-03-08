@@ -241,26 +241,40 @@ export default function MessageSendPage() {
   };
 
   const handleSend = async () => {
+    console.log('🚀 발송 버튼 클릭됨!');
+    console.log('📊 현재 상태:', {
+      senderNumber,
+      messageContent: messageContent.substring(0, 50) + '...',
+      recipientsCount: recipients.length,
+      recipients: recipients,
+    });
+    
     if (!senderNumber) {
+      console.error('❌ 발신번호 없음');
       alert("발신번호를 선택해주세요.");
       return;
     }
 
     if (!messageContent.trim()) {
+      console.error('❌ 메시지 내용 없음');
       alert("메시지 내용을 입력해주세요.");
       return;
     }
 
     if (recipients.length === 0) {
+      console.error('❌ 수신자 없음:', recipients);
       alert("엑셀 파일을 업로드하여 수신자를 추가해주세요.");
       return;
     }
 
+    console.log('✅ 발송 조건 충족, confirm 대화상자 표시');
     const confirmed = confirm(
       `총 ${recipients.length}명에게 SMS 발송\n` +
       `예상 비용: ${recipients.length * SMS_COST}P\n\n` +
       `발송하시겠습니까?`
     );
+    
+    console.log('📋 사용자 확인 결과:', confirmed ? '확인' : '취소');
 
     if (!confirmed) return;
 
