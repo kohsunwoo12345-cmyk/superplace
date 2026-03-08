@@ -150,9 +150,9 @@ export async function onRequestPost(context: any) {
 
     // 🔧 템플릿 코드 무조건 자동 생성 (사용자 입력 무시)
     // Solapi templateCode: 영문 소문자, 숫자, 언더스코어만 가능, 최대 40자
-    const timestamp = Date.now().toString().slice(-8); // 마지막 8자리
-    const randomStr = Math.random().toString(36).substring(2, 8); // 소문자
-    const finalTemplateCode = `report_${timestamp}_${randomStr}`; // 예: report_69017061_uftlq7
+    const timestamp = Date.now().toString(); // 전체 타임스탬프
+    const randomStr = Math.random().toString(36).substring(2, 10); // 소문자 8자리
+    const finalTemplateCode = `rpt_${timestamp}_${randomStr}`; // 예: rpt_1772971234567_a8b9c0d1
     
     // 🔧 템플릿 이름도 자동 생성 (report_177235... 형식)
     const finalTemplateName = `report_${timestamp}_${randomStr.toUpperCase()}`;
