@@ -56,11 +56,19 @@ async function fetchPfIdFromSolapi(
   try {
     console.log('🔍 Solapi API에서 채널 조회 시작:', channelName);
     
+    // 기존 서명 로직 사용 (date + salt)
     const { date, salt, signature } = await createSolapiSignature(apiSecret);
     const authHeader = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
     
-    // Solapi API: 카카오 채널 목록 조회
-    const response = await fetch('https://api.solapi.com/kakao/v2/plus-friends', {
+    console.log('🔐 인증 헤더 생성:', {
+      apiKeyPreview: apiKey.substring(0, 8) + '...',
+      date,
+      salt,
+      signaturePreview: signature.substring(0, 16) + '...',
+    });
+    
+    // ✅ Solapi API: GET https://api.solapi.com/kakao/v2/channels
+    const response = await fetch('https://api.solapi.com/kakao/v2/channels', {
       method: 'GET',
       headers: {
         'Authorization': authHeader,
@@ -68,24 +76,35 @@ async function fetchPfIdFromSolapi(
       },
     });
     
+    console.log('📥 Solapi 응답:', {
+      status: response.status,
+      ok: response.ok,
+    });
+    
     if (!response.ok) {
-      console.error('❌ Solapi 채널 목록 조회 실패:', response.status);
+      const errorText = await response.text();
+      console.error('❌ Solapi 채널 목록 조회 실패:', {
+        status: response.status,
+        error: errorText,
+      });
       return null;
     }
     
     const data = await response.json();
     console.log('📋 Solapi 채널 목록:', {
-      totalChannels: data.plusFriends?.length || 0,
-      channels: data.plusFriends?.map((c: any) => ({
-        name: c.plusFriendId,
+      totalChannels: data.channels?.length || 0,
+      channelsPreview: data.channels?.slice(0, 3).map((c: any) => ({
+        name: c.name || c.plusFriendId || c.channelName,
         pfId: c.pfId,
       })) || [],
     });
     
-    // 채널명으로 pfId 찾기
-    const channel = data.plusFriends?.find((c: any) => 
+    // 채널명으로 pfId 찾기 (여러 필드명 시도)
+    const channel = data.channels?.find((c: any) => 
+      c.name === channelName || 
       c.plusFriendId === channelName || 
-      c.name === channelName
+      c.channelName === channelName ||
+      c.kakaoChannelName === channelName
     );
     
     if (channel && channel.pfId) {
@@ -97,7 +116,12 @@ async function fetchPfIdFromSolapi(
       return channel.pfId;
     }
     
-    console.warn('⚠️ 채널을 찾을 수 없음:', channelName);
+    console.warn('⚠️ 채널을 찾을 수 없음:', {
+      searchName: channelName,
+      availableChannels: data.channels?.map((c: any) => 
+        c.name || c.plusFriendId || c.channelName
+      ) || [],
+    });
     return null;
   } catch (error: any) {
     console.error('❌ Solapi API 호출 에러:', error.message);

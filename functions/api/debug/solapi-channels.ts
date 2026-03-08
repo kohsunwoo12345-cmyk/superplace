@@ -49,8 +49,8 @@ export async function onRequest(context: any) {
       signaturePreview: signatureHex.substring(0, 16) + '...',
     });
 
-    // Call Solapi API
-    const response = await fetch('https://api.solapi.com/kakao/v2/plus-friends', {
+    // ✅ Call Solapi API: GET https://api.solapi.com/kakao/v2/channels
+    const response = await fetch('https://api.solapi.com/kakao/v2/channels', {
       method: 'GET',
       headers: {
         'Authorization': authHeader,
@@ -78,7 +78,7 @@ export async function onRequest(context: any) {
         status: response.status,
         data: data,
         debug: {
-          apiEndpoint: 'https://api.solapi.com/kakao/v2/plus-friends',
+          apiEndpoint: 'https://api.solapi.com/kakao/v2/channels',
           method: 'GET',
           hasCredentials: {
             apiKey: !!SOLAPI_API_KEY,
