@@ -76,18 +76,20 @@ export async function onRequestPost(context: {
 
     console.log(`📨 문자 발송 요청: ${messages.length}건`);
     console.log(`💰 예상 비용: ${totalCost}P (SMS: 40P, LMS: 95P, MMS: 220P)`);
+    console.log(`👤 사용자: userId=${userId}, email=${email}`);
 
-    // 포인트 조회 (point_transactions 테이블 사용)
+    // 포인트 조회 (point_transactions 테이블 사용 - 이메일 기준)
     let currentPoints = 0;
     try {
       const pointResult = await env.DB.prepare(`
         SELECT COALESCE(SUM(amount), 0) as total
         FROM point_transactions
-        WHERE userId = ?
-      `).bind(userId).first();
+        WHERE userEmail = ?
+      `).bind(email).all();
       
-      currentPoints = (pointResult?.total as number) || 0;
-      console.log(`💳 현재 포인트: ${currentPoints}P`);
+      const firstRow = pointResult.results?.[0];
+      currentPoints = (firstRow as any)?.total || 0;
+      console.log(`💳 현재 포인트 (by email): ${currentPoints}P`);
     } catch (error) {
       console.warn("⚠️ point_transactions 조회 실패, users 테이블 확인", error);
       
@@ -142,7 +144,7 @@ export async function onRequestPost(context: {
           .run();
       }
 
-      // 포인트 차감 (point_transactions에 기록)
+      // 포인트 차감 (point_transactions에 기록 - 이메일 기준)
       try {
         // 각 메시지별 비용 차감
         for (let i = 0; i < messages.length; i++) {
@@ -150,11 +152,12 @@ export async function onRequestPost(context: {
           const cost = messageCosts[i];
           
           await env.DB.prepare(`
-            INSERT INTO point_transactions (userId, amount, type, description, createdAt)
-            VALUES (?, ?, ?, ?, datetime('now'))
+            INSERT INTO point_transactions (userId, userEmail, amount, type, description, createdAt)
+            VALUES (?, ?, ?, ?, ?, datetime('now'))
           `)
             .bind(
               userId,
+              email,
               -cost, // 음수로 차감
               'SMS_SEND',
               `문자 발송 (테스트): ${message.to} - ${message.studentName || '수신자'}`
@@ -251,7 +254,7 @@ export async function onRequestPost(context: {
     ).length;
     const failCount = results.length - successCount;
 
-    // 성공한 메시지만 포인트 차감
+    // 성공한 메시지만 포인트 차감 (이메일 기준)
     let actualCost = 0;
     try {
       for (let i = 0; i < results.length; i++) {
@@ -262,11 +265,12 @@ export async function onRequestPost(context: {
           
           const message = messages[i];
           await env.DB.prepare(`
-            INSERT INTO point_transactions (userId, amount, type, description, createdAt)
-            VALUES (?, ?, ?, ?, datetime('now'))
+            INSERT INTO point_transactions (userId, userEmail, amount, type, description, createdAt)
+            VALUES (?, ?, ?, ?, ?, datetime('now'))
           `)
             .bind(
               userId,
+              email,
               -cost, // 음수로 차감
               'SMS_SEND',
               `문자 발송: ${message.to} - ${message.studentName || '수신자'}`

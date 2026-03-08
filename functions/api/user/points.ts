@@ -39,24 +39,25 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     const userId = parseInt(tokenData.id);
+    const userEmail = tokenData.email;
     console.log('🔍 Fetching user points');
     console.log('Token data:', tokenData);
-    console.log('UserId:', userId);
+    console.log('UserId:', userId, 'Email:', userEmail);
 
-    // point_transactions 테이블에서 포인트 합계 조회
+    // point_transactions 테이블에서 포인트 합계 조회 (이메일 기준)
     let totalPoints = 0;
     try {
-      console.log('Querying point_transactions with userId:', userId);
+      console.log('Querying point_transactions with userEmail:', userEmail);
       const pointResult = await env.DB.prepare(`
         SELECT COALESCE(SUM(amount), 0) as total
         FROM point_transactions
-        WHERE userId = ?
-      `).bind(userId).all();
+        WHERE userEmail = ?
+      `).bind(userEmail).all();
       
       // .all()을 사용하여 결과의 첫 번째 행 가져오기
       const firstRow = pointResult.results?.[0];
       totalPoints = (firstRow as any)?.total || 0;
-      console.log('✅ User points from transactions:', totalPoints, 'firstRow:', firstRow);
+      console.log('✅ User points from transactions (by email):', totalPoints, 'firstRow:', firstRow);
     } catch (e: any) {
       console.log('⚠️ point_transactions table error:', e.message);
       // Fallback: User 테이블에서 조회 시도
