@@ -345,8 +345,7 @@ export async function onRequestPost(context: any) {
     // Prepare template data for Solapi
     // ✅ Solapi API 공식 스펙에 맞춤
     const templateData: any = {
-      // ⚠️ channelId 없이 등록 시도 (계정에 등록됨)
-      // channelId: realPfId,
+      pfId: realPfId, // ✅ Solapi는 실제로 "pfId" 필드 사용 (문서에는 channelId로 표기)
       name: finalTemplateName, // ✅ 템플릿 이름
       content: content, // ✅ 템플릿 내용
       categoryCode: categoryCode || '008', // ✅ 필수
@@ -354,7 +353,7 @@ export async function onRequestPost(context: any) {
       securityFlag: securityFlag || false // ✅ 보안 템플릿 여부
     };
     
-    console.log('⚠️ channelId 없이 등록 시도 (디버그 모드)');
+    console.log('✅ pfId 설정:', realPfId);
     
     // ❌ senderKey 제거 - Solapi 템플릿 등록에는 필요없음
     // (알림톡 발송 시에만 사용)
