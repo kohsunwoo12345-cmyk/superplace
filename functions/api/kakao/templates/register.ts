@@ -370,7 +370,19 @@ export async function onRequestPost(context: any) {
       }));
     }
 
-    // Add emphasize type and extra if provided
+    // ✅ EX/MI 타입: extra 필드 필수 (부가정보, 최대 80자, 변수 불가)
+    if (messageType === 'EX' || messageType === 'MI') {
+      if (extra && typeof extra === 'object') {
+        // extra.title을 extra 필드로 사용 (부가정보)
+        templateData.extra = extra.title || extra.description || '';
+        console.log('✅ EX/MI 타입 - extra 필드 설정:', templateData.extra);
+      } else if (extra && typeof extra === 'string') {
+        templateData.extra = extra;
+        console.log('✅ EX/MI 타입 - extra 필드 설정 (문자열):', templateData.extra);
+      }
+    }
+
+    // ✅ TEXT 강조: emphasizeTitle, emphasizeSubtitle 필수
     if (emphasizeType && emphasizeType !== 'NONE') {
       templateData.emphasizeType = emphasizeType;
       
@@ -381,31 +393,31 @@ export async function onRequestPost(context: any) {
         extra: extra,
       });
       
-      // ✅ Solapi 요구사항: emphasizeTitle과 emphasizeSubtitle 필드 사용
-      if (extra && typeof extra === 'object') {
-        templateData.emphasizeTitle = extra.title || extra.emphasizeTitle || '';
-        templateData.emphasizeSubtitle = extra.description || extra.subtitle || extra.emphasizeSubtitle || '';
-        
-        console.log('✅ Emphasize 필드 설정:', {
-          emphasizeTitle: templateData.emphasizeTitle,
-          emphasizeSubtitle: templateData.emphasizeSubtitle,
-        });
-      } else if (extra && typeof extra === 'string') {
-        // JSON 문자열인 경우 파싱
-        try {
-          const parsed = JSON.parse(extra);
-          templateData.emphasizeTitle = parsed.title || parsed.emphasizeTitle || '';
-          templateData.emphasizeSubtitle = parsed.description || parsed.subtitle || parsed.emphasizeSubtitle || '';
+      // TEXT 강조 타입일 때만 emphasizeTitle/Subtitle 설정
+      if (emphasizeType === 'TEXT') {
+        if (extra && typeof extra === 'object') {
+          templateData.emphasizeTitle = extra.title || extra.emphasizeTitle || '';
+          templateData.emphasizeSubtitle = extra.description || extra.subtitle || extra.emphasizeSubtitle || '';
           
-          console.log('✅ Emphasize 필드 설정 (파싱):', {
+          console.log('✅ TEXT 강조 필드 설정:', {
             emphasizeTitle: templateData.emphasizeTitle,
             emphasizeSubtitle: templateData.emphasizeSubtitle,
           });
-        } catch (e) {
-          console.warn('⚠️ extra JSON 파싱 실패:', extra);
+        } else if (extra && typeof extra === 'string') {
+          // JSON 문자열인 경우 파싱
+          try {
+            const parsed = JSON.parse(extra);
+            templateData.emphasizeTitle = parsed.title || parsed.emphasizeTitle || '';
+            templateData.emphasizeSubtitle = parsed.description || parsed.subtitle || parsed.emphasizeSubtitle || '';
+            
+            console.log('✅ TEXT 강조 필드 설정 (파싱):', {
+              emphasizeTitle: templateData.emphasizeTitle,
+              emphasizeSubtitle: templateData.emphasizeSubtitle,
+            });
+          } catch (e) {
+            console.warn('⚠️ extra JSON 파싱 실패:', extra);
+          }
         }
-      } else {
-        console.warn('⚠️ extra가 없거나 잘못된 형식:', { extra, type: typeof extra });
       }
     }
 
