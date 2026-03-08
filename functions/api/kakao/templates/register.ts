@@ -410,13 +410,18 @@ export async function onRequestPost(context: any) {
       }
     }
 
-    console.log('🚀 Solapi API 호출:', templateData);
+    console.log('🚀 Solapi API 호출 - 전송 데이터:', {
+      ...templateData,
+      contentPreview: content.substring(0, 50) + '...'
+    });
     console.log('🔐 인증 헤더:', {
       apiKeyPreview: SOLAPI_API_KEY?.substring(0, 8) + '...',
       date,
       salt,
       signaturePreview: signature.substring(0, 16) + '...',
     });
+    
+    console.log('🔥 실제 전송 JSON:', JSON.stringify(templateData, null, 2));
 
     // Call Solapi API to register template
     const solapiResponse = await fetch('https://api.solapi.com/kakao/v1/templates', {
