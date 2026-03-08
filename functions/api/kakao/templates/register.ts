@@ -149,10 +149,13 @@ export async function onRequestPost(context: any) {
     } = body;
 
     // 🔧 템플릿 코드 무조건 자동 생성 (사용자 입력 무시)
-    const finalTemplateCode = `TPL_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    // Solapi 요구사항: 짧고 간단한 형식 (영문 대문자, 숫자, 언더스코어)
+    const timestamp = Date.now().toString().slice(-10); // 마지막 10자리만 사용
+    const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const finalTemplateCode = `T${timestamp}${randomStr}`; // 예: T2968473866WXTMK4
     
     // 🔧 템플릿 이름도 자동 생성 (report_177235... 형식)
-    const finalTemplateName = `report_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const finalTemplateName = `report_${timestamp}_${randomStr}`;
     
     console.log('📝 템플릿 등록 신청:', { 
       userId, 
