@@ -238,45 +238,39 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     }
 
     if (subtitle !== undefined) {
-      // subtitle 컬럼이 DB에 없을 수 있으므로 스킵
-      console.log('⚠️ Skipping subtitle update - column may not exist');
-      // updateFields.push('subtitle = ?');
-      // updateValues.push(subtitle?.trim() || null);
+      updateFields.push('subtitle = ?');
+      updateValues.push(subtitle?.trim() || null);
     }
 
     if (html_content !== undefined) {
-      // html_content 컬럼 확인 필요 - templateHtml일 수 있음
-      console.log('⚠️ Skipping html_content update - checking column name');
-      // updateFields.push('html_content = ?');
-      // updateValues.push(html_content || null);
+      // 실제 컬럼명은 templateHtml
+      updateFields.push('templateHtml = ?');
+      updateValues.push(html_content || null);
     }
 
     if (og_title !== undefined) {
-      // og_title 컬럼 확인 필요 - metaTitle일 수 있음
-      console.log('⚠️ Skipping og_title update - checking column name');
-      // updateFields.push('og_title = ?');
-      // updateValues.push(og_title?.trim() || null);
+      // 실제 컬럼명은 ogTitle
+      updateFields.push('ogTitle = ?');
+      updateValues.push(og_title?.trim() || null);
     }
 
     if (og_description !== undefined) {
-      // og_description 컬럼 확인 필요 - metaDescription일 수 있음
-      console.log('⚠️ Skipping og_description update - checking column name');
-      // updateFields.push('og_description = ?');
-      // updateValues.push(og_description?.trim() || null);
+      // 실제 컬럼명은 ogDescription
+      updateFields.push('ogDescription = ?');
+      updateValues.push(og_description?.trim() || null);
     }
 
     if (status !== undefined) {
-      // status 컬럼 확인 필요 - isActive (INTEGER)일 수 있음
-      console.log('⚠️ Skipping status update - checking column name');
-      // updateFields.push('status = ?');
-      // updateValues.push(status || null);
+      // 실제 컬럼명은 isActive (INTEGER: 1=active, 0=inactive)
+      const isActive = status === 'active' ? 1 : 0;
+      updateFields.push('isActive = ?');
+      updateValues.push(isActive);
     }
 
     if (thumbnail_url !== undefined) {
-      // thumbnail_url 컬럼 확인 필요 - thumbnailUrl일 수 있음
-      console.log('⚠️ Skipping thumbnail_url update - checking column name');
-      // updateFields.push('thumbnail_url = ?');
-      // updateValues.push(thumbnail_url || null);
+      // 실제 컬럼명은 thumbnail
+      updateFields.push('thumbnail = ?');
+      updateValues.push(thumbnail_url || null);
     }
 
     // updatedAt 자동 업데이트 - datetime('now') 사용
