@@ -71,21 +71,22 @@ export async function onRequestPost(context: any) {
 
     console.log('📝 템플릿 등록 신청:', { userId, channelId, pfId, templateCode, templateName });
 
-    if (!userId || !channelId || !pfId || !templateCode || !templateName || !content) {
+    if (!userId || !channelId || !templateCode || !templateName || !content) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Missing required fields: userId, channelId, pfId, templateCode, templateName, content' 
+          error: 'Missing required fields: userId, channelId, templateCode, templateName, content' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 학원장 정보 조회 (전화번호, 카카오 채널 ID)
+    // 🔍 핵심: DB에서 실제 pfId 조회 (채널 이름 → 32자리 pfId로 변환)
     let academyPhone = null;
-    let academyPfId = pfId; // 기본값으로 전달받은 pfId 사용
+    let academyPfId = null;
     
     try {
+      // 1. 사용자 전화번호 조회
       const userResult = await env.DB.prepare(`
         SELECT phone, academy_name FROM users WHERE id = ?
       `).bind(userId).first();
@@ -95,27 +96,63 @@ export async function onRequestPost(context: any) {
         console.log('📞 학원장 전화번호 조회 성공:', academyPhone);
       }
       
-      // 카카오 채널 정보 조회
+      // 2. 카카오 채널 정보 조회 (channelId로 실제 pfId 찾기)
       const channelResult = await env.DB.prepare(`
-        SELECT solapiChannelId, phoneNumber FROM KakaoChannel WHERE id = ? AND userId = ?
-      `).bind(channelId, userId.toString()).first();
+        SELECT id, channelName, solapiChannelId, phoneNumber FROM KakaoChannel 
+        WHERE id = ?
+      `).bind(channelId).first();
+      
+      console.log('🔎 DB 조회 결과:', {
+        channelId,
+        found: !!channelResult,
+        channelName: channelResult?.channelName,
+        solapiChannelId: channelResult?.solapiChannelId,
+      });
       
       if (channelResult) {
         if (channelResult.solapiChannelId) {
           academyPfId = channelResult.solapiChannelId;
-          console.log('📱 카카오 채널 ID 조회 성공:', academyPfId);
+          console.log('✅ 실제 pfId 조회 성공:', academyPfId);
+        } else {
+          console.error('❌ solapiChannelId가 DB에 없습니다!');
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: '카카오 채널의 pfId가 등록되지 않았습니다. 채널을 먼저 연동해주세요.',
+              details: '관리자에게 문의하세요: solapiChannelId 누락'
+            }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
+        
         if (!academyPhone && channelResult.phoneNumber) {
           academyPhone = channelResult.phoneNumber;
           console.log('📞 채널 전화번호 조회 성공:', academyPhone);
         }
+      } else {
+        console.error('❌ 채널을 찾을 수 없습니다:', channelId);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: '선택한 카카오 채널을 찾을 수 없습니다.',
+            details: `channelId: ${channelId}`
+          }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-    } catch (dbError) {
+    } catch (dbError: any) {
       console.error('⚠️ 학원 정보 조회 실패:', dbError);
-      // 실패해도 계속 진행 (기존 정보 사용)
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'DB 조회 실패',
+          details: dbError.message
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
-    console.log('🏫 학원 정보:', { academyPhone, academyPfId });
+    console.log('🏫 최종 학원 정보:', { academyPhone, academyPfId });
 
     // Get Solapi credentials (여러 가능한 환경 변수명 시도)
     const envAny = env as any;
@@ -147,7 +184,7 @@ export async function onRequestPost(context: any) {
 
     // Prepare template data for Solapi
     const templateData: any = {
-      pfId: academyPfId, // DB에서 조회한 학원 카카오 채널 ID 사용
+      pfId: academyPfId, // DB에서 조회한 실제 32자리 pfId
       templateId: templateCode,
       name: templateName,
       content: content,
@@ -156,10 +193,8 @@ export async function onRequestPost(context: any) {
       securityFlag: securityFlag || false
     };
     
-    // 학원 전화번호가 있으면 추가 (Solapi에서 사용)
-    if (academyPhone) {
-      templateData.senderKey = academyPhone; // Solapi 발신자 정보
-    }
+    // ❌ senderKey 제거 - Solapi 템플릿 등록에는 필요없음
+    // (알림톡 발송 시에만 사용)
 
     // Add buttons if provided
     if (buttons && Array.isArray(buttons) && buttons.length > 0) {
@@ -177,7 +212,10 @@ export async function onRequestPost(context: any) {
     // Add emphasize type and extra if provided
     if (emphasizeType && emphasizeType !== 'NONE') {
       templateData.emphasizeType = emphasizeType;
-      if (extra) {
+      // ✅ extra는 JSON 문자열로 변환
+      if (extra && typeof extra === 'object') {
+        templateData.extra = JSON.stringify(extra);
+      } else if (extra && typeof extra === 'string') {
         templateData.extra = extra;
       }
     }
@@ -209,13 +247,41 @@ export async function onRequestPost(context: any) {
     });
 
     if (!solapiResponse.ok) {
-      // Solapi API 에러
+      // Solapi API 에러 - 상세 정보 반환
+      const errorMessages = [];
+      
+      if (solapiData.errorMessage) {
+        errorMessages.push(solapiData.errorMessage);
+      }
+      
+      if (solapiData.message) {
+        errorMessages.push(solapiData.message);
+      }
+      
+      // 검증 오류 메시지 파싱
+      if (Array.isArray(solapiData.errors)) {
+        errorMessages.push(...solapiData.errors);
+      }
+      
+      console.error('❌ Solapi 템플릿 등록 실패:', {
+        errorCode: solapiData.errorCode,
+        errorMessages,
+        fullResponse: solapiData
+      });
+      
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: solapiData.errorMessage || 'Solapi template registration failed',
+          error: errorMessages.join(', ') || 'Solapi template registration failed',
           details: solapiData,
-          code: solapiData.errorCode
+          code: solapiData.errorCode,
+          validation: {
+            pfId: academyPfId,
+            pfIdLength: academyPfId?.length,
+            templateId: templateCode,
+            hasExtra: !!templateData.extra,
+            extraType: typeof templateData.extra,
+          }
         }),
         { status: solapiResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
