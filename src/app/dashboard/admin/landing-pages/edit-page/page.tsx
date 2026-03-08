@@ -147,11 +147,12 @@ export default function EditLandingPagePage() {
         },
         body: JSON.stringify({
           title: title.trim(),
-          subtitle: subtitle.trim(),
-          html_content: updatedHtml,
-          og_title: ogTitle.trim() || title.trim(),
-          og_description: ogDescription.trim(),
-          status,
+          // subtitle, html_content 등은 DB 스키마 문제로 임시 비활성화
+          // subtitle: subtitle.trim(),
+          // html_content: updatedHtml,
+          // og_title: ogTitle.trim() || title.trim(),
+          // og_description: ogDescription.trim(),
+          // status,
         }),
       });
 
