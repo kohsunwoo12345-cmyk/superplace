@@ -76,22 +76,33 @@ export default function MessageHistoryPage() {
 
   const loadHistory = async () => {
     try {
+      console.log('🔍 발송 이력 조회 시작...');
       setLoading(true);
       const token = localStorage.getItem("token");
+      console.log('🔑 토큰:', token);
+      
       const response = await fetch("/api/messages/history", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
+      console.log('📡 응답 상태:', response.status, response.ok);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ 발송 이력 데이터:', data);
+        console.log('📊 이력 개수:', data.history?.length || 0);
         setHistory(data.history || []);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ API 오류:', errorData);
       }
     } catch (error) {
-      console.error("발송 이력 조회 실패:", error);
+      console.error("❌ 발송 이력 조회 실패:", error);
     } finally {
       setLoading(false);
+      console.log('✅ 로딩 완료');
     }
   };
 
