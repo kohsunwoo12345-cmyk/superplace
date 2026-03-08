@@ -28,8 +28,15 @@ binding = "VECTORIZE"
 index_name = "knowledge-base-embeddings"
 
 # Environment Variables
-# Note: GOOGLE_GEMINI_API_KEY should be set in Cloudflare Pages dashboard
-# Settings > Environment variables
-# Get your API key from: https://makersuite.google.com/app/apikey
+# Note: These should be set in Cloudflare Pages dashboard
+# Settings > Environment variables > Production
+# 
+# Required for SMS functionality:
+# - SOLAPI_API_Key (Solapi API Key)
+# - SOLAPI_API_Secret (Solapi API Secret)
+# - GOOGLE_GEMINI_API_KEY (Get from: https://makersuite.google.com/app/apikey)
+#
+# Sensitive variables (API keys, secrets) should ONLY be set in dashboard,
+# NOT in this file (wrangler.toml is committed to git)
 [vars]
 # Add other non-sensitive variables here if needed
