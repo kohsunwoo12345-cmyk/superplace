@@ -160,10 +160,15 @@ export default function EditLandingPagePage() {
         router.push("/dashboard/admin/landing-pages");
       } else {
         const error = await response.json();
-        alert(`수정 실패: ${error.error || "알 수 없는 오류"}`);
+        console.error("❌ Update failed:", error);
+        const errorMsg = `수정 실패: ${error.error || "알 수 없는 오류"}
+상세: ${error.details || "N/A"}
+에러명: ${error.errorName || "N/A"}`;
+        alert(errorMsg);
       }
     } catch (error: any) {
       console.error("랜딩페이지 수정 실패:", error);
+      console.error("Full error object:", JSON.stringify(error, null, 2));
       alert(`오류: ${error.message || "랜딩페이지 수정 중 오류가 발생했습니다."}`);
     } finally {
       setSaving(false);
