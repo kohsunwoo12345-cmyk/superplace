@@ -85,6 +85,17 @@ export default function EditLandingPagePage() {
           contentPreview: event.data.content?.substring(0, 200)
         });
         setEditableContent(event.data.content);
+        
+        // 🔥 핵심 수정: editableContent가 변경되면 htmlContent도 업데이트
+        setHtmlContent(prevHtml => {
+          const updatedHtml = updateHtmlWithEditedContent(prevHtml, event.data.content);
+          console.log('✅ htmlContent 자동 업데이트:', {
+            prevLength: prevHtml.length,
+            newLength: updatedHtml.length
+          });
+          return updatedHtml;
+        });
+        
         setPreviewKey(prev => prev + 1);
         console.log('✅ editableContent 상태 업데이트 완료');
       }
@@ -140,16 +151,14 @@ export default function EditLandingPagePage() {
       setSaving(true);
       const token = localStorage.getItem("token");
 
-      // 편집된 컨텐츠로 HTML 업데이트
-      const updatedHtml = updateHtmlWithEditedContent(htmlContent, editableContent);
+      // htmlContent는 이미 editableContent 변경 시 자동 업데이트됨
+      // 추가 업데이트 불필요, htmlContent를 그대로 사용
       
       // 디버깅: 저장할 내용 확인
       console.log('💾 저장할 데이터:', {
         title: title.trim(),
         htmlContentLength: htmlContent.length,
-        editableContentLength: editableContent.length,
-        updatedHtmlLength: updatedHtml.length,
-        editableContentPreview: editableContent.substring(0, 200)
+        htmlContentPreview: htmlContent.substring(0, 200)
       });
 
       const response = await fetch(`/api/admin/landing-pages/${id}`, {
@@ -160,7 +169,7 @@ export default function EditLandingPagePage() {
         },
         body: JSON.stringify({
           title: title.trim(),
-          html_content: updatedHtml,
+          html_content: htmlContent,
           status,
           // subtitle, og_title, og_description, thumbnail_url은 DB에 없음
         }),
