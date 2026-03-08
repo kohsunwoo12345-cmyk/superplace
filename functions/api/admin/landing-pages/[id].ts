@@ -121,7 +121,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       status: result.status || 'active',
       created_at: result.created_at,
       updated_at: result.updated_at,
-      views: result.view_count || 0,
+      views: result.views || result.view_count || 0,
       user_id: result.user_id
     };
 
@@ -324,7 +324,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       status: updatedPage.status || 'active',
       created_at: updatedPage.created_at,
       updated_at: updatedPage.updated_at,
-      views: updatedPage.view_count || 0,
+      views: updatedPage.views || updatedPage.view_count || 0,
       user_id: updatedPage.user_id
     };
 

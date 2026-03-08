@@ -105,7 +105,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
       url: `/api/landing/${lp.slug || lp.id}`, // API URL로 직접 연결
       isActive: true, // 일단 모두 활성으로
       showQrCode: true,
-      viewCount: lp.view_count || lp.viewCount || 0,
+      viewCount: lp.views || lp.view_count || lp.viewCount || 0,
       submissions: 0,
       createdAt: lp.created_at || lp.createdAt || new Date().toISOString(),
       creatorName: lp.creatorName || ''

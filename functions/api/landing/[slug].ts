@@ -37,10 +37,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 조회수 증가 (view_count 컬럼이 없으므로 주석 처리)
-    // await DB.prepare(`
-    //   UPDATE landing_pages SET view_count = view_count + 1 WHERE id = ?
-    // `).bind(landingPage.id).run();
+    // 조회수 증가
+    try {
+      await DB.prepare(`
+        UPDATE landing_pages SET views = COALESCE(views, 0) + 1 WHERE id = ?
+      `).bind(landingPage.id).run();
+      console.log(`✅ 조회수 증가: ${slug}`);
+    } catch (viewError) {
+      console.error('⚠️ 조회수 업데이트 실패:', viewError);
+      // 조회수 업데이트 실패해도 페이지는 표시
+    }
 
     // HTML 컨텐츠 가져오기 (실제 DB 컬럼명은 html_content)
     let html = (landingPage.html_content as string) || '';
