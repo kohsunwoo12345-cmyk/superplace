@@ -238,35 +238,79 @@ export async function onRequestPost(context) {
       
       console.log('🆕 Creating new subscription:', subscriptionId);
 
-      await DB.prepare(`
-        INSERT INTO AcademyBotSubscription (
-          id,
+      // pricePerStudent 컬럼 존재 여부 확인
+      let insertSQL;
+      let insertParams;
+      
+      try {
+        // pricePerStudent 컬럼이 있는지 테스트
+        await DB.prepare(`SELECT pricePerStudent FROM AcademyBotSubscription LIMIT 1`).first();
+        
+        // 컬럼이 있으면 포함
+        insertSQL = `
+          INSERT INTO AcademyBotSubscription (
+            id,
+            academyId,
+            productId,
+            productName,
+            totalStudentSlots,
+            usedStudentSlots,
+            remainingStudentSlots,
+            subscriptionStart,
+            subscriptionEnd,
+            pricePerStudent,
+            memo,
+            createdAt,
+            updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `;
+        insertParams = [
+          subscriptionId,
           academyId,
           productId,
-          productName,
-          totalStudentSlots,
-          usedStudentSlots,
-          remainingStudentSlots,
+          botCheck.name,
+          studentCount,
+          0,
+          studentCount,
           subscriptionStart,
           subscriptionEnd,
           pricePerStudent,
-          memo,
-          createdAt,
-          updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-      `).bind(
-        subscriptionId,
-        academyId,
-        productId,
-        botCheck.name,
-        studentCount,
-        0,
-        studentCount,
-        subscriptionStart,
-        subscriptionEnd,
-        pricePerStudent,
-        memo || null
-      ).run();
+          memo || null
+        ];
+      } catch (e) {
+        // 컬럼이 없으면 제외
+        console.log('⚠️ pricePerStudent column not found, using fallback INSERT');
+        insertSQL = `
+          INSERT INTO AcademyBotSubscription (
+            id,
+            academyId,
+            productId,
+            productName,
+            totalStudentSlots,
+            usedStudentSlots,
+            remainingStudentSlots,
+            subscriptionStart,
+            subscriptionEnd,
+            memo,
+            createdAt,
+            updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `;
+        insertParams = [
+          subscriptionId,
+          academyId,
+          productId,
+          botCheck.name,
+          studentCount,
+          0,
+          studentCount,
+          subscriptionStart,
+          subscriptionEnd,
+          memo || null
+        ];
+      }
+      
+      await DB.prepare(insertSQL).bind(...insertParams).run();
 
       // 생성된 구독 조회
       result = await DB.prepare(`
