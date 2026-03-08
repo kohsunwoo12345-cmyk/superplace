@@ -273,11 +273,11 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       updateValues.push(thumbnail_url || null);
     }
 
-    // updatedAt 자동 업데이트 - datetime('now') 사용
-    updateFields.push("updatedAt = datetime('now')");
+    // updatedAt 컬럼이 실제 DB에 없을 수 있으므로 제거
+    // updateFields.push("updatedAt = datetime('now')");
 
     // 업데이트할 필드가 없으면 에러
-    if (updateFields.length === 1) { // updated_at만 있는 경우
+    if (updateFields.length === 0) {
       return new Response(JSON.stringify({ error: 'No fields to update' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
