@@ -217,14 +217,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
     const { title, subtitle, html_content, og_title, og_description, status, thumbnail_url } = body;
 
-    // 필수 필드 체크
-    if (!title || !title.trim()) {
-      return new Response(JSON.stringify({ error: 'Title is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
     console.log('📝 Updating landing page:', id);
     console.log('📝 Request body:', JSON.stringify(body).substring(0, 500));
 
@@ -234,8 +226,15 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
     // D1은 undefined를 허용하지 않으므로 명시적으로 체크
     if (title !== undefined) {
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle) {
+        return new Response(JSON.stringify({ error: 'Title cannot be empty' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       updateFields.push('title = ?');
-      updateValues.push(title.trim() || null);
+      updateValues.push(trimmedTitle);
     }
 
     if (subtitle !== undefined) {
