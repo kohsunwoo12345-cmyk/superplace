@@ -50,8 +50,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         WHERE userId = ?
       `).bind(userId).first();
       
-      totalPoints = pointResult?.total || 0;
-      console.log('✅ User points from transactions:', totalPoints);
+      // D1 결과는 객체로 반환되므로 타입 캐스팅 필요
+      totalPoints = (pointResult as any)?.total || 0;
+      console.log('✅ User points from transactions:', totalPoints, 'pointResult:', pointResult);
     } catch (e: any) {
       console.log('⚠️ point_transactions table error:', e.message);
       // Fallback: User 테이블에서 조회 시도
