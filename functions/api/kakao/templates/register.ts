@@ -161,7 +161,12 @@ export async function onRequestPost(context: any) {
       );
     }
     
-    console.log('🏫 최종 학원 정보:', { academyPhone, academyPfId });
+    console.log('🏫 최종 정보:', { 
+      academyPhone, 
+      realPfId: realPfId?.substring(0, 10) + '...', 
+      pfIdLength: realPfId?.length,
+      templateCode: finalTemplateCode 
+    });
 
     // Get Solapi credentials (여러 가능한 환경 변수명 시도)
     const envAny = env as any;
@@ -286,7 +291,7 @@ export async function onRequestPost(context: any) {
           code: solapiData.errorCode,
           validation: {
             pfId: realPfId,
-            pfIdLength: academyPfId?.length,
+            pfIdLength: realPfId?.length,
             templateId: finalTemplateCode,
             hasExtra: !!templateData.extra,
             extraType: typeof templateData.extra,
