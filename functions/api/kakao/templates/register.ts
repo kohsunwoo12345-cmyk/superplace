@@ -150,18 +150,13 @@ export async function onRequestPost(context: any) {
 
     // 🔧 템플릿 코드 무조건 자동 생성 (사용자 입력 무시)
     // Solapi templateCode: 영문 소문자, 숫자, 언더스코어만 가능, 최대 40자
-    // 완전히 고유한 코드를 위해 crypto 사용
-    const timestamp = Date.now().toString();
-    const randomBytes = crypto.getRandomValues(new Uint8Array(8));
-    const randomStr = Array.from(randomBytes)
-      .map(b => b.toString(36))
-      .join('')
-      .substring(0, 12)
-      .toLowerCase();
-    const finalTemplateCode = `rpt_${timestamp}_${randomStr}`; // 예: rpt_1772971234567_a8b9c0d1e2f3
+    // UUID v4 기반 완전 고유 코드 생성
+    const uuid = crypto.randomUUID().replace(/-/g, '').substring(0, 16);
+    const finalTemplateCode = `alimtalk_${uuid}`; // 예: alimtalk_a1b2c3d4e5f67890
     
     // 🔧 템플릿 이름도 자동 생성
-    const finalTemplateName = `report_${timestamp}_${randomStr.toUpperCase()}`;
+    const timestamp = Date.now().toString();
+    const finalTemplateName = `report_${timestamp}`;
     
     console.log('📝 템플릿 등록 신청:', { 
       userId, 
@@ -349,10 +344,10 @@ export async function onRequestPost(context: any) {
     const { date, salt, signature } = await createSolapiSignature(SOLAPI_API_SECRET);
 
     // Prepare template data for Solapi
-    // ⚠️ templateCode 제거 시도 - Solapi가 자동 생성하도록
+    // ✅ templateCode는 필수 - UUID 기반 완전 고유 코드
     const templateData: any = {
       pfId: realPfId, // DB에서 조회한 실제 32자리 pfId (channelId)
-      // templateCode 제거 - Solapi 자동 생성
+      templateCode: finalTemplateCode, // UUID 기반 고유 코드
       name: finalTemplateName, // 자동 생성된 템플릿 이름
       content: content,
       categoryCode: categoryCode || '008', // Default to 일반 카테고리
