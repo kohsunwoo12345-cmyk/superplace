@@ -288,7 +288,15 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     console.log('📝 Update values length:', updateValues.length);
     console.log('📝 Update fields:', updateFields);
 
-    await DB.prepare(updateQuery).bind(...updateValues).run();
+    try {
+      const result = await DB.prepare(updateQuery).bind(...updateValues).run();
+      console.log('✅ Update result:', result);
+    } catch (dbError: any) {
+      console.error('❌ DB Update Error:', dbError);
+      console.error('❌ Query:', updateQuery);
+      console.error('❌ Values:', updateValues);
+      throw new Error(`Database update failed: ${dbError.message}`);
+    }
 
     console.log('✅ Landing page updated:', id);
 
@@ -331,10 +339,13 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     );
   } catch (error: any) {
     console.error('Landing page update error:', error);
+    console.error('Error stack:', error.stack);
     return new Response(
       JSON.stringify({
         error: 'Failed to update landing page',
         details: error.message,
+        stack: error.stack,
+        errorName: error.name,
       }),
       {
         status: 500,
