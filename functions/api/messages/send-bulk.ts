@@ -33,9 +33,10 @@ export async function onRequestPost(context: {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const [userId, email, role] = token.split("|");
+    const [userIdStr, email, role] = token.split("|");
+    const userId = parseInt(userIdStr);
 
-    if (!userId) {
+    if (!userId || isNaN(userId)) {
       return new Response(
         JSON.stringify({ error: "유효하지 않은 토큰입니다" }),
         { status: 401, headers: { "Content-Type": "application/json" } }

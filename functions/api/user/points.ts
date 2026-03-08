@@ -38,7 +38,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    console.log('🔍 Fetching user points:', tokenData.id);
+    const userId = parseInt(tokenData.id);
+    console.log('🔍 Fetching user points for userId:', userId);
 
     // point_transactions 테이블에서 포인트 합계 조회
     let totalPoints = 0;
@@ -47,7 +48,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         SELECT COALESCE(SUM(amount), 0) as total
         FROM point_transactions
         WHERE userId = ?
-      `).bind(tokenData.id).first();
+      `).bind(userId).first();
       
       totalPoints = pointResult?.total || 0;
       console.log('✅ User points from transactions:', totalPoints);
@@ -57,7 +58,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       try {
         const user = await env.DB.prepare(`
           SELECT points FROM User WHERE id = ?
-        `).bind(tokenData.id).first();
+        `).bind(userId).first();
         totalPoints = user?.points || 0;
         console.log('✅ User points from User table:', totalPoints);
       } catch (fallbackError: any) {
