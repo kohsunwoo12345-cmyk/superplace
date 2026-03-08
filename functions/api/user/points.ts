@@ -39,11 +39,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     const userId = parseInt(tokenData.id);
-    console.log('🔍 Fetching user points for userId:', userId);
+    console.log('🔍 Fetching user points');
+    console.log('Token data:', tokenData);
+    console.log('UserId:', userId);
 
     // point_transactions 테이블에서 포인트 합계 조회
     let totalPoints = 0;
     try {
+      console.log('Querying point_transactions with userId:', userId);
       const pointResult = await env.DB.prepare(`
         SELECT COALESCE(SUM(amount), 0) as total
         FROM point_transactions
