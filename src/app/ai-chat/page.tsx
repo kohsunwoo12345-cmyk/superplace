@@ -927,18 +927,38 @@ export default function ModernAIChatPage() {
         let hasAnswer = false;
         
         const answerKeywords = [
+          // 이중 줄바꿈 (가장 우선순위 높음)
           { pattern: '\n\n풀이:', name: '풀이' },
           { pattern: '\n\n답:', name: '답' },
           { pattern: '\n\nAnswer:', name: 'Answer' },
           { pattern: '\n\n해설:', name: '해설' },
           { pattern: '\n\n정답:', name: '정답' },
           { pattern: '\n\n모범답안:', name: '모범답안' },
+          { pattern: '\n\nSolution:', name: 'Solution' },
+          { pattern: '\n\n[풀이]', name: '[풀이]' },
+          { pattern: '\n\n[답]', name: '[답]' },
+          { pattern: '\n\n[Answer]', name: '[Answer]' },
+          { pattern: '\n\n[정답]', name: '[정답]' },
+          { pattern: '\n\n**풀이**', name: '**풀이**' },
+          { pattern: '\n\n**답**', name: '**답**' },
+          { pattern: '\n\n**Answer**', name: '**Answer**' },
+          { pattern: '\n\n**정답**', name: '**정답**' },
+          // 단일 줄바꿈
           { pattern: '\n풀이:', name: '풀이' },
           { pattern: '\n답:', name: '답' },
           { pattern: '\nAnswer:', name: 'Answer' },
           { pattern: '\n해설:', name: '해설' },
           { pattern: '\n정답:', name: '정답' },
-          { pattern: '\n모범답안:', name: '모범답안' }
+          { pattern: '\n모범답안:', name: '모범답안' },
+          { pattern: '\nSolution:', name: 'Solution' },
+          { pattern: '\n[풀이]', name: '[풀이]' },
+          { pattern: '\n[답]', name: '[답]' },
+          { pattern: '\n[Answer]', name: '[Answer]' },
+          { pattern: '\n[정답]', name: '[정답]' },
+          { pattern: '\n**풀이**', name: '**풀이**' },
+          { pattern: '\n**답**', name: '**답**' },
+          { pattern: '\n**Answer**', name: '**Answer**' },
+          { pattern: '\n**정답**', name: '**정답**' }
         ];
         
         let earliestIndex = -1;
@@ -1047,17 +1067,18 @@ export default function ModernAIChatPage() {
       return;
     }
 
-    // Generate problems HTML (NO ANSWERS)
+    // Generate problems HTML with answers on separate pages (same document)
     const problemsHtml = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>문제지 - ${academyName}</title>
+        <title>문제지 및 답안지 - ${academyName}</title>
         <style>
           @media print {
             @page { margin: 1.5cm 1cm; size: A4 portrait; }
             .no-print { display: none !important; }
+            .page-break { page-break-after: always; }
           }
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
@@ -1114,6 +1135,10 @@ export default function ModernAIChatPage() {
             background: #f3f4f6;
             border-left: 4px solid #2563eb;
           }
+          .section-title.answer-section {
+            background: #dcfce7;
+            border-left: 4px solid #16a34a;
+          }
           .problems-container {
             column-count: 2;
             column-gap: 20px;
@@ -1145,6 +1170,26 @@ export default function ModernAIChatPage() {
             height: 24px;
             margin-bottom: 4px;
           }
+          .answer-item {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 6px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .answer-number {
+            font-size: 14px;
+            font-weight: 700;
+            color: #16a34a;
+            margin-bottom: 6px;
+          }
+          .answer-content {
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            color: #374151;
+          }
           .page-break {
             page-break-after: always;
             break-after: page;
@@ -1152,6 +1197,7 @@ export default function ModernAIChatPage() {
         </style>
       </head>
       <body>
+        <!-- 문제지 섹션 -->
         <div class="header">
           <div class="academy-name">${academyName}</div>
           <div class="worksheet-title">학습 문제지</div>
@@ -1181,7 +1227,7 @@ export default function ModernAIChatPage() {
         ` : ''}
 
         ${descriptiveProblems.length > 0 ? `
-        ${multipleChoiceProblems.length > 5 ? '<div class="page-break"></div>' : ''}
+        ${multipleChoiceProblems.length > 0 ? '<div class="page-break"></div>' : ''}
         <div class="section-title">서술형 문제</div>
         <div class="problems-container">
         ${descriptiveProblems.map((p) => `
@@ -1197,155 +1243,44 @@ export default function ModernAIChatPage() {
         </div>
         ` : ''}
 
+        <!-- 페이지 나누기 -->
+        <div class="page-break"></div>
+
+        <!-- 답안지 섹션 -->
+        <div class="header">
+          <div class="academy-name">${academyName}</div>
+          <div class="worksheet-title">답안지</div>
+        </div>
+
+        ${multipleChoiceProblems.length > 0 ? `
+        <div class="section-title answer-section">객관식 정답</div>
+        ${multipleChoiceProblems.map((p) => `
+          <div class="answer-item">
+            <div class="answer-number">${p.number}번 정답</div>
+            <div class="answer-content">${(p.answer || '정답 없음').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+          </div>
+        `).join('')}
+        ` : ''}
+
+        ${descriptiveProblems.length > 0 ? `
+        ${multipleChoiceProblems.length > 0 ? '<div class="page-break"></div>' : ''}
+        <div class="section-title answer-section">서술형 모범 답안</div>
+        ${descriptiveProblems.map((p) => `
+          <div class="answer-item">
+            <div class="answer-number">${p.number}번 답안</div>
+            <div class="answer-content">${(p.answer || '모범 답안 없음').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+          </div>
+        `).join('')}
+        ` : ''}
+
         <div class="no-print" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <button onclick="window.print()" style="padding: 10px 25px; font-size: 14px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
-            문제지 인쇄
-          </button>
-          <button onclick="openAnswerSheet()" style="padding: 10px 25px; font-size: 14px; background: #16a34a; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
-            답안지 보기
+            전체 인쇄
           </button>
           <button onclick="window.close()" style="padding: 10px 25px; font-size: 14px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
             닫기
           </button>
         </div>
-        
-        <script>
-          function openAnswerSheet() {
-            const answersData = {
-              academyName: '${academyName}',
-              multipleChoiceProblems: ${JSON.stringify(multipleChoiceProblems.map(p => ({ 
-                number: p.number, 
-                answer: p.answer 
-              })))},
-              descriptiveProblems: ${JSON.stringify(descriptiveProblems.map(p => ({ 
-                number: p.number, 
-                answer: p.answer 
-              })))}
-            };
-            
-            console.log('📄 Opening answer sheet with data:', answersData);
-            
-            const answerWindow = window.open('', '_blank');
-            if (!answerWindow) {
-              alert('팝업 차단이 활성화되어 있습니다.');
-              return;
-            }
-            
-            const answerHtml = \`
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>답안지 - \${answersData.academyName}</title>
-  <style>
-    @media print {
-      @page { margin: 1.5cm 1cm; size: A4 portrait; }
-      .no-print { display: none !important; }
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
-      max-width: 21cm;
-      margin: 0 auto;
-      padding: 1.5cm 1cm;
-      background: white;
-      color: #000;
-      line-height: 1.6;
-    }
-    .header {
-      text-align: center;
-      margin-bottom: 25px;
-      padding-bottom: 15px;
-      border-bottom: 2px solid #000;
-    }
-    .academy-name {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      color: #1a1a1a;
-    }
-    .worksheet-title {
-      font-size: 16px;
-      color: #555;
-      margin-top: 5px;
-    }
-    .section-title {
-      font-size: 15px;
-      font-weight: 700;
-      margin: 20px 0 15px 0;
-      padding: 8px 10px;
-      background: #dcfce7;
-      border-left: 4px solid #16a34a;
-    }
-    .answer-item {
-      margin-bottom: 15px;
-      padding: 12px;
-      background: #f9fafb;
-      border-radius: 6px;
-      page-break-inside: avoid;
-    }
-    .answer-number {
-      font-size: 14px;
-      font-weight: 700;
-      color: #16a34a;
-      margin-bottom: 6px;
-    }
-    .answer-content {
-      font-size: 13px;
-      line-height: 1.6;
-      white-space: pre-wrap;
-      color: #374151;
-    }
-    .page-break {
-      page-break-after: always;
-      break-after: page;
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div class="academy-name">\${answersData.academyName}</div>
-    <div class="worksheet-title">답안지</div>
-  </div>
-
-  \${answersData.multipleChoiceProblems.length > 0 ? \`
-  <div class="section-title">객관식 정답</div>
-  \${answersData.multipleChoiceProblems.map(a => \`
-    <div class="answer-item">
-      <div class="answer-number">\${a.number}번 정답</div>
-      <div class="answer-content">\${a.answer}</div>
-    </div>
-  \`).join('')}
-  \` : ''}
-
-  \${answersData.descriptiveProblems.length > 0 ? \`
-  \${answersData.multipleChoiceProblems.length > 3 ? '<div class="page-break"></div>' : ''}
-  <div class="section-title">서술형 모범 답안</div>
-  \${answersData.descriptiveProblems.map(a => \`
-    <div class="answer-item">
-      <div class="answer-number">\${a.number}번 답안</div>
-      <div class="answer-content">\${a.answer}</div>
-    </div>
-  \`).join('')}
-  \` : ''}
-
-  <div class="no-print" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-    <button onclick="window.print()" style="padding: 10px 25px; font-size: 14px; background: #16a34a; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
-      답안지 인쇄
-    </button>
-    <button onclick="window.close()" style="padding: 10px 25px; font-size: 14px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
-      닫기
-    </button>
-  </div>
-</body>
-</html>
-\`;
-            
-            answerWindow.document.open();
-            answerWindow.document.write(answerHtml);
-            answerWindow.document.close();
-          }
-        </script>
       </body>
       </html>
     `;
