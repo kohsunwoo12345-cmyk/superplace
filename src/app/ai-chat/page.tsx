@@ -900,85 +900,119 @@ export default function ModernAIChatPage() {
     const extractedProblems: { number: number; content: string; hasAnswer: boolean; type: 'multiple' | 'descriptive' }[] = [];
 
     assistantMessages.forEach((msg, index) => {
-      const content = msg.content;
+      let content = msg.content;
       
-      // 1. 먼저 번호가 있는 문제 형식인지 확인 (1. 또는 1) 또는 **1.** 형태)
-      const numberedProblemRegex = /(?:^|\n)(?:\*\*)?(\d+)[\.\)]\s*(?:\*\*)?(.+?)(?=(?:\n(?:\*\*)?(?:\d+)[\.\)]|\n\n|$))/gs;
-      const matches = [...content.matchAll(numberedProblemRegex)];
+      console.log('🔍 Processing message:', content.substring(0, 100) + '...');
       
-      if (matches.length > 0) {
-        // 번호가 매겨진 문제들만 추출
-        matches.forEach((match) => {
-          const problemNumber = match[1];
-          let problemContent = match[2].trim();
-          
-          // "문제:", "[문제]" 등의 레이블 제거
-          problemContent = problemContent.replace(/^(?:\[문제\]|\*\*문제\*\*|문제:)\s*/i, '');
-          
-          // 풀이, 답, 해설 등을 찾아서 분리 (더 엄격한 분리)
-          let hasAnswer = false;
-          let answerContent = '';
-          const answerKeywords = [
-            '\n\n풀이:', '\n\n답:', '\n\n해설:', '\n\n정답:', '\n\n모범답안:',
-            '\n풀이:', '\n답:', '\n해설:', '\n정답:', '\n모범답안:',
-            '\n\n[풀이]', '\n\n[답]', '\n\n[해설]', '\n\n[정답]', '\n\n[모범답안]',
-            '\n[풀이]', '\n[답]', '\n[해설]', '\n[정답]', '\n[모범답안]',
-            '\n\n**풀이**', '\n\n**답**', '\n\n**해설**', '\n\n**정답**', '\n\n**모범답안**',
-            '\n**풀이**', '\n**답**', '\n**해설**', '\n**정답**', '\n**모범답안**'
-          ];
-          
-          for (const keyword of answerKeywords) {
-            if (problemContent.includes(keyword)) {
-              hasAnswer = true;
-              const parts = problemContent.split(keyword);
-              problemContent = parts[0].trim();
-              
-              // 답 부분을 추출 (다음 문제나 섹션 시작 전까지)
-              let rawAnswer = parts[1]?.trim() || '';
-              
-              // 다음 문제 번호가 나오면 거기까지만
-              const nextProblemMatch = rawAnswer.match(/\n\n\d+[\.)]/);
-              if (nextProblemMatch && nextProblemMatch.index !== undefined) {
-                rawAnswer = rawAnswer.substring(0, nextProblemMatch.index).trim();
-              }
-              
-              // 빈 줄 두 개 이상으로 구분된 다음 섹션 제거
-              const doubleLine = rawAnswer.indexOf('\n\n\n');
-              if (doubleLine > 0) {
-                rawAnswer = rawAnswer.substring(0, doubleLine).trim();
-              }
-              
-              answerContent = rawAnswer || '답안 없음';
-              break;
-            }
+      // 먼저 전체 컨텐츠를 문제 단위로 분할 (1., 2., 3. 등으로 구분)
+      const problemSections = content.split(/(?=\n\d+[\.\)]\s)/);
+      
+      problemSections.forEach((section) => {
+        section = section.trim();
+        if (!section) return;
+        
+        // 문제 번호 추출
+        const numberMatch = section.match(/^(\d+)[\.\)]\s+/);
+        if (!numberMatch) return;
+        
+        const problemNumber = numberMatch[1];
+        let remainingContent = section.substring(numberMatch[0].length).trim();
+        
+        // "문제:", "[문제]" 등의 레이블 제거
+        remainingContent = remainingContent.replace(/^(?:\[문제\]|\*\*문제\*\*|문제:)\s*/i, '');
+        
+        // 답안 키워드 찾기 (가장 먼저 나오는 것 사용)
+        let problemContent = remainingContent;
+        let answerContent = '';
+        let hasAnswer = false;
+        
+        const answerKeywords = [
+          { pattern: '\n\n풀이:', name: '풀이' },
+          { pattern: '\n\n답:', name: '답' },
+          { pattern: '\n\n해설:', name: '해설' },
+          { pattern: '\n\n정답:', name: '정답' },
+          { pattern: '\n\n모범답안:', name: '모범답안' },
+          { pattern: '\n풀이:', name: '풀이' },
+          { pattern: '\n답:', name: '답' },
+          { pattern: '\n해설:', name: '해설' },
+          { pattern: '\n정답:', name: '정답' },
+          { pattern: '\n모범답안:', name: '모범답안' },
+          { pattern: '\n\n[풀이]', name: '풀이' },
+          { pattern: '\n\n[답]', name: '답' },
+          { pattern: '\n\n[해설]', name: '해설' },
+          { pattern: '\n\n[정답]', name: '정답' },
+          { pattern: '\n\n[모범답안]', name: '모범답안' },
+          { pattern: '\n[풀이]', name: '풀이' },
+          { pattern: '\n[답]', name: '답' },
+          { pattern: '\n[해설]', name: '해설' },
+          { pattern: '\n[정답]', name: '정답' },
+          { pattern: '\n[모범답안]', name: '모범답안' },
+          { pattern: '\n\n**풀이**', name: '풀이' },
+          { pattern: '\n\n**답**', name: '답' },
+          { pattern: '\n\n**해설**', name: '해설' },
+          { pattern: '\n\n**정답**', name: '정답' },
+          { pattern: '\n\n**모범답안**', name: '모범답안' },
+          { pattern: '\n**풀이**', name: '풀이' },
+          { pattern: '\n**답**', name: '답' },
+          { pattern: '\n**해설**', name: '해설' },
+          { pattern: '\n**정답**', name: '정답' },
+          { pattern: '\n**모범답안**', name: '모범답안' }
+        ];
+        
+        // 가장 먼저 나오는 답안 키워드 찾기
+        let earliestIndex = -1;
+        let earliestKeyword = null;
+        
+        for (const kw of answerKeywords) {
+          const idx = remainingContent.indexOf(kw.pattern);
+          if (idx !== -1 && (earliestIndex === -1 || idx < earliestIndex)) {
+            earliestIndex = idx;
+            earliestKeyword = kw;
           }
+        }
+        
+        if (earliestKeyword) {
+          hasAnswer = true;
+          problemContent = remainingContent.substring(0, earliestIndex).trim();
+          answerContent = remainingContent.substring(earliestIndex + earliestKeyword.pattern.length).trim();
           
-          // 문제 내용에서 답이 섞이지 않도록 추가 정제
-          // 괄호 안의 답 표시 제거: (답: 5), [답: 10] 등
-          problemContent = problemContent.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
+          console.log(`✂️  Split at "${earliestKeyword.name}" (index: ${earliestIndex})`);
+          console.log(`   Problem: ${problemContent.substring(0, 50)}...`);
+          console.log(`   Answer: ${answerContent.substring(0, 50)}...`);
+        } else {
+          problemContent = remainingContent;
+          console.log(`ℹ️  No answer keyword found`);
+        }
+        
+        // 문제 내용에서 인라인 답 제거: (답: 5), [답: 10] 등
+        problemContent = problemContent.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
+        
+        // 문제 타입 판단
+        const isPureProbl = 
+          /계산하시오|구하시오|풀이하시오|풀어보세요|답하시오|풀어라|구하세요|계산하세요|구해보세요|선택하시오|고르시오/.test(problemContent) ||
+          problemContent.includes('=') ||
+          problemContent.includes('?') ||
+          problemContent.includes('①') ||
+          problemContent.includes('②');
+        
+        // 객관식 문제인지 판단
+        const isMultipleChoice = /[①②③④⑤]|[\(（][1-5][\)）]\s*[^\d]/.test(problemContent);
+        
+        // 순수 문제 형식이고, 길이가 적당하면 추가
+        if (isPureProbl && problemContent.length > 5 && problemContent.length < 1000) {
+          extractedProblems.push({
+            number: parseInt(problemNumber),
+            content: problemContent,
+            hasAnswer: hasAnswer,
+            answer: answerContent || '정답 없음',
+            type: isMultipleChoice ? 'multiple' : 'descriptive'
+          });
           
-          // 문제만 추출 (설명, 도입부 제외)
-          // "다음을 계산하시오", "다음 문제를 풀어보세요" 같은 순수한 문제 형식만 허용
-          const isPureProbl = 
-            /계산하시오|구하시오|풀이하시오|풀어보세요|답하시오|풀어라|구하세요|계산하세요|구해보세요/.test(problemContent) ||
-            problemContent.includes('=') ||
-            problemContent.includes('?');
-          
-          // 객관식 문제인지 판단 (①, ②, ③, ④, ⑤ 또는 1), 2), 3), 4), 5) 형태의 선택지 포함)
-          const isMultipleChoice = /[①②③④⑤]|[\(（]?[1-5][\)）]\s*[^\d]/.test(problemContent);
-          
-          // 순수 문제 형식이고, 길이가 적당하면 추가 (너무 길면 설명이 섞인 것)
-          if (isPureProbl && problemContent.length > 5 && problemContent.length < 800) {
-            extractedProblems.push({
-              number: parseInt(problemNumber),
-              content: problemContent,
-              hasAnswer: hasAnswer,
-              answer: answerContent || '정답 없음',
-              type: isMultipleChoice ? 'multiple' : 'descriptive'
-            });
-          }
-        });
-      }
+          console.log(`✅ Added problem #${problemNumber} (${isMultipleChoice ? '객관식' : '서술형'})`);
+        } else {
+          console.log(`⏭️  Skipped: isPureProbl=${isPureProbl}, length=${problemContent.length}`);
+        }
+      });
     });
 
     console.log('📋 추출된 문제 개수:', extractedProblems.length);
@@ -1012,19 +1046,28 @@ export default function ModernAIChatPage() {
 
     const problems = extractedProblems;
 
-    // Get academy name
+    // Get academy name from user state or localStorage
     let academyName = '학원';
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/user/profile', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        academyName = data.academyName || academyName;
+      // 1순위: user state에서 가져오기
+      if (user?.academyName) {
+        academyName = user.academyName;
+        console.log('✅ Academy name from user state:', academyName);
+      } else {
+        // 2순위: localStorage에서 직접 가져오기
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          if (userData.academyName) {
+            academyName = userData.academyName;
+            console.log('✅ Academy name from localStorage:', academyName);
+          } else {
+            console.warn('⚠️ academyName not found in user data:', userData);
+          }
+        }
       }
     } catch (error) {
-      console.error('Failed to fetch academy name:', error);
+      console.error('Failed to get academy name:', error);
     }
 
     // Create print window
