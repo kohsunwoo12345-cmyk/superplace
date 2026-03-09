@@ -915,7 +915,6 @@ export default function ModernAIChatPage() {
       console.log(`\n🔍 Processing message ${msgIndex + 1}:`, fullText.substring(0, 100) + '...');
       
       // Step 0: 구분선으로 문제/답안 섹션 분리
-      // 우선순위: 명확한 답안 키워드 > 일반 구분선
       const separatorPatterns = [
         '\n**정답 및 해설**',
         '\n**정답**',
@@ -926,6 +925,7 @@ export default function ModernAIChatPage() {
       ];
       
       let problemSection = fullText;
+      let answerSection = '';
       let separatorFound = false;
       
       // 먼저 명확한 답안 키워드 검색
@@ -933,13 +933,16 @@ export default function ModernAIChatPage() {
         const sepIndex = fullText.indexOf(separator);
         if (sepIndex !== -1) {
           problemSection = fullText.substring(0, sepIndex);
-          console.log(`✂️  Found separator "${separator.trim()}" - cutting at index ${sepIndex}`);
+          answerSection = fullText.substring(sepIndex + separator.length);
+          console.log(`✂️  Found separator "${separator.trim()}" at index ${sepIndex}`);
+          console.log(`📦 Problem section: ${problemSection.length} chars`);
+          console.log(`📦 Answer section: ${answerSection.length} chars`);
           separatorFound = true;
           break;
         }
       }
       
-      // 답안 키워드를 못 찾았으면 마지막 --- 구분선 찾기 (여러 개 있을 수 있음)
+      // 답안 키워드를 못 찾았으면 마지막 --- 구분선 찾기
       if (!separatorFound) {
         const allDashIndices = [];
         let searchIndex = 0;
@@ -950,25 +953,59 @@ export default function ModernAIChatPage() {
           searchIndex = dashIndex + 1;
         }
         
-        // 마지막 --- 사용 (정답 섹션 구분선일 가능성이 높음)
         if (allDashIndices.length > 0) {
           const lastDashIndex = allDashIndices[allDashIndices.length - 1];
           problemSection = fullText.substring(0, lastDashIndex);
-          console.log(`✂️  Found last --- separator at index ${lastDashIndex} (total: ${allDashIndices.length})`);
+          answerSection = fullText.substring(lastDashIndex + 5); // '\n---\n'.length = 5
+          console.log(`✂️  Found last --- separator at index ${lastDashIndex}`);
+          console.log(`📦 Problem section: ${problemSection.length} chars`);
+          console.log(`📦 Answer section: ${answerSection.length} chars`);
         }
       }
       
-      // Step 1: 줄바꿈 기준으로 분리 후 문제 번호 찾기
+      // 답안 섹션에서 답안 추출 (번호 -> 답안 매핑)
+      const answersMap: { [key: string]: string } = {};
+      if (answerSection.trim()) {
+        const answerLines = answerSection.split('\n');
+        let currentNum = '';
+        let currentAnswer = '';
+        
+        for (const line of answerLines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          
+          const match = trimmed.match(/^(\d+)[.\)]\s*(.*)$/);
+          if (match) {
+            // 이전 답안 저장
+            if (currentNum && currentAnswer) {
+              answersMap[currentNum] = currentAnswer.trim();
+            }
+            currentNum = match[1];
+            currentAnswer = match[2] || '';
+          } else {
+            // 현재 답안에 텍스트 추가
+            if (currentNum) {
+              currentAnswer += '\n' + trimmed;
+            }
+          }
+        }
+        
+        // 마지막 답안 저장
+        if (currentNum && currentAnswer) {
+          answersMap[currentNum] = currentAnswer.trim();
+        }
+        
+        console.log(`✅ Extracted ${Object.keys(answersMap).length} answers from answer section:`, answersMap);
+      }
+      
+      // Step 1: 문제 섹션에서 문제 추출
       const lines = problemSection.split('\n');
       let currentProblemNum = '';
       let currentProblemText = '';
-      let isCollectingProblem = false;
       
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        
-        // 문제 번호 패턴: "1.", "2)", "3." 등
-        const numberMatch = line.match(/^(\d+)[.\)]\s*(.*)$/);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        const numberMatch = trimmed.match(/^(\d+)[.\)]\s*(.*)$/);
         
         if (numberMatch) {
           // 이전 문제가 있으면 처리
@@ -978,10 +1015,9 @@ export default function ModernAIChatPage() {
           // 새 문제 시작
           currentProblemNum = numberMatch[1];
           currentProblemText = numberMatch[2] || '';
-          isCollectingProblem = true;
-        } else if (isCollectingProblem) {
+        } else {
           // 현재 문제에 텍스트 추가
-          currentProblemText += '\n' + line;
+          currentProblemText += '\n' + trimmed;
         }
       }
       
@@ -995,55 +1031,9 @@ export default function ModernAIChatPage() {
         console.log(`\n📝 Found problem #${problemNum}`);
         console.log(`Raw text: "${fullProblemText.substring(0, 80)}..."`);
         
-        // Step 2: 답안 키워드로 split
-        const answerPatterns = [
-          '\n\n답:',
-          '\n\n정답:',
-          '\n\n풀이:',
-          '\n\n해설:',
-          '\n\n정답 해설:',
-          '\n\n정답 및 해설',
-          '\n\n해답:',
-          '\n\n**정답',
-          '\n\nAnswer:',
-          '\n\nSolution:',
-          '\n답:',
-          '\n정답:',
-          '\n풀이:',
-          '\n해설:',
-          '\n정답 해설:',
-          '\n정답 및 해설',
-          '\n해답:',
-          '\n**정답',
-          '\nAnswer:',
-          '\nSolution:',
-        ];
-        
-        let splitIndex = -1;
-        let foundPattern = '';
-        
-        for (const pattern of answerPatterns) {
-          const idx = fullProblemText.indexOf(pattern);
-          if (idx !== -1 && (splitIndex === -1 || idx < splitIndex)) {
-            splitIndex = idx;
-            foundPattern = pattern;
-          }
-        }
-        
         let problemText = fullProblemText;
-        let answerText = '';
         
-        if (splitIndex !== -1) {
-          problemText = fullProblemText.substring(0, splitIndex).trim();
-          answerText = fullProblemText.substring(splitIndex + foundPattern.length).trim();
-          console.log(`✂️  Split at "${foundPattern.trim()}" (index: ${splitIndex})`);
-          console.log(`   Problem part: "${problemText}"`);
-          console.log(`   Answer part: "${answerText}"`);
-        } else {
-          console.log('ℹ️  No answer pattern found - treating as pure problem');
-        }
-        
-        // Step 3: 인라인 답안 제거
+        // Step 2: 인라인 답안 제거 (혹시 문제 텍스트 안에 포함된 경우)
         problemText = problemText.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
         problemText = problemText.replace(/[\(\[]Answer\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
         problemText = problemText.replace(/[\(\[]정답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
@@ -1053,7 +1043,7 @@ export default function ModernAIChatPage() {
         problemText = problemText.replace(/[\(\[]정답\s*해설\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
         problemText = problemText.replace(/[\(\[]해답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
         
-        // Step 4: 혹시 남은 답안 키워드 제거
+        // Step 3: 답안 키워드로 시작하는 부분 제거
         problemText = problemText.replace(/\n+답\s*[:：].*$/s, '');
         problemText = problemText.replace(/\n+정답\s*[:：].*$/s, '');
         problemText = problemText.replace(/\n+풀이\s*[:：].*$/s, '');
@@ -1067,7 +1057,7 @@ export default function ModernAIChatPage() {
         
         problemText = problemText.trim();
         
-        // Step 5: 유효성 검사
+        // Step 4: 유효성 검사
         const isValidProblem = 
           problemText.length >= 5 &&
           problemText.length <= 2000 &&
@@ -1078,6 +1068,9 @@ export default function ModernAIChatPage() {
           console.log(`⏭️  Skipped: Invalid problem (length: ${problemText.length})`);
           return;
         }
+        
+        // Step 5: 답안 섹션에서 답안 가져오기
+        const answerText = answersMap[problemNum] || '';
         
         // Step 6: 객관식/서술형 판단
         const isMultipleChoice = /[①②③④⑤⑥⑦⑧⑨⑩]/.test(problemText) ||
@@ -1094,7 +1087,7 @@ export default function ModernAIChatPage() {
         console.log(`✅ Added: Problem #${problemNum} (${isMultipleChoice ? '객관식' : '서술형'})`);
         console.log(`   📄 Problem content: "${problemText}"`);
         console.log(`   ✅ Answer content: "${answerText || '정답 없음'}"`);
-        console.log(`   🔍 Answer empty?: ${!answerText || answerText === '정답 없음'}`);
+        console.log(`   🔍 Answer from map?: ${!!answersMap[problemNum]}`);
       }
     });
     
