@@ -32,7 +32,7 @@ export async function onRequestGet(context) {
 
     // AcademyBotSubscription에서 할당된 봇 조회
     const subscriptions = await db.prepare(`
-      SELECT botId FROM AcademyBotSubscription
+      SELECT productId as botId FROM AcademyBotSubscription
       WHERE academyId = ?
         AND isActive = 1
         AND date(subscriptionEnd) >= date('now')
