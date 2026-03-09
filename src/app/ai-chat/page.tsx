@@ -18,7 +18,9 @@ import {
   Home,
   ArrowLeft,
   Printer,
-  Volume2
+  Volume2,
+  CheckSquare,
+  Square
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +32,7 @@ interface Message {
   timestamp: Date;
   imageUrl?: string;
   audioUrl?: string;
+  selectedForPrint?: boolean;
 }
 
 interface ChatSession {
@@ -76,6 +79,7 @@ export default function ModernAIChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -840,6 +844,20 @@ export default function ModernAIChatPage() {
     }
   };
 
+
+  // 체크박스 토글
+  const toggleMessageSelection = (messageId: string) => {
+    setSelectedMessageIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
+
   const handlePrintProblems = async () => {
     // enableProblemGeneration 체크 (1, "1", true 모두 허용)
     const enableFlag = selectedBot?.enableProblemGeneration;
@@ -866,10 +884,18 @@ export default function ModernAIChatPage() {
     console.log('🖨️ 문제지 출력 시작...');
     console.log('📝 전체 메시지 개수:', messages.length);
 
-    // Extract problems from AI assistant messages
-    // 정확한 문제만 추출: 명시적으로 번호가 매겨진 문제만 추출
-    const assistantMessages = messages.filter(m => m.role === 'assistant');
-    console.log('🤖 AI 응답 메시지 개수:', assistantMessages.length);
+    // 체크된 메시지만 필터링
+    const assistantMessages = selectedMessageIds.size > 0 
+      ? messages.filter(m => m.role === 'assistant' && selectedMessageIds.has(m.id))
+      : messages.filter(m => m.role === 'assistant');
+
+    if (assistantMessages.length === 0) {
+      alert('출력할 메시지를 선택해주세요. 각 AI 응답 옆의 체크박스를 클릭하여 선택할 수 있습니다.');
+      return;
+    }
+
+    console.log('🖨️ 체크된 메시지만 출력:', assistantMessages.length);
+    console.log('✅ 선택된 메시지 ID:', Array.from(selectedMessageIds));
 
     const extractedProblems: { number: number; content: string; hasAnswer: boolean; type: 'multiple' | 'descriptive' }[] = [];
 
@@ -889,12 +915,13 @@ export default function ModernAIChatPage() {
           // "문제:", "[문제]" 등의 레이블 제거
           problemContent = problemContent.replace(/^(?:\[문제\]|\*\*문제\*\*|문제:)\s*/i, '');
           
-          // 풀이, 답, 해설 등이 포함되어 있으면 그 부분 제거
+          // 풀이, 답, 해설 등을 찾아서 분리
           let hasAnswer = false;
+          let answerContent = '';
           const answerKeywords = [
-            '\n풀이:', '\n답:', '\n해설:', '\n정답:', 
-            '\n[풀이]', '\n[답]', '\n[해설]', '\n[정답]',
-            '\n**풀이**', '\n**답**', '\n**해설**', '\n**정답**'
+            '\n풀이:', '\n답:', '\n해설:', '\n정답:', '\n모범답안:',
+            '\n[풀이]', '\n[답]', '\n[해설]', '\n[정답]', '\n[모범답안]',
+            '\n**풀이**', '\n**답**', '\n**해설**', '\n**정답**', '\n**모범답안**'
           ];
           
           for (const keyword of answerKeywords) {
@@ -902,6 +929,12 @@ export default function ModernAIChatPage() {
               hasAnswer = true;
               const parts = problemContent.split(keyword);
               problemContent = parts[0].trim();
+              answerContent = parts[1]?.trim() || '답안 없음';
+              // 다음 문제 번호가 나오면 거기까지만
+              const nextProblemMatch = answerContent.match(/\n\d+[\.)]\s/);
+              if (nextProblemMatch) {
+                answerContent = answerContent.substring(0, nextProblemMatch.index).trim();
+              }
               break;
             }
           }
@@ -922,6 +955,7 @@ export default function ModernAIChatPage() {
               number: parseInt(problemNumber),
               content: problemContent,
               hasAnswer: hasAnswer,
+              answer: answerContent || '정답 없음',
               type: isMultipleChoice ? 'multiple' : 'descriptive'
             });
           }
@@ -982,7 +1016,8 @@ export default function ModernAIChatPage() {
       return;
     }
 
-    const printContent = `
+    // 문제지 HTML 생성
+    const problemsHtml = `
       <!DOCTYPE html>
       <html>
       <head>
@@ -995,7 +1030,6 @@ export default function ModernAIChatPage() {
               size: A4 portrait;
             }
             .no-print { display: none !important; }
-            .editable-name { border: none !important; }
           }
           * {
             margin: 0;
@@ -1009,7 +1043,7 @@ export default function ModernAIChatPage() {
             padding: 1.5cm 1cm;
             background: white;
             color: #000;
-            line-height: 1.4;
+            line-height: 1.6;
           }
           .header {
             text-align: center;
@@ -1027,28 +1061,6 @@ export default function ModernAIChatPage() {
             font-size: 16px;
             color: #555;
             margin-top: 5px;
-          }
-          .editable-name {
-            display: inline-block;
-            min-width: 200px;
-            padding: 4px 8px;
-            border: 2px dashed #3b82f6;
-            border-radius: 4px;
-            background: #eff6ff;
-            cursor: text;
-          }
-          .editable-name:focus {
-            outline: none;
-            border-color: #2563eb;
-            background: #dbeafe;
-          }
-          .section-title {
-            font-size: 15px;
-            font-weight: 700;
-            margin: 20px 0 15px 0;
-            padding: 8px 10px;
-            background: #f3f4f6;
-            border-left: 4px solid #2563eb;
           }
           .student-info {
             margin-bottom: 20px;
@@ -1069,6 +1081,14 @@ export default function ModernAIChatPage() {
             flex: 1;
             border-bottom: 1px solid #000;
             min-height: 18px;
+          }
+          .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin: 20px 0 15px 0;
+            padding: 8px 10px;
+            background: #f3f4f6;
+            border-left: 4px solid #2563eb;
           }
           .problems-container {
             column-count: 2;
@@ -1127,21 +1147,20 @@ export default function ModernAIChatPage() {
         ${multipleChoiceProblems.length > 0 ? `
         <div class="section-title">객관식 문제</div>
         <div class="problems-container">
-        ${multipleChoiceProblems.map((p, index) => `
+        ${multipleChoiceProblems.map((p) => `
           <div class="problem">
             <div class="problem-number">${p.number}. </div>
             <div class="problem-content">${p.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
           </div>
         `).join('')}
         </div>
-        ${multipleChoiceProblems.length > 7 ? '<div class="page-break"></div>' : ''}
         ` : ''}
 
         ${descriptiveProblems.length > 0 ? `
         ${multipleChoiceProblems.length > 5 ? '<div class="page-break"></div>' : ''}
         <div class="section-title">서술형 문제</div>
         <div class="problems-container">
-        ${descriptiveProblems.map((p, index) => `
+        ${descriptiveProblems.map((p) => `
           <div class="problem">
             <div class="problem-number">${p.number}. </div>
             <div class="problem-content">${p.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
@@ -1156,7 +1175,10 @@ export default function ModernAIChatPage() {
 
         <div class="no-print" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <button onclick="window.print()" style="padding: 10px 25px; font-size: 14px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
-            인쇄
+            문제지 인쇄
+          </button>
+          <button onclick="openAnswerSheet()" style="padding: 10px 25px; font-size: 14px; background: #16a34a; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
+            답안지 보기
           </button>
           <button onclick="window.close()" style="padding: 10px 25px; font-size: 14px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
             닫기
@@ -1164,14 +1186,127 @@ export default function ModernAIChatPage() {
         </div>
         
         <script>
-          // Auto print on load (optional)
-          // window.onload = function() { setTimeout(() => window.print(), 500); };
+          function openAnswerSheet() {
+            const answersData = ${JSON.stringify({
+              academyName,
+              multipleChoiceProblems: multipleChoiceProblems.map(p => ({ number: p.number, answer: p.answer || '정답 없음' })),
+              descriptiveProblems: descriptiveProblems.map(p => ({ number: p.number, answer: p.answer || '모범 답안 없음' }))
+            })};
+            
+            const answerWindow = window.open('', '_blank');
+            const answerHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>답안지 - ${answersData.academyName}</title>
+  <style>
+    @media print {
+      @page { margin: 1.5cm 1cm; size: A4 portrait; }
+      .no-print { display: none !important; }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+      max-width: 21cm;
+      margin: 0 auto;
+      padding: 1.5cm 1cm;
+      background: white;
+      color: #000;
+      line-height: 1.6;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #000;
+    }
+    .academy-name {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #1a1a1a;
+    }
+    .worksheet-title {
+      font-size: 16px;
+      color: #555;
+      margin-top: 5px;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 20px 0 15px 0;
+      padding: 8px 10px;
+      background: #dcfce7;
+      border-left: 4px solid #16a34a;
+    }
+    .answer-item {
+      margin-bottom: 15px;
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 6px;
+    }
+    .answer-number {
+      font-size: 14px;
+      font-weight: 700;
+      color: #16a34a;
+      margin-bottom: 6px;
+    }
+    .answer-content {
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      color: #374151;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="academy-name">${answersData.academyName}</div>
+    <div class="worksheet-title">답안지</div>
+  </div>
+
+  ${answersData.multipleChoiceProblems.length > 0 ? `
+  <div class="section-title">객관식 정답</div>
+  ${answersData.multipleChoiceProblems.map(a => `
+    <div class="answer-item">
+      <div class="answer-number">${a.number}번 정답</div>
+      <div class="answer-content">${a.answer}</div>
+    </div>
+  `).join('')}
+  ` : ''}
+
+  ${answersData.descriptiveProblems.length > 0 ? `
+  <div class="section-title">서술형 모범 답안</div>
+  ${answersData.descriptiveProblems.map(a => `
+    <div class="answer-item">
+      <div class="answer-number">${a.number}번 답안</div>
+      <div class="answer-content">${a.answer}</div>
+    </div>
+  `).join('')}
+  ` : ''}
+
+  <div class="no-print" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <button onclick="window.print()" style="padding: 10px 25px; font-size: 14px; background: #16a34a; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
+      답안지 인쇄
+    </button>
+    <button onclick="window.close()" style="padding: 10px 25px; font-size: 14px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
+      닫기
+    </button>
+  </div>
+</body>
+</html>
+            `;
+            answerWindow.document.write(answerHtml);
+            answerWindow.document.close();
+          }
         </script>
       </body>
       </html>
     `;
 
-    printWindow.document.write(printContent);
+    printWindow.document.write(problemsHtml);
+    printWindow.document.close();
     printWindow.document.close();
   };
 
