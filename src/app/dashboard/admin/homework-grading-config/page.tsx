@@ -40,6 +40,7 @@ export default function HomeworkGradingConfigPage() {
   const [knowledgeFiles, setKnowledgeFiles] = useState<KnowledgeFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [currentActivePrompt, setCurrentActivePrompt] = useState<string>(''); // 실제 사용 중인 프롬프트
 
   const [formData, setFormData] = useState({
     systemPrompt: `당신은 전문 교사입니다. 제공된 숙제 이미지를 분석하여 다음을 수행하세요:
@@ -112,6 +113,9 @@ export default function HomeworkGradingConfigPage() {
               enableRAG: configData.config.enableRAG,
               knowledgeBase: configData.config.knowledgeBase,
             });
+            
+            // 실제 사용 중인 프롬프트 저장
+            setCurrentActivePrompt(configData.config.systemPrompt);
 
             // 지식 파일 파싱
             if (configData.config.knowledgeBase) {
@@ -235,6 +239,8 @@ export default function HomeworkGradingConfigPage() {
 
       if (data.success) {
         setSaveMessage({ type: 'success', text: '✅ 숙제 검사 AI 설정이 저장되었습니다!' });
+        // 저장 후 실제 사용 중인 프롬프트 업데이트
+        setCurrentActivePrompt(formData.systemPrompt);
         setTimeout(() => setSaveMessage(null), 5000);
       } else {
         throw new Error(data.error || 'Failed to save config');
@@ -295,6 +301,32 @@ export default function HomeworkGradingConfigPage() {
       )}
 
       <div className="grid gap-6">
+        {/* 현재 사용 중인 채점 지시사항 */}
+        {currentActivePrompt && (
+          <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-700">
+                <CheckCircle className="w-5 h-5" />
+                현재 실행 중인 채점 지시사항
+              </CardTitle>
+              <CardDescription>
+                학생들의 숙제 채점 시 실제로 사용되는 AI 프롬프트입니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-white rounded-lg p-4 border border-blue-200">
+                <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800 max-h-96 overflow-y-auto">
+{currentActivePrompt}
+                </pre>
+              </div>
+              <div className="mt-3 flex items-center gap-2 text-sm text-blue-600">
+                <Brain className="w-4 h-4" />
+                <span>이 프롬프트는 숙제 제출 시 AI 채점에 즉시 반영됩니다</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* AI 모델 선택 */}
         <Card>
           <CardHeader>
