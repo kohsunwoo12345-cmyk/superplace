@@ -118,9 +118,16 @@ async function searchGradingCriteria(
  * Cloudflare Sandbox SDK로 Python SymPy 계산 (실제 구현)
  */
 async function calculateWithPython(
-  equation: string
+  equation: string,
+  sandboxBinding?: any
 ): Promise<{ result: string; steps: string[]; pythonCode?: string }> {
   console.log(`🐍 Cloudflare Sandbox Python 계산 요청: ${equation}`);
+  
+  // Sandbox binding이 없으면 fallback
+  if (!sandboxBinding) {
+    console.log('   ⚠️ SANDBOX binding 없음 - Fallback 계산 사용');
+    return simpleCalculation(equation);
+  }
   
   try {
     // Python 코드 생성

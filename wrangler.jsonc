@@ -1,0 +1,81 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-types/master/wrangler-schema.json",
+  "name": "superplace",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  
+  // Cloudflare Pages configuration
+  "pages_build_output_dir": "out",
+  
+  // D1 Database (webapp-production)
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "webapp-production",
+      "database_id": "8c106540-21b4-4fa9-8879-c4956e459ca1"
+    }
+  ],
+  
+  // R2 Storage (for SMS documents)
+  "r2_buckets": [
+    {
+      "binding": "SMS_DOCUMENTS",
+      "bucket_name": "superplacestudy"
+    },
+    {
+      "binding": "SENDER_NUMBER_BUCKET",
+      "bucket_name": "superplacestudy"
+    }
+  ],
+  
+  // Vectorize (for RAG - Knowledge Base embeddings)
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "knowledge-base-embeddings"
+    }
+  ],
+  
+  // Workers AI (for embeddings and inference)
+  "ai": {
+    "binding": "AI"
+  },
+  
+  // Cloudflare Sandbox SDK - Containers & Durable Objects
+  "containers": [
+    {
+      "class_name": "Sandbox",
+      "image": "./Dockerfile.sandbox",
+      "instance_type": "lite",
+      "max_instances": 3
+    }
+  ],
+  
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "Sandbox",
+        "name": "SANDBOX"
+      }
+    ]
+  },
+  
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["Sandbox"]
+    }
+  ],
+  
+  // Environment Variables
+  // Note: These should be set in Cloudflare Pages dashboard
+  // Settings > Environment variables > Production
+  // 
+  // Required for SMS functionality:
+  // - SOLAPI_API_Key (Solapi API Key)
+  // - SOLAPI_API_Secret (Solapi API Secret)
+  // - GOOGLE_GEMINI_API_KEY (Get from: https://makersuite.google.com/app/apikey)
+  "vars": {
+    // Add other non-sensitive variables here if needed
+  }
+}
