@@ -148,6 +148,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       )
     `).run();
 
+    // 컬럼이 없는 경우 추가 (기존 테이블 호환성)
+    try {
+      await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN topK INTEGER DEFAULT 40`).run();
+    } catch (e) {
+      // 이미 컬럼이 존재하는 경우 무시
+    }
+    
+    try {
+      await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN topP REAL DEFAULT 0.95`).run();
+    } catch (e) {
+      // 이미 컬럼이 존재하는 경우 무시
+    }
+
     // 기존 설정이 있는지 확인
     const existing = await DB.prepare(
       `SELECT id FROM homework_grading_config ORDER BY id DESC LIMIT 1`
