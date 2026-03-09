@@ -913,8 +913,7 @@ export default function ModernAIChatPage() {
       console.log(`\n🔍 Processing message ${msgIndex + 1}:`, fullText.substring(0, 100) + '...');
       
       // Step 1: Split by problem numbers (1., 2., etc.)
-      const problemRegex = /(d+)[.\)]s+([\s\S]+?)(?=
-d+[.\)]|$)/g;
+      const problemRegex = /(\d+)[\.\\)]\s+([\s\S]+?)(?=\n\d+[\.\\)]|$)/g;
       let match;
       
       while ((match = problemRegex.exec(fullText)) !== null) {
