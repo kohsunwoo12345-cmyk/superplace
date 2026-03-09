@@ -284,6 +284,22 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
 
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-indigo-200"
+                onClick={() => router.push("/dashboard/admin/academy-statistics")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-indigo-600" />
+                📊 학원별 통계
+              </CardTitle>
+              <CardDescription>
+                학원별 학생, 출석, 숙제 통계를 확인합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">통계 보기</Button>
+            </CardContent>
+          </Card>
+
           <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-amber-200"
                 onClick={() => router.push("/dashboard/admin/logs")}>
             <CardHeader>
