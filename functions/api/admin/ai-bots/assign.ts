@@ -76,7 +76,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     console.log('✅ Requesting user verified:', { email: requestingUser.email, role, academyId: userAcademyId });
 
     const body = await request.json();
-    const { botId, userId, duration, durationUnit } = body;
+    const { botId, userId, duration, durationUnit, dailyUsageLimit = 15 } = body;
 
     if (!botId || !userId) {
       return new Response(
@@ -85,7 +85,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
-    console.log("🤖 AI 봇 할당 요청:", { botId, userId, duration, durationUnit });
+    console.log("🤖 AI 봇 할당 요청:", { botId, userId, duration, durationUnit, dailyUsageLimit });
 
     // 사용자 확인 (User 테이블)
     const user = await DB.prepare("SELECT * FROM User WHERE id = ?")
@@ -371,6 +371,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         endDate TEXT NOT NULL,
         duration INTEGER NOT NULL,
         durationUnit TEXT NOT NULL,
+        dailyUsageLimit INTEGER DEFAULT 15,
         status TEXT DEFAULT 'active',
         createdAt TEXT DEFAULT (datetime('now'))
       )
@@ -395,8 +396,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     await DB.prepare(`
       INSERT INTO ai_bot_assignments 
-      (id, botId, botName, userId, userName, userEmail, userAcademyId, startDate, endDate, duration, durationUnit, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+      (id, botId, botName, userId, userName, userEmail, userAcademyId, startDate, endDate, duration, durationUnit, dailyUsageLimit, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
     `).bind(
       assignmentId,
       botId,
@@ -408,7 +409,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       startDate,
       endDateStr,
       actualDuration,
-      actualDurationUnit
+      actualDurationUnit,
+      dailyUsageLimit
     ).run();
 
     // 🔒 구독 슬롯 차감 (학원장/선생님의 경우)
@@ -462,6 +464,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           endDate: endDateStr,
           duration: actualDuration,
           durationUnit: actualDurationUnit,
+          dailyUsageLimit,
           status: "active",
           usedAcademySubscription: !!subscription,
         },

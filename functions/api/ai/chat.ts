@@ -200,7 +200,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const assignment = await DB.prepare(
           `SELECT * FROM ai_bot_assignments 
            WHERE botId = ? AND userId = ? AND status = 'active'`
-        ).bind(botId, userId).first();
+        ).bind(botId, userId).first() as any;
         
         if (!assignment) {
           console.warn(`❌ 봇 할당 없음: userId=${userId}, botId=${botId}`);
@@ -225,8 +225,39 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
+
+        // 🆕 4. 일일 사용 한도 확인
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const dailyUsageLimit = assignment.dailyUsageLimit || 15;
         
-        // 4. 학원 전체 할당 인원 체크 (우선순위 기반)
+        // 오늘 사용량 조회
+        const usageToday = await DB.prepare(`
+          SELECT COALESCE(SUM(messageCount), 0) as totalUsed
+          FROM bot_usage_logs
+          WHERE assignmentId = ? 
+            AND userId = ?
+            AND DATE(createdAt) = ?
+        `).bind(assignment.id, userId, today).first() as any;
+        
+        const usedCount = usageToday?.totalUsed || 0;
+        
+        console.log(`📊 일일 사용량: ${usedCount}/${dailyUsageLimit}`);
+        
+        if (usedCount >= dailyUsageLimit) {
+          console.warn(`❌ 일일 사용 한도 초과: ${usedCount}/${dailyUsageLimit}`);
+          return new Response(
+            JSON.stringify({ 
+              error: "Daily limit exceeded", 
+              reason: `오늘의 사용 한도(${dailyUsageLimit}회)를 초과했습니다.`,
+              dailyUsageLimit,
+              usedToday: usedCount,
+              remainingToday: 0
+            }),
+            { status: 429, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        
+        // 5. 학원 전체 할당 인원 체크 (우선순위 기반)
         const allAssignments = await DB.prepare(
           `SELECT userId, startDate FROM ai_bot_assignments 
            WHERE botId = ? AND userAcademyId = ? AND status = 'active'
@@ -247,7 +278,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           );
         }
         
-        console.log(`✅ 봇 접근 권한 확인 완료: userId=${userId}, botId=${botId}, rank=${studentRank}/${totalSlots}`);
+        console.log(`✅ 봇 접근 권한 확인 완료: userId=${userId}, botId=${botId}, rank=${studentRank}/${totalSlots}, usage=${usedCount}/${dailyUsageLimit}`);
       } catch (accessError: any) {
         console.error('⚠️ 봇 접근 권한 체크 실패:', accessError);
         // 권한 체크 실패 시에도 계속 진행 (관리자 계정 등)
@@ -404,6 +435,32 @@ ${knowledgeContext}
     const responseText =
       geminiData.candidates?.[0]?.content?.parts?.[0]?.text ||
       "응답을 생성할 수 없습니다.";
+
+    // 🆕 사용량 기록 (학생 계정이고 DB, userId, botId가 있을 때)
+    if (userRole === 'STUDENT' && userId && botId && DB) {
+      try {
+        // 할당 정보 조회
+        const assignment = await DB.prepare(
+          `SELECT id FROM ai_bot_assignments 
+           WHERE botId = ? AND userId = ? AND status = 'active'`
+        ).bind(botId, userId).first() as any;
+        
+        if (assignment) {
+          const today = new Date().toISOString().split('T')[0];
+          const usageLogId = `usage-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+          
+          await DB.prepare(`
+            INSERT INTO bot_usage_logs (id, assignmentId, botId, userId, userType, messageCount, usageDate)
+            VALUES (?, ?, ?, ?, 'student', 1, ?)
+          `).bind(usageLogId, assignment.id, botId, userId, today).run();
+          
+          console.log(`✅ 사용량 기록 완료: ${usageLogId}`);
+        }
+      } catch (logError: any) {
+        console.error('⚠️ 사용량 기록 실패:', logError.message);
+        // 사용량 기록 실패해도 응답은 계속 전송
+      }
+    }
 
     return new Response(
       JSON.stringify({
