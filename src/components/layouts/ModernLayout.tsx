@@ -7,7 +7,7 @@ import {
   Users, Calendar, MessageCircle, BarChart2, Settings,
   GraduationCap, Award, FileText, Clock, ExternalLink,
   DollarSign, CreditCard, Presentation, ClipboardList, Sparkles, Bot,
-  ShoppingCart, Zap, Shield, Layout, MessageSquare, Download, Database, UserPlus, CheckCircle, Phone
+  ShoppingCart, Zap, Shield, Layout, MessageSquare, Download, Database, UserPlus, CheckCircle, Phone, Brain
 } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
 
@@ -71,7 +71,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
     
     // 관리자 메뉴 (ADMIN, SUPER_ADMIN) - 관리자 전용 + 일반 메뉴
     if (roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN') {
-      console.log('✅ ModernLayout - Loading ADMIN menu (28 items)');
+      console.log('✅ ModernLayout - Loading ADMIN menu (29 items)');
       return [
         { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
         // 관리자 전용 메뉴
@@ -89,6 +89,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         { id: 'admin-seminars', href: '/dashboard/admin/seminars', icon: Presentation, text: '교육 세미나' },
         { id: 'admin-logs', href: '/dashboard/admin/logs', icon: ClipboardList, text: '상세 기록' },
         { id: 'admin-ai-bots', href: '/dashboard/admin/ai-bots', icon: MessageCircle, text: 'AI 봇 생성' },
+        { id: 'admin-homework-grading', href: '/dashboard/admin/homework-grading-config', icon: Brain, text: '숙제 검사 AI' },
         { id: 'admin-bot-management', href: '/dashboard/admin/bot-management', icon: Bot, text: '통합 AI 봇 관리' },
         { id: 'admin-bot-assign', href: '/dashboard/admin/ai-bots/assign', icon: UserPlus, text: 'AI 봇 할당하기' },
         { id: 'admin-store', href: '/dashboard/admin/store-management', icon: ShoppingCart, text: 'AI쇼핑몰 제품 추가' },
@@ -122,6 +123,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
           { id: 'attendance', href: '/dashboard/attendance-statistics', icon: Clock, text: '출석 현황' },
           { id: 'homework', href: '/dashboard/homework/teacher', icon: FileText, text: '숙제 관리' },
           { id: 'homework-results', href: '/dashboard/homework/results', icon: Award, text: '숙제 검사 결과' },
+          { id: 'homework-grading', href: '/dashboard/admin/homework-grading-config', icon: Brain, text: '숙제 검사 AI' },
           { id: 'landing-pages', href: '/dashboard/admin/landing-pages', icon: Layout, text: '랜딩페이지' },
           { id: 'kakao-channel', href: '/dashboard/kakao-channel', icon: MessageCircle, text: '카카오 채널' },
           { id: 'point-charge', href: '/dashboard/point-charge', icon: CreditCard, text: '포인트 충전' },
