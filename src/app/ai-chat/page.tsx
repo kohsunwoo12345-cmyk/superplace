@@ -1194,12 +1194,12 @@ export default function ModernAIChatPage() {
             })};
             
             const answerWindow = window.open('', '_blank');
-            const answerHtml = `
+            const answerHtml = \`
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>답안지 - ${answersData.academyName}</title>
+  <title>답안지 - \${answersData.academyName}</title>
   <style>
     @media print {
       @page { margin: 1.5cm 1cm; size: A4 portrait; }
@@ -1262,29 +1262,29 @@ export default function ModernAIChatPage() {
 </head>
 <body>
   <div class="header">
-    <div class="academy-name">${answersData.academyName}</div>
+    <div class="academy-name">\${answersData.academyName}</div>
     <div class="worksheet-title">답안지</div>
   </div>
 
-  ${answersData.multipleChoiceProblems.length > 0 ? `
+  \${answersData.multipleChoiceProblems.length > 0 ? \`
   <div class="section-title">객관식 정답</div>
-  ${answersData.multipleChoiceProblems.map(a => `
+  \${answersData.multipleChoiceProblems.map(a => \`
     <div class="answer-item">
-      <div class="answer-number">${a.number}번 정답</div>
-      <div class="answer-content">${a.answer}</div>
+      <div class="answer-number">\${a.number}번 정답</div>
+      <div class="answer-content">\${a.answer}</div>
     </div>
-  `).join('')}
-  ` : ''}
+  \`).join('')}
+  \` : ''}
 
-  ${answersData.descriptiveProblems.length > 0 ? `
+  \${answersData.descriptiveProblems.length > 0 ? \`
   <div class="section-title">서술형 모범 답안</div>
-  ${answersData.descriptiveProblems.map(a => `
+  \${answersData.descriptiveProblems.map(a => \`
     <div class="answer-item">
-      <div class="answer-number">${a.number}번 답안</div>
-      <div class="answer-content">${a.answer}</div>
+      <div class="answer-number">\${a.number}번 답안</div>
+      <div class="answer-content">\${a.answer}</div>
     </div>
-  `).join('')}
-  ` : ''}
+  \`).join('')}
+  \` : ''}
 
   <div class="no-print" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
     <button onclick="window.print()" style="padding: 10px 25px; font-size: 14px; background: #16a34a; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
@@ -1296,7 +1296,7 @@ export default function ModernAIChatPage() {
   </div>
 </body>
 </html>
-            `;
+            \`;
             answerWindow.document.write(answerHtml);
             answerWindow.document.close();
           }
