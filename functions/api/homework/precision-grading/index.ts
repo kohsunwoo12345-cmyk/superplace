@@ -5,15 +5,14 @@
  * Python: Cloudflare Sandbox SDK 사용
  */
 
-import { Sandbox } from '@cloudflare/sandbox';
+import { getSandbox } from '@cloudflare/sandbox';
 
 interface Env {
   DB: D1Database;
   AI: any;
   VECTORIZE: VectorizeIndex;
   GOOGLE_GEMINI_API_KEY: string;
-  CLOUDFLARE_ACCOUNT_ID?: string;
-  CLOUDFLARE_API_TOKEN?: string;
+  SANDBOX?: any; // Durable Object binding for Sandbox
 }
 
 interface PrecisionGradingRequest {
@@ -173,31 +172,24 @@ except Exception as e:
     console.log(`   Python 코드:\n${pythonCode.substring(0, 200)}...`);
     
     // Cloudflare Sandbox SDK 사용
-    const sandbox = await Sandbox.create();
+    const sandbox = getSandbox(sandboxBinding, `homework-${Date.now()}`);
     
-    try {
-      // Python 코드 실행
-      const result = await sandbox.runPython(pythonCode);
-      
-      console.log(`   ✅ 실행 결과: ${result.stdout}`);
-      console.log(`   ⚠️  에러: ${result.stderr || '없음'}`);
-      
-      if (result.stdout && !result.stderr) {
-        // 성공
-        const output = result.stdout.trim();
-        return {
-          result: output.replace('정답: ', ''),
-          steps: ['Cloudflare Sandbox SymPy 계산'],
-          pythonCode: pythonCode.trim()
-        };
-      } else if (result.stderr) {
-        throw new Error(result.stderr);
-      } else {
-        throw new Error('출력 없음');
-      }
-      
-    } finally {
-      await sandbox.shutdown();
+    // Python 코드 실행
+    const result = await sandbox.commands.exec({
+      cmd: ['python3', '-c', pythonCode]
+    });
+    
+    console.log(`   ✅ 실행 결과: ${result.stdout}`);
+    
+    if (result.exitCode === 0 && result.stdout) {
+      const output = result.stdout.trim();
+      return {
+        result: output.replace('정답: ', ''),
+        steps: ['Cloudflare Sandbox SymPy 계산'],
+        pythonCode: pythonCode.trim()
+      };
+    } else {
+      throw new Error(result.stderr || '출력 없음');
     }
     
   } catch (error: any) {
@@ -361,7 +353,7 @@ async function gradeWithLLM(
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, AI, VECTORIZE, GOOGLE_GEMINI_API_KEY } = context.env;
+    const { DB, AI, VECTORIZE, GOOGLE_GEMINI_API_KEY, SANDBOX } = context.env;
     const body: PrecisionGradingRequest = await context.request.json();
     const { userId, images, subject = '수학', ocrText = '' } = body;
 
@@ -456,7 +448,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         
         if (uniqueEquations.length > 0) {
           for (const eq of uniqueEquations) {
-            const calc = await calculateWithPython(eq.trim());
+            const calc = await calculateWithPython(eq.trim(), SANDBOX);
             if (calc.result !== '계산 불가') {
               pythonCalculations.push({ 
                 equation: eq.trim(), 
