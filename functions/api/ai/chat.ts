@@ -297,7 +297,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // Gemini API 버전 선택 로직
     let apiVersion = 'v1beta';
-    if (model.includes('1.0')) {
+    if (model.includes('1.0') || model.includes('2.0')) {
       apiVersion = 'v1';
     }
     
