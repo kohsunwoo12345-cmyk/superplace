@@ -900,9 +900,8 @@ export default function ModernAIChatPage() {
     console.log('🖨️ 체크된 메시지만 출력:', assistantMessages.length);
     console.log('✅ 선택된 메시지 ID:', Array.from(selectedMessageIds));
 
-    // ========== 문제 추출 로직 (완전 재작성) ==========
+    // ========== 문제 추출 로직 ==========
     console.log('📋 Starting problem extraction...');
-    console.log('Selected messages:', selectedMessageIds.length);
     
     const extractedProblems: Array<{
       number: number;
@@ -915,19 +914,44 @@ export default function ModernAIChatPage() {
       const fullText = msg.content;
       console.log(`\n🔍 Processing message ${msgIndex + 1}:`, fullText.substring(0, 100) + '...');
       
-      // Step 1: Split by problem numbers (1., 2., etc.)
-      const problemRegex = /(\d+)[\.\\)]\s+([\s\S]+?)(?=\n\d+[\.\\)]|$)/g;
-      let match;
+      // Step 1: 줄바꿈 기준으로 분리 후 문제 번호 찾기
+      const lines = fullText.split('\n');
+      let currentProblemNum = '';
+      let currentProblemText = '';
+      let isCollectingProblem = false;
       
-      while ((match = problemRegex.exec(fullText)) !== null) {
-        const problemNum = match[1];
-        let fullProblemText = match[2].trim();
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
         
+        // 문제 번호 패턴: "1.", "2)", "3." 등
+        const numberMatch = line.match(/^(\d+)[.\)]\s*(.*)$/);
+        
+        if (numberMatch) {
+          // 이전 문제가 있으면 처리
+          if (currentProblemNum && currentProblemText) {
+            processProblem(currentProblemNum, currentProblemText);
+          }
+          // 새 문제 시작
+          currentProblemNum = numberMatch[1];
+          currentProblemText = numberMatch[2] || '';
+          isCollectingProblem = true;
+        } else if (isCollectingProblem) {
+          // 현재 문제에 텍스트 추가
+          currentProblemText += '\n' + line;
+        }
+      }
+      
+      // 마지막 문제 처리
+      if (currentProblemNum && currentProblemText) {
+        processProblem(currentProblemNum, currentProblemText);
+      }
+      
+      function processProblem(problemNum: string, fullProblemText: string) {
+        fullProblemText = fullProblemText.trim();
         console.log(`\n📝 Found problem #${problemNum}`);
         console.log(`Raw text: "${fullProblemText.substring(0, 80)}..."`);
         
         // Step 2: 답안 키워드로 split
-        // 가장 먼저 나타나는 답안 키워드를 찾기
         const answerPatterns = [
           '\n\n답:',
           '\n\n정답:',
@@ -966,6 +990,23 @@ export default function ModernAIChatPage() {
         } else {
           console.log('ℹ️  No answer pattern found - treating as pure problem');
         }
+        
+        // Step 3: 인라인 답안 제거
+        problemText = problemText.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]Answer\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]정답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]Solution\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]풀이\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]해설\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        
+        // Step 4: 혹시 남은 답안 키워드 제거
+        problemText = problemText.replace(/\n+답\s*[:：].*$/s, '');
+        problemText = problemText.replace(/\n+정답\s*[:：].*$/s, '');
+        problemText = problemText.replace(/\n+풀이\s*[:：].*$/s, '');
+        problemText = problemText.replace(/\n+해설\s*[:：].*$/s, '');
+        problemText = problemText.replace(/\n+Answer\s*[:：].*$/si, '');
+        problemText = problemText.replace(/\n+Solution\s*[:：].*$/si, '');
+        
         
         // Step 3: 인라인 답안 제거
         problemText = problemText.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
@@ -1023,6 +1064,8 @@ export default function ModernAIChatPage() {
       return;
     }
 
+    // Separate multiple choice and descriptive
+    const multipleChoiceProblems = extractedProblems.filter(p => p.type === 'multiple');
     const descriptiveProblems = extractedProblems.filter(p => p.type === 'descriptive');
 
     // Renumber each type
