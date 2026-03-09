@@ -386,7 +386,7 @@ export async function onRequestGet(context) {
         s.id,
         s.academyId,
         a.name as academyName,
-        s.botId,
+        s.productId as botId,
         b.name as botName,
         s.totalStudentSlots as totalSlots,
         s.usedStudentSlots as usedSlots,
@@ -399,7 +399,7 @@ export async function onRequestGet(context) {
         END as isActive
       FROM AcademyBotSubscription s
       JOIN academy a ON s.academyId = a.id
-      JOIN ai_bots b ON s.botId = b.id
+      JOIN ai_bots b ON s.productId = b.id
       WHERE date(s.subscriptionEnd) >= date('now')
       ORDER BY s.subscriptionEnd DESC
     `).all();

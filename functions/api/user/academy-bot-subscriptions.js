@@ -89,7 +89,7 @@ export async function onRequestGet(context) {
         s.id,
         s.academyId,
         a.name as academyName,
-        s.botId,
+        s.productId as botId,
         b.name as botName,
         s.totalStudentSlots as totalSlots,
         s.usedStudentSlots as usedSlots,
@@ -103,7 +103,7 @@ export async function onRequestGet(context) {
         s.createdAt
       FROM AcademyBotSubscription s
       LEFT JOIN academy a ON s.academyId = a.id
-      LEFT JOIN ai_bots b ON s.botId = b.id
+      LEFT JOIN ai_bots b ON s.productId = b.id
       WHERE s.academyId = ?
       ORDER BY s.subscriptionEnd DESC, s.createdAt DESC
     `).bind(academyId).all();
