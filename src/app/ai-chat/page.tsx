@@ -859,16 +859,19 @@ export default function ModernAIChatPage() {
   };
 
   const handlePrintProblems = async () => {
-    // enableProblemGeneration 체크 (1, "1", true 모두 허용)
-    const enableFlag = selectedBot?.enableProblemGeneration;
-    const isProblemGenerationEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
+    console.log('🖨️ handlePrintProblems called!');
     
-    console.log('📝 Problem Generation Check:', {
-      bot: selectedBot?.name,
-      enableProblemGeneration: selectedBot?.enableProblemGeneration,
-      type: typeof selectedBot?.enableProblemGeneration,
-      isProblemGenerationEnabled
-    });
+    try {
+      // enableProblemGeneration 체크 (1, "1", true 모두 허용)
+      const enableFlag = selectedBot?.enableProblemGeneration;
+      const isProblemGenerationEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
+      
+      console.log('📝 Problem Generation Check:', {
+        bot: selectedBot?.name,
+        enableProblemGeneration: selectedBot?.enableProblemGeneration,
+        type: typeof selectedBot?.enableProblemGeneration,
+        isProblemGenerationEnabled
+      });
     
     if (!isProblemGenerationEnabled) {
       alert('이 AI 봇은 문제 출제 기능이 활성화되지 않았습니다.\n\n봇 설정에서 "📝 유사문제 출제 기능"을 활성화해주세요.');
@@ -1282,6 +1285,10 @@ export default function ModernAIChatPage() {
     printWindow.document.write(problemsHtml);
     printWindow.document.close();
     printWindow.document.close();
+    } catch (error) {
+      console.error('❌ Error in handlePrintProblems:', error);
+      alert('문제지 출력 중 오류가 발생했습니다.\n\n' + error);
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
