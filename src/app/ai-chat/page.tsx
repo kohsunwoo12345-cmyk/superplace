@@ -911,11 +911,31 @@ export default function ModernAIChatPage() {
     }> = [];
 
     assistantMessages.forEach((msg, msgIndex) => {
-      const fullText = msg.content;
+      let fullText = msg.content;
       console.log(`\n🔍 Processing message ${msgIndex + 1}:`, fullText.substring(0, 100) + '...');
       
+      // Step 0: 구분선으로 문제/답안 섹션 분리
+      const separatorPatterns = [
+        '\n---\n',
+        '\n— — —\n',
+        '\n**정답 및 해설**',
+        '\n**정답**',
+        '\n## 정답',
+        '\n## 해설',
+      ];
+      
+      let problemSection = fullText;
+      for (const separator of separatorPatterns) {
+        const sepIndex = fullText.indexOf(separator);
+        if (sepIndex !== -1) {
+          problemSection = fullText.substring(0, sepIndex);
+          console.log(`✂️  Found separator "${separator.trim()}" - cutting at index ${sepIndex}`);
+          break;
+        }
+      }
+      
       // Step 1: 줄바꿈 기준으로 분리 후 문제 번호 찾기
-      const lines = fullText.split('\n');
+      const lines = problemSection.split('\n');
       let currentProblemNum = '';
       let currentProblemText = '';
       let isCollectingProblem = false;
@@ -958,6 +978,9 @@ export default function ModernAIChatPage() {
           '\n\n풀이:',
           '\n\n해설:',
           '\n\n정답 해설:',
+          '\n\n정답 및 해설',
+          '\n\n해답:',
+          '\n\n**정답',
           '\n\nAnswer:',
           '\n\nSolution:',
           '\n답:',
@@ -965,6 +988,9 @@ export default function ModernAIChatPage() {
           '\n풀이:',
           '\n해설:',
           '\n정답 해설:',
+          '\n정답 및 해설',
+          '\n해답:',
+          '\n**정답',
           '\nAnswer:',
           '\nSolution:',
         ];
@@ -1001,6 +1027,7 @@ export default function ModernAIChatPage() {
         problemText = problemText.replace(/[\(\[]풀이\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
         problemText = problemText.replace(/[\(\[]해설\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
         problemText = problemText.replace(/[\(\[]정답\s*해설\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]해답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
         
         // Step 4: 혹시 남은 답안 키워드 제거
         problemText = problemText.replace(/\n+답\s*[:：].*$/s, '');
@@ -1008,6 +1035,9 @@ export default function ModernAIChatPage() {
         problemText = problemText.replace(/\n+풀이\s*[:：].*$/s, '');
         problemText = problemText.replace(/\n+해설\s*[:：].*$/s, '');
         problemText = problemText.replace(/\n+정답\s*해설\s*[:：].*$/s, '');
+        problemText = problemText.replace(/\n+정답\s*및\s*해설.*$/s, '');
+        problemText = problemText.replace(/\n+해답\s*[:：].*$/s, '');
+        problemText = problemText.replace(/\n+\*\*정답.*$/s, '');
         problemText = problemText.replace(/\n+Answer\s*[:：].*$/si, '');
         problemText = problemText.replace(/\n+Solution\s*[:：].*$/si, '');
         
