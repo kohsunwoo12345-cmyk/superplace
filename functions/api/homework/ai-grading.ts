@@ -20,6 +20,12 @@ interface GradingResult {
   }[];
 }
 
+interface Env {
+  AI: any;
+  VECTORIZE: VectorizeIndex;
+  DB: D1Database;
+}
+
 /**
  * Google Gemini Vision API를 사용하여 숙제 이미지 분석 및 채점
  */
@@ -27,7 +33,8 @@ export async function gradeHomeworkWithAI(
   imageUrl: string,
   subject?: string,
   geminiApiKey?: string,
-  db?: D1Database
+  db?: D1Database,
+  env?: Env
 ): Promise<GradingResult> {
   try {
     // 환경 변수에서 API 키 가져오기
@@ -35,6 +42,8 @@ export async function gradeHomeworkWithAI(
     
     // DB에서 설정 불러오기
     let config: any = null;
+    let ragContext = '';
+    
     if (db) {
       try {
         config = await db.prepare(
@@ -46,6 +55,39 @@ export async function gradeHomeworkWithAI(
             enableRAG: config.enableRAG,
             hasKnowledge: Boolean(config.knowledgeBase),
           });
+
+          // RAG가 활성화되어 있고 지식 파일이 있는 경우
+          if (config.enableRAG && config.knowledgeBase && env?.AI && env?.VECTORIZE) {
+            try {
+              console.log('🔍 Searching knowledge base for grading context...');
+              
+              // 검색 쿼리 생성
+              const searchQuery = subject 
+                ? `${subject} 숙제 채점 기준 및 정답`
+                : '숙제 채점 기준 및 정답';
+
+              // 쿼리 임베딩 생성
+              const queryEmbedding = await env.AI.run('@cf/baai/bge-m3', {
+                text: searchQuery,
+              });
+
+              // Vectorize에서 관련 지식 검색
+              const searchResults = await env.VECTORIZE.query(queryEmbedding.data[0], {
+                topK: 3,
+                filter: { type: 'homework_grading_knowledge' },
+              });
+
+              if (searchResults.matches && searchResults.matches.length > 0) {
+                ragContext = '\n\n【참고 자료 (채점 기준)】\n';
+                searchResults.matches.forEach((match: any, index: number) => {
+                  ragContext += `\n${index + 1}. ${match.metadata?.text || ''}\n`;
+                });
+                console.log(`✅ Found ${searchResults.matches.length} relevant knowledge chunks`);
+              }
+            } catch (ragError) {
+              console.warn('⚠️ RAG search failed, continuing without context:', ragError);
+            }
+          }
         }
       } catch (err) {
         console.warn('⚠️ Failed to load config from DB:', err);
@@ -98,8 +140,8 @@ export async function gradeHomeworkWithAI(
       }
     }
 
-    // Gemini Vision API 호출을 위한 프롬프트
-    const prompt = `당신은 전문 교사입니다. 제공된 숙제 이미지를 분석하여 다음을 수행하세요:
+    // Gemini Vision API 호출을 위한 프롬프트 (DB 설정 또는 기본값)
+    let basePrompt = config?.systemPrompt || `당신은 전문 교사입니다. 제공된 숙제 이미지를 분석하여 다음을 수행하세요:
 
 1. 이미지에서 모든 문제를 식별하세요
 2. 각 문제에 대한 학생의 답안을 확인하세요
@@ -124,12 +166,21 @@ export async function gradeHomeworkWithAI(
   "improvements": "개선할 점"
 }`;
 
+    // RAG 컨텍스트 추가
+    const prompt = basePrompt + ragContext;
+
     // Google Gemini API 호출 (DB 설정 모델 또는 기본값)
     const model = config?.model || 'gemini-2.5-flash';
     const temperature = config?.temperature || 0.3;
     const maxTokens = config?.maxTokens || 2000;
     
-    console.log('🤖 Google Gemini Vision API 호출 중...', { model, temperature, maxTokens });
+    console.log('🤖 Google Gemini Vision API 호출 중...', { 
+      model, 
+      temperature, 
+      maxTokens,
+      hasRAGContext: ragContext.length > 0,
+      ragContextLength: ragContext.length 
+    });
     const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
     
     const response = await fetch(geminiUrl, {
@@ -150,8 +201,8 @@ export async function gradeHomeworkWithAI(
           ],
         }],
         generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 2000,
+          temperature: temperature,
+          maxOutputTokens: maxTokens,
         },
       }),
     });
