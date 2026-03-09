@@ -1,6 +1,7 @@
 /**
  * 정밀 숙제 채점 시스템
- * OCR → RAG → LLM (↔ Python) → JSON Output
+ * RAG → LLM (↔ Python) → JSON Output
+ * OCR은 외부에서 처리, RAG와 Python만 실제 구현
  */
 
 interface Env {
@@ -14,6 +15,7 @@ interface PrecisionGradingRequest {
   userId: number;
   images: string[]; // Base64 images
   subject?: string;
+  ocrText?: string; // 외부에서 OCR 처리한 텍스트
 }
 
 interface GradingResult {
@@ -25,137 +27,23 @@ interface GradingResult {
   feedback: string;
   strengths: string;
   suggestions: string;
-  ocrText?: string;
+  ragContext?: string; // RAG 검색 결과
   pythonCalculations?: any[];
 }
 
 /**
- * 1단계: 객관식/주관식 판별
- */
-async function detectQuestionType(
-  imageUrl: string,
-  geminiApiKey: string
-): Promise<{ isMultipleChoice: boolean; confidence: number }> {
-  console.log('🔍 Step 1: 문제 유형 판별 시작...');
-  
-  const prompt = `이 이미지를 분석하여 문제 유형을 판별해주세요.
-
-객관식 문제 특징:
-- ①, ②, ③, ④ 또는 1), 2), 3), 4) 형태의 선택지
-- 번호에 동그라미 표시
-- "다음 중", "옳은 것을", "틀린 것을" 등의 문구
-
-주관식 문제 특징:
-- 직접 답을 쓰는 빈칸
-- 서술형 답안
-- 계산 과정
-
-JSON 형식으로 응답:
-{
-  "isMultipleChoice": true/false,
-  "confidence": 0.0~1.0,
-  "reason": "판별 근거"
-}`;
-
-  const base64Image = imageUrl.replace(/^data:image\/\w+;base64,/, '');
-  
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: 'image/jpeg', data: base64Image } }
-            ]
-          }]
-        })
-      }
-    );
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    const match = text.match(/\{[\s\S]*\}/);
-    
-    if (match) {
-      const result = JSON.parse(match[0]);
-      console.log(`✅ 문제 유형 판별: ${result.isMultipleChoice ? '객관식' : '주관식'} (신뢰도: ${result.confidence})`);
-      return {
-        isMultipleChoice: result.isMultipleChoice,
-        confidence: result.confidence
-      };
-    }
-  } catch (error) {
-    console.error('❌ 문제 유형 판별 실패:', error);
-  }
-
-  // 기본값: 주관식으로 처리
-  return { isMultipleChoice: false, confidence: 0.5 };
-}
-
-/**
- * 2단계: Google Document AI OCR (주관식만)
- */
-async function performOCR(
-  imageUrl: string,
-  geminiApiKey: string
-): Promise<string> {
-  console.log('📝 Step 2: Google Document AI OCR 실행...');
-  
-  const prompt = `이 이미지의 모든 텍스트를 정확히 추출해주세요.
-
-특히 다음을 주의하세요:
-- 수식 기호: ×, ÷, +, -, =, ≠, ≤, ≥
-- 분수: 분자/분모 구분
-- 위첨자/아래첨자: x², H₂O 등
-- 특수 문자: √, π, ∑, ∫
-
-텍스트만 반환하세요 (JSON 형식 없이):`;
-
-  const base64Image = imageUrl.replace(/^data:image\/\w+;base64,/, '');
-  
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: 'image/jpeg', data: base64Image } }
-            ]
-          }]
-        })
-      }
-    );
-
-    const data = await response.json();
-    const ocrText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    console.log(`✅ OCR 완료: ${ocrText.length}자 추출`);
-    return ocrText;
-  } catch (error) {
-    console.error('❌ OCR 실패:', error);
-    return '';
-  }
-}
-
-/**
- * 3단계: RAG 채점 기준 검색
+ * RAG 채점 기준 검색 (실제 구현)
  */
 async function searchGradingCriteria(
-  ocrText: string,
+  queryText: string,
   subject: string,
   env: Env
 ): Promise<string> {
-  console.log('🔍 Step 3: RAG 채점 기준 검색...');
+  console.log('🔍 RAG 채점 기준 검색 시작...');
+  console.log(`   쿼리: ${queryText.substring(0, 100)}...`);
   
   if (!env.AI || !env.VECTORIZE) {
-    console.warn('⚠️ RAG 환경 없음, 기본 채점 진행');
+    console.warn('⚠️ RAG 환경 없음 (AI 또는 VECTORIZE 미설정)');
     return '';
   }
 
@@ -165,42 +53,65 @@ async function searchGradingCriteria(
       `SELECT * FROM homework_grading_config WHERE enableRAG = 1 ORDER BY id DESC LIMIT 1`
     ).first();
 
-    if (!config || !config.knowledgeBase) {
-      console.log('⚠️ RAG 설정 없음');
+    if (!config) {
+      console.log('⚠️ RAG 설정 비활성화 또는 없음');
       return '';
     }
 
-    // 검색 쿼리 생성
-    const searchQuery = `${subject} ${ocrText.substring(0, 200)} 채점 기준 정답`;
+    console.log(`✅ RAG 설정 활성화 확인`);
+
+    // 검색 쿼리 생성 (과목 + 문제 내용)
+    const searchQuery = `${subject} ${queryText.substring(0, 300)} 채점 기준 정답 해설`;
+    console.log(`   검색 쿼리: ${searchQuery.substring(0, 100)}...`);
     
-    // 쿼리 임베딩
-    const queryEmbedding = await env.AI.run('@cf/baai/bge-m3', {
+    // Cloudflare Workers AI로 쿼리 임베딩 생성
+    console.log('   임베딩 생성 중... (@cf/baai/bge-m3)');
+    const embeddingResponse = await env.AI.run('@cf/baai/bge-m3', {
       text: searchQuery,
     });
 
+    if (!embeddingResponse || !embeddingResponse.data || !embeddingResponse.data[0]) {
+      console.error('❌ 임베딩 생성 실패');
+      return '';
+    }
+
+    const queryEmbedding = embeddingResponse.data[0];
+    console.log(`✅ 임베딩 생성 완료 (차원: ${queryEmbedding.length})`);
+
     // Vectorize 검색
-    const searchResults = await env.VECTORIZE.query(queryEmbedding.data[0], {
+    console.log('   Vectorize 검색 중...');
+    const searchResults = await env.VECTORIZE.query(queryEmbedding, {
       topK: 3,
       filter: { type: 'homework_grading_knowledge' },
+      returnMetadata: true
     });
 
-    if (searchResults.matches && searchResults.matches.length > 0) {
-      let ragContext = '\n\n【참고 자료 (채점 기준)】\n';
-      searchResults.matches.forEach((match: any, index: number) => {
-        ragContext += `\n${index + 1}. ${match.metadata?.text || ''}\n`;
-      });
-      console.log(`✅ RAG 검색 완료: ${searchResults.matches.length}개 관련 자료 발견`);
-      return ragContext;
+    if (!searchResults || !searchResults.matches || searchResults.matches.length === 0) {
+      console.log('⚠️ RAG 검색 결과 없음 (지식 베이스가 비어있을 수 있음)');
+      return '';
     }
-  } catch (error) {
-    console.error('❌ RAG 검색 실패:', error);
-  }
 
-  return '';
+    console.log(`✅ RAG 검색 완료: ${searchResults.matches.length}개 관련 자료 발견`);
+    
+    // 검색 결과 포맷팅
+    let ragContext = '\n\n【참고 자료 (채점 기준 및 해설)】\n';
+    searchResults.matches.forEach((match: any, index: number) => {
+      const score = (match.score * 100).toFixed(1);
+      const text = match.metadata?.text || match.metadata?.content || '내용 없음';
+      ragContext += `\n${index + 1}. [유사도: ${score}%]\n${text}\n`;
+      console.log(`   ${index + 1}. 유사도: ${score}% | 길이: ${text.length}자`);
+    });
+    
+    return ragContext;
+    
+  } catch (error: any) {
+    console.error('❌ RAG 검색 실패:', error.message || error);
+    return '';
+  }
 }
 
 /**
- * 4단계: Gemini Code Execution으로 Python SymPy 계산 (수학 문제만)
+ * Gemini Code Execution으로 Python SymPy 계산 (실제 구현)
  */
 async function calculateWithPython(
   equation: string,
@@ -209,7 +120,6 @@ async function calculateWithPython(
   console.log(`🐍 Python SymPy 계산 요청: ${equation}`);
   
   try {
-    // Gemini Code Execution 기능 사용
     const prompt = `다음 수학 문제를 Python SymPy를 사용하여 정확히 계산해주세요:
 
 문제: ${equation}
@@ -233,6 +143,7 @@ print(f"정답: {result}")
 
 계산 과정과 최종 답을 명확히 반환하세요.`;
 
+    console.log('   Gemini Code Execution API 호출 중...');
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
       {
@@ -249,6 +160,10 @@ print(f"정답: {result}")
       }
     );
 
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
     const data = await response.json();
     const parts = data.candidates?.[0]?.content?.parts || [];
     
@@ -260,32 +175,32 @@ print(f"정답: {result}")
     for (const part of parts) {
       if (part.executableCode) {
         pythonCode = part.executableCode.code;
-        console.log(`📝 생성된 Python 코드:\n${pythonCode}`);
+        console.log(`   ✅ Python 코드 생성 완료 (${pythonCode.length}자)`);
       }
       if (part.codeExecutionResult) {
         executionResult = part.codeExecutionResult.output || '';
-        console.log(`✅ 실행 결과: ${executionResult}`);
+        console.log(`   ✅ 실행 결과: ${executionResult.substring(0, 100)}`);
       }
       if (part.text) {
-        // 텍스트에서 단계 추출
         const lines = part.text.split('\n').filter((l: string) => l.trim());
-        steps = lines.slice(0, 5); // 최대 5단계
+        steps = lines.slice(0, 5);
       }
     }
 
     if (executionResult) {
+      console.log(`✅ Python 계산 성공: ${equation} = ${executionResult}`);
       return {
-        result: executionResult,
-        steps: steps.length > 0 ? steps : ['계산 수행 완료'],
+        result: executionResult.trim(),
+        steps: steps.length > 0 ? steps : ['SymPy 계산 완료'],
         pythonCode: pythonCode
       };
     } else {
-      // Code execution이 실패한 경우 간단한 계산 시도
+      console.log('⚠️ Code Execution 결과 없음, Fallback 사용');
       return simpleCalculation(equation);
     }
     
-  } catch (error) {
-    console.error('❌ Gemini Code Execution 실패:', error);
+  } catch (error: any) {
+    console.error('❌ Gemini Code Execution 실패:', error.message || error);
     return simpleCalculation(equation);
   }
 }
@@ -295,100 +210,111 @@ print(f"정답: {result}")
  */
 function simpleCalculation(equation: string): { result: string; steps: string[] } {
   try {
-    // 간단한 사칙연산만 처리
     const cleaned = equation.replace(/\s/g, '').replace(/×/g, '*').replace(/÷/g, '/');
     
-    // 변수가 없는 단순 계산인 경우
-    if (!/[a-zA-Z]/.test(cleaned) && /^[\d\+\-\*\/\(\)\.]+$/.test(cleaned)) {
-      try {
-        // eval 대신 Function 사용 (더 안전)
-        const result = Function(`'use strict'; return (${cleaned})`)();
-        return {
-          result: `${result}`,
-          steps: [
-            '1. 수식 정리',
-            `2. 계산: ${cleaned}`,
-            `3. 결과: ${result}`
-          ]
-        };
-      } catch {
-        // 계산 실패
-      }
+    // 간단한 사칙연산만 처리 (보안을 위해 제한적으로)
+    if (/^[\d\+\-\*\/\(\)\.]+$/.test(cleaned)) {
+      const result = eval(cleaned);
+      console.log(`   Fallback 계산: ${equation} = ${result}`);
+      return {
+        result: result.toString(),
+        steps: ['간단한 계산']
+      };
     }
-    
-    return {
-      result: `수식 분석: ${equation}`,
-      steps: ['복잡한 수식은 직접 검토가 필요합니다']
-    };
   } catch (error) {
-    return {
-      result: '계산 불가',
-      steps: []
-    };
+    console.error('   Fallback 계산도 실패');
   }
+  
+  return {
+    result: '계산 불가',
+    steps: []
+  };
 }
 
 /**
- * 5단계: Gemini LLM 채점 (Function Calling 지원)
+ * LLM 최종 채점 (homework_grading_config 설정 사용)
  */
 async function gradeWithLLM(
   imageUrl: string,
-  ocrText: string,
+  providedOcrText: string,
   ragContext: string,
   subject: string,
   isMath: boolean,
+  pythonCalculations: any[],
   geminiApiKey: string,
   config: any
 ): Promise<any> {
-  console.log('🤖 Step 5: Gemini LLM 채점...');
+  console.log('🤖 LLM 최종 채점 시작...');
   
-  const basePrompt = config?.systemPrompt || `당신은 전문 교사입니다. 제공된 숙제를 채점하세요.
+  // DB 설정에서 프롬프트 및 모델 설정 로드
+  const systemPrompt = config?.systemPrompt || `당신은 전문 교사입니다.
 
-1. 이미지와 OCR 텍스트를 분석하세요
-2. 각 문제의 답안을 확인하세요
-3. 정답 여부를 판단하세요
-4. 피드백을 제공하세요`;
+다음 작업을 수행하세요:
+1. 제공된 숙제 이미지의 모든 문제를 식별
+2. 각 학생 답안 확인
+3. 정답 여부 판단
+4. 피드백 제공
 
-  let fullPrompt = basePrompt;
-  
-  if (ocrText) {
-    fullPrompt += `\n\n【OCR 추출 텍스트】\n${ocrText}`;
-  }
-  
-  if (ragContext) {
-    fullPrompt += ragContext;
-  }
-  
-  if (isMath) {
-    fullPrompt += `\n\n⚠️ 수학 문제입니다. 계산이 필요한 경우 정확한 수학적 검증을 수행하세요.`;
-  }
-
-  fullPrompt += `\n\n응답은 반드시 다음 JSON 형식으로 제공하세요:
+응답은 반드시 다음 JSON 형식으로:
 {
-  "totalQuestions": 문제 총 개수,
-  "correctAnswers": 맞은 문제 수,
+  "totalQuestions": <총 문제 수>,
+  "correctAnswers": <정답 수>,
   "detailedResults": [
     {
       "questionNumber": 1,
       "isCorrect": true/false,
-      "studentAnswer": "학생이 작성한 답",
+      "studentAnswer": "학생 답",
       "correctAnswer": "정답",
-      "explanation": "채점 근거 및 설명"
+      "explanation": "설명"
     }
   ],
-  "overallFeedback": "전체적인 피드백",
+  "overallFeedback": "전체 피드백",
   "strengths": "잘한 점",
   "improvements": "개선할 점"
 }`;
 
-  const base64Image = imageUrl.replace(/^data:image\/\w+;base64,/, '');
-  const modelName = config?.model || 'gemini-2.5-flash';
-  const temperature = config?.temperature ?? 0.3;
+  const model = config?.model || 'gemini-2.5-flash';
+  const temperature = config?.temperature || 0.3;
   const maxTokens = config?.maxTokens || 2000;
 
+  console.log(`   모델: ${model}`);
+  console.log(`   Temperature: ${temperature}, MaxTokens: ${maxTokens}`);
+
+  // 프롬프트 구성
+  let fullPrompt = systemPrompt;
+  
+  // OCR 텍스트 추가
+  if (providedOcrText) {
+    fullPrompt += `\n\n【OCR 추출 텍스트】\n${providedOcrText}`;
+  }
+  
+  // RAG 컨텍스트 추가
+  if (ragContext) {
+    fullPrompt += ragContext;
+  }
+  
+  // Python 계산 결과 추가
+  if (pythonCalculations.length > 0) {
+    fullPrompt += '\n\n【Python SymPy 계산 결과】\n';
+    pythonCalculations.forEach((calc, idx) => {
+      fullPrompt += `${idx + 1}. ${calc.equation} = ${calc.result}\n`;
+      if (calc.pythonCode) {
+        fullPrompt += `   코드: ${calc.pythonCode.substring(0, 100)}...\n`;
+      }
+    });
+  }
+
+  fullPrompt += `\n\n과목: ${subject}`;
+  if (isMath) {
+    fullPrompt += `\n⚠️ 수학 문제입니다. Python 계산 결과를 참고하여 정확히 채점하세요.`;
+  }
+
+  const base64Image = imageUrl.replace(/^data:image\/\w+;base64,/, '');
+  
   try {
+    console.log('   Gemini API 호출 중...');
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${geminiApiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -407,6 +333,10 @@ async function gradeWithLLM(
       }
     );
 
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
     const match = text.match(/\{[\s\S]*\}/);
@@ -415,12 +345,14 @@ async function gradeWithLLM(
       const result = JSON.parse(match[0]);
       console.log(`✅ LLM 채점 완료: ${result.correctAnswers}/${result.totalQuestions} 정답`);
       return result;
+    } else {
+      console.error('❌ JSON 파싱 실패');
+      return null;
     }
-  } catch (error) {
-    console.error('❌ LLM 채점 실패:', error);
+  } catch (error: any) {
+    console.error('❌ LLM 채점 실패:', error.message || error);
+    return null;
   }
-
-  return null;
 }
 
 /**
@@ -430,7 +362,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const { DB, AI, VECTORIZE, GOOGLE_GEMINI_API_KEY } = context.env;
     const body: PrecisionGradingRequest = await context.request.json();
-    const { userId, images, subject = '수학' } = body;
+    const { userId, images, subject = '수학', ocrText = '' } = body;
+
+    console.log('\n' + '='.repeat(60));
+    console.log('🎯 정밀 숙제 채점 시작');
+    console.log('='.repeat(60));
 
     if (!GOOGLE_GEMINI_API_KEY) {
       return Response.json({ 
@@ -446,65 +382,86 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }, { status: 400 });
     }
 
-    console.log(`\n🎯 정밀 채점 시작: ${images.length}장의 이미지`);
     console.log(`📚 과목: ${subject}`);
+    console.log(`📄 이미지: ${images.length}장`);
+    console.log(`📝 OCR 텍스트: ${ocrText ? ocrText.length + '자' : '없음'}`);
 
     // DB에서 채점 설정 로드
+    console.log('\n📖 homework_grading_config 설정 로드 중...');
     const config = await DB.prepare(
       `SELECT * FROM homework_grading_config ORDER BY id DESC LIMIT 1`
     ).first();
 
+    if (config) {
+      console.log(`✅ 설정 로드 완료:`);
+      console.log(`   모델: ${config.model}`);
+      console.log(`   Temperature: ${config.temperature}`);
+      console.log(`   MaxTokens: ${config.maxTokens}`);
+      console.log(`   RAG 활성화: ${config.enableRAG ? '예' : '아니오'}`);
+    } else {
+      console.log('⚠️ 설정 없음, 기본값 사용');
+    }
+
     const results: any[] = [];
-    let totalOcrText = '';
     const pythonCalculations: any[] = [];
+    let totalRagContext = '';
 
     // 각 이미지 처리
     for (let i = 0; i < images.length; i++) {
       const imageUrl = images[i];
-      console.log(`\n📄 이미지 ${i + 1}/${images.length} 처리 중...`);
+      console.log(`\n${'─'.repeat(60)}`);
+      console.log(`📄 이미지 ${i + 1}/${images.length} 처리 중...`);
+      console.log('─'.repeat(60));
 
-      // Step 1: 객관식/주관식 판별
-      const questionType = await detectQuestionType(imageUrl, GOOGLE_GEMINI_API_KEY);
+      // Step 1: RAG 검색 (실제 구현)
+      const ragContext = await searchGradingCriteria(
+        ocrText || '이미지 기반 채점',
+        subject,
+        { DB, AI, VECTORIZE, GOOGLE_GEMINI_API_KEY }
+      );
       
-      let ocrText = '';
-      
-      // Step 2: OCR (주관식만)
-      if (!questionType.isMultipleChoice) {
-        ocrText = await performOCR(imageUrl, GOOGLE_GEMINI_API_KEY);
-        totalOcrText += ocrText + '\n\n';
-      } else {
-        console.log('⏭️ 객관식 문제 - OCR 생략');
+      if (ragContext) {
+        totalRagContext += ragContext;
       }
 
-      // Step 3: RAG 검색
-      const ragContext = await searchGradingCriteria(ocrText || '객관식 문제', subject, {
-        DB, AI, VECTORIZE, GOOGLE_GEMINI_API_KEY
-      });
-
-      // Step 4: 수학 문제 판별 및 Python 계산
+      // Step 2: 수학 문제인 경우 Python 계산 (실제 구현)
       const isMath = subject.includes('수학') || subject.includes('Math') || subject.includes('math');
+      
       if (isMath && ocrText) {
+        console.log('\n🔢 수학 문제 감지 - Python SymPy 계산 시작');
+        
         // 수식 추출 (방정식, 계산식 등)
-        const equations = ocrText.match(/[\d\w\s\+\-\×\÷\=\(\)\.]+/g) || [];
+        const equations = ocrText.match(/[\d\w\s\+\-\×\÷\=\(\)\.x]+/g) || [];
         const uniqueEquations = [...new Set(equations)]
           .filter(eq => eq.length > 2 && /[\d\+\-\×\÷\=]/.test(eq))
           .slice(0, 5); // 최대 5개
         
+        console.log(`   추출된 수식: ${uniqueEquations.length}개`);
+        
         for (const eq of uniqueEquations) {
           const calc = await calculateWithPython(eq.trim(), GOOGLE_GEMINI_API_KEY);
           if (calc.result !== '계산 불가') {
-            pythonCalculations.push({ equation: eq.trim(), ...calc });
+            pythonCalculations.push({ 
+              equation: eq.trim(), 
+              ...calc 
+            });
           }
         }
+        
+        console.log(`✅ Python 계산 완료: ${pythonCalculations.length}개 성공`);
+      } else if (isMath && !ocrText) {
+        console.log('⚠️ 수학 문제이지만 OCR 텍스트 없음 - Python 계산 건너뜀');
       }
 
-      // Step 5: LLM 채점
+      // Step 3: LLM 최종 채점 (homework_grading_config 설정 사용)
+      console.log('\n🤖 LLM 최종 채점 시작...');
       const gradingResult = await gradeWithLLM(
         imageUrl,
         ocrText,
         ragContext,
         subject,
         isMath,
+        pythonCalculations,
         GOOGLE_GEMINI_API_KEY,
         config
       );
@@ -515,6 +472,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 결과 통합
+    console.log('\n' + '='.repeat(60));
+    console.log('📊 결과 통합 중...');
+    console.log('='.repeat(60));
+    
     const totalQuestions = results.reduce((sum, r) => sum + (r.totalQuestions || 0), 0);
     const correctAnswers = results.reduce((sum, r) => sum + (r.correctAnswers || 0), 0);
     const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
@@ -528,19 +489,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       feedback: results.map(r => r.overallFeedback).join('\n\n'),
       strengths: results.map(r => r.strengths).join('\n'),
       suggestions: results.map(r => r.improvements).join('\n'),
-      ocrText: totalOcrText.trim(),
+      ragContext: totalRagContext || undefined,
       pythonCalculations: pythonCalculations.length > 0 ? pythonCalculations : undefined
     };
 
-    console.log(`\n✅ 정밀 채점 완료: ${score}점 (${correctAnswers}/${totalQuestions})`);
+    console.log(`\n✅ 정밀 채점 완료!`);
+    console.log(`   점수: ${score}점 (${correctAnswers}/${totalQuestions})`);
+    console.log(`   RAG 사용: ${totalRagContext ? '예' : '아니오'}`);
+    console.log(`   Python 계산: ${pythonCalculations.length}개`);
+    console.log('='.repeat(60) + '\n');
 
     return Response.json(finalResult);
 
   } catch (error: any) {
-    console.error('❌ 정밀 채점 오류:', error);
+    console.error('\n❌ 정밀 채점 오류:', error.message || error);
     return Response.json({ 
       success: false, 
-      error: error.message 
+      error: error.message || 'Internal server error'
     }, { status: 500 });
   }
 };
