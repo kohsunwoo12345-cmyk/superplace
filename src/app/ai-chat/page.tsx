@@ -915,22 +915,46 @@ export default function ModernAIChatPage() {
       console.log(`\n🔍 Processing message ${msgIndex + 1}:`, fullText.substring(0, 100) + '...');
       
       // Step 0: 구분선으로 문제/답안 섹션 분리
+      // 우선순위: 명확한 답안 키워드 > 일반 구분선
       const separatorPatterns = [
-        '\n---\n',
-        '\n— — —\n',
         '\n**정답 및 해설**',
         '\n**정답**',
         '\n## 정답',
         '\n## 해설',
+        '\n정답 및 해설',
+        '\n정답:',
       ];
       
       let problemSection = fullText;
+      let separatorFound = false;
+      
+      // 먼저 명확한 답안 키워드 검색
       for (const separator of separatorPatterns) {
         const sepIndex = fullText.indexOf(separator);
         if (sepIndex !== -1) {
           problemSection = fullText.substring(0, sepIndex);
           console.log(`✂️  Found separator "${separator.trim()}" - cutting at index ${sepIndex}`);
+          separatorFound = true;
           break;
+        }
+      }
+      
+      // 답안 키워드를 못 찾았으면 마지막 --- 구분선 찾기 (여러 개 있을 수 있음)
+      if (!separatorFound) {
+        const allDashIndices = [];
+        let searchIndex = 0;
+        while (true) {
+          const dashIndex = fullText.indexOf('\n---\n', searchIndex);
+          if (dashIndex === -1) break;
+          allDashIndices.push(dashIndex);
+          searchIndex = dashIndex + 1;
+        }
+        
+        // 마지막 --- 사용 (정답 섹션 구분선일 가능성이 높음)
+        if (allDashIndices.length > 0) {
+          const lastDashIndex = allDashIndices[allDashIndices.length - 1];
+          problemSection = fullText.substring(0, lastDashIndex);
+          console.log(`✂️  Found last --- separator at index ${lastDashIndex} (total: ${allDashIndices.length})`);
         }
       }
       
@@ -1047,7 +1071,7 @@ export default function ModernAIChatPage() {
         const isValidProblem = 
           problemText.length >= 5 &&
           problemText.length <= 2000 &&
-          (/계산|구하|풀이|답하|선택|고르|solve|calculate|find|choose|what|which/i.test(problemText) ||
+          (/계산|구하|풀이|답하|선택|고르|쓰시오|바꾸|번역|해석|영작|맞는|틀린|일치|다음|알맞|적절|solve|calculate|find|choose|what|which|translate|write|correct/i.test(problemText) ||
            /[=?①②③④⑤]/.test(problemText));
         
         if (!isValidProblem) {
