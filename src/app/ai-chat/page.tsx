@@ -1130,8 +1130,8 @@ d+[.\)]|$)/g;
             border-left: 4px solid #2563eb;
           }
           .section-title.answer-section {
-            background: #dcfce7;
-            border-left: 4px solid #16a34a;
+            background: #f3f4f6;
+            border-left: 4px solid #2563eb;
           }
           .problems-container {
             column-count: 2;
@@ -1165,24 +1165,21 @@ d+[.\)]|$)/g;
             margin-bottom: 4px;
           }
           .answer-item {
-            margin-bottom: 15px;
-            padding: 12px;
-            background: #f9fafb;
-            border-radius: 6px;
+            margin-bottom: 20px;
             page-break-inside: avoid;
             break-inside: avoid;
           }
           .answer-number {
             font-size: 14px;
             font-weight: 700;
-            color: #16a34a;
+            color: #1a1a1a;
             margin-bottom: 6px;
           }
           .answer-content {
-            font-size: 13px;
+            font-size: 12px;
             line-height: 1.6;
             white-space: pre-wrap;
-            color: #374151;
+            color: #000;
           }
           .page-break {
             page-break-after: always;
@@ -1248,23 +1245,27 @@ d+[.\)]|$)/g;
 
         ${multipleChoiceProblems.length > 0 ? `
         <div class="section-title answer-section">객관식 정답</div>
+        <div class="problems-container">
         ${multipleChoiceProblems.map((p) => `
           <div class="answer-item">
-            <div class="answer-number">${p.number}번 정답</div>
+            <div class="answer-number">${p.number}. </div>
             <div class="answer-content">${(p.answer || '정답 없음').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
           </div>
         `).join('')}
+        </div>
         ` : ''}
 
         ${descriptiveProblems.length > 0 ? `
         ${multipleChoiceProblems.length > 0 ? '<div class="page-break"></div>' : ''}
         <div class="section-title answer-section">서술형 모범 답안</div>
+        <div class="problems-container">
         ${descriptiveProblems.map((p) => `
           <div class="answer-item">
-            <div class="answer-number">${p.number}번 답안</div>
+            <div class="answer-number">${p.number}. </div>
             <div class="answer-content">${(p.answer || '모범 답안 없음').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
           </div>
         `).join('')}
+        </div>
         ` : ''}
 
         <div class="no-print" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
