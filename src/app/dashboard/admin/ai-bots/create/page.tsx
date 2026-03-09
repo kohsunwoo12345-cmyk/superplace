@@ -33,6 +33,8 @@ const GEMINI_MODELS = [
   { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (추천)", description: "✅ 최신 2.5 모델, 빠르고 안정적", recommended: true },
   { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", description: "⚡ 경량화 모델, 빠른 응답", recommended: false },
   { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "⚠️ 최고 성능이지만 안전 필터 엄격", recommended: false },
+  { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash", description: "🔥 이전 세대 모델, 안정적", recommended: false },
+  { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite", description: "⚡ 2.0 경량화 모델", recommended: false },
 ];
 
 const PRESET_PROMPTS = [
