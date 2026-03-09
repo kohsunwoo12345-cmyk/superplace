@@ -26,11 +26,31 @@ interface GradingResult {
 export async function gradeHomeworkWithAI(
   imageUrl: string,
   subject?: string,
-  geminiApiKey?: string
+  geminiApiKey?: string,
+  db?: D1Database
 ): Promise<GradingResult> {
   try {
     // 환경 변수에서 API 키 가져오기
     const apiKey = geminiApiKey || process.env.GOOGLE_GEMINI_API_KEY;
+    
+    // DB에서 설정 불러오기
+    let config: any = null;
+    if (db) {
+      try {
+        config = await db.prepare(
+          `SELECT * FROM homework_grading_config ORDER BY id DESC LIMIT 1`
+        ).first();
+        if (config) {
+          console.log('✅ Homework grading config loaded from DB:', {
+            model: config.model,
+            enableRAG: config.enableRAG,
+            hasKnowledge: Boolean(config.knowledgeBase),
+          });
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to load config from DB:', err);
+      }
+    }
 
     if (!apiKey) {
       console.error('❌ GOOGLE_GEMINI_API_KEY가 설정되지 않았습니다.');
@@ -104,9 +124,13 @@ export async function gradeHomeworkWithAI(
   "improvements": "개선할 점"
 }`;
 
-    // Google Gemini API 호출
-    console.log('🤖 Google Gemini Vision API 호출 중...');
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    // Google Gemini API 호출 (DB 설정 모델 또는 기본값)
+    const model = config?.model || 'gemini-2.5-flash';
+    const temperature = config?.temperature || 0.3;
+    const maxTokens = config?.maxTokens || 2000;
+    
+    console.log('🤖 Google Gemini Vision API 호출 중...', { model, temperature, maxTokens });
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
     
     const response = await fetch(geminiUrl, {
       method: 'POST',
