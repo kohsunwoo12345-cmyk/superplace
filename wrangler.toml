@@ -27,6 +27,10 @@ bucket_name = "superplacestudy"
 binding = "VECTORIZE"
 index_name = "knowledge-base-embeddings"
 
+# Workers AI (for embeddings and inference)
+[ai]
+binding = "AI"
+
 # Environment Variables
 # Note: These should be set in Cloudflare Pages dashboard
 # Settings > Environment variables > Production
