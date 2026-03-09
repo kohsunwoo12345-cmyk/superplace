@@ -86,7 +86,8 @@ export default function HomeworkGradingConfigPage() {
         }
         
         const data = await response.json();
-        if (data.role !== 'admin' && data.role !== 'director') {
+        const roleUpper = data.role?.toUpperCase();
+        if (roleUpper !== 'ADMIN' && roleUpper !== 'SUPER_ADMIN' && roleUpper !== 'DIRECTOR') {
           router.push('/dashboard');
           return;
         }
