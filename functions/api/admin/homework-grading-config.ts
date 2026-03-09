@@ -167,62 +167,124 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     ).first();
 
     if (existing) {
-      // 업데이트
-      await DB.prepare(`
-        UPDATE homework_grading_config
-        SET systemPrompt = ?,
-            model = ?,
-            temperature = ?,
-            maxTokens = ?,
-            topK = ?,
-            topP = ?,
-            enableRAG = ?,
-            knowledgeBase = ?,
-            updatedAt = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).bind(
-        systemPrompt,
-        model,
-        temperature,
-        maxTokens,
-        topK,
-        topP,
-        enableRAG,
-        knowledgeBase,
-        existing.id
-      ).run();
+      // 업데이트 - 테이블 스키마 확인 후 안전하게 업데이트
+      try {
+        // 모든 컬럼 포함한 업데이트 시도
+        await DB.prepare(`
+          UPDATE homework_grading_config
+          SET systemPrompt = ?,
+              model = ?,
+              temperature = ?,
+              maxTokens = ?,
+              topK = ?,
+              topP = ?,
+              enableRAG = ?,
+              knowledgeBase = ?,
+              updatedAt = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).bind(
+          systemPrompt,
+          model,
+          temperature,
+          maxTokens,
+          topK,
+          topP,
+          enableRAG,
+          knowledgeBase,
+          existing.id
+        ).run();
 
-      console.log('✅ Homework grading config updated:', { id: existing.id, model, enableRAG });
+        console.log('✅ Homework grading config updated:', { id: existing.id, model, enableRAG });
 
-      return Response.json({
-        success: true,
-        message: '숙제 검사 AI 설정이 업데이트되었습니다.',
-        configId: Number(existing.id)
-      });
+        return Response.json({
+          success: true,
+          message: '숙제 검사 AI 설정이 업데이트되었습니다.',
+          configId: Number(existing.id)
+        });
+      } catch (updateError: any) {
+        console.warn('⚠️ Full update failed, trying without topK/topP:', updateError.message);
+        
+        // topK/topP 제외한 업데이트 시도
+        await DB.prepare(`
+          UPDATE homework_grading_config
+          SET systemPrompt = ?,
+              model = ?,
+              temperature = ?,
+              maxTokens = ?,
+              enableRAG = ?,
+              knowledgeBase = ?,
+              updatedAt = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).bind(
+          systemPrompt,
+          model,
+          temperature,
+          maxTokens,
+          enableRAG,
+          knowledgeBase,
+          existing.id
+        ).run();
+
+        console.log('✅ Homework grading config updated (without topK/topP):', { id: existing.id, model, enableRAG });
+
+        return Response.json({
+          success: true,
+          message: '숙제 검사 AI 설정이 업데이트되었습니다 (일부 필드 제외).',
+          configId: Number(existing.id),
+          warning: 'topK and topP fields not updated due to schema limitations'
+        });
+      }
     } else {
-      // 새로 추가
-      const result = await DB.prepare(`
-        INSERT INTO homework_grading_config 
-        (systemPrompt, model, temperature, maxTokens, topK, topP, enableRAG, knowledgeBase)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        systemPrompt,
-        model,
-        temperature,
-        maxTokens,
-        topK,
-        topP,
-        enableRAG,
-        knowledgeBase
-      ).run();
+      // 새로 추가 - 컬럼 존재 여부에 따라 처리
+      try {
+        const result = await DB.prepare(`
+          INSERT INTO homework_grading_config 
+          (systemPrompt, model, temperature, maxTokens, topK, topP, enableRAG, knowledgeBase)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          systemPrompt,
+          model,
+          temperature,
+          maxTokens,
+          topK,
+          topP,
+          enableRAG,
+          knowledgeBase
+        ).run();
 
-      console.log('✅ Homework grading config created:', { model, enableRAG });
+        console.log('✅ Homework grading config created:', { model, enableRAG });
 
-      return Response.json({
-        success: true,
-        message: '숙제 검사 AI 설정이 저장되었습니다.',
-        configId: result.meta.last_row_id
-      }, { status: 201 });
+        return Response.json({
+          success: true,
+          message: '숙제 검사 AI 설정이 저장되었습니다.',
+          configId: result.meta.last_row_id
+        }, { status: 201 });
+      } catch (insertError: any) {
+        console.warn('⚠️ Full insert failed, trying without topK/topP:', insertError.message);
+        
+        // topK/topP 없이 삽입 시도
+        const result = await DB.prepare(`
+          INSERT INTO homework_grading_config 
+          (systemPrompt, model, temperature, maxTokens, enableRAG, knowledgeBase)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).bind(
+          systemPrompt,
+          model,
+          temperature,
+          maxTokens,
+          enableRAG,
+          knowledgeBase
+        ).run();
+
+        console.log('✅ Homework grading config created (without topK/topP):', { model, enableRAG });
+
+        return Response.json({
+          success: true,
+          message: '숙제 검사 AI 설정이 저장되었습니다 (일부 필드 제외).',
+          configId: result.meta.last_row_id,
+          warning: 'topK and topP fields not saved due to schema limitations'
+        }, { status: 201 });
+      }
     }
 
   } catch (error: any) {
