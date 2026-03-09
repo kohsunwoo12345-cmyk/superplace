@@ -1,94 +1,98 @@
 /**
- * Python SymPy 계산 직접 테스트 엔드포인트
+ * Cloudflare Sandbox Python 계산 직접 테스트 엔드포인트
  */
 
+import { Sandbox } from '@cloudflare/sandbox';
+
 interface Env {
-  GOOGLE_GEMINI_API_KEY: string;
+  // 환경 변수 필요 없음 - Sandbox는 자동으로 설정됨
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { GOOGLE_GEMINI_API_KEY } = context.env;
     const body: { equation: string } = await context.request.json();
     const { equation } = body;
 
-    if (!GOOGLE_GEMINI_API_KEY) {
-      return Response.json({ error: 'API key not configured' }, { status: 500 });
-    }
+    console.log(`\n🐍 Cloudflare Sandbox Python 계산 테스트: ${equation}`);
 
-    console.log(`\n🐍 Python 계산 테스트: ${equation}`);
+    // Python 코드 생성
+    const pythonCode = `
+from sympy import symbols, solve, simplify, sympify, Eq
+from sympy import sqrt, pi, E
+import re
 
-    const prompt = `다음 수학 문제를 Python SymPy를 사용하여 정확히 계산해주세요:
+# 수식 정리
+equation_str = """${equation}"""
 
-문제: ${equation}
+try:
+    # 방정식인 경우 (=가 있음)
+    if '=' in equation_str:
+        # x, y, z 변수 정의
+        x, y, z = symbols('x y z')
+        
+        # 수식 파싱
+        left, right = equation_str.split('=')
+        left = left.strip()
+        right = right.strip()
+        
+        # SymPy로 변환
+        eq = Eq(sympify(left), sympify(right))
+        
+        # 방정식 풀이
+        solution = solve(eq, x)
+        
+        if solution:
+            print(f"정답: {solution[0]}")
+        else:
+            print("해가 없습니다")
+    else:
+        # 계산식인 경우
+        result = sympify(equation_str)
+        simplified = simplify(result)
+        print(f"정답: {simplified}")
+        
+except Exception as e:
+    # 간단한 계산 시도
+    try:
+        result = eval(equation_str.replace('×', '*').replace('÷', '/'))
+        print(f"정답: {result}")
+    except:
+        print(f"계산 불가: {e}")
+`;
 
-Python 코드를 작성하고 실행하여 결과를 반환하세요.
+    console.log('Cloudflare Sandbox 실행 중...');
+    console.log(`Python 코드:\n${pythonCode.substring(0, 300)}...`);
 
-예시:
-\`\`\`python
-from sympy import *
-x = symbols('x')
-result = solve(3*x + 5 - 14, x)
-print(f"정답: {result}")
-\`\`\``;
-
-    console.log('Gemini Code Execution API 호출 중...');
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GOOGLE_GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }],
-          tools: [{
-            codeExecution: {}
-          }]
-        })
-      }
-    );
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('Gemini API 오류:', error);
-      return Response.json({ 
-        error: `Gemini API error: ${response.status}`,
-        details: error
-      }, { status: 500 });
-    }
-
-    const data = await response.json();
-    console.log('Gemini 응답:', JSON.stringify(data, null, 2));
-
-    const parts = data.candidates?.[0]?.content?.parts || [];
+    // Cloudflare Sandbox 생성
+    const sandbox = await Sandbox.create();
     
-    let pythonCode = '';
-    let executionResult = '';
-    
-    for (const part of parts) {
-      if (part.executableCode) {
-        pythonCode = part.executableCode.code;
-        console.log(`✅ Python 코드:\n${pythonCode}`);
-      }
-      if (part.codeExecutionResult) {
-        executionResult = part.codeExecutionResult.output || '';
-        console.log(`✅ 실행 결과: ${executionResult}`);
-      }
-    }
+    try {
+      // Python 코드 실행
+      const result = await sandbox.runPython(pythonCode);
+      
+      console.log('✅ 실행 완료');
+      console.log(`   stdout: ${result.stdout || '(empty)'}`);
+      console.log(`   stderr: ${result.stderr || '(empty)'}`);
 
-    return Response.json({
-      success: true,
-      equation,
-      pythonCode,
-      executionResult,
-      fullResponse: data
-    });
+      return Response.json({
+        success: true,
+        equation,
+        pythonCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        result: result.stdout?.replace('정답: ', '').trim() || null
+      });
+      
+    } finally {
+      // Sandbox 정리
+      await sandbox.shutdown();
+      console.log('✅ Sandbox shutdown 완료');
+    }
 
   } catch (error: any) {
     console.error('❌ 오류:', error);
     return Response.json({ 
+      success: false,
       error: error.message,
       stack: error.stack
     }, { status: 500 });

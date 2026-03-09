@@ -2,13 +2,18 @@
  * 정밀 숙제 채점 시스템
  * RAG → LLM (↔ Python) → JSON Output
  * OCR은 외부에서 처리, RAG와 Python만 실제 구현
+ * Python: Cloudflare Sandbox SDK 사용
  */
+
+import { Sandbox } from '@cloudflare/sandbox';
 
 interface Env {
   DB: D1Database;
   AI: any;
   VECTORIZE: VectorizeIndex;
   GOOGLE_GEMINI_API_KEY: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  CLOUDFLARE_API_TOKEN?: string;
 }
 
 interface PrecisionGradingRequest {
@@ -111,96 +116,92 @@ async function searchGradingCriteria(
 }
 
 /**
- * Gemini Code Execution으로 Python SymPy 계산 (실제 구현)
+ * Cloudflare Sandbox SDK로 Python SymPy 계산 (실제 구현)
  */
 async function calculateWithPython(
-  equation: string,
-  geminiApiKey: string
+  equation: string
 ): Promise<{ result: string; steps: string[]; pythonCode?: string }> {
-  console.log(`🐍 Python SymPy 계산 요청: ${equation}`);
+  console.log(`🐍 Cloudflare Sandbox Python 계산 요청: ${equation}`);
   
   try {
-    const prompt = `다음 수학 문제를 Python SymPy를 사용하여 정확히 계산해주세요:
+    // Python 코드 생성
+    const pythonCode = `
+from sympy import symbols, solve, simplify, sympify, Eq
+from sympy import sqrt, pi, E
+import re
 
-문제: ${equation}
+# 수식 정리
+equation_str = """${equation}"""
 
-Python 코드를 작성하고 실행하여 결과를 반환하세요.
-SymPy를 사용하여 정확한 수학적 계산을 수행하세요.
+try:
+    # 방정식인 경우 (=가 있음)
+    if '=' in equation_str:
+        # x, y, z 변수 정의
+        x, y, z = symbols('x y z')
+        
+        # 수식 파싱
+        left, right = equation_str.split('=')
+        left = left.strip()
+        right = right.strip()
+        
+        # SymPy로 변환
+        eq = Eq(sympify(left), sympify(right))
+        
+        # 방정식 풀이
+        solution = solve(eq, x)
+        
+        if solution:
+            print(f"정답: {solution[0]}")
+        else:
+            print("해가 없습니다")
+    else:
+        # 계산식인 경우
+        result = sympify(equation_str)
+        simplified = simplify(result)
+        print(f"정답: {simplified}")
+        
+except Exception as e:
+    # 간단한 계산 시도
+    try:
+        result = eval(equation_str.replace('×', '*').replace('÷', '/'))
+        print(f"정답: {result}")
+    except:
+        print(f"계산 불가: {e}")
+`;
 
-예시:
-\`\`\`python
-from sympy import symbols, solve, simplify, factor, expand
-from sympy import sqrt, pi, E, I, oo
-from sympy import sin, cos, tan, log, exp
-from sympy import diff, integrate, limit, series
-
-# 문제 해결
-x = symbols('x')
-equation = 2*x + 3 - 7
-result = solve(equation, x)
-print(f"정답: {result}")
-\`\`\`
-
-계산 과정과 최종 답을 명확히 반환하세요.`;
-
-    console.log('   Gemini Code Execution API 호출 중...');
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }],
-          tools: [{
-            codeExecution: {}
-          }]
-        })
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const parts = data.candidates?.[0]?.content?.parts || [];
+    console.log('   Cloudflare Sandbox 실행 중...');
+    console.log(`   Python 코드:\n${pythonCode.substring(0, 200)}...`);
     
-    let pythonCode = '';
-    let executionResult = '';
-    let steps: string[] = [];
+    // Cloudflare Sandbox SDK 사용
+    const sandbox = await Sandbox.create();
     
-    // Code execution 결과 파싱
-    for (const part of parts) {
-      if (part.executableCode) {
-        pythonCode = part.executableCode.code;
-        console.log(`   ✅ Python 코드 생성 완료 (${pythonCode.length}자)`);
+    try {
+      // Python 코드 실행
+      const result = await sandbox.runPython(pythonCode);
+      
+      console.log(`   ✅ 실행 결과: ${result.stdout}`);
+      console.log(`   ⚠️  에러: ${result.stderr || '없음'}`);
+      
+      if (result.stdout && !result.stderr) {
+        // 성공
+        const output = result.stdout.trim();
+        return {
+          result: output.replace('정답: ', ''),
+          steps: ['Cloudflare Sandbox SymPy 계산'],
+          pythonCode: pythonCode.trim()
+        };
+      } else if (result.stderr) {
+        throw new Error(result.stderr);
+      } else {
+        throw new Error('출력 없음');
       }
-      if (part.codeExecutionResult) {
-        executionResult = part.codeExecutionResult.output || '';
-        console.log(`   ✅ 실행 결과: ${executionResult.substring(0, 100)}`);
-      }
-      if (part.text) {
-        const lines = part.text.split('\n').filter((l: string) => l.trim());
-        steps = lines.slice(0, 5);
-      }
-    }
-
-    if (executionResult) {
-      console.log(`✅ Python 계산 성공: ${equation} = ${executionResult}`);
-      return {
-        result: executionResult.trim(),
-        steps: steps.length > 0 ? steps : ['SymPy 계산 완료'],
-        pythonCode: pythonCode
-      };
-    } else {
-      console.log('⚠️ Code Execution 결과 없음, Fallback 사용');
-      return simpleCalculation(equation);
+      
+    } finally {
+      await sandbox.shutdown();
     }
     
   } catch (error: any) {
-    console.error('❌ Gemini Code Execution 실패:', error.message || error);
+    console.error('❌ Cloudflare Sandbox 실패:', error.message || error);
     return simpleCalculation(equation);
   }
 }
@@ -455,7 +456,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         
         if (uniqueEquations.length > 0) {
           for (const eq of uniqueEquations) {
-            const calc = await calculateWithPython(eq.trim(), GOOGLE_GEMINI_API_KEY);
+            const calc = await calculateWithPython(eq.trim());
             if (calc.result !== '계산 불가') {
               pythonCalculations.push({ 
                 equation: eq.trim(), 
