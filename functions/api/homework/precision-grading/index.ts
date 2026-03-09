@@ -429,26 +429,48 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       
       if (isMath && ocrText) {
         console.log('\n🔢 수학 문제 감지 - Python SymPy 계산 시작');
+        console.log(`   OCR 텍스트:\n${ocrText.substring(0, 200)}`);
         
-        // 수식 추출 (방정식, 계산식 등)
-        const equations = ocrText.match(/[\d\w\s\+\-\×\÷\=\(\)\.x]+/g) || [];
+        // 수식 추출 개선 (다양한 패턴)
+        const equations: string[] = [];
+        
+        // 패턴 1: 방정식 (3x + 5 = 14)
+        const eqPattern = /[\dxyz\s]*[\+\-\×\÷\*\/][\s\dxyz\+\-\×\÷\*\/\(\)]*\s*=\s*[\d\s\+\-\×\÷\*\/\(\)]+/gi;
+        const foundEqs = ocrText.match(eqPattern) || [];
+        equations.push(...foundEqs);
+        
+        // 패턴 2: 계산식 (15 ÷ 3, 2 × 4 + 6)
+        const calcPattern = /\d+\s*[\+\-\×\÷\*\/]\s*[\d\(\)\s\+\-\×\÷\*\/]+/g;
+        const foundCalcs = ocrText.match(calcPattern) || [];
+        equations.push(...foundCalcs);
+        
         const uniqueEquations = [...new Set(equations)]
-          .filter(eq => eq.length > 2 && /[\d\+\-\×\÷\=]/.test(eq))
+          .filter(eq => eq.trim().length > 2)
           .slice(0, 5); // 최대 5개
         
         console.log(`   추출된 수식: ${uniqueEquations.length}개`);
+        uniqueEquations.forEach((eq, idx) => {
+          console.log(`      ${idx + 1}. ${eq.trim()}`);
+        });
         
-        for (const eq of uniqueEquations) {
-          const calc = await calculateWithPython(eq.trim(), GOOGLE_GEMINI_API_KEY);
-          if (calc.result !== '계산 불가') {
-            pythonCalculations.push({ 
-              equation: eq.trim(), 
-              ...calc 
-            });
+        if (uniqueEquations.length > 0) {
+          for (const eq of uniqueEquations) {
+            const calc = await calculateWithPython(eq.trim(), GOOGLE_GEMINI_API_KEY);
+            if (calc.result !== '계산 불가') {
+              pythonCalculations.push({ 
+                equation: eq.trim(), 
+                ...calc 
+              });
+              console.log(`      ✅ ${eq.trim()} = ${calc.result}`);
+            } else {
+              console.log(`      ⚠️ ${eq.trim()} - 계산 실패`);
+            }
           }
+          
+          console.log(`\n   ✅ Python 계산 완료: ${pythonCalculations.length}개 성공`);
+        } else {
+          console.log('   ⚠️ 수식을 찾을 수 없습니다');
         }
-        
-        console.log(`✅ Python 계산 완료: ${pythonCalculations.length}개 성공`);
       } else if (isMath && !ocrText) {
         console.log('⚠️ 수학 문제이지만 OCR 텍스트 없음 - Python 계산 건너뜀');
       }
