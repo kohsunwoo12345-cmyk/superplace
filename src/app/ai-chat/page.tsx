@@ -1358,7 +1358,9 @@ export default function ModernAIChatPage() {
       <div
         className={`${
           sidebarOpen ? "w-64" : "w-0"
-        } transition-all duration-300 border-r border-gray-200 flex flex-col bg-gray-50 h-full ${
+        } transition-all duration-300 ${
+          sidebarOpen ? "border-r border-gray-200" : "border-0"
+        } flex flex-col bg-gray-50 h-full overflow-hidden ${
           isMobile && sidebarOpen ? "absolute z-50 shadow-2xl" : ""
         }`}
       >
