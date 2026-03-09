@@ -174,10 +174,37 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         console.error(`❌ 과목 판별 실패: HTTP ${subjectResponse.status}`);
       }
 
-      // 📚 2단계: 상세 채점 프롬프트
+      // 📚 2단계: DB에서 채점 설정 로드
       console.log('📝 2단계: 상세 채점 시작...');
+      let gradingConfig = null;
+      try {
+        gradingConfig = await DB.prepare(
+          `SELECT * FROM homework_grading_config ORDER BY id DESC LIMIT 1`
+        ).first();
+        if (gradingConfig) {
+          console.log('✅ DB에서 채점 설정 로드:', {
+            model: gradingConfig.model,
+            promptLength: gradingConfig.systemPrompt?.length || 0
+          });
+        }
+      } catch (err) {
+        console.warn('⚠️ 채점 설정 로드 실패, 기본 프롬프트 사용:', err);
+      }
+
       const startGrading = Date.now();
-      const gradingPrompt = `당신은 ${subjectInfo.subject} 전문 선생님입니다. 학생의 학년은 ${subjectInfo.grade}학년입니다.
+      
+      // DB 설정 프롬프트 또는 기본 프롬프트 사용
+      let baseGradingPrompt = gradingConfig?.systemPrompt || `당신은 전문 교사입니다. 제공된 숙제 이미지를 분석하여 다음을 수행하세요:
+
+1. 이미지에서 모든 문제를 식별하세요
+2. 각 문제에 대한 학생의 답안을 확인하세요
+3. 정답 여부를 판단하세요 (문제에 정답이 표시되어 있거나, 일반적인 학습 지식으로 판단)
+4. 각 문제에 대한 피드백을 제공하세요`;
+
+      // 과목/학년 정보를 추가하여 최종 프롬프트 생성
+      // baseGradingPrompt에 컨텍스트 정보 추가
+      const contextInfo = `
+당신은 ${subjectInfo.subject} 전문 선생님입니다. 학생의 학년은 ${subjectInfo.grade}학년입니다.
 다음 ${imageArray.length}장의 숙제 사진을 매우 세밀하게 분석하여 상세하게 채점해주세요.
 
 ⚠️ 중요: 매우 상세하고 구체적으로 분석해주세요. 단순한 평가가 아닌 교육적 가치가 있는 피드백을 제공해주세요.
@@ -186,7 +213,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 - 총 ${imageArray.length}장의 사진
 - 각 사진을 순서대로 분석하여 모든 문제를 찾아내주세요
 - 부분 정답, 풀이 과정의 오류도 세밀하게 체크해주세요
+`;
 
+      const gradingPrompt = contextInfo + '\n' + baseGradingPrompt + '\n\n' + `
 📊 **점수 계산 방식:**
 - 전체 문제 수를 정확히 세어주세요 (totalQuestions)
 - 맞춘 문제 수를 정확히 세어주세요 (correctAnswers)
@@ -345,9 +374,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 - studyDirection은 실천 가능한 구체적 학습 계획 제시
 - explanation은 학생이 이해하기 쉽게 친절하게 설명`;
       
+      // DB 설정에서 모델과 파라미터 가져오기
+      const modelName = gradingConfig?.model || 'gemini-2.5-flash';
+      const temperature = gradingConfig?.temperature ?? 0.3;
+      const maxTokens = gradingConfig?.maxTokens || 2000;
+      
+      console.log(`🤖 사용 모델: ${modelName}, temperature: ${temperature}, maxTokens: ${maxTokens}`);
       
       const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GOOGLE_GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${GOOGLE_GEMINI_API_KEY}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -357,7 +392,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                 { text: gradingPrompt },
                 ...imageParts
               ]
-            }]
+            }],
+            generationConfig: {
+              temperature: temperature,
+              maxOutputTokens: maxTokens
+            }
           })
         }
       );
