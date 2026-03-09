@@ -915,12 +915,15 @@ export default function ModernAIChatPage() {
           // "문제:", "[문제]" 등의 레이블 제거
           problemContent = problemContent.replace(/^(?:\[문제\]|\*\*문제\*\*|문제:)\s*/i, '');
           
-          // 풀이, 답, 해설 등을 찾아서 분리
+          // 풀이, 답, 해설 등을 찾아서 분리 (더 엄격한 분리)
           let hasAnswer = false;
           let answerContent = '';
           const answerKeywords = [
+            '\n\n풀이:', '\n\n답:', '\n\n해설:', '\n\n정답:', '\n\n모범답안:',
             '\n풀이:', '\n답:', '\n해설:', '\n정답:', '\n모범답안:',
+            '\n\n[풀이]', '\n\n[답]', '\n\n[해설]', '\n\n[정답]', '\n\n[모범답안]',
             '\n[풀이]', '\n[답]', '\n[해설]', '\n[정답]', '\n[모범답안]',
+            '\n\n**풀이**', '\n\n**답**', '\n\n**해설**', '\n\n**정답**', '\n\n**모범답안**',
             '\n**풀이**', '\n**답**', '\n**해설**', '\n**정답**', '\n**모범답안**'
           ];
           
@@ -929,15 +932,30 @@ export default function ModernAIChatPage() {
               hasAnswer = true;
               const parts = problemContent.split(keyword);
               problemContent = parts[0].trim();
-              answerContent = parts[1]?.trim() || '답안 없음';
+              
+              // 답 부분을 추출 (다음 문제나 섹션 시작 전까지)
+              let rawAnswer = parts[1]?.trim() || '';
+              
               // 다음 문제 번호가 나오면 거기까지만
-              const nextProblemMatch = answerContent.match(/\n\d+[\.)]\s/);
-              if (nextProblemMatch) {
-                answerContent = answerContent.substring(0, nextProblemMatch.index).trim();
+              const nextProblemMatch = rawAnswer.match(/\n\n\d+[\.)]/);
+              if (nextProblemMatch && nextProblemMatch.index !== undefined) {
+                rawAnswer = rawAnswer.substring(0, nextProblemMatch.index).trim();
               }
+              
+              // 빈 줄 두 개 이상으로 구분된 다음 섹션 제거
+              const doubleLine = rawAnswer.indexOf('\n\n\n');
+              if (doubleLine > 0) {
+                rawAnswer = rawAnswer.substring(0, doubleLine).trim();
+              }
+              
+              answerContent = rawAnswer || '답안 없음';
               break;
             }
           }
+          
+          // 문제 내용에서 답이 섞이지 않도록 추가 정제
+          // 괄호 안의 답 표시 제거: (답: 5), [답: 10] 등
+          problemContent = problemContent.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
           
           // 문제만 추출 (설명, 도입부 제외)
           // "다음을 계산하시오", "다음 문제를 풀어보세요" 같은 순수한 문제 형식만 허용
@@ -1806,19 +1824,48 @@ export default function ModernAIChatPage() {
                       )}
                       <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
-                    {message.role === "assistant" && (() => {
-                      const voiceFlag = selectedBot?.voiceEnabled;
-                      const isVoiceEnabled = voiceFlag === 1 || voiceFlag === "1" || voiceFlag === true || Number(voiceFlag) === 1;
-                      return isVoiceEnabled && (
-                        <button
-                          onClick={() => playTTS(message.content, message.id)}
-                          className="ml-2 p-2 rounded-full hover:bg-gray-200 transition-colors"
-                          title="음성으로 듣기"
-                        >
-                          <Volume2 className="w-4 h-4 text-gray-600" />
-                        </button>
-                      );
-                    })()}
+                    {message.role === "assistant" && (
+                      <div className="flex items-center gap-2 mt-1">
+                        {/* Checkbox for problem selection */}
+                        {(() => {
+                          const enableFlag = selectedBot?.enableProblemGeneration;
+                          const isProblemEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
+                          return isProblemEnabled && (
+                            <button
+                              onClick={() => toggleMessageSelection(message.id)}
+                              className={`p-1.5 rounded hover:bg-gray-200 transition-colors ${
+                                selectedMessageIds.has(message.id) ? 'bg-blue-100' : ''
+                              }`}
+                              title="문제지에 포함하려면 체크하세요"
+                            >
+                              {selectedMessageIds.has(message.id) ? (
+                                <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                                </svg>
+                              )}
+                            </button>
+                          );
+                        })()}
+                        {/* Voice button */}
+                        {(() => {
+                          const voiceFlag = selectedBot?.voiceEnabled;
+                          const isVoiceEnabled = voiceFlag === 1 || voiceFlag === "1" || voiceFlag === true || Number(voiceFlag) === 1;
+                          return isVoiceEnabled && (
+                            <button
+                              onClick={() => playTTS(message.content, message.id)}
+                              className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+                              title="음성으로 듣기"
+                            >
+                              <Volume2 className="w-4 h-4 text-gray-600" />
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
