@@ -900,28 +900,28 @@ export default function ModernAIChatPage() {
     const extractedProblems: { number: number; content: string; hasAnswer: boolean; type: 'multiple' | 'descriptive' }[] = [];
 
     assistantMessages.forEach((msg, index) => {
-      let content = msg.content;
+      let messageContent = msg.content;
       
-      console.log('🔍 Processing message:', content.substring(0, 100) + '...');
+      console.log('🔍 Processing message:', messageContent.substring(0, 100) + '...');
       
-      // 먼저 전체 컨텐츠를 문제 단위로 분할 (1., 2., 3. 등으로 구분)
-      const problemSections = content.split(/(?=\n\d+[\.\)]\s)/);
+      // Split by problem numbers (1., 2., etc.)
+      const problemSections = messageContent.split(/(?=\n\d+[\.\)]\s)/);
       
       problemSections.forEach((section) => {
         section = section.trim();
         if (!section) return;
         
-        // 문제 번호 추출
+        // Extract problem number
         const numberMatch = section.match(/^(\d+)[\.\)]\s+/);
         if (!numberMatch) return;
         
         const problemNumber = numberMatch[1];
         let remainingContent = section.substring(numberMatch[0].length).trim();
         
-        // "문제:", "[문제]" 등의 레이블 제거
+        // Remove "문제:" labels
         remainingContent = remainingContent.replace(/^(?:\[문제\]|\*\*문제\*\*|문제:)\s*/i, '');
         
-        // 답안 키워드 찾기 (가장 먼저 나오는 것 사용)
+        // Find FIRST occurrence of answer keyword
         let problemContent = remainingContent;
         let answerContent = '';
         let hasAnswer = false;
@@ -929,37 +929,18 @@ export default function ModernAIChatPage() {
         const answerKeywords = [
           { pattern: '\n\n풀이:', name: '풀이' },
           { pattern: '\n\n답:', name: '답' },
+          { pattern: '\n\nAnswer:', name: 'Answer' },
           { pattern: '\n\n해설:', name: '해설' },
           { pattern: '\n\n정답:', name: '정답' },
           { pattern: '\n\n모범답안:', name: '모범답안' },
           { pattern: '\n풀이:', name: '풀이' },
           { pattern: '\n답:', name: '답' },
+          { pattern: '\nAnswer:', name: 'Answer' },
           { pattern: '\n해설:', name: '해설' },
           { pattern: '\n정답:', name: '정답' },
-          { pattern: '\n모범답안:', name: '모범답안' },
-          { pattern: '\n\n[풀이]', name: '풀이' },
-          { pattern: '\n\n[답]', name: '답' },
-          { pattern: '\n\n[해설]', name: '해설' },
-          { pattern: '\n\n[정답]', name: '정답' },
-          { pattern: '\n\n[모범답안]', name: '모범답안' },
-          { pattern: '\n[풀이]', name: '풀이' },
-          { pattern: '\n[답]', name: '답' },
-          { pattern: '\n[해설]', name: '해설' },
-          { pattern: '\n[정답]', name: '정답' },
-          { pattern: '\n[모범답안]', name: '모범답안' },
-          { pattern: '\n\n**풀이**', name: '풀이' },
-          { pattern: '\n\n**답**', name: '답' },
-          { pattern: '\n\n**해설**', name: '해설' },
-          { pattern: '\n\n**정답**', name: '정답' },
-          { pattern: '\n\n**모범답안**', name: '모범답안' },
-          { pattern: '\n**풀이**', name: '풀이' },
-          { pattern: '\n**답**', name: '답' },
-          { pattern: '\n**해설**', name: '해설' },
-          { pattern: '\n**정답**', name: '정답' },
-          { pattern: '\n**모범답안**', name: '모범답안' }
+          { pattern: '\n모범답안:', name: '모범답안' }
         ];
         
-        // 가장 먼저 나오는 답안 키워드 찾기
         let earliestIndex = -1;
         let earliestKeyword = null;
         
@@ -976,29 +957,30 @@ export default function ModernAIChatPage() {
           problemContent = remainingContent.substring(0, earliestIndex).trim();
           answerContent = remainingContent.substring(earliestIndex + earliestKeyword.pattern.length).trim();
           
-          console.log(`✂️  Split at "${earliestKeyword.name}" (index: ${earliestIndex})`);
-          console.log(`   Problem: ${problemContent.substring(0, 50)}...`);
-          console.log(`   Answer: ${answerContent.substring(0, 50)}...`);
+          console.log(`✂️  Problem #${problemNumber}: Split at "${earliestKeyword.name}" (index: ${earliestIndex})`);
+          console.log(`   📝 Problem: ${problemContent.substring(0, 60)}...`);
+          console.log(`   ✅ Answer: ${answerContent.substring(0, 60)}...`);
         } else {
-          problemContent = remainingContent;
-          console.log(`ℹ️  No answer keyword found`);
+          console.log(`ℹ️  Problem #${problemNumber}: No answer keyword found`);
         }
         
-        // 문제 내용에서 인라인 답 제거: (답: 5), [답: 10] 등
+        // Remove inline answers like (답: 5), [답: 10]
         problemContent = problemContent.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
+        problemContent = problemContent.replace(/[\(\[]Answer\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
         
-        // 문제 타입 판단
+        // Check if it's a valid problem
         const isPureProbl = 
           /계산하시오|구하시오|풀이하시오|풀어보세요|답하시오|풀어라|구하세요|계산하세요|구해보세요|선택하시오|고르시오/.test(problemContent) ||
+          /calculate|solve|find|choose|select/i.test(problemContent) ||
           problemContent.includes('=') ||
           problemContent.includes('?') ||
           problemContent.includes('①') ||
           problemContent.includes('②');
         
-        // 객관식 문제인지 판단
-        const isMultipleChoice = /[①②③④⑤]|[\(（][1-5][\)）]\s*[^\d]/.test(problemContent);
+        // Check if multiple choice
+        const isMultipleChoice = /[①②③④⑤]|[\(（][1-5][\)）]\s*[^\d]/.test(problemContent) ||
+                                /\n[A-E][\)\.]\s/.test(problemContent);
         
-        // 순수 문제 형식이고, 길이가 적당하면 추가
         if (isPureProbl && problemContent.length > 5 && problemContent.length < 1000) {
           extractedProblems.push({
             number: parseInt(problemNumber),
@@ -1008,32 +990,26 @@ export default function ModernAIChatPage() {
             type: isMultipleChoice ? 'multiple' : 'descriptive'
           });
           
-          console.log(`✅ Added problem #${problemNumber} (${isMultipleChoice ? '객관식' : '서술형'})`);
+          console.log(`✅ Added problem #${problemNumber} (${isMultipleChoice ? '객관식' : '서술형'}), Answer: ${hasAnswer ? 'YES' : 'NO'}`);
         } else {
-          console.log(`⏭️  Skipped: isPureProbl=${isPureProbl}, length=${problemContent.length}`);
+          console.log(`⏭️  Skipped #${problemNumber}: isPureProbl=${isPureProbl}, length=${problemContent.length}`);
         }
       });
     });
 
-    console.log('📋 추출된 문제 개수:', extractedProblems.length);
-    console.log('📋 문제 상세:', extractedProblems.map(p => ({ 
-      number: p.number, 
-      type: p.type,
-      length: p.content.length, 
-      hasAnswer: p.hasAnswer,
-      preview: p.content.substring(0, 50) + '...'
-    })));
+    console.log('📋 Total extracted problems:', extractedProblems.length);
+    console.log('📋 Problems with answers:', extractedProblems.filter(p => p.hasAnswer).length);
 
     if (extractedProblems.length === 0) {
       alert('출력할 문제를 찾을 수 없습니다.\n\nAI에게 "수학 문제 3개 출제해줘" 같은 요청을 먼저 해보세요.');
       return;
     }
 
-    // 문제를 객관식과 서술형으로 분리
+    // Separate multiple choice and descriptive
     const multipleChoiceProblems = extractedProblems.filter(p => p.type === 'multiple');
     const descriptiveProblems = extractedProblems.filter(p => p.type === 'descriptive');
 
-    // 각 섹션별로 1번부터 번호 재정렬
+    // Renumber each type
     multipleChoiceProblems.forEach((p, index) => {
       p.number = index + 1;
     });
@@ -1041,34 +1017,28 @@ export default function ModernAIChatPage() {
       p.number = index + 1;
     });
 
-    console.log('📝 객관식 문제:', multipleChoiceProblems.length, '개');
-    console.log('📝 서술형 문제:', descriptiveProblems.length, '개');
+    console.log('📝 Multiple choice:', multipleChoiceProblems.length);
+    console.log('📝 Descriptive:', descriptiveProblems.length);
 
-    const problems = extractedProblems;
-
-    // Get academy name from user state or localStorage
+    // Get academy name
     let academyName = '학원';
     try {
-      // 1순위: user state에서 가져오기
       if (user?.academyName) {
         academyName = user.academyName;
         console.log('✅ Academy name from user state:', academyName);
       } else {
-        // 2순위: localStorage에서 직접 가져오기
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
           const userData = JSON.parse(storedUser);
-          if (userData.academyName) {
-            academyName = userData.academyName;
-            console.log('✅ Academy name from localStorage:', academyName);
-          } else {
-            console.warn('⚠️ academyName not found in user data:', userData);
-          }
+          academyName = userData.academyName || userData.name || '학원';
+          console.log('✅ Academy name from localStorage:', academyName);
         }
       }
     } catch (error) {
       console.error('Failed to get academy name:', error);
     }
+
+    console.log('🏫 Final academy name:', academyName);
 
     // Create print window
     const printWindow = window.open('', '_blank');
@@ -1077,7 +1047,7 @@ export default function ModernAIChatPage() {
       return;
     }
 
-    // 문제지 HTML 생성
+    // Generate problems HTML (NO ANSWERS)
     const problemsHtml = `
       <!DOCTYPE html>
       <html>
@@ -1086,17 +1056,10 @@ export default function ModernAIChatPage() {
         <title>문제지 - ${academyName}</title>
         <style>
           @media print {
-            @page { 
-              margin: 1.5cm 1cm;
-              size: A4 portrait;
-            }
+            @page { margin: 1.5cm 1cm; size: A4 portrait; }
             .no-print { display: none !important; }
           }
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
             font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
             max-width: 21cm;
@@ -1248,13 +1211,26 @@ export default function ModernAIChatPage() {
         
         <script>
           function openAnswerSheet() {
-            const answersData = ${JSON.stringify({
-              academyName,
-              multipleChoiceProblems: multipleChoiceProblems.map(p => ({ number: p.number, answer: p.answer || '정답 없음' })),
-              descriptiveProblems: descriptiveProblems.map(p => ({ number: p.number, answer: p.answer || '모범 답안 없음' }))
-            })};
+            const answersData = {
+              academyName: '${academyName}',
+              multipleChoiceProblems: ${JSON.stringify(multipleChoiceProblems.map(p => ({ 
+                number: p.number, 
+                answer: p.answer 
+              })))},
+              descriptiveProblems: ${JSON.stringify(descriptiveProblems.map(p => ({ 
+                number: p.number, 
+                answer: p.answer 
+              })))}
+            };
+            
+            console.log('📄 Opening answer sheet with data:', answersData);
             
             const answerWindow = window.open('', '_blank');
+            if (!answerWindow) {
+              alert('팝업 차단이 활성화되어 있습니다.');
+              return;
+            }
+            
             const answerHtml = \`
 <!DOCTYPE html>
 <html>
@@ -1306,6 +1282,7 @@ export default function ModernAIChatPage() {
       padding: 12px;
       background: #f9fafb;
       border-radius: 6px;
+      page-break-inside: avoid;
     }
     .answer-number {
       font-size: 14px;
@@ -1318,6 +1295,10 @@ export default function ModernAIChatPage() {
       line-height: 1.6;
       white-space: pre-wrap;
       color: #374151;
+    }
+    .page-break {
+      page-break-after: always;
+      break-after: page;
     }
   </style>
 </head>
@@ -1338,6 +1319,7 @@ export default function ModernAIChatPage() {
   \` : ''}
 
   \${answersData.descriptiveProblems.length > 0 ? \`
+  \${answersData.multipleChoiceProblems.length > 3 ? '<div class="page-break"></div>' : ''}
   <div class="section-title">서술형 모범 답안</div>
   \${answersData.descriptiveProblems.map(a => \`
     <div class="answer-item">
@@ -1357,7 +1339,9 @@ export default function ModernAIChatPage() {
   </div>
 </body>
 </html>
-            \`;
+\`;
+            
+            answerWindow.document.open();
             answerWindow.document.write(answerHtml);
             answerWindow.document.close();
           }
