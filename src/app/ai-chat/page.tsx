@@ -897,147 +897,130 @@ export default function ModernAIChatPage() {
     console.log('🖨️ 체크된 메시지만 출력:', assistantMessages.length);
     console.log('✅ 선택된 메시지 ID:', Array.from(selectedMessageIds));
 
-    const extractedProblems: { number: number; content: string; hasAnswer: boolean; answer: string; type: 'multiple' | 'descriptive' }[] = [];
+    // ========== 문제 추출 로직 (완전 재작성) ==========
+    console.log('📋 Starting problem extraction...');
+    console.log('Selected messages:', selectedMessageIds.length);
+    
+    const extractedProblems: Array<{
+      number: number;
+      content: string;
+      answer: string;
+      type: 'multiple' | 'descriptive';
+    }> = [];
 
-    assistantMessages.forEach((msg, index) => {
-      let messageContent = msg.content;
+    assistantMessages.forEach((msg, msgIndex) => {
+      const fullText = msg.content;
+      console.log(`\n🔍 Processing message ${msgIndex + 1}:`, fullText.substring(0, 100) + '...');
       
-      console.log('🔍 Processing message:', messageContent.substring(0, 100) + '...');
+      // Step 1: Split by problem numbers (1., 2., etc.)
+      const problemRegex = /(d+)[.\)]s+([\s\S]+?)(?=
+d+[.\)]|$)/g;
+      let match;
       
-      // Split by problem numbers (1., 2., etc.)
-      const problemSections = messageContent.split(/(?=\n\d+[\.\)]\s)/);
-      
-      problemSections.forEach((section) => {
-        section = section.trim();
-        if (!section) return;
+      while ((match = problemRegex.exec(fullText)) !== null) {
+        const problemNum = match[1];
+        let fullProblemText = match[2].trim();
         
-        // Extract problem number
-        const numberMatch = section.match(/^(\d+)[\.\)]\s+/);
-        if (!numberMatch) return;
+        console.log(`\n📝 Found problem #${problemNum}`);
+        console.log(`Raw text: "${fullProblemText.substring(0, 80)}..."`);
         
-        const problemNumber = numberMatch[1];
-        let remainingContent = section.substring(numberMatch[0].length).trim();
-        
-        // Remove "문제:" labels
-        remainingContent = remainingContent.replace(/^(?:\[문제\]|\*\*문제\*\*|문제:)\s*/i, '');
-        
-        // Find FIRST occurrence of answer keyword
-        let problemContent = remainingContent;
-        let answerContent = '';
-        let hasAnswer = false;
-        
-        const answerKeywords = [
-          // 이중 줄바꿈 (가장 우선순위 높음)
-          { pattern: '\n\n풀이:', name: '풀이' },
-          { pattern: '\n\n답:', name: '답' },
-          { pattern: '\n\nAnswer:', name: 'Answer' },
-          { pattern: '\n\n해설:', name: '해설' },
-          { pattern: '\n\n정답:', name: '정답' },
-          { pattern: '\n\n모범답안:', name: '모범답안' },
-          { pattern: '\n\nSolution:', name: 'Solution' },
-          { pattern: '\n\n[풀이]', name: '[풀이]' },
-          { pattern: '\n\n[답]', name: '[답]' },
-          { pattern: '\n\n[Answer]', name: '[Answer]' },
-          { pattern: '\n\n[정답]', name: '[정답]' },
-          { pattern: '\n\n**풀이**', name: '**풀이**' },
-          { pattern: '\n\n**답**', name: '**답**' },
-          { pattern: '\n\n**Answer**', name: '**Answer**' },
-          { pattern: '\n\n**정답**', name: '**정답**' },
-          // 단일 줄바꿈
-          { pattern: '\n풀이:', name: '풀이' },
-          { pattern: '\n답:', name: '답' },
-          { pattern: '\nAnswer:', name: 'Answer' },
-          { pattern: '\n해설:', name: '해설' },
-          { pattern: '\n정답:', name: '정답' },
-          { pattern: '\n모범답안:', name: '모범답안' },
-          { pattern: '\nSolution:', name: 'Solution' },
-          { pattern: '\n[풀이]', name: '[풀이]' },
-          { pattern: '\n[답]', name: '[답]' },
-          { pattern: '\n[Answer]', name: '[Answer]' },
-          { pattern: '\n[정답]', name: '[정답]' },
-          { pattern: '\n**풀이**', name: '**풀이**' },
-          { pattern: '\n**답**', name: '**답**' },
-          { pattern: '\n**Answer**', name: '**Answer**' },
-          { pattern: '\n**정답**', name: '**정답**' }
+        // Step 2: 답안 키워드로 split
+        // 가장 먼저 나타나는 답안 키워드를 찾기
+        const answerPatterns = [
+          '\n\n답:',
+          '\n\n정답:',
+          '\n\n풀이:',
+          '\n\n해설:',
+          '\n\nAnswer:',
+          '\n\nSolution:',
+          '\n답:',
+          '\n정답:',
+          '\n풀이:',
+          '\n해설:',
+          '\nAnswer:',
+          '\nSolution:',
         ];
         
-        let earliestIndex = -1;
-        let earliestKeyword = null;
+        let splitIndex = -1;
+        let foundPattern = '';
         
-        for (const kw of answerKeywords) {
-          const idx = remainingContent.indexOf(kw.pattern);
-          if (idx !== -1 && (earliestIndex === -1 || idx < earliestIndex)) {
-            earliestIndex = idx;
-            earliestKeyword = kw;
+        for (const pattern of answerPatterns) {
+          const idx = fullProblemText.indexOf(pattern);
+          if (idx !== -1 && (splitIndex === -1 || idx < splitIndex)) {
+            splitIndex = idx;
+            foundPattern = pattern;
           }
         }
         
-        if (earliestKeyword) {
-          hasAnswer = true;
-          problemContent = remainingContent.substring(0, earliestIndex).trim();
-          answerContent = remainingContent.substring(earliestIndex + earliestKeyword.pattern.length).trim();
-          
-          console.log(`✂️  Problem #${problemNumber}: Split at "${earliestKeyword.name}" (index: ${earliestIndex})`);
-          console.log(`   📝 Problem: ${problemContent.substring(0, 60)}...`);
-          console.log(`   ✅ Answer: ${answerContent.substring(0, 60)}...`);
+        let problemText = fullProblemText;
+        let answerText = '';
+        
+        if (splitIndex !== -1) {
+          problemText = fullProblemText.substring(0, splitIndex).trim();
+          answerText = fullProblemText.substring(splitIndex + foundPattern.length).trim();
+          console.log(`✂️  Split at "${foundPattern.trim()}" (index: ${splitIndex})`);
+          console.log(`   Problem part: "${problemText.substring(0, 60)}..."`);
+          console.log(`   Answer part: "${answerText.substring(0, 60)}..."`);
         } else {
-          console.log(`ℹ️  Problem #${problemNumber}: No answer keyword found`);
+          console.log('ℹ️  No answer pattern found - treating as pure problem');
         }
         
-        // Remove inline answers like (답: 5), [답: 10], (Answer: 5), [정답: 10]
-        problemContent = problemContent.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
-        problemContent = problemContent.replace(/[\(\[]Answer\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
-        problemContent = problemContent.replace(/[\(\[]정답\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
-        problemContent = problemContent.replace(/[\(\[]Solution\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
+        // Step 3: 인라인 답안 제거
+        problemText = problemText.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]Answer\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]정답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]Solution\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]풀이\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]해설\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
         
-        // Also remove any remaining answer keywords that might not have been caught
-        problemContent = problemContent.replace(/\n+답\s*[:：].*$/s, '').trim();
-        problemContent = problemContent.replace(/\n+Answer\s*[:：].*$/si, '').trim();
-        problemContent = problemContent.replace(/\n+풀이\s*[:：].*$/s, '').trim();
-        problemContent = problemContent.replace(/\n+Solution\s*[:：].*$/si, '').trim();
-        problemContent = problemContent.replace(/\n+정답\s*[:：].*$/s, '').trim();
-        problemContent = problemContent.replace(/\n+해설\s*[:：].*$/s, '').trim();
-        problemContent = problemContent.replace(/\n+모범답안\s*[:：].*$/s, '').trim();
+        // Step 4: 혹시 남은 답안 키워드 제거
+        problemText = problemText.replace(/\n+답\s*[:：].*$/s, '');
+        problemText = problemText.replace(/\n+정답\s*[:：].*$/s, '');
+        problemText = problemText.replace(/\n+풀이\s*[:：].*$/s, '');
+        problemText = problemText.replace(/\n+해설\s*[:：].*$/s, '');
+        problemText = problemText.replace(/\n+Answer\s*[:：].*$/si, '');
+        problemText = problemText.replace(/\n+Solution\s*[:：].*$/si, '');
         
-        // Check if it's a valid problem
-        const isPureProbl = 
-          /계산하시오|구하시오|풀이하시오|풀어보세요|답하시오|풀어라|구하세요|계산하세요|구해보세요|선택하시오|고르시오/.test(problemContent) ||
-          /calculate|solve|find|choose|select/i.test(problemContent) ||
-          problemContent.includes('=') ||
-          problemContent.includes('?') ||
-          problemContent.includes('①') ||
-          problemContent.includes('②');
+        problemText = problemText.trim();
         
-        // Check if multiple choice
-        const isMultipleChoice = /[①②③④⑤]|[\(（][1-5][\)）]\s*[^\d]/.test(problemContent) ||
-                                /\n[A-E][\)\.]\s/.test(problemContent);
+        // Step 5: 유효성 검사
+        const isValidProblem = 
+          problemText.length >= 5 &&
+          problemText.length <= 2000 &&
+          (/계산|구하|풀이|답하|선택|고르|solve|calculate|find|choose|what|which/i.test(problemText) ||
+           /[=?①②③④⑤]/.test(problemText));
         
-        if (isPureProbl && problemContent.length > 5 && problemContent.length < 1000) {
-          extractedProblems.push({
-            number: parseInt(problemNumber),
-            content: problemContent,
-            hasAnswer: hasAnswer,
-            answer: answerContent || '정답 없음',
-            type: isMultipleChoice ? 'multiple' : 'descriptive'
-          });
-          
-          console.log(`✅ Added problem #${problemNumber} (${isMultipleChoice ? '객관식' : '서술형'}), Answer: ${hasAnswer ? 'YES' : 'NO'}`);
-        } else {
-          console.log(`⏭️  Skipped #${problemNumber}: isPureProbl=${isPureProbl}, length=${problemContent.length}`);
+        if (!isValidProblem) {
+          console.log(`⏭️  Skipped: Invalid problem (length: ${problemText.length})`);
+          return;
         }
-      });
+        
+        // Step 6: 객관식/서술형 판단
+        const isMultipleChoice = /[①②③④⑤⑥⑦⑧⑨⑩]/.test(problemText) ||
+                                /\([1-5]\)|\[[1-5]\]/.test(problemText) ||
+                                /\n[A-E][\)\.]\s/.test(problemText);
+        
+        extractedProblems.push({
+          number: parseInt(problemNum),
+          content: problemText,
+          answer: answerText || '정답 없음',
+          type: isMultipleChoice ? 'multiple' : 'descriptive'
+        });
+        
+        console.log(`✅ Added: Problem #${problemNum} (${isMultipleChoice ? '객관식' : '서술형'})`);
+        console.log(`   Final problem text: "${problemText.substring(0, 80)}..."`);
+        console.log(`   Answer stored: "${answerText.substring(0, 50)}..."`);
+      }
     });
-
-    console.log('📋 Total extracted problems:', extractedProblems.length);
-    console.log('📋 Problems with answers:', extractedProblems.filter(p => p.hasAnswer).length);
+    
+    console.log(`\n📊 Total problems extracted: ${extractedProblems.length}`);
+    console.log(`📊 Problems with answers: ${extractedProblems.filter(p => p.answer !== '정답 없음').length}`);
 
     if (extractedProblems.length === 0) {
       alert('출력할 문제를 찾을 수 없습니다.\n\nAI에게 "수학 문제 3개 출제해줘" 같은 요청을 먼저 해보세요.');
       return;
     }
 
-    // Separate multiple choice and descriptive
-    const multipleChoiceProblems = extractedProblems.filter(p => p.type === 'multiple');
     const descriptiveProblems = extractedProblems.filter(p => p.type === 'descriptive');
 
     // Renumber each type
