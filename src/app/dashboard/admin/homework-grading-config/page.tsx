@@ -79,20 +79,23 @@ export default function HomeworkGradingConfigPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/me');
-        if (!response.ok) {
+        // localStorage에서 사용자 정보 가져오기
+        const storedUser = localStorage.getItem('user');
+        
+        if (!storedUser) {
           router.push('/login');
           return;
         }
+
+        const userData = JSON.parse(storedUser);
+        const roleUpper = userData.role?.toUpperCase();
         
-        const data = await response.json();
-        const roleUpper = data.role?.toUpperCase();
         if (roleUpper !== 'ADMIN' && roleUpper !== 'SUPER_ADMIN' && roleUpper !== 'DIRECTOR') {
           router.push('/dashboard');
           return;
         }
         
-        setCurrentUser(data);
+        setCurrentUser(userData);
 
         // 현재 설정 불러오기
         const configResponse = await fetch('/api/admin/homework-grading-config');
