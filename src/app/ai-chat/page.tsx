@@ -897,7 +897,7 @@ export default function ModernAIChatPage() {
     console.log('🖨️ 체크된 메시지만 출력:', assistantMessages.length);
     console.log('✅ 선택된 메시지 ID:', Array.from(selectedMessageIds));
 
-    const extractedProblems: { number: number; content: string; hasAnswer: boolean; type: 'multiple' | 'descriptive' }[] = [];
+    const extractedProblems: { number: number; content: string; hasAnswer: boolean; answer: string; type: 'multiple' | 'descriptive' }[] = [];
 
     assistantMessages.forEach((msg, index) => {
       let messageContent = msg.content;
@@ -984,9 +984,20 @@ export default function ModernAIChatPage() {
           console.log(`ℹ️  Problem #${problemNumber}: No answer keyword found`);
         }
         
-        // Remove inline answers like (답: 5), [답: 10]
+        // Remove inline answers like (답: 5), [답: 10], (Answer: 5), [정답: 10]
         problemContent = problemContent.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
         problemContent = problemContent.replace(/[\(\[]Answer\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
+        problemContent = problemContent.replace(/[\(\[]정답\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
+        problemContent = problemContent.replace(/[\(\[]Solution\s*[:：]\s*[^\)\]]+[\)\]]/g, '').trim();
+        
+        // Also remove any remaining answer keywords that might not have been caught
+        problemContent = problemContent.replace(/\n+답\s*[:：].*$/s, '').trim();
+        problemContent = problemContent.replace(/\n+Answer\s*[:：].*$/si, '').trim();
+        problemContent = problemContent.replace(/\n+풀이\s*[:：].*$/s, '').trim();
+        problemContent = problemContent.replace(/\n+Solution\s*[:：].*$/si, '').trim();
+        problemContent = problemContent.replace(/\n+정답\s*[:：].*$/s, '').trim();
+        problemContent = problemContent.replace(/\n+해설\s*[:：].*$/s, '').trim();
+        problemContent = problemContent.replace(/\n+모범답안\s*[:：].*$/s, '').trim();
         
         // Check if it's a valid problem
         const isPureProbl = 
