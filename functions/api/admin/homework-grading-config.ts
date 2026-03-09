@@ -69,6 +69,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
       return Response.json({
         success: true,
+        message: 'Using default configuration',
         config: {
           id: 0,
           systemPrompt: defaultPrompt,
@@ -87,6 +88,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     return Response.json({
       success: true,
+      message: 'Configuration loaded successfully',
       config: {
         ...config,
         temperature: Number(config.temperature),
@@ -182,7 +184,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return Response.json({
         success: true,
         message: '숙제 검사 AI 설정이 업데이트되었습니다.',
-        configId: existing.id
+        configId: Number(existing.id)
       });
     } else {
       // 새로 추가
