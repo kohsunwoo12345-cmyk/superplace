@@ -957,12 +957,14 @@ export default function ModernAIChatPage() {
           '\n\n정답:',
           '\n\n풀이:',
           '\n\n해설:',
+          '\n\n정답 해설:',
           '\n\nAnswer:',
           '\n\nSolution:',
           '\n답:',
           '\n정답:',
           '\n풀이:',
           '\n해설:',
+          '\n정답 해설:',
           '\nAnswer:',
           '\nSolution:',
         ];
@@ -998,12 +1000,14 @@ export default function ModernAIChatPage() {
         problemText = problemText.replace(/[\(\[]Solution\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
         problemText = problemText.replace(/[\(\[]풀이\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
         problemText = problemText.replace(/[\(\[]해설\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
+        problemText = problemText.replace(/[\(\[]정답\s*해설\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
         
         // Step 4: 혹시 남은 답안 키워드 제거
         problemText = problemText.replace(/\n+답\s*[:：].*$/s, '');
         problemText = problemText.replace(/\n+정답\s*[:：].*$/s, '');
         problemText = problemText.replace(/\n+풀이\s*[:：].*$/s, '');
         problemText = problemText.replace(/\n+해설\s*[:：].*$/s, '');
+        problemText = problemText.replace(/\n+정답\s*해설\s*[:：].*$/s, '');
         problemText = problemText.replace(/\n+Answer\s*[:：].*$/si, '');
         problemText = problemText.replace(/\n+Solution\s*[:：].*$/si, '');
         
