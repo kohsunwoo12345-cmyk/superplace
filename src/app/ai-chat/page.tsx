@@ -985,28 +985,11 @@ export default function ModernAIChatPage() {
           problemText = fullProblemText.substring(0, splitIndex).trim();
           answerText = fullProblemText.substring(splitIndex + foundPattern.length).trim();
           console.log(`✂️  Split at "${foundPattern.trim()}" (index: ${splitIndex})`);
-          console.log(`   Problem part: "${problemText.substring(0, 60)}..."`);
-          console.log(`   Answer part: "${answerText.substring(0, 60)}..."`);
+          console.log(`   Problem part: "${problemText}"`);
+          console.log(`   Answer part: "${answerText}"`);
         } else {
           console.log('ℹ️  No answer pattern found - treating as pure problem');
         }
-        
-        // Step 3: 인라인 답안 제거
-        problemText = problemText.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
-        problemText = problemText.replace(/[\(\[]Answer\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
-        problemText = problemText.replace(/[\(\[]정답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
-        problemText = problemText.replace(/[\(\[]Solution\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
-        problemText = problemText.replace(/[\(\[]풀이\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
-        problemText = problemText.replace(/[\(\[]해설\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
-        
-        // Step 4: 혹시 남은 답안 키워드 제거
-        problemText = problemText.replace(/\n+답\s*[:：].*$/s, '');
-        problemText = problemText.replace(/\n+정답\s*[:：].*$/s, '');
-        problemText = problemText.replace(/\n+풀이\s*[:：].*$/s, '');
-        problemText = problemText.replace(/\n+해설\s*[:：].*$/s, '');
-        problemText = problemText.replace(/\n+Answer\s*[:：].*$/si, '');
-        problemText = problemText.replace(/\n+Solution\s*[:：].*$/si, '');
-        
         
         // Step 3: 인라인 답안 제거
         problemText = problemText.replace(/[\(\[]답\s*[:：]\s*[^\)\]]+[\)\]]/gi, '');
@@ -1051,8 +1034,9 @@ export default function ModernAIChatPage() {
         });
         
         console.log(`✅ Added: Problem #${problemNum} (${isMultipleChoice ? '객관식' : '서술형'})`);
-        console.log(`   Final problem text: "${problemText.substring(0, 80)}..."`);
-        console.log(`   Answer stored: "${answerText.substring(0, 50)}..."`);
+        console.log(`   📄 Problem content: "${problemText}"`);
+        console.log(`   ✅ Answer content: "${answerText || '정답 없음'}"`);
+        console.log(`   🔍 Answer empty?: ${!answerText || answerText === '정답 없음'}`);
       }
     });
     
