@@ -366,13 +366,13 @@ ${knowledgeContext}
     let apiKey: string;
     let requestBody: any;
     
-    // DeepSeek 모델 (ALL_AI_API_KEY)
+    // DeepSeek OCR-2 모델 (Novita AI, ALL_AI_API_KEY)
     if (model === 'deepseek-ocr-2') {
-      apiEndpoint = 'https://api.deepseek.com/v1/chat/completions';
+      apiEndpoint = 'https://api.novita.ai/v3/openai/chat/completions';
       apiKey = context.env.ALL_AI_API_KEY;
       
       requestBody = {
-        model: 'deepseek-ocr-2',
+        model: 'deepseek/deepseek-ocr-2',
         messages: [
           {
             role: 'system',
