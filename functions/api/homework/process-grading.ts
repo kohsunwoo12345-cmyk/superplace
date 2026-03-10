@@ -1,6 +1,7 @@
 interface Env {
   DB: D1Database;
-  GOOGLE_GEMINI_API_KEY: string;
+  GOOGLE_GEMINI_API_KEY?: string;
+  GEMINI_API_KEY?: string;
 }
 
 /**
@@ -11,11 +12,12 @@ interface Env {
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, GOOGLE_GEMINI_API_KEY } = context.env;
+    const { DB, GOOGLE_GEMINI_API_KEY, GEMINI_API_KEY } = context.env;
+    const apiKey = GOOGLE_GEMINI_API_KEY || GEMINI_API_KEY;
     const body = await context.request.json();
     const { submissionId } = body;
 
-    if (!DB || !GOOGLE_GEMINI_API_KEY) {
+    if (!DB || !apiKey) {
       console.error('❌ DB 또는 API 키 미설정');
       return new Response(
         JSON.stringify({ error: "Configuration error" }),
@@ -127,7 +129,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     console.log(`📚 채점할 이미지 수: ${imageArray.length}장`);
 
     // 4. Gemini AI 채점 수행
-    const gradingResult = await performGrading(imageArray, GOOGLE_GEMINI_API_KEY);
+    const gradingResult = await performGrading(imageArray, apiKey);
 
     // 5. homework_gradings_v2 테이블 생성
     await DB.prepare(`
@@ -368,10 +370,11 @@ async function performGrading(imageArray: string[], apiKey: string) {
     return result;
   }
 
-  // 기본값
+  // 기본값 (JSON 파싱 실패 시)
+  console.warn('⚠️ Gemini 응답을 JSON으로 파싱하지 못했습니다. 기본값 반환');
   return {
-    subject: detectedSubject,
-    grade: detectedGrade,
+    subject: "기타",
+    grade: 0,
     score: 75.0,
     totalQuestions: imageArray.length * 5,
     correctAnswers: Math.floor(imageArray.length * 5 * 0.75),
