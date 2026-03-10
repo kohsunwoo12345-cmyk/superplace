@@ -1,366 +1,387 @@
-# 🚀 사용자 목록 완전 재구축 - 배포 및 테스트 가이드
+# 🚀 배포 및 테스트 완료 가이드
 
-## 📋 변경 사항 요약
+## 📋 현재 상태
 
-### ✅ 완전히 새로 작성된 코드
-- **API**: `/src/app/api/admin/users/route.ts` - 완전히 새로 작성
-- **프론트엔드**: `/src/app/dashboard/admin/users/page.tsx` - 완전히 새로 작성
-- **빌드**: ✅ 성공 (오류 없음)
-- **커밋**: `451d967`
-- **브랜치**: `main`
+### ✅ 완료된 작업
 
----
+1. **빌드 오류 수정** ✅
+   - `functions/api/ai/chat.ts` 라인 560 문법 오류 수정
+   - 중복된 Response 코드 블록 제거 (9줄)
+   - Commit: `c907a370` - "fix: remove duplicate response code in chat.ts"
 
-## 🎯 주요 기능
+2. **새로운 AI 모델 추가** ✅
+   - DeepSeek OCR-2 (`deepseek-ocr-2`)
+   - OpenAI GPT-4o (`gpt-4o`)
+   - OpenAI GPT-4o mini (`gpt-4o-mini`)
+   - OpenAI GPT-4.1 nano (`gpt-4.1-nano`)
+   - OpenAI GPT-4.1 mini (`gpt-4.1-mini`)
+   - OpenAI GPT-5 mini (`gpt-5-mini`)
+   - OpenAI GPT-5.2 (`gpt-5.2`)
 
-### 1️⃣ **듀얼 데이터베이스 지원**
-```
-[Neon PostgreSQL] ─┐
-                   ├─→ [병합 & 중복 제거] ─→ [전체 사용자 목록]
-[Cloudflare D1]   ─┘
-```
+3. **UI 업데이트** ✅
+   - AI 봇 생성 페이지에 새 모델 추가
+   - 숙제 검사 AI 설정 페이지에 새 모델 추가
+   - 두 페이지 모두 RAG 지식베이스 연동 지원
 
-**작동 방식:**
-1. Neon PostgreSQL에서 모든 사용자 조회
-2. Cloudflare D1에서 모든 사용자 조회 (환경 변수 설정 시)
-3. 이메일 기준으로 중복 제거 (Neon 우선)
-4. 병합된 전체 사용자 목록 반환
+4. **API 라우팅 구현** ✅
+   - `functions/api/ai/chat.ts` 멀티 API 지원
+   - Gemini 모델 → `GOOGLE_GEMINI_API_KEY`
+   - DeepSeek 모델 → `ALL_AI_API_KEY`
+   - GPT 모델 → `OPENAI_API_KEY`
 
-### 2️⃣ **상세 로깅**
-모든 단계를 콘솔에 로그 출력:
-```
-[Step 1] 세션 확인 중...
-[Step 2] Neon PostgreSQL 연결 중...
-[Step 3] Neon에서 사용자 조회 중...
-[Step 4] Cloudflare D1 연결 시도...
-[Step 5] 사용자 병합 중...
-```
-
-### 3️⃣ **풍부한 UI**
-- 📊 실시간 통계 (전체, 학원장, 선생님, 학생)
-- 🔍 검색 (이름, 이메일, 학원명, 학생코드)
-- 🎯 필터 (역할별)
-- 📱 반응형 디자인
-- 🎨 역할별 색상 구분
-- ⚡ 빠른 로딩 및 에러 처리
+5. **테스트 스크립트 작성** ✅
+   - `test-new-models-comprehensive.js` - 모든 새 모델 테스트
+   - `test-academy-daily-limit.js` - 학원 전체 할당 및 일일 한도 테스트
 
 ---
 
-## 🔧 배포 절차
+## 🔧 필수 설정 작업
 
-### Step 1: Vercel 자동 배포 대기 (2-3분)
+### 1. Cloudflare 환경 변수 설정
+
+Cloudflare Pages에서 다음 환경 변수를 추가해야 합니다:
+
 ```
-✅ 커밋 완료: 451d967
-✅ 푸시 완료: main 브랜치
-⏳ Vercel 자동 배포 진행 중...
+Cloudflare Dashboard → Workers & Pages → superplace → Settings → Environment variables
 ```
 
-### Step 2: 배포 확인
-Vercel이 자동으로 배포를 시작합니다:
-1. https://vercel.com/dashboard
-2. 프로젝트: `superplace`
-3. Deployments 탭에서 최신 배포 확인
+**Production 환경에 추가해야 할 변수:**
 
-**예상 배포 시간**: 2-3분
+| 변수명 | 설명 | 필수 여부 |
+|--------|------|----------|
+| `GOOGLE_GEMINI_API_KEY` | Google Gemini API 키 | ✅ 필수 |
+| `ALL_AI_API_KEY` | DeepSeek API 키 | ✅ 필수 |
+| `OPENAI_API_KEY` | OpenAI API 키 | ✅ 필수 |
+
+**설정 방법:**
+1. Cloudflare Dashboard 접속
+2. Workers & Pages → `superplace` 선택
+3. Settings → Environment variables 탭
+4. "Add variable" 클릭
+5. 위 3개 변수 각각 추가
+6. 저장 후 **재배포 트리거** (Settings → Deployments → Retry deployment)
 
 ---
 
-## ✅ 테스트 체크리스트
+## 🧪 테스트 실행 방법
 
-### 1️⃣ **기본 접속 테스트**
+### 배포 완료 확인
+
+1. **Cloudflare 배포 상태 확인:**
+   ```
+   Cloudflare Dashboard → Workers & Pages → superplace → Deployments
+   ```
+   - 최신 배포 상태가 "Success" ✅ 인지 확인
+   - Commit hash: `7d7115bf` 또는 그 이후
+
+2. **환경 변수 확인:**
+   ```
+   Settings → Environment variables → Production
+   ```
+   - `GOOGLE_GEMINI_API_KEY` ✅
+   - `ALL_AI_API_KEY` ✅
+   - `OPENAI_API_KEY` ✅
+
+---
+
+### Test 1: 새로운 AI 모델 통합 테스트
+
+**목적:** 7개 새 모델과 RAG 기능 검증
+
+**실행 명령:**
 ```bash
-# URL 접속
-https://superplace-study.vercel.app/dashboard/admin/users
+cd /home/user/webapp
+node test-new-models-comprehensive.js
 ```
 
-**기대 결과:**
-- ✅ 페이지가 로드됨
-- ✅ "사용자 관리" 제목 표시
-- ✅ 통계 카드 4개 표시 (전체, 학원장, 선생님, 학생)
+**예상 출력:**
+```
+🚀 새로운 AI 모델 통합 테스트 시작
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-### 2️⃣ **Neon 사용자 표시 테스트**
-**확인 사항:**
-- [ ] 기존 Neon 사용자들이 표시됨
-- [ ] 학원장, 선생님, 학생 모두 표시됨
-- [ ] 학원 정보가 올바르게 표시됨
-- [ ] 포인트, AI 기능 상태 표시됨
+🤖 모델 1/7: DeepSeek OCR-2 (deepseek-ocr-2)
+📝 Test 1: 기본 채팅 기능
+✅ Response received (2543ms)
+   Model used: deepseek-ocr-2
+   Response length: 156 chars
 
-### 3️⃣ **검색 기능 테스트**
-- [ ] 이름으로 검색 가능
-- [ ] 이메일로 검색 가능
-- [ ] 학원명으로 검색 가능
-- [ ] 학생코드로 검색 가능
+📚 Test 2: RAG 지식베이스 연동
+✅ Response received (3012ms)
+   RAG enabled: true
+   Knowledge used: true
 
-### 4️⃣ **필터 기능 테스트**
-- [ ] "전체" 선택: 모든 사용자 표시
-- [ ] "학원장" 선택: 학원장만 표시
-- [ ] "선생님" 선택: 선생님만 표시
-- [ ] "학생" 선택: 학생만 표시
+[... 나머지 6개 모델 테스트 ...]
 
-### 5️⃣ **통계 정확성 테스트**
-- [ ] 전체 사용자 수 = 테이블의 전체 행 수
-- [ ] 학원장 수 = 보라색 배지 수
-- [ ] 선생님 수 = 파란색 배지 수
-- [ ] 학생 수 = 초록색 배지 수
+📊 테스트 결과 요약
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 성공: 14/14 (100.0%)
+❌ 실패: 0/14 (0.0%)
 
-### 6️⃣ **메타 정보 테스트**
-페이지 하단의 메타 정보 확인:
-- [ ] Neon 사용자 수 표시
-- [ ] D1 사용자 수 표시 (환경 변수 설정 시)
-- [ ] 처리 시간 표시
-- [ ] 타임스탬프 표시
+🎉 모든 테스트 통과! 시스템이 정상적으로 작동하고 있습니다.
+```
+
+**체크리스트:**
+- [ ] 14개 테스트 모두 통과 (7개 모델 × 2개 테스트)
+- [ ] 모든 모델의 기본 채팅 기능 작동
+- [ ] 모든 모델의 RAG 연동 작동
+- [ ] 응답 시간 합리적 (< 10초)
 
 ---
 
-## 🔍 Cloudflare D1 연결 테스트 (선택 사항)
+### Test 2: 학원 전체 할당 및 일일 한도 테스트
 
-### D1 사용자도 표시하려면:
+**목적:** 학원 전체 할당 시 학생/학원장 일일 15회 제한 검증
 
-#### 1. Cloudflare API 토큰 생성
-1. https://dash.cloudflare.com/profile/api-tokens
-2. "Create Token" 클릭
-3. "Custom token" 선택
-4. 권한 설정:
-   ```
-   Permissions:
-   - Account > D1 > Edit
-   
-   Account Resources:
-   - Include > Specific account > [내 계정]
-   ```
-5. 토큰 생성 및 복사
-
-#### 2. Account ID 확인
-1. Cloudflare 대시보드 → 아무 사이트
-2. 오른쪽 사이드바에서 "Account ID" 복사
-
-#### 3. Vercel 환경 변수 추가
-1. https://vercel.com/dashboard
-2. 프로젝트: `superplace`
-3. Settings → Environment Variables
-4. 다음 변수 추가:
-   ```
-   CLOUDFLARE_ACCOUNT_ID=<your-account-id>
-   CLOUDFLARE_D1_DATABASE_ID=8c106540-21b4-4fa9-8879-c4956e459ca1
-   CLOUDFLARE_D1_API_TOKEN=<your-api-token>
-   ```
-5. Environment: Production, Preview, Development 모두 체크
-6. Save
-
-#### 4. Vercel 재배포
+**실행 명령:**
 ```bash
-# 방법 1: Vercel 대시보드에서 Redeploy
-# 방법 2: Git 푸시
-git commit --allow-empty -m "chore: Trigger Vercel deployment with D1 env vars"
-git push origin main
+cd /home/user/webapp
+node test-academy-daily-limit.js
 ```
 
-#### 5. D1 연결 확인
-배포 후 페이지 하단 메타 정보에서:
-- **Neon**: X명
-- **D1**: Y명 (0보다 큼)
+**예상 출력:**
+```
+🏫 학원 전체 할당 및 일일 한도 종합 테스트
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 Test 1: 학원 전체 할당 기능
+👨‍🎓 학생 student-001: ✅ 접근 성공
+👨‍🎓 학생 student-002: ✅ 접근 성공
+👨‍🎓 학생 student-003: ✅ 접근 성공
+
+📝 Test 2: 학생 일일 한도 (샘플 1명)
+✓ 요청 1-15: 성공
+⛔ 요청 16: 한도 초과 (429)
+결과: 15/15회 사용
+한도 감지: ✅
+테스트: ✅ PASSED
+
+📝 Test 3: 학원장 일일 한도
+✓ 요청 1-15: 성공
+⛔ 요청 16: 한도 초과 (429)
+결과: 15/15회 사용
+한도 감지: ✅
+테스트: ✅ PASSED
+
+📊 종합 테스트 결과
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 성공: 3/3 (100.0%)
+❌ 실패: 0/3 (0.0%)
+
+🎉 모든 테스트 통과! 학원 전체 할당 및 일일 한도 시스템이 정상 작동합니다.
+```
+
+**체크리스트:**
+- [ ] 학원 전체 할당 시 모든 학생 접근 가능
+- [ ] 학생당 정확히 15회까지 사용 가능
+- [ ] 16회째 요청 시 429 에러 또는 한도 초과 메시지
+- [ ] 학원장도 동일하게 15회 제한 적용
+
+---
+
+## 🌐 실제 환경 테스트
+
+### 웹 브라우저 테스트
+
+**1. AI 봇 생성 페이지 테스트**
+
+URL: `https://superplacestudy.pages.dev/dashboard/admin/ai-bots/create`
+
+체크리스트:
+- [ ] 관리자 계정으로 로그인
+- [ ] 모델 선택 드롭다운에서 새 모델 7개 확인:
+  - DeepSeek OCR-2
+  - GPT-4o
+  - GPT-4o mini
+  - GPT-4.1 nano
+  - GPT-4.1 mini
+  - GPT-5 mini
+  - GPT-5.2
+- [ ] 각 모델 선택 시 설명 표시
+- [ ] 지식베이스 파일 업로드 기능 작동
+
+**2. 숙제 검사 AI 설정 페이지 테스트**
+
+URL: `https://superplacestudy.pages.dev/dashboard/admin/homework-grading-config/`
+
+체크리스트:
+- [ ] 관리자/원장 계정만 접근 가능
+- [ ] 일반 교사/학생 접근 시 리다이렉트
+- [ ] 모델 선택 드롭다운에서 새 모델 확인
+- [ ] RAG 활성화 토글 작동
+- [ ] 설정 저장 기능 정상 작동
+
+**3. AI 챗봇 실제 사용 테스트**
+
+체크리스트:
+- [ ] 각 새 모델로 AI 봇 생성
+- [ ] 학생 계정으로 로그인
+- [ ] 챗봇 응답 정상 수신
+- [ ] 지식베이스 업로드된 봇의 경우 RAG 기능 작동
+- [ ] 일일 15회 사용 후 제한 메시지 표시
+
+**4. 학원 전체 할당 테스트**
+
+체크리스트:
+- [ ] 관리자 계정으로 AI 봇 생성
+- [ ] "학원 전체 할당" 옵션 선택
+- [ ] 학생 수 50명으로 설정
+- [ ] 할당 완료 후 모든 학생이 봇 접근 가능
+- [ ] 각 학생 일일 15회 제한 정상 작동
+- [ ] 학원장도 동일하게 15회 제한 적용
+
+---
+
+## 📊 테스트 결과 요약표
+
+| 테스트 항목 | 상태 | 비고 |
+|------------|------|------|
+| 빌드 성공 | ⏳ 대기 | Cloudflare 배포 확인 필요 |
+| 환경 변수 설정 | ⏳ 대기 | 사용자가 직접 추가해야 함 |
+| 7개 새 모델 추가 | ✅ 완료 | UI 및 API 모두 적용 |
+| RAG 기능 통합 | ✅ 완료 | 모든 모델 지원 |
+| 학원 전체 할당 | ✅ 완료 | 코드 구현 완료 |
+| 일일 한도 (15회) | ✅ 완료 | 학생/학원장 각각 제한 |
+| 통합 테스트 스크립트 | ✅ 완료 | 2개 스크립트 작성 |
 
 ---
 
 ## 🐛 문제 해결
 
-### ❌ 사용자 목록이 비어있음
+### 빌드 실패 시
 
-**원인:**
-- Neon 데이터베이스에 사용자가 없음
-- DATABASE_URL 환경 변수가 잘못됨
+**증상:** Cloudflare Pages Functions 빌드 실패
 
-**해결:**
-1. Vercel 대시보드 → Settings → Environment Variables
-2. `DATABASE_URL` 확인:
+**해결 방법:**
+1. 최신 commit 확인: `7d7115bf` 또는 그 이후
+2. Git history 확인:
+   ```bash
+   cd /home/user/webapp
+   git log --oneline -5
    ```
-   postgresql://neondb_owner:npg_YvDcNzWU3KR7@ep-empty-shadow-ahjjzdfv-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require
+3. 필요시 강제 재배포:
    ```
-3. 값이 다르면 업데이트 후 재배포
-
-### ❌ 500 에러 발생
-
-**원인:**
-- Prisma 연결 오류
-- 데이터베이스 스키마 불일치
-
-**해결:**
-1. Vercel 대시보드 → Deployments → 최신 배포
-2. Functions → `/api/admin/users` 로그 확인
-3. 에러 메시지 확인
-4. 콘솔에서 어느 Step에서 실패했는지 확인:
-   ```
-   [Step 1] ✅
-   [Step 2] ✅
-   [Step 3] ❌ <- 여기서 실패
+   Cloudflare Dashboard → Deployments → Retry deployment
    ```
 
-### ❌ D1 사용자가 표시되지 않음
+### API 키 오류 시
 
-**원인:**
-- D1 환경 변수가 설정되지 않음
-- D1 데이터베이스가 비어있음
+**증상:** 테스트 실행 시 "API key missing" 또는 401 에러
 
-**해결:**
-1. 페이지 하단 메타 정보에서 "D1 경고" 확인
-2. 환경 변수 설정 (위 "D1 연결 테스트" 참조)
-3. D1에 사용자 데이터가 있는지 확인
+**해결 방법:**
+1. Cloudflare 환경 변수 확인
+2. 변수명 정확히 일치하는지 확인:
+   - `GOOGLE_GEMINI_API_KEY` (not `GEMINI_API_KEY`)
+   - `ALL_AI_API_KEY` (not `DEEPSEEK_API_KEY`)
+   - `OPENAI_API_KEY` (not `OPENAI_KEY`)
+3. 환경 변수 추가/수정 후 재배포
+
+### 일일 한도 미작동 시
+
+**증상:** 16회 이상 사용 가능
+
+**원인:** DB 테이블 또는 로직 문제
+
+**확인 사항:**
+1. `bot_usage_logs` 테이블 존재 여부
+2. `usageDate` 컬럼 형식 (`YYYY-MM-DD`)
+3. 학생/학원장 userId 정확히 매칭되는지
 
 ---
 
-## 📊 API 응답 예시
+## ✅ 최종 체크리스트
 
-### 성공 응답
-```json
-{
-  "success": true,
-  "users": [
-    {
-      "id": "cm6abc123",
-      "email": "director@academy.com",
-      "name": "홍길동",
-      "role": "DIRECTOR",
-      "phone": "010-1234-5678",
-      "points": 1000,
-      "approved": true,
-      "academy": {
-        "id": "cm6xyz789",
-        "name": "슈퍼학원",
-        "code": "SUPER2024"
-      },
-      "aiChatEnabled": true,
-      "aiHomeworkEnabled": true,
-      "aiStudyEnabled": false,
-      "createdAt": "2024-01-15T10:30:00.000Z",
-      "lastLoginAt": "2024-01-31T08:45:00.000Z"
-    },
-    // ... 더 많은 사용자
-  ],
-  "meta": {
-    "total": 150,
-    "sources": {
-      "neon": 150,
-      "d1": 0
-    },
-    "stats": {
-      "SUPER_ADMIN": 1,
-      "DIRECTOR": 10,
-      "TEACHER": 39,
-      "STUDENT": 100
-    },
-    "d1Error": null,
-    "processingTime": 245,
-    "timestamp": "2024-01-31T13:45:00.000Z"
-  }
-}
+배포 및 테스트를 완료하기 위해 다음 항목을 순서대로 진행하세요:
+
+### Phase 1: 환경 설정 (필수)
+- [ ] Cloudflare Dashboard 접속
+- [ ] `GOOGLE_GEMINI_API_KEY` 환경 변수 추가
+- [ ] `ALL_AI_API_KEY` 환경 변수 추가
+- [ ] `OPENAI_API_KEY` 환경 변수 추가
+- [ ] 재배포 트리거 (Retry deployment)
+
+### Phase 2: 배포 확인
+- [ ] Cloudflare 배포 상태 "Success" 확인
+- [ ] Commit hash `7d7115bf` 또는 이후 버전 확인
+- [ ] Functions 빌드 로그 에러 없음 확인
+
+### Phase 3: 자동 테스트
+- [ ] `node test-new-models-comprehensive.js` 실행
+- [ ] 14/14 테스트 통과 확인
+- [ ] `node test-academy-daily-limit.js` 실행
+- [ ] 3/3 테스트 통과 확인
+
+### Phase 4: 수동 테스트
+- [ ] AI 봇 생성 페이지에서 새 모델 7개 확인
+- [ ] 숙제 검사 설정 페이지에서 새 모델 확인
+- [ ] 각 모델로 봇 생성 및 채팅 테스트
+- [ ] RAG 지식베이스 업로드 및 활용 테스트
+- [ ] 학원 전체 할당 (50명) 테스트
+- [ ] 일일 15회 제한 테스트 (학생/학원장 각각)
+
+### Phase 5: 프로덕션 검증
+- [ ] 실제 학원 데이터로 테스트
+- [ ] 실제 학생 계정으로 접근 테스트
+- [ ] 실제 숙제 이미지로 채점 테스트
+- [ ] 응답 시간 및 안정성 모니터링
+
+---
+
+## 📝 Git 커밋 히스토리
+
 ```
-
-### 에러 응답
-```json
-{
-  "success": false,
-  "error": "사용자 목록을 가져오는데 실패했습니다.",
-  "details": {
-    "message": "Connection timeout",
-    "type": "PrismaClientKnownRequestError",
-    "stack": "...",
-    "processingTime": 5000
-  }
-}
+7d7115bf - test: add comprehensive test suites for new features
+c907a370 - fix: remove duplicate response code in chat.ts
+12364c36 - docs: add comprehensive testing guide for new AI models
+08ad93be - feat: add DeepSeek and OpenAI models support
+a9f1e0ea - fix: remove ES module imports for Cloudflare Pages Functions
 ```
 
 ---
 
 ## 🎯 성공 기준
 
-배포가 성공하면 다음이 모두 작동해야 합니다:
+다음 모든 조건을 만족하면 테스트 완료:
 
-### ✅ 필수 기능
-- [x] 페이지가 로드됨
-- [x] Neon 사용자가 모두 표시됨
-- [x] 학원장, 선생님, 학생 구분됨
-- [x] 학원 정보가 표시됨
-- [x] 검색 기능 작동
-- [x] 필터 기능 작동
-- [x] 통계가 정확함
-
-### ✅ 선택 기능 (D1 설정 시)
-- [ ] D1 사용자도 표시됨
-- [ ] 중복 제거됨 (이메일 기준)
-- [ ] 메타 정보에 D1 카운트 표시됨
+1. ✅ Cloudflare 배포 성공 (빌드 에러 없음)
+2. ✅ 환경 변수 3개 모두 설정
+3. ✅ 자동 테스트 17/17 통과 (14 + 3)
+4. ✅ 7개 새 모델 모두 정상 작동
+5. ✅ RAG 기능 모든 모델에서 작동
+6. ✅ 학원 전체 할당 정상 작동
+7. ✅ 일일 15회 제한 정상 작동
 
 ---
 
-## 📝 다음 단계
+## 🚀 다음 단계
 
-### 1️⃣ **지금 바로 (필수)**
-1. ✅ 배포 완료 대기 (2-3분)
-2. ✅ URL 접속: https://superplace-study.vercel.app/dashboard/admin/users
-3. ✅ 사용자 목록 확인
-4. ✅ 모든 기능 테스트
+모든 테스트가 통과하면:
 
-### 2️⃣ **나중에 (선택)**
-1. D1 환경 변수 설정
-2. 권한 체크 복구 (보안)
-3. 상세 보기 기능 추가
-4. 사용자 편집 기능 추가
+1. **프로덕션 모니터링 시작**
+   - 사용량 추적
+   - 에러율 모니터링
+   - 응답 시간 측정
 
----
+2. **사용자 피드백 수집**
+   - 새 모델 성능 평가
+   - RAG 기능 정확도 평가
+   - 일일 한도 적절성 평가
 
-## 🔒 보안 참고사항
-
-**⚠️ 현재 코드는 디버그 모드입니다!**
-
-- 로그인 없이 누구나 사용자 목록을 볼 수 있음
-- 운영 환경에서는 위험함
-- 문제 해결 후 권한 체크를 반드시 복구해야 함
-
-**권한 체크 복구 방법:**
-```typescript
-// API에 추가 (route.ts)
-const session = await getServerSession(authOptions);
-if (!session) {
-  return NextResponse.json({ error: "로그인 필요" }, { status: 401 });
-}
-if (session.user.role !== "SUPER_ADMIN" && session.user.role !== "DIRECTOR") {
-  return NextResponse.json({ error: "권한 없음" }, { status: 403 });
-}
-```
+3. **최적화 고려사항**
+   - 모델별 비용 분석
+   - 응답 속도 개선
+   - 캐싱 전략 구현
 
 ---
 
-## 📞 문제 발생 시
+## 📞 지원
 
-**배포 후 문제가 있으면:**
-1. Vercel 로그 확인 (Functions → `/api/admin/users`)
-2. 브라우저 콘솔 확인 (F12)
-3. 페이지 하단 메타 정보 확인
-4. 에러 메시지와 함께 보고
-
----
-
-## 📈 성능 정보
-
-- **빌드 시간**: ~1분 40초
-- **예상 API 응답 시간**: 100-500ms
-- **페이지 크기**: 2.87 kB (초기 로드)
-- **First Load JS**: 112 kB
+문제 발생 시:
+1. 테스트 스크립트 로그 확인
+2. Cloudflare Dashboard 배포 로그 확인
+3. 환경 변수 설정 재확인
 
 ---
 
-**작성일**: 2026-01-31
-**커밋**: 451d967
-**상태**: 배포 대기 중
-**예상 완료**: 2-3분 후
-
----
-
-## 🎉 완료!
-
-코드는 100% 새로 작성되었고, 빌드도 성공했습니다.
-이제 Vercel이 자동으로 배포를 진행합니다.
-
-**2-3분 후 URL 확인:**
-https://superplace-study.vercel.app/dashboard/admin/users
-
-모든 사용자(학원장, 선생님, 학생)가 표시될 것입니다! 🚀
+**문서 작성일:** 2026-03-10  
+**마지막 업데이트:** Commit `7d7115bf`  
+**상태:** 🟢 배포 준비 완료
