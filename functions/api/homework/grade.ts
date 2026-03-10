@@ -1,6 +1,8 @@
 interface Env {
   DB: D1Database;
   GOOGLE_GEMINI_API_KEY: string;
+  Novita_AI_API?: string;
+  OPENAI_API_KEY?: string;
 }
 
 /**
@@ -376,56 +378,170 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       
       // DB 설정에서 모델과 파라미터 가져오기
       const modelName = gradingConfig?.model || 'gemini-2.5-flash';
-      const temperature = gradingConfig?.temperature ?? 0.3;
-      const maxTokens = gradingConfig?.maxTokens || 2000;
+      let temperature = gradingConfig?.temperature ?? 0.3;
+      let maxTokens = gradingConfig?.maxTokens || 2000;
       
       console.log(`🤖 사용 모델: ${modelName}, temperature: ${temperature}, maxTokens: ${maxTokens}`);
       
-      const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${GOOGLE_GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: gradingPrompt },
-                ...imageParts
-              ]
-            }],
-            generationConfig: {
-              temperature: temperature,
-              maxOutputTokens: maxTokens
-            }
-          })
+      let geminiResponse;
+      
+      // DeepSeek OCR-2 모델인 경우 Novita AI API 사용
+      if (modelName === 'deepseek-ocr-2') {
+        console.log('🔍 DeepSeek OCR-2 모델 사용 - Novita AI API 호출');
+        
+        // DeepSeek OCR-2 최적 파라미터 강제 설정
+        if (temperature > 0.3) {
+          console.log(`⚠️ DeepSeek OCR-2: temperature ${temperature} → 0.2 (강제 조정)`);
+          temperature = 0.2;
         }
-      );
+        if (maxTokens > 500) {
+          console.log(`⚠️ DeepSeek OCR-2: maxTokens ${maxTokens} → 300 (강제 조정)`);
+          maxTokens = 300;
+        }
+        
+        const topP = 0.6;
+        
+        if (!context.env.Novita_AI_API) {
+          throw new Error('Novita_AI_API key not configured');
+        }
+        
+        // DeepSeek OCR-2는 이미지 URL 형식 사용
+        const messages = [
+          {
+            role: 'system',
+            content: gradingPrompt
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: '위 지침에 따라 다음 숙제 이미지들을 채점해주세요:' },
+              ...imageArray.map((img: string) => ({
+                type: 'image_url',
+                image_url: { url: img }
+              }))
+            ]
+          }
+        ];
+        
+        console.log('📤 DeepSeek API 요청:', { model: 'deepseek-ocr-2', temperature, maxTokens, topP });
+        
+        geminiResponse = await fetch('https://api.novita.ai/v3/openai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${context.env.Novita_AI_API}`
+          },
+          body: JSON.stringify({
+            model: 'deepseek/deepseek-ocr-2',
+            messages: messages,
+            temperature: temperature,
+            max_tokens: maxTokens,
+            top_p: topP
+          })
+        });
+      } else if (modelName.startsWith('gpt-')) {
+        console.log('🔍 OpenAI GPT 모델 사용');
+        
+        if (!context.env.OPENAI_API_KEY) {
+          throw new Error('OPENAI_API_KEY not configured');
+        }
+        
+        const messages = [
+          {
+            role: 'system',
+            content: gradingPrompt
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: '위 지침에 따라 다음 숙제 이미지들을 채점해주세요:' },
+              ...imageArray.map((img: string) => ({
+                type: 'image_url',
+                image_url: { url: img }
+              }))
+            ]
+          }
+        ];
+        
+        geminiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${context.env.OPENAI_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: messages,
+            temperature: temperature,
+            max_tokens: maxTokens
+          })
+        });
+      } else {
+        // Gemini 모델 (기본)
+        geminiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${GOOGLE_GEMINI_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: gradingPrompt },
+                  ...imageParts
+                ]
+              }],
+              generationConfig: {
+                temperature: temperature,
+                maxOutputTokens: maxTokens
+              },
+              safetySettings: [
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+              ]
+            })
+          }
+        );
+      }
 
       const elapsedGrading = Date.now() - startGrading;
       console.log(`✅ 상세 채점 완료 (${elapsedGrading}ms)`);
 
       const geminiData = await geminiResponse.json();
       
-      console.log('🔍 Gemini API 응답 상태:', geminiResponse.status);
-      console.log('📦 Gemini API 응답 데이터:', JSON.stringify(geminiData).substring(0, 500));
+      console.log('🔍 API 응답 상태:', geminiResponse.status);
+      console.log('📦 API 응답 데이터:', JSON.stringify(geminiData).substring(0, 500));
       
       if (!geminiResponse.ok) {
-        console.error('❌ Gemini API 오류:', {
+        console.error('❌ API 오류:', {
           status: geminiResponse.status,
           statusText: geminiResponse.statusText,
           data: geminiData
         });
-        throw new Error(`Gemini API error (${geminiResponse.status}): ${JSON.stringify(geminiData)}`);
+        throw new Error(`API error (${geminiResponse.status}): ${JSON.stringify(geminiData)}`);
       }
 
-      // Gemini 응답 구조 확인
-      if (!geminiData.candidates || !geminiData.candidates[0] || !geminiData.candidates[0].content) {
-        console.error('❌ Gemini 응답 구조 오류:', geminiData);
-        throw new Error(`Invalid Gemini response structure: ${JSON.stringify(geminiData)}`);
+      // 응답 파싱 (모델별 구조 처리)
+      let responseText;
+      
+      if (modelName === 'deepseek-ocr-2' || modelName.startsWith('gpt-')) {
+        // OpenAI 호환 API 응답 구조
+        if (!geminiData.choices || !geminiData.choices[0] || !geminiData.choices[0].message) {
+          console.error('❌ OpenAI API 응답 구조 오류:', geminiData);
+          throw new Error(`Invalid OpenAI API response structure: ${JSON.stringify(geminiData)}`);
+        }
+        responseText = geminiData.choices[0].message.content;
+        console.log('✅ OpenAI 호환 API 응답 파싱 완료');
+      } else {
+        // Gemini API 응답 구조
+        if (!geminiData.candidates || !geminiData.candidates[0] || !geminiData.candidates[0].content) {
+          console.error('❌ Gemini 응답 구조 오류:', geminiData);
+          throw new Error(`Invalid Gemini response structure: ${JSON.stringify(geminiData)}`);
+        }
+        responseText = geminiData.candidates[0].content.parts[0].text;
+        console.log('✅ Gemini API 응답 파싱 완료');
       }
-
-      // Gemini 응답 파싱
-      const responseText = geminiData.candidates[0].content.parts[0].text;
       
       // JSON 추출 (코드 블록 제거)
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
