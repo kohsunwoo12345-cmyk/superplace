@@ -1,8 +1,3 @@
-# Cloudflare Pages API redirect rules
-# Prevent trailing slash redirects for API endpoints
-/api/* 200
-/api/auth/* 200
-/functions/* 200
-
-# All other routes use default behavior
-/* 200
+# Cloudflare Pages redirect rules
+# Note: Cloudflare Pages handles /api/* and /functions/* automatically
+# No custom redirects needed for API routes

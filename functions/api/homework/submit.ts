@@ -1,6 +1,6 @@
 interface Env {
   DB: D1Database;
-  HOMEWORK_QUEUE: Queue;
+  // HOMEWORK_QUEUE: Queue; // Disabled - Queue not available in Pages deployment
 }
 
 /**
@@ -12,7 +12,7 @@ interface Env {
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, HOMEWORK_QUEUE } = context.env;
+    const { DB } = context.env;
     const body = await context.request.json();
     const { userId, code, images, image } = body;
 
@@ -23,16 +23,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    if (!HOMEWORK_QUEUE) {
-      console.warn('⚠️ HOMEWORK_QUEUE not configured, falling back to sync processing');
-      // Queue가 없으면 기존 동기 처리 API로 리다이렉트
-      return new Response(
-        JSON.stringify({ 
-          error: "Queue not configured. Use /api/homework/grade for sync processing" 
-        }),
-        { status: 503, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    // Queue는 Pages 배포에서 지원되지 않음
+    console.warn('⚠️ HOMEWORK_QUEUE not available in Pages deployment');
+    return new Response(
+      JSON.stringify({ 
+        error: "Background processing not available",
+        message: "Queue not configured in Pages deployment. Use /api/homework/grade for sync processing",
+        alternativeEndpoint: "/api/homework/grade"
+      }),
+      { status: 503, headers: { "Content-Type": "application/json" } }
+    );
 
     // 다중 이미지 또는 단일 이미지 처리
     const imageArray = images || (image ? [image] : []);

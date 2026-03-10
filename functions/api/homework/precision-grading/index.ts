@@ -204,12 +204,13 @@ function simpleCalculation(equation: string): { result: string; steps: string[];
     
     // 간단한 사칙연산만 처리 (보안을 위해 제한적으로)
     if (/^[\d\+\-\*\/\(\)\.]+$/.test(cleaned)) {
-      const result = eval(cleaned);
+      // Use Function constructor instead of eval for better security
+      const result = new Function('return ' + cleaned)();
       console.log(`   Fallback 계산: ${equation} = ${result}`);
       return {
         result: result.toString(),
         steps: ['간단한 계산'],
-        method: 'Fallback eval()'
+        method: 'Fallback calculation'
       };
     }
   } catch (error) {
