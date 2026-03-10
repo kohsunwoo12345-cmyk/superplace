@@ -3,6 +3,9 @@
 
 interface Env {
   GOOGLE_GEMINI_API_KEY: string;
+  Novita_AI_API: string; // DeepSeek 모델용 (Novita AI)
+  ALL_AI_API_KEY: string; // DeepSeek 모델용 (레거시)
+  OPENAI_API_KEY: string; // GPT 모델용
   DB: D1Database;
   VECTORIZE?: VectorizeIndex; // RAG용 벡터 DB (optional)
 }
@@ -195,9 +198,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 대화 히스토리 구성
     const history = data.conversationHistory || [];
     
-    // Gemini API 호출
-    const model = bot.model || "gemini-2.0-flash-exp";
-    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+    // 🔥 모델별 API 엔드포인트 설정
+    const model = bot.model || "gemini-2.5-flash";
+    let apiUrl = '';
+    let apiKey_used = '';
+    let isDeepSeek = false;
+    let isOpenAI = false;
+    
+    // DeepSeek OCR-2 (Novita AI)
+    if (model === 'deepseek-ocr-2') {
+      apiUrl = 'https://api.novita.ai/v3/openai/chat/completions';
+      apiKey_used = context.env.Novita_AI_API || context.env.ALL_AI_API_KEY;
+      isDeepSeek = true;
+      console.log('🔧 DeepSeek OCR-2 via Novita AI');
+    }
+    // OpenAI GPT models
+    else if (model.startsWith('gpt-')) {
+      apiUrl = 'https://api.openai.com/v1/chat/completions';
+      apiKey_used = context.env.OPENAI_API_KEY;
+      isOpenAI = true;
+      console.log(`🔧 OpenAI ${model}`);
+    }
+    // Gemini models (default)
+    else {
+      apiUrl = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+      apiKey_used = apiKey;
+      console.log(`🔧 Gemini ${model}`);
+    }
     
     // 시스템 프롬프트 + 대화 히스토리 + 현재 메시지
     const contents: any[] = [];
@@ -280,46 +307,140 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       parts: currentMessageParts
     });
 
-    console.log(`📤 Gemini API 호출 중... (${contents.length}개 메시지, 이미지: ${data.imageUrl ? '있음' : '없음'})`);
+    console.log(`📤 AI API 호출 중... (${contents.length}개 메시지, 이미지: ${data.imageUrl ? '있음' : '없음'})`);
 
-
-    const geminiResponse = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: contents,
-        generationConfig: {
-          temperature: bot.temperature || 0.7,
-          topK: bot.topK || 40,
-          topP: bot.topP || 0.95,
-          maxOutputTokens: bot.maxTokens || 2000,
-        },
-      }),
-    });
-
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error("❌ Gemini API 오류:", geminiResponse.status, errorText);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "AI 응답 생성 중 오류가 발생했습니다",
-          error: errorText,
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
+    let aiResponse = '';
+    
+    // 🔥 DeepSeek 또는 OpenAI: OpenAI 호환 형식
+    if (isDeepSeek || isOpenAI) {
+      // OpenAI 형식의 messages 배열로 변환
+      const messages: any[] = [];
+      
+      // 시스템 프롬프트 준비
+      if (bot.systemPrompt || ragContext || bot.knowledgeBase) {
+        let systemMessage = "";
+        
+        if (bot.systemPrompt) {
+          systemMessage += bot.systemPrompt;
         }
-      );
+        
+        if (ragContext && useVectorizeRAG) {
+          systemMessage += `\n\n--- 관련 자료 (RAG) ---\n${ragContext}\n--- 자료 끝 ---\n\n위 자료를 참고하여 질문에 답변하세요.`;
+        } else if (bot.knowledgeBase && !useVectorizeRAG) {
+          systemMessage += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식 베이스를 참고하여 질문에 답변하세요.`;
+        }
+        
+        messages.push({
+          role: "system",
+          content: systemMessage
+        });
+      }
+      
+      // 대화 히스토리
+      for (const msg of history) {
+        messages.push({
+          role: msg.role === "user" ? "user" : "assistant",
+          content: msg.content
+        });
+      }
+      
+      // 현재 메시지
+      if (data.imageUrl && isDeepSeek) {
+        // DeepSeek OCR-2: 이미지 + 텍스트
+        messages.push({
+          role: "user",
+          content: [
+            { type: "text", text: data.message },
+            { type: "image_url", image_url: { url: data.imageUrl } }
+          ]
+        });
+      } else {
+        // 텍스트만
+        messages.push({
+          role: "user",
+          content: data.message
+        });
+      }
+      
+      const requestBody: any = {
+        model: isDeepSeek ? 'deepseek/deepseek-ocr-2' : model,
+        messages: messages,
+        temperature: bot.temperature || 0.7,
+        max_tokens: bot.maxTokens || 2000,
+        top_p: bot.topP || 0.95
+      };
+      
+      console.log(`📤 ${isDeepSeek ? 'DeepSeek' : 'OpenAI'} API 호출 중...`);
+      
+      const apiResponse = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey_used}`
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!apiResponse.ok) {
+        const errorText = await apiResponse.text();
+        console.error(`❌ ${isDeepSeek ? 'DeepSeek' : 'OpenAI'} API 오류:`, apiResponse.status, errorText);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "AI 응답 생성 중 오류가 발생했습니다",
+            error: errorText,
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const apiData = await apiResponse.json();
+      aiResponse = apiData.choices?.[0]?.message?.content || "응답을 생성할 수 없습니다.";
+      console.log(`✅ ${isDeepSeek ? 'DeepSeek' : 'OpenAI'} 응답: ${aiResponse.substring(0, 100)}...`);
     }
+    // 🔥 Gemini: Gemini 형식
+    else {
+      const geminiResponse = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: contents,
+          generationConfig: {
+            temperature: bot.temperature || 0.7,
+            topK: bot.topK || 40,
+            topP: bot.topP || 0.95,
+            maxOutputTokens: bot.maxTokens || 2000,
+          },
+        }),
+      });
 
-    const geminiData = await geminiResponse.json();
-    const aiResponse = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 
-                      "응답을 생성할 수 없습니다.";
+      if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text();
+        console.error("❌ Gemini API 오류:", geminiResponse.status, errorText);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "AI 응답 생성 중 오류가 발생했습니다",
+            error: errorText,
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
 
-    console.log(`✅ Gemini 응답: ${aiResponse.substring(0, 100)}...`);
+      const geminiData = await geminiResponse.json();
+      aiResponse = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 
+                        "응답을 생성할 수 없습니다.";
+
+      console.log(`✅ Gemini 응답: ${aiResponse.substring(0, 100)}...`);
+    }
 
     // 봇 사용 통계 업데이트
     await db
