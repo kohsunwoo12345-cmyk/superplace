@@ -20,12 +20,62 @@ async function handleRequest(request) {
     return new Response(JSON.stringify({
       status: 'ok',
       message: 'AI 챗봇 & 숙제 채점 Worker가 정상 작동 중입니다',
-      version: '2.0.0',
+      version: '2.1.0',
       endpoints: {
         grade: 'POST /grade - 숙제 채점 (OCR + RAG + AI)',
-        chat: 'POST /chat - AI 챗봇 (Cloudflare AI 번역 + Vectorize RAG)'
+        chat: 'POST /chat - AI 챗봇 (Cloudflare AI 번역 + Vectorize RAG)',
+        'vectorize-upload': 'POST /vectorize-upload - Vectorize에 벡터 업로드'
       }
     }), { headers: corsHeaders });
+  }
+
+  // 🆕 Vectorize 업로드 엔드포인트
+  if (url.pathname === '/vectorize-upload' && request.method === 'POST') {
+    const apiKey = request.headers.get('X-API-Key');
+    if (apiKey !== 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u') {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: corsHeaders
+      });
+    }
+
+    try {
+      const body = await request.json();
+      const { vectors } = body;
+
+      if (!vectors || !Array.isArray(vectors)) {
+        return new Response(JSON.stringify({ 
+          error: 'vectors array is required' 
+        }), {
+          status: 400,
+          headers: corsHeaders
+        });
+      }
+
+      console.log(`📤 Vectorize 업로드: ${vectors.length}개 벡터`);
+
+      if (!VECTORIZE) {
+        throw new Error('VECTORIZE binding not configured');
+      }
+
+      // Vectorize에 벡터 삽입
+      await VECTORIZE.insert(vectors);
+
+      console.log(`✅ Vectorize 업로드 완료: ${vectors.length}개`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: `${vectors.length}개 벡터가 성공적으로 업로드되었습니다`,
+        count: vectors.length
+      }), { headers: corsHeaders });
+
+    } catch (error) {
+      console.error('❌ Vectorize 업로드 오류:', error.message);
+      return new Response(JSON.stringify({
+        success: false,
+        error: error.message
+      }), { status: 500, headers: corsHeaders });
+    }
   }
 
   // 🆕 AI 챗봇 RAG 엔드포인트
