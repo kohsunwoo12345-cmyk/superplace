@@ -76,7 +76,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     console.log('✅ Requesting user verified:', { email: requestingUser.email, role, academyId: userAcademyId });
 
     const body = await request.json();
-    const { botId, userId, duration, durationUnit, dailyUsageLimit = 15 } = body;
+    const { botId, userId, duration, durationUnit, dailyUsageLimit: providedDailyLimit } = body;
 
     if (!botId || !userId) {
       return new Response(
@@ -85,7 +85,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
-    console.log("🤖 AI 봇 할당 요청:", { botId, userId, duration, durationUnit, dailyUsageLimit });
+    console.log("🤖 AI 봇 할당 요청:", { botId, userId, duration, durationUnit, providedDailyLimit });
 
     // 사용자 확인 (User 테이블)
     const user = await DB.prepare("SELECT * FROM User WHERE id = ?")
@@ -144,7 +144,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     if ((role === 'DIRECTOR' || role === 'TEACHER') && userAcademyId) {
       console.log('🔍 Checking subscription slots for academy:', userAcademyId, 'bot:', botId);
       
-      // 학원의 구독 정보 조회
+      // 학원의 구독 정보 조회 (dailyUsageLimit 포함)
       subscription = await DB.prepare(`
         SELECT 
           id, 
@@ -155,6 +155,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           remainingStudentSlots,
           subscriptionStart,
           subscriptionEnd,
+          dailyUsageLimit,
           isActive,
           createdAt,
           updatedAt
@@ -254,6 +255,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
             remainingStudentSlots,
             subscriptionStart,
             subscriptionEnd,
+            dailyUsageLimit,
             isActive,
             createdAt,
             updatedAt
@@ -357,6 +359,18 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     const endDateStr = endDate.toISOString().split('T')[0];
 
+    // 🆕 일일 사용 한도 결정 (우선순위: 학원 구독 > 직접 입력 > 기본값 15)
+    let finalDailyUsageLimit = 15;
+    if (subscription && subscription.dailyUsageLimit) {
+      finalDailyUsageLimit = subscription.dailyUsageLimit;
+      console.log(`✅ Using daily limit from academy subscription: ${finalDailyUsageLimit}`);
+    } else if (providedDailyLimit) {
+      finalDailyUsageLimit = providedDailyLimit;
+      console.log(`✅ Using provided daily limit: ${finalDailyUsageLimit}`);
+    } else {
+      console.log(`✅ Using default daily limit: ${finalDailyUsageLimit}`);
+    }
+
     // 할당 테이블 생성 (없으면)
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS ai_bot_assignments (
@@ -410,7 +424,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       endDateStr,
       actualDuration,
       actualDurationUnit,
-      dailyUsageLimit
+      finalDailyUsageLimit
     ).run();
 
     // 🔒 구독 슬롯 차감 (학원장/선생님의 경우)
@@ -464,7 +478,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           endDate: endDateStr,
           duration: actualDuration,
           durationUnit: actualDurationUnit,
-          dailyUsageLimit,
+          dailyUsageLimit: finalDailyUsageLimit,
           status: "active",
           usedAcademySubscription: !!subscription,
         },

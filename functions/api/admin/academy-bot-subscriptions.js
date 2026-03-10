@@ -107,6 +107,7 @@ export async function onRequestPost(context) {
       subscriptionStart,
       subscriptionEnd,
       pricePerStudent = 0,
+      dailyUsageLimit = 15, // 🆕 일일 사용 한도
       memo,
     } = body;
 
@@ -238,15 +239,50 @@ export async function onRequestPost(context) {
       
       console.log('🆕 Creating new subscription:', subscriptionId);
 
-      // pricePerStudent 컬럼 존재 여부 확인
+      // dailyUsageLimit와 pricePerStudent 컬럼 존재 여부 확인
       let insertSQL;
       let insertParams;
       
       try {
-        // pricePerStudent 컬럼이 있는지 테스트
-        await DB.prepare(`SELECT pricePerStudent FROM AcademyBotSubscription LIMIT 1`).first();
+        // dailyUsageLimit 컬럼이 있는지 테스트
+        await DB.prepare(`SELECT dailyUsageLimit FROM AcademyBotSubscription LIMIT 1`).first();
         
         // 컬럼이 있으면 포함
+        insertSQL = `
+          INSERT INTO AcademyBotSubscription (
+            id,
+            academyId,
+            productId,
+            productName,
+            totalStudentSlots,
+            usedStudentSlots,
+            remainingStudentSlots,
+            subscriptionStart,
+            subscriptionEnd,
+            pricePerStudent,
+            dailyUsageLimit,
+            memo,
+            createdAt,
+            updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `;
+        insertParams = [
+          subscriptionId,
+          academyId,
+          productId,
+          botCheck.name,
+          studentCount,
+          0,
+          studentCount,
+          subscriptionStart,
+          subscriptionEnd,
+          pricePerStudent,
+          dailyUsageLimit,
+          memo || null
+        ];
+      } catch (e) {
+        // 컬럼이 없으면 제외
+        console.log('⚠️ dailyUsageLimit column not found, using fallback INSERT');
         insertSQL = `
           INSERT INTO AcademyBotSubscription (
             id,
@@ -275,37 +311,6 @@ export async function onRequestPost(context) {
           subscriptionStart,
           subscriptionEnd,
           pricePerStudent,
-          memo || null
-        ];
-      } catch (e) {
-        // 컬럼이 없으면 제외
-        console.log('⚠️ pricePerStudent column not found, using fallback INSERT');
-        insertSQL = `
-          INSERT INTO AcademyBotSubscription (
-            id,
-            academyId,
-            productId,
-            productName,
-            totalStudentSlots,
-            usedStudentSlots,
-            remainingStudentSlots,
-            subscriptionStart,
-            subscriptionEnd,
-            memo,
-            createdAt,
-            updatedAt
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-        `;
-        insertParams = [
-          subscriptionId,
-          academyId,
-          productId,
-          botCheck.name,
-          studentCount,
-          0,
-          studentCount,
-          subscriptionStart,
-          subscriptionEnd,
           memo || null
         ];
       }
