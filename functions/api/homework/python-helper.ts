@@ -22,7 +22,10 @@ export async function executeMathProblem(
   try {
     console.log(`🐍 Python Worker 호출: ${equation}`);
     
-    const response = await fetch(pythonWorkerUrl, {
+    // /solve 엔드포인트로 요청
+    const url = pythonWorkerUrl.endsWith('/solve') ? pythonWorkerUrl : `${pythonWorkerUrl}/solve`;
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

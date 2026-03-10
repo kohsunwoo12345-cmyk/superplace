@@ -8,7 +8,7 @@ const https = require('https');
 // 테스트 설정
 const TEST_CONFIG = {
   baseUrl: 'https://superplacestudy.pages.dev',
-  pythonWorkerUrl: 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev',
+  pythonWorkerUrl: 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/solve',
   userId: 1,
   timeout: 90000
 };
@@ -265,11 +265,11 @@ async function testIntegratedGrading() {
       console.log('='.repeat(80));
       
       if (grading?.problemAnalysis && grading.problemAnalysis.length > 0) {
-        const pythonVerifiedCount = grading.problemAnalysis.filter((p: any) => p.pythonVerified).length;
+        const pythonVerifiedCount = grading.problemAnalysis.filter(p => p.pythonVerified).length;
         console.log(`총 문제 수: ${grading.problemAnalysis.length}개`);
         console.log(`Python 검증: ${pythonVerifiedCount}개`);
         
-        grading.problemAnalysis.forEach((problem: any, idx: number) => {
+        grading.problemAnalysis.forEach((problem, idx) => {
           console.log(`\n[문제 ${idx + 1}]`);
           console.log(`   문제: ${problem.problem || '(없음)'}`);
           console.log(`   학생 답: ${problem.answer || '(없음)'}`);
@@ -294,7 +294,7 @@ async function testIntegratedGrading() {
         score: grading?.score,
         totalQuestions: grading?.totalQuestions,
         correctAnswers: grading?.correctAnswers,
-        pythonVerifiedCount: grading?.problemAnalysis?.filter((p: any) => p.pythonVerified).length || 0,
+        pythonVerifiedCount: grading?.problemAnalysis?.filter(p => p.pythonVerified).length || 0,
         time: elapsedTime
       };
     } else {
