@@ -365,9 +365,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const requestBody: any = {
         model: isDeepSeek ? 'deepseek/deepseek-ocr-2' : model,
         messages: messages,
-        temperature: bot.temperature || 0.7,
-        max_tokens: bot.maxTokens || 2000,
-        top_p: bot.topP || 0.95
+        // DeepSeek OCR-2는 이미지 텍스트 추출 전용 모델이므로 낮은 temperature 필요
+        temperature: isDeepSeek ? Math.min(bot.temperature || 0.2, 0.3) : (bot.temperature || 0.7),
+        // DeepSeek OCR은 짧은 응답이 적합
+        max_tokens: isDeepSeek ? Math.min(bot.maxTokens || 200, 500) : (bot.maxTokens || 2000),
+        top_p: isDeepSeek ? Math.min(bot.topP || 0.6, 0.7) : (bot.topP || 0.95)
       };
       
       console.log(`📤 ${isDeepSeek ? 'DeepSeek' : 'OpenAI'} API 호출 중...`);
