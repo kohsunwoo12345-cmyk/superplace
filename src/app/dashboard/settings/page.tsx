@@ -25,6 +25,8 @@ export default function SettingsPage() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [trends, setTrends] = useState<any>(null);
   const [trendPeriod, setTrendPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [attendanceCode, setAttendanceCode] = useState<string | null>(null);
+  const [loadingCode, setLoadingCode] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -55,7 +57,38 @@ export default function SettingsPage() {
       console.log("학원장이 아닌 계정 - 구독 정보 조회 건너뛰기");
       setLoadingSubscription(false);
     }
+    
+    // 학생인 경우 출석 코드 가져오기
+    if (userData.role === "STUDENT") {
+      fetchAttendanceCode(userData.id);
+    }
   }, [router]);
+  
+  const fetchAttendanceCode = async (userId: string) => {
+    try {
+      setLoadingCode(true);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/students/attendance-code?userId=${userId}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.code) {
+          setAttendanceCode(data.code);
+          console.log("✅ 출석 코드 로드:", data.code);
+        }
+      } else {
+        console.error("❌ 출석 코드 로드 실패:", response.status);
+      }
+    } catch (error) {
+      console.error("❌ 출석 코드 로드 오류:", error);
+    } finally {
+      setLoadingCode(false);
+    }
+  };
   
   const fetchSubscription = async (userId: string, academyId?: string) => {
     try {
@@ -194,6 +227,47 @@ export default function SettingsPage() {
         <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2">설정</h1>
         <p className="text-gray-600">계정 설정을 관리합니다</p>
       </div>
+
+      {/* 학생 출석 코드 카드 */}
+      {user.role === "STUDENT" && attendanceCode && (
+        <Card className="mb-6 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              나의 출석 코드
+            </CardTitle>
+            <CardDescription>
+              출석 체크인 시 이 코드를 사용하세요
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 font-medium mb-1">출석 코드</p>
+                  <p className="text-4xl font-bold text-green-700 tracking-wider">
+                    {attendanceCode}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => {
+                  navigator.clipboard.writeText(attendanceCode);
+                  alert("출석 코드가 복사되었습니다!");
+                }}
+                className="border-green-300 hover:bg-green-50"
+              >
+                복사하기
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 원장 계정인 경우 구독 정보 표시 */}
       {user.role === "DIRECTOR" && (

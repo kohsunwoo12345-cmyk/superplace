@@ -38,6 +38,8 @@ export default function AttendanceStatisticsPage() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [attendanceCode, setAttendanceCode] = useState<string | null>(null);
+  const [loadingCode, setLoadingCode] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -53,8 +55,37 @@ export default function AttendanceStatisticsPage() {
     // 선생님/관리자는 학생 목록도 가져오기
     if (userData.role !== "STUDENT") {
       fetchStudents(userData);
+    } else {
+      // 학생이면 출석 코드도 가져오기
+      fetchAttendanceCode(userData.id);
     }
   }, [router]);
+
+  const fetchAttendanceCode = async (userId: string) => {
+    try {
+      setLoadingCode(true);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/students/attendance-code?userId=${userId}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.code) {
+          setAttendanceCode(data.code);
+          console.log("✅ 출석 코드 로드:", data.code);
+        }
+      } else {
+        console.error("❌ 출석 코드 로드 실패:", response.status);
+      }
+    } catch (error) {
+      console.error("❌ 출석 코드 로드 오류:", error);
+    } finally {
+      setLoadingCode(false);
+    }
+  };
 
   const fetchStatistics = async (userData: any) => {
     try {
@@ -222,24 +253,58 @@ export default function AttendanceStatisticsPage() {
 
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Calendar className="h-8 w-8 text-blue-600" />
-              나의 출석 현황
-            </h1>
-            <p className="text-gray-600 mt-1">
-              {year}년 {month}월 출석일: {monthAttendanceDays}일
-            </p>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Calendar className="h-8 w-8 text-blue-600" />
+                나의 출석 현황
+              </h1>
+              <p className="text-gray-600 mt-1">
+                {year}년 {month}월 출석일: {monthAttendanceDays}일
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={goToPreviousMonth}>
+                이전 달
+              </Button>
+              <Button variant="outline" onClick={goToNextMonth}>
+                다음 달
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={goToPreviousMonth}>
-              이전 달
-            </Button>
-            <Button variant="outline" onClick={goToNextMonth}>
-              다음 달
-            </Button>
-          </div>
+
+          {/* 출석 코드 카드 */}
+          {attendanceCode && (
+            <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircle className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">나의 출석 코드</p>
+                      <p className="text-3xl font-bold text-green-700 tracking-wider">
+                        {attendanceCode}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(attendanceCode);
+                      alert("출석 코드가 복사되었습니다!");
+                    }}
+                    className="border-green-300 hover:bg-green-50"
+                  >
+                    복사
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* 달력 */}

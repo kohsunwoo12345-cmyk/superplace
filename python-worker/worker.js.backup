@@ -1,4 +1,4 @@
-// ES Module 형식 Worker (Cloudflare AI + D1 + R2 + Vectorize 바인딩)
+// ES Module 형식 Worker (D1, R2, Vectorize 바인딩 지원)
 export default {
   async fetch(request, env, ctx) {
     return await handleRequest(request, env, ctx);
@@ -6,6 +6,8 @@ export default {
 };
 
 async function handleRequest(request, env, ctx) {
+  // 환경 변수 접근
+  const { AI, VECTORIZE, DB, R2_DOCUMENTS, R2_SUPERPLACESTUDY, GEMINI_API_KEY, ENVIRONMENT } = env;
   const corsHeaders = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -23,7 +25,7 @@ async function handleRequest(request, env, ctx) {
     return new Response(JSON.stringify({
       status: 'ok',
       message: 'AI 챗봇 & 숙제 채점 Worker가 정상 작동 중입니다',
-      version: '2.3.0',
+      version: '2.2.0',
       endpoints: {
         grade: 'POST /grade - 숙제 채점 (OCR + RAG + AI)',
         chat: 'POST /chat - AI 챗봇 (Cloudflare AI 번역 + Vectorize RAG)',
@@ -36,9 +38,7 @@ async function handleRequest(request, env, ctx) {
   // 🆕 Cloudflare AI Embedding 생성 엔드포인트
   if (url.pathname === '/generate-embedding' && request.method === 'POST') {
     const apiKey = request.headers.get('X-API-Key');
-    const expectedKey = env.WORKER_API_KEY || env.API_KEY;
-    
-    if (!expectedKey || apiKey !== expectedKey) {
+    if (apiKey !== 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u') {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: corsHeaders
@@ -60,7 +60,7 @@ async function handleRequest(request, env, ctx) {
 
       console.log(`🔧 임베딩 생성 요청: 텍스트 길이 ${text.length}자`);
 
-      const embedding = await generateEmbedding(text, env);
+      const embedding = await generateEmbedding(text);
 
       console.log(`✅ 임베딩 생성 완료: ${embedding.length}차원`);
 
@@ -82,9 +82,7 @@ async function handleRequest(request, env, ctx) {
   // 🆕 Vectorize 업로드 엔드포인트
   if (url.pathname === '/vectorize-upload' && request.method === 'POST') {
     const apiKey = request.headers.get('X-API-Key');
-    const expectedKey = env.WORKER_API_KEY || env.API_KEY;
-    
-    if (!expectedKey || apiKey !== expectedKey) {
+    if (apiKey !== 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u') {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: corsHeaders
@@ -106,12 +104,12 @@ async function handleRequest(request, env, ctx) {
 
       console.log(`📤 Vectorize 업로드: ${vectors.length}개 벡터`);
 
-      if (!env.VECTORIZE) {
+      if (!VECTORIZE) {
         throw new Error('VECTORIZE binding not configured');
       }
 
       // Vectorize에 벡터 삽입
-      await env.VECTORIZE.insert(vectors);
+      await VECTORIZE.insert(vectors);
 
       console.log(`✅ Vectorize 업로드 완료: ${vectors.length}개`);
 
@@ -133,9 +131,7 @@ async function handleRequest(request, env, ctx) {
   // 🆕 AI 챗봇 RAG 엔드포인트
   if (url.pathname === '/chat' && request.method === 'POST') {
     const apiKey = request.headers.get('X-API-Key');
-    const expectedKey = env.WORKER_API_KEY || env.API_KEY;
-    
-    if (!expectedKey || apiKey !== expectedKey) {
+    if (apiKey !== 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u') {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: corsHeaders
@@ -161,7 +157,7 @@ async function handleRequest(request, env, ctx) {
       if (enableRAG && /[가-힣]/.test(message)) {
         try {
           console.log('🌐 Cloudflare AI로 번역 중...');
-          translatedQuery = await translateWithCloudflareAI(message, env);
+          translatedQuery = await translateWithCloudflareAI(message);
           console.log(`✅ 번역 완료: "${translatedQuery.substring(0, 50)}..."`);
         } catch (transError) {
           console.warn('⚠️ 번역 실패, 원문 사용:', transError.message);
@@ -172,50 +168,36 @@ async function handleRequest(request, env, ctx) {
       let ragContext = [];
       let ragEnabled = false;
       
-      if (enableRAG && botId && env.VECTORIZE) {
+      if (enableRAG && botId && VECTORIZE) {
         try {
           console.log('🔍 Vectorize RAG 검색 시작...');
-          console.log(`  botId: ${botId}`);
           
-          // Cloudflare AI Embedding으로 임베딩 생성
-          const queryEmbedding = await generateEmbedding(translatedQuery, env);
+          // Gemini Embedding으로 임베딩 생성
+          const queryEmbedding = await generateEmbedding(translatedQuery);
           console.log(`✅ 임베딩 생성 완료 (${queryEmbedding.length}차원)`);
           
-          // Vectorize 검색 (필터 없이 전체 검색 후 애플리케이션 레벨에서 필터링)
-          const searchResults = await env.VECTORIZE.query(queryEmbedding, {
-            topK: topK * 3, // 더 많이 가져와서 필터링
-            returnMetadata: 'all'
+          // Vectorize 검색
+          const searchResults = await VECTORIZE.query(queryEmbedding, {
+            topK: topK,
+            filter: { botId: botId },
+            returnMetadata: true
           });
           
-          console.log(`  검색 결과: ${searchResults.matches?.length || 0}개`);
-          
           if (searchResults.matches && searchResults.matches.length > 0) {
-            // botId로 필터링 (애플리케이션 레벨)
-            const filteredMatches = searchResults.matches.filter(match => 
-              match.metadata && String(match.metadata.botId) === String(botId)
-            ).slice(0, topK);
+            ragEnabled = true;
+            ragContext = searchResults.matches.map((match, idx) => ({
+              text: match.metadata?.text || '',
+              score: match.score?.toFixed(3) || 'N/A',
+              fileName: match.metadata?.fileName || 'Unknown',
+              index: idx + 1
+            }));
             
-            console.log(`  필터링 후: ${filteredMatches.length}개`);
-            
-            if (filteredMatches.length > 0) {
-              ragEnabled = true;
-              ragContext = filteredMatches.map((match, idx) => ({
-                text: match.metadata?.text || '',
-                score: match.score?.toFixed(3) || 'N/A',
-                fileName: match.metadata?.fileName || 'Unknown',
-                index: idx + 1
-              }));
-              
-              console.log(`✅ RAG 검색 완료: ${ragContext.length}개 관련 청크 발견`);
-            } else {
-              console.log('📭 해당 botId에 대한 지식 없음');
-            }
+            console.log(`✅ RAG 검색 완료: ${ragContext.length}개 관련 청크 발견`);
           } else {
             console.log('📭 관련 지식 없음');
           }
         } catch (ragError) {
           console.error('❌ RAG 검색 실패:', ragError.message);
-          console.error('  상세:', ragError.stack);
         }
       }
 
@@ -226,7 +208,7 @@ async function handleRequest(request, env, ctx) {
         conversationHistory,
         ragContext,
         ragEnabled
-      }, env);
+      });
 
       console.log(`✅ AI 응답 생성 완료 (${aiResponse.length}자)`);
 
@@ -250,9 +232,7 @@ async function handleRequest(request, env, ctx) {
 
   if (url.pathname === '/grade' && request.method === 'POST') {
     const apiKey = request.headers.get('X-API-Key');
-    const expectedKey = env.WORKER_API_KEY || env.API_KEY;
-    
-    if (!expectedKey || apiKey !== expectedKey) {
+    if (apiKey !== 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u') {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: corsHeaders
@@ -271,7 +251,7 @@ async function handleRequest(request, env, ctx) {
         const imageBase64 = images[idx];
         console.log(`📄 이미지 ${idx + 1}/${images.length} 처리 중...`);
 
-        const ocrText = await ocrWithGemini(imageBase64, env);
+        const ocrText = await ocrWithGemini(imageBase64);
         console.log(`✅ OCR 완료: ${ocrText.length} 글자`);
 
         const subject = detectSubject(ocrText);
@@ -283,7 +263,7 @@ async function handleRequest(request, env, ctx) {
           console.log(`✅ 수학 계산 완료`);
         }
 
-        const grading = await finalGrading(ocrText, calculation, [], systemPrompt, temperature, env);
+        const grading = await finalGrading(ocrText, calculation, [], systemPrompt, temperature);
         console.log(`✅ 채점 완료: ${grading.correctAnswers}/${grading.totalQuestions} 정답`);
 
         results.push({
@@ -320,14 +300,14 @@ async function handleRequest(request, env, ctx) {
 }
 
 // 🌐 Cloudflare AI로 번역 (한글 → 영어)
-async function translateWithCloudflareAI(text, env) {
+async function translateWithCloudflareAI(text) {
   try {
-    if (!env.AI) {
+    if (!AI) {
       console.warn('⚠️ Cloudflare AI binding 없음');
       return text;
     }
 
-    const response = await env.AI.run('@cf/meta/m2m100-1.2b', {
+    const response = await AI.run('@cf/meta/m2m100-1.2b', {
       text: text,
       source_lang: 'ko',
       target_lang: 'en'
@@ -341,9 +321,9 @@ async function translateWithCloudflareAI(text, env) {
 }
 
 // 📝 Cloudflare AI Embedding 생성 (1024차원)
-async function generateEmbedding(text, env) {
+async function generateEmbedding(text) {
   try {
-    if (!env.AI) {
+    if (!AI) {
       throw new Error('Cloudflare AI binding이 설정되지 않았습니다');
     }
 
@@ -351,7 +331,7 @@ async function generateEmbedding(text, env) {
 
     // Cloudflare AI의 text-embeddings 모델 사용
     // @cf/baai/bge-large-en-v1.5 모델은 1024차원 임베딩 생성
-    const response = await env.AI.run('@cf/baai/bge-large-en-v1.5', {
+    const response = await AI.run('@cf/baai/bge-large-en-v1.5', {
       text: text
     });
 
@@ -372,9 +352,9 @@ async function generateEmbedding(text, env) {
 }
 
 // 🤖 최종 AI 응답 생성 (Gemini)
-async function generateChatResponse({ message, systemPrompt, conversationHistory, ragContext, ragEnabled }, env) {
+async function generateChatResponse({ message, systemPrompt, conversationHistory, ragContext, ragEnabled }) {
   try {
-    const apiKey = env.GOOGLE_GEMINI_API_KEY;
+    const apiKey = GEMINI_API_KEY;
     if (!apiKey) {
       return 'AI API 키가 설정되지 않았습니다.';
     }
@@ -390,7 +370,7 @@ async function generateChatResponse({ message, systemPrompt, conversationHistory
       enhancedSystemPrompt += `\n위 지식 베이스의 정보를 참고하여 질문에 정확하게 답변해주세요.`;
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
     // 메시지 구성
     const contents = [];
@@ -444,14 +424,14 @@ async function generateChatResponse({ message, systemPrompt, conversationHistory
   }
 }
 
-async function ocrWithGemini(imageBase64, env) {
+async function ocrWithGemini(imageBase64) {
   try {
-    const apiKey = env.GOOGLE_GEMINI_API_KEY;
+    const apiKey = GEMINI_API_KEY;
     if (!apiKey) {
       return 'OCR API 키가 설정되지 않았습니다.';
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
     let imageData = imageBase64;
     if (imageBase64.startsWith('data:image')) {
@@ -545,9 +525,9 @@ function calculateMath(text) {
   }
 }
 
-async function finalGrading(ocrText, calculation, ragContext, systemPrompt, temperature, env) {
+async function finalGrading(ocrText, calculation, ragContext, systemPrompt, temperature) {
   try {
-    const apiKey = env.GOOGLE_GEMINI_API_KEY;
+    const apiKey = GEMINI_API_KEY;
     if (!apiKey) {
       return {
         totalQuestions: 0,
@@ -569,7 +549,7 @@ async function finalGrading(ocrText, calculation, ragContext, systemPrompt, temp
       context += `학원 지식 베이스 참고 자료:\n${ragContext.map(item => `- ${item}`).join('\n')}\n\n`;
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
     const payload = {
       contents: [{

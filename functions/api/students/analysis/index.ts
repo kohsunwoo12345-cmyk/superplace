@@ -135,8 +135,14 @@ ${conversationText}
 한국어로 작성하고, 구체적이고 실용적인 분석을 제공해주세요.`;
 
     // 4. Gemini API 호출
-    const geminiApiKey = GEMINI_API_KEY || 'AIzaSyDSKFT7gvtwYe01z0JWqFDz3PHSxZiKyoE'; // 환경 변수 또는 기본 키
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`;
+    if (!GEMINI_API_KEY) {
+      return new Response(
+        JSON.stringify({ success: false, error: "GEMINI_API_KEY not configured" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     console.log('🔄 Calling Gemini API for analysis...');
     
