@@ -1,207 +1,90 @@
-// Solapi SMS API Integration
-// Solapi (구 Coolsms) API를 사용한 SMS 발송
+import { SolapiMessageService } from 'solapi';
 
-export interface SolapiConfig {
-  apiKey: string;
-  apiSecret: string;
-  senderPhone: string;
+// 솔라피 클라이언트 싱글톤
+let solapiClient: SolapiMessageService | null = null;
+
+export function getSolapiClient(): SolapiMessageService {
+  if (!solapiClient) {
+    const apiKey = process.env.SOLAPI_API_KEY;
+    const apiSecret = process.env.SOLAPI_API_SECRET;
+
+    if (!apiKey || !apiSecret) {
+      throw new Error('SOLAPI_API_KEY and SOLAPI_API_SECRET must be set in environment variables');
+    }
+
+    solapiClient = new SolapiMessageService(apiKey, apiSecret);
+  }
+
+  return solapiClient;
 }
 
-export interface SolapiSendResult {
-  success: boolean;
-  messageId?: string;
-  statusCode?: string;
-  statusMessage?: string;
-  error?: string;
+// 템플릿 카테고리 조회
+export async function getTemplateCategories() {
+  const client = getSolapiClient();
+  return await client.getKakaoAlimtalkTemplateCategories();
 }
 
-export interface SolapiMessage {
+// 템플릿 생성
+export async function createTemplate(templateData: any) {
+  const client = getSolapiClient();
+  return await client.createKakaoAlimtalkTemplate(templateData);
+}
+
+// 템플릿 목록 조회
+export async function getTemplates(params?: any) {
+  const client = getSolapiClient();
+  return await client.getKakaoAlimtalkTemplates(params);
+}
+
+// 템플릿 단일 조회
+export async function getTemplate(templateId: string) {
+  const client = getSolapiClient();
+  return await client.getKakaoAlimtalkTemplate(templateId);
+}
+
+// 템플릿 수정
+export async function updateTemplate(templateId: string, templateData: any) {
+  const client = getSolapiClient();
+  return await client.updateKakaoAlimtalkTemplate(templateId, templateData);
+}
+
+// 템플릿 삭제
+export async function deleteTemplate(templateId: string) {
+  const client = getSolapiClient();
+  return await client.removeKakaoAlimtalkTemplate(templateId);
+}
+
+// 템플릿 검수 요청
+export async function requestInspection(templateId: string) {
+  const client = getSolapiClient();
+  return await client.requestInspectionKakaoAlimtalkTemplate(templateId);
+}
+
+// 템플릿 검수 취소
+export async function cancelInspection(templateId: string) {
+  const client = getSolapiClient();
+  return await client.cancelInspectionKakaoAlimtalkTemplate(templateId);
+}
+
+// 알림톡 발송
+export async function sendAlimtalk(params: {
+  templateId: string;
   to: string;
-  from: string;
-  text: string;
-  type?: 'SMS' | 'LMS' | 'MMS';
-}
-
-/**
- * Solapi API로 SMS 발송
- * @param config Solapi 설정
- * @param messages 발송할 메시지 목록
- * @returns 발송 결과
- */
-export async function sendSMS(
-  config: SolapiConfig,
-  messages: SolapiMessage[]
-): Promise<SolapiSendResult[]> {
-  const { apiKey, apiSecret } = config;
-
-  // Solapi API 엔드포인트
-  const url = 'https://api.solapi.com/messages/v4/send';
-
-  // 인증 정보
-  const timestamp = new Date().toISOString();
-  const salt = generateSalt();
-  const signature = await generateSignature(apiSecret, timestamp, salt);
-
-  // 요청 헤더
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${timestamp}, salt=${salt}, signature=${signature}`,
+  variables?: Record<string, string>;
+  buttons?: any[];
+}) {
+  const client = getSolapiClient();
+  
+  const messageData = {
+    to: params.to,
+    from: process.env.SOLAPI_SENDER_NUMBER || '',
+    kakaoOptions: {
+      pfId: process.env.SOLAPI_CHANNEL_ID || '',
+      templateId: params.templateId,
+      variables: params.variables || {},
+      buttons: params.buttons || [],
+    },
   };
 
-  // 메시지 타입 자동 결정
-  const formattedMessages = messages.map((msg) => {
-    const byteLength = new Blob([msg.text]).size;
-    let type = msg.type || 'SMS';
-    
-    if (!msg.type) {
-      if (byteLength > 90) {
-        type = 'LMS';
-      }
-    }
-
-    return {
-      to: msg.to.replace(/-/g, ''), // 하이픈 제거
-      from: msg.from.replace(/-/g, ''),
-      text: msg.text,
-      type,
-    };
-  });
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        messages: formattedMessages,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.errorMessage || 'SMS 발송 실패');
-    }
-
-    // 결과 반환
-    return formattedMessages.map((_, index) => ({
-      success: true,
-      messageId: data.groupId || `msg_${Date.now()}_${index}`,
-      statusCode: '2000',
-      statusMessage: '정상 발송',
-    }));
-  } catch (error: any) {
-    console.error('Solapi SMS 발송 오류:', error);
-    return formattedMessages.map(() => ({
-      success: false,
-      error: error.message || '발송 실패',
-    }));
-  }
-}
-
-/**
- * 단일 SMS 발송
- */
-export async function sendSingleSMS(
-  config: SolapiConfig,
-  to: string,
-  text: string,
-  from?: string
-): Promise<SolapiSendResult> {
-  const results = await sendSMS(config, [
-    {
-      to,
-      from: from || config.senderPhone,
-      text,
-    },
-  ]);
-
-  return results[0];
-}
-
-/**
- * 대량 SMS 발송 (배치)
- */
-export async function sendBulkSMS(
-  config: SolapiConfig,
-  recipients: Array<{ phone: string; name: string }>,
-  text: string,
-  from?: string
-): Promise<SolapiSendResult[]> {
-  const messages = recipients.map((recipient) => ({
-    to: recipient.phone,
-    from: from || config.senderPhone,
-    text: text.replace(/\{name\}/g, recipient.name), // 이름 치환
-  }));
-
-  return await sendSMS(config, messages);
-}
-
-/**
- * Salt 생성
- */
-function generateSalt(): string {
-  return Math.random().toString(36).substring(2, 15);
-}
-
-/**
- * HMAC-SHA256 서명 생성
- */
-async function generateSignature(
-  apiSecret: string,
-  timestamp: string,
-  salt: string
-): Promise<string> {
-  const message = timestamp + salt;
-  
-  // Web Crypto API를 사용한 HMAC-SHA256
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(apiSecret);
-  const messageData = encoder.encode(message);
-
-  const key = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-
-  const signature = await crypto.subtle.sign('HMAC', key, messageData);
-
-  // ArrayBuffer를 hex 문자열로 변환
-  return Array.from(new Uint8Array(signature))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-/**
- * Solapi 잔액 조회
- */
-export async function getSolapiBalance(config: SolapiConfig): Promise<number> {
-  const { apiKey, apiSecret } = config;
-  const url = 'https://api.solapi.com/cash/v1/balance';
-
-  const timestamp = new Date().toISOString();
-  const salt = generateSalt();
-  const signature = await generateSignature(apiSecret, timestamp, salt);
-
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `HMAC-SHA256 apiKey=${apiKey}, date=${timestamp}, salt=${salt}, signature=${signature}`,
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.errorMessage || '잔액 조회 실패');
-    }
-
-    return data.balance || 0;
-  } catch (error) {
-    console.error('Solapi 잔액 조회 오류:', error);
-    return 0;
-  }
+  return await client.send(messageData);
 }
