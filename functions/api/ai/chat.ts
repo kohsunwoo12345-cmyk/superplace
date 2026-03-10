@@ -1,5 +1,7 @@
 interface Env {
   GOOGLE_GEMINI_API_KEY: string;
+  ALL_AI_API_KEY: string; // DeepSeek 모델용
+  OPENAI_API_KEY: string; // GPT 모델용
   VECTORIZE: VectorizeIndex;
   DB: D1Database;
 }
@@ -326,14 +328,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // Gemini API 버전 선택 로직
-    let apiVersion = 'v1beta';
-    if (model.includes('1.0') || model.includes('2.0')) {
-      apiVersion = 'v1';
-    }
-    
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${GOOGLE_GEMINI_API_KEY}`;
-
     // 🔥 RAG 적용: 지식 컨텍스트를 시스템 프롬프트에 추가
     let enhancedSystemPrompt = systemPrompt || '';
     
@@ -367,74 +361,157 @@ ${knowledgeContext}
       enhancedSystemPrompt += `위 정보들을 바탕으로 학생의 질문에 정확하고 맞춤형으로 답변해주세요.`;
     }
 
-    const requestBody = {
-      contents: [
-        {
-          parts: [
-            {
-              text: enhancedSystemPrompt
-                ? `${enhancedSystemPrompt}\n\n사용자: ${message}`
-                : message,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
+    // API 선택 로직 - 모델에 따라 다른 API 사용
+    let apiEndpoint: string;
+    let apiKey: string;
+    let requestBody: any;
+    
+    // DeepSeek 모델 (ALL_AI_API_KEY)
+    if (model === 'deepseek-ocr-2') {
+      apiEndpoint = 'https://api.deepseek.com/v1/chat/completions';
+      apiKey = context.env.ALL_AI_API_KEY;
+      
+      requestBody = {
+        model: 'deepseek-ocr-2',
+        messages: [
+          {
+            role: 'system',
+            content: enhancedSystemPrompt
+          },
+          {
+            role: 'user',
+            content: message
+          }
+        ],
         temperature: temperature,
-        maxOutputTokens: maxTokens,
-        topK: topK,
-        topP: topP,
-      },
-      safetySettings: [
-        {
-          category: "HARM_CATEGORY_HARASSMENT",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE",
+        max_tokens: maxTokens,
+        top_p: topP
+      };
+    }
+    // OpenAI GPT 모델 (OPENAI_API_KEY)
+    else if (model.startsWith('gpt-')) {
+      apiEndpoint = 'https://api.openai.com/v1/chat/completions';
+      apiKey = context.env.OPENAI_API_KEY;
+      
+      requestBody = {
+        model: model,
+        messages: [
+          {
+            role: 'system',
+            content: enhancedSystemPrompt
+          },
+          {
+            role: 'user',
+            content: message
+          }
+        ],
+        temperature: temperature,
+        max_tokens: maxTokens,
+        top_p: topP
+      };
+    }
+    // Gemini 모델 (GOOGLE_GEMINI_API_KEY)
+    else {
+      let apiVersion = 'v1beta';
+      if (model.includes('1.0') || model.includes('2.0')) {
+        apiVersion = 'v1';
+      }
+      
+      apiEndpoint = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${context.env.GOOGLE_GEMINI_API_KEY}`;
+      apiKey = context.env.GOOGLE_GEMINI_API_KEY;
+      
+      requestBody = {
+        contents: [
+          {
+            parts: [
+              {
+                text: enhancedSystemPrompt
+                  ? `${enhancedSystemPrompt}\n\n사용자: ${message}`
+                  : message,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: temperature,
+          maxOutputTokens: maxTokens,
+          topK: topK,
+          topP: topP,
         },
-        {
-          category: "HARM_CATEGORY_HATE_SPEECH",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE",
-        },
-        {
-          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE",
-        },
-        {
-          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE",
-        },
-      ],
-    };
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE",
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE",
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE",
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE",
+          },
+        ],
+      };
+    }
 
-    const geminiResponse = await fetch(geminiEndpoint, {
+    // API 호출
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    // OpenAI와 DeepSeek는 Authorization 헤더 필요
+    if (model.startsWith('gpt-') || model === 'deepseek-ocr-2') {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
+    const apiResponse = await fetch(apiEndpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: headers,
       body: JSON.stringify(requestBody),
     });
 
-    if (!geminiResponse.ok) {
-      const errorData = await geminiResponse.text();
-      console.error("Gemini API Error:", errorData);
+    if (!apiResponse.ok) {
+      const errorData = await apiResponse.text();
+      console.error(`${model} API Error:`, errorData);
       
       return new Response(
         JSON.stringify({
-          error: "Gemini API request failed",
+          error: `${model} API request failed`,
           details: errorData,
         }),
         {
-          status: geminiResponse.status,
+          status: apiResponse.status,
           headers: { "Content-Type": "application/json" },
         }
       );
     }
 
-    const geminiData = await geminiResponse.json();
+    const apiData = await apiResponse.json();
 
-    // Gemini 응답 파싱
-    const responseText =
-      geminiData.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "응답을 생성할 수 없습니다.";
+    // API별 응답 파싱
+    let responseText: string;
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let totalTokens = 0;
+    
+    if (model.startsWith('gpt-') || model === 'deepseek-ocr-2') {
+      // OpenAI/DeepSeek 형식
+      responseText = apiData.choices?.[0]?.message?.content || "응답을 생성할 수 없습니다.";
+      promptTokens = apiData.usage?.prompt_tokens || 0;
+      completionTokens = apiData.usage?.completion_tokens || 0;
+      totalTokens = apiData.usage?.total_tokens || 0;
+    } else {
+      // Gemini 형식
+      responseText = apiData.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
+      promptTokens = apiData.usageMetadata?.promptTokenCount || 0;
+      completionTokens = apiData.usageMetadata?.candidatesTokenCount || 0;
+      totalTokens = apiData.usageMetadata?.totalTokenCount || 0;
+    }
 
     // 🆕 사용량 기록 (학생 계정이고 DB, userId, botId가 있을 때)
     if (userRole === 'STUDENT' && userId && botId && DB) {
@@ -469,7 +546,16 @@ ${knowledgeContext}
         ragEnabled,
         knowledgeUsed: ragEnabled,
         usage: {
-          promptTokens: geminiData.usageMetadata?.promptTokenCount || 0,
+          promptTokens: promptTokens,
+          completionTokens: completionTokens,
+          totalTokens: totalTokens,
+        },
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
           completionTokens: geminiData.usageMetadata?.candidatesTokenCount || 0,
           totalTokens: geminiData.usageMetadata?.totalTokenCount || 0,
         },

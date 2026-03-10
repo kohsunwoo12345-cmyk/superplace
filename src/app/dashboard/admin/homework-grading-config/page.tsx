@@ -23,6 +23,17 @@ const GEMINI_MODELS = [
   { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (추천)", description: "✅ 최신 2.5 모델, 빠르고 안정적", recommended: true },
   { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", description: "⚡ 경량화 모델, 빠른 응답", recommended: false },
   { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "⚠️ 최고 성능이지만 안전 필터 엄격", recommended: false },
+  
+  // 🆕 DeepSeek OCR 모델 (ALL_AI_API_KEY)
+  { value: "deepseek-ocr-2", label: "DeepSeek OCR 2", description: "🔍 강력한 OCR 및 문서 인식", recommended: false },
+  
+  // 🆕 OpenAI GPT 모델 (OPENAI_API_KEY)
+  { value: "gpt-4o", label: "GPT-4o", description: "🚀 OpenAI 최신 멀티모달 모델", recommended: false },
+  { value: "gpt-4o-mini", label: "GPT-4o mini", description: "⚡ GPT-4o 경량 버전, 빠르고 효율적", recommended: false },
+  { value: "gpt-4.1-nano", label: "GPT-4.1 nano", description: "💫 초경량 모델, 빠른 응답", recommended: false },
+  { value: "gpt-4.1-mini", label: "GPT-4.1 mini", description: "⚡ GPT-4.1 경량 버전", recommended: false },
+  { value: "gpt-5-mini", label: "GPT-5 mini", description: "🎯 GPT-5 경량 버전", recommended: false },
+  { value: "gpt-5.2", label: "GPT-5.2", description: "🌟 GPT-5 최신 버전", recommended: false },
 ];
 
 interface KnowledgeFile {

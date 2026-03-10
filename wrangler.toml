@@ -38,7 +38,11 @@ binding = "AI"
 # Required for SMS functionality:
 # - SOLAPI_API_Key (Solapi API Key)
 # - SOLAPI_API_Secret (Solapi API Secret)
+#
+# Required for AI Models:
 # - GOOGLE_GEMINI_API_KEY (Get from: https://makersuite.google.com/app/apikey)
+# - ALL_AI_API_KEY (For DeepSeek OCR-2 model)
+# - OPENAI_API_KEY (For GPT-4o, GPT-4o mini, GPT-4.1, GPT-5 models)
 #
 # Sensitive variables (API keys, secrets) should ONLY be set in dashboard,
 # NOT in this file (wrangler.toml is committed to git)
