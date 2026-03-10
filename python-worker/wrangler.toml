@@ -6,17 +6,45 @@ compatibility_date = "2024-01-01"
 [ai]
 binding = "AI"
 
-# Vectorize 바인딩 (RAG용)
+# Vectorize 바인딩 (RAG용) - 기존 인덱스 사용
 [[vectorize]]
 binding = "VECTORIZE"
-index_name = "ai-chatbot-knowledge"
+index_name = "knowledge-base-embeddings"
+
+# D1 Database 바인딩
+[[d1_databases]]
+binding = "DB"
+database_name = "superplace-db"
+database_id = "8c106540-21b4-4fa9-8879-c4956e459ca1"
+
+# R2 Bucket 바인딩
+[[r2_buckets]]
+binding = "R2_DOCUMENTS"
+bucket_name = "superplace-documents"
+
+[[r2_buckets]]
+binding = "R2_SUPERPLACESTUDY"
+bucket_name = "superplacestudy"
 
 [env.production]
 vars = { ENVIRONMENT = "production" }
 
 [[env.production.vectorize]]
 binding = "VECTORIZE"
-index_name = "ai-chatbot-knowledge"
+index_name = "knowledge-base-embeddings"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "superplace-db"
+database_id = "8c106540-21b4-4fa9-8879-c4956e459ca1"
+
+[[env.production.r2_buckets]]
+binding = "R2_DOCUMENTS"
+bucket_name = "superplace-documents"
+
+[[env.production.r2_buckets]]
+binding = "R2_SUPERPLACESTUDY"
+bucket_name = "superplacestudy"
 
 [vars]
 ENVIRONMENT = "development"

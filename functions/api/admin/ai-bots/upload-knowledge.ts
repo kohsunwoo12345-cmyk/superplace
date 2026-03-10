@@ -3,7 +3,7 @@
 
 interface Env {
   DB: D1Database;
-  GOOGLE_GEMINI_API_KEY: string;
+  OPENAI_API_KEY: string; // OpenAI text-embedding-3-large (1024차원)
 }
 
 const WORKER_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/vectorize-upload';
@@ -51,27 +51,30 @@ function chunkText(text: string, maxChunkSize: number = 1000): string[] {
   return chunks.filter(c => c.length > 0);
 }
 
-// Gemini Embedding 생성
+// OpenAI Embedding 생성 (1024차원)
 async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`;
+  const url = 'https://api.openai.com/v1/embeddings';
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
     body: JSON.stringify({
-      model: 'models/text-embedding-004',
-      content: {
-        parts: [{ text }]
-      }
+      model: 'text-embedding-3-large',
+      input: text,
+      dimensions: 1024 // Vectorize 인덱스와 일치
     })
   });
 
   if (!response.ok) {
-    throw new Error(`Embedding API 오류: ${response.status}`);
+    const errorText = await response.text();
+    throw new Error(`OpenAI Embedding API 오류: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  return data.embedding.values;
+  return data.data[0].embedding;
 }
 
 // Worker Vectorize에 업로드
@@ -98,7 +101,7 @@ async function uploadToVectorize(vectors: any[]): Promise<void> {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, GOOGLE_GEMINI_API_KEY } = context.env;
+    const { DB, OPENAI_API_KEY } = context.env;
 
     if (!DB) {
       return new Response(
@@ -107,9 +110,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    if (!GOOGLE_GEMINI_API_KEY) {
+    if (!OPENAI_API_KEY) {
       return new Response(
-        JSON.stringify({ error: 'Gemini API key not configured' }),
+        JSON.stringify({ error: 'OpenAI API key not configured' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -138,7 +141,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       console.log(`🔄 청크 ${i + 1}/${chunks.length} 임베딩 생성 중...`);
       
       try {
-        const embedding = await generateEmbedding(chunk, GOOGLE_GEMINI_API_KEY);
+        const embedding = await generateEmbedding(chunk, OPENAI_API_KEY);
         
         vectors.push({
           id: `${botId}-${fileName}-chunk-${i}`,

@@ -270,35 +270,39 @@ async function translateWithCloudflareAI(text) {
   }
 }
 
-// 📝 Gemini Embedding 생성
+// 📝 OpenAI Embedding 생성 (1024차원)
 async function generateEmbedding(text) {
   try {
-    const apiKey = GEMINI_API_KEY;
+    // OpenAI API 키 사용 (OPENAI_API_KEY 환경 변수)
+    const apiKey = OPENAI_API_KEY;
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY가 설정되지 않았습니다');
+      throw new Error('OPENAI_API_KEY가 설정되지 않았습니다');
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`;
+    const url = 'https://api.openai.com/v1/embeddings';
 
     const payload = {
-      model: 'models/text-embedding-004',
-      content: {
-        parts: [{ text }]
-      }
+      model: 'text-embedding-3-large',
+      input: text,
+      dimensions: 1024 // Vectorize 인덱스 차원과 일치
     };
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
       body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
-      throw new Error(`Embedding API 오류: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`OpenAI Embedding API 오류: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
-    return result.embedding.values;
+    return result.data[0].embedding;
   } catch (error) {
     console.error('❌ Embedding 생성 오류:', error);
     throw error;
