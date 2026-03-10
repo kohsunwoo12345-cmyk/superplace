@@ -1,6 +1,7 @@
 interface Env {
   GOOGLE_GEMINI_API_KEY: string;
-  ALL_AI_API_KEY: string; // DeepSeek 모델용
+  ALL_AI_API_KEY: string; // DeepSeek 모델용 (레거시)
+  Novita_AI_API: string; // Novita AI DeepSeek 모델용
   OPENAI_API_KEY: string; // GPT 모델용
   VECTORIZE: VectorizeIndex;
   DB: D1Database;
@@ -366,10 +367,10 @@ ${knowledgeContext}
     let apiKey: string;
     let requestBody: any;
     
-    // DeepSeek OCR-2 모델 (Novita AI, ALL_AI_API_KEY)
+    // DeepSeek OCR-2 모델 (Novita AI, Novita_AI_API)
     if (model === 'deepseek-ocr-2') {
       apiEndpoint = 'https://api.novita.ai/v3/openai/chat/completions';
-      apiKey = context.env.ALL_AI_API_KEY;
+      apiKey = context.env.Novita_AI_API || context.env.ALL_AI_API_KEY;
       
       requestBody = {
         model: 'deepseek/deepseek-ocr-2',
