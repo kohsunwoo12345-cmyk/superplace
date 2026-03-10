@@ -1,8 +1,11 @@
+import { enhanceProblemAnalysisWithPython } from './python-helper';
+
 interface Env {
   DB: D1Database;
   GOOGLE_GEMINI_API_KEY: string;
   Novita_AI_API?: string;
   OPENAI_API_KEY?: string;
+  PYTHON_WORKER_URL?: string;
 }
 
 /**
@@ -547,6 +550,37 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         gradingResult = JSON.parse(jsonMatch[0]);
+        
+        // 🐍 Python Worker를 통한 수학 문제 검증
+        const pythonWorkerUrl = context.env.PYTHON_WORKER_URL || 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev';
+        
+        if (gradingResult.problemAnalysis && gradingResult.problemAnalysis.length > 0) {
+          console.log(`🐍 Python Worker 검증 시작 (${gradingResult.problemAnalysis.length}개 문제)`);
+          
+          try {
+            const enhancedProblems = await enhanceProblemAnalysisWithPython(
+              gradingResult.problemAnalysis,
+              pythonWorkerUrl
+            );
+            
+            gradingResult.problemAnalysis = enhancedProblems;
+            
+            // Python 검증 후 점수 재계산
+            const pythonCorrectCount = enhancedProblems.filter((p: any) => p.isCorrect).length;
+            if (pythonCorrectCount !== gradingResult.correctAnswers) {
+              console.log(`⚠️ Python 검증 후 정답 수 변경: ${gradingResult.correctAnswers} → ${pythonCorrectCount}`);
+              gradingResult.correctAnswers = pythonCorrectCount;
+              gradingResult.score = gradingResult.totalQuestions > 0 
+                ? Math.round((pythonCorrectCount / gradingResult.totalQuestions) * 1000) / 10
+                : gradingResult.score;
+            }
+            
+            console.log(`✅ Python Worker 검증 완료`);
+          } catch (pythonError: any) {
+            console.warn('⚠️ Python Worker 검증 실패:', pythonError.message);
+            // Python 검증 실패해도 원래 채점 결과 유지
+          }
+        }
       } else {
         // JSON 파싱 실패 시 기본값
         gradingResult = {
