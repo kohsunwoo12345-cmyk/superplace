@@ -27,17 +27,12 @@ bucket_name = "superplacestudy"
 binding = "VECTORIZE"
 index_name = "knowledge-base-embeddings"
 
-# Queue (for background processing)
+# Queue (for background processing - producer only for Pages)
+# Note: Queue consumers must be deployed as separate Workers
+# Use: wrangler deploy src/queue-consumer.ts --name homework-grading-consumer
 [[queues.producers]]
 binding = "HOMEWORK_QUEUE"
 queue = "homework-grading-queue"
-
-[[queues.consumers]]
-queue = "homework-grading-queue"
-max_batch_size = 10
-max_batch_timeout = 30
-max_retries = 3
-dead_letter_queue = "homework-grading-dlq"
 
 # Workers AI (for embeddings and inference)
 [ai]
