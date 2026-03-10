@@ -97,6 +97,7 @@ export default function AIBotAssignPage() {
   const [studentLimit, setStudentLimit] = useState("30");
   const [duration, setDuration] = useState("1");
   const [durationUnit, setDurationUnit] = useState("day");
+  const [dailyUsageLimit, setDailyUsageLimit] = useState("15"); // 🆕 일일 사용 한도
   
   // UI 상태
   const [loading, setLoading] = useState(true);
@@ -601,6 +602,7 @@ export default function AIBotAssignPage() {
               body: JSON.stringify({
                 botId: selectedBot,
                 userId: userId,
+                dailyUsageLimit: parseInt(dailyUsageLimit) || 15, // 🆕 일일 사용 한도
               }),
             });
 
@@ -995,6 +997,25 @@ export default function AIBotAssignPage() {
                   </p>
                 </div>
               </>
+            )}
+
+            {/* 🆕 일일 사용 한도 - 사용자 할당 시 표시 */}
+            {assignType === "user" && (
+              <div className="space-y-2">
+                <Label htmlFor="dailyUsageLimit">일일 사용 한도 (회)</Label>
+                <Input
+                  id="dailyUsageLimit"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={dailyUsageLimit}
+                  onChange={(e) => setDailyUsageLimit(e.target.value)}
+                  placeholder="예: 15"
+                />
+                <p className="text-xs text-gray-500">
+                  학생이 하루에 이 봇을 사용할 수 있는 최대 횟수입니다 (기본값: 15회)
+                </p>
+              </div>
             )}
 
             {/* 학원 할당 필드 */}
