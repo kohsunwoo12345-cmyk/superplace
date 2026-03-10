@@ -7,6 +7,16 @@
 
 import { getSandbox } from '@cloudflare/sandbox';
 
+// Cloudflare Pages Function 타입
+type PagesFunction<Env = unknown> = (context: {
+  request: Request;
+  env: Env;
+  params: Record<string, string>;
+  waitUntil: (promise: Promise<any>) => void;
+  next: () => Promise<Response>;
+  data: Record<string, unknown>;
+}) => Response | Promise<Response>;
+
 interface Env {
   DB: D1Database;
   AI: any;
