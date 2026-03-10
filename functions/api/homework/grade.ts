@@ -1,7 +1,9 @@
 import { enhanceProblemAnalysisWithPython } from './python-helper';
+import { searchRelevantKnowledge, buildRAGPrompt, extractKeyQuery } from './rag-helper';
 
 interface Env {
   DB: D1Database;
+  VECTORIZE: Vectorize;
   GOOGLE_GEMINI_API_KEY: string;
   Novita_AI_API?: string;
   OPENAI_API_KEY?: string;
@@ -179,8 +181,39 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         console.error(`❌ 과목 판별 실패: HTTP ${subjectResponse.status}`);
       }
 
-      // 📚 2단계: DB에서 채점 설정 로드
-      console.log('📝 2단계: 상세 채점 시작...');
+      // 📚 2단계: RAG 검색 (지식베이스가 있는 경우)
+      console.log('🔍 2단계: RAG 지식 검색 시작...');
+      let ragResults: any[] = [];
+      
+      if (context.env.VECTORIZE) {
+        try {
+          // 숙제에서 핵심 쿼리 추출
+          const keyQuery = await extractKeyQuery(imageArray, subjectInfo.subject, GOOGLE_GEMINI_API_KEY);
+          
+          // 관련 지식 검색
+          ragResults = await searchRelevantKnowledge(
+            keyQuery,
+            subjectInfo.subject,
+            subjectInfo.grade,
+            context.env.VECTORIZE,
+            GOOGLE_GEMINI_API_KEY,
+            5 // top 5 results
+          );
+          
+          if (ragResults.length > 0) {
+            console.log(`✅ RAG: ${ragResults.length}개 관련 자료 발견`);
+          } else {
+            console.log('ℹ️ RAG: 관련 자료 없음 (지식베이스 비어있거나 관련 내용 없음)');
+          }
+        } catch (ragError: any) {
+          console.warn('⚠️ RAG 검색 실패 (계속 진행):', ragError.message);
+        }
+      } else {
+        console.log('ℹ️ VECTORIZE 미설정, RAG 건너뜀');
+      }
+
+      // 📝 3단계: DB에서 채점 설정 로드
+      console.log('📝 3단계: 상세 채점 시작...');
       let gradingConfig = null;
       try {
         gradingConfig = await DB.prepare(
@@ -205,6 +238,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 2. 각 문제에 대한 학생의 답안을 확인하세요
 3. 정답 여부를 판단하세요 (문제에 정답이 표시되어 있거나, 일반적인 학습 지식으로 판단)
 4. 각 문제에 대한 피드백을 제공하세요`;
+      
+      // RAG 결과를 프롬프트에 통합
+      if (ragResults.length > 0) {
+        baseGradingPrompt = buildRAGPrompt(baseGradingPrompt, ragResults);
+        console.log(`✅ RAG 컨텍스트가 프롬프트에 추가됨 (${ragResults.length}개 참고자료)`);
+      }
 
       // 과목/학년 정보를 추가하여 최종 프롬프트 생성
       // baseGradingPrompt에 컨텍스트 정보 추가

@@ -1,123 +1,227 @@
-/**
- * RAG Knowledge Upload API
- * 
- * 지식 파일을 업로드하고 @cf/baai/bge-m3 모델로 임베딩하여
- * Vectorize에 저장합니다.
- */
-
 interface Env {
-  AI: any;
-  VECTORIZE: VectorizeIndex;
   DB: D1Database;
+  VECTORIZE: Vectorize;
+  GOOGLE_GEMINI_API_KEY: string;
 }
 
-interface VectorizeIndex {
-  insert(vectors: Array<{ id: string; values: number[]; metadata?: Record<string, any> }>): Promise<any>;
-  query(vector: number[], options?: { topK?: number; filter?: Record<string, any> }): Promise<any>;
+interface KnowledgeFile {
+  id: string;
+  fileName: string;
+  subject: string;
+  grade: number;
+  fileType: string; // 'textbook' | 'answer_key' | 'reference'
+  content: string;
+  uploadedAt: string;
+  academyId?: number;
 }
 
+/**
+ * RAG 지식베이스 파일 업로드 API
+ * POST /api/rag/upload
+ * 
+ * Body:
+ * {
+ *   fileName: string,
+ *   subject: string,  // "수학", "영어", "국어" 등
+ *   grade: number,    // 1~9
+ *   fileType: string, // "textbook" | "answer_key" | "reference"
+ *   content: string,  // 파일 텍스트 내용
+ *   academyId?: number
+ * }
+ */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const { request, env } = context;
-
   try {
-    console.log('🚀 RAG Upload API called');
+    const { DB, VECTORIZE, GOOGLE_GEMINI_API_KEY } = context.env;
+    
+    if (!DB || !VECTORIZE) {
+      return new Response(
+        JSON.stringify({ error: "Database or Vectorize not configured" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
-    // Parse request body
-    const body = await request.json() as {
+    const body = await context.request.json() as {
+      fileName: string;
+      subject: string;
+      grade: number;
+      fileType: string;
       content: string;
-      filename: string;
-      metadata?: Record<string, any>;
+      academyId?: number;
     };
 
-    const { content, filename, metadata = {} } = body;
+    const { fileName, subject, grade, fileType, content, academyId } = body;
 
-    if (!content || !filename) {
-      return new Response(JSON.stringify({ error: 'Content and filename are required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    if (!fileName || !subject || !grade || !fileType || !content) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Missing required fields",
+          required: ["fileName", "subject", "grade", "fileType", "content"]
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    console.log(`📄 Processing file: ${filename}, length: ${content.length} chars`);
+    console.log(`📚 RAG 파일 업로드: ${fileName} (${subject}, ${grade}학년, ${fileType})`);
 
-    // Split content into chunks (최대 1000 characters per chunk)
-    const chunkSize = 1000;
+    // 1. knowledge_files 테이블 생성
+    await DB.prepare(`
+      CREATE TABLE IF NOT EXISTS knowledge_files (
+        id TEXT PRIMARY KEY,
+        fileName TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        grade INTEGER NOT NULL,
+        fileType TEXT NOT NULL,
+        content TEXT NOT NULL,
+        uploadedAt TEXT DEFAULT (datetime('now')),
+        academyId INTEGER,
+        chunkCount INTEGER DEFAULT 0
+      )
+    `).run();
+
+    // 2. 파일 ID 생성
+    const fileId = `knowledge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // 3. 컨텐츠를 청크로 분할 (512자 단위)
+    const chunkSize = 512;
     const chunks: string[] = [];
+    
     for (let i = 0; i < content.length; i += chunkSize) {
-      chunks.push(content.substring(i, i + chunkSize));
+      const chunk = content.substring(i, i + chunkSize);
+      chunks.push(chunk);
     }
 
-    console.log(`✂️  Split into ${chunks.length} chunks`);
+    console.log(`📄 총 ${chunks.length}개의 청크로 분할됨`);
 
-    // Generate embeddings for each chunk using @cf/baai/bge-m3
-    const vectors: Array<{ id: string; values: number[]; metadata: Record<string, any> }> = [];
-
+    // 4. Gemini API로 임베딩 생성
+    const embeddings: Array<{ id: string; values: number[]; metadata: any }> = [];
+    
     for (let i = 0; i < chunks.length; i++) {
+      const chunkId = `${fileId}-chunk-${i}`;
       const chunk = chunks[i];
       
-      console.log(`🔢 Generating embedding for chunk ${i + 1}/${chunks.length}`);
+      try {
+        // Gemini Embedding API 호출
+        const embeddingResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key=${GOOGLE_GEMINI_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'models/text-embedding-004',
+              content: {
+                parts: [{ text: chunk }]
+              }
+            })
+          }
+        );
 
-      // Generate embedding using Workers AI @cf/baai/bge-m3 model
-      const embeddingResponse = await env.AI.run('@cf/baai/bge-m3', {
-        text: chunk,
-      });
+        if (!embeddingResponse.ok) {
+          console.error(`❌ 청크 ${i} 임베딩 실패: HTTP ${embeddingResponse.status}`);
+          continue;
+        }
 
-      console.log(`✅ Embedding generated for chunk ${i + 1}, dimension:`, embeddingResponse.data?.[0]?.length || 'unknown');
+        const embeddingData = await embeddingResponse.json();
+        const embedding = embeddingData.embedding?.values;
 
-      // Extract embedding vector
-      const embedding = embeddingResponse.data[0];
+        if (!embedding || !Array.isArray(embedding)) {
+          console.error(`❌ 청크 ${i} 임베딩 데이터 없음`);
+          continue;
+        }
 
-      if (!embedding || !Array.isArray(embedding)) {
-        console.error(`❌ Invalid embedding response for chunk ${i + 1}:`, embeddingResponse);
-        continue;
+        embeddings.push({
+          id: chunkId,
+          values: embedding,
+          metadata: {
+            fileId,
+            fileName,
+            subject,
+            grade,
+            fileType,
+            chunkIndex: i,
+            text: chunk,
+            uploadedAt: new Date().toISOString()
+          }
+        });
+
+        console.log(`✅ 청크 ${i + 1}/${chunks.length} 임베딩 완료`);
+      } catch (error: any) {
+        console.error(`❌ 청크 ${i} 임베딩 오류:`, error.message);
       }
-
-      // Create vector entry
-      vectors.push({
-        id: `${filename}-chunk-${i}`,
-        values: embedding,
-        metadata: {
-          filename,
-          chunkIndex: i,
-          chunkText: chunk.substring(0, 200), // Preview
-          uploadedAt: new Date().toISOString(),
-          ...metadata,
-        },
-      });
     }
 
-    console.log(`💾 Inserting ${vectors.length} vectors into Vectorize`);
+    if (embeddings.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Failed to create embeddings",
+          message: "모든 청크의 임베딩 생성에 실패했습니다"
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
-    // Insert vectors into Vectorize
-    const insertResult = await env.VECTORIZE.insert(vectors);
+    // 5. Vectorize에 임베딩 저장
+    console.log(`💾 Vectorize에 ${embeddings.length}개 임베딩 저장 중...`);
+    
+    try {
+      await VECTORIZE.upsert(embeddings);
+      console.log(`✅ Vectorize 저장 완료`);
+    } catch (vectorError: any) {
+      console.error('❌ Vectorize 저장 오류:', vectorError.message);
+      return new Response(
+        JSON.stringify({ 
+          error: "Failed to save to Vectorize",
+          message: vectorError.message
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
-    console.log('✅ Vectors inserted successfully:', insertResult);
+    // 6. 파일 정보를 DB에 저장
+    const kstDate = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const kstTimestamp = kstDate.toISOString().replace('T', ' ').substring(0, 19);
+
+    await DB.prepare(`
+      INSERT INTO knowledge_files (id, fileName, subject, grade, fileType, content, uploadedAt, academyId, chunkCount)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      fileId,
+      fileName,
+      subject,
+      grade,
+      fileType,
+      content,
+      kstTimestamp,
+      academyId || null,
+      embeddings.length
+    ).run();
+
+    console.log(`✅ 파일 정보 DB 저장 완료`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        filename,
-        chunksProcessed: chunks.length,
-        vectorsInserted: vectors.length,
-        message: 'Knowledge uploaded and embedded successfully',
+        fileId,
+        fileName,
+        subject,
+        grade,
+        fileType,
+        chunkCount: embeddings.length,
+        embeddedChunks: embeddings.length,
+        uploadedAt: kstTimestamp,
+        message: `${fileName} 파일이 성공적으로 업로드되었습니다 (${embeddings.length}개 청크)`
       }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
+
   } catch (error: any) {
-    console.error('❌ RAG Upload error:', error);
+    console.error('❌ RAG 업로드 오류:', error);
     return new Response(
-      JSON.stringify({
-        error: 'Failed to upload knowledge',
-        details: error.message,
-        stack: error.stack,
+      JSON.stringify({ 
+        error: "Upload failed",
+        message: error.message,
+        stack: error.stack
       }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 };
