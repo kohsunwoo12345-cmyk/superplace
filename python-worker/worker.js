@@ -352,7 +352,7 @@ async function generateEmbedding(text, env) {
 // 🤖 최종 AI 응답 생성 (Gemini)
 async function generateChatResponse({ message, systemPrompt, conversationHistory, ragContext, ragEnabled }, env) {
   try {
-    const apiKey = env.GEMINI_API_KEY;
+    const apiKey = env.GOOGLE_GEMINI_API_KEY;
     if (!apiKey) {
       return 'AI API 키가 설정되지 않았습니다.';
     }
@@ -368,7 +368,7 @@ async function generateChatResponse({ message, systemPrompt, conversationHistory
       enhancedSystemPrompt += `\n위 지식 베이스의 정보를 참고하여 질문에 정확하게 답변해주세요.`;
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     // 메시지 구성
     const contents = [];
@@ -424,12 +424,12 @@ async function generateChatResponse({ message, systemPrompt, conversationHistory
 
 async function ocrWithGemini(imageBase64, env) {
   try {
-    const apiKey = env.GEMINI_API_KEY;
+    const apiKey = env.GOOGLE_GEMINI_API_KEY;
     if (!apiKey) {
       return 'OCR API 키가 설정되지 않았습니다.';
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     let imageData = imageBase64;
     if (imageBase64.startsWith('data:image')) {
@@ -525,7 +525,7 @@ function calculateMath(text) {
 
 async function finalGrading(ocrText, calculation, ragContext, systemPrompt, temperature, env) {
   try {
-    const apiKey = env.GEMINI_API_KEY;
+    const apiKey = env.GOOGLE_GEMINI_API_KEY;
     if (!apiKey) {
       return {
         totalQuestions: 0,
@@ -547,7 +547,7 @@ async function finalGrading(ocrText, calculation, ragContext, systemPrompt, temp
       context += `학원 지식 베이스 참고 자료:\n${ragContext.map(item => `- ${item}`).join('\n')}\n\n`;
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const payload = {
       contents: [{
