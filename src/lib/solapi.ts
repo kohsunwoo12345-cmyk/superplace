@@ -88,3 +88,31 @@ export async function sendAlimtalk(params: {
 
   return await client.send(messageData);
 }
+
+// SMS 발송
+export async function sendSMS(
+  from: string,
+  to: string,
+  text: string,
+  db?: D1Database
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const client = getSolapiClient();
+    
+    const messageData = {
+      to,
+      from,
+      text,
+      type: text.length > 90 ? 'LMS' : 'SMS',
+    };
+
+    await client.send(messageData);
+    return { success: true };
+  } catch (error: any) {
+    console.error('SMS send error:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Failed to send SMS' 
+    };
+  }
+}
