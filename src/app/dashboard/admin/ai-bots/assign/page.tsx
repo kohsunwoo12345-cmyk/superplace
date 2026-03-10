@@ -392,6 +392,7 @@ export default function AIBotAssignPage() {
           subscriptionStart: startDate.toISOString().split('T')[0],
           subscriptionEnd: endDate.toISOString().split('T')[0],
           pricePerStudent: 0,
+          dailyUsageLimit: parseInt(dailyUsageLimit) || 15, // 🆕 일일 사용 한도
           memo: `Duration: ${durationNumber} ${durationUnit}`,
         };
         
@@ -1055,6 +1056,23 @@ export default function AIBotAssignPage() {
                   />
                   <p className="text-xs text-gray-500">
                     학원장이 이 봇을 할당할 수 있는 최대 학생 수입니다
+                  </p>
+                </div>
+
+                {/* 🆕 일일 사용 한도 - 학원 할당 시 */}
+                <div className="space-y-2">
+                  <Label htmlFor="dailyUsageLimitAcademy">1인당 일일 사용 한도 (회)</Label>
+                  <Input
+                    id="dailyUsageLimitAcademy"
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={dailyUsageLimit}
+                    onChange={(e) => setDailyUsageLimit(e.target.value)}
+                    placeholder="예: 15"
+                  />
+                  <p className="text-xs text-gray-500">
+                    학원장과 모든 학생이 각자 하루에 이 봇을 사용할 수 있는 최대 횟수입니다
                   </p>
                 </div>
               </>
