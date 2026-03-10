@@ -556,15 +556,6 @@ ${knowledgeContext}
         headers: { "Content-Type": "application/json" },
       }
     );
-          completionTokens: geminiData.usageMetadata?.candidatesTokenCount || 0,
-          totalTokens: geminiData.usageMetadata?.totalTokenCount || 0,
-        },
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
   } catch (error: any) {
     console.error("Chat API error:", error);
     return new Response(
