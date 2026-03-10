@@ -39,6 +39,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
+    // 이미지 개수 조회 (homework_images 테이블에서)
+    const imageCountResult = await DB.prepare(`
+      SELECT COUNT(*) as count
+      FROM homework_images
+      WHERE submissionId = ?
+    `).bind(submissionId).first();
+
+    const imageCount = imageCountResult?.count || 0;
+
     // 채점 결과 조회
     const grading = await DB.prepare(`
       SELECT id, submissionId, score, feedback, strengths, suggestions, 
@@ -48,8 +57,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       FROM homework_gradings_v2
       WHERE submissionId = ?
     `).bind(submissionId).first();
-
-    const images = submission.imageUrl ? JSON.parse(submission.imageUrl as string) : [];
 
     // 상태별 응답
     if (submission.status === 'processing') {
@@ -62,7 +69,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             id: submission.id,
             userId: submission.userId,
             submittedAt: submission.submittedAt,
-            imageCount: images.length,
+            imageCount: imageCount,
             status: submission.status
           },
           estimatedTimeRemaining: '약 10-30초'
@@ -81,7 +88,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             id: submission.id,
             userId: submission.userId,
             submittedAt: submission.submittedAt,
-            imageCount: images.length,
+            imageCount: imageCount,
             status: submission.status
           }
         }),
@@ -100,7 +107,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             id: submission.id,
             userId: submission.userId,
             submittedAt: submission.submittedAt,
-            imageCount: images.length,
+            imageCount: imageCount,
             status: submission.status
           },
           grading: {
@@ -135,7 +142,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           id: submission.id,
           userId: submission.userId,
           submittedAt: submission.submittedAt,
-          imageCount: images.length,
+          imageCount: imageCount,
           status: submission.status
         }
       }),
