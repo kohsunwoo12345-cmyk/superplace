@@ -182,12 +182,20 @@ async function handleRequest(request, env, ctx) {
           console.log(`✅ 임베딩 생성 완료 (${queryEmbedding.length}차원)`);
           
           // Vectorize 검색 (필터 없이 전체 검색 후 애플리케이션 레벨에서 필터링)
+          console.log(`  임베딩 벡터 샘플 (첫 5개): [${queryEmbedding.slice(0, 5).join(', ')}...]`);
+          
           const searchResults = await env.VECTORIZE.query(queryEmbedding, {
-            topK: topK * 3, // 더 많이 가져와서 필터링
+            topK: Math.max(topK * 3, 50), // 최소 50개 검색
             returnMetadata: 'all'
           });
           
           console.log(`  검색 결과: ${searchResults.matches?.length || 0}개`);
+          
+          // 검색 결과 상세 로깅
+          if (searchResults.matches && searchResults.matches.length > 0) {
+            console.log(`  첫 번째 결과 메타데이터:`, JSON.stringify(searchResults.matches[0].metadata));
+            console.log(`  첫 번째 결과 점수: ${searchResults.matches[0].score}`);
+          }
           
           if (searchResults.matches && searchResults.matches.length > 0) {
             // botId로 필터링 (애플리케이션 레벨)
