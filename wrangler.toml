@@ -43,4 +43,5 @@ binding = "AI"
 # Sensitive variables (API keys, secrets) should ONLY be set in dashboard,
 # NOT in this file (wrangler.toml is committed to git)
 [vars]
-# Add other non-sensitive variables here if needed
+# Python Workers service URL for math problem solving
+PYTHON_WORKER_URL = "https://physonsuperplacestudy.kohsunwoo12345.workers.dev"

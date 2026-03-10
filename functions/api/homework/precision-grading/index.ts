@@ -12,7 +12,8 @@ interface Env {
   AI: any;
   VECTORIZE: VectorizeIndex;
   GOOGLE_GEMINI_API_KEY: string;
-  SANDBOX?: any; // Durable Object binding for Sandbox
+  PYTHON_WORKER_URL: string; // Python Workers service URL
+  SANDBOX?: any; // Durable Object binding for Sandbox (fallback)
 }
 
 interface PrecisionGradingRequest {
@@ -115,20 +116,101 @@ async function searchGradingCriteria(
 }
 
 /**
+ * Python Workers 서비스 호출하여 수학 문제 풀이
+ */
+async function solveMathWithPythonWorker(
+  equation: string,
+  pythonWorkerUrl: string
+): Promise<{ result: string; steps: string[]; pythonCode?: string; method?: string }> {
+  console.log(`🚀 Python Workers 서비스 호출: ${equation}`);
+  console.log(`   서비스 URL: ${pythonWorkerUrl}`);
+  
+  try {
+    const response = await fetch(`${pythonWorkerUrl}/solve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        equation: equation,
+        method: 'sympy' // SymPy 사용
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Python Workers 서비스 오류: ${response.status} - ${errorText}`);
+      throw new Error(`Python Workers error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log(`✅ Python Workers 응답:`, data);
+
+    if (data.success && data.result) {
+      return {
+        result: data.result,
+        steps: data.steps || ['Python Workers SymPy 계산'],
+        pythonCode: data.pythonCode,
+        method: 'Python Workers'
+      };
+    } else {
+      throw new Error(data.error || '계산 결과 없음');
+    }
+  } catch (error: any) {
+    console.error('❌ Python Workers 호출 실패:', error.message);
+    throw error;
+  }
+}
+
+/**
  * Cloudflare Sandbox SDK로 Python SymPy 계산 (실제 구현)
  */
 async function calculateWithPython(
   equation: string,
+  pythonWorkerUrl?: string,
   sandboxBinding?: any
-): Promise<{ result: string; steps: string[]; pythonCode?: string }> {
-  console.log(`🐍 Cloudflare Sandbox Python 계산 요청: ${equation}`);
+): Promise<{ result: string; steps: string[]; pythonCode?: string; method?: string }> {
+  console.log(`🐍 Python 계산 요청: ${equation}`);
   
-  // Sandbox binding이 없으면 fallback
-  if (!sandboxBinding) {
-    console.log('   ⚠️ SANDBOX binding 없음 - Fallback 계산 사용');
-    return simpleCalculation(equation);
+  // 1순위: Python Workers 서비스 사용
+  if (pythonWorkerUrl) {
+    try {
+      console.log('   시도 1: Python Workers 서비스 사용');
+      return await solveMathWithPythonWorker(equation, pythonWorkerUrl);
+    } catch (error: any) {
+      console.warn(`   ⚠️ Python Workers 실패, Sandbox로 전환: ${error.message}`);
+    }
   }
   
+  // 2순위: Cloudflare Sandbox (Durable Object) - 현재 Pages에서 미지원
+  if (sandboxBinding) {
+    try {
+      console.log('   시도 2: Cloudflare Sandbox 사용');
+      return await calculateWithSandbox(equation, sandboxBinding);
+    } catch (error: any) {
+      console.warn(`   ⚠️ Sandbox 실패, Fallback 사용: ${error.message}`);
+    }
+  }
+  
+  // 3순위: Fallback 간단한 계산
+  console.log('   시도 3: Fallback 간단한 계산 사용');
+  return simpleCalculation(equation);
+}
+
+/**
+ * Cloudflare Sandbox로 Python SymPy 계산 (Fallback)
+ */
+async function calculateWithSandbox(
+  equation: string,
+  sandboxBinding: any
+): Promise<{ result: string; steps: string[]; pythonCode?: string; method?: string }> {
+/**
+ * Cloudflare Sandbox로 Python SymPy 계산 (Fallback)
+ */
+async function calculateWithSandbox(
+  equation: string,
+  sandboxBinding: any
+): Promise<{ result: string; steps: string[]; pythonCode?: string; method?: string }> {
   try {
     // Python 코드 생성
     const pythonCode = `
@@ -193,7 +275,8 @@ except Exception as e:
       return {
         result: output.replace('정답: ', ''),
         steps: ['Cloudflare Sandbox SymPy 계산'],
-        pythonCode: pythonCode.trim()
+        pythonCode: pythonCode.trim(),
+        method: 'Cloudflare Sandbox'
       };
     } else {
       throw new Error(result.stderr || '출력 없음');
@@ -201,14 +284,14 @@ except Exception as e:
     
   } catch (error: any) {
     console.error('❌ Cloudflare Sandbox 실패:', error.message || error);
-    return simpleCalculation(equation);
+    throw error;
   }
 }
 
 /**
  * 간단한 수학 계산 (Fallback)
  */
-function simpleCalculation(equation: string): { result: string; steps: string[] } {
+function simpleCalculation(equation: string): { result: string; steps: string[]; method?: string } {
   try {
     const cleaned = equation.replace(/\s/g, '').replace(/×/g, '*').replace(/÷/g, '/');
     
@@ -218,7 +301,8 @@ function simpleCalculation(equation: string): { result: string; steps: string[] 
       console.log(`   Fallback 계산: ${equation} = ${result}`);
       return {
         result: result.toString(),
-        steps: ['간단한 계산']
+        steps: ['간단한 계산'],
+        method: 'Fallback eval()'
       };
     }
   } catch (error) {
@@ -227,7 +311,8 @@ function simpleCalculation(equation: string): { result: string; steps: string[] 
   
   return {
     result: '계산 불가',
-    steps: []
+    steps: [],
+    method: 'Failed'
   };
 }
 
@@ -295,13 +380,16 @@ async function gradeWithLLM(
   
   // Python 계산 결과 추가
   if (pythonCalculations.length > 0) {
-    fullPrompt += '\n\n【Python SymPy 계산 결과】\n';
+    fullPrompt += '\n\n【Python Workers SymPy 계산 결과】\n';
+    fullPrompt += '※ 전문 Python Workers 서비스(https://physonsuperplacestudy.kohsunwoo12345.workers.dev)를 통해 SymPy로 정확히 계산한 결과입니다.\n\n';
     pythonCalculations.forEach((calc, idx) => {
       fullPrompt += `${idx + 1}. ${calc.equation} = ${calc.result}\n`;
-      if (calc.pythonCode) {
-        fullPrompt += `   코드: ${calc.pythonCode.substring(0, 100)}...\n`;
+      fullPrompt += `   계산 방법: ${calc.method || 'Python SymPy'}\n`;
+      if (calc.steps && calc.steps.length > 0) {
+        fullPrompt += `   단계: ${calc.steps.join(' → ')}\n`;
       }
     });
+    fullPrompt += '\n⚠️ 위 Python 계산 결과를 신뢰하고 채점에 적극 활용하세요.\n';
   }
 
   fullPrompt += `\n\n과목: ${subject}`;
@@ -360,7 +448,7 @@ async function gradeWithLLM(
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, AI, VECTORIZE, GOOGLE_GEMINI_API_KEY, SANDBOX } = context.env;
+    const { DB, AI, VECTORIZE, GOOGLE_GEMINI_API_KEY, PYTHON_WORKER_URL, SANDBOX } = context.env;
     const body: PrecisionGradingRequest = await context.request.json();
     const { userId, images, subject = '수학', ocrText = '' } = body;
 
@@ -455,13 +543,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         
         if (uniqueEquations.length > 0) {
           for (const eq of uniqueEquations) {
-            const calc = await calculateWithPython(eq.trim(), SANDBOX);
+            const calc = await calculateWithPython(eq.trim(), PYTHON_WORKER_URL, SANDBOX);
             if (calc.result !== '계산 불가') {
               pythonCalculations.push({ 
                 equation: eq.trim(), 
                 ...calc 
               });
-              console.log(`      ✅ ${eq.trim()} = ${calc.result}`);
+              console.log(`      ✅ ${eq.trim()} = ${calc.result} (방법: ${calc.method})`);
             } else {
               console.log(`      ⚠️ ${eq.trim()} - 계산 실패`);
             }
