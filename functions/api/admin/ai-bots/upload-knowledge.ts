@@ -3,10 +3,9 @@
 
 interface Env {
   DB: D1Database;
-  OPENAI_API_KEY: string; // OpenAI text-embedding-3-large (1024차원)
 }
 
-const WORKER_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/vectorize-upload';
+const WORKER_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev';
 const WORKER_API_KEY = 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u';
 
 // 텍스트를 청크로 분할
@@ -51,35 +50,35 @@ function chunkText(text: string, maxChunkSize: number = 1000): string[] {
   return chunks.filter(c => c.length > 0);
 }
 
-// OpenAI Embedding 생성 (1024차원)
-async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const url = 'https://api.openai.com/v1/embeddings';
+// Cloudflare AI Embedding 생성 (Worker 경유, 1024차원)
+async function generateEmbedding(text: string): Promise<number[]> {
+  const url = `${WORKER_URL}/generate-embedding`;
 
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
+      'X-API-Key': WORKER_API_KEY
     },
-    body: JSON.stringify({
-      model: 'text-embedding-3-large',
-      input: text,
-      dimensions: 1024 // Vectorize 인덱스와 일치
-    })
+    body: JSON.stringify({ text })
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`OpenAI Embedding API 오류: ${response.status} - ${errorText}`);
+    throw new Error(`Worker Embedding API 오류: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  return data.data[0].embedding;
+  if (!data.success) {
+    throw new Error(data.error || 'Embedding 생성 실패');
+  }
+  
+  return data.embedding;
 }
 
 // Worker Vectorize에 업로드
 async function uploadToVectorize(vectors: any[]): Promise<void> {
-  const response = await fetch(WORKER_URL, {
+  const response = await fetch(`${WORKER_URL}/vectorize-upload`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -101,18 +100,11 @@ async function uploadToVectorize(vectors: any[]): Promise<void> {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, OPENAI_API_KEY } = context.env;
+    const { DB } = context.env;
 
     if (!DB) {
       return new Response(
         JSON.stringify({ error: 'Database not configured' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!OPENAI_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -141,7 +133,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       console.log(`🔄 청크 ${i + 1}/${chunks.length} 임베딩 생성 중...`);
       
       try {
-        const embedding = await generateEmbedding(chunk, OPENAI_API_KEY);
+        const embedding = await generateEmbedding(chunk);
         
         vectors.push({
           id: `${botId}-${fileName}-chunk-${i}`,
