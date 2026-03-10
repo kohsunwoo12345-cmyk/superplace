@@ -1,0 +1,14 @@
+name = "physonsuperplacestudy"
+main = "worker.py"
+compatibility_date = "2024-01-01"
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[[env.production.bindings]]
+type = "vectorize"
+binding = "VECTORIZE"
+index_name = "homework-knowledge-base"
+
+[vars]
+ENVIRONMENT = "development"
