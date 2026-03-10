@@ -97,7 +97,34 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     if (submission.status === 'graded' && grading) {
-      // 채점 완료
+      // 채점 완료 - JSON 파싱을 안전하게 처리
+      let weaknessTypesArray: any[] = [];
+      let problemAnalysisArray: any[] = [];
+      
+      try {
+        if (grading.weaknessTypes) {
+          const wt = grading.weaknessTypes as string;
+          if (wt.startsWith('[') || wt.startsWith('{')) {
+            weaknessTypesArray = JSON.parse(wt);
+          }
+        }
+      } catch (e: any) {
+        console.error('weaknessTypes JSON parse error:', e.message);
+        weaknessTypesArray = [];
+      }
+      
+      try {
+        if (grading.problemAnalysis) {
+          const pa = grading.problemAnalysis as string;
+          if (pa.startsWith('[') || pa.startsWith('{')) {
+            problemAnalysisArray = JSON.parse(pa);
+          }
+        }
+      } catch (e: any) {
+        console.error('problemAnalysis JSON parse error:', e.message);
+        problemAnalysisArray = [];
+      }
+      
       return new Response(
         JSON.stringify({
           success: true,
@@ -120,8 +147,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             strengths: grading.strengths,
             suggestions: grading.suggestions,
             completion: grading.completion,
-            weaknessTypes: grading.weaknessTypes ? JSON.parse(grading.weaknessTypes as string) : [],
-            problemAnalysis: grading.problemAnalysis ? JSON.parse(grading.problemAnalysis as string) : [],
+            weaknessTypes: weaknessTypesArray,
+            problemAnalysis: problemAnalysisArray,
             detailedAnalysis: grading.detailedAnalysis,
             studyDirection: grading.studyDirection,
             gradedAt: grading.gradedAt,
@@ -132,30 +159,32 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // 기타 상태
+    // 기타 상태 (pending 등)
     return new Response(
       JSON.stringify({
         success: true,
-        status: submission.status,
+        status: submission.status || 'pending',
         message: '처리 중입니다',
         submission: {
           id: submission.id,
           userId: submission.userId,
           submittedAt: submission.submittedAt,
           imageCount: imageCount,
-          status: submission.status
+          status: submission.status || 'pending'
         }
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
 
   } catch (error: any) {
-    console.error("❌ 상태 조회 오류:", error.message);
+    console.error("❌ 상태 조회 오류:", error);
+    console.error("Error stack:", error.stack);
     
     return new Response(
       JSON.stringify({
         error: "Failed to check status",
-        message: error.message || "상태 조회 중 오류가 발생했습니다"
+        message: error.message || "상태 조회 중 오류가 발생했습니다",
+        details: error.stack || ''
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
