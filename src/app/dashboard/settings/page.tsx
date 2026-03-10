@@ -19,6 +19,8 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [attendanceCode, setAttendanceCode] = useState<string | null>(null);
+  const [codeLoading, setCodeLoading] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -32,7 +34,29 @@ export default function SettingsPage() {
     setName(userData.name || "");
     setEmail(userData.email || "");
     setPhone(userData.phone || "");
+    
+    // 학생인 경우 출석 코드 가져오기
+    if (userData.role === "STUDENT") {
+      fetchAttendanceCode(userData.id);
+    }
   }, [router]);
+
+  const fetchAttendanceCode = async (userId: number) => {
+    try {
+      setCodeLoading(true);
+      const response = await fetch(`/api/students/attendance-code?userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.code) {
+          setAttendanceCode(data.code);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error fetching attendance code:", error);
+    } finally {
+      setCodeLoading(false);
+    }
+  };
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,6 +198,31 @@ export default function SettingsPage() {
                   <Label>역할</Label>
                   <Input value={user.role} disabled />
                 </div>
+
+                {/* 학생인 경우 출석 코드 표시 */}
+                {user.role === "STUDENT" && (
+                  <div className="p-4 border-2 border-blue-200 rounded-lg bg-blue-50">
+                    <Label className="text-base font-semibold text-blue-900">나의 출석 코드</Label>
+                    {codeLoading ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+                      </div>
+                    ) : attendanceCode ? (
+                      <div className="mt-2">
+                        <div className="text-4xl font-bold text-blue-600 tracking-wider text-center py-4">
+                          {attendanceCode}
+                        </div>
+                        <p className="text-sm text-gray-600 text-center">
+                          출석체크 시 이 코드를 입력해주세요
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center text-gray-500 py-4">
+                        출석 코드를 불러올 수 없습니다
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <Button type="submit" disabled={loading}>
                   {loading ? "저장 중..." : "변경사항 저장"}

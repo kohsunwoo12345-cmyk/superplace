@@ -19,6 +19,8 @@ export default function AttendanceStatisticsPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [statistics, setStatistics] = useState<any>(null);
+  const [attendanceCode, setAttendanceCode] = useState<string | null>(null);
+  const [codeLoading, setCodeLoading] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -29,8 +31,30 @@ export default function AttendanceStatisticsPage() {
     const userData = JSON.parse(userStr);
     setUser(userData);
     
+    // 학생인 경우 출석 코드 가져오기
+    if (userData.role === "STUDENT") {
+      fetchAttendanceCode(userData.id);
+    }
+    
     fetchStatistics(userData);
   }, [router]);
+
+  const fetchAttendanceCode = async (userId: number) => {
+    try {
+      setCodeLoading(true);
+      const response = await fetch(`/api/students/attendance-code?userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.code) {
+          setAttendanceCode(data.code);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error fetching attendance code:", error);
+    } finally {
+      setCodeLoading(false);
+    }
+  };
 
   const fetchStatistics = async (userData: any) => {
     try {
@@ -110,6 +134,39 @@ export default function AttendanceStatisticsPage() {
             뒤로가기
           </Button>
         </div>
+
+        {/* 출석 코드 카드 */}
+        <Card className="border-2 border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle className="h-6 w-6 text-blue-600" />
+              나의 출석 코드
+            </CardTitle>
+            <CardDescription>
+              출석체크 시 이 코드를 입력해주세요
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {codeLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+              </div>
+            ) : attendanceCode ? (
+              <div className="text-center">
+                <div className="text-5xl font-bold text-blue-600 tracking-wider">
+                  {attendanceCode}
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  이 코드는 나만의 고유 출석 코드입니다
+                </p>
+              </div>
+            ) : (
+              <div className="text-center text-gray-500 py-4">
+                출석 코드를 불러오는 중 오류가 발생했습니다
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* 달력 */}
         <Card>
