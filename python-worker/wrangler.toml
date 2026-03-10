@@ -1,14 +1,22 @@
 name = "physonsuperplacestudy"
-main = "worker.py"
+main = "worker.js"
 compatibility_date = "2024-01-01"
+
+# Cloudflare AI 바인딩
+[ai]
+binding = "AI"
+
+# Vectorize 바인딩 (RAG용)
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "ai-chatbot-knowledge"
 
 [env.production]
 vars = { ENVIRONMENT = "production" }
 
-[[env.production.bindings]]
-type = "vectorize"
+[[env.production.vectorize]]
 binding = "VECTORIZE"
-index_name = "homework-knowledge-base"
+index_name = "ai-chatbot-knowledge"
 
 [vars]
 ENVIRONMENT = "development"
