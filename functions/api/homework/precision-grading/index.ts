@@ -2,10 +2,8 @@
  * 정밀 숙제 채점 시스템
  * RAG → LLM (↔ Python) → JSON Output
  * OCR은 외부에서 처리, RAG와 Python만 실제 구현
- * Python: Cloudflare Sandbox SDK 사용
+ * Python: Python Workers 사용
  */
-
-import { getSandbox } from '@cloudflare/sandbox';
 
 // Cloudflare Pages Function 타입
 type PagesFunction<Env = unknown> = (context: {
@@ -23,7 +21,6 @@ interface Env {
   VECTORIZE: VectorizeIndex;
   GOOGLE_GEMINI_API_KEY: string;
   PYTHON_WORKER_URL: string; // Python Workers service URL
-  SANDBOX?: any; // Durable Object binding for Sandbox (fallback)
 }
 
 interface PrecisionGradingRequest {
@@ -173,12 +170,11 @@ async function solveMathWithPythonWorker(
 }
 
 /**
- * Cloudflare Sandbox SDK로 Python SymPy 계산 (실제 구현)
+ * Python 계산 (Python Workers 또는 Fallback)
  */
 async function calculateWithPython(
   equation: string,
-  pythonWorkerUrl?: string,
-  sandboxBinding?: any
+  pythonWorkerUrl?: string
 ): Promise<{ result: string; steps: string[]; pythonCode?: string; method?: string }> {
   console.log(`🐍 Python 계산 요청: ${equation}`);
   
@@ -188,115 +184,16 @@ async function calculateWithPython(
       console.log('   시도 1: Python Workers 서비스 사용');
       return await solveMathWithPythonWorker(equation, pythonWorkerUrl);
     } catch (error: any) {
-      console.warn(`   ⚠️ Python Workers 실패, Sandbox로 전환: ${error.message}`);
+      console.warn(`   ⚠️ Python Workers 실패, Fallback 사용: ${error.message}`);
     }
   }
   
-  // 2순위: Cloudflare Sandbox (Durable Object) - 현재 Pages에서 미지원
-  if (sandboxBinding) {
-    try {
-      console.log('   시도 2: Cloudflare Sandbox 사용');
-      return await calculateWithSandbox(equation, sandboxBinding);
-    } catch (error: any) {
-      console.warn(`   ⚠️ Sandbox 실패, Fallback 사용: ${error.message}`);
-    }
-  }
-  
-  // 3순위: Fallback 간단한 계산
-  console.log('   시도 3: Fallback 간단한 계산 사용');
+  // 2순위: Fallback 간단한 계산
+  console.log('   시도 2: Fallback 간단한 계산 사용');
   return simpleCalculation(equation);
 }
 
-/**
- * Cloudflare Sandbox로 Python SymPy 계산 (Fallback)
- */
-async function calculateWithSandbox(
-  equation: string,
-  sandboxBinding: any
-): Promise<{ result: string; steps: string[]; pythonCode?: string; method?: string }> {
-/**
- * Cloudflare Sandbox로 Python SymPy 계산 (Fallback)
- */
-async function calculateWithSandbox(
-  equation: string,
-  sandboxBinding: any
-): Promise<{ result: string; steps: string[]; pythonCode?: string; method?: string }> {
-  try {
-    // Python 코드 생성
-    const pythonCode = `
-from sympy import symbols, solve, simplify, sympify, Eq
-from sympy import sqrt, pi, E
-import re
-
-# 수식 정리
-equation_str = """${equation}"""
-
-try:
-    # 방정식인 경우 (=가 있음)
-    if '=' in equation_str:
-        # x, y, z 변수 정의
-        x, y, z = symbols('x y z')
-        
-        # 수식 파싱
-        left, right = equation_str.split('=')
-        left = left.strip()
-        right = right.strip()
-        
-        # SymPy로 변환
-        eq = Eq(sympify(left), sympify(right))
-        
-        # 방정식 풀이
-        solution = solve(eq, x)
-        
-        if solution:
-            print(f"정답: {solution[0]}")
-        else:
-            print("해가 없습니다")
-    else:
-        # 계산식인 경우
-        result = sympify(equation_str)
-        simplified = simplify(result)
-        print(f"정답: {simplified}")
-        
-except Exception as e:
-    # 간단한 계산 시도
-    try:
-        result = eval(equation_str.replace('×', '*').replace('÷', '/'))
-        print(f"정답: {result}")
-    except:
-        print(f"계산 불가: {e}")
-`;
-
-    console.log('   Cloudflare Sandbox 실행 중...');
-    console.log(`   Python 코드:\n${pythonCode.substring(0, 200)}...`);
-    
-    // Cloudflare Sandbox SDK 사용
-    const sandbox = getSandbox(sandboxBinding, `homework-${Date.now()}`);
-    
-    // Python 코드 실행
-    const result = await sandbox.commands.exec({
-      cmd: ['python3', '-c', pythonCode]
-    });
-    
-    console.log(`   ✅ 실행 결과: ${result.stdout}`);
-    
-    if (result.exitCode === 0 && result.stdout) {
-      const output = result.stdout.trim();
-      return {
-        result: output.replace('정답: ', ''),
-        steps: ['Cloudflare Sandbox SymPy 계산'],
-        pythonCode: pythonCode.trim(),
-        method: 'Cloudflare Sandbox'
-      };
-    } else {
-      throw new Error(result.stderr || '출력 없음');
-    }
-    
-  } catch (error: any) {
-    console.error('❌ Cloudflare Sandbox 실패:', error.message || error);
-    throw error;
-  }
-}
+// Sandbox 함수는 제거됨 - Python Workers만 사용
 
 /**
  * 간단한 수학 계산 (Fallback)
@@ -458,7 +355,7 @@ async function gradeWithLLM(
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, AI, VECTORIZE, GOOGLE_GEMINI_API_KEY, PYTHON_WORKER_URL, SANDBOX } = context.env;
+    const { DB, AI, VECTORIZE, GOOGLE_GEMINI_API_KEY, PYTHON_WORKER_URL } = context.env;
     const body: PrecisionGradingRequest = await context.request.json();
     const { userId, images, subject = '수학', ocrText = '' } = body;
 
@@ -553,7 +450,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         
         if (uniqueEquations.length > 0) {
           for (const eq of uniqueEquations) {
-            const calc = await calculateWithPython(eq.trim(), PYTHON_WORKER_URL, SANDBOX);
+            const calc = await calculateWithPython(eq.trim(), PYTHON_WORKER_URL);
             if (calc.result !== '계산 불가') {
               pythonCalculations.push({ 
                 equation: eq.trim(), 
