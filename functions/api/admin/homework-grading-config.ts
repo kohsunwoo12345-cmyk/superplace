@@ -120,7 +120,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const { DB } = context.env;
     const body = await context.request.json() as any;
 
-    const {
+    let {
       systemPrompt,
       model = 'gemini-2.5-flash',
       temperature = 0.3,
@@ -130,6 +130,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       enableRAG = 0,
       knowledgeBase = null,
     } = body;
+    
+    // Ensure numeric fields have valid values
+    if (topK === undefined || topK === null) topK = 40;
+    if (topP === undefined || topP === null) topP = 0.95;
+    if (temperature === undefined || temperature === null) temperature = 0.3;
+    if (maxTokens === undefined || maxTokens === null) maxTokens = 2000;
+    if (enableRAG === undefined || enableRAG === null) enableRAG = 0;
 
     // 테이블 생성 (없을 경우)
     await DB.prepare(`
