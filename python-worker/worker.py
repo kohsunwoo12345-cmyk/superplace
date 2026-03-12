@@ -111,9 +111,10 @@ async def on_fetch(request, env):
         }, status=500, headers=headers)
 
 
-async def ocr_with_llm(image_base64: str, model: str, env) -> str:
+async def ocr_with_llm(image_base64: str, model: str, system_prompt: str, env) -> str:
     """
     DeepSeek OCR 또는 Gemini로 이미지에서 텍스트 추출
+    관리자가 설정한 systemPrompt를 사용하여 OCR 수행
     """
     try:
         # 이미지 데이터 준비 (base64에서 data:image 부분 제거)
@@ -123,8 +124,11 @@ async def ocr_with_llm(image_base64: str, model: str, env) -> str:
             image_data = image_base64
         
         # DeepSeek OCR 모델 사용
-        if model == 'deepseek-ocr-2':
-            print("🔍 DeepSeek OCR 2 사용")
+        # 모델명에서 접두사 제거 (deepseek/deepseek-ocr-2 → deepseek-ocr-2)
+        model_name = model.split('/')[-1] if '/' in model else model
+        
+        if 'deepseek' in model_name.lower():
+            print(f"🔍 DeepSeek OCR 2 사용 (모델: {model})")
             # Novita_AI_API 우선, 없으면 ALL_AI_API_KEY 사용
             api_key = None
             if hasattr(env, 'Novita_AI_API') and env.Novita_AI_API:
@@ -140,6 +144,12 @@ async def ocr_with_llm(image_base64: str, model: str, env) -> str:
             
             url = "https://api.deepseek.com/v1/chat/completions"
             
+            # OCR 프롬프트 구성: systemPrompt 반영
+            ocr_instruction = f"""이 이미지의 모든 텍스트와 수식을 정확하게 읽어서 그대로 텍스트로 변환해주세요. 
+수학 수식, 손글씨, 프린트된 텍스트 모두 포함해주세요.
+
+{system_prompt if system_prompt else ''}"""
+            
             payload = {
                 "model": "deepseek-chat",
                 "messages": [{
@@ -147,7 +157,7 @@ async def ocr_with_llm(image_base64: str, model: str, env) -> str:
                     "content": [
                         {
                             "type": "text",
-                            "text": "이 이미지의 모든 텍스트와 수식을 정확하게 읽어서 그대로 텍스트로 변환해주세요. 수학 수식, 손글씨, 프린트된 텍스트 모두 포함해주세요."
+                            "text": ocr_instruction
                         },
                         {
                             "type": "image_url",

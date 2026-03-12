@@ -87,7 +87,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // 2. 학생 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
     let student = await DB.prepare(`
-      SELECT id, name, email, academyId FROM User WHERE id = ?
+      SELECT id, name, email, academyId, classId FROM User WHERE id = ?
     `).bind(userId).first();
 
     console.log('👤 User 테이블 조회:', student);
@@ -96,7 +96,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     if (!student) {
       console.log('🔍 users 테이블 확인 중...');
       const legacyStudent = await DB.prepare(`
-        SELECT id, name, email, academy_id as academyId FROM users WHERE id = ?
+        SELECT id, name, email, academy_id as academyId, class_id as classId FROM users WHERE id = ?
       `).bind(userId).first();
       
       console.log('👤 users 테이블 조회:', legacyStudent);
@@ -157,9 +157,19 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       console.log('✅ 기존 출석 레코드 삭제 완료');
     }
 
-    // 5. 출석 상태 결정 (9시 이전: PRESENT, 9시 이후: LATE)
-    const hour = kstDate.getHours();
-    const status = hour < 9 ? 'PRESENT' : 'LATE';
+    // 5. 출석 상태 결정
+    // - classId가 없으면 (반 배정 안됨) → 항상 PRESENT (출석)
+    // - classId가 있으면 → 9시 기준으로 PRESENT/LATE 판정
+    let status: string;
+    
+    if (!student.classId) {
+      console.log('📌 반 배정 없음 → 출석 처리');
+      status = 'PRESENT';
+    } else {
+      const hour = kstDate.getHours();
+      status = hour < 9 ? 'PRESENT' : 'LATE';
+      console.log(`⏰ 반 배정 있음 → 시간 기준 판정 (${hour}시: ${status})`);
+    }
 
     // 6. 출석 기록 생성 (attendance_records_v2에 저장)
     const attendanceId = `attendance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
