@@ -3,6 +3,7 @@ interface Env {
   GOOGLE_GEMINI_API_KEY?: string;
   DEEPSEEK_API_KEY?: string;
   Novita_AI_API?: string;
+  PYTHON_WORKER_URL_?: string;
 }
 
 /**
@@ -11,13 +12,14 @@ interface Env {
  */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, GOOGLE_GEMINI_API_KEY, DEEPSEEK_API_KEY, Novita_AI_API } = context.env;
+    const { DB, GOOGLE_GEMINI_API_KEY, DEEPSEEK_API_KEY, Novita_AI_API, PYTHON_WORKER_URL_ } = context.env;
 
     // 환경 변수 체크
     const hasDB = !!DB;
     const hasGeminiKey = !!GOOGLE_GEMINI_API_KEY;
     const hasDeepSeekKey = !!DEEPSEEK_API_KEY;
     const hasNovitaKey = !!Novita_AI_API;
+    const hasPythonWorkerUrl = !!PYTHON_WORKER_URL_;
     
     const geminiKeyLength = GOOGLE_GEMINI_API_KEY ? GOOGLE_GEMINI_API_KEY.length : 0;
     const geminiKeyPrefix = GOOGLE_GEMINI_API_KEY 
@@ -28,6 +30,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const novitaKeyPrefix = Novita_AI_API
       ? Novita_AI_API.substring(0, 10) + '...'
       : 'NOT_SET';
+    
+    const pythonWorkerUrl = PYTHON_WORKER_URL_ || 'NOT_SET';
 
     // DB 테스트
     let dbTest = { success: false, error: '' };
@@ -84,6 +88,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         hasNovitaApiKey: hasNovitaKey,
         novitaKeyLength: novitaKeyLength,
         novitaKeyPrefix: novitaKeyPrefix,
+        hasPythonWorkerUrl: hasPythonWorkerUrl,
+        pythonWorkerUrl: pythonWorkerUrl,
       },
       tests: {
         database: dbTest,

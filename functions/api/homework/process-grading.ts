@@ -4,7 +4,7 @@ interface Env {
   GEMINI_API_KEY?: string;
   DEEPSEEK_API_KEY?: string;
   Novita_AI_API?: string;
-  PYTHON_WORKER_URL?: string; // Python Worker URL (optional)
+  PYTHON_WORKER_URL_?: string; // Python Worker URL (optional)
 }
 
 /**
@@ -16,7 +16,7 @@ interface Env {
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, GOOGLE_GEMINI_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY, Novita_AI_API, PYTHON_WORKER_URL } = context.env;
+    const { DB, GOOGLE_GEMINI_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY, Novita_AI_API, PYTHON_WORKER_URL_ } = context.env;
     const body = await context.request.json();
     const { submissionId } = body;
 
@@ -186,13 +186,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let gradingResult = await performGrading(imageArray, apiKey, model, systemPrompt, temperature);
 
     // 5. Python Worker로 수학 문제 검증 (옵션)
-    if (PYTHON_WORKER_URL && gradingResult.problemAnalysis && gradingResult.problemAnalysis.length > 0) {
+    if (PYTHON_WORKER_URL_ && gradingResult.problemAnalysis && gradingResult.problemAnalysis.length > 0) {
       try {
         console.log(`🐍 Python Worker로 수학 문제 검증 시작...`);
         const { enhanceProblemAnalysisWithPython } = await import('./python-helper');
         gradingResult.problemAnalysis = await enhanceProblemAnalysisWithPython(
           gradingResult.problemAnalysis,
-          PYTHON_WORKER_URL
+          PYTHON_WORKER_URL_
         );
         console.log(`✅ Python 검증 완료`);
       } catch (pythonError: any) {
