@@ -563,8 +563,14 @@ function StudentDetailContent() {
   };
 
   const analyzeCompetency = async () => {
-    console.log('🧠 AI 역량 분석 시작');
+    console.log('🧠 AI 역량 분석 시작 (Gemini 2.5 Flash Lite)');
     console.log('📊 Current limitations:', limitations);
+    
+    // 프론트엔드 제한 확인
+    if (limitations && limitations.competency_analysis_enabled === 0) {
+      alert('❌ AI 역량 분석 기능이 현재 요금제에서 비활성화되어 있습니다.');
+      return;
+    }
     
     try {
       setAnalyzingLoading(true);
@@ -579,11 +585,26 @@ function StudentDetailContent() {
         body: JSON.stringify({ studentId }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      const data = await response.json();
+      
+      if (!response.ok) {
+        // 요금제 제한 오류 처리
+        if (data.error === 'FEATURE_DISABLED') {
+          alert('❌ AI 역량 분석 기능이 현재 요금제에서 비활성화되어 있습니다.\n요금제 업그레이드가 필요합니다.');
+        } else if (data.error === 'DAILY_LIMIT_EXCEEDED') {
+          alert(`❌ 오늘의 AI 역량 분석 한도를 초과했습니다.\n(${data.currentUsage}/${data.maxLimit}회)\n내일 다시 시도해주세요.`);
+        } else if (data.error === 'MONTHLY_LIMIT_EXCEEDED') {
+          alert(`❌ 이번 달 AI 역량 분석 한도를 초과했습니다.\n(${data.currentUsage}/${data.maxLimit}회)\n다음 달에 다시 시도해주세요.`);
+        } else {
+          throw new Error(data.message || data.error || '역량 분석에 실패했습니다.');
+        }
+        return;
+      }
+      
+      if (data.analysis) {
         setAnalysis(data.analysis);
       } else {
-        throw new Error("역량 분석에 실패했습니다.");
+        throw new Error('분석 결과를 받지 못했습니다.');
       }
     } catch (error: any) {
       console.error("Failed to analyze competency:", error);
@@ -723,8 +744,14 @@ function StudentDetailContent() {
   };
 
   const analyzeWeakConcepts = async () => {
-    console.log('🧠 부족한 개념 분석 시작');
+    console.log('🧠 부족한 개념 분석 시작 (Gemini 2.5 Flash Lite)');
     console.log('📊 Current limitations:', limitations);
+    
+    // 프론트엔드 제한 확인
+    if (limitations && limitations.weak_concept_analysis_enabled === 0) {
+      alert('❌ 부족한 개념 분석 기능이 현재 요금제에서 비활성화되어 있습니다.');
+      return;
+    }
     
     try {
       setConceptAnalyzingLoading(true);
@@ -755,6 +782,19 @@ function StudentDetailContent() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ API 오류:', response.status, errorData);
+        
+        // 요금제 제한 오류 처리
+        if (errorData.error === 'FEATURE_DISABLED') {
+          alert('❌ 부족한 개념 분석 기능이 현재 요금제에서 비활성화되어 있습니다.\n요금제 업그레이드가 필요합니다.');
+          return;
+        } else if (errorData.error === 'DAILY_LIMIT_EXCEEDED') {
+          alert(`❌ 오늘의 부족한 개념 분석 한도를 초과했습니다.\n(${errorData.currentUsage}/${errorData.maxLimit}회)\n내일 다시 시도해주세요.`);
+          return;
+        } else if (errorData.error === 'MONTHLY_LIMIT_EXCEEDED') {
+          alert(`❌ 이번 달 부족한 개념 분석 한도를 초과했습니다.\n(${errorData.currentUsage}/${errorData.maxLimit}회)\n다음 달에 다시 시도해주세요.`);
+          return;
+        }
+        
         throw new Error(errorData.error || `API 오류: ${response.status}`);
       }
 
@@ -785,8 +825,14 @@ function StudentDetailContent() {
   };
 
   const generateSimilarProblems = async () => {
-    console.log('📝 유사문제 생성 시작');
+    console.log('📝 유사문제 생성 시작 (Gemini 2.5 Flash Lite)');
     console.log('📊 Current limitations:', limitations);
+    
+    // 프론트엔드 제한 확인
+    if (limitations && limitations.similar_problem_enabled === 0) {
+      alert('❌ 유사문제 출제 기능이 현재 요금제에서 비활성화되어 있습니다.');
+      return;
+    }
     
     if (!selectedSubject) {
       alert('과목을 선택해주세요.');
@@ -832,7 +878,20 @@ function StudentDetailContent() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || '문제 생성에 실패했습니다.');
+        
+        // 요금제 제한 오류 처리
+        if (errorData.error === 'FEATURE_DISABLED') {
+          alert('❌ 유사문제 출제 기능이 현재 요금제에서 비활성화되어 있습니다.\n요금제 업그레이드가 필요합니다.');
+          return;
+        } else if (errorData.error === 'DAILY_LIMIT_EXCEEDED') {
+          alert(`❌ 오늘의 유사문제 출제 한도를 초과했습니다.\n(${errorData.currentUsage}/${errorData.maxLimit}회)\n내일 다시 시도해주세요.`);
+          return;
+        } else if (errorData.error === 'MONTHLY_LIMIT_EXCEEDED') {
+          alert(`❌ 이번 달 유사문제 출제 한도를 초과했습니다.\n(${errorData.currentUsage}/${errorData.maxLimit}회)\n다음 달에 다시 시도해주세요.`);
+          return;
+        }
+        
+        throw new Error(errorData.message || errorData.error || '문제 생성에 실패했습니다.');
       }
 
       const data = await response.json();
@@ -1796,9 +1855,14 @@ function StudentDetailContent() {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-gray-700 bg-blue-50 p-3 rounded-lg text-sm">
+                  <div className="space-y-5">
+                    {/* 종합 요약 */}
+                    <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                      <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                        <Brain className="w-4 h-4 text-blue-600" />
+                        종합 평가 (Gemini 2.5 Flash Lite)
+                      </h4>
+                      <p className="text-gray-700 text-sm leading-relaxed">
                         {analysis.summary}
                       </p>
                       <p className="text-xs text-gray-500 mt-2">
@@ -1806,37 +1870,148 @@ function StudentDetailContent() {
                       </p>
                     </div>
 
+                    {/* 강점 / 개선필요 */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
+                      <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
                         <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
                           <CheckCircle className="w-4 h-4 text-green-600" />
                           강점
                         </h4>
                         <ul className="space-y-1">
-                          {analysis.strengths.slice(0, 3).map((strength, idx) => (
+                          {(analysis.strengths || []).map((strength: string, idx: number) => (
                             <li key={idx} className="text-xs text-gray-700 flex items-start gap-1">
-                              <span className="text-green-600">•</span>
+                              <span className="text-green-600 mt-0.5">•</span>
                               <span>{strength}</span>
                             </li>
                           ))}
                         </ul>
                       </div>
 
-                      <div>
+                      <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
                         <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
                           <XCircle className="w-4 h-4 text-red-600" />
                           개선 필요
                         </h4>
                         <ul className="space-y-1">
-                          {analysis.weaknesses.slice(0, 3).map((weakness, idx) => (
+                          {(analysis.weaknesses || []).map((weakness: string, idx: number) => (
                             <li key={idx} className="text-xs text-gray-700 flex items-start gap-1">
-                              <span className="text-red-600">•</span>
+                              <span className="text-red-600 mt-0.5">•</span>
                               <span>{weakness}</span>
                             </li>
                           ))}
                         </ul>
                       </div>
                     </div>
+
+                    {/* 자기주도성 평가 */}
+                    {analysis.selfDirectedness && (
+                      <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
+                        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-purple-600" />
+                          자기주도성 평가
+                          <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-purple-200 text-purple-800">
+                            {analysis.selfDirectedness.score}점 / {analysis.selfDirectedness.level}
+                          </span>
+                        </h4>
+                        <p className="text-sm text-gray-700 mb-2">{analysis.selfDirectedness.description}</p>
+                        {analysis.selfDirectedness.indicators && (
+                          <div className="flex flex-wrap gap-1">
+                            {analysis.selfDirectedness.indicators.map((ind: string, idx: number) => (
+                              <span key={idx} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{ind}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 리더십 프로파일 */}
+                    {analysis.leadershipProfile && (
+                      <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg">
+                        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                          <Brain className="w-4 h-4 text-orange-600" />
+                          리더십 잠재력 및 이끄는 모습
+                          <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-orange-200 text-orange-800">
+                            {analysis.leadershipProfile.score}점 / {analysis.leadershipProfile.type}
+                          </span>
+                        </h4>
+                        <p className="text-sm text-gray-700 mb-2">{analysis.leadershipProfile.description}</p>
+                        {analysis.leadershipProfile.traits && (
+                          <div className="flex flex-wrap gap-1">
+                            {analysis.leadershipProfile.traits.map((trait: string, idx: number) => (
+                              <span key={idx} className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{trait}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 학습 스타일 */}
+                    {analysis.learningStyle && (
+                      <div className="bg-teal-50 border border-teal-200 p-4 rounded-lg">
+                        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                          <BookOpen className="w-4 h-4 text-teal-600" />
+                          학습 스타일
+                          <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-teal-200 text-teal-800">
+                            {analysis.learningStyle.primary}
+                          </span>
+                        </h4>
+                        <p className="text-sm text-gray-700 mb-2">{analysis.learningStyle.description}</p>
+                        {analysis.learningStyle.preferences && (
+                          <div className="flex flex-wrap gap-1">
+                            {analysis.learningStyle.preferences.map((pref: string, idx: number) => (
+                              <span key={idx} className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full">{pref}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 감정 패턴 */}
+                    {analysis.emotionalPattern && (
+                      <div className="bg-pink-50 border border-pink-200 p-4 rounded-lg">
+                        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4 text-pink-600" />
+                          학습 감정 패턴
+                        </h4>
+                        <p className="text-sm text-gray-700 mb-3">{analysis.emotionalPattern.description}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {analysis.emotionalPattern.positiveAspects && (
+                            <div>
+                              <p className="text-xs font-semibold text-green-700 mb-1">긍정적 패턴</p>
+                              {analysis.emotionalPattern.positiveAspects.map((asp: string, idx: number) => (
+                                <p key={idx} className="text-xs text-gray-600">• {asp}</p>
+                              ))}
+                            </div>
+                          )}
+                          {analysis.emotionalPattern.areasForGrowth && (
+                            <div>
+                              <p className="text-xs font-semibold text-orange-700 mb-1">성장 필요 영역</p>
+                              {analysis.emotionalPattern.areasForGrowth.map((area: string, idx: number) => (
+                                <p key={idx} className="text-xs text-gray-600">• {area}</p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 맞츤형 개선 방안 */}
+                    {analysis.recommendations && analysis.recommendations.length > 0 && (
+                      <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-lg">
+                        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-indigo-600" />
+                          맞츤형 개선 방안
+                        </h4>
+                        <ul className="space-y-1">
+                          {analysis.recommendations.map((rec: string, idx: number) => (
+                            <li key={idx} className="text-xs text-gray-700 flex items-start gap-1">
+                              <span className="text-indigo-600 font-bold mt-0.5">{idx + 1}.</span>
+                              <span>{rec}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -2329,8 +2504,11 @@ function StudentDetailContent() {
                               variant="outline"
                               className="w-full sm:w-auto text-xs sm:text-sm"
                               onClick={() => {
-                                alert(`${concept.concept}에 대한 유사문제를 생성합니다.`);
-                                // TODO: 유사문제 생성 API 호출
+                                // 해당 개념만 선택하여 모달 열기
+                                setSelectedConcepts([concept.concept]);
+                                setSelectedProblemTypes(['concept', 'pattern']);
+                                setSelectedQuestionFormats(['multiple_choice', 'open_ended']);
+                                setShowProblemModal(true);
                               }}
                             >
                               📝 유사문제 출제

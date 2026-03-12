@@ -189,6 +189,84 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     console.log('📅 Date range:', startDate, '~', endDate);
     console.log('📅 Date filter active:', !!(startDate && endDate));
 
+    // 0. 학원장 제한 설정 확인 (weak_concept_analysis_enabled)
+    try {
+      const student = await DB.prepare(`
+        SELECT id, academyId FROM User WHERE id = ?
+      `).bind(parseInt(studentId)).first();
+
+      if (student && student.academyId) {
+        const limitation = await DB.prepare(`
+          SELECT weak_concept_analysis_enabled, weak_concept_daily_limit, weak_concept_daily_used,
+                 weak_concept_monthly_limit, weak_concept_monthly_used
+          FROM director_limitations
+          WHERE academy_id = ?
+          LIMIT 1
+        `).bind(student.academyId).first();
+
+        if (limitation) {
+          // 기능 비활성화 확인
+          if (limitation.weak_concept_analysis_enabled === 0) {
+            console.log('❌ 부족한 개념 분석 기능이 비활성화됨');
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: "FEATURE_DISABLED",
+                message: "부족한 개념 분석 기능이 현재 요금제에서 비활성화되어 있습니다.",
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          // 일일 한도 확인 (0이면 무제한)
+          const dailyLimit = limitation.weak_concept_daily_limit as number;
+          const dailyUsed = limitation.weak_concept_daily_used as number;
+          if (dailyLimit > 0 && dailyUsed >= dailyLimit) {
+            console.log(`❌ 부족한 개념 분석 일일 한도 초과: ${dailyUsed}/${dailyLimit}`);
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: "DAILY_LIMIT_EXCEEDED",
+                message: `부족한 개념 분석 일일 한도를 초과했습니다. (${dailyUsed}/${dailyLimit})`,
+                currentUsage: dailyUsed,
+                maxLimit: dailyLimit,
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          // 월간 한도 확인 (0이면 무제한)
+          const monthlyLimit = limitation.weak_concept_monthly_limit as number;
+          const monthlyUsed = limitation.weak_concept_monthly_used as number;
+          if (monthlyLimit > 0 && monthlyUsed >= monthlyLimit) {
+            console.log(`❌ 부족한 개념 분석 월간 한도 초과: ${monthlyUsed}/${monthlyLimit}`);
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: "MONTHLY_LIMIT_EXCEEDED",
+                message: `부족한 개념 분석 월간 한도를 초과했습니다. (${monthlyUsed}/${monthlyLimit})`,
+                currentUsage: monthlyUsed,
+                maxLimit: monthlyLimit,
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          // 사용량 증가
+          await DB.prepare(`
+            UPDATE director_limitations
+            SET weak_concept_daily_used = weak_concept_daily_used + 1,
+                weak_concept_monthly_used = weak_concept_monthly_used + 1,
+                updated_at = datetime('now')
+            WHERE academy_id = ?
+          `).bind(student.academyId).run();
+          console.log('✅ 부족한 개념 분석 사용량 증가 완료');
+        }
+      }
+    } catch (limitError: any) {
+      console.warn('⚠️ 제한 확인 실패 (계속 진행):', limitError.message);
+    }
+
     // 1. 학생의 채팅 내역 가져오기
     let chatHistory: ChatMessage[] = [];
     
@@ -389,10 +467,10 @@ Rules:
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-    // Gemini 2.5 Flash 모델 사용
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+    // Gemini 2.5 Flash Lite 모델 사용
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=${geminiApiKey}`;
 
-    console.log('🔄 Calling Gemini 2.5 Flash API...');
+    console.log('🔄 Calling Gemini 2.5 Flash Lite API...');
     console.log('📊 분석 대상: 채팅', chatHistory.length, '건, 숙제', homeworkData.length, '건');
     console.log('📅 분석 기간:', startDate, '~', endDate);
     

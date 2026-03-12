@@ -148,13 +148,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         landing_page_html_direct_edit: 0,
       };
       
-      return new Response(JSON.stringify({ limitation: defaultLimitation }), {
+      return new Response(JSON.stringify({ success: true, limitation: defaultLimitation }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ limitation }), {
+    return new Response(JSON.stringify({ success: true, limitation }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
