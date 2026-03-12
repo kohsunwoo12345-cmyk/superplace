@@ -221,6 +221,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       weeklyData,
       today,
       thisMonth,
+      debug: {
+        totalRecordsBeforeFilter: records.length,
+        sampleCheckInTimes: records.slice(0, 5).map(r => r.checkInTime),
+        todayRecordsCount: todayRecords.length,
+      }
     }), { status: 200, headers: { "Content-Type": "application/json" } });
 
   } catch (error: any) {
