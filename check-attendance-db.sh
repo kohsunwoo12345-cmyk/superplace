@@ -1,0 +1,21 @@
+#!/bin/bash
+echo "🔍 출석 데이터베이스 확인 중..."
+echo ""
+
+# 사용 가능한 API 엔드포인트를 통해 확인
+echo "1️⃣ attendance_records_v3 테이블 데이터 확인 필요"
+echo ""
+echo "Cloudflare D1 데이터베이스는 API를 통해서만 접근 가능합니다."
+echo "다음 방법으로 확인하세요:"
+echo ""
+echo "방법 1: Cloudflare Dashboard"
+echo "  1. https://dash.cloudflare.com 접속"
+echo "  2. Workers & Pages → D1 Database 선택"
+echo "  3. 해당 데이터베이스 선택"
+echo "  4. Console 탭에서 쿼리 실행:"
+echo ""
+echo "     SELECT * FROM attendance_records_v3 LIMIT 10;"
+echo "     SELECT COUNT(*) as total FROM attendance_records_v3;"
+echo ""
+echo "방법 2: Admin API 생성"
+echo "  출석 기록 조회용 Admin API를 만들어서 확인"
