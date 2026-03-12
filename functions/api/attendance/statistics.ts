@@ -49,6 +49,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           WHERE userId = ?
         `).bind(userId).all();
 
+        // Status 매핑 함수: DB의 PRESENT -> 프론트엔드의 VERIFIED
+        const mapStatus = (dbStatus: string): string => {
+          if (dbStatus === 'PRESENT') return 'VERIFIED';
+          if (dbStatus === 'LATE') return 'LATE';
+          if (dbStatus === 'ABSENT') return 'ABSENT';
+          return dbStatus; // 기타 값은 그대로 반환
+        };
+
         const calendarData: Record<string, string> = {};
         if (result.results) {
           result.results
@@ -56,12 +64,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             .forEach((r: any) => {
               // 같은 날짜에 여러 기록이 있을 경우 첫 번째 기록만 사용
               if (!calendarData[r.date]) {
-                calendarData[r.date] = r.status;
+                calendarData[r.date] = mapStatus(r.status);
               }
             });
         }
 
-        console.log("📊 Student calendar data loaded:", Object.keys(calendarData).length, "days");
+        console.log("📊 Student calendar data loaded:", Object.keys(calendarData).length, "days for userId:", userId);
 
         return new Response(JSON.stringify({
           success: true,
@@ -117,6 +125,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.error("Error fetching users:", e);
     }
     
+    // Status 매핑 함수: DB의 PRESENT -> 프론트엔드의 VERIFIED
+    const mapStatus = (dbStatus: string): string => {
+      if (dbStatus === 'PRESENT') return 'VERIFIED';
+      if (dbStatus === 'LATE') return 'LATE';
+      if (dbStatus === 'ABSENT') return 'ABSENT';
+      return dbStatus; // 기타 값은 그대로 반환
+    };
+
     const userMap: Record<string, any> = {};
     allUsers.forEach(u => {
       userMap[u.id] = u;
@@ -133,7 +149,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           userName: user.name,
           email: user.email,
           verifiedAt: record.checkInTime,
-          status: record.status,
+          status: mapStatus(record.status), // Status 매핑 적용
         });
       }
     }
