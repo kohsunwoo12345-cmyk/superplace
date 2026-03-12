@@ -89,9 +89,7 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
           date: r.date,
           status: r.status,
           checkInTime: r.checkInTime,
-          reason: r.reason,
-          updatedBy: r.updatedBy,
-          classId: r.classId
+          academyId: r.academyId
         }))
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
