@@ -161,7 +161,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 4. 오늘 출석 수
+    console.log("📊 Today date:", today);
+    console.log("📊 Total records to check:", records.length);
+    console.log("📊 Sample checkInTime:", records.slice(0, 3).map(r => r.checkInTime));
     const todayRecords = records.filter(r => r.checkInTime && r.checkInTime.substring(0, 10) === today);
+    console.log("📊 Today records found:", todayRecords.length);
     const todayAttendance = todayRecords.length;
 
     // 5. 이번 달 출석한 학생 수
