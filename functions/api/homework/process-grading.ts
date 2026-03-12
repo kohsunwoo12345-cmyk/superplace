@@ -352,9 +352,9 @@ async function performDeepSeekGrading(
     };
   });
 
-  // 관리자가 설정한 프롬프트 사용
-  const finalPrompt = `${systemPrompt}\n\n제공된 ${imageArray.length}장의 이미지를 분석하세요.`;
-  console.log(`📋 사용할 프롬프트 (첫 200자): ${finalPrompt.substring(0, 200)}...`);
+  // 관리자가 설정한 프롬프트를 system message로 사용
+  console.log(`📋 System 프롬프트 (첫 200자): ${systemPrompt.substring(0, 200)}...`);
+  console.log(`📝 이미지 개수: ${imageArray.length}장`);
 
   // Novita AI를 사용하는 경우 (deepseek/ prefix)
   const apiEndpoint = model.startsWith('deepseek/') 
@@ -375,9 +375,13 @@ async function performDeepSeekGrading(
         model: model,
         messages: [
           {
+            role: "system",
+            content: systemPrompt
+          },
+          {
             role: "user",
             content: [
-              { type: "text", text: finalPrompt },
+              { type: "text", text: `제공된 ${imageArray.length}장의 숙제 이미지를 분석하여 채점하세요.` },
               ...imageContents
             ]
           }
