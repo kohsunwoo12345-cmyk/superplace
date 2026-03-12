@@ -41,26 +41,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const today = getKoreanDate();
 
-    // 학원의 모든 숙제 제출 조회 - homework_submissions_v2 및 homework_gradings_v2 테이블 사용
+    // 학원의 모든 숙제 제출 조회 - homework_submissions_v2 테이블 사용 (gradingResult JSON 필드 포함)
     let query = `
       SELECT 
         hs.id,
         hs.userId,
         u.name as userName,
         u.email as userEmail,
-        hg.score,
-        hg.feedback,
-        hg.subject,
-        hg.completion,
-        hg.effort,
-        hs.submittedAt,
-        hg.gradedAt,
+        hs.academyId,
+        hs.code,
         hs.imageUrl,
-        hg.strengths,
-        hg.suggestions
+        hs.submittedAt,
+        hs.gradedAt,
+        hs.status,
+        hs.gradingResult
       FROM homework_submissions_v2 hs
       JOIN users u ON hs.userId = u.id
-      LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
       WHERE 1=1
     `;
 
@@ -74,35 +70,92 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     query += ` ORDER BY hs.submittedAt DESC LIMIT 100`;
 
     const submissions = await DB.prepare(query).bind(...bindings).all();
+    
+    console.log(`📊 숙제 제출 ${submissions.results?.length || 0}건 조회`);
 
+    // gradingResult JSON 파싱 및 결과 가공
+    const processedResults = (submissions.results || []).map((row: any) => {
+      let gradingData: any = {};
+      
+      // gradingResult JSON 파싱
+      if (row.gradingResult) {
+        try {
+          const parsed = JSON.parse(row.gradingResult);
+          // results 배열에서 첫 번째 grading 정보 추출
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            gradingData = parsed[0].grading || {};
+          }
+        } catch (e) {
+          console.error('JSON 파싱 오류:', e);
+        }
+      }
+      
+      // 이미지 URL 파싱
+      let imageCount = 0;
+      if (row.imageUrl) {
+        try {
+          const images = JSON.parse(row.imageUrl);
+          imageCount = Array.isArray(images) ? images.length : 1;
+        } catch {
+          imageCount = 1;
+        }
+      }
+      
+      return {
+        submissionId: row.id,
+        userId: row.userId,
+        userName: row.userName,
+        userEmail: row.userEmail,
+        academyId: row.academyId,
+        code: row.code,
+        imageUrl: row.imageUrl,
+        imageCount,
+        submittedAt: row.submittedAt,
+        status: row.status,
+        grading: {
+          score: gradingData.score || 0,
+          feedback: gradingData.overallFeedback || gradingData.feedback || '',
+          subject: gradingData.subject || '미지정',
+          totalQuestions: gradingData.totalQuestions || 0,
+          correctAnswers: gradingData.correctAnswers || 0,
+          detailedResults: gradingData.detailedResults || [],
+          strengths: gradingData.strengths || '',
+          improvements: gradingData.improvements || '',
+          gradedAt: row.gradedAt,
+        },
+      };
+    });
+    
     // 통계 계산
-    const totalSubmissions = submissions.results?.length || 0;
+    const totalSubmissions = processedResults.length;
     const averageScore =
       totalSubmissions > 0
-        ? (submissions.results || []).reduce(
-            (sum: number, s: any) => sum + (s.score || 0),
+        ? processedResults.reduce(
+            (sum: number, s: any) => sum + (s.grading.score || 0),
             0
           ) / totalSubmissions
         : 0;
 
-    const todaySubmissions = (submissions.results || []).filter((s: any) =>
+    const todaySubmissions = processedResults.filter((s: any) =>
       s.submittedAt && s.submittedAt.startsWith(today)
     ).length;
 
-    // 검토 대기 (점수가 60점 미만인 경우)
-    const pendingReview = (submissions.results || []).filter(
-      (s: any) => s.score && s.score < 60
+    // 검토 대기 (status가 'processing' 또는 'failed')
+    const pendingReview = processedResults.filter(
+      (s: any) => s.status === 'processing' || s.status === 'failed'
     ).length;
+
+    console.log(`📊 통계: 전체 ${totalSubmissions}, 오늘 ${todaySubmissions}, 대기 ${pendingReview}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        submissions: submissions.results || [],
-        stats: {
-          totalSubmissions,
+        results: processedResults,
+        statistics: {
+          total: totalSubmissions,
           averageScore: Math.round(averageScore),
           todaySubmissions,
-          pendingReview,
+          pending: pendingReview,
         },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }

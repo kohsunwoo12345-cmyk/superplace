@@ -51,8 +51,8 @@ async def on_fetch(request, env):
         for idx, image_base64 in enumerate(images):
             print(f"📄 이미지 {idx + 1}/{len(images)} 처리 중...")
             
-            # 1. OCR with DeepSeek/Gemini
-            ocr_text = await ocr_with_llm(image_base64, model, env)
+            # 1. OCR with DeepSeek/Gemini (설정된 모델 및 프롬프트 사용)
+            ocr_text = await ocr_with_llm(image_base64, model, system_prompt, env)
             print(f"✅ OCR 완료: {len(ocr_text)} 글자")
             
             # 2. RAG 검색 (활성화된 경우)
@@ -125,10 +125,17 @@ async def ocr_with_llm(image_base64: str, model: str, env) -> str:
         # DeepSeek OCR 모델 사용
         if model == 'deepseek-ocr-2':
             print("🔍 DeepSeek OCR 2 사용")
-            api_key = env.ALL_AI_API_KEY if hasattr(env, 'ALL_AI_API_KEY') else None
+            # Novita_AI_API 우선, 없으면 ALL_AI_API_KEY 사용
+            api_key = None
+            if hasattr(env, 'Novita_AI_API') and env.Novita_AI_API:
+                api_key = env.Novita_AI_API
+                print("✅ Novita_AI_API 키 사용")
+            elif hasattr(env, 'ALL_AI_API_KEY') and env.ALL_AI_API_KEY:
+                api_key = env.ALL_AI_API_KEY
+                print("✅ ALL_AI_API_KEY 키 사용")
             
             if not api_key:
-                print("⚠️ ALL_AI_API_KEY 없음, Gemini로 폴백")
+                print("⚠️ DeepSeek API 키 없음, Gemini로 폴백")
                 return await ocr_with_gemini(image_data, env)
             
             url = "https://api.deepseek.com/v1/chat/completions"
@@ -173,18 +180,18 @@ async def ocr_with_llm(image_base64: str, model: str, env) -> str:
                 return text
             
             print(f"⚠️ DeepSeek OCR 응답 없음, Gemini로 폴백")
-            return await ocr_with_gemini(image_data, env)
+            return await ocr_with_gemini(image_data, system_prompt, env)
         
         # Gemini API 사용 (기본)
         else:
-            return await ocr_with_gemini(image_data, env)
+            return await ocr_with_gemini(image_data, system_prompt, env)
         
     except Exception as e:
         print(f"OCR 오류: {str(e)}, Gemini로 폴백")
-        return await ocr_with_gemini(image_data, env)
+        return await ocr_with_gemini(image_data, system_prompt, env)
 
 
-async def ocr_with_gemini(image_data: str, env) -> str:
+async def ocr_with_gemini(image_data: str, system_prompt: str, env) -> str:
     """
     Gemini Vision API로 OCR 수행
     """
@@ -196,10 +203,16 @@ async def ocr_with_gemini(image_data: str, env) -> str:
         
         url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key={api_key}"
         
+        # OCR 프롬프트 구성: systemPrompt 반영
+        ocr_instruction = f"""이 이미지의 모든 텍스트와 수식을 정확하게 읽어서 그대로 텍스트로 변환해주세요. 
+수학 수식, 손글씨, 프린트된 텍스트 모두 포함해주세요.
+
+{system_prompt if system_prompt else ''}"""
+        
         payload = {
             "contents": [{
                 "parts": [
-                    {"text": "이 이미지의 모든 텍스트와 수식을 정확하게 읽어서 그대로 텍스트로 변환해주세요. 수학 수식, 손글씨, 프린트된 텍스트 모두 포함해주세요."},
+                    {"text": ocr_instruction},
                     {
                         "inline_data": {
                             "mime_type": "image/jpeg",
@@ -366,10 +379,17 @@ async def final_grading(
         # DeepSeek 모델 사용
         if model == 'deepseek-ocr-2' or model.startswith('deepseek'):
             print(f"🤖 DeepSeek 모델 사용: {model}")
-            api_key = env.ALL_AI_API_KEY if hasattr(env, 'ALL_AI_API_KEY') else None
+            # Novita_AI_API 우선, 없으면 ALL_AI_API_KEY 사용
+            api_key = None
+            if hasattr(env, 'Novita_AI_API') and env.Novita_AI_API:
+                api_key = env.Novita_AI_API
+                print("✅ Novita_AI_API 키 사용")
+            elif hasattr(env, 'ALL_AI_API_KEY') and env.ALL_AI_API_KEY:
+                api_key = env.ALL_AI_API_KEY
+                print("✅ ALL_AI_API_KEY 키 사용")
             
             if not api_key:
-                print("⚠️ ALL_AI_API_KEY 없음, Gemini로 폴백")
+                print("⚠️ DeepSeek API 키 없음, Gemini로 폴백")
                 return await grade_with_gemini(context, system_prompt, temperature, env)
             
             url = "https://api.deepseek.com/v1/chat/completions"

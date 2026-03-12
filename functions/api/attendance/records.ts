@@ -27,32 +27,30 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
 
     console.log('📊 출석 기록 조회:', { date, academyId, userId, startDate, endDate });
 
-    // 출석 기록 조회 쿼리
+    // 출석 기록 조회 쿼리 - attendance_records_v2 테이블 사용 (실제 저장 테이블)
     let query = `
       SELECT 
         ar.id,
         ar.userId,
-        ar.date,
+        SUBSTR(ar.checkInTime, 1, 10) as date,
         ar.status,
         ar.checkInTime,
-        ar.reason,
-        ar.updatedBy,
+        ar.academyId,
         u.name as userName,
-        u.email as userEmail,
-        u.classId
-      FROM attendance_records_v3 ar
+        u.email as userEmail
+      FROM attendance_records_v2 ar
       LEFT JOIN User u ON u.id = ar.userId
       WHERE 1=1
     `;
 
     const params: any[] = [];
 
-    // 날짜 필터링 (단일 날짜 또는 범위)
+    // 날짜 필터링 (단일 날짜 또는 범위) - checkInTime 기반
     if (date) {
-      query += ' AND ar.date = ?';
+      query += ' AND SUBSTR(ar.checkInTime, 1, 10) = ?';
       params.push(date);
     } else if (startDate && endDate) {
-      query += ' AND ar.date >= ? AND ar.date <= ?';
+      query += ' AND SUBSTR(ar.checkInTime, 1, 10) >= ? AND SUBSTR(ar.checkInTime, 1, 10) <= ?';
       params.push(startDate, endDate);
     }
 
@@ -68,7 +66,7 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
       params.push(userId);
     }
 
-    query += ' ORDER BY ar.date DESC, ar.checkInTime DESC';
+    query += ' ORDER BY ar.checkInTime DESC';
 
     console.log('🔍 Executing query:', query);
     console.log('📝 Params:', params);
