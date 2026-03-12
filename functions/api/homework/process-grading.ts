@@ -403,7 +403,31 @@ async function performDeepSeekGrading(
   
   if (match) {
     const result = JSON.parse(match[0]);
-    console.log(`✅ DeepSeek 채점 완료: ${result.score}점`);
+    
+    // detailedResults를 problemAnalysis로 변환 (관리자 프롬프트 호환성)
+    if (result.detailedResults && !result.problemAnalysis) {
+      result.problemAnalysis = result.detailedResults.map((item: any) => ({
+        page: item.questionNumber || 1,
+        problem: item.problem || '문제 내용 없음',
+        answer: item.studentAnswer || '',
+        isCorrect: item.isCorrect || false,
+        type: '일반',
+        concept: '',
+        explanation: item.explanation || ''
+      }));
+    }
+    
+    // 기본 필드 보완
+    result.score = result.score || (result.totalQuestions > 0 
+      ? Math.round((result.correctAnswers / result.totalQuestions) * 100) 
+      : 0);
+    result.subject = result.subject || '일반';
+    result.feedback = result.feedback || result.overallFeedback || '채점 완료';
+    result.strengths = result.strengths || '노력';
+    result.suggestions = result.suggestions || result.improvements || '계속 학습';
+    result.completion = result.completion || 'good';
+    
+    console.log(`✅ DeepSeek 채점 완료: ${result.score}점, 문제 분석: ${result.problemAnalysis?.length || 0}개`);
     return result;
   }
 
@@ -467,13 +491,37 @@ async function performGeminiGrading(
   
   if (match) {
     const result = JSON.parse(match[0]);
-    console.log(`✅ Gemini 채점 완료: ${result.score}점`);
+    
+    // detailedResults를 problemAnalysis로 변환 (관리자 프롬프트 호환성)
+    if (result.detailedResults && !result.problemAnalysis) {
+      result.problemAnalysis = result.detailedResults.map((item: any) => ({
+        page: item.questionNumber || 1,
+        problem: item.problem || '문제 내용 없음',
+        answer: item.studentAnswer || '',
+        isCorrect: item.isCorrect || false,
+        type: '일반',
+        concept: '',
+        explanation: item.explanation || ''
+      }));
+    }
+    
+    // 기본 필드 보완
+    result.score = result.score || (result.totalQuestions > 0 
+      ? Math.round((result.correctAnswers / result.totalQuestions) * 100) 
+      : 0);
+    result.subject = result.subject || '일반';
+    result.feedback = result.feedback || result.overallFeedback || '채점 완료';
+    result.strengths = result.strengths || '노력';
+    result.suggestions = result.suggestions || result.improvements || '계속 학습';
+    result.completion = result.completion || 'good';
+    
+    console.log(`✅ Gemini 채점 완료: ${result.score}점, 문제 분석: ${result.problemAnalysis?.length || 0}개`);
     return result;
   }
 
   // 기본값 (JSON 파싱 실패 시)
   console.warn('⚠️ Gemini 응답을 JSON으로 파싱하지 못했습니다. 기본값 반환');
-  return createDefaultGradingResult(imageArray.length);
+  return createDefaultGradingResult(imageCount);
 }
 
 /**
