@@ -3,6 +3,7 @@ interface Env {
   GOOGLE_GEMINI_API_KEY?: string;
   GEMINI_API_KEY?: string;
   DEEPSEEK_API_KEY?: string;
+  Novita_AI_API?: string;
 }
 
 /**
@@ -14,7 +15,7 @@ interface Env {
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, GOOGLE_GEMINI_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY } = context.env;
+    const { DB, GOOGLE_GEMINI_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY, Novita_AI_API } = context.env;
     const body = await context.request.json();
     const { submissionId } = body;
 
@@ -109,7 +110,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // API 키 선택
     let apiKey: string | undefined;
-    if (model.startsWith('deepseek')) {
+    if (model.startsWith('deepseek/')) {
+      // Novita AI를 통한 DeepSeek 호출
+      apiKey = Novita_AI_API;
+      if (!apiKey) {
+        console.error('❌ Novita_AI_API 미설정');
+        return new Response(
+          JSON.stringify({ error: "Novita AI API key not configured" }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    } else if (model.startsWith('deepseek')) {
       apiKey = DEEPSEEK_API_KEY;
       if (!apiKey) {
         console.error('❌ DEEPSEEK_API_KEY 미설정');
@@ -303,6 +314,7 @@ async function performGrading(
 
 /**
  * DeepSeek API를 사용한 채점
+ * deepseek/ prefix가 있으면 Novita AI endpoint 사용
  */
 async function performDeepSeekGrading(
   imageArray: string[],
@@ -355,8 +367,15 @@ async function performDeepSeekGrading(
 
 반드시 JSON 형식만 출력하세요.`;
 
+  // Novita AI를 사용하는 경우 (deepseek/ prefix)
+  const apiEndpoint = model.startsWith('deepseek/') 
+    ? 'https://api.novita.ai/v3/openai/chat/completions'
+    : 'https://api.deepseek.com/v1/chat/completions';
+  
+  console.log(`🔗 API Endpoint: ${apiEndpoint}, Model: ${model}`);
+
   const deepseekResponse = await fetch(
-    'https://api.deepseek.com/v1/chat/completions',
+    apiEndpoint,
     {
       method: 'POST',
       headers: {

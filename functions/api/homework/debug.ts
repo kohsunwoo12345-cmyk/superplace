@@ -1,6 +1,8 @@
 interface Env {
   DB: D1Database;
-  GOOGLE_GEMINI_API_KEY: string;
+  GOOGLE_GEMINI_API_KEY?: string;
+  DEEPSEEK_API_KEY?: string;
+  Novita_AI_API?: string;
 }
 
 /**
@@ -9,14 +11,22 @@ interface Env {
  */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, GOOGLE_GEMINI_API_KEY } = context.env;
+    const { DB, GOOGLE_GEMINI_API_KEY, DEEPSEEK_API_KEY, Novita_AI_API } = context.env;
 
     // 환경 변수 체크
     const hasDB = !!DB;
     const hasGeminiKey = !!GOOGLE_GEMINI_API_KEY;
+    const hasDeepSeekKey = !!DEEPSEEK_API_KEY;
+    const hasNovitaKey = !!Novita_AI_API;
+    
     const geminiKeyLength = GOOGLE_GEMINI_API_KEY ? GOOGLE_GEMINI_API_KEY.length : 0;
     const geminiKeyPrefix = GOOGLE_GEMINI_API_KEY 
       ? GOOGLE_GEMINI_API_KEY.substring(0, 10) + '...' 
+      : 'NOT_SET';
+    
+    const novitaKeyLength = Novita_AI_API ? Novita_AI_API.length : 0;
+    const novitaKeyPrefix = Novita_AI_API
+      ? Novita_AI_API.substring(0, 10) + '...'
       : 'NOT_SET';
 
     // DB 테스트
@@ -70,6 +80,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         hasGeminiApiKey: hasGeminiKey,
         geminiKeyLength: geminiKeyLength,
         geminiKeyPrefix: geminiKeyPrefix,
+        hasDeepSeekApiKey: hasDeepSeekKey,
+        hasNovitaApiKey: hasNovitaKey,
+        novitaKeyLength: novitaKeyLength,
+        novitaKeyPrefix: novitaKeyPrefix,
       },
       tests: {
         database: dbTest,
