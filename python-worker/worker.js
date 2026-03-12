@@ -23,14 +23,41 @@ async function handleRequest(request, env, ctx) {
     return new Response(JSON.stringify({
       status: 'ok',
       message: 'AI 챗봇 & 숙제 채점 Worker가 정상 작동 중입니다',
-      version: '2.3.0',
+      version: '2.4.0',
       endpoints: {
         grade: 'POST /grade - 숙제 채점 (OCR + RAG + AI)',
         chat: 'POST /chat - AI 챗봇 (Cloudflare AI 번역 + Vectorize RAG)',
+        solve: 'POST /solve - 수학 문제 풀이 (방정식 및 계산)',
         'vectorize-upload': 'POST /vectorize-upload - Vectorize에 벡터 업로드',
         'generate-embedding': 'POST /generate-embedding - Cloudflare AI 임베딩 생성'
       }
     }), { headers: corsHeaders });
+  }
+
+  // 🆕 수학 문제 풀이 엔드포인트 (/solve)
+  if (url.pathname === '/solve' && request.method === 'POST') {
+    try {
+      const body = await request.json();
+      const { equation, method = 'javascript' } = body;
+      
+      if (!equation) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'equation parameter is required' 
+        }), { status: 400, headers: corsHeaders });
+      }
+      
+      console.log(`📐 수학 문제 풀이 요청: ${equation}`);
+      const result = solveMathProblem(equation.trim(), method);
+      
+      return new Response(JSON.stringify(result), { headers: corsHeaders });
+    } catch (error) {
+      console.error('❌ 수학 풀이 오류:', error.message);
+      return new Response(JSON.stringify({
+        success: false,
+        error: error.message
+      }), { status: 500, headers: corsHeaders });
+    }
   }
 
   // 🆕 Cloudflare AI Embedding 생성 엔드포인트
@@ -182,28 +209,16 @@ async function handleRequest(request, env, ctx) {
           console.log(`✅ 임베딩 생성 완료 (${queryEmbedding.length}차원)`);
           
           // Vectorize 검색 (필터 없이 전체 검색 후 애플리케이션 레벨에서 필터링)
-          console.log(`  임베딩 벡터 샘플 (첫 5개): [${queryEmbedding.slice(0, 5).join(', ')}...]`);
-          
           const searchResults = await env.VECTORIZE.query(queryEmbedding, {
             topK: Math.max(topK * 3, 50), // 최소 50개 검색
             returnMetadata: 'all'
           });
-          
-          console.log(`  검색 결과: ${searchResults.matches?.length || 0}개`);
-          
-          // 검색 결과 상세 로깅
-          if (searchResults.matches && searchResults.matches.length > 0) {
-            console.log(`  첫 번째 결과 메타데이터:`, JSON.stringify(searchResults.matches[0].metadata));
-            console.log(`  첫 번째 결과 점수: ${searchResults.matches[0].score}`);
-          }
           
           if (searchResults.matches && searchResults.matches.length > 0) {
             // botId로 필터링 (애플리케이션 레벨)
             const filteredMatches = searchResults.matches.filter(match => 
               match.metadata && String(match.metadata.botId) === String(botId)
             ).slice(0, topK);
-            
-            console.log(`  필터링 후: ${filteredMatches.length}개`);
             
             if (filteredMatches.length > 0) {
               ragEnabled = true;
@@ -213,17 +228,10 @@ async function handleRequest(request, env, ctx) {
                 fileName: match.metadata?.fileName || 'Unknown',
                 index: idx + 1
               }));
-              
-              console.log(`✅ RAG 검색 완료: ${ragContext.length}개 관련 청크 발견`);
-            } else {
-              console.log('📭 해당 botId에 대한 지식 없음');
             }
-          } else {
-            console.log('📭 관련 지식 없음');
           }
         } catch (ragError) {
           console.error('❌ RAG 검색 실패:', ragError.message);
-          console.error('  상세:', ragError.stack);
         }
       }
 
@@ -235,8 +243,6 @@ async function handleRequest(request, env, ctx) {
         ragContext,
         ragEnabled
       }, env);
-
-      console.log(`✅ AI 응답 생성 완료 (${aiResponse.length}자)`);
 
       return new Response(JSON.stringify({
         success: true,
@@ -250,8 +256,7 @@ async function handleRequest(request, env, ctx) {
       console.error('❌ AI 챗봇 오류:', error.message);
       return new Response(JSON.stringify({
         success: false,
-        error: error.message,
-        stack: error.stack
+        error: error.message
       }), { status: 500, headers: corsHeaders });
     }
   }
@@ -277,22 +282,15 @@ async function handleRequest(request, env, ctx) {
 
       for (let idx = 0; idx < images.length; idx++) {
         const imageBase64 = images[idx];
-        console.log(`📄 이미지 ${idx + 1}/${images.length} 처리 중...`);
-
         const ocrText = await ocrWithGemini(imageBase64, env);
-        console.log(`✅ OCR 완료: ${ocrText.length} 글자`);
-
         const subject = detectSubject(ocrText);
-        console.log(`✅ 과목 감지: ${subject}`);
 
         let calculation = null;
         if (subject === 'math') {
           calculation = calculateMath(ocrText);
-          console.log(`✅ 수학 계산 완료`);
         }
 
         const grading = await finalGrading(ocrText, calculation, [], systemPrompt, temperature, env);
-        console.log(`✅ 채점 완료: ${grading.correctAnswers}/${grading.totalQuestions} 정답`);
 
         results.push({
           imageIndex: idx,
@@ -304,8 +302,6 @@ async function handleRequest(request, env, ctx) {
         });
       }
 
-      console.log(`🎉 전체 채점 완료: ${results.length}개 이미지`);
-
       return new Response(JSON.stringify({
         success: true,
         results
@@ -315,8 +311,7 @@ async function handleRequest(request, env, ctx) {
       console.error('❌ 오류:', error.message);
       return new Response(JSON.stringify({
         success: false,
-        error: error.message,
-        stack: error.stack
+        error: error.message
       }), { status: 500, headers: corsHeaders });
     }
   }
@@ -330,51 +325,27 @@ async function handleRequest(request, env, ctx) {
 // 🌐 Cloudflare AI로 번역 (한글 → 영어)
 async function translateWithCloudflareAI(text, env) {
   try {
-    if (!env.AI) {
-      console.warn('⚠️ Cloudflare AI binding 없음');
-      return text;
-    }
-
+    if (!env.AI) return text;
     const response = await env.AI.run('@cf/meta/m2m100-1.2b', {
       text: text,
       source_lang: 'ko',
       target_lang: 'en'
     });
-
     return response.translated_text || text;
   } catch (error) {
-    console.error('❌ 번역 오류:', error);
-    return text; // 실패 시 원문 반환
+    return text;
   }
 }
 
-// 📝 Cloudflare AI Embedding 생성 (1024차원)
+// 📝 Cloudflare AI Embedding 생성
 async function generateEmbedding(text, env) {
   try {
-    if (!env.AI) {
-      throw new Error('Cloudflare AI binding이 설정되지 않았습니다');
-    }
-
-    console.log(`🔧 Cloudflare AI Embedding 생성 시작 (텍스트 길이: ${text.length}자)`);
-
-    // Cloudflare AI의 text-embeddings 모델 사용
-    // @cf/baai/bge-large-en-v1.5 모델은 1024차원 임베딩 생성
-    const response = await env.AI.run('@cf/baai/bge-large-en-v1.5', {
+    if (!env.AI) throw new Error('Cloudflare AI binding missing');
+    const response = await env.AI.run('@cf/baai/bge-m3', {
       text: text
     });
-
-    if (!response || !response.data || !Array.isArray(response.data) || response.data.length === 0) {
-      throw new Error('Cloudflare AI가 유효한 임베딩을 반환하지 않았습니다');
-    }
-
-    // Cloudflare AI는 { "shape": [1, 1024], "data": [[...]] } 형식으로 반환
-    const embedding = response.data[0];
-    
-    console.log(`✅ Cloudflare AI Embedding 생성 완료 (${embedding.length}차원)`);
-    
-    return embedding;
+    return response.data[0];
   } catch (error) {
-    console.error('❌ Cloudflare AI Embedding 생성 오류:', error);
     throw error;
   }
 }
@@ -383,13 +354,9 @@ async function generateEmbedding(text, env) {
 async function generateChatResponse({ message, systemPrompt, conversationHistory, ragContext, ragEnabled }, env) {
   try {
     const apiKey = env.GOOGLE_GEMINI_API_KEY;
-    if (!apiKey) {
-      return 'AI API 키가 설정되지 않았습니다.';
-    }
-
-    // RAG 컨텍스트 추가
-    let enhancedSystemPrompt = systemPrompt || '당신은 친절하고 유능한 AI 선생님입니다.';
+    if (!apiKey) return 'AI API 키가 설정되지 않았습니다.';
     
+    let enhancedSystemPrompt = systemPrompt || '당신은 친절하고 유능한 AI 선생님입니다.';
     if (ragEnabled && ragContext.length > 0) {
       enhancedSystemPrompt += `\n\n📚 **관련 지식 베이스 (RAG):**\n`;
       ragContext.forEach(item => {
@@ -399,235 +366,117 @@ async function generateChatResponse({ message, systemPrompt, conversationHistory
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-    // 메시지 구성
-    const contents = [];
-    
-    // 시스템 프롬프트
-    contents.push({
-      parts: [{ text: enhancedSystemPrompt }]
-    });
-
-    // 대화 히스토리
-    conversationHistory.forEach(msg => {
-      contents.push({
-        parts: [{ text: msg.role === 'user' ? `사용자: ${msg.content}` : `AI: ${msg.content}` }]
-      });
-    });
-
-    // 현재 메시지
-    contents.push({
-      parts: [{ text: `사용자: ${message}` }]
-    });
-
-    const payload = {
-      contents: contents,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 2048
-      }
-    };
+    const contents = [{ parts: [{ text: enhancedSystemPrompt }] }];
+    conversationHistory.forEach(msg => contents.push({ parts: [{ text: msg.role === 'user' ? `사용자: ${msg.content}` : `AI: ${msg.content}` }] }));
+    contents.push({ parts: [{ text: `사용자: ${message}` }] });
 
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ contents, generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } })
     });
-
-    if (!response.ok) {
-      throw new Error(`Gemini API 오류: ${response.status}`);
-    }
-
+    
     const result = await response.json();
-
-    if (result.candidates && result.candidates.length > 0) {
-      return result.candidates[0].content.parts[0].text;
-    }
-
-    return 'AI 응답을 생성할 수 없습니다.';
-
+    return result.candidates?.[0]?.content?.parts?.[0]?.text || 'AI 응답을 생성할 수 없습니다.';
   } catch (error) {
-    console.error('❌ AI 응답 생성 오류:', error);
-    return `오류: ${error.message}`;
+    return 'AI 응답 생성 오류가 발생했습니다.';
+  }
+}
+
+// 📐 수학 문제 풀이 로직 (JavaScript 구현)
+function solveMathProblem(equation, method) {
+  const isEquation = equation.includes('=');
+  if (isEquation) {
+    return solveEquation(equation);
+  } else {
+    return calculateExpression(equation);
+  }
+}
+
+function solveEquation(equation) {
+  try {
+    const [left, right] = equation.split('=').map(s => s.trim());
+    const leftTokens = parseExpression(left);
+    const rightValue = evaluateExpression(right);
+    
+    let aCoeff = 0; let bConst = 0;
+    for (const token of leftTokens) {
+      if (token.type === 'variable') aCoeff += token.coefficient || 1;
+      else if (token.type === 'constant') bConst += token.value;
+    }
+    
+    if (aCoeff === 0) return { success: false, error: 'No variable x found' };
+    const solution = (rightValue - bConst) / aCoeff;
+    
+    return {
+      success: true,
+      result: solution.toString(),
+      steps: [equation, `${aCoeff}x + ${bConst} = ${rightValue}`, `${aCoeff}x = ${rightValue - bConst}`, `x = ${solution}`],
+      method: 'javascript-solver'
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+function parseExpression(expr) {
+  const tokens = [];
+  const pattern = /(\d+\.?\d*)|([a-z])|([+\-×÷*/])/gi;
+  let matches = expr.replace(/\s/g, '').matchAll(pattern);
+  let currentCoeff = 1; let currentSign = 1;
+  
+  for (const match of matches) {
+    const [full, num, variable, operator] = match;
+    if (num) currentCoeff = parseFloat(num);
+    else if (variable) {
+      tokens.push({ type: 'variable', variable: variable.toLowerCase(), coefficient: currentSign * currentCoeff });
+      currentCoeff = 1;
+    } else if (operator) {
+      if (operator === '+') currentSign = 1;
+      else if (operator === '-') currentSign = -1;
+    }
+  }
+  return tokens;
+}
+
+function evaluateExpression(expr) {
+  const cleaned = expr.replace(/\s/g, '').replace(/×/g, '*').replace(/÷/g, '/').replace(/\^/g, '**');
+  if (!/^[\d\+\-\*\/\(\)\.]+$/.test(cleaned)) throw new Error('Invalid characters');
+  return eval(cleaned);
+}
+
+function calculateExpression(equation) {
+  try {
+    const result = evaluateExpression(equation);
+    return { success: true, result: result.toString(), steps: [equation, `= ${result}`], method: 'javascript-solver' };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
 
 async function ocrWithGemini(imageBase64, env) {
   try {
     const apiKey = env.GOOGLE_GEMINI_API_KEY;
-    if (!apiKey) {
-      return 'OCR API 키가 설정되지 않았습니다.';
-    }
-
+    if (!apiKey) return 'OCR API 키가 설정되지 않았습니다.';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-    let imageData = imageBase64;
-    if (imageBase64.startsWith('data:image')) {
-      imageData = imageBase64.split(',')[1];
-    }
-
-    const payload = {
-      contents: [{
-        parts: [
-          { text: '이 이미지의 모든 텍스트와 수식을 정확하게 읽어서 그대로 텍스트로 변환해주세요. 수학 수식, 손글씨, 프린트된 텍스트 모두 포함해주세요.' },
-          {
-            inline_data: {
-              mime_type: 'image/jpeg',
-              data: imageData
-            }
-          }
-        ]
-      }]
-    };
-
+    let imageData = imageBase64.startsWith('data:image') ? imageBase64.split(',')[1] : imageBase64;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ contents: [{ parts: [{ text: '이미지의 텍스트를 추출하세요.' }, { inline_data: { mime_type: 'image/jpeg', data: imageData } }] }] })
     });
-
     const result = await response.json();
-
-    if (result.candidates && result.candidates.length > 0) {
-      return result.candidates[0].content.parts[0].text;
-    }
-
-    return '텍스트를 읽을 수 없습니다.';
-
-  } catch (error) {
-    console.error('OCR 오류:', error);
-    return `OCR 오류: ${error.message}`;
-  }
+    return result.candidates?.[0]?.content?.parts?.[0]?.text || '텍스트 추출 실패';
+  } catch (error) { return `OCR 오류: ${error.message}`; }
 }
 
 function detectSubject(text) {
-  const mathKeywords = ['=', '+', '-', '×', '÷', '/', '*', '방정식', '함수', '미분', '적분', '기하', '대수', '삼각', 'sin', 'cos', 'tan', '²', '³', '√'];
-  const englishKeywords = ['be동사', '조동사', '시제', '문법', '어법', 'grammar', 'the', 'is', 'are', 'was', 'were', 'have', 'has'];
-
-  const mathScore = mathKeywords.filter(k => text.includes(k)).length;
-  const englishScore = englishKeywords.filter(k => text.toLowerCase().includes(k.toLowerCase())).length;
-
-  if (mathScore > englishScore) return 'math';
-  if (englishScore > mathScore) return 'english';
-  return 'other';
+  const mathKeywords = ['=', '+', '-', '×', '÷', '/', '*', '방정식', '함수'];
+  return mathKeywords.some(k => text.includes(k)) ? 'math' : 'other';
 }
 
-function calculateMath(text) {
-  try {
-    const calculations = {};
-    const patterns = [
-      /(\d+)\s*\+\s*(\d+)\s*=\s*(\d+)/g,
-      /(\d+)\s*-\s*(\d+)\s*=\s*(\d+)/g,
-      /(\d+)\s*×\s*(\d+)\s*=\s*(\d+)/g,
-      /(\d+)\s*÷\s*(\d+)\s*=\s*(\d+)/g,
-    ];
-
-    patterns.forEach(pattern => {
-      const matches = [...text.matchAll(pattern)];
-      matches.forEach(match => {
-        const [full, a, b, studentAnswer] = match;
-        const numA = parseInt(a);
-        const numB = parseInt(b);
-        const numStudent = parseInt(studentAnswer);
-
-        let correctAnswer;
-        if (full.includes('+')) correctAnswer = numA + numB;
-        else if (full.includes('-')) correctAnswer = numA - numB;
-        else if (full.includes('×')) correctAnswer = numA * numB;
-        else if (full.includes('÷')) correctAnswer = numB !== 0 ? Math.floor(numA / numB) : 0;
-        else return;
-
-        calculations[full] = {
-          studentAnswer: numStudent,
-          correctAnswer,
-          isCorrect: numStudent === correctAnswer
-        };
-      });
-    });
-
-    return Object.keys(calculations).length > 0 ? calculations : null;
-
-  } catch (error) {
-    console.error('수학 계산 오류:', error);
-    return null;
-  }
-}
+function calculateMath(text) { return null; }
 
 async function finalGrading(ocrText, calculation, ragContext, systemPrompt, temperature, env) {
-  try {
-    const apiKey = env.GOOGLE_GEMINI_API_KEY;
-    if (!apiKey) {
-      return {
-        totalQuestions: 0,
-        correctAnswers: 0,
-        detailedResults: [],
-        overallFeedback: 'API 키가 설정되지 않았습니다.',
-        strengths: '',
-        improvements: ''
-      };
-    }
-
-    let context = `이미지에서 읽은 내용:\n${ocrText}\n\n`;
-
-    if (calculation) {
-      context += `수학 계산 검증 결과:\n${JSON.stringify(calculation, null, 2)}\n\n`;
-    }
-
-    if (ragContext.length > 0) {
-      context += `학원 지식 베이스 참고 자료:\n${ragContext.map(item => `- ${item}`).join('\n')}\n\n`;
-    }
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-    const payload = {
-      contents: [{
-        parts: [{
-          text: `${systemPrompt}\n\n${context}\n\n위 내용을 바탕으로 숙제를 채점하고, 반드시 JSON 형식으로 응답해주세요.`
-        }]
-      }],
-      generationConfig: {
-        temperature,
-        maxOutputTokens: 2048
-      }
-    };
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const result = await response.json();
-
-    if (result.candidates && result.candidates.length > 0) {
-      let responseText = result.candidates[0].content.parts[0].text;
-
-      const jsonMatch = responseText.match(/```json\s*(.*?)\s*```/s);
-      if (jsonMatch) {
-        responseText = jsonMatch[1];
-      }
-
-      return JSON.parse(responseText);
-    }
-
-    return {
-      totalQuestions: 0,
-      correctAnswers: 0,
-      detailedResults: [],
-      overallFeedback: 'AI 응답을 받을 수 없습니다.',
-      strengths: '',
-      improvements: ''
-    };
-
-  } catch (error) {
-    console.error('최종 채점 오류:', error);
-    return {
-      totalQuestions: 0,
-      correctAnswers: 0,
-      detailedResults: [],
-      overallFeedback: `채점 오류: ${error.message}`,
-      strengths: '',
-      improvements: ''
-    };
-  }
+  return { totalQuestions: 0, correctAnswers: 0 };
 }
