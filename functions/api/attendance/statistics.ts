@@ -45,7 +45,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       try {
         const result = await DB.prepare(`
           SELECT substr(checkInTime, 1, 10) as date, status, userId
-          FROM attendance_records_v3
+          FROM attendance_records_v2
           WHERE userId = ?
         `).bind(userId).all();
 
@@ -98,7 +98,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       // 1. 전체 출석 기록 조회
       const allRecords = await DB.prepare(`
         SELECT id, userId, code, checkInTime, status, academyId
-        FROM attendance_records_v3
+        FROM attendance_records_v2
         ORDER BY checkInTime DESC
         LIMIT 200
       `).all();
