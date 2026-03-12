@@ -422,9 +422,20 @@ async function performDeepSeekGrading(
     }
     
     // 기본 필드 보완
-    result.score = result.score || (result.totalQuestions > 0 
-      ? Math.round((result.correctAnswers / result.totalQuestions) * 100) 
-      : 0);
+    // score 정규화: AI가 0~1 범위로 반환한 경우 100을 곱해 백분율로 변환
+    let rawScore = result.score;
+    if (rawScore === undefined || rawScore === null) {
+      rawScore = result.totalQuestions > 0
+        ? Math.round((result.correctAnswers / result.totalQuestions) * 100)
+        : 0;
+    } else if (rawScore > 0 && rawScore <= 1) {
+      // 0~1 범위인 경우 백분율로 변환
+      rawScore = Math.round(rawScore * 100);
+    } else {
+      // 소수점 반올림
+      rawScore = Math.round(rawScore);
+    }
+    result.score = rawScore;
     result.subject = result.subject || '일반';
     result.feedback = result.feedback || result.overallFeedback || '채점 완료';
     result.strengths = result.strengths || '노력';
@@ -510,9 +521,20 @@ async function performGeminiGrading(
     }
     
     // 기본 필드 보완
-    result.score = result.score || (result.totalQuestions > 0 
-      ? Math.round((result.correctAnswers / result.totalQuestions) * 100) 
-      : 0);
+    // score 정규화: AI가 0~1 범위로 반환한 경우 100을 곱해 백분율로 변환
+    let rawScore = result.score;
+    if (rawScore === undefined || rawScore === null) {
+      rawScore = result.totalQuestions > 0
+        ? Math.round((result.correctAnswers / result.totalQuestions) * 100)
+        : 0;
+    } else if (rawScore > 0 && rawScore <= 1) {
+      // 0~1 범위인 경우 백분율로 변환
+      rawScore = Math.round(rawScore * 100);
+    } else {
+      // 소수점 반올림
+      rawScore = Math.round(rawScore);
+    }
+    result.score = rawScore;
     result.subject = result.subject || '일반';
     result.feedback = result.feedback || result.overallFeedback || '채점 완료';
     result.strengths = result.strengths || '노력';
@@ -525,7 +547,7 @@ async function performGeminiGrading(
 
   // 기본값 (JSON 파싱 실패 시)
   console.warn('⚠️ Gemini 응답을 JSON으로 파싱하지 못했습니다. 기본값 반환');
-  return createDefaultGradingResult(imageCount);
+  return createDefaultGradingResult(imageArray.length);
 }
 
 /**

@@ -239,7 +239,12 @@ export default function TeacherHomeworkResultsPage() {
             ...result,
             id: result.submissionId,
             // grading 정보를 최상위로 복사
-            score: result.grading?.score || 0,
+            // score 정규화: 0~1 범위이면 100을 곱해 백분율로 변환, 소수점 반올림
+            score: (function(s: number | undefined | null) {
+              if (!s) return 0;
+              if (s > 0 && s <= 1) return Math.round(s * 100);
+              return Math.round(s);
+            })(result.grading?.score),
             feedback: result.grading?.feedback || '',
             subject: result.grading?.subject || '미지정',
             completion: result.grading?.completion || 'pending',

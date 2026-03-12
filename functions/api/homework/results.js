@@ -161,8 +161,13 @@ export async function onRequestGet(context) {
     // 통계 계산
     const totalSubmissions = results.length;
     const gradedCount = results.filter(r => r.gradingId).length;
+    const normalizeScore = (s) => {
+      if (s === null || s === undefined) return 0;
+      if (s > 0 && s <= 1) return Math.round(s * 100);
+      return Math.round(s);
+    };
     const avgScore = gradedCount > 0
-      ? Math.round(results.reduce((sum, r) => sum + (r.score || 0), 0) / gradedCount)
+      ? Math.round(results.reduce((sum, r) => sum + normalizeScore(r.score), 0) / gradedCount)
       : 0;
 
     // 결과 포맷팅
@@ -180,7 +185,11 @@ export async function onRequestGet(context) {
       imageCount: (imagesMap[r.submissionId] || []).length,
       grading: r.gradingId ? {
         id: r.gradingId,
-        score: r.score,
+        score: (function(s) {
+          if (s === null || s === undefined) return 0;
+          if (s > 0 && s <= 1) return Math.round(s * 100);
+          return Math.round(s);
+        })(r.score),
         feedback: r.feedback,
         strengths: r.strengths,
         improvements: r.improvements,
