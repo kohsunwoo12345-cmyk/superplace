@@ -4,6 +4,7 @@ interface Env {
   GEMINI_API_KEY?: string;
   DEEPSEEK_API_KEY?: string;
   Novita_AI_API?: string;
+  PYTHON_WORKER_URL?: string; // Python Worker URL (optional)
 }
 
 /**
@@ -15,7 +16,7 @@ interface Env {
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, GOOGLE_GEMINI_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY, Novita_AI_API } = context.env;
+    const { DB, GOOGLE_GEMINI_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY, Novita_AI_API, PYTHON_WORKER_URL } = context.env;
     const body = await context.request.json();
     const { submissionId } = body;
 
@@ -182,9 +183,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     console.log(`📚 채점할 이미지 수: ${imageArray.length}장`);
 
     // 4. AI 모델로 채점 수행
-    const gradingResult = await performGrading(imageArray, apiKey, model, systemPrompt, temperature);
+    let gradingResult = await performGrading(imageArray, apiKey, model, systemPrompt, temperature);
 
-    // 5. homework_gradings_v2 테이블 생성
+    // 5. Python Worker로 수학 문제 검증 (옵션)
+    if (PYTHON_WORKER_URL && gradingResult.problemAnalysis && gradingResult.problemAnalysis.length > 0) {
+      try {
+        console.log(`🐍 Python Worker로 수학 문제 검증 시작...`);
+        const { enhanceProblemAnalysisWithPython } = await import('./python-helper');
+        gradingResult.problemAnalysis = await enhanceProblemAnalysisWithPython(
+          gradingResult.problemAnalysis,
+          PYTHON_WORKER_URL
+        );
+        console.log(`✅ Python 검증 완료`);
+      } catch (pythonError: any) {
+        console.warn(`⚠️ Python 검증 실패 (계속 진행):`, pythonError.message);
+      }
+    }
+
+    // 6. homework_gradings_v2 테이블 생성
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_gradings_v2 (
         id TEXT PRIMARY KEY,
@@ -231,7 +247,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         totalQuestions, correctAnswers, problemAnalysis, weaknessTypes,
         detailedAnalysis, studyDirection
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?, ?, 'Gemini AI', ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?, ?, 'DeepSeek AI', ?, ?, ?, ?, ?, ?)
     `).bind(
       gradingId,
       submissionId,
@@ -336,36 +352,9 @@ async function performDeepSeekGrading(
     };
   });
 
-  const userPrompt = `제공된 ${imageArray.length}장의 숙제 이미지를 분석하여 채점하세요.
-
-다음 JSON 형식으로 응답하세요:
-{
-  "subject": "과목명 (수학, 영어, 국어 등)",
-  "grade": 학년 (숫자),
-  "score": 점수 (0-100),
-  "totalQuestions": 전체 문제 수,
-  "correctAnswers": 정답 개수,
-  "feedback": "전체적인 피드백 (최소 5문장)",
-  "strengths": "잘한 점 (쉼표로 구분)",
-  "suggestions": "개선할 점 (쉼표로 구분)",
-  "completion": "good/fair/poor",
-  "problemAnalysis": [
-    {
-      "page": 페이지 번호,
-      "problem": "문제 내용",
-      "answer": "학생 답안",
-      "isCorrect": true/false,
-      "type": "문제 유형",
-      "concept": "관련 개념",
-      "explanation": "채점 설명"
-    }
-  ],
-  "weaknessTypes": ["약점1", "약점2"],
-  "detailedAnalysis": "상세 분석 (최소 10문장)",
-  "studyDirection": "학습 방향 제시 (최소 5문장)"
-}
-
-반드시 JSON 형식만 출력하세요.`;
+  // 관리자가 설정한 프롬프트 사용
+  const finalPrompt = `${systemPrompt}\n\n제공된 ${imageArray.length}장의 이미지를 분석하세요.`;
+  console.log(`📋 사용할 프롬프트 (첫 200자): ${finalPrompt.substring(0, 200)}...`);
 
   // Novita AI를 사용하는 경우 (deepseek/ prefix)
   const apiEndpoint = model.startsWith('deepseek/') 
@@ -386,13 +375,9 @@ async function performDeepSeekGrading(
         model: model,
         messages: [
           {
-            role: "system",
-            content: systemPrompt
-          },
-          {
             role: "user",
             content: [
-              { type: "text", text: userPrompt },
+              { type: "text", text: finalPrompt },
               ...imageContents
             ]
           }
@@ -449,38 +434,9 @@ async function performGeminiGrading(
     };
   });
 
-  const userPrompt = `제공된 ${imageArray.length}장의 숙제 이미지를 분석하여 채점하세요.
-
-다음 JSON 형식으로 응답하세요:
-{
-  "subject": "과목명 (수학, 영어, 국어 등)",
-  "grade": 학년 (숫자),
-  "score": 점수 (0-100),
-  "totalQuestions": 전체 문제 수,
-  "correctAnswers": 정답 개수,
-  "feedback": "전체적인 피드백 (최소 5문장)",
-  "strengths": "잘한 점 (쉼표로 구분)",
-  "suggestions": "개선할 점 (쉼표로 구분)",
-  "completion": "good/fair/poor",
-  "problemAnalysis": [
-    {
-      "page": 페이지 번호,
-      "problem": "문제 내용",
-      "answer": "학생 답안",
-      "isCorrect": true/false,
-      "type": "문제 유형",
-      "concept": "관련 개념",
-      "explanation": "채점 설명"
-    }
-  ],
-  "weaknessTypes": ["약점1", "약점2"],
-  "detailedAnalysis": "상세 분석 (최소 10문장)",
-  "studyDirection": "학습 방향 제시 (최소 5문장)"
-}
-
-반드시 JSON 형식만 출력하세요.`;
-
-  const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+  // 관리자가 설정한 프롬프트 사용
+  const finalPrompt = `${systemPrompt}\n\n제공된 ${imageArray.length}장의 이미지를 분석하세요.`;
+  console.log(`📋 사용할 프롬프트 (첫 200자): ${finalPrompt.substring(0, 200)}...`);
   
   const geminiResponse = await fetch(
     `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
@@ -488,7 +444,7 @@ async function performGeminiGrading(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }, ...imageParts] }],
+        contents: [{ parts: [{ text: finalPrompt }, ...imageParts] }],
         generationConfig: {
           temperature: temperature,
           maxOutputTokens: 4000
