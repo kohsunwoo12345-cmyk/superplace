@@ -107,9 +107,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log("📊 Total attendance records:", records.length);
 
       // academyId로 필터링 (SUPER_ADMIN이 아닌 경우)
-      if (academyId && role !== 'SUPER_ADMIN') {
-        records = records.filter(r => String(r.academyId) === String(academyId));
-        console.log("📊 Filtered for academy", academyId, ":", records.length);
+      if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
+        if (!academyId) {
+          // 학원장/선생님인데 academyId가 없으면 빈 결과
+          console.warn("⚠️ No academyId for non-admin role! Returning empty records.");
+          records = [];
+        } else {
+          records = records.filter(r => String(r.academyId) === String(academyId));
+          console.log("📊 Filtered for academy", academyId, ":", records.length);
+        }
       }
     } catch (e: any) {
       console.error("Error fetching attendance:", e);
@@ -173,10 +179,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       return isStudent && isActive;
     });
     
-    if (role === 'SUPER_ADMIN' || role === 'ADMIN' || !academyId) {
+    if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+      // 관리자는 전체 학생
       totalStudents = students.length;
-    } else {
+    } else if (academyId) {
+      // 학원장/선생님은 본인 학원 학생만
       totalStudents = students.filter(s => String(s.academyId) === String(academyId)).length;
+    } else {
+      // academyId 없으면 0
+      totalStudents = 0;
     }
     
     console.log("📊 Total active students (excluding withdrawn):", totalStudents);
