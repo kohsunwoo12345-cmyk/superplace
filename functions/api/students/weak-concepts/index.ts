@@ -261,6 +261,40 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
             WHERE academy_id = ?
           `).bind(student.academyId).run();
           console.log('✅ 부족한 개념 분석 사용량 증가 완료');
+        } else {
+          // director_limitations 없으면 user_subscriptions에서 제한값 확인 (fallback)
+          const subscription = await DB.prepare(`
+            SELECT max_ai_analysis, current_ai_analysis
+            FROM user_subscriptions
+            WHERE userId = ? AND status = 'active'
+            LIMIT 1
+          `).bind(student.id).first();
+
+          if (subscription) {
+            const maxAI = subscription.max_ai_analysis as number;
+            const currentAI = subscription.current_ai_analysis as number;
+            if (maxAI > 0 && currentAI >= maxAI) {
+              console.log(`❌ 부족한 개념 분석 월간 한도 초과 (subscription): ${currentAI}/${maxAI}`);
+              return new Response(
+                JSON.stringify({
+                  success: false,
+                  error: "MONTHLY_LIMIT_EXCEEDED",
+                  message: `부족한 개념 분석 월간 한도를 초과했습니다. (${currentAI}/${maxAI})`,
+                  currentUsage: currentAI,
+                  maxLimit: maxAI,
+                }),
+                { status: 403, headers: { "Content-Type": "application/json" } }
+              );
+            }
+            // 사용량 증가
+            await DB.prepare(`
+              UPDATE user_subscriptions
+              SET current_ai_analysis = current_ai_analysis + 1,
+                  updatedAt = datetime('now', '+9 hours')
+              WHERE userId = ? AND status = 'active'
+            `).bind(student.id).run();
+            console.log('✅ user_subscriptions 부족한 개념 분석 사용량 증가');
+          }
         }
       }
     } catch (limitError: any) {

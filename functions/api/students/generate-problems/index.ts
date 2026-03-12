@@ -112,6 +112,40 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
               WHERE academy_id = ?
             `).bind(student.academyId).run();
             console.log('✅ 유사문제 출제 사용량 증가 완료');
+          } else {
+            // director_limitations 없으면 user_subscriptions에서 제한값 확인 (fallback)
+            const subscription = await DB.prepare(`
+              SELECT max_similar_problems, current_similar_problems
+              FROM user_subscriptions
+              WHERE userId = ? AND status = 'active'
+              LIMIT 1
+            `).bind(student.id).first();
+
+            if (subscription) {
+              const maxProblems = subscription.max_similar_problems as number;
+              const currentProblems = subscription.current_similar_problems as number;
+              if (maxProblems > 0 && currentProblems >= maxProblems) {
+                console.log(`❌ 유사문제 출제 월간 한도 초과 (subscription): ${currentProblems}/${maxProblems}`);
+                return new Response(
+                  JSON.stringify({
+                    success: false,
+                    error: "MONTHLY_LIMIT_EXCEEDED",
+                    message: `유사문제 출제 월간 한도를 초과했습니다. (${currentProblems}/${maxProblems})`,
+                    currentUsage: currentProblems,
+                    maxLimit: maxProblems,
+                  }),
+                  { status: 403, headers: { "Content-Type": "application/json" } }
+                );
+              }
+              // 사용량 증가
+              await DB.prepare(`
+                UPDATE user_subscriptions
+                SET current_similar_problems = current_similar_problems + 1,
+                    updatedAt = datetime('now', '+9 hours')
+                WHERE userId = ? AND status = 'active'
+              `).bind(student.id).run();
+              console.log('✅ user_subscriptions 유사문제 출제 사용량 증가');
+            }
           }
         }
       } catch (limitError: any) {

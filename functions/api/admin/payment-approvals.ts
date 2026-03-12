@@ -529,6 +529,83 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         }
       }
 
+      // director_limitations 자동 업데이트 (요금제 제한 동기화)
+      if (approval.userId && pricingPlan) {
+        try {
+          // 학원 ID 조회
+          const userInfo = await DB.prepare(`
+            SELECT academyId FROM User WHERE id = ?
+          `).bind(approval.userId).first();
+
+          if (userInfo && userInfo.academyId) {
+            const academyId = userInfo.academyId;
+            const maxAIAnalysis = pricingPlan.maxAIAnalysis as number ?? -1;
+            const maxSimilarProblems = pricingPlan.maxSimilarProblems as number ?? -1;
+
+            // 월간 제한값 설정 (-1이면 0으로 저장 = 무제한)
+            const aiAnalysisMonthlyLimit = maxAIAnalysis === -1 ? 0 : maxAIAnalysis;
+            const similarProblemMonthlyLimit = maxSimilarProblems === -1 ? 0 : maxSimilarProblems;
+
+            // 기존 director_limitations 확인
+            const existingLimit = await DB.prepare(`
+              SELECT id FROM director_limitations WHERE academy_id = ?
+            `).bind(academyId).first();
+
+            if (existingLimit) {
+              // 기존 레코드 업데이트 (사용량은 초기화, 제한값만 업데이트)
+              await DB.prepare(`
+                UPDATE director_limitations SET
+                  similar_problem_enabled = ?,
+                  similar_problem_monthly_limit = ?,
+                  similar_problem_monthly_used = 0,
+                  competency_analysis_enabled = 1,
+                  competency_monthly_limit = ?,
+                  competency_monthly_used = 0,
+                  weak_concept_analysis_enabled = 1,
+                  weak_concept_monthly_limit = ?,
+                  weak_concept_monthly_used = 0,
+                  updated_at = datetime('now')
+                WHERE academy_id = ?
+              `).bind(
+                similarProblemMonthlyLimit > 0 ? 1 : 0,
+                similarProblemMonthlyLimit,
+                aiAnalysisMonthlyLimit,
+                aiAnalysisMonthlyLimit,
+                academyId
+              ).run();
+              console.log(`✅ director_limitations 업데이트 완료 (academy: ${academyId})`);
+            } else {
+              // 새 레코드 생성
+              await DB.prepare(`
+                INSERT INTO director_limitations (
+                  director_id, academy_id,
+                  similar_problem_enabled, similar_problem_monthly_limit, similar_problem_monthly_used,
+                  similar_problem_daily_limit, similar_problem_daily_used,
+                  competency_analysis_enabled, competency_monthly_limit, competency_monthly_used,
+                  competency_daily_limit, competency_daily_used,
+                  weak_concept_analysis_enabled, weak_concept_monthly_limit, weak_concept_monthly_used,
+                  weak_concept_daily_limit, weak_concept_daily_used,
+                  homework_grading_daily_limit, homework_grading_monthly_limit,
+                  homework_grading_daily_used, homework_grading_monthly_used,
+                  max_students, landing_page_html_direct_edit
+                ) VALUES (?, ?, ?, ?, 0, 0, 0, 1, ?, 0, 0, 0, 1, ?, 0, 0, 0, 0, 0, 0, 0, ?, 0)
+              `).bind(
+                approval.userId,
+                academyId,
+                similarProblemMonthlyLimit > 0 ? 1 : 0,
+                similarProblemMonthlyLimit,
+                aiAnalysisMonthlyLimit,
+                aiAnalysisMonthlyLimit,
+                pricingPlan.maxStudents as number ?? -1
+              ).run();
+              console.log(`✅ director_limitations 신규 생성 완료 (academy: ${academyId})`);
+            }
+          }
+        } catch (limitUpdateError: any) {
+          console.warn('⚠️ director_limitations 업데이트 실패 (계속 진행):', limitUpdateError.message);
+        }
+      }
+
       return new Response(JSON.stringify({
         success: true,
         message: "Payment approved successfully"
