@@ -2,13 +2,42 @@
  * 숙제 검사 AI 설정 관리 API
  * - 프롬프트 설정
  * - AI 모델 선택
- * - RAG 지식 파일 관리
+ * - RAG 지식 파일 관리 (Vectorize 업로드 포함)
  */
 
 interface Env {
   DB: D1Database;
   AI: any;
-  VECTORIZE: VectorizeIndex;
+  VECTORIZE: any;
+  GOOGLE_GEMINI_API_KEY: string;
+}
+
+/**
+ * 텍스트를 적절한 크기의 청크로 분할
+ */
+function splitTextIntoChunks(text: string, chunkSize: number = 1000): string[] {
+  const chunks: string[] = [];
+  let currentPos = 0;
+  while (currentPos < text.length) {
+    chunks.push(text.substring(currentPos, currentPos + chunkSize));
+    currentPos += chunkSize;
+  }
+  return chunks;
+}
+
+/**
+ * Cloudflare AI를 사용하여 임베딩 생성 (bge-m3 모델 - ai-grading.ts와 일치)
+ */
+async function generateEmbedding(text: string, env: Env): Promise<number[]> {
+  try {
+    const response = await env.AI.run('@cf/baai/bge-m3', {
+      text: text,
+    });
+    return response.data[0];
+  } catch (error: any) {
+    console.error('❌ Embedding generation failed:', error.message);
+    throw error;
+  }
 }
 
 /**
@@ -57,14 +86,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     {
       "questionNumber": 1,
       "isCorrect": true/false,
-      "studentAnswer": "학생이 작성한 답",
-      "correctAnswer": "정답",
-      "explanation": "채점 근거 및 설명"
+      "studentAnswer": \"학생이 작성한 답\",
+      "correctAnswer": \"정답\",
+      "explanation": \"채점 근거 및 설명\"
     }
   ],
-  "overallFeedback": "전체적인 피드백",
-  "strengths": "잘한 점",
-  "improvements": "개선할 점"
+  "overallFeedback": \"전체적인 피드백\",
+  "strengths": \"잘한 점\",
+  "improvements": \"개선할 점\"
 }`;
 
       return Response.json({
@@ -101,25 +130,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   } catch (error: any) {
     console.error('❌ Failed to get homework grading config:', error);
-    return Response.json(
-      { 
-        success: false, 
-        error: error.message,
-        details: error.stack 
-      },
-      { status: 500 }
-    );
+    return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 };
 
 /**
- * POST: 숙제 검사 AI 설정 저장
+ * POST: 숙제 검사 AI 설정 저장 (Vectorize 업로드 포함)
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  try {
-    const { DB } = context.env;
-    const body = await context.request.json() as any;
+  const { request, env } = context;
+  const { DB, AI, VECTORIZE } = env;
 
+  try {
+    const body = await request.json() as any;
     let {
       systemPrompt,
       model = 'gemini-2.5-flash',
@@ -130,7 +153,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       enableRAG = 0,
       knowledgeBase = null,
     } = body;
-    
+
     // Ensure numeric fields have valid values
     if (topK === undefined || topK === null) topK = 40;
     if (topP === undefined || topP === null) topP = 0.95;
@@ -138,7 +161,44 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (maxTokens === undefined || maxTokens === null) maxTokens = 2000;
     if (enableRAG === undefined || enableRAG === null) enableRAG = 0;
 
-    // 테이블 생성 (없을 경우)
+    // 1. RAG 지식 베이스 처리 (Vectorize 업로드)
+    if (enableRAG && knowledgeBase && knowledgeBase.length > 0) {
+      if (AI && VECTORIZE) {
+        try {
+          console.log('📚 Processing knowledge base for Vectorize...');
+          const chunks = splitTextIntoChunks(knowledgeBase, 1000);
+          const vectors = [];
+          
+          // 최대 20개 청크로 제한 (타임아웃 방지)
+          const chunksToProcess = chunks.slice(0, 20);
+          
+          for (let i = 0; i < chunksToProcess.length; i++) {
+            const chunk = chunksToProcess[i];
+            const embedding = await generateEmbedding(chunk, env);
+            
+            vectors.push({
+              id: `homework-grading-chunk-${i}`,
+              values: embedding,
+              metadata: {
+                type: 'homework_grading_knowledge',
+                chunkIndex: i,
+                text: chunk.substring(0, 500),
+                updatedAt: new Date().toISOString()
+              }
+            });
+          }
+          
+          if (vectors.length > 0) {
+            await VECTORIZE.upsert(vectors);
+            console.log(`✅ Successfully uploaded ${vectors.length} vectors to Vectorize`);
+          }
+        } catch (ragError: any) {
+          console.error('❌ Vectorization failed:', ragError.message);
+        }
+      }
+    }
+
+    // 2. DB 테이블 확인 및 저장
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_grading_config (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -155,154 +215,48 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       )
     `).run();
 
-    // 컬럼이 없는 경우 추가 (기존 테이블 호환성)
-    try {
-      await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN topK INTEGER DEFAULT 40`).run();
-    } catch (e) {
-      // 이미 컬럼이 존재하는 경우 무시
-    }
-    
-    try {
-      await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN topP REAL DEFAULT 0.95`).run();
-    } catch (e) {
-      // 이미 컬럼이 존재하는 경우 무시
-    }
+    try { await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN topK INTEGER DEFAULT 40`).run(); } catch (e) {}
+    try { await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN topP REAL DEFAULT 0.95`).run(); } catch (e) {}
 
-    // 기존 설정이 있는지 확인
     const existing = await DB.prepare(
       `SELECT id FROM homework_grading_config ORDER BY id DESC LIMIT 1`
     ).first();
 
     if (existing) {
-      // 업데이트 - 테이블 스키마 확인 후 안전하게 업데이트
-      try {
-        // 모든 컬럼 포함한 업데이트 시도
-        await DB.prepare(`
-          UPDATE homework_grading_config
-          SET systemPrompt = ?,
-              model = ?,
-              temperature = ?,
-              maxTokens = ?,
-              topK = ?,
-              topP = ?,
-              enableRAG = ?,
-              knowledgeBase = ?,
-              updatedAt = CURRENT_TIMESTAMP
-          WHERE id = ?
-        `).bind(
-          systemPrompt,
-          model,
-          temperature,
-          maxTokens,
-          topK,
-          topP,
-          enableRAG,
-          knowledgeBase,
-          existing.id
-        ).run();
-
-        console.log('✅ Homework grading config updated:', { id: existing.id, model, enableRAG });
-
-        return Response.json({
-          success: true,
-          message: '숙제 검사 AI 설정이 업데이트되었습니다.',
-          configId: Number(existing.id)
-        });
-      } catch (updateError: any) {
-        console.warn('⚠️ Full update failed, trying without topK/topP:', updateError.message);
-        
-        // topK/topP 제외한 업데이트 시도
-        await DB.prepare(`
-          UPDATE homework_grading_config
-          SET systemPrompt = ?,
-              model = ?,
-              temperature = ?,
-              maxTokens = ?,
-              enableRAG = ?,
-              knowledgeBase = ?,
-              updatedAt = CURRENT_TIMESTAMP
-          WHERE id = ?
-        `).bind(
-          systemPrompt,
-          model,
-          temperature,
-          maxTokens,
-          enableRAG,
-          knowledgeBase,
-          existing.id
-        ).run();
-
-        console.log('✅ Homework grading config updated (without topK/topP):', { id: existing.id, model, enableRAG });
-
-        return Response.json({
-          success: true,
-          message: '숙제 검사 AI 설정이 업데이트되었습니다 (일부 필드 제외).',
-          configId: Number(existing.id),
-          warning: 'topK and topP fields not updated due to schema limitations'
-        });
-      }
+      await DB.prepare(`
+        UPDATE homework_grading_config
+        SET systemPrompt = ?, model = ?, temperature = ?, maxTokens = ?,
+            topK = ?, topP = ?, enableRAG = ?, knowledgeBase = ?,
+            updatedAt = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).bind(
+        systemPrompt, model, temperature, maxTokens,
+        topK, topP, enableRAG, knowledgeBase, existing.id
+      ).run();
+      
+      return Response.json({
+        success: true,
+        message: '숙제 검사 AI 설정이 업데이트되었습니다.',
+        configId: Number(existing.id)
+      });
     } else {
-      // 새로 추가 - 컬럼 존재 여부에 따라 처리
-      try {
-        const result = await DB.prepare(`
-          INSERT INTO homework_grading_config 
-          (systemPrompt, model, temperature, maxTokens, topK, topP, enableRAG, knowledgeBase)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          systemPrompt,
-          model,
-          temperature,
-          maxTokens,
-          topK,
-          topP,
-          enableRAG,
-          knowledgeBase
-        ).run();
-
-        console.log('✅ Homework grading config created:', { model, enableRAG });
-
-        return Response.json({
-          success: true,
-          message: '숙제 검사 AI 설정이 저장되었습니다.',
-          configId: result.meta.last_row_id
-        }, { status: 201 });
-      } catch (insertError: any) {
-        console.warn('⚠️ Full insert failed, trying without topK/topP:', insertError.message);
-        
-        // topK/topP 없이 삽입 시도
-        const result = await DB.prepare(`
-          INSERT INTO homework_grading_config 
-          (systemPrompt, model, temperature, maxTokens, enableRAG, knowledgeBase)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).bind(
-          systemPrompt,
-          model,
-          temperature,
-          maxTokens,
-          enableRAG,
-          knowledgeBase
-        ).run();
-
-        console.log('✅ Homework grading config created (without topK/topP):', { model, enableRAG });
-
-        return Response.json({
-          success: true,
-          message: '숙제 검사 AI 설정이 저장되었습니다 (일부 필드 제외).',
-          configId: result.meta.last_row_id,
-          warning: 'topK and topP fields not saved due to schema limitations'
-        }, { status: 201 });
-      }
+      const result = await DB.prepare(`
+        INSERT INTO homework_grading_config 
+        (systemPrompt, model, temperature, maxTokens, topK, topP, enableRAG, knowledgeBase)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        systemPrompt, model, temperature, maxTokens,
+        topK, topP, enableRAG, knowledgeBase
+      ).run();
+      
+      return Response.json({
+        success: true,
+        message: '숙제 검사 AI 설정이 저장되었습니다.',
+        configId: result.meta.last_row_id
+      }, { status: 201 });
     }
-
   } catch (error: any) {
     console.error('❌ Failed to save homework grading config:', error);
-    return Response.json(
-      { 
-        success: false, 
-        error: error.message,
-        details: error.stack 
-      },
-      { status: 500 }
-    );
+    return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 };
