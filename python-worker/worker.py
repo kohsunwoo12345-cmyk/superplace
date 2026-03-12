@@ -493,10 +493,23 @@ async def grade_with_gemini(
             if json_match:
                 response_text = json_match.group(1)
             
-            # JSON 파싱
-            grading_result = json.loads(response_text)
-            print(f"✅ Gemini 채점 완료")
-            return grading_result
+            # JSON 파싱 (에러 처리 추가)
+            try:
+                grading_result = json.loads(response_text)
+                print(f"✅ Gemini 채점 완료")
+                return grading_result
+            except json.JSONDecodeError as e:
+                print(f"⚠️ JSON 파싱 오류: {str(e)}")
+                print(f"응답 텍스트 일부: {response_text[:300]}")
+                # 기본 응답 반환
+                return {
+                    'totalQuestions': 0,
+                    'correctAnswers': 0,
+                    'detailedResults': [],
+                    'overallFeedback': f'AI 응답을 파싱할 수 없습니다. 원본 응답: {response_text[:100]}...',
+                    'strengths': '',
+                    'improvements': ''
+                }
         
         return {
             'totalQuestions': 0,
