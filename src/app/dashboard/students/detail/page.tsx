@@ -144,6 +144,7 @@ function StudentDetailContent() {
   const [generatedProblems, setGeneratedProblems] = useState<any[]>([]);
   const [generatingProblems, setGeneratingProblems] = useState(false);
   const [showAnswerSheet, setShowAnswerSheet] = useState(false);
+  const [showProblemPreview, setShowProblemPreview] = useState(false); // 문제 미리보기 모드
   
   // 학원장 제한 설정
   const [limitations, setLimitations] = useState<any>(null);
@@ -898,10 +899,10 @@ function StudentDetailContent() {
       setGeneratedProblems(data.problems || []);
       setShowProblemModal(false);
       
-      // 시험지 출력 모드로 전환
-      setTimeout(() => {
-        window.print();
-      }, 500);
+      // 시험지 미리보기 모드로 전환 (자동 인쇄 제거 - 사용자가 인쇄 버튼으로 선택)
+      setShowProblemPreview(true);
+      // 페이지 맨 위로 스크롤
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       
     } catch (error: any) {
       console.error("Failed to generate problems:", error);
@@ -2729,7 +2730,19 @@ function StudentDetailContent() {
 
         {/* 문제 생성 완료 후 버튼 */}
         {generatedProblems.length > 0 && (
-          <div className="fixed bottom-4 right-4 flex gap-2 z-50 print:hidden">
+          <div className="fixed bottom-4 right-4 flex gap-2 z-50 print:hidden flex-wrap justify-end max-w-lg">
+            <Button
+              onClick={() => {
+                setShowProblemPreview(prev => !prev);
+                if (!showProblemPreview) window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+              }}
+              size="lg"
+              variant="outline"
+              className="shadow-lg bg-white border-gray-400"
+            >
+              <FileText className="w-5 h-5 mr-2" />
+              {showProblemPreview ? '미리보기 닫기' : '문제 미리보기'}
+            </Button>
             <Button onClick={printProblemsOnly} size="lg" className="shadow-lg bg-blue-600 hover:bg-blue-700">
               <FileText className="w-5 h-5 mr-2" />
               문제지 인쇄
@@ -2742,12 +2755,23 @@ function StudentDetailContent() {
               <ClipboardCheck className="w-5 h-5 mr-2" />
               전체 인쇄
             </Button>
+            <Button
+              onClick={() => {
+                setGeneratedProblems([]);
+                setShowProblemPreview(false);
+              }}
+              size="lg"
+              variant="outline"
+              className="shadow-lg bg-white border-red-400 text-red-600 hover:bg-red-50"
+            >
+              문제 삭제
+            </Button>
           </div>
         )}
 
-        {/* 시험지 및 답지 출력 영역 (인쇄 전용) */}
-        {generatedProblems.length > 0 && (
-          <div className="print:block hidden">
+        {/* 시험지 및 답지 출력 영역 (화면 미리보기 + 인쇄) */}
+        {generatedProblems.length > 0 && showProblemPreview && (
+          <div className="block">
             <style jsx global>{`
               @media print {
                 body * {
