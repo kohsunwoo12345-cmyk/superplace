@@ -206,6 +206,38 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
+    // ActivityLog 기록
+    try {
+      const ipAddress = context.request.headers.get('CF-Connecting-IP') ||
+                        context.request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+                        'Unknown';
+      const userAgentStr = context.request.headers.get('User-Agent') || 'Unknown';
+      const cfCountry = context.request.headers.get('CF-IPCountry') || '';
+      let deviceTypeStr = 'Unknown';
+      if (userAgentStr.includes('Mobile')) deviceTypeStr = 'Mobile';
+      else if (userAgentStr.includes('Windows') || userAgentStr.includes('Mac') || userAgentStr.includes('Linux')) deviceTypeStr = 'Desktop';
+
+      const actLogId = `activity-useradd-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const actionLabel = userRole.toUpperCase() === 'STUDENT' ? '학생 추가' : '사용자 추가';
+      await DB.prepare(`
+        INSERT OR IGNORE INTO ActivityLog (id, userId, action, details, ip, userAgent, deviceType, country, userRole, academyId, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).bind(
+        actLogId,
+        userId,
+        actionLabel,
+        `${name}(${email}) 님이 추가되었습니다 (역할: ${userRole}${attendanceCode ? ', 출석코드: ' + attendanceCode : ''})`,
+        ipAddress,
+        userAgentStr,
+        deviceTypeStr,
+        cfCountry,
+        userRole,
+        academyId || ''
+      ).run();
+    } catch (logErr: any) {
+      console.warn('⚠️ ActivityLog 사용자 추가 기록 실패:', logErr.message);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

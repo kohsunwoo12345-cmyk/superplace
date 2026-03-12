@@ -462,6 +462,37 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     console.log("✅ AI 봇 할당 완료:", assignmentId);
 
+    // ActivityLog 기록
+    try {
+      const ipAddress = request.headers.get('CF-Connecting-IP') ||
+                        request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+                        'Unknown';
+      const userAgentStr = request.headers.get('User-Agent') || 'Unknown';
+      const cfCountry = request.headers.get('CF-IPCountry') || '';
+      let deviceTypeStr = 'Unknown';
+      if (userAgentStr.includes('Mobile')) deviceTypeStr = 'Mobile';
+      else if (userAgentStr.includes('Windows') || userAgentStr.includes('Mac') || userAgentStr.includes('Linux')) deviceTypeStr = 'Desktop';
+
+      const actLogId = `activity-botassign-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      await DB.prepare(`
+        INSERT OR IGNORE INTO ActivityLog (id, userId, action, details, ip, userAgent, deviceType, country, userRole, academyId, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).bind(
+        actLogId,
+        userId.toString(),
+        'AI 봇 할당',
+        `${bot.name} 봇이 ${user.name || user.email} 님에게 할당되었습니다 (기간: ${actualDuration}${actualDurationUnit}, 요청자: ${requestingUser.email})`,
+        ipAddress,
+        userAgentStr,
+        deviceTypeStr,
+        cfCountry,
+        user.role || '',
+        user.academyId || ''
+      ).run();
+    } catch (logErr: any) {
+      console.warn('⚠️ ActivityLog 봇 할당 기록 실패:', logErr.message);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

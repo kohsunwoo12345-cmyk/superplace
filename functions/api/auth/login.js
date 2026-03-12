@@ -279,6 +279,49 @@ export async function onRequestPost(context) {
       // 로그 실패해도 로그인은 성공으로 처리
     }
 
+    // 🆕 ActivityLog에도 로그인 기록 저장 (상세 정보 포함)
+    try {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS ActivityLog (
+          id TEXT PRIMARY KEY,
+          userId TEXT,
+          action TEXT NOT NULL,
+          details TEXT,
+          ip TEXT,
+          userAgent TEXT,
+          deviceType TEXT,
+          country TEXT,
+          userRole TEXT,
+          academyId TEXT,
+          academyName TEXT,
+          createdAt TEXT DEFAULT (datetime('now'))
+        )
+      `).run();
+      // 컬럼 추가 시도 (이미 있으면 무시)
+      for (const col of ['userAgent TEXT', 'deviceType TEXT', 'country TEXT', 'userRole TEXT', 'academyId TEXT', 'academyName TEXT']) {
+        try { await db.prepare(`ALTER TABLE ActivityLog ADD COLUMN ${col}`).run(); } catch(e) {}
+      }
+      const actLogId = `activity-login-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      await db.prepare(`
+        INSERT INTO ActivityLog (id, userId, action, details, ip, userAgent, deviceType, country, userRole, academyId, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).bind(
+        actLogId,
+        user.id,
+        '로그인',
+        `${user.name || user.email} 님이 로그인하였습니다 (역할: ${user.role || '-'})`,
+        ipAddress,
+        userAgent,
+        deviceType,
+        cfCountry,
+        user.role || '',
+        user.academyId || ''
+      ).run();
+      console.log('✅ ActivityLog login recorded:', actLogId);
+    } catch (actLogError) {
+      console.error('⚠️ Failed to record ActivityLog login:', actLogError.message);
+    }
+
     // 🆕 User 테이블에 최근 로그인 정보 업데이트 (User 또는 users 테이블 모두 시도)
     try {
       await db.prepare(`
