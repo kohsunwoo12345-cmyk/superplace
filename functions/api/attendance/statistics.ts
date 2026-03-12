@@ -46,16 +46,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const result = await DB.prepare(`
           SELECT substr(checkInTime, 1, 10) as date, status, userId
           FROM attendance_records_v3
-        `).all();
+          WHERE userId = ?
+        `).bind(userId).all();
 
         const calendarData: Record<string, string> = {};
         if (result.results) {
           result.results
-            .filter((r: any) => String(r.userId) === String(userId) && r.date && r.date.startsWith(thisMonth))
+            .filter((r: any) => r.date)
             .forEach((r: any) => {
-              if (!calendarData[r.date]) calendarData[r.date] = r.status;
+              // 같은 날짜에 여러 기록이 있을 경우 첫 번째 기록만 사용
+              if (!calendarData[r.date]) {
+                calendarData[r.date] = r.status;
+              }
             });
         }
+
+        console.log("📊 Student calendar data loaded:", Object.keys(calendarData).length, "days");
 
         return new Response(JSON.stringify({
           success: true,
