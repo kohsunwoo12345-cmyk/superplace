@@ -106,8 +106,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       records = allRecords.results || [];
       console.log("📊 Total attendance records:", records.length);
 
-      // academyId로 필터링
-      if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && academyId) {
+      // academyId로 필터링 (SUPER_ADMIN이 아닌 경우)
+      if (academyId && role !== 'SUPER_ADMIN') {
         records = records.filter(r => String(r.academyId) === String(academyId));
         console.log("📊 Filtered for academy", academyId, ":", records.length);
       }
