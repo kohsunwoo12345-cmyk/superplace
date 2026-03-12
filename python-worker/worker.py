@@ -113,23 +113,88 @@ async def on_fetch(request, env):
 
 async def ocr_with_llm(image_base64: str, model: str, env) -> str:
     """
-    DeepSeek 또는 Gemini로 이미지에서 텍스트 추출
+    DeepSeek OCR 또는 Gemini로 이미지에서 텍스트 추출
     """
     try:
-        # Gemini API 사용
-        api_key = env.GEMINI_API_KEY if hasattr(env, 'GEMINI_API_KEY') else None
-        
-        if not api_key:
-            return "OCR API 키가 설정되지 않았습니다."
-        
-        # Gemini Vision API 호출
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key={api_key}"
-        
         # 이미지 데이터 준비 (base64에서 data:image 부분 제거)
         if image_base64.startswith('data:image'):
             image_data = image_base64.split(',')[1]
         else:
             image_data = image_base64
+        
+        # DeepSeek OCR 모델 사용
+        if model == 'deepseek-ocr-2':
+            print("🔍 DeepSeek OCR 2 사용")
+            api_key = env.ALL_AI_API_KEY if hasattr(env, 'ALL_AI_API_KEY') else None
+            
+            if not api_key:
+                print("⚠️ ALL_AI_API_KEY 없음, Gemini로 폴백")
+                return await ocr_with_gemini(image_data, env)
+            
+            url = "https://api.deepseek.com/v1/chat/completions"
+            
+            payload = {
+                "model": "deepseek-chat",
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "이 이미지의 모든 텍스트와 수식을 정확하게 읽어서 그대로 텍스트로 변환해주세요. 수학 수식, 손글씨, 프린트된 텍스트 모두 포함해주세요."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_data}"
+                            }
+                        }
+                    ]
+                }],
+                "max_tokens": 2048,
+                "temperature": 0.1
+            }
+            
+            headers = Headers.new({
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {api_key}'
+            }.items())
+            
+            response = await fetch(url,
+                method='POST',
+                headers=headers,
+                body=json.dumps(payload)
+            )
+            
+            result = await response.json()
+            
+            if result.get('choices') and len(result['choices']) > 0:
+                text = result['choices'][0]['message']['content']
+                print(f"✅ DeepSeek OCR 완료: {len(text)} 글자")
+                return text
+            
+            print(f"⚠️ DeepSeek OCR 응답 없음, Gemini로 폴백")
+            return await ocr_with_gemini(image_data, env)
+        
+        # Gemini API 사용 (기본)
+        else:
+            return await ocr_with_gemini(image_data, env)
+        
+    except Exception as e:
+        print(f"OCR 오류: {str(e)}, Gemini로 폴백")
+        return await ocr_with_gemini(image_data, env)
+
+
+async def ocr_with_gemini(image_data: str, env) -> str:
+    """
+    Gemini Vision API로 OCR 수행
+    """
+    try:
+        api_key = env.GEMINI_API_KEY if hasattr(env, 'GEMINI_API_KEY') else None
+        
+        if not api_key:
+            return "OCR API 키가 설정되지 않았습니다."
+        
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key={api_key}"
         
         payload = {
             "contents": [{
@@ -146,7 +211,7 @@ async def ocr_with_llm(image_base64: str, model: str, env) -> str:
         }
         
         headers = Headers.new({'Content-Type': 'application/json'}.items())
-        response = await fetch(url, 
+        response = await fetch(url,
             method='POST',
             headers=headers,
             body=json.dumps(payload)
@@ -156,12 +221,13 @@ async def ocr_with_llm(image_base64: str, model: str, env) -> str:
         
         if result.get('candidates') and len(result['candidates']) > 0:
             text = result['candidates'][0]['content']['parts'][0]['text']
+            print(f"✅ Gemini OCR 완료: {len(text)} 글자")
             return text
         
         return "텍스트를 읽을 수 없습니다."
         
     except Exception as e:
-        print(f"OCR 오류: {str(e)}")
+        print(f"Gemini OCR 오류: {str(e)}")
         return f"OCR 오류: {str(e)}"
 
 
@@ -273,21 +339,9 @@ async def final_grading(
     env
 ) -> dict:
     """
-    최종 채점 결과 생성
+    최종 채점 결과 생성 - 설정된 모델 사용
     """
     try:
-        api_key = env.GEMINI_API_KEY if hasattr(env, 'GEMINI_API_KEY') else None
-        
-        if not api_key:
-            return {
-                'totalQuestions': 0,
-                'correctAnswers': 0,
-                'detailedResults': [],
-                'overallFeedback': 'API 키가 설정되지 않았습니다.',
-                'strengths': '',
-                'improvements': ''
-            }
-        
         # 컨텍스트 구성
         context = f"""
 이미지에서 읽은 내용:
@@ -309,7 +363,81 @@ async def final_grading(
 
 """
         
-        # Gemini API 호출
+        # DeepSeek 모델 사용
+        if model == 'deepseek-ocr-2' or model.startswith('deepseek'):
+            print(f"🤖 DeepSeek 모델 사용: {model}")
+            api_key = env.ALL_AI_API_KEY if hasattr(env, 'ALL_AI_API_KEY') else None
+            
+            if not api_key:
+                print("⚠️ ALL_AI_API_KEY 없음, Gemini로 폴백")
+                return await grade_with_gemini(context, system_prompt, temperature, env)
+            
+            url = "https://api.deepseek.com/v1/chat/completions"
+            
+            payload = {
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"{context}\n\n위 내용을 바탕으로 숙제를 채점하고, 반드시 JSON 형식으로 응답해주세요."}
+                ],
+                "temperature": temperature,
+                "max_tokens": 2048,
+                "response_format": {"type": "json_object"}
+            }
+            
+            headers = Headers.new({
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {api_key}'
+            }.items())
+            
+            response = await fetch(url,
+                method='POST',
+                headers=headers,
+                body=json.dumps(payload)
+            )
+            
+            result = await response.json()
+            
+            if result.get('choices') and len(result['choices']) > 0:
+                response_text = result['choices'][0]['message']['content']
+                grading_result = json.loads(response_text)
+                print(f"✅ DeepSeek 채점 완료")
+                return grading_result
+            
+            print(f"⚠️ DeepSeek 응답 없음, Gemini로 폴백")
+            return await grade_with_gemini(context, system_prompt, temperature, env)
+        
+        # Gemini API 사용 (기본)
+        else:
+            return await grade_with_gemini(context, system_prompt, temperature, env)
+        
+    except Exception as e:
+        print(f"최종 채점 오류: {str(e)}, Gemini로 폴백")
+        return await grade_with_gemini(context, system_prompt, temperature, env)
+
+
+async def grade_with_gemini(
+    context: str,
+    system_prompt: str,
+    temperature: float,
+    env
+) -> dict:
+    """
+    Gemini로 채점 수행
+    """
+    try:
+        api_key = env.GEMINI_API_KEY if hasattr(env, 'GEMINI_API_KEY') else None
+        
+        if not api_key:
+            return {
+                'totalQuestions': 0,
+                'correctAnswers': 0,
+                'detailedResults': [],
+                'overallFeedback': 'API 키가 설정되지 않았습니다.',
+                'strengths': '',
+                'improvements': ''
+            }
+        
         url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key={api_key}"
         
         payload = {
@@ -347,6 +475,7 @@ async def final_grading(
             
             # JSON 파싱
             grading_result = json.loads(response_text)
+            print(f"✅ Gemini 채점 완료")
             return grading_result
         
         return {
@@ -359,7 +488,7 @@ async def final_grading(
         }
         
     except Exception as e:
-        print(f"최종 채점 오류: {str(e)}")
+        print(f"Gemini 채점 오류: {str(e)}")
         return {
             'totalQuestions': 0,
             'correctAnswers': 0,
