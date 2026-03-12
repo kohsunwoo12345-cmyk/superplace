@@ -152,10 +152,29 @@ export default function PricingManagePage() {
     }
 
     try {
-      const featuresArray = formData.features
-        .split("\n")
-        .map(f => f.trim())
-        .filter(f => f.length > 0);
+      // features 자동 생성 (필드값 기반)
+      let featuresArray = [];
+      
+      if (formData.features.trim().length > 0) {
+        featuresArray = formData.features
+          .split("\n")
+          .map(f => f.trim())
+          .filter(f => f.length > 0);
+      } else {
+        // 필드값 기반 자동 생성
+        const maxCap = formData.maxCapabilityAnalysis;
+        const maxConcept = formData.maxConceptAnalysis;
+        const maxSimilar = formData.maxSimilarProblems;
+        
+        featuresArray = [
+          `최대 ${formData.maxStudents}명의 학생 관리`,
+          `월 ${formData.maxHomeworkChecks}회 숙제 검사`,
+          `월 ${maxCap}회 AI 역량 분석`,
+          `월 ${maxConcept}회 부족한 개념 분석`,
+          `월 ${maxSimilar}회 유사문제 출제`,
+          `최대 ${formData.maxLandingPages}개 랜딩페이지`
+        ];
+      }
 
       // ✅ API 요구 필드명에 맞춰 수정 (pricing_1month, maxStudents 등)
       const payload = {
