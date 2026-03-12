@@ -301,6 +301,10 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       console.warn('⚠️ 제한 확인 실패 (계속 진행):', limitError.message);
     }
 
+    // 0.5 학생 ID 정확히 파악
+    let actualStudentId = parseInt(studentId);
+    console.log('🔍 Student ID parsing:', { original: studentId, numeric: actualStudentId });
+    
     // 1. 학생의 채팅 내역 가져오기
     let chatHistory: ChatMessage[] = [];
     
@@ -317,7 +321,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         WHERE student_id = ?
       `;
       
-      const params: any[] = [parseInt(studentId)];
+      const params: any[] = [actualStudentId];
       
       if (startDate && endDate) {
         // ISO 날짜를 YYYY-MM-DD 00:00:00 형식으로 변환
@@ -365,7 +369,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         WHERE userId = ? AND score IS NOT NULL
       `;
       
-      const params: any[] = [parseInt(studentId)];
+      const params: any[] = [actualStudentId];
       
       // 기간 필터 추가
       if (startDate && endDate) {
