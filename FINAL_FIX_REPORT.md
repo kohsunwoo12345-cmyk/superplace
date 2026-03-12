@@ -1,257 +1,231 @@
-# ✅ 최종 수정 완료 보고서
-
-**작성일**: 2026-02-27  
-**커밋**: `9a24e87`  
-**상태**: ✅ 모든 문제 해결 완료
+# 출석 통계 및 숙제 채점 문제 해결 보고서
+**날짜**: 2026-03-12  
+**최종 상태**: 부분 완료
 
 ---
 
-## 📋 해결된 문제
+## 🎯 문제 요약
 
-### 1. ✅ 학생 추가 기능 완전 복구
-
-**문제**: `D1_ERROR: table User has no column named class: SQLITE_ERROR`
-
-**해결**:
-- SQL 마이그레이션 완료 (사용자가 실행)
-- `school`, `class` 컬럼 추가 완료
-- API 폴백 로직 구현 (마이그레이션 전/후 모두 작동)
-
-**결과**: ✅ 학생 추가 정상 작동
-
----
-
-### 2. ✅ 반 생성 오류 해결
-
-**문제**: `D1_TYPE_ERROR: Type 'object' not supported for value '[object Object]'`
+### 1. 출석 통계 UI 문제
+**증상**: https://superplacestudy.pages.dev/dashboard/attendance-statistics/ 에서 학생과 학원장의 출석 데이터가 UI에 표시되지 않음
 
 **원인**: 
-```javascript
-// 잘못된 형식 (객체 배열)
-students: [
-  {
-    id: "1",
-    student: {
-      id: "student-123",
-      name: "홍길동",
-      ...
+- 데이터베이스는 `PRESENT` 상태를 저장
+- 프론트엔드는 `VERIFIED` 상태를 기대
+- Status 매핑 누락으로 인한 불일치
+
+**해결**: ✅ **완료**
+- `functions/api/attendance/statistics.ts`에 status 매핑 함수 추가
+- DB의 `PRESENT` → 프론트엔드의 `VERIFIED` 자동 변환
+- 학생 및 관리자 뷰 모두 적용
+
+### 2. 숙제 채점 모델 문제
+**증상**: https://superplacestudy.pages.dev/dashboard/admin/homework-grading-config/ 에서 설정한 모델이 백그라운드에서 호출되지 않음
+
+**원인**: 
+- 잘못된 모델명: `deepseek-ocr-2` (존재하지 않는 모델)
+- 올바른 모델명: `deepseek-chat`
+
+**해결**: ✅ **완료**
+- Admin Config API를 통해 모델명을 `deepseek-chat`으로 변경
+- 변경 스크립트: `fix-grading-model.sh`
+
+---
+
+## 🔧 적용된 수정 사항
+
+### 1. 출석 Status 매핑 (Commit: ef51a36f)
+```typescript
+// functions/api/attendance/statistics.ts
+
+// Status 매핑 함수 추가
+const mapStatus = (dbStatus: string): string => {
+  if (dbStatus === 'PRESENT') return 'VERIFIED';
+  if (dbStatus === 'LATE') return 'LATE';
+  if (dbStatus === 'ABSENT') return 'ABSENT';
+  return dbStatus;
+};
+
+// 학생용 캘린더 데이터에 매핑 적용
+calendarData[r.date] = mapStatus(r.status);
+
+// 관리자용 출석 기록에도 매핑 적용
+status: mapStatus(record.status)
+```
+
+**테스트 결과**:
+- ✅ 학생 뷰: `"PRESENT"` → `"VERIFIED"` 변환 확인
+- ✅ 관리자 뷰: 출석 기록에 `"VERIFIED"` 상태 표시
+- ✅ 지각(`LATE`), 결석(`ABSENT`) 상태도 정상 작동
+
+### 2. 숙제 채점 모델명 수정
+```bash
+# 변경 전
+model: "deepseek-ocr-2"  # ❌ 잘못된 모델명
+
+# 변경 후  
+model: "deepseek-chat"   # ✅ 올바른 모델명
+```
+
+**실행 방법**:
+```bash
+./fix-grading-model.sh
+```
+
+---
+
+## 📊 테스트 결과
+
+### 출석 통계 API 테스트
+**학생 뷰** (userId: `student-1772865101424-12ldfjns29zg`):
+```json
+{
+  "success": true,
+  "role": "STUDENT",
+  "attendanceDays": 1,
+  "calendar": {
+    "2026-03-10": "VERIFIED"  ✅
+  }
+}
+```
+
+**관리자 뷰**:
+```json
+{
+  "records": [
+    {
+      "userName": "정유빈",
+      "status": "VERIFIED",      ✅
+      "verifiedAt": "2026-03-10 21:51:20"
+    },
+    {
+      "userName": "장하윤",
+      "status": "VERIFIED",      ✅
+      "verifiedAt": "2026-03-10 21:43:58"
+    },
+    {
+      "userName": "김가연",
+      "status": "LATE",          ✅
+      "verifiedAt": "2026-03-07 00:44:56"
     }
-  }
-]
+  ]
+}
 ```
 
-**해결**:
-```javascript
-// 올바른 형식 (문자열 배열)
-students: ["student-123", "student-456", ...]
+### 숙제 채점 설정 테스트
+**변경 전**:
+```json
+{
+  "model": "deepseek-ocr-2",  ❌
+  "temperature": 0.3
+}
 ```
 
-**파일**: `src/app/dashboard/classes/add/page.tsx`
-- Line 308-320: 복잡한 객체 배열 제거
-- Line 323: 단순 문자열 배열로 변경
-
-**결과**: ✅ 반 생성 정상 작동
+**변경 후**:
+```json
+{
+  "model": "deepseek-chat",   ✅
+  "temperature": 0.3
+}
+```
 
 ---
 
-### 3. ✅ 소속 학원 자동 표시 (수정 불가)
+## ⚠️ 남은 문제
 
-**요구사항**: 학생 추가 시 학원장의 학원 이름이 자동으로 들어가고 수정 불가
+### DeepSeek API 키 설정
+**현재 상태**: ❌ `DEEPSEEK_API_KEY` 환경 변수가 설정되지 않음
 
-**구현**:
-```typescript
-// 학원 정보 자동 로드
-const loadAcademyInfo = async (userData: any) => {
-  const academyId = userData.academyId || userData.academy_id;
-  const response = await fetch(`/api/academies/${academyId}`);
-  const data = await response.json();
-  setAcademyName(data.name);
-};
+**원인 가능성**:
+1. Cloudflare Pages 환경 변수에 `deepsick_API_KEY`로 입력 (오타)
+2. 올바른 이름: `DEEPSEEK_API_KEY`
 
-// UI: 비활성화된 필드로 표시
-<Input
-  id="academy"
-  value={academyName}
-  disabled
-  className="bg-gray-100 cursor-not-allowed"
-/>
-```
-
-**결과**: ✅ 학원 이름 자동 표시, 수정 불가
-
----
-
-### 4. ✅ 학생 추가 UI 개선
-
-**추가된 필드**:
-
-1. **소속 학원** (자동, 수정 불가)
-   - 학원장의 학원 이름 자동 로드
-   - disabled 상태로 표시
+**해결 방법**:
+1. Cloudflare Pages Dashboard 접속
+   → https://dash.cloudflare.com
    
-2. **소속반** (입력 가능)
-   - 학생의 학교 소속반 입력
-   - 예: A반, 수학반
+2. **Workers & Pages** → **superplace** 프로젝트 선택
    
-3. **학부모 연락처** (입력 가능)
-   - 학부모 전화번호 입력
-   - 형식: 010-1234-5678
+3. **Settings** → **Environment variables** → **Production** 탭
+   
+4. 다음 중 하나 수행:
+   - **A안**: `deepsick_API_KEY` 삭제하고 `DEEPSEEK_API_KEY`로 새로 추가
+   - **B안**: 기존 `deepsick_API_KEY`의 이름을 `DEEPSEEK_API_KEY`로 수정
 
-**결과**: ✅ 모든 필드 정상 입력/저장
-
----
-
-## 🧪 테스트 결과
-
-### 학생 추가 테스트
-1. https://superplacestudy.pages.dev/dashboard/students/add 접속
-2. 모든 필드 입력:
-   - 연락처: 01012345678
-   - 비밀번호: test1234
-   - 이름: 테스트학생
-   - 소속 학원: (자동 표시)
-   - 학교: 서울중학교
-   - 학년: 중2
-   - 소속반: A반
-   - 학부모 연락처: 01087654321
-3. "학생 추가" 클릭
-4. ✅ **예상**: "학생이 추가되었습니다" 메시지
-
-### 반 생성 테스트
-1. https://superplacestudy.pages.dev/dashboard/classes/add 접속
-2. 반 정보 입력:
-   - 반 이름: 수학A반
-   - 학년: 중2
-   - 설명: 2학년 수학 심화반
-   - 학생 선택 (선택사항)
-3. "반 생성" 클릭
-4. ✅ **예상**: "클래스가 생성되었습니다" 메시지
+5. **Redeploy** (자동으로 재배포됨)
 
 ---
 
-## 📦 변경 사항 상세
+## ✅ 검증 체크리스트
 
-### 수정된 파일
+### 출석 통계
+- [x] 학생 출석 데이터 API 응답 정상
+- [x] Status 매핑 (`PRESENT` → `VERIFIED`) 작동
+- [x] 관리자 출석 통계 정상
+- [ ] **실제 학생 계정으로 UI 확인 필요**
+  - 로그인: https://superplacestudy.pages.dev
+  - 이동: https://superplacestudy.pages.dev/dashboard/attendance-statistics/
+  - 확인: 캘린더에 🟢(출석), 🟡(지각), 🔴(결석) 표시
 
-#### 1. `src/app/dashboard/classes/add/page.tsx`
-```typescript
-// Before (오류 발생)
-const formattedStudents = Array.from(selectedStudentIds).map((studentId, index) => ({
-  id: String(index + 1),
-  student: {
-    id: studentId,
-    name: student?.name || '',
-    ...
-  }
-}));
-
-// After (정상 작동)
-const studentIds = Array.from(selectedStudentIds);
-students: studentIds
-```
-
-#### 2. `src/app/dashboard/students/add/page.tsx`
-**추가된 State**:
-```typescript
-const [academyName, setAcademyName] = useState<string>("");
-const [loadingAcademy, setLoadingAcademy] = useState(true);
-const [classField, setClassField] = useState("");
-const [parentPhone, setParentPhone] = useState("");
-```
-
-**추가된 함수**:
-```typescript
-const loadAcademyInfo = async (userData: any) => {
-  // 학원 정보 자동 로드
-};
-```
-
-**추가된 UI 필드**:
-- 소속 학원 (자동, disabled)
-- 소속반 (입력)
-- 학부모 연락처 (입력)
+### 숙제 채점
+- [x] 모델명 `deepseek-chat`으로 변경 완료
+- [ ] **DEEPSEEK_API_KEY 환경 변수 설정 필요**
+- [ ] **환경 변수 설정 후 채점 테스트 필요**
+  - 숙제 제출: https://superplacestudy.pages.dev/dashboard/homework
+  - 10-15초 대기 후 결과 확인
 
 ---
 
-## 🔧 Git 정보
+## 📁 생성된 파일
 
-**Commit**: `9a24e87`  
-**Message**: fix: 반 생성 오류 해결 및 학생 추가 UI 개선  
-**Branch**: main  
-**Repository**: https://github.com/kohsunwoo12345-cmyk/superplace  
-**Live Site**: https://superplacestudy.pages.dev
+### 스크립트 파일
+- `fix-grading-model.sh` - 숙제 채점 모델명 수정 스크립트
+- `verify-both-fixes.sh` - 출석/채점 통합 검증 스크립트
+- `diagnostic-full-check.sh` - 전체 진단 스크립트
+- `check-attendance-status.sh` - 출석 상태 확인 스크립트
 
----
-
-## 📊 데이터베이스 상태
-
-### User 테이블
-✅ `school` 컬럼 존재  
-✅ `class` 컬럼 존재  
-✅ `parentPhone` 컬럼 존재 (기존)  
-✅ 모든 인덱스 생성 완료
-
-### Class 테이블
-✅ `Class` 테이블 존재  
-✅ `ClassSchedule` 테이블 존재  
-✅ `ClassStudent` 테이블 존재  
-✅ 모든 인덱스 생성 완료
+### 보고서
+- `FINAL_FIX_REPORT.md` - 이 파일
 
 ---
 
-## 🎯 기능 확인 체크리스트
+## 🔗 주요 링크
 
-### 학생 추가
-- [x] 연락처 입력 (필수)
-- [x] 비밀번호 입력 (필수)
-- [x] 이름 입력 (선택)
-- [x] 이메일 입력 (선택)
-- [x] 소속 학원 자동 표시 (수정 불가)
-- [x] 학교 입력 (선택)
-- [x] 학년 선택 (선택)
-- [x] 소속반 입력 (선택)
-- [x] 학부모 연락처 입력 (선택)
-- [x] 반 배정 (최대 4개, 선택)
-
-### 반 생성
-- [x] 반 이름 입력 (필수)
-- [x] 학년 입력 (선택)
-- [x] 설명 입력 (선택)
-- [x] 학생 선택 (선택)
-- [x] 시간표 추가 (선택)
-
-### 학생 상세 정보
-- [x] 학교 표시
-- [x] 학년 표시
-- [x] 소속반 표시
-- [x] 학부모 연락처 표시
-- [x] 소속 학원 표시
+- **프로덕션 사이트**: https://superplacestudy.pages.dev
+- **출석 통계**: https://superplacestudy.pages.dev/dashboard/attendance-statistics/
+- **숙제 제출**: https://superplacestudy.pages.dev/dashboard/homework
+- **Admin 채점 설정**: https://superplacestudy.pages.dev/dashboard/admin/homework-grading-config/
+- **Cloudflare Dashboard**: https://dash.cloudflare.com
+- **DeepSeek Platform**: https://platform.deepseek.com
+- **GitHub Repository**: https://github.com/kohsunwoo12345-cmyk/superplace
 
 ---
 
-## 🎉 최종 요약
+## 🚀 다음 단계
 
-### 완료된 작업
-1. ✅ SQL 마이그레이션 완료 (사용자 실행)
-2. ✅ 학생 추가 기능 완전 복구
-3. ✅ 반 생성 오류 완전 해결
-4. ✅ 소속 학원 자동 표시 (수정 불가) 구현
-5. ✅ 소속반 필드 추가
-6. ✅ 학부모 연락처 필드 추가
-7. ✅ 모든 필드 정상 저장 확인
+1. **즉시 실행**:
+   ```bash
+   # Cloudflare Pages 환경 변수 설정
+   # DEEPSEEK_API_KEY = <your_deepseek_api_key>
+   ```
 
-### 배포 상태
-- ✅ 코드 수정 완료
-- ✅ Git 커밋 완료 (9a24e87)
-- ✅ GitHub 푸시 완료
-- ✅ Cloudflare Pages 배포 진행 중
+2. **실제 사용자 테스트**:
+   - 학생 계정으로 출석 통계 UI 확인
+   - 숙제 제출 및 자동 채점 테스트
 
-### 사용자 액션 불필요
-- ✅ SQL 마이그레이션 이미 완료
-- ✅ 모든 기능 즉시 사용 가능
+3. **모니터링**:
+   - 출석 데이터가 정상적으로 표시되는지 확인
+   - 채점 결과가 15초 내에 완료되는지 확인
 
 ---
 
-**모든 문제가 해결되었습니다! 🎉**
+## 📝 커밋 이력
 
-학생 추가와 반 생성 기능이 정상적으로 작동하며, 모든 필드가 올바르게 저장됩니다.
+- `ef51a36f` - fix: 출석 통계 status 매핑 수정 (PRESENT → VERIFIED)
+- `e7f97022` - feat: 출석 데이터베이스 확인 API 추가
+- `a6be9d5a` - docs: 출석 통계 캘린더 재배포 완료 보고서 추가
+
+---
+
+**작성자**: AI Assistant  
+**최종 수정**: 2026-03-12 10:00 KST
