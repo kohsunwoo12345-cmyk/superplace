@@ -211,7 +211,7 @@ async def ocr_with_gemini(image_data: str, system_prompt: str, env) -> str:
         if not api_key:
             return "OCR API 키가 설정되지 않았습니다."
         
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
         
         # OCR 프롬프트 구성: systemPrompt 반영
         ocr_instruction = f"""이 이미지의 모든 텍스트와 수식을 정확하게 읽어서 그대로 텍스트로 변환해주세요. 
@@ -468,7 +468,7 @@ async def grade_with_gemini(
                 'improvements': ''
             }
         
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
         
         payload = {
             "contents": [{
