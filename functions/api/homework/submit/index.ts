@@ -84,7 +84,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ 사용자 확인: ${user.name} (${user.email})`);
 
-    // 2. homework_submissions_v2 테이블 생성
+    // 2. homework_submissions_v2 테이블 생성 및 마이그레이션
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_submissions_v2 (
         id TEXT PRIMARY KEY,
@@ -93,9 +93,31 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         imageUrl TEXT,
         submittedAt TEXT DEFAULT (datetime('now')),
         status TEXT DEFAULT 'pending',
-        academyId INTEGER
+        academyId INTEGER,
+        gradingResult TEXT,
+        gradedAt TEXT
       )
     `).run();
+
+    // 마이그레이션: 기존 테이블에 누락된 컬럼 추가
+    try {
+      await DB.prepare(`
+        ALTER TABLE homework_submissions_v2 ADD COLUMN gradingResult TEXT
+      `).run();
+      console.log('✅ gradingResult 컬럼 추가 완료');
+    } catch (e) {
+      // 컬럼이 이미 존재하면 무시
+      console.log('ℹ️ gradingResult 컬럼 이미 존재');
+    }
+
+    try {
+      await DB.prepare(`
+        ALTER TABLE homework_submissions_v2 ADD COLUMN gradedAt TEXT
+      `).run();
+      console.log('✅ gradedAt 컬럼 추가 완료');
+    } catch (e) {
+      console.log('ℹ️ gradedAt 컬럼 이미 존재');
+    }
 
     // 3. homework_images 테이블 생성 (이미지를 별도 저장)
     await DB.prepare(`

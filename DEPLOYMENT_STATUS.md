@@ -1,112 +1,115 @@
-# ⚠️ 배포 진행 중
+# 숙제 검사 결과 페이지 수정 완료 보고서
 
-## 현재 상황
+## 📋 문제 요약
+- **증상**: https://superplacestudy.pages.dev/dashboard/homework/results/ 페이지에서 숙제 결과가 표시되지 않음
+- **원인**: `homework_gradings_v2` 테이블의 스키마 불일치
+  - 쿼리가 `hg.overallFeedback`, `hg.strengths`, `hg.improvements` 등의 컬럼을 요청
+  - 실제 테이블에는 해당 컬럼이 존재하지 않음
+  - `CREATE TABLE IF NOT EXISTS`는 기존 테이블을 수정하지 않음
 
-**메인 쇼핑몰**: ⏳ 빌드 중  
-**상세 페이지**: ⏳ 빌드 중  
-**예상 완료 시간**: 5-10분
+## ✅ 완료된 수정 사항
 
----
+### 1. 데이터베이스 스키마 마이그레이션 추가 (c3a216d3)
+- `functions/api/homework/grade.ts`에 자동 컬럼 추가 로직 구현
+- 누락된 컬럼 자동 감지 및 ALTER TABLE 실행
+- 추가되는 컬럼: `overallFeedback`, `strengths`, `improvements`, `detailedResults`, `studyDirection`
 
-## 변경 사항
+### 2. 호환성 레이어 구현 (40e50383) ⭐ 핵심 수정
+- `/api/homework/results`에서 문제가 되는 컬럼 제거
+- 필수 컬럼만 조회하도록 쿼리 최적화:
+  ```sql
+  SELECT 
+    hs.id, hs.userId, hs.submittedAt, hs.status,
+    hs.gradingResult,  -- JSON 백업
+    hg.id, hg.score, hg.subject, hg.totalQuestions, hg.correctAnswers
+  ```
+- `hs.gradingResult` JSON 파싱을 통해 상세 정보 추출
+- Fallback 로직: `homework_gradings_v2` 데이터 우선, 없으면 `gradingResult`에서 파싱
 
-### ✅ 완료된 코드 수정
-1. **메인 페이지** (`src/app/store/page.tsx`)
-   - "구매하기" → "자세히보기" 버튼으로 변경
-   - 클릭 시 `/store/[productId]`로 이동
+## 🚀 배포 정보
+- **최신 커밋**: `40e50383` (3분 전 푸시)
+- **배포 대상**: Cloudflare Pages (https://superplacestudy.pages.dev)
+- **예상 배포 시간**: 2-5분 (현재 진행 중)
 
-2. **상세 페이지** (`src/app/store/[productId]/page.tsx`)
-   - 쿠팡 스타일 UI 구현
-   - 이미지 슬라이더, Sticky 탭 메뉴
-   - 하단 "구매하기" 버튼 → 구매 다이얼로그
+## 🧪 테스트 방법
 
-3. **빌드 설정** (`next.config.ts`)
-   - `output: 'export'` 제거
-   - 동적 라우트 지원 활성화
-
----
-
-## 🔧 배포 문제 해결
-
-### 원인
-- Cloudflare Pages의 빌드 시간이 소요됨 (5-10분)
-- Next.js 동적 라우트가 Static Export 모드에서 작동하지 않음
-
-### 해결
-- **커밋 해시**: `5d51ac8`
-- **배포 URL**: https://superplacestudy.pages.dev
-- **상태**: 🔄 빌드 진행 중
-
----
-
-## ⏰ 확인 방법
-
-### 1. 5-10분 후 다시 확인
-```
-메인 쇼핑몰: https://superplacestudy.pages.dev/store
-상세 페이지: https://superplacestudy.pages.dev/store/[productId]
-```
-
-### 2. 브라우저 캐시 삭제
-- `Ctrl+Shift+R` (Windows)
-- `Cmd+Shift+R` (Mac)
-- 또는 시크릿 모드로 접속
-
-### 3. 빌드 완료 확인
-- 메인 페이지에서 "자세히보기" 버튼이 보이는지 확인
-- 버튼 클릭 시 상세 페이지로 이동하는지 확인
-
----
-
-## 📊 배포 히스토리
-
-| 시간 | 커밋 | 내용 | 상태 |
-|------|------|------|------|
-| 11:46 | `cdd0e46` | 리뷰/문의/찜하기 시스템 | ✅ 완료 |
-| 11:53 | `dd583a9` | 빌드 트리거 | ⏳ 진행 중 |
-| 11:56 | `5d51ac8` | 동적 라우트 수정 | ⏳ 진행 중 |
-
----
-
-## 🎯 완료 후 확인사항
-
-### 메인 쇼핑몰 페이지
-- [ ] "자세히보기" 버튼 표시
-- [ ] 제품 목록 정상 표시
-
-### 상세 페이지
-- [ ] 제품 정보 정상 표시
-- [ ] 이미지 슬라이더 작동
-- [ ] Sticky 탭 메뉴 (상품상세/리뷰/문의)
-- [ ] 하단 "구매하기" 버튼
-- [ ] 구매 다이얼로그 열림
-
----
-
-## ❓ 문제가 계속되면
-
-### 옵션 1: 로컬에서 빌드 확인
+### 즉시 테스트 (배포 완료 후)
 ```bash
-cd /home/user/webapp
-npm install
-npm run build
-npm run dev
+# 1. 결과 조회 API 직접 호출
+curl -s "https://superplacestudy.pages.dev/api/homework/results?startDate=2024-01-01&endDate=2099-12-31" \
+  -H "Authorization: Bearer 1|admin@superplace.co.kr|ADMIN|$(date +%s)000" | jq '.'
+
+# 2. 성공 확인
+# - "success": true
+# - "statistics.totalSubmissions" > 0
+# - "results" 배열에 데이터 포함
 ```
 
-### 옵션 2: Cloudflare Pages 대시보드 확인
-- https://dash.cloudflare.com/
-- Pages → superplacestudy
-- 최신 배포 상태 확인
+### UI 테스트
+1. https://superplacestudy.pages.dev/attendance-verify/ 접속
+2. 코드 `402246` 입력
+3. 숙제 사진 업로드 및 제출
+4. 10-20초 대기
+5. https://superplacestudy.pages.dev/dashboard/homework/results/ 접속
+6. 결과 확인:
+   - ✅ 점수 표시 (0점이 아닌 실제 점수)
+   - ✅ 과목 자동 감지
+   - ✅ 정답/오답 문제별 표시
+   - ✅ 종합 평가 및 개선 제안
 
-### 옵션 3: 수동 재배포
-```bash
-cd /home/user/webapp
-npm run build
-wrangler pages deploy out --project-name=superplacestudy
+## 📊 예상 결과
+
+### 정상 작동 시
+```json
+{
+  "success": true,
+  "statistics": {
+    "total": 5,
+    "graded": 5,
+    "pending": 0,
+    "averageScore": 65
+  },
+  "results": [
+    {
+      "submissionId": "homework-...",
+      "userName": "테스트학생",
+      "grading": {
+        "score": 70,
+        "subject": "수학",
+        "totalQuestions": 10,
+        "correctAnswers": 7,
+        "feedback": "전반적으로 잘 풀었습니다...",
+        "strengths": "계산 능력이 뛰어남",
+        "improvements": "응용 문제 연습 필요"
+      }
+    }
+  ]
+}
 ```
+
+## 🛠️ 백업 계획
+만약 배포 후에도 문제가 지속되면:
+1. Cloudflare Pages 로그 확인
+2. 데이터베이스 직접 확인 (Wrangler CLI)
+3. 수동 마이그레이션 스크립트 실행
+
+## 🎯 핵심 개선 사항
+- **이전**: 특정 컬럼이 없으면 전체 쿼리 실패 (SQLITE_ERROR)
+- **이후**: 필수 컬럼만 조회 + JSON 파싱으로 유연한 데이터 추출
+- **장점**: 
+  - 스키마 변경에 강함
+  - 기존 데이터와 신규 데이터 모두 지원
+  - 점진적 마이그레이션 가능
+
+## 📝 현재 상태
+- ✅ 코드 수정 완료
+- ✅ Git 푸시 완료
+- ⏳ Cloudflare Pages 배포 진행 중 (약 2-5분 소요)
+- ⏳ 배포 완료 후 테스트 필요
 
 ---
+**다음 단계**: 
+1. 5분 후 다시 API 테스트
+2. 성공 시 UI에서 실제 숙제 제출 및 결과 확인
+3. 문제 지속 시 Cloudflare 로그 확인
 
-**예상 완료 시간**: 2026-02-26 12:05 (약 5-10분 후)  
-**현재 상태**: ⏳ 빌드 진행 중  
-**확인 방법**: 위 URL로 재접속 후 캐시 삭제

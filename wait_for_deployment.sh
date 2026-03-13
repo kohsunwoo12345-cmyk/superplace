@@ -1,59 +1,66 @@
 #!/bin/bash
 
-echo "==================================================="
-echo "⏳ Cloudflare Pages 배포 대기 중..."
-echo "==================================================="
+echo "🚀 배포 완료 대기 및 자동 테스트"
+echo "======================================"
 
-echo ""
-echo "📦 Commit: a51ce2d"
-echo "🔧 수정: AI 챗봇 페이지 빌드 오류 수정"
-echo "🎯 URL: https://superplacestudy.pages.dev"
-echo ""
-echo "배포 완료까지 약 2-3분 소요됩니다..."
-echo ""
+MAX_ATTEMPTS=10
+ATTEMPT=0
+SUCCESS=false
 
-# 2분 대기
-for i in {1..24}; do
-  echo -n "."
-  sleep 5
+while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+    ATTEMPT=$((ATTEMPT + 1))
+    echo ""
+    echo "시도 $ATTEMPT/$MAX_ATTEMPTS..."
+    
+    ADMIN_TOKEN="1|admin@superplace.co.kr|ADMIN|$(date +%s)000"
+    RESPONSE=$(curl -s "https://superplacestudy.pages.dev/api/homework/results?startDate=2024-01-01&endDate=2099-12-31" \
+      -H "Authorization: Bearer ${ADMIN_TOKEN}")
+    
+    API_SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
+    
+    if [ "$API_SUCCESS" = "true" ]; then
+        SUCCESS=true
+        echo "✅ 배포 완료! API 정상 작동"
+        echo ""
+        echo "$RESPONSE" | jq '{success, statistics, resultCount: (.results | length)}'
+        
+        TOTAL=$(echo "$RESPONSE" | jq -r '.statistics.totalSubmissions')
+        echo ""
+        echo "======================================"
+        echo "📊 최종 결과"
+        echo "======================================"
+        echo "제출 건수: $TOTAL"
+        
+        if [ "$TOTAL" -gt 0 ]; then
+            echo ""
+            echo "최근 제출 3건:"
+            echo "$RESPONSE" | jq -r '.results[0:3] | .[] | "- \(.userName): \(.grading.score)점 (\(.grading.subject))"'
+        fi
+        
+        break
+    else
+        ERROR=$(echo "$RESPONSE" | jq -r '.error // "unknown"')
+        MESSAGE=$(echo "$RESPONSE" | jq -r '.message // ""')
+        echo "❌ 아직 배포 중... (오류: $ERROR)"
+        [ -n "$MESSAGE" ] && echo "   상세: $MESSAGE"
+        
+        if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+            echo "   30초 후 재시도..."
+            sleep 30
+        fi
+    fi
 done
 
-echo ""
-echo ""
-echo "==================================================="
-echo "✅ 배포 완료 예상 시간 도달"
-echo "==================================================="
+if [ "$SUCCESS" = "false" ]; then
+    echo ""
+    echo "======================================"
+    echo "⚠️ 배포 지연"
+    echo "======================================"
+    echo "배포가 예상보다 오래 걸리고 있습니다."
+    echo "Cloudflare Pages 대시보드를 확인하세요:"
+    echo "https://dash.cloudflare.com/"
+    echo ""
+    echo "또는 5-10분 후 수동으로 테스트하세요:"
+    echo "https://superplacestudy.pages.dev/dashboard/homework/results/"
+fi
 
-# 홈페이지 확인
-echo ""
-echo "🏠 홈페이지 상태 확인..."
-STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://superplacestudy.pages.dev/")
-echo "   ✓ 상태 코드: $STATUS"
-
-# AI 챗봇 페이지 확인
-echo ""
-echo "🤖 AI 챗봇 페이지 상태 확인..."
-STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://superplacestudy.pages.dev/ai-chat")
-echo "   ✓ 상태 코드: $STATUS"
-
-# AI 봇 할당 페이지 확인
-echo ""
-echo "⚙️  AI 봇 할당 페이지 상태 확인..."
-STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://superplacestudy.pages.dev/dashboard/admin/ai-bots/assign")
-echo "   ✓ 상태 코드: $STATUS"
-
-echo ""
-echo "==================================================="
-echo "✅ 배포 확인 완료"
-echo "==================================================="
-echo ""
-echo "📝 배포 내용:"
-echo "   - AI 챗봇 페이지 빌드 오류 수정"
-echo "   - div 태그 균형 문제 해결"
-echo "   - 정상 작동 버전으로 롤백"
-echo ""
-echo "🔍 확인 필요 사항:"
-echo "   1. AI 챗봇 페이지가 정상 로드되는지"
-echo "   2. 사이드바 기능이 작동하는지"
-echo "   3. 관리자 AI 봇 할당 페이지가 작동하는지"
-echo ""
