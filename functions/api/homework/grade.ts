@@ -190,7 +190,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u',
+        'X-API-Key': 'xL-fXyCJpmj-gupSAYr12YDIZ6Xy1lXUOUmihLMb',
       },
       body: JSON.stringify(workerRequest),
     });
