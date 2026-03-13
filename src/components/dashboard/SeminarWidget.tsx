@@ -76,7 +76,7 @@ export default function SeminarWidget() {
         <div
           key={seminar.id}
           className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-          onClick={() => router.push(`/dashboard/seminars/${seminar.id}`)}
+          onClick={() => router.push(`/dashboard/seminars/detail?id=${seminar.id}`)}
         >
           <div className="flex gap-4">
             {/* 세미나 이미지 */}

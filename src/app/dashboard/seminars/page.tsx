@@ -170,7 +170,7 @@ export default function SeminarsPage() {
             <Card
               key={seminar.id}
               className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => router.push(`/dashboard/seminars/${seminar.id}`)}
+              onClick={() => router.push(`/dashboard/seminars/detail?id=${seminar.id}`)}
             >
               {/* 세미나 이미지 */}
               {seminar.mainImage && (
@@ -259,7 +259,7 @@ export default function SeminarsPage() {
                   className="w-full mt-4"
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push(`/dashboard/seminars/${seminar.id}`);
+                    router.push(`/dashboard/seminars/detail?id=${seminar.id}`);
                   }}
                   disabled={
                     seminar.status !== "upcoming" ||

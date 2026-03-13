@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,8 +37,8 @@ interface Seminar {
 
 export default function SeminarDetailPage() {
   const router = useRouter();
-  const params = useParams();
-  const seminarId = params.id as string;
+  const searchParams = useSearchParams();
+  const seminarId = searchParams.get('id');
 
   const [seminar, setSeminar] = useState<Seminar | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +57,8 @@ export default function SeminarDetailPage() {
   useEffect(() => {
     if (seminarId) {
       fetchSeminarDetail();
+    } else {
+      router.push("/dashboard/seminars");
     }
   }, [seminarId]);
 
