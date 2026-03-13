@@ -333,7 +333,7 @@ export default function AddClassPage() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch("/api/classes", {
+      const response = await fetch("/api/classes/create-new", {
         method: "POST",
         headers: headers,
         body: JSON.stringify(payload),
