@@ -202,12 +202,21 @@ export async function onRequestGet(context) {
             
             console.log(`📊 점수 계산 (${r.submissionId}): ${correctAnswers}/${totalQuestions} = ${score}점`);
             
+            // feedback 우선순위: overallFeedback > strengths + improvements 조합
+            let feedback = grading.overallFeedback || '';
+            if (!feedback && (grading.strengths || grading.improvements)) {
+              const parts = [];
+              if (grading.strengths) parts.push(`[잘한 점] ${grading.strengths}`);
+              if (grading.improvements) parts.push(`[개선할 점] ${grading.improvements}`);
+              feedback = parts.join('\n\n');
+            }
+            
             gradingData = {
               score: score,
               subject: firstResult.subject || 'other',
               totalQuestions: totalQuestions,
               correctAnswers: correctAnswers,
-              feedback: grading.overallFeedback || '',
+              feedback: feedback,
               strengths: grading.strengths || '',
               improvements: grading.improvements || '',
               detailedResults: grading.detailedResults || [],
@@ -240,12 +249,21 @@ export async function onRequestGet(context) {
           }
         }
         
+        // 레거시 데이터도 feedback 조합
+        let legacyFeedback = r.legacyFeedback || '';
+        if (!legacyFeedback && (r.legacyStrengths || r.legacyImprovements)) {
+          const parts = [];
+          if (r.legacyStrengths) parts.push(`[잘한 점] ${r.legacyStrengths}`);
+          if (r.legacyImprovements) parts.push(`[개선할 점] ${r.legacyImprovements}`);
+          legacyFeedback = parts.join('\n\n');
+        }
+        
         gradingData = {
           score: score,
           subject: r.legacySubject || 'other',
           totalQuestions: r.legacyTotalQuestions || 0,
           correctAnswers: r.legacyCorrectAnswers || 0,
-          feedback: r.legacyFeedback || '',
+          feedback: legacyFeedback,
           strengths: r.legacyStrengths || '',
           improvements: r.legacyImprovements || '',
           detailedResults: detailedResults,
