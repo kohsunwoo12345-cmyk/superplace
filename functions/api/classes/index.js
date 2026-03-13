@@ -305,6 +305,180 @@ export async function onRequestGet(context) {
   }
 }
 
+// POST: 반 생성
+export async function onRequestPost(context) {
+  try {
+    const { request, env } = context;
+    const db = env.DB;
+
+    console.log('➕ Classes API POST called');
+
+    if (!db) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Database not configured' 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Parse token
+    const authHeader = request.headers.get('Authorization');
+    const tokenData = parseToken(authHeader);
+
+    if (!tokenData) {
+      console.error('❌ Invalid or missing token');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Unauthorized',
+        message: '인증이 필요합니다'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get user from database
+    let user = await db
+      .prepare('SELECT id, email, role, academyId, academy_id FROM User WHERE email = ?')
+      .bind(tokenData.email)
+      .first();
+    
+    if (!user) {
+      user = await db
+        .prepare('SELECT id, email, role, academyId, academy_id FROM users WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    }
+
+    if (!user) {
+      console.error('❌ User not found:', tokenData.email);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'User not found'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const role = user.role ? user.role.toUpperCase() : '';
+    const academyId = user.academyId || user.academy_id;
+
+    // Only ADMIN, SUPER_ADMIN, DIRECTOR can create classes
+    if (role !== 'DIRECTOR' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Insufficient permissions',
+        message: '반을 생성할 권한이 없습니다'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get request body
+    const body = await request.json();
+    const { name, grade, description, teacherId, color, schedules, studentIds } = body;
+
+    if (!name) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Missing required field: name',
+        message: '반 이름을 입력해주세요'
+      }), { 
+        status: 400, 
+        headers: { 'Content-Type': 'application/json' } 
+      });
+    }
+
+    // Use user's academyId for the class
+    const classAcademyId = academyId;
+    const teacherIdValue = teacherId || user.id;
+    const classColor = color || '#3B82F6';
+    
+    // Get Korean time
+    const now = new Date();
+    const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const koreanTime = kst.toISOString().slice(0, 19).replace('T', ' ');
+
+    console.log('➕ Creating class:', { 
+      classAcademyId, 
+      name, 
+      grade, 
+      teacherIdValue, 
+      color: classColor 
+    });
+
+    // Insert class
+    const result = await db.prepare(`
+      INSERT INTO classes (academy_id, class_name, grade, description, teacher_id, color, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      classAcademyId, 
+      name, 
+      grade || null, 
+      description || null, 
+      teacherIdValue, 
+      classColor, 
+      koreanTime
+    ).run();
+    
+    const classId = result.meta.last_row_id;
+
+    console.log('✅ Class created:', classId);
+
+    // Assign students if provided
+    if (studentIds && Array.isArray(studentIds) && studentIds.length > 0) {
+      for (const studentId of studentIds) {
+        try {
+          const studentIdStr = String(studentId);
+          
+          // Check if already enrolled
+          const existing = await db.prepare(
+            'SELECT id FROM class_students WHERE classId = ? AND studentId = ?'
+          ).bind(classId, studentIdStr).first();
+
+          if (existing) {
+            await db.prepare(
+              'UPDATE class_students SET status = ?, enrolledAt = ? WHERE classId = ? AND studentId = ?'
+            ).bind('active', koreanTime, classId, studentIdStr).run();
+          } else {
+            await db.prepare(
+              'INSERT INTO class_students (classId, studentId, enrolledAt, status) VALUES (?, ?, ?, ?)'
+            ).bind(classId, studentIdStr, koreanTime, 'active').run();
+          }
+          
+          console.log(`✅ Student ${studentIdStr} enrolled in class ${classId}`);
+        } catch (err) {
+          console.error('❌ Student enrollment error:', err);
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      classId: classId,
+      message: '반이 생성되었습니다'
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('❌ Create class error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to create class',
+      message: error.message
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
 // DELETE: 반 삭제
 export async function onRequestDelete(context) {
   try {
