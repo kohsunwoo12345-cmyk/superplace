@@ -413,6 +413,25 @@ export async function onRequestPost(context) {
       color: classColor 
     });
 
+    // Insert class - 먼저 테이블 구조 확인
+    console.log('🔍 Checking table schema...');
+    try {
+      const schemaCheck = await db.prepare('PRAGMA table_info(classes)').all();
+      console.log('📋 Classes table schema:', JSON.stringify(schemaCheck.results, null, 2));
+    } catch (schemaError) {
+      console.error('❌ Schema check error:', schemaError);
+    }
+
+    console.log('➕ Attempting INSERT with values:', {
+      academy_id: classAcademyId,
+      class_name: name,
+      grade: grade || null,
+      description: description || null,
+      teacher_id: teacherIdValue,
+      color: classColor,
+      created_at: koreanTime
+    });
+
     // Insert class
     const result = await db.prepare(`
       INSERT INTO classes (academy_id, class_name, grade, description, teacher_id, color, created_at)
