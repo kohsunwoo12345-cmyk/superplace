@@ -181,31 +181,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }, { status: 500 });
     }
 
-    // 6. 이미지 저장 (homework_images 테이블)
-    try {
-      await DB.prepare(`
-        CREATE TABLE IF NOT EXISTS homework_images (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          submissionId TEXT NOT NULL,
-          imageData TEXT NOT NULL,
-          imageIndex INTEGER NOT NULL,
-          createdAt TEXT DEFAULT (datetime('now'))
-        )
-      `).run();
-
-      console.log(`📷 이미지 저장 시작: ${imageArray.length}장`);
-      
-      for (let i = 0; i < imageArray.length; i++) {
-        await DB.prepare(`
-          INSERT INTO homework_images (submissionId, imageData, imageIndex)
-          VALUES (?, ?, ?)
-        `).bind(submissionId, imageArray[i], i).run();
-      }
-      
-      console.log(`✅ 이미지 저장 완료: ${imageArray.length}장`);
-    } catch (imgError: any) {
-      console.error(`⚠️ 이미지 저장 실패:`, imgError.message);
-    }
+    // 6. 이미지는 submit API에서 이미 저장했으므로 여기서는 스킵
+    console.log(`ℹ️ 이미지는 이미 저장됨 (${imageArray.length}장), 중복 저장 방지`);
 
     // 7. 결과 저장 (gradingResult JSON에 저장)
     // Python Worker 응답에 피드백이 없으면 기본 피드백 생성
