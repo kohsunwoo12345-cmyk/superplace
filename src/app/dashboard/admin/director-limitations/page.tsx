@@ -181,9 +181,7 @@ export default function DirectorLimitationsPage() {
           }
           
           if (!directorId) {
-            console.warn(`⚠️ No director found for academy ${academyId}, skipping...`);
-            failCount++;
-            continue;
+            console.warn(`⚠️ No director found for academy ${academyId}, but proceeding with academyId only...`);
           }
           
           const response = await fetch('/api/admin/director-limitations', {

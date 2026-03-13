@@ -186,8 +186,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    if (!body.director_id || !body.academy_id) {
-      return new Response(JSON.stringify({ error: "director_id and academy_id required" }), {
+    if (!body.academy_id) {
+      return new Response(JSON.stringify({ error: "academy_id required" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
@@ -234,16 +234,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       )
     `).run();
 
-    // 기존 제한 확인
+    // 기존 제한 확인 (academy_id로 우선 확인)
     const existing = await DB.prepare(`
-      SELECT id FROM director_limitations WHERE director_id = ?
-    `).bind(body.director_id).first();
+      SELECT id FROM director_limitations WHERE academy_id = ?
+    `).bind(body.academy_id).first();
 
     if (existing) {
       // 업데이트
       await DB.prepare(`
         UPDATE director_limitations SET
-          academy_id = ?,
+          director_id = COALESCE(?, director_id),
           homework_grading_daily_limit = ?,
           homework_grading_monthly_limit = ?,
           max_students = ?,
@@ -258,9 +258,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           competency_monthly_limit = ?,
           landing_page_html_direct_edit = ?,
           updated_at = datetime('now')
-        WHERE director_id = ?
+        WHERE academy_id = ?
       `).bind(
-        body.academy_id,
+        body.director_id || null,
         body.homework_grading_daily_limit ?? 0,
         body.homework_grading_monthly_limit ?? 0,
         body.max_students ?? 0,
@@ -274,10 +274,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         body.competency_daily_limit ?? 0,
         body.competency_monthly_limit ?? 0,
         body.landing_page_html_direct_edit ?? 0,
-        body.director_id
+        body.academy_id
       ).run();
 
-      console.log(`✅ Director limitation updated: directorId=${body.director_id}`);
+      console.log(`✅ Director limitation updated: academyId=${body.academy_id}`);
     } else {
       // 생성
       await DB.prepare(`
@@ -291,7 +291,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           landing_page_html_direct_edit
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
-        body.director_id,
+        body.director_id || 0,
         body.academy_id,
         body.homework_grading_daily_limit ?? 0,
         body.homework_grading_monthly_limit ?? 0,
@@ -308,7 +308,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         body.landing_page_html_direct_edit ?? 0
       ).run();
 
-      console.log(`✅ Director limitation created: directorId=${body.director_id}`);
+      console.log(`✅ Director limitation created: academyId=${body.academy_id}`);
     }
 
     return new Response(
