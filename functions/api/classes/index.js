@@ -99,10 +99,17 @@ export async function onRequestGet(context) {
       // Super admin can see all classes
       console.log('🔓 Super Admin access - returning all classes');
       query = `
-        SELECT c.id, c.class_name as name
+        SELECT 
+          c.id,
+          c.academy_id as academyId,
+          c.class_name as name,
+          c.grade,
+          c.description,
+          c.teacher_id as teacherId,
+          c.color,
+          c.created_at as createdAt
         FROM classes c
-        ORDER BY c.id DESC
-        LIMIT 10
+        ORDER BY c.created_at DESC
       `;
     } else if (role === 'ADMIN' || role === 'DIRECTOR') {
       // Admins and Directors see only their academy's classes
@@ -122,10 +129,17 @@ export async function onRequestGet(context) {
       
       // WHERE 절 없이 모든 클래스를 가져온 후 JavaScript로 필터링
       query = `
-        SELECT c.id, c.class_name as name
+        SELECT 
+          c.id,
+          c.academy_id as academyId,
+          c.class_name as name,
+          c.grade,
+          c.description,
+          c.teacher_id as teacherId,
+          c.color,
+          c.created_at as createdAt
         FROM classes c
-        ORDER BY c.id DESC
-        LIMIT 10
+        ORDER BY c.created_at DESC
       `;
       // params는 비워둠 - JavaScript에서 필터링할 것
     } else if (role === 'TEACHER') {
@@ -145,22 +159,36 @@ export async function onRequestGet(context) {
       
       // WHERE 절 없이 모든 클래스를 가져온 후 JavaScript로 필터링
       query = `
-        SELECT c.id, c.class_name as name
+        SELECT 
+          c.id,
+          c.academy_id as academyId,
+          c.class_name as name,
+          c.grade,
+          c.description,
+          c.teacher_id as teacherId,
+          c.color,
+          c.created_at as createdAt
         FROM classes c
-        ORDER BY c.id DESC
-        LIMIT 10
+        ORDER BY c.created_at DESC
       `;
       // params는 비워둠 - JavaScript에서 필터링할 것
     } else if (role === 'STUDENT') {
       // Students see classes they're enrolled in
       console.log('🔒 Student access - enrolled classes only:', userId);
       query = `
-        SELECT c.id, c.class_name as name
+        SELECT DISTINCT
+          c.id,
+          c.academy_id as academyId,
+          c.class_name as name,
+          c.grade,
+          c.description,
+          c.teacher_id as teacherId,
+          c.color,
+          c.created_at as createdAt
         FROM classes c
         INNER JOIN class_students cs ON c.id = cs.classId
         WHERE cs.studentId = ?
-        ORDER BY c.id DESC
-        LIMIT 10
+        ORDER BY c.created_at DESC
       `;
       params.push(userId);
     } else {
