@@ -401,17 +401,19 @@ async def final_grading(
             
             url = "https://api.deepseek.com/v1/chat/completions"
             
-            grading_prompt = f"""숙제 채점:
+            grading_prompt = f"""숙제 채점 (한국어):
 {context}
 
-JSON 응답 (부족한 개념 중심으로):
+다음 JSON으로만 응답 (부족한 개념 중심, 개선점 40토큰 제한):
 {{
-  "totalQuestions": 문제수,
-  "correctAnswers": 맞은수,
-  "detailedResults": [{{"questionNumber": 1, "isCorrect": true/false}}],
-  "overallFeedback": "부족한 개념 중심 피드백",
-  "improvements": "40토큰 이내"
-}}"""
+  "totalQuestions": 5,
+  "correctAnswers": 3,
+  "detailedResults": [{{"questionNumber": 1, "isCorrect": true}}, {{"questionNumber": 2, "isCorrect": false}}],
+  "overallFeedback": "부족한 개념: 분수 연산, 도형 기초. 반복 학습 필요.",
+  "improvements": "분수 곱셈 개념 재학습. 도형 특징 암기."
+}}
+
+중요: detailedResults에는 questionNumber와 isCorrect만, overallFeedback은 부족한 개념 중심, improvements는 40토큰 이내."""
             
             payload = {
                 "model": "deepseek-chat",
@@ -478,18 +480,20 @@ async def grade_with_gemini(
         
         url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
         
-        # 간결한 채점 프롬프트 - 부족한 개념 중심
-        grading_prompt = f"""숙제 채점:
+        # 간결한 채점 프롬프트 - 부족한 개념 중심, 문제 내용 제거
+        grading_prompt = f"""숙제 채점 (한국어):
 {context}
 
-JSON 응답 (부족한 개념 중심으로):
+다음 JSON으로만 응답 (부족한 개념 중심, 개선점 40토큰 제한):
 {{
-  "totalQuestions": 문제수,
-  "correctAnswers": 맞은수,
-  "detailedResults": [{{"questionNumber": 1, "isCorrect": true/false}}],
-  "overallFeedback": "부족한 개념 중심 피드백",
-  "improvements": "40토큰 이내"
-}}"""
+  "totalQuestions": 5,
+  "correctAnswers": 3,
+  "detailedResults": [{{"questionNumber": 1, "isCorrect": true}}, {{"questionNumber": 2, "isCorrect": false}}],
+  "overallFeedback": "부족한 개념: 분수 연산, 도형 기초. 반복 학습 필요.",
+  "improvements": "분수 곱셈 개념 재학습. 도형 특징 암기."
+}}
+
+중요: detailedResults에는 questionNumber와 isCorrect만, overallFeedback은 부족한 개념 중심, improvements는 40토큰 이내."""
         
         payload = {
             "contents": [{

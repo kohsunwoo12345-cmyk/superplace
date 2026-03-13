@@ -599,32 +599,7 @@ export default function TeacherHomeworkResultsPage() {
                     )}
                     
                     <div className="flex gap-2 mt-4">
-                      {/* AI 채점하기 버튼: score가 0이거나 null일 때만 표시 */}
-                      {(!submission.score || submission.score === 0) && (
-                        <Button
-                          variant="default"
-                          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleGradeSubmission(submission.id);
-                          }}
-                          disabled={gradingSubmissionId === submission.id}
-                        >
-                          {gradingSubmissionId === submission.id ? (
-                            <>
-                              <Brain className="w-4 h-4 mr-2 animate-pulse" />
-                              채점 중...
-                            </>
-                          ) : (
-                            <>
-                              <Brain className="w-4 h-4 mr-2" />
-                              AI 채점하기
-                            </>
-                          )}
-                        </Button>
-                      )}
-                      
-                      {/* 상세 보기 버튼 */}
+                      {/* 상세 보기 버튼만 표시 - AI 채점은 백그라운드 자동 처리 */}
                       <Button
                         variant="outline"
                         onClick={(e) => {
@@ -878,33 +853,24 @@ export default function TeacherHomeworkResultsPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-4">
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                       {selectedSubmission.problemAnalysis.map((problem: any, index: number) => (
                         <div
                           key={index}
-                          className={`p-3 rounded-lg border-2 ${
+                          className={`p-3 rounded-lg border-2 text-center ${
                             problem.isCorrect
                               ? 'bg-green-50 border-green-200'
                               : 'bg-red-50 border-red-200'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <Badge className={problem.isCorrect ? 'bg-green-600' : 'bg-red-600'}>
-                                {problem.isCorrect ? '✓ 정답' : '✗ 오답'}
-                              </Badge>
-                              <Badge variant="outline">{problem.type || '문제'}</Badge>
-                            </div>
-                            {problem.page && (
-                              <span className="text-xs text-gray-600">페이지 {problem.page}</span>
-                            )}
+                          <Badge className={`${problem.isCorrect ? 'bg-green-600' : 'bg-red-600'} text-sm`}>
+                            {problem.questionNumber ? `문제 ${problem.questionNumber}` : `문제 ${index + 1}`}
+                          </Badge>
+                          <div className={`mt-2 font-bold text-lg ${
+                            problem.isCorrect ? 'text-green-700' : 'text-red-700'
+                          }`}>
+                            {problem.isCorrect ? '✓ 정답' : '✗ 오답'}
                           </div>
-                          <p className="font-medium text-gray-800 mb-1">
-                            문제: {problem.problem}
-                          </p>
-                          <p className={`text-sm ${problem.isCorrect ? 'text-green-700' : 'text-red-700'}`}>
-                            학생 답안: {problem.answer}
-                          </p>
                         </div>
                       ))}
                     </div>
