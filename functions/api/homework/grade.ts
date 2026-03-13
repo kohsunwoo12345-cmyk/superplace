@@ -137,7 +137,32 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`🔧 설정: model=${model}, temperature=${temperature}, RAG=${enableRAG}`);
 
-    // 3. homework_submissions_v2 테이블 생성
+    // 3. homework_submissions_v2 테이블 생성 및 마이그레이션
+    // 기존 테이블이 있을 경우 userId 컬럼 타입을 확인하고 필요시 재생성
+    try {
+      const checkSubmissions = await DB.prepare(`
+        SELECT sql FROM sqlite_master WHERE type='table' AND name='homework_submissions_v2'
+      `).first();
+      
+      if (checkSubmissions && checkSubmissions.sql) {
+        const tableSql = checkSubmissions.sql as string;
+        // userId가 INTEGER로 정의되어 있으면 테이블 재생성
+        if (tableSql.includes('userId INTEGER')) {
+          console.log('⚠️  homework_submissions_v2 userId 타입이 INTEGER - 백업 후 재생성...');
+          
+          // 기존 데이터 백업
+          await DB.prepare(`CREATE TABLE homework_submissions_v2_backup AS SELECT * FROM homework_submissions_v2`).run();
+          
+          // 기존 테이블 삭제
+          await DB.prepare(`DROP TABLE homework_submissions_v2`).run();
+          
+          console.log('✅ homework_submissions_v2 백업 및 삭제 완료');
+        }
+      }
+    } catch (e) {
+      console.log('ℹ️  homework_submissions_v2 타입 확인 중 오류 (무시): ', e);
+    }
+
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_submissions_v2 (
         id TEXT PRIMARY KEY,
@@ -239,6 +264,31 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 6. homework_gradings_v2 테이블 생성 및 마이그레이션
+    // 기존 테이블이 있을 경우 userId 컬럼 타입을 확인하고 필요시 재생성
+    try {
+      const checkTable = await DB.prepare(`
+        SELECT sql FROM sqlite_master WHERE type='table' AND name='homework_gradings_v2'
+      `).first();
+      
+      if (checkTable && checkTable.sql) {
+        const tableSql = checkTable.sql as string;
+        // userId가 INTEGER로 정의되어 있으면 테이블 재생성
+        if (tableSql.includes('userId INTEGER')) {
+          console.log('⚠️  userId 타입이 INTEGER인 기존 테이블 발견 - 백업 후 재생성...');
+          
+          // 기존 데이터 백업
+          await DB.prepare(`CREATE TABLE homework_gradings_v2_backup AS SELECT * FROM homework_gradings_v2`).run();
+          
+          // 기존 테이블 삭제
+          await DB.prepare(`DROP TABLE homework_gradings_v2`).run();
+          
+          console.log('✅ 기존 테이블 백업 및 삭제 완료');
+        }
+      }
+    } catch (e) {
+      console.log('ℹ️  테이블 타입 확인 중 오류 (무시): ', e);
+    }
+
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_gradings_v2 (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
