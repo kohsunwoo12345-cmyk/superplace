@@ -4,21 +4,38 @@
 // 인라인 토큰 디코딩 함수
 function decodeToken(token) {
   try {
-    let parts = token.split('|');
+    const parts = token.split('|');
+    // 새 형식: userId|timestamp|hash|academyId (4개)
+    if (parts.length === 4) {
+      const [userId, timestamp, hash, academyId] = parts;
+      const expirationTime = parseInt(timestamp);
+      
+      // 만료 확인
+      if (Date.now() > expirationTime) {
+        throw new Error('Token expired');
+      }
+      
+      return { 
+        userId, 
+        id: userId, 
+        email: null,  // 토큰에 이메일 없음
+        role: 'STUDENT',  // 기본값
+        academyId: academyId || null, 
+        timestamp: expirationTime 
+      };
+    }
+    
+    // 구 형식 (5개): userId|email|role|academyId|timestamp
     if (parts.length === 5) {
       const [userId, email, role, academyId, timestamp] = parts;
       const tokenTime = parseInt(timestamp);
       if (Date.now() - tokenTime > 24 * 60 * 60 * 1000) throw new Error('Token expired');
       return { userId, id: userId, email, role, academyId: academyId || null, timestamp: tokenTime };
     }
-    if (parts.length === 4) {
-      const [userId, email, role, timestamp] = parts;
-      const tokenTime = parseInt(timestamp);
-      if (Date.now() - tokenTime > 24 * 60 * 60 * 1000) throw new Error('Token expired');
-      return { userId, id: userId, email, role, academyId: null, timestamp: tokenTime };
-    }
+    
     throw new Error('Invalid token format');
   } catch (error) {
+    console.error('Token decode error:', error);
     return null;
   }
 }
