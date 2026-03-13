@@ -141,7 +141,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_submissions_v2 (
         id TEXT PRIMARY KEY,
-        userId INTEGER NOT NULL,
+        userId TEXT NOT NULL,
         code TEXT,
         imageUrl TEXT,
         submittedAt TEXT DEFAULT (datetime('now')),
@@ -243,7 +243,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       CREATE TABLE IF NOT EXISTS homework_gradings_v2 (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         submissionId TEXT NOT NULL,
-        userId INTEGER NOT NULL,
+        userId TEXT NOT NULL,
         userName TEXT,
         userEmail TEXT,
         academyId INTEGER,
@@ -317,6 +317,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       console.log('✅ studyDirection 컬럼 추가 완료');
     } catch (e) {
       console.log('ℹ️ studyDirection 컬럼 이미 존재');
+    }
+
+    // homework_submissions_v2에 gradingResult, gradedAt 컬럼 추가
+    try {
+      await DB.prepare(`
+        ALTER TABLE homework_submissions_v2 ADD COLUMN gradingResult TEXT
+      `).run();
+      console.log('✅ gradingResult 컬럼 추가 완료');
+    } catch (e) {
+      console.log('ℹ️ gradingResult 컬럼 이미 존재');
+    }
+
+    try {
+      await DB.prepare(`
+        ALTER TABLE homework_submissions_v2 ADD COLUMN gradedAt TEXT
+      `).run();
+      console.log('✅ gradedAt 컬럼 추가 완료');
+    } catch (e) {
+      console.log('ℹ️ gradedAt 컬럼 이미 존재');
     }
 
     // 7. 채점 결과를 homework_gradings_v2에 저장

@@ -218,7 +218,13 @@ async function handleRequest(request, env, ctx) {
   if (url.pathname === "/grade" && request.method === "POST") {
     const apiKey = request.headers.get("X-API-Key");
     const expectedKey = env.WORKER_API_KEY || env.API_KEY;
-    if (!expectedKey || apiKey !== expectedKey) {
+    const validKeys = [
+      expectedKey,
+      'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u', // Pages API Key
+      'xL-fXyCJpmj-gupSAYr12YDIZ6Xy1lXUOUmihLMb'  // Workers API Token
+    ].filter(Boolean);
+    
+    if (!apiKey || !validKeys.includes(apiKey)) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: corsHeaders
