@@ -131,31 +131,46 @@ export async function onRequestGet(context) {
 
     console.log(`✅ 조회 결과: ${results.length}건`);
 
-    // 각 제출에 대한 이미지 조회
+    // 각 제출에 대한 이미지 조회 (배치 처리로 SQL 변수 제한 회피)
     const submissionIds = results.map(r => r.submissionId);
     const imagesMap = {};
     
     if (submissionIds.length > 0) {
-      // 모든 제출의 이미지를 한 번에 조회
-      const placeholders = submissionIds.map(() => '?').join(',');
-      const imagesQuery = `
-        SELECT submissionId, imageData, imageIndex
-        FROM homework_images
-        WHERE submissionId IN (${placeholders})
-        ORDER BY submissionId, imageIndex
-      `;
-      
-      const imagesResult = await DB.prepare(imagesQuery).bind(...submissionIds).all();
-      
-      // submissionId별로 이미지 그룹화
-      for (const img of imagesResult.results || []) {
-        if (!imagesMap[img.submissionId]) {
-          imagesMap[img.submissionId] = [];
-        }
-        imagesMap[img.submissionId].push(img.imageData);
+      // SQLite는 최대 999개의 변수만 지원하므로 배치 처리
+      const BATCH_SIZE = 500;
+      const batches = [];
+      for (let i = 0; i < submissionIds.length; i += BATCH_SIZE) {
+        batches.push(submissionIds.slice(i, i + BATCH_SIZE));
       }
       
-      console.log(`📷 이미지 조회 완료: ${Object.keys(imagesMap).length}개 제출에 대한 이미지`);
+      console.log(`📷 이미지 조회 시작: ${batches.length}개 배치, 총 ${submissionIds.length}개 제출`);
+      
+      for (const batch of batches) {
+        const placeholders = batch.map(() => '?').join(',');
+        const imagesQuery = `
+          SELECT submissionId, imageData, imageIndex
+          FROM homework_images
+          WHERE submissionId IN (${placeholders})
+          ORDER BY submissionId, imageIndex
+        `;
+        
+        try {
+          const imagesResult = await DB.prepare(imagesQuery).bind(...batch).all();
+          
+          // submissionId별로 이미지 그룹화
+          for (const img of imagesResult.results || []) {
+            if (!imagesMap[img.submissionId]) {
+              imagesMap[img.submissionId] = [];
+            }
+            imagesMap[img.submissionId].push(img.imageData);
+          }
+        } catch (imgError) {
+          console.error(`❌ 이미지 조회 실패 (배치):`, imgError.message);
+          // 이미지 조회 실패는 무시하고 계속 진행
+        }
+      }
+      
+      console.log(`✅ 이미지 조회 완료: ${Object.keys(imagesMap).length}개 제출에 대한 이미지`);
     }
 
     // 통계 계산
