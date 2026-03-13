@@ -1,7 +1,7 @@
 "use client";
 // Force redeploy: 2026-02-13 16:48:18 - Add Payment Approval to Main Dashboard
 // Force redeploy: 2026-02-13 16:54:36 - Add Payment Menu to Director Dashboard
-// Force redeploy: 2026-03-13 16:15:00 - Add Seminar Widget to Director Dashboard
+// Force redeploy: 2026-03-13 17:30:00 - Improve dashboard with quick action blocks
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -20,9 +20,11 @@ import {
   Target,
   BarChart3,
   GraduationCap,
+  MessageCircle,
+  BarChart2,
+  Layout,
 } from "lucide-react";
 import SeminarWidget from "@/components/dashboard/SeminarWidget";
-import DashboardSeminarsWidget from "@/components/dashboard/DashboardSeminarsWidget";
 
 interface User {
   id: string;
@@ -494,8 +496,100 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Quick Actions & Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        {/* Quick Actions - 바로가기 블록 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          {/* 학생 관리 */}
+          <Card 
+            className="border-2 border-blue-100 hover:border-blue-300 hover:shadow-xl transition-all cursor-pointer group"
+            onClick={() => router.push("/dashboard/students")}
+          >
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
+                  <Users className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">학생 관리</h3>
+                <p className="text-sm text-gray-600 mb-3">학생 정보 및 성적 관리</p>
+                <div className="text-2xl font-bold text-blue-600">{stats?.totalStudents || 0}명</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 출석 현황 */}
+          <Card 
+            className="border-2 border-green-100 hover:border-green-300 hover:shadow-xl transition-all cursor-pointer group"
+            onClick={() => router.push("/dashboard/attendance-statistics")}
+          >
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mb-4 group-hover:bg-green-200 transition-colors">
+                  <Clock className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">출석 현황</h3>
+                <p className="text-sm text-gray-600 mb-3">오늘의 출석 체크</p>
+                <div className="text-2xl font-bold text-green-600">{stats?.todayStats?.attendance || 0}명</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 숙제 관리 */}
+          <Card 
+            className="border-2 border-purple-100 hover:border-purple-300 hover:shadow-xl transition-all cursor-pointer group"
+            onClick={() => router.push("/dashboard/homework/teacher")}
+          >
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="h-16 w-16 rounded-full bg-purple-100 flex items-center justify-center mb-4 group-hover:bg-purple-200 transition-colors">
+                  <FileText className="h-8 w-8 text-purple-600" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">숙제 관리</h3>
+                <p className="text-sm text-gray-600 mb-3">숙제 등록 및 채점</p>
+                <div className="text-2xl font-bold text-purple-600">{stats?.todaySubmittedHomework || 0}개</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 알림톡 발송 */}
+          {isDirector && (
+            <Card 
+              className="border-2 border-orange-100 hover:border-orange-300 hover:shadow-xl transition-all cursor-pointer group"
+              onClick={() => router.push("/dashboard/message-dashboard")}
+            >
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center text-center">
+                  <div className="h-16 w-16 rounded-full bg-orange-100 flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">
+                    <MessageCircle className="h-8 w-8 text-orange-600" />
+                  </div>
+                  <h3 className="font-semibold text-lg mb-2">알림톡 발송</h3>
+                  <p className="text-sm text-gray-600 mb-3">문자 및 알림 보내기</p>
+                  <div className="text-sm font-medium text-orange-600">바로가기</div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 수업 관리 (선생님용) */}
+          {isTeacher && (
+            <Card 
+              className="border-2 border-indigo-100 hover:border-indigo-300 hover:shadow-xl transition-all cursor-pointer group"
+              onClick={() => router.push("/dashboard/classes")}
+            >
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center text-center">
+                  <div className="h-16 w-16 rounded-full bg-indigo-100 flex items-center justify-center mb-4 group-hover:bg-indigo-200 transition-colors">
+                    <BookOpen className="h-8 w-8 text-indigo-600" />
+                  </div>
+                  <h3 className="font-semibold text-lg mb-2">수업 관리</h3>
+                  <p className="text-sm text-gray-600 mb-3">내 수업 일정 확인</p>
+                  <div className="text-sm font-medium text-indigo-600">바로가기</div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Recent Activity Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* 최근 등록 학생 */}
           <Card>
             <CardHeader>
@@ -508,7 +602,8 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-3">
                 {(stats?.recentStudents || []).slice(0, 5).map((student: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-green-50 transition-colors">
+                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-green-50 transition-colors cursor-pointer"
+                       onClick={() => router.push("/dashboard/students")}>
                     <div className="flex items-center gap-3">
                       <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
                         <span className="font-semibold text-green-600 text-sm">
@@ -534,19 +629,19 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* 숙제 통계 */}
+          {/* 숙제 현황 상세 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-blue-600" />
-                숙제 현황
+                숙제 현황 상세
               </CardTitle>
               <CardDescription>숙제 제출 및 채점 상태</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div className="p-3 border rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
-                     onClick={() => router.push("/dashboard/homework")}>
+                     onClick={() => router.push("/dashboard/homework/teacher")}>
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-medium text-sm">전체 숙제</p>
                     <span className="text-lg font-bold text-blue-600">{stats?.totalHomework || 0}개</span>
@@ -570,7 +665,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="p-3 border rounded-lg hover:bg-green-50 transition-colors">
+                <div className="p-3 border rounded-lg hover:bg-green-50 transition-colors cursor-pointer"
+                     onClick={() => router.push("/dashboard/homework/results")}>
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-medium text-sm">진행 중인 숙제</p>
                     <span className="text-lg font-bold text-green-600">{stats?.activeHomework || 0}개</span>
@@ -580,62 +676,64 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* AI 봇 활동만 표시 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-orange-600" />
-                AI 봇 활동
-              </CardTitle>
-              <CardDescription>AI 챗봇 사용 현황</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="p-3 border rounded-lg hover:bg-orange-50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-sm">전체 대화</p>
-                    <span className="text-lg font-bold text-orange-600">{stats?.totalAIConversations || 0}회</span>
-                  </div>
-                  <p className="text-xs text-gray-600">누적 대화 수</p>
-                </div>
-
-                <div className="p-3 border rounded-lg hover:bg-blue-50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-sm">활성 봇</p>
-                    <span className="text-lg font-bold text-blue-600">{stats?.activeAIBots || 0}개</span>
-                  </div>
-                  <p className="text-xs text-gray-600">현재 사용 가능</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
-        {/* 세미나 섹션 */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-indigo-600" />
-                  진행 예정 세미나
-                </CardTitle>
-                <CardDescription>전문가 세미나 및 워크샵</CardDescription>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => router.push("/dashboard/seminars")}
-              >
-                전체보기
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <SeminarWidget />
-          </CardContent>
-        </Card>
+        {/* Additional Quick Links - 학원장 전용 */}
+        {isDirector && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card 
+              className="hover:shadow-lg transition-all cursor-pointer"
+              onClick={() => router.push("/dashboard/teacher-management")}
+            >
+              <CardContent className="pt-6 pb-4">
+                <div className="flex flex-col items-center text-center">
+                  <GraduationCap className="h-8 w-8 text-purple-600 mb-2" />
+                  <p className="font-medium text-sm">교사 관리</p>
+                  <p className="text-xs text-gray-500 mt-1">{stats?.totalTeachers || 0}명</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card 
+              className="hover:shadow-lg transition-all cursor-pointer"
+              onClick={() => router.push("/dashboard/kakao-channel")}
+            >
+              <CardContent className="pt-6 pb-4">
+                <div className="flex flex-col items-center text-center">
+                  <MessageCircle className="h-8 w-8 text-yellow-600 mb-2" />
+                  <p className="font-medium text-sm">카카오 채널</p>
+                  <p className="text-xs text-gray-500 mt-1">연동 관리</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card 
+              className="hover:shadow-lg transition-all cursor-pointer"
+              onClick={() => router.push("/dashboard/analytics")}
+            >
+              <CardContent className="pt-6 pb-4">
+                <div className="flex flex-col items-center text-center">
+                  <BarChart2 className="h-8 w-8 text-blue-600 mb-2" />
+                  <p className="font-medium text-sm">통계 분석</p>
+                  <p className="text-xs text-gray-500 mt-1">상세 보기</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card 
+              className="hover:shadow-lg transition-all cursor-pointer"
+              onClick={() => router.push("/dashboard/admin/landing-pages")}
+            >
+              <CardContent className="pt-6 pb-4">
+                <div className="flex flex-col items-center text-center">
+                  <Layout className="h-8 w-8 text-indigo-600 mb-2" />
+                  <p className="font-medium text-sm">랜딩페이지</p>
+                  <p className="text-xs text-gray-500 mt-1">제작하기</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     );
   }
