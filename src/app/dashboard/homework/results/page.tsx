@@ -243,6 +243,15 @@ export default function TeacherHomeworkResultsPage() {
             return value;
           };
 
+          // feedback 우선순위: feedback > strengths + improvements 조합
+          let feedback = result.grading?.feedback || '';
+          if (!feedback && (result.grading?.strengths || result.grading?.improvements)) {
+            const parts = [];
+            if (result.grading?.strengths) parts.push(`✅ 잘한 점:\n${result.grading.strengths}`);
+            if (result.grading?.improvements) parts.push(`📝 개선할 점:\n${result.grading.improvements}`);
+            feedback = parts.join('\n\n');
+          }
+
           return {
             ...result,
             id: result.submissionId,
@@ -253,7 +262,7 @@ export default function TeacherHomeworkResultsPage() {
               if (s > 0 && s <= 1) return Math.round(s * 100);
               return Math.round(s);
             })(result.grading?.score),
-            feedback: result.grading?.feedback || '',
+            feedback: feedback,
             subject: result.grading?.subject || '미지정',
             completion: result.grading?.completion || 'pending',
             effort: result.grading?.effort || 'submitted',
