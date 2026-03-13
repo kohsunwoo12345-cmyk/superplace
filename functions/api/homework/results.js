@@ -93,7 +93,7 @@ export async function onRequestGet(context) {
       console.log('👤 학생 필터 적용:', userFilter);
     }
 
-    // 숙제 제출 결과 조회 - gradingResult JSON 사용
+    // 숙제 제출 결과 조회 - gradingResult JSON + homework_gradings_v2 fallback
     const query = `
       SELECT 
         hs.id as submissionId,
@@ -107,10 +107,20 @@ export async function onRequestGet(context) {
         hs.imageUrl,
         hs.status,
         hs.gradingResult,
-        hs.gradedAt
+        hs.gradedAt,
+        hg.id as legacyGradingId,
+        hg.score as legacyScore,
+        hg.subject as legacySubject,
+        hg.totalQuestions as legacyTotalQuestions,
+        hg.correctAnswers as legacyCorrectAnswers,
+        hg.overallFeedback as legacyFeedback,
+        hg.strengths as legacyStrengths,
+        hg.improvements as legacyImprovements,
+        hg.detailedResults as legacyDetailedResults
       FROM homework_submissions_v2 hs
       LEFT JOIN User u1 ON u1.id = hs.userId
       LEFT JOIN users u2 ON u2.id = hs.userId
+      LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
       WHERE 1=1
         ${dateFilter}
         ${academyFilter}
@@ -172,20 +182,18 @@ export async function onRequestGet(context) {
       let gradingData = null;
       
       // 디버그 로그
-      console.log(`🔍 제출 ${r.submissionId}: status=${r.status}, gradingResult=${r.gradingResult ? 'EXISTS' : 'NULL'}`);
+      console.log(`🔍 제출 ${r.submissionId}: status=${r.status}, gradingResult=${r.gradingResult ? 'EXISTS' : 'NULL'}, legacyGradingId=${r.legacyGradingId || 'NULL'}`);
       
-      // gradingResult JSON 파싱
+      // 1순위: gradingResult JSON 파싱
       if (r.gradingResult && r.status === 'graded') {
         try {
           const parsed = JSON.parse(r.gradingResult);
-          console.log(`✅ gradingResult 파싱 성공 (${r.submissionId}):`, JSON.stringify(parsed).substring(0, 200));
+          console.log(`✅ gradingResult 파싱 성공 (${r.submissionId})`);
           
-          // Worker에서 반환하는 형식: [{subject, grading: {...}}]
           if (Array.isArray(parsed) && parsed.length > 0) {
             const firstResult = parsed[0];
             const grading = firstResult.grading || {};
             
-            // 점수 계산
             const totalQuestions = grading.totalQuestions || 0;
             const correctAnswers = grading.correctAnswers || 0;
             const score = totalQuestions > 0 
@@ -208,13 +216,46 @@ export async function onRequestGet(context) {
               gradedAt: r.gradedAt || null
             };
             
-            // 통계용
             gradedCount++;
             totalScore += score;
           }
         } catch (parseError) {
           console.error(`❌ gradingResult 파싱 실패 (${r.submissionId}):`, parseError.message);
         }
+      }
+      
+      // 2순위: homework_gradings_v2 테이블 fallback (기존 데이터용)
+      if (!gradingData && r.legacyGradingId) {
+        console.log(`📦 레거시 데이터 사용 (${r.submissionId})`);
+        
+        const score = r.legacyScore || 0;
+        
+        // legacyDetailedResults JSON 파싱
+        let detailedResults = [];
+        if (r.legacyDetailedResults) {
+          try {
+            detailedResults = JSON.parse(r.legacyDetailedResults);
+          } catch (e) {
+            console.error(`❌ legacyDetailedResults 파싱 실패:`, e.message);
+          }
+        }
+        
+        gradingData = {
+          score: score,
+          subject: r.legacySubject || 'other',
+          totalQuestions: r.legacyTotalQuestions || 0,
+          correctAnswers: r.legacyCorrectAnswers || 0,
+          feedback: r.legacyFeedback || '',
+          strengths: r.legacyStrengths || '',
+          improvements: r.legacyImprovements || '',
+          detailedResults: detailedResults,
+          weaknessTypes: [],
+          studyDirection: '',
+          gradedAt: r.gradedAt || null
+        };
+        
+        gradedCount++;
+        totalScore += score;
       }
 
       return {
