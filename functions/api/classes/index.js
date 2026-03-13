@@ -57,13 +57,13 @@ export async function onRequestGet(context) {
 
     // Get user from database - try both User and users table
     let user = await db
-      .prepare('SELECT id, email, role, academyId, academy_id FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academyId, academy_id FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academy_id as academyId FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
@@ -80,7 +80,7 @@ export async function onRequestGet(context) {
     }
 
     const role = user.role ? user.role.toUpperCase() : '';
-    const academyId = user.academyId || user.academy_id;
+    const academyId = user.academyId;
     const userId = user.id;
 
     console.log('✅ User verified:', { 
@@ -348,7 +348,7 @@ export async function onRequestPost(context) {
     }
 
     const role = user.role ? user.role.toUpperCase() : '';
-    const academyId = user.academyId || user.academy_id;
+    const academyId = user.academyId;
 
     // Only ADMIN, SUPER_ADMIN, DIRECTOR can create classes
     if (role !== 'DIRECTOR' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
@@ -516,13 +516,13 @@ export async function onRequestDelete(context) {
 
     // Get user
     let user = await db
-      .prepare('SELECT id, email, role, academyId, academy_id FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academyId, academy_id FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academy_id as academyId FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
@@ -665,13 +665,13 @@ export async function onRequestPatch(context) {
 
     // Get user
     let user = await db
-      .prepare('SELECT id, email, role, academyId, academy_id FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
     
     if (!user) {
       user = await db
-        .prepare('SELECT id, email, role, academyId, academy_id FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role, academy_id as academyId FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     }
