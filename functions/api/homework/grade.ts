@@ -191,7 +191,53 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 7. 결과 저장 (gradingResult JSON에 저장)
-    const gradingResultJson = JSON.stringify(workerResult.results);
+    // Python Worker 응답에 피드백이 없으면 기본 피드백 생성
+    const enrichedResults = workerResult.results.map((result: any) => {
+      const grading = result.grading || {};
+      
+      // 피드백이 모두 없으면 기본 피드백 생성
+      if (!grading.overallFeedback && !grading.strengths && !grading.improvements) {
+        const totalQuestions = grading.totalQuestions || 0;
+        const correctAnswers = grading.correctAnswers || 0;
+        
+        if (totalQuestions > 0) {
+          const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+          
+          // 점수대별 기본 피드백
+          if (percentage >= 90) {
+            grading.overallFeedback = "훌륭한 성적입니다! 모든 문제를 정확하게 풀었습니다.";
+            grading.strengths = "문제 이해력과 풀이 능력이 우수합니다.";
+            grading.improvements = "현재 수준을 유지하면서 더 어려운 문제에 도전해보세요.";
+          } else if (percentage >= 70) {
+            grading.overallFeedback = "잘 풀었습니다. 조금 더 신중하게 풀면 더 좋은 결과를 얻을 수 있습니다.";
+            grading.strengths = "대부분의 문제를 정확하게 이해하고 풀었습니다.";
+            grading.improvements = "틀린 문제를 다시 확인하고 복습하세요.";
+          } else if (percentage >= 50) {
+            grading.overallFeedback = "기본은 이해하고 있습니다. 조금 더 연습이 필요합니다.";
+            grading.strengths = "문제 풀이에 대한 의지가 있습니다.";
+            grading.improvements = "기본 개념을 다시 복습하고 유사 문제를 더 풀어보세요.";
+          } else {
+            grading.overallFeedback = "기본 개념부터 다시 학습이 필요합니다.";
+            grading.strengths = "숙제를 성실하게 제출했습니다.";
+            grading.improvements = "선생님과 함께 기본 개념을 차근차근 다시 학습하세요.";
+          }
+        } else {
+          // 문제 수가 0인 경우 (텍스트 없음 등)
+          grading.overallFeedback = "이미지에서 문제를 인식하지 못했습니다. 더 선명한 사진을 제출해주세요.";
+          grading.strengths = "숙제를 성실하게 제출했습니다.";
+          grading.improvements = "사진을 더 밝고 선명하게 찍어서 다시 제출해주세요.";
+        }
+        
+        console.log(`🔄 기본 피드백 생성: ${percentage}점`);
+      }
+      
+      return {
+        ...result,
+        grading
+      };
+    });
+    
+    const gradingResultJson = JSON.stringify(enrichedResults);
     
     await DB.prepare(`
       UPDATE homework_submissions_v2 
@@ -214,7 +260,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         status: 'graded',
         imageCount: imageArray.length,
       },
-      results: workerResult.results,
+      results: enrichedResults,  // 기본 피드백이 추가된 결과 반환
     }, { status: 200 });
 
   } catch (error: any) {
