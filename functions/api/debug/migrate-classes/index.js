@@ -1,5 +1,5 @@
 // Migrate data from classes (snake_case) to Class (camelCase)
-export async function onRequestPost(context) {
+export async function onRequestGet(context) {
   try {
     const { env } = context;
     const db = env.DB;
