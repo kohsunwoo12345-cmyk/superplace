@@ -164,7 +164,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }, { status: 500 });
     }
 
-    // 6. 결과 저장 (gradingResult JSON에 저장)
+    // 6. 이미지 저장 (homework_images 테이블)
+    try {
+      await DB.prepare(`
+        CREATE TABLE IF NOT EXISTS homework_images (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          submissionId TEXT NOT NULL,
+          imageData TEXT NOT NULL,
+          imageIndex INTEGER NOT NULL,
+          createdAt TEXT DEFAULT (datetime('now'))
+        )
+      `).run();
+
+      console.log(`📷 이미지 저장 시작: ${imageArray.length}장`);
+      
+      for (let i = 0; i < imageArray.length; i++) {
+        await DB.prepare(`
+          INSERT INTO homework_images (submissionId, imageData, imageIndex)
+          VALUES (?, ?, ?)
+        `).bind(submissionId, imageArray[i], i).run();
+      }
+      
+      console.log(`✅ 이미지 저장 완료: ${imageArray.length}장`);
+    } catch (imgError: any) {
+      console.error(`⚠️ 이미지 저장 실패:`, imgError.message);
+    }
+
+    // 7. 결과 저장 (gradingResult JSON에 저장)
     const gradingResultJson = JSON.stringify(workerResult.results);
     
     await DB.prepare(`
@@ -175,7 +201,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ 채점 완료: ${submissionId}`);
 
-    // 7. 응답 반환
+    // 8. 응답 반환
     return Response.json({
       success: true,
       message: "숙제 채점이 완료되었습니다",
