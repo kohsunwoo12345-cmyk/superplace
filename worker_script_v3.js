@@ -45,29 +45,24 @@ async function analyzeHomeworkWithGemini(imageBase64, env) {
         contents: [{
           parts: [
             {
-              text: `이 숙제 이미지를 분석하여 다음 정보를 JSON 형식으로 반환해주세요:
+              text: `Analyze this homework image and return ONLY valid JSON (no other text):
 
 {
-  "subject": "math" | "english" | "science" | "korean" | "other",
-  "problemType": "계산" | "서술형" | "객관식" | "주관식" | "기타",
-  "extractedText": "이미지에서 추출한 모든 텍스트 (문제와 학생 답안 포함)",
+  "subject": "math|english|science|korean|other",
+  "problemType": "calculation|essay|multiple_choice|short_answer|other",
+  "extractedText": "all text from image including problems and student answers",
   "questions": [
     {
       "questionNumber": 1,
-      "questionText": "문제 내용",
-      "studentAnswer": "학생이 작성한 답",
-      "needsPythonExecution": true | false
+      "questionText": "problem text",
+      "studentAnswer": "student's answer",
+      "needsPythonExecution": false
     }
   ],
-  "totalQuestions": 문제 개수
+  "totalQuestions": 1
 }
 
-주의사항:
-- extractedText에는 이미지의 모든 텍스트를 정확히 추출
-- 수학 수식, 기호, 한글, 영어 모두 포함
-- 학생의 필기체도 최대한 정확히 인식
-- 문제와 답안을 구분하여 questions 배열에 정리
-- Python으로 계산이 필요한 문제는 needsPythonExecution: true 설정`
+IMPORTANT: Return ONLY the JSON object above. No markdown, no explanation, no extra text.`
             },
             {
               inline_data: {
@@ -79,7 +74,8 @@ async function analyzeHomeworkWithGemini(imageBase64, env) {
         }],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 4096
+          maxOutputTokens: 4096,
+          responseMimeType: "application/json"
         }
       })
     });
@@ -168,41 +164,37 @@ async function gradeWithGemini(analysis, pythonResults, env) {
     
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
     
-    const prompt = `다음 학생의 숙제를 채점하고 JSON 형식으로 결과를 반환해주세요:
+    const prompt = `Grade this student's homework and return ONLY valid JSON (no other text):
 
-**과목**: ${analysis.subject}
-**총 문제 수**: ${analysis.totalQuestions}
+**Subject**: ${analysis.subject}
+**Total Questions**: ${analysis.totalQuestions}
 
-**추출된 내용**:
+**Extracted Content**:
 ${analysis.extractedText}
 
-**문제별 상세**:
+**Question Details**:
 ${JSON.stringify(analysis.questions, null, 2)}
 
-다음 JSON 형식으로 채점 결과를 반환해주세요:
+Return this JSON format ONLY:
 {
-  "totalQuestions": 전체 문제 수,
-  "correctAnswers": 맞은 문제 수,
-  "score": 점수 (0-100),
-  "overallFeedback": "전체 평가 (2-3문장)",
-  "strengths": "잘한 점 (구체적으로)",
-  "improvements": "개선할 점 (구체적으로)",
+  "totalQuestions": number,
+  "correctAnswers": number,
+  "score": number (0-100),
+  "overallFeedback": "2-3 sentences in Korean",
+  "strengths": "specific strengths in Korean",
+  "improvements": "specific improvements in Korean",
   "detailedResults": [
     {
       "questionNumber": 1,
       "isCorrect": true,
-      "studentAnswer": "학생 답",
-      "correctAnswer": "정답",
-      "feedback": "이 문제에 대한 피드백"
+      "studentAnswer": "answer",
+      "correctAnswer": "correct answer",
+      "feedback": "feedback in Korean"
     }
   ]
 }
 
-채점 기준:
-- 정확한 답인지 확인
-- 풀이 과정이 있으면 과정도 평가
-- 부분 점수 가능하면 반영
-- 구체적이고 건설적인 피드백 제공`;
+IMPORTANT: Return ONLY the JSON object. No markdown code blocks, no explanation, no extra text.`;
 
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -213,7 +205,8 @@ ${JSON.stringify(analysis.questions, null, 2)}
         }],
         generationConfig: {
           temperature: 0.3,
-          maxOutputTokens: 4096
+          maxOutputTokens: 4096,
+          responseMimeType: "application/json"
         }
       })
     });
