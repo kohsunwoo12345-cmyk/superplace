@@ -402,6 +402,31 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 세미나 섹션 - 관리자 전용 */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-indigo-600" />
+                  진행 예정 세미나
+                </CardTitle>
+                <CardDescription>학원장을 위한 전문가 세미나 및 워크샵</CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => router.push("/dashboard/admin/seminars")}
+              >
+                관리하기
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <SeminarWidget />
+          </CardContent>
+        </Card>
       </div>
     );
   }
