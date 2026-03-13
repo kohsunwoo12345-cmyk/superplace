@@ -95,6 +95,7 @@ export async function onRequestGet(context) {
     }
 
     // 숙제 제출 및 채점 결과 조회 - User와 users 테이블 모두 조회
+    // 안전한 컬럼 선택: 존재하지 않을 수 있는 컬럼은 제외하고 gradingResult에서 파싱
     const query = `
       SELECT 
         hs.id as submissionId,
@@ -106,19 +107,14 @@ export async function onRequestGet(context) {
         hs.submittedAt,
         hs.code,
         hs.imageUrl,
+        hs.status,
+        hs.gradingResult,
+        hs.gradedAt,
         hg.id as gradingId,
         hg.score,
-        hg.overallFeedback as feedback,
-        hg.strengths,
-        hg.improvements,
         hg.subject,
         hg.totalQuestions,
-        hg.correctAnswers,
-        hg.problemAnalysis,
-        hg.weaknessTypes,
-        hg.detailedResults,
-        hg.studyDirection,
-        hg.gradedAt
+        hg.correctAnswers
       FROM homework_submissions_v2 hs
       LEFT JOIN User u1 ON u1.id = hs.userId
       LEFT JOIN users u2 ON u2.id = hs.userId
@@ -176,39 +172,58 @@ export async function onRequestGet(context) {
       ? Math.round(results.reduce((sum, r) => sum + normalizeScore(r.score), 0) / gradedCount)
       : 0;
 
-    // 결과 포맷팅
-    const formattedResults = results.map(r => ({
-      submissionId: r.submissionId,
-      userId: r.userId,
-      userName: r.userName,
-      userEmail: r.userEmail,
-      academyId: r.academyId,
-      grade: r.grade,
-      submittedAt: r.submittedAt,
-      code: r.code,
-      imageUrl: r.imageUrl,
-      images: imagesMap[r.submissionId] || [], // 실제 이미지 데이터 배열
-      imageCount: (imagesMap[r.submissionId] || []).length,
-      grading: r.gradingId ? {
+    // 결과 포맷팅 - gradingResult JSON 파싱 포함
+    const formattedResults = results.map(r => {
+      // gradingResult JSON 파싱 (backup)
+      let parsedGrading = null;
+      if (r.gradingResult) {
+        try {
+          const parsed = JSON.parse(r.gradingResult);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            parsedGrading = parsed[0].grading; // 첫 번째 결과 사용
+          }
+        } catch (e) {
+          console.warn('gradingResult 파싱 실패:', e.message);
+        }
+      }
+
+      // homework_gradings_v2 데이터 우선, 없으면 gradingResult에서 추출
+      const gradingData = r.gradingId ? {
         id: r.gradingId,
         score: (function(s) {
           if (s === null || s === undefined) return 0;
           if (s > 0 && s <= 1) return Math.round(s * 100);
           return Math.round(s);
         })(r.score),
-        feedback: r.feedback,
-        strengths: r.strengths,
-        improvements: r.improvements,
-        subject: r.subject,
-        totalQuestions: r.totalQuestions,
-        correctAnswers: r.correctAnswers,
-        problemAnalysis: r.problemAnalysis,
-        weaknessTypes: r.weaknessTypes,
-        detailedResults: r.detailedResults,
-        studyDirection: r.studyDirection,
+        subject: r.subject || (parsedGrading?.subject) || 'other',
+        totalQuestions: r.totalQuestions || (parsedGrading?.totalQuestions) || 0,
+        correctAnswers: r.correctAnswers || (parsedGrading?.correctAnswers) || 0,
+        feedback: parsedGrading?.overallFeedback || '',
+        strengths: parsedGrading?.strengths || '',
+        improvements: parsedGrading?.improvements || '',
+        problemAnalysis: parsedGrading?.detailedResults || [],
+        weaknessTypes: parsedGrading?.weaknessTypes || [],
+        detailedResults: parsedGrading?.detailedResults || [],
+        studyDirection: parsedGrading?.studyDirection || '',
         gradedAt: r.gradedAt
-      } : null
-    }));
+      } : null;
+
+      return {
+        submissionId: r.submissionId,
+        userId: r.userId,
+        userName: r.userName,
+        userEmail: r.userEmail,
+        academyId: r.academyId,
+        grade: r.grade,
+        submittedAt: r.submittedAt,
+        code: r.code,
+        imageUrl: r.imageUrl,
+        status: r.status || 'pending',
+        images: imagesMap[r.submissionId] || [],
+        imageCount: (imagesMap[r.submissionId] || []).length,
+        grading: gradingData
+      };
+    });
 
     return Response.json({
       success: true,
