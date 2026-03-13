@@ -195,16 +195,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 6. 백그라운드에서 자동 채점 실행 (await 없이 비동기 실행)
-    console.log(`🤖 자동 채점 시작: ${submissionId}`);
+    // 6. 백그라운드에서 자동 채점 실행 (Python Worker 사용)
+    console.log(`🤖 자동 채점 시작 (Python Worker): ${submissionId}`);
     
-    // 채점 API를 백그라운드에서 호출 (context.waitUntil 사용)
-    const gradingPromise = fetch(new URL('/api/homework/process-grading', context.request.url).toString(), {
+    // /api/homework/grade를 호출하여 Python Worker로 채점
+    const gradingPromise = fetch(new URL('/api/homework/grade', context.request.url).toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ submissionId })
-    }).then(response => {
+      body: JSON.stringify({ 
+        userId, 
+        code, 
+        images: imageArray 
+      })
+    }).then(async response => {
       console.log(`✅ 자동 채점 트리거 완료: ${submissionId}, status: ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ 채점 API 오류: ${response.status}`, errorText);
+      }
       return response.json();
     }).catch(error => {
       console.error(`❌ 자동 채점 트리거 실패: ${submissionId}`, error);
