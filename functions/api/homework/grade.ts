@@ -70,7 +70,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const temperature = config?.temperature ? Number(config.temperature) : 0.3;
     const enableRAG = config?.enableRAG ? Boolean(Number(config.enableRAG)) : false;
 
-    // 3. 테이블 생성
+    // 3. 테이블 생성 (기존 homework_gradings_v2 무시)
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_submissions_v2 (
         id TEXT PRIMARY KEY,
@@ -84,6 +84,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         gradedAt TEXT
       )
     `).run();
+    
+    // gradingResult, gradedAt 컬럼 추가 (없을 경우)
+    try {
+      await DB.prepare(`ALTER TABLE homework_submissions_v2 ADD COLUMN gradingResult TEXT`).run();
+    } catch (e) {
+      // 이미 존재
+    }
+    
+    try {
+      await DB.prepare(`ALTER TABLE homework_submissions_v2 ADD COLUMN gradedAt TEXT`).run();
+    } catch (e) {
+      // 이미 존재
+    }
 
     // 4. 제출 기록 생성
     const submissionId = `homework-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
