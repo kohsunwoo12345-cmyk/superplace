@@ -221,16 +221,20 @@ export async function onRequestPost(context) {
 
       // 사용량 로그 기록
       const logId = `log-${timestamp}-${randomStr}-usage`;
-      await DB.prepare(`
-        INSERT INTO usage_logs (id, userId, subscriptionId, type, action, metadata, createdAt)
-        VALUES (?, ?, ?, 'student', 'create', ?, datetime('now'))
-      `).bind(
-        logId,
-        subscription.userId,
-        subscription.id,
-        JSON.stringify({ studentId, name, grade })
-      ).run();
-      logs.push(`✅ 사용량 로그 기록 완료`);
+      try {
+        await DB.prepare(`
+          INSERT INTO usage_logs (id, userId, subscriptionId, type, action, createdAt)
+          VALUES (?, ?, ?, 'student', 'create', datetime('now'))
+        `).bind(
+          logId,
+          subscription.userId,
+          subscription.id
+        ).run();
+        logs.push(`✅ 사용량 로그 기록 완료`);
+      } catch (logError) {
+        // 로그 실패는 무시 (학생 추가는 성공)
+        logs.push(`⚠️ 사용량 로그 기록 실패 (무시됨): ${logError.message}`);
+      }
       
     } catch (e) {
       logs.push(`❌ User 테이블 삽입 실패: ${e.message}`);
