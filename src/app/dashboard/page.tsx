@@ -1,6 +1,7 @@
 "use client";
 // Force redeploy: 2026-02-13 16:48:18 - Add Payment Approval to Main Dashboard
 // Force redeploy: 2026-02-13 16:54:36 - Add Payment Menu to Director Dashboard
+// Force redeploy: 2026-03-13 16:15:00 - Add Seminar Widget to Director Dashboard
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -20,6 +21,8 @@ import {
   BarChart3,
   GraduationCap,
 } from "lucide-react";
+import SeminarWidget from "@/components/dashboard/SeminarWidget";
+import DashboardSeminarsWidget from "@/components/dashboard/DashboardSeminarsWidget";
 
 interface User {
   id: string;
@@ -608,6 +611,31 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 세미나 섹션 */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-indigo-600" />
+                  진행 예정 세미나
+                </CardTitle>
+                <CardDescription>전문가 세미나 및 워크샵</CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => router.push("/dashboard/seminars")}
+              >
+                전체보기
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <SeminarWidget />
+          </CardContent>
+        </Card>
       </div>
     );
   }

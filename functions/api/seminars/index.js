@@ -97,15 +97,41 @@ export async function onRequestGet(context) {
       });
     }
 
-    // 모든 세미나 조회 (최신순)
-    const seminars = await db.prepare(`
-      SELECT * FROM seminars 
-      WHERE status = 'active'
-      ORDER BY date DESC, createdAt DESC
-    `).all();
+    // Query parameters
+    const limit = url.searchParams.get('limit');
+    const statusFilter = url.searchParams.get('status');
+
+    // Build query
+    let query = 'SELECT * FROM seminars WHERE 1=1';
+    const params = [];
+
+    // Status filter
+    if (statusFilter) {
+      query += ' AND status = ?';
+      params.push(statusFilter);
+    }
+
+    // Order by date
+    query += ' ORDER BY date DESC, createdAt DESC';
+
+    // Limit
+    if (limit) {
+      query += ' LIMIT ?';
+      params.push(parseInt(limit, 10));
+    }
+
+    console.log('🔍 Query:', query, 'Params:', params);
+
+    // Execute query
+    let seminarsResult;
+    if (params.length > 0) {
+      seminarsResult = await db.prepare(query).bind(...params).all();
+    } else {
+      seminarsResult = await db.prepare(query).all();
+    }
 
     // 각 세미나의 신청자 수 조회
-    for (const seminar of seminars.results || []) {
+    for (const seminar of seminarsResult.results || []) {
       const applicationsCount = await db.prepare(`
         SELECT COUNT(*) as count FROM seminar_applications WHERE seminarId = ?
       `).bind(seminar.id).first();
@@ -113,12 +139,12 @@ export async function onRequestGet(context) {
       seminar.currentParticipants = applicationsCount?.count || 0;
     }
 
-    console.log(`✅ Returning ${(seminars.results || []).length} seminars`);
+    console.log(`✅ Returning ${(seminarsResult.results || []).length} seminars`);
 
     return new Response(JSON.stringify({
       success: true,
-      seminars: seminars.results || [],
-      count: (seminars.results || []).length
+      seminars: seminarsResult.results || [],
+      count: (seminarsResult.results || []).length
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
