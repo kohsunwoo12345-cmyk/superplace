@@ -95,7 +95,7 @@ export async function onRequestGet(context) {
     }
 
     // 숙제 제출 및 채점 결과 조회 - User와 users 테이블 모두 조회
-    // 안전한 컬럼 선택: 존재하지 않을 수 있는 컬럼은 제외하고 gradingResult에서 파싱
+    // 최소 컬럼만 조회 (gradingResult, gradedAt은 제외 - 테이블에 없을 수 있음)
     const query = `
       SELECT 
         hs.id as submissionId,
@@ -108,8 +108,6 @@ export async function onRequestGet(context) {
         hs.code,
         hs.imageUrl,
         hs.status,
-        hs.gradingResult,
-        hs.gradedAt,
         hg.id as gradingId,
         hg.score,
         hg.subject,
@@ -172,22 +170,9 @@ export async function onRequestGet(context) {
       ? Math.round(results.reduce((sum, r) => sum + normalizeScore(r.score), 0) / gradedCount)
       : 0;
 
-    // 결과 포맷팅 - gradingResult JSON 파싱 포함
+    // 결과 포맷팅 - homework_gradings_v2 데이터만 사용
     const formattedResults = results.map(r => {
-      // gradingResult JSON 파싱 (backup)
-      let parsedGrading = null;
-      if (r.gradingResult) {
-        try {
-          const parsed = JSON.parse(r.gradingResult);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            parsedGrading = parsed[0].grading; // 첫 번째 결과 사용
-          }
-        } catch (e) {
-          console.warn('gradingResult 파싱 실패:', e.message);
-        }
-      }
-
-      // homework_gradings_v2 데이터 우선, 없으면 gradingResult에서 추출
+      // homework_gradings_v2 데이터 사용 (없으면 null)
       const gradingData = r.gradingId ? {
         id: r.gradingId,
         score: (function(s) {
@@ -195,17 +180,17 @@ export async function onRequestGet(context) {
           if (s > 0 && s <= 1) return Math.round(s * 100);
           return Math.round(s);
         })(r.score),
-        subject: r.subject || (parsedGrading?.subject) || 'other',
-        totalQuestions: r.totalQuestions || (parsedGrading?.totalQuestions) || 0,
-        correctAnswers: r.correctAnswers || (parsedGrading?.correctAnswers) || 0,
-        feedback: parsedGrading?.overallFeedback || '',
-        strengths: parsedGrading?.strengths || '',
-        improvements: parsedGrading?.improvements || '',
-        problemAnalysis: parsedGrading?.detailedResults || [],
-        weaknessTypes: parsedGrading?.weaknessTypes || [],
-        detailedResults: parsedGrading?.detailedResults || [],
-        studyDirection: parsedGrading?.studyDirection || '',
-        gradedAt: r.gradedAt
+        subject: r.subject || 'other',
+        totalQuestions: r.totalQuestions || 0,
+        correctAnswers: r.correctAnswers || 0,
+        feedback: '', // homework_gradings_v2에서 가져올 예정
+        strengths: '',
+        improvements: '',
+        problemAnalysis: [],
+        weaknessTypes: [],
+        detailedResults: [],
+        studyDirection: '',
+        gradedAt: null
       } : null;
 
       return {
