@@ -26,6 +26,33 @@ async function initializeTables(db) {
     )
   `).run();
 
+  // Add new columns if they don't exist (migration)
+  try {
+    await db.prepare(`
+      ALTER TABLE seminars ADD COLUMN ctaButtonText TEXT DEFAULT '신청하기'
+    `).run();
+    console.log('✅ Added ctaButtonText column');
+  } catch (error) {
+    if (error.message.includes('duplicate column')) {
+      console.log('⚠️ ctaButtonText column already exists');
+    } else if (!error.message.includes('no such table')) {
+      console.error('Error adding ctaButtonText:', error.message);
+    }
+  }
+
+  try {
+    await db.prepare(`
+      ALTER TABLE seminars ADD COLUMN requiredFields TEXT
+    `).run();
+    console.log('✅ Added requiredFields column');
+  } catch (error) {
+    if (error.message.includes('duplicate column')) {
+      console.log('⚠️ requiredFields column already exists');
+    } else if (!error.message.includes('no such table')) {
+      console.error('Error adding requiredFields:', error.message);
+    }
+  }
+
   // Create seminar_applications table
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS seminar_applications (
