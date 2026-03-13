@@ -144,11 +144,8 @@ async def ocr_with_llm(image_base64: str, model: str, system_prompt: str, env) -
             
             url = "https://api.deepseek.com/v1/chat/completions"
             
-            # OCR 프롬프트 구성: systemPrompt 반영
-            ocr_instruction = f"""이 이미지의 모든 텍스트와 수식을 정확하게 읽어서 그대로 텍스트로 변환해주세요. 
-수학 수식, 손글씨, 프린트된 텍스트 모두 포함해주세요.
-
-{system_prompt if system_prompt else ''}"""
+            # OCR 프롬프트 - 간결하게
+            ocr_instruction = "이미지의 모든 텍스트와 수식을 텍스트로 변환."
             
             payload = {
                 "model": "deepseek-chat",
@@ -167,7 +164,7 @@ async def ocr_with_llm(image_base64: str, model: str, system_prompt: str, env) -
                         }
                     ]
                 }],
-                "max_tokens": 2048,
+                "max_tokens": 800,
                 "temperature": 0.1
             }
             
@@ -213,11 +210,8 @@ async def ocr_with_gemini(image_data: str, system_prompt: str, env) -> str:
         
         url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
         
-        # OCR 프롬프트 구성: systemPrompt 반영
-        ocr_instruction = f"""이 이미지의 모든 텍스트와 수식을 정확하게 읽어서 그대로 텍스트로 변환해주세요. 
-수학 수식, 손글씨, 프린트된 텍스트 모두 포함해주세요.
-
-{system_prompt if system_prompt else ''}"""
+        # OCR 프롬프트 - 간결하게 최적화
+        ocr_instruction = "이미지의 모든 텍스트와 수식을 텍스트로 변환."
         
         payload = {
             "contents": [{
@@ -230,7 +224,10 @@ async def ocr_with_gemini(image_data: str, system_prompt: str, env) -> str:
                         }
                     }
                 ]
-            }]
+            }],
+            "generationConfig": {
+                "maxOutputTokens": 800
+            }
         }
         
         headers = Headers.new({'Content-Type': 'application/json'}.items())
@@ -404,14 +401,26 @@ async def final_grading(
             
             url = "https://api.deepseek.com/v1/chat/completions"
             
+            grading_prompt = f"""숙제 채점:
+{context}
+
+간결한 JSON 응답:
+{{
+  "totalQuestions": 문제수,
+  "correctAnswers": 맞은수,
+  "detailedResults": [{{"questionNumber": 1, "isCorrect": true/false, "studentAnswer": "답", "correctAnswer": "정답", "explanation": "간결한 설명"}}],
+  "overallFeedback": "전체 피드백",
+  "strengths": "잘한 점",
+  "improvements": "개선점"
+}}"""
+            
             payload = {
                 "model": "deepseek-chat",
                 "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"{context}\n\n위 내용을 바탕으로 숙제를 채점하고, 반드시 JSON 형식으로 응답해주세요."}
+                    {"role": "user", "content": grading_prompt}
                 ],
                 "temperature": temperature,
-                "max_tokens": 2048,
+                "max_tokens": 400,
                 "response_format": {"type": "json_object"}
             }
             
@@ -470,19 +479,27 @@ async def grade_with_gemini(
         
         url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
         
-        payload = {
-            "contents": [{
-                "parts": [{
-                    "text": f"""{system_prompt}
-
+        # 간결한 채점 프롬프트
+        grading_prompt = f"""숙제 채점:
 {context}
 
-위 내용을 바탕으로 숙제를 채점하고, 반드시 JSON 형식으로 응답해주세요."""
-                }]
+JSON 응답 (간결하게):
+{{
+  "totalQuestions": 문제수,
+  "correctAnswers": 맞은수,
+  "detailedResults": [{{"questionNumber": 1, "isCorrect": true/false, "studentAnswer": "답", "correctAnswer": "정답", "explanation": "간결한 설명"}}],
+  "overallFeedback": "전체 피드백",
+  "strengths": "잘한 점",
+  "improvements": "개선점"
+}}"""
+        
+        payload = {
+            "contents": [{
+                "parts": [{"text": grading_prompt}]
             }],
             "generationConfig": {
                 "temperature": temperature,
-                "maxOutputTokens": 2048,
+                "maxOutputTokens": 400
             }
         }
         
