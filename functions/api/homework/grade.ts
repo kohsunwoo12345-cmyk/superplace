@@ -199,10 +199,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       if (!grading.overallFeedback && !grading.strengths && !grading.improvements) {
         const totalQuestions = grading.totalQuestions || 0;
         const correctAnswers = grading.correctAnswers || 0;
+        const percentage = totalQuestions > 0 
+          ? Math.round((correctAnswers / totalQuestions) * 100) 
+          : 0;
         
         if (totalQuestions > 0) {
-          const percentage = Math.round((correctAnswers / totalQuestions) * 100);
-          
           // 점수대별 기본 피드백
           if (percentage >= 90) {
             grading.overallFeedback = "훌륭한 성적입니다! 모든 문제를 정확하게 풀었습니다.";
