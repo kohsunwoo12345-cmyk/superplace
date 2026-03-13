@@ -101,19 +101,21 @@ export async function onRequestGet(context) {
       query = `
         SELECT 
           c.id,
-          CAST(c.academy_id AS INTEGER) as academyId,
-          c.class_name as name,
-          c.grade,
+          c.academyId,
+          c.name,
           c.description,
-          c.teacher_id as teacherId,
-          c.color,
-          c.created_at as createdAt,
+          c.teacherId,
+          c.startDate,
+          c.endDate,
+          c.isActive,
+          c.createdAt,
+          c.updatedAt,
           u.name as teacherName,
           a.name as academyName
         FROM classes c
-        LEFT JOIN users u ON c.teacher_id = u.id
-        LEFT JOIN academies a ON c.academy_id = a.id
-        ORDER BY c.created_at DESC
+        LEFT JOIN users u ON c.teacherId = u.id
+        LEFT JOIN academy a ON c.academyId = a.id
+        ORDER BY c.createdAt DESC
       `;
     } else if (role === 'ADMIN' || role === 'DIRECTOR') {
       // Admins and Directors see only their academy's classes
