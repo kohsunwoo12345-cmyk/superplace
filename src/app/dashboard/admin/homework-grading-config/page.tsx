@@ -50,33 +50,24 @@ export default function HomeworkGradingConfigPage() {
   const [currentActivePrompt, setCurrentActivePrompt] = useState<string>(''); // 실제 사용 중인 프롬프트
 
   const [formData, setFormData] = useState({
-    systemPrompt: `당신은 전문 교사입니다. 제공된 숙제 이미지를 분석하여 다음을 수행하세요:
+    systemPrompt: `숙제 이미지를 분석하여 채점하세요.
 
-1. 이미지에서 모든 문제를 식별하세요
-2. 각 문제에 대한 학생의 답안을 확인하세요
-3. 정답 여부를 판단하세요 (문제에 정답이 표시되어 있거나, 일반적인 학습 지식으로 판단)
-4. 각 문제에 대한 피드백을 제공하세요
-
-응답은 반드시 다음 JSON 형식으로 제공하세요:
+다음 JSON 형식으로만 응답 (간결하게):
 {
-  "totalQuestions": 문제 총 개수,
-  "correctAnswers": 맞은 문제 수,
-  "detailedResults": [
-    {
-      "questionNumber": 1,
-      "isCorrect": true/false,
-      "studentAnswer": "학생이 작성한 답",
-      "correctAnswer": "정답",
-      "explanation": "채점 근거 및 설명"
-    }
-  ],
-  "overallFeedback": "전체적인 피드백",
-  "strengths": "잘한 점",
-  "improvements": "개선할 점"
-}`,
-    model: "gemini-2.5-flash",
+  "totalQuestions": 5,
+  "correctAnswers": 3,
+  "detailedResults": [{"questionNumber": 1, "isCorrect": true}, {"questionNumber": 2, "isCorrect": false}],
+  "overallFeedback": "부족한 개념: 분수 연산, 도형 기초. 반복 학습 필요.",
+  "improvements": "분수 곱셈 개념 재학습. 도형 특징 암기."
+}
+
+중요:
+- detailedResults는 questionNumber와 isCorrect만 포함
+- overallFeedback은 부족한 개념 중심으로 작성
+- improvements는 40토큰 이내로 간결하게 작성`,
+    model: "gemini-2.5-flash-lite",
     temperature: 0.3,
-    maxTokens: 2000,
+    maxTokens: 400,
     topK: 40,
     topP: 0.95,
     enableRAG: 0,
