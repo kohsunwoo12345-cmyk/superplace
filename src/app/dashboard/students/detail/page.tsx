@@ -211,7 +211,8 @@ function StudentDetailContent() {
       setLoadingHomework(true);
       const token = localStorage.getItem("token");
       
-      const response = await fetch(`/api/homework/results?userId=${studentId}`, {
+      // 날짜 필터 없이 해당 학생의 모든 숙제 기록 조회
+      const response = await fetch(`/api/homework/results?userId=${studentId}&startDate=2020-01-01&endDate=2099-12-31`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

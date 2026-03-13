@@ -54,10 +54,11 @@ export async function onRequestGet(context) {
     const date = url.searchParams.get('date');
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
+    const userId = url.searchParams.get('userId'); // 특정 학생 필터
     const role = userPayload.role?.toUpperCase();
     const academyId = userPayload.academyId;
 
-    console.log('📊 숙제 결과 조회:', { date, startDate, endDate, role, academyId });
+    console.log('📊 숙제 결과 조회:', { date, startDate, endDate, userId, role, academyId });
 
     // 관리자 여부 확인
     const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
@@ -84,6 +85,13 @@ export async function onRequestGet(context) {
       // TEXT 타입과 INTEGER 타입 모두 비교
       academyFilter = `AND (CAST(u1.academyId AS TEXT) = '${academyId}' OR CAST(u2.academyId AS TEXT) = '${academyId}' OR u1.academyId = '${academyId}' OR u2.academyId = '${academyId}')`;
       console.log('🔒 학원 필터 적용:', academyFilter);
+    }
+
+    // userId 필터 (특정 학생의 숙제만 조회)
+    let userFilter = '';
+    if (userId) {
+      userFilter = `AND hs.userId = ${parseInt(userId)}`;
+      console.log('👤 학생 필터 적용:', userFilter);
     }
 
     // 숙제 제출 및 채점 결과 조회 - User와 users 테이블 모두 조회
@@ -121,6 +129,7 @@ export async function onRequestGet(context) {
       WHERE 1=1
         ${dateFilter}
         ${academyFilter}
+        ${userFilter}
       ORDER BY hs.submittedAt DESC
     `;
 
