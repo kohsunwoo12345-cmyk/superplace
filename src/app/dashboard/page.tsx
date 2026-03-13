@@ -450,6 +450,33 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* 세미나 섹션 - 학원장 전용 (상단) */}
+        {isDirector && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-indigo-600" />
+                    진행 예정 세미나
+                  </CardTitle>
+                  <CardDescription>학원 운영에 도움이 되는 전문가 세미나</CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => router.push("/dashboard/seminars")}
+                >
+                  전체보기
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <SeminarWidget />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
@@ -736,33 +763,6 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
-        )}
-
-        {/* 세미나 섹션 - 학원장 전용 */}
-        {isDirector && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-indigo-600" />
-                    진행 예정 세미나
-                  </CardTitle>
-                  <CardDescription>학원 운영에 도움이 되는 전문가 세미나</CardDescription>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => router.push("/dashboard/seminars")}
-                >
-                  전체보기
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <SeminarWidget />
-            </CardContent>
-          </Card>
         )}
       </div>
     );
