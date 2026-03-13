@@ -79,23 +79,21 @@ export async function onRequestGet(context) {
       dateFilter = `AND SUBSTR(hs.submittedAt, 1, 10) = '${today}'`;
     }
 
-    // academyId 필터 (관리자가 아닌 경우) - DIRECTOR와 TEACHER는 자신의 학원 학생만 조회
+    // academyId 필터 (관리자가 아닌 경우)
     let academyFilter = '';
     if (!isAdmin && academyId && (role === 'DIRECTOR' || role === 'TEACHER')) {
-      // TEXT 타입과 INTEGER 타입 모두 비교
-      academyFilter = `AND (CAST(u1.academyId AS TEXT) = '${academyId}' OR CAST(u2.academyId AS TEXT) = '${academyId}' OR u1.academyId = '${academyId}' OR u2.academyId = '${academyId}')`;
+      academyFilter = `AND (CAST(u1.academyId AS TEXT) = '${academyId}' OR CAST(u2.academyId AS TEXT) = '${academyId}')`;
       console.log('🔒 학원 필터 적용:', academyFilter);
     }
 
-    // userId 필터 (특정 학생의 숙제만 조회)
+    // userId 필터 (특정 학생의 숙제만 조회) - TEXT 타입으로 비교
     let userFilter = '';
     if (userId) {
-      userFilter = `AND hs.userId = ${parseInt(userId)}`;
+      userFilter = `AND hs.userId = '${userId}'`;
       console.log('👤 학생 필터 적용:', userFilter);
     }
 
-    // 숙제 제출 및 채점 결과 조회 - User와 users 테이블 모두 조회
-    // 최소 컬럼만 조회 (gradingResult, gradedAt은 제외 - 테이블에 없을 수 있음)
+    // 숙제 제출 결과 조회 - gradingResult JSON 사용
     const query = `
       SELECT 
         hs.id as submissionId,
@@ -108,15 +106,11 @@ export async function onRequestGet(context) {
         hs.code,
         hs.imageUrl,
         hs.status,
-        hg.id as gradingId,
-        hg.score,
-        hg.subject,
-        hg.totalQuestions,
-        hg.correctAnswers
+        hs.gradingResult,
+        hs.gradedAt
       FROM homework_submissions_v2 hs
       LEFT JOIN User u1 ON u1.id = hs.userId
       LEFT JOIN users u2 ON u2.id = hs.userId
-      LEFT JOIN homework_gradings_v2 hg ON hg.submissionId = hs.id
       WHERE 1=1
         ${dateFilter}
         ${academyFilter}
@@ -131,12 +125,11 @@ export async function onRequestGet(context) {
 
     console.log(`✅ 조회 결과: ${results.length}건`);
 
-    // 각 제출에 대한 이미지 조회 (배치 처리로 SQL 변수 제한 회피)
+    // 각 제출에 대한 이미지 조회 (배치 처리)
     const submissionIds = results.map(r => r.submissionId);
     const imagesMap = {};
     
     if (submissionIds.length > 0) {
-      // SQLite는 최대 999개의 변수만 지원하므로 배치 처리
       const BATCH_SIZE = 500;
       const batches = [];
       for (let i = 0; i < submissionIds.length; i += BATCH_SIZE) {
@@ -157,7 +150,6 @@ export async function onRequestGet(context) {
         try {
           const imagesResult = await DB.prepare(imagesQuery).bind(...batch).all();
           
-          // submissionId별로 이미지 그룹화
           for (const img of imagesResult.results || []) {
             if (!imagesMap[img.submissionId]) {
               imagesMap[img.submissionId] = [];
@@ -165,72 +157,87 @@ export async function onRequestGet(context) {
             imagesMap[img.submissionId].push(img.imageData);
           }
         } catch (imgError) {
-          console.error(`❌ 이미지 조회 실패 (배치):`, imgError.message);
-          // 이미지 조회 실패는 무시하고 계속 진행
+          console.error(`❌ 이미지 조회 실패:`, imgError.message);
         }
       }
       
-      console.log(`✅ 이미지 조회 완료: ${Object.keys(imagesMap).length}개 제출에 대한 이미지`);
+      console.log(`✅ 이미지 조회 완료: ${Object.keys(imagesMap).length}개 제출`);
     }
 
-    // 통계 계산
-    const totalSubmissions = results.length;
-    const gradedCount = results.filter(r => r.gradingId).length;
-    const normalizeScore = (s) => {
-      if (s === null || s === undefined) return 0;
-      if (s > 0 && s <= 1) return Math.round(s * 100);
-      return Math.round(s);
-    };
-    const avgScore = gradedCount > 0
-      ? Math.round(results.reduce((sum, r) => sum + normalizeScore(r.score), 0) / gradedCount)
-      : 0;
+    // gradingResult JSON 파싱 및 통계 계산
+    let gradedCount = 0;
+    let totalScore = 0;
 
-    // 결과 포맷팅 - homework_gradings_v2 데이터만 사용
     const formattedResults = results.map(r => {
-      // homework_gradings_v2 데이터 사용 (없으면 null)
-      const gradingData = r.gradingId ? {
-        id: r.gradingId,
-        score: (function(s) {
-          if (s === null || s === undefined) return 0;
-          if (s > 0 && s <= 1) return Math.round(s * 100);
-          return Math.round(s);
-        })(r.score),
-        subject: r.subject || 'other',
-        totalQuestions: r.totalQuestions || 0,
-        correctAnswers: r.correctAnswers || 0,
-        feedback: '', // homework_gradings_v2에서 가져올 예정
-        strengths: '',
-        improvements: '',
-        problemAnalysis: [],
-        weaknessTypes: [],
-        detailedResults: [],
-        studyDirection: '',
-        gradedAt: null
-      } : null;
+      let gradingData = null;
+      
+      // gradingResult JSON 파싱
+      if (r.gradingResult && r.status === 'graded') {
+        try {
+          const parsed = JSON.parse(r.gradingResult);
+          
+          // Worker에서 반환하는 형식: [{subject, grading: {...}}]
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const firstResult = parsed[0];
+            const grading = firstResult.grading || {};
+            
+            // 점수 계산
+            const totalQuestions = grading.totalQuestions || 0;
+            const correctAnswers = grading.correctAnswers || 0;
+            const score = totalQuestions > 0 
+              ? Math.round((correctAnswers / totalQuestions) * 100) 
+              : 0;
+            
+            gradingData = {
+              score: score,
+              subject: firstResult.subject || 'other',
+              totalQuestions: totalQuestions,
+              correctAnswers: correctAnswers,
+              feedback: grading.overallFeedback || '',
+              strengths: grading.strengths || '',
+              improvements: grading.improvements || '',
+              detailedResults: grading.detailedResults || [],
+              weaknessTypes: grading.weaknessTypes || [],
+              studyDirection: grading.studyDirection || '',
+              gradedAt: r.gradedAt || null
+            };
+            
+            // 통계용
+            gradedCount++;
+            totalScore += score;
+          }
+        } catch (parseError) {
+          console.error(`❌ gradingResult 파싱 실패 (${r.submissionId}):`, parseError.message);
+        }
+      }
 
       return {
-        submissionId: r.submissionId,
-        userId: r.userId,
-        userName: r.userName,
-        userEmail: r.userEmail,
-        academyId: r.academyId,
-        grade: r.grade,
-        submittedAt: r.submittedAt,
-        code: r.code,
-        imageUrl: r.imageUrl,
-        status: r.status || 'pending',
-        images: imagesMap[r.submissionId] || [],
-        imageCount: (imagesMap[r.submissionId] || []).length,
+        submission: {
+          id: r.submissionId,
+          userId: r.userId,
+          userName: r.userName,
+          userEmail: r.userEmail,
+          academyId: r.academyId,
+          grade: r.grade,
+          submittedAt: r.submittedAt,
+          code: r.code,
+          imageUrl: r.imageUrl,
+          status: r.status || 'pending',
+          images: imagesMap[r.submissionId] || [],
+          imageCount: (imagesMap[r.submissionId] || []).length
+        },
         grading: gradingData
       };
     });
 
+    const avgScore = gradedCount > 0 ? Math.round(totalScore / gradedCount) : 0;
+
     return Response.json({
       success: true,
       statistics: {
-        total: totalSubmissions,
+        total: results.length,
         graded: gradedCount,
-        pending: totalSubmissions - gradedCount,
+        pending: results.length - gradedCount,
         averageScore: avgScore
       },
       results: formattedResults
@@ -241,7 +248,8 @@ export async function onRequestGet(context) {
     return Response.json({ 
       success: false, 
       error: "서버 오류가 발생했습니다",
-      message: error.message 
+      message: error.message,
+      stack: error.stack
     }, { status: 500 });
   }
 }
