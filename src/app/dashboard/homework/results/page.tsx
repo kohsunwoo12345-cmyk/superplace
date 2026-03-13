@@ -254,7 +254,16 @@ export default function TeacherHomeworkResultsPage() {
 
           return {
             ...result,
-            id: result.submissionId,
+            // API 응답 구조: { submission: {...}, grading: {...} }
+            id: result.submission?.id || result.submissionId,
+            userId: result.submission?.userId,
+            userName: result.submission?.userName || '이름 없음',
+            userEmail: result.submission?.userEmail || '',
+            code: result.submission?.code,
+            imageUrl: result.submission?.imageUrl,
+            imageCount: result.submission?.imageCount || 0,
+            submittedAt: result.submission?.submittedAt,
+            status: result.submission?.status || 'pending',
             // grading 정보를 최상위로 복사
             // score 정규화: 0~1 범위이면 100을 곱해 백분율로 변환, 소수점 반올림
             score: (function(s: number | undefined | null) {
@@ -278,7 +287,8 @@ export default function TeacherHomeworkResultsPage() {
             conceptsNeeded: safeJsonParse(result.grading?.conceptsNeeded, []),
             mistakes: safeJsonParse(result.grading?.mistakes, []),
             suggestionsArray: safeJsonParse(result.grading?.suggestionsArray || result.grading?.suggestions, []),
-            // 원본 grading도 유지
+            // 원본 submission과 grading도 유지
+            submission: result.submission,
             grading: result.grading
           };
         });
