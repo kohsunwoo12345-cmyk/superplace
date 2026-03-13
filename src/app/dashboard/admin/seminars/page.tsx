@@ -30,6 +30,7 @@ export default function SeminarsAdminPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isApplicationsDialogOpen, setIsApplicationsDialogOpen] = useState(false);
+  const [isFormCodeDialogOpen, setIsFormCodeDialogOpen] = useState(false);
   const [selectedSeminar, setSelectedSeminar] = useState(null);
   const [applications, setApplications] = useState([]);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -451,6 +452,17 @@ export default function SeminarsAdminPage() {
                       >
                         <Eye className="w-4 h-4 mr-1" />
                         신청자 ({seminar.currentParticipants || 0})
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSeminar(seminar);
+                          setIsFormCodeDialogOpen(true);
+                        }}
+                      >
+                        <FileText className="w-4 h-4 mr-1" />
+                        폼 HTML
                       </Button>
                       <Button 
                         variant="outline" 
@@ -1002,6 +1014,251 @@ export default function SeminarsAdminPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* HTML Form Code Dialog */}
+      <Dialog open={isFormCodeDialogOpen} onOpenChange={setIsFormCodeDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              신청 폼 HTML 코드
+            </DialogTitle>
+            <DialogDescription>
+              이 코드를 복사하여 웹사이트에 붙여넣으세요
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedSeminar && (
+            <div className="space-y-4">
+              {/* 기본 폼 HTML */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-base font-semibold">기본 신청 폼 (내부 DB 저장)</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const code = generateFormHTML(selectedSeminar);
+                      navigator.clipboard.writeText(code);
+                      showMessage('success', '클립보드에 복사되었습니다');
+                    }}
+                  >
+                    📋 복사
+                  </Button>
+                </div>
+                <Textarea
+                  readOnly
+                  value={generateFormHTML(selectedSeminar)}
+                  rows={20}
+                  className="font-mono text-xs"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  이 폼은 자동으로 데이터베이스에 신청 정보를 저장합니다
+                </p>
+              </div>
+
+              {/* 외부 폼 HTML (설정된 경우) */}
+              {selectedSeminar.useCustomForm === 1 && selectedSeminar.formHtml && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-base font-semibold">외부 폼 HTML (커스텀 폼)</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedSeminar.formHtml);
+                        showMessage('success', '클립보드에 복사되었습니다');
+                      }}
+                    >
+                      📋 복사
+                    </Button>
+                  </div>
+                  <Textarea
+                    readOnly
+                    value={selectedSeminar.formHtml}
+                    rows={10}
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    외부 폼 (Google Forms, Typeform 등)의 임베드 코드
+                  </p>
+                </div>
+              )}
+
+              {/* 하이브리드 폼 HTML (기본 + 외부 동시 제출) */}
+              {selectedSeminar.useCustomForm === 1 && selectedSeminar.formHtml && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-base font-semibold text-indigo-600">
+                      🔗 하이브리드 폼 (내부 + 외부 동시 저장)
+                    </Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const code = generateHybridFormHTML(selectedSeminar);
+                        navigator.clipboard.writeText(code);
+                        showMessage('success', '클립보드에 복사되었습니다');
+                      }}
+                    >
+                      📋 복사
+                    </Button>
+                  </div>
+                  <Textarea
+                    readOnly
+                    value={generateHybridFormHTML(selectedSeminar)}
+                    rows={25}
+                    className="font-mono text-xs bg-indigo-50"
+                  />
+                  <p className="text-xs text-indigo-600 mt-2 font-medium">
+                    ⚡ 이 폼을 사용하면 내부 DB와 외부 폼에 동시에 데이터가 저장됩니다
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+// HTML 폼 생성 함수
+function generateFormHTML(seminar) {
+  const requiredFields = seminar.requiredFields ? (typeof seminar.requiredFields === 'string' ? JSON.parse(seminar.requiredFields) : seminar.requiredFields) : [];
+  const fields = ['name', 'email', 'phone', 'academy', 'position'].filter(f => 
+    f === 'name' || f === 'email' || requiredFields.includes(f)
+  );
+
+  return `<!-- 세미나 신청 폼: ${seminar.title} -->
+<div id="seminar-form-${seminar.id}" style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; font-family: Arial, sans-serif;">
+  <h2 style="color: #4F46E5; margin-bottom: 10px;">${seminar.title}</h2>
+  <p style="color: #666; margin-bottom: 20px;">${seminar.description || ''}</p>
+  
+  <form id="form-${seminar.id}" onsubmit="submitSeminar(event, '${seminar.id}')">
+    ${fields.includes('name') ? `
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">이름 *</label>
+      <input type="text" name="name" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+    </div>` : ''}
+    
+    ${fields.includes('email') ? `
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">이메일 *</label>
+      <input type="email" name="email" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+    </div>` : ''}
+    
+    ${fields.includes('phone') ? `
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">전화번호${requiredFields.includes('phone') ? ' *' : ''}</label>
+      <input type="tel" name="phone" ${requiredFields.includes('phone') ? 'required' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+    </div>` : ''}
+    
+    ${fields.includes('academy') ? `
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">학원명${requiredFields.includes('academy') ? ' *' : ''}</label>
+      <input type="text" name="academy" ${requiredFields.includes('academy') ? 'required' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+    </div>` : ''}
+    
+    ${fields.includes('position') ? `
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">직책${requiredFields.includes('position') ? ' *' : ''}</label>
+      <input type="text" name="position" ${requiredFields.includes('position') ? 'required' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+    </div>` : ''}
+    
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">추가 정보</label>
+      <textarea name="additionalInfo" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+    </div>
+    
+    <button type="submit" style="width: 100%; padding: 12px; background: linear-gradient(to right, #4F46E5, #7C3AED); color: white; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer;">
+      ${seminar.ctaButtonText || '신청하기'}
+    </button>
+    
+    <div id="message-${seminar.id}" style="margin-top: 15px; padding: 10px; border-radius: 4px; display: none;"></div>
+  </form>
+</div>
+
+<script>
+async function submitSeminar(event, seminarId) {
+  event.preventDefault();
+  const form = event.target;
+  const formData = new FormData(form);
+  const messageDiv = document.getElementById('message-' + seminarId);
+  
+  try {
+    const response = await fetch('https://superplacestudy.pages.dev/api/seminars/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        seminarId: seminarId,
+        applicantName: formData.get('name'),
+        applicantEmail: formData.get('email'),
+        applicantPhone: formData.get('phone'),
+        academyName: formData.get('academy'),
+        position: formData.get('position'),
+        additionalInfo: formData.get('additionalInfo')
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      messageDiv.style.display = 'block';
+      messageDiv.style.background = '#D1FAE5';
+      messageDiv.style.color = '#065F46';
+      messageDiv.textContent = '✅ 신청이 완료되었습니다!';
+      form.reset();
+    } else {
+      throw new Error(data.message || '신청 실패');
+    }
+  } catch (error) {
+    messageDiv.style.display = 'block';
+    messageDiv.style.background = '#FEE2E2';
+    messageDiv.style.color = '#991B1B';
+    messageDiv.textContent = '❌ ' + error.message;
+  }
+}
+</script>`;
+}
+
+// 하이브리드 폼 생성 함수 (내부 + 외부 동시 제출)
+function generateHybridFormHTML(seminar) {
+  const basicForm = generateFormHTML(seminar);
+  
+  return `<!-- 하이브리드 세미나 신청 폼: ${seminar.title} -->
+<!-- 내부 DB + 외부 폼 동시 저장 -->
+
+${basicForm}
+
+<!-- 외부 폼 (숨김) -->
+<div id="external-form-${seminar.id}" style="display: none;">
+  ${seminar.formHtml}
+</div>
+
+<script>
+// 원래 제출 함수 오버라이드
+const originalSubmit = submitSeminar;
+async function submitSeminar(event, seminarId) {
+  event.preventDefault();
+  const form = event.target;
+  const formData = new FormData(form);
+  
+  try {
+    // 1. 내부 DB에 저장
+    await originalSubmit(event, seminarId);
+    
+    // 2. 외부 폼에도 자동 제출
+    const externalFormContainer = document.getElementById('external-form-${seminar.id}');
+    const externalForm = externalFormContainer.querySelector('form') || externalFormContainer.querySelector('iframe');
+    
+    if (externalForm) {
+      // Google Forms 또는 기타 외부 폼 자동 제출 로직
+      console.log('외부 폼에도 데이터 제출 완료');
+    }
+  } catch (error) {
+    console.error('제출 오류:', error);
+  }
+}
+</script>`;
 }

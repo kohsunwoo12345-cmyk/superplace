@@ -72,77 +72,96 @@ export default function SeminarWidget() {
 
   return (
     <div className="space-y-4">
-      {seminars.map((seminar) => (
+      {seminars.map((seminar, index) => (
         <div
           key={seminar.id}
-          className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+          className="relative border-2 border-indigo-100 rounded-xl overflow-hidden hover:shadow-2xl hover:border-indigo-300 transition-all duration-300 cursor-pointer group bg-gradient-to-br from-white to-indigo-50"
           onClick={() => router.push(`/dashboard/seminars/detail?id=${seminar.id}`)}
+          style={{ animationDelay: `${index * 100}ms` }}
         >
+          {/* NEW Badge - 신규 세미나 강조 */}
+          <div className="absolute top-3 right-3 z-10">
+            <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg animate-pulse">
+              🎯 NEW
+            </span>
+          </div>
+
           <div className="flex gap-4">
-            {/* 세미나 이미지 */}
-            {seminar.mainImage && (
-              <div className="w-32 h-32 flex-shrink-0">
+            {/* 세미나 이미지 - 향상된 효과 */}
+            {seminar.mainImage ? (
+              <div className="w-40 h-40 flex-shrink-0 relative overflow-hidden">
                 <img
                   src={seminar.mainImage}
                   alt={seminar.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+              </div>
+            ) : (
+              <div className="w-40 h-40 flex-shrink-0 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <Calendar className="h-16 w-16 text-white opacity-50" />
               </div>
             )}
 
-            {/* 세미나 정보 */}
-            <div className="flex-1 p-4">
-              <h3 className="font-semibold text-lg mb-2 line-clamp-1">
+            {/* 세미나 정보 - 향상된 레이아웃 */}
+            <div className="flex-1 p-4 pr-20">
+              <h3 className="font-bold text-xl mb-2 line-clamp-1 text-gray-900 group-hover:text-indigo-600 transition-colors">
                 {seminar.title}
               </h3>
-              <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+              <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                 {seminar.description}
               </p>
 
-              <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>{new Date(seminar.date).toLocaleDateString("ko-KR")}</span>
+              <div className="grid grid-cols-2 gap-3 text-sm text-gray-700">
+                <div className="flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded-lg">
+                  <Calendar className="h-4 w-4 text-indigo-600" />
+                  <span className="font-medium">{new Date(seminar.date).toLocaleDateString("ko-KR")}</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  <span>{seminar.time}</span>
+                <div className="flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded-lg">
+                  <Clock className="h-4 w-4 text-indigo-600" />
+                  <span className="font-medium">{seminar.time}</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  <span>{seminar.location}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  <span>
-                    {seminar.currentParticipants}/{seminar.maxParticipants}명
-                  </span>
+                <div className="flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded-lg col-span-2">
+                  <MapPin className="h-4 w-4 text-indigo-600" />
+                  <span className="font-medium line-clamp-1">{seminar.location}</span>
                 </div>
               </div>
 
-              {/* 신청률 프로그레스 바 */}
-              <div className="mt-3">
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-gray-600">신청 현황</span>
-                  <span className="font-medium text-indigo-600">
-                    {Math.round(
-                      (seminar.currentParticipants / seminar.maxParticipants) *
-                        100
-                    )}
-                    %
+              {/* 신청률 프로그레스 바 - 향상된 디자인 */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-indigo-600" />
+                    <span className="font-semibold text-gray-700">신청 현황</span>
+                  </div>
+                  <span className="font-bold text-indigo-600">
+                    {seminar.currentParticipants}/{seminar.maxParticipants}명 ({Math.round(
+                      (seminar.currentParticipants / seminar.maxParticipants) * 100
+                    )}%)
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="relative w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
                   <div
-                    className="bg-indigo-600 h-2 rounded-full transition-all"
+                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full transition-all duration-700 ease-out shadow-lg"
                     style={{
                       width: `${Math.min(
-                        (seminar.currentParticipants / seminar.maxParticipants) *
-                          100,
+                        (seminar.currentParticipants / seminar.maxParticipants) * 100,
                         100
                       )}%`,
                     }}
-                  ></div>
+                  >
+                    <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hover 상태 화살표 */}
+              <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="flex items-center gap-2 text-indigo-600 font-semibold">
+                  <span>자세히 보기</span>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
               </div>
             </div>
