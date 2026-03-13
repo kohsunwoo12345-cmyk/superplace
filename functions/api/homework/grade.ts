@@ -13,13 +13,13 @@ interface PythonWorkerResponse {
     imageIndex: number;
     ocrText: string;
     subject: 'math' | 'english' | 'other';
-    grading: {
-      totalQuestions: number;
-      correctAnswers: number;
-      detailedResults: any[];
-      overallFeedback: string;
-      strengths: string;
-      improvements: string;
+    grading?: {
+      totalQuestions?: number;
+      correctAnswers?: number;
+      detailedResults?: any[];
+      overallFeedback?: string;
+      strengths?: string;
+      improvements?: string;
     };
   }>;
   error?: string;
