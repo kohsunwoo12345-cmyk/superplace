@@ -101,15 +101,15 @@ export async function onRequestGet(context) {
       query = `
         SELECT 
           c.id,
-          c.academy_id as academyId,
-          c.class_name as name,
-          c.grade,
+          c.academyId,
+          c.name,
           c.description,
-          c.teacher_id as teacherId,
-          c.color,
-          c.created_at as createdAt
-        FROM classes c
-        ORDER BY c.created_at DESC
+          c.teacherId,
+          c.isActive,
+          c.createdAt,
+          c.updatedAt
+        FROM Class c
+        ORDER BY c.createdAt DESC
       `;
     } else if (role === 'ADMIN' || role === 'DIRECTOR') {
       // Admins and Directors see only their academy's classes
@@ -131,15 +131,15 @@ export async function onRequestGet(context) {
       query = `
         SELECT 
           c.id,
-          c.academy_id as academyId,
-          c.class_name as name,
-          c.grade,
+          c.academyId,
+          c.name,
           c.description,
-          c.teacher_id as teacherId,
-          c.color,
-          c.created_at as createdAt
-        FROM classes c
-        ORDER BY c.created_at DESC
+          c.teacherId,
+          c.isActive,
+          c.createdAt,
+          c.updatedAt
+        FROM Class c
+        ORDER BY c.createdAt DESC
       `;
       // params는 비워둠 - JavaScript에서 필터링할 것
     } else if (role === 'TEACHER') {
@@ -161,15 +161,15 @@ export async function onRequestGet(context) {
       query = `
         SELECT 
           c.id,
-          c.academy_id as academyId,
-          c.class_name as name,
-          c.grade,
+          c.academyId,
+          c.name,
           c.description,
-          c.teacher_id as teacherId,
-          c.color,
-          c.created_at as createdAt
-        FROM classes c
-        ORDER BY c.created_at DESC
+          c.teacherId,
+          c.isActive,
+          c.createdAt,
+          c.updatedAt
+        FROM Class c
+        ORDER BY c.createdAt DESC
       `;
       // params는 비워둠 - JavaScript에서 필터링할 것
     } else if (role === 'STUDENT') {
@@ -178,17 +178,16 @@ export async function onRequestGet(context) {
       query = `
         SELECT DISTINCT
           c.id,
-          c.academy_id as academyId,
-          c.class_name as name,
-          c.grade,
+          c.academyId,
+          c.name,
           c.description,
-          c.teacher_id as teacherId,
-          c.color,
-          c.created_at as createdAt
-        FROM classes c
-        INNER JOIN class_students cs ON c.id = cs.classId
+          c.teacherId,
+          c.isActive,
+          c.createdAt
+        FROM Class c
+        INNER JOIN ClassStudent cs ON c.id = cs.classId
         WHERE cs.studentId = ?
-        ORDER BY c.created_at DESC
+        ORDER BY c.createdAt DESC
       `;
       params.push(userId);
     } else {
@@ -414,21 +413,21 @@ export async function onRequestPost(context) {
       created_at: koreanTime
     });
 
-    // Insert class
+    // Insert class into Class table (camelCase)
+    const classId = `class-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
     const result = await db.prepare(`
-      INSERT INTO classes (academy_id, class_name, grade, description, teacher_id, color, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO Class (id, name, description, academyId, teacherId, isActive, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, 1, ?, ?)
     `).bind(
-      classAcademyId, 
+      classId,
       name, 
-      grade || null, 
       description || null, 
-      teacherIdValue, 
-      classColor, 
+      classAcademyId,
+      teacherIdValue,
+      koreanTime,
       koreanTime
     ).run();
-    
-    const classId = result.meta.last_row_id;
 
     console.log('✅ Class created:', classId);
 
@@ -437,23 +436,20 @@ export async function onRequestPost(context) {
       for (const studentId of studentIds) {
         try {
           const studentIdStr = String(studentId);
+          const csId = `cs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           
           // Check if already enrolled
           const existing = await db.prepare(
-            'SELECT id FROM class_students WHERE classId = ? AND studentId = ?'
+            'SELECT id FROM ClassStudent WHERE classId = ? AND studentId = ?'
           ).bind(classId, studentIdStr).first();
 
-          if (existing) {
+          if (!existing) {
             await db.prepare(
-              'UPDATE class_students SET status = ?, enrolledAt = ? WHERE classId = ? AND studentId = ?'
-            ).bind('active', koreanTime, classId, studentIdStr).run();
-          } else {
-            await db.prepare(
-              'INSERT INTO class_students (classId, studentId, enrolledAt, status) VALUES (?, ?, ?, ?)'
-            ).bind(classId, studentIdStr, koreanTime, 'active').run();
+              'INSERT INTO ClassStudent (id, classId, studentId, joinedAt) VALUES (?, ?, ?, ?)'
+            ).bind(csId, classId, studentIdStr, koreanTime).run();
+            
+            console.log(`✅ Student ${studentIdStr} enrolled in class ${classId}`);
           }
-          
-          console.log(`✅ Student ${studentIdStr} enrolled in class ${classId}`);
         } catch (err) {
           console.error('❌ Student enrollment error:', err);
         }
@@ -596,15 +592,21 @@ export async function onRequestDelete(context) {
       });
     }
 
-    // Delete class_students records first
+    // Delete ClassStudent records first
     await db
-      .prepare('DELETE FROM class_students WHERE classId = ?')
+      .prepare('DELETE FROM ClassStudent WHERE classId = ?')
+      .bind(classId)
+      .run();
+
+    // Delete ClassSchedule records
+    await db
+      .prepare('DELETE FROM ClassSchedule WHERE classId = ?')
       .bind(classId)
       .run();
 
     // Delete class
     await db
-      .prepare('DELETE FROM classes WHERE id = ?')
+      .prepare('DELETE FROM Class WHERE id = ?')
       .bind(classId)
       .run();
 
@@ -749,27 +751,26 @@ export async function onRequestPatch(context) {
     const params = [];
 
     if (name !== undefined) {
-      updates.push('class_name = ?');
+      updates.push('name = ?');
       params.push(name);
-    }
-    if (grade !== undefined) {
-      updates.push('grade = ?');
-      params.push(grade);
     }
     if (description !== undefined) {
       updates.push('description = ?');
       params.push(description);
     }
-    if (color !== undefined) {
-      updates.push('color = ?');
-      params.push(color);
-    }
     if (teacherId !== undefined) {
-      updates.push('teacher_id = ?');
+      updates.push('teacherId = ?');
       params.push(teacherId);
     }
 
-    if (updates.length === 0) {
+    // Always update updatedAt
+    const now = new Date();
+    const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const koreanTime = kst.toISOString().slice(0, 19).replace('T', ' ');
+    updates.push('updatedAt = ?');
+    params.push(koreanTime);
+
+    if (updates.length === 1) { // Only updatedAt
       return new Response(JSON.stringify({
         success: false,
         error: 'No fields to update'
@@ -781,7 +782,7 @@ export async function onRequestPatch(context) {
 
     params.push(id);
 
-    const query = `UPDATE classes SET ${updates.join(', ')} WHERE id = ?`;
+    const query = `UPDATE Class SET ${updates.join(', ')} WHERE id = ?`;
     
     await db.prepare(query).bind(...params).run();
 
