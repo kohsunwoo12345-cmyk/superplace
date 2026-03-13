@@ -227,7 +227,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       body: JSON.stringify({ 
         userId, 
         code, 
-        images: imageArray 
+        images: imageArray,
+        submissionId  // 이미 생성된 제출 ID 전달
       })
     }).then(async response => {
       console.log(`✅ 자동 채점 트리거 완료: ${submissionId}, status: ${response.status}`);

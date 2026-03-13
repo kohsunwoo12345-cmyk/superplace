@@ -29,7 +29,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const { DB } = context.env;
     const body = await context.request.json();
-    const { userId, code, images, image } = body;
+    const { userId, code, images, image, submissionId: existingSubmissionId } = body;
 
     if (!DB) {
       return Response.json({ error: "Database not configured" }, { status: 500 });
@@ -98,19 +98,36 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       // 이미 존재
     }
 
-    // 4. 제출 기록 생성
-    const submissionId = `homework-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // 4. 제출 기록 조회 또는 생성
     const now = new Date();
     const kstDate = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     const kstTimestamp = kstDate.toISOString().replace('T', ' ').substring(0, 19);
-    const imageUrlsJson = JSON.stringify(imageArray);
-
-    await DB.prepare(`
-      INSERT INTO homework_submissions_v2 (id, userId, code, imageUrl, submittedAt, status, academyId)
-      VALUES (?, ?, ?, ?, ?, 'processing', ?)
-    `).bind(submissionId, userId, code || null, imageUrlsJson, kstTimestamp, user.academyId || null).run();
-
-    console.log(`✅ 제출 기록 생성: ${submissionId}`);
+    
+    let submissionId: string;
+    
+    if (existingSubmissionId) {
+      // 이미 생성된 제출 기록 사용 (중복 방지)
+      submissionId = existingSubmissionId;
+      console.log(`✅ 기존 제출 기록 사용: ${submissionId}`);
+      
+      // 상태를 'processing'으로 업데이트
+      await DB.prepare(`
+        UPDATE homework_submissions_v2 
+        SET status = 'processing'
+        WHERE id = ?
+      `).bind(submissionId).run();
+    } else {
+      // 새 제출 기록 생성 (하위 호환성)
+      submissionId = `homework-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const imageUrlsJson = JSON.stringify(imageArray);
+      
+      await DB.prepare(`
+        INSERT INTO homework_submissions_v2 (id, userId, code, imageUrl, submittedAt, status, academyId)
+        VALUES (?, ?, ?, ?, ?, 'processing', ?)
+      `).bind(submissionId, userId, code || null, imageUrlsJson, kstTimestamp, user.academyId || null).run();
+      
+      console.log(`✅ 새 제출 기록 생성: ${submissionId}`);
+    }
 
     // 5. Python Worker 호출
     const workerUrl = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/grade';
