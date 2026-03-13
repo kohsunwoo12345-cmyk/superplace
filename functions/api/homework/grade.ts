@@ -238,7 +238,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // 6. homework_gradings_v2 테이블 생성
+    // 6. homework_gradings_v2 테이블 생성 및 마이그레이션
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_gradings_v2 (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -266,6 +266,58 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         createdAt TEXT DEFAULT (datetime('now'))
       )
     `).run();
+
+    // 마이그레이션: 기존 테이블에 누락된 컬럼 추가
+    try {
+      // overallFeedback 컬럼이 없으면 추가
+      await DB.prepare(`
+        ALTER TABLE homework_gradings_v2 ADD COLUMN overallFeedback TEXT
+      `).run();
+      console.log('✅ overallFeedback 컬럼 추가 완료');
+    } catch (e) {
+      // 컬럼이 이미 존재하면 무시
+      console.log('ℹ️ overallFeedback 컬럼 이미 존재');
+    }
+
+    try {
+      // strengths 컬럼이 없으면 추가
+      await DB.prepare(`
+        ALTER TABLE homework_gradings_v2 ADD COLUMN strengths TEXT
+      `).run();
+      console.log('✅ strengths 컬럼 추가 완료');
+    } catch (e) {
+      console.log('ℹ️ strengths 컬럼 이미 존재');
+    }
+
+    try {
+      // improvements 컬럼이 없으면 추가
+      await DB.prepare(`
+        ALTER TABLE homework_gradings_v2 ADD COLUMN improvements TEXT
+      `).run();
+      console.log('✅ improvements 컬럼 추가 완료');
+    } catch (e) {
+      console.log('ℹ️ improvements 컬럼 이미 존재');
+    }
+
+    try {
+      // detailedResults 컬럼이 없으면 추가
+      await DB.prepare(`
+        ALTER TABLE homework_gradings_v2 ADD COLUMN detailedResults TEXT
+      `).run();
+      console.log('✅ detailedResults 컬럼 추가 완료');
+    } catch (e) {
+      console.log('ℹ️ detailedResults 컬럼 이미 존재');
+    }
+
+    try {
+      // studyDirection 컬럼이 없으면 추가
+      await DB.prepare(`
+        ALTER TABLE homework_gradings_v2 ADD COLUMN studyDirection TEXT
+      `).run();
+      console.log('✅ studyDirection 컬럼 추가 완료');
+    } catch (e) {
+      console.log('ℹ️ studyDirection 컬럼 이미 존재');
+    }
 
     // 7. 채점 결과를 homework_gradings_v2에 저장
     for (const result of workerResult.results) {
