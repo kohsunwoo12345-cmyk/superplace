@@ -217,7 +217,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const workerResult: PythonWorkerResponse = await workerResponse.json();
-    console.log(`✅ Worker 응답 수신:`, workerResult.success);
+    console.log(`✅ Worker 응답 수신:`, JSON.stringify(workerResult, null, 2));
+    console.log(`📊 채점 결과 개수: ${workerResult.results?.length || 0}`);
 
     if (!workerResult.success) {
       // 상태를 failed로 업데이트
@@ -269,7 +270,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 7. 채점 결과를 homework_gradings_v2에 저장
     for (const result of workerResult.results) {
       const grading = result.grading;
+      
+      console.log(`📝 채점 결과 저장 중:`, {
+        subject: result.subject,
+        totalQuestions: grading.totalQuestions,
+        correctAnswers: grading.correctAnswers,
+        detailedResultsCount: grading.detailedResults?.length || 0
+      });
+      
       const score = Math.round((grading.correctAnswers / grading.totalQuestions) * 100) || 0;
+      console.log(`🎯 계산된 점수: ${grading.correctAnswers}/${grading.totalQuestions} = ${score}점`);
 
       await DB.prepare(`
         INSERT INTO homework_gradings_v2 (

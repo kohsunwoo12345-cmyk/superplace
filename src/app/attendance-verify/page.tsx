@@ -437,41 +437,16 @@ export default function AttendanceVerifyPage() {
           }
         });
 
-        // 자동 채점 시작 (백그라운드 처리)
-        if (submissionId) {
-          console.log('🤖 자동 채점 시작 (백그라운드):', submissionId);
-          
-          // 바로 성공 알림 표시
-          alert("✅ 숙제 제출이 완료되었습니다!\n\nAI 채점이 자동으로 진행됩니다.\n잠시 후 '숙제 결과' 페이지에서 확인하세요.");
-          
-          // 백그라운드에서 채점 요청 (결과를 기다리지 않음)
-          fetch('/api/homework/process-grading', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ submissionId })
-          }).then(async (gradingResponse) => {
-            if (gradingResponse.ok) {
-              const gradingData = await gradingResponse.json();
-              console.log('✅ 자동 채점 완료:', gradingData);
-            } else {
-              console.warn('⚠️ 자동 채점 실패 (백그라운드):', gradingResponse.status);
-            }
-          }).catch((err) => {
-            console.error('❌ 자동 채점 에러 (백그라운드):', err);
-          });
-          
-          // 즉시 출석 페이지로 리디렉션
-          setTimeout(() => {
-            window.location.href = '/attendance-verify';
-          }, 2000);
-        } else {
-          alert("✅ 숙제 제출이 완료되었습니다!\n\n잠시 후 '숙제 결과' 페이지에서 확인하세요.");
-          
-          // 2초 후 페이지 새로고침
-          setTimeout(() => {
-            window.location.href = '/attendance-verify';
-          }, 2000);
-        }
+        // /api/homework/submit이 이미 백그라운드 채점을 시작했으므로 
+        // 여기서는 채점 API를 다시 호출하지 않음 (중복 방지)
+        console.log('🤖 백그라운드 채점 자동 진행 중:', submissionId);
+        
+        alert("✅ 숙제 제출이 완료되었습니다!\n\nAI 채점이 자동으로 진행됩니다.\n10-20초 후 '숙제 결과' 페이지에서 확인하세요.");
+        
+        // 2초 후 페이지 새로고침
+        setTimeout(() => {
+          window.location.href = '/attendance-verify';
+        }, 2000);
       } else {
         console.error("❌ 제출 실패:", {
           status: response.status,
