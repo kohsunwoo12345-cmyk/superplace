@@ -148,6 +148,10 @@ function StudentDetailContent() {
   
   // 학원장 제한 설정
   const [limitations, setLimitations] = useState<any>(null);
+  
+  // 숙제 제출 기록 상태
+  const [homeworkSubmissions, setHomeworkSubmissions] = useState<any[]>([]);
+  const [loadingHomework, setLoadingHomework] = useState(false);
 
   // 전화번호 포맷팅 함수
   const formatPhoneNumber = (phone: string | undefined) => {
@@ -196,10 +200,70 @@ function StudentDetailContent() {
       fetchStudentData();
       fetchAcademies();
       fetchClasses();
+      fetchHomeworkSubmissions();
     }
   }, [studentId, router]);
 
   // 🔧 Fallback: 학생 목록에서 데이터 가져오기
+  // 숙제 제출 기록 불러오기
+  const fetchHomeworkSubmissions = async () => {
+    try {
+      setLoadingHomework(true);
+      const token = localStorage.getItem("token");
+      
+      const response = await fetch(`/api/homework/results?userId=${studentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📚 숙제 제출 기록:', data);
+        
+        // API 응답 정규화
+        const formattedResults = (data.results || []).map((result: any) => {
+          const safeJsonParse = (value: any, defaultValue: any = null) => {
+            if (!value) return defaultValue;
+            if (typeof value === 'string') {
+              try {
+                return JSON.parse(value);
+              } catch {
+                return defaultValue;
+              }
+            }
+            return value;
+          };
+          
+          return {
+            ...result,
+            id: result.submissionId,
+            score: (function(s: number | undefined | null) {
+              if (!s) return 0;
+              if (s > 0 && s <= 1) return Math.round(s * 100);
+              return Math.round(s);
+            })(result.grading?.score),
+            feedback: result.grading?.feedback || '',
+            subject: result.grading?.subject || '미지정',
+            totalQuestions: result.grading?.totalQuestions || 0,
+            correctAnswers: result.grading?.correctAnswers || 0,
+            detailedResults: safeJsonParse(result.grading?.detailedResults, []),
+            overallFeedback: result.grading?.overallFeedback || result.grading?.feedback || '',
+            improvements: result.grading?.improvements || '',
+            gradedAt: result.grading?.gradedAt || null,
+          };
+        });
+        
+        setHomeworkSubmissions(formattedResults);
+      }
+    } catch (error) {
+      console.error('❌ 숙제 제출 기록 조회 실패:', error);
+    } finally {
+      setLoadingHomework(false);
+    }
+  };
+
   const tryFallbackFromList = async (token: string, studentId: string): Promise<boolean> => {
     try {
       console.log('🔄 Fallback: 학생 목록에서 데이터 가져오는 중...');
@@ -1414,7 +1478,7 @@ function StudentDetailContent() {
 
         {/* Tabs - 더 귀여운 디자인 */}
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full gap-2 bg-white rounded-xl p-2 shadow-md" style={{gridTemplateColumns: `repeat(${(!limitations || limitations.weak_concept_analysis_enabled === 1) ? '5' : '4'}, minmax(0, 1fr))`}}>
+          <TabsList className="grid w-full gap-2 bg-white rounded-xl p-2 shadow-md" style={{gridTemplateColumns: `repeat(${(!limitations || limitations.weak_concept_analysis_enabled === 1) ? '6' : '5'}, minmax(0, 1fr))`}}>
             <TabsTrigger 
               value="info" 
               className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-xs sm:text-sm font-semibold"
@@ -1442,6 +1506,13 @@ function StudentDetailContent() {
             >
               <MessageSquare className="w-4 h-4 mr-1.5" />
               AI 대화
+            </TabsTrigger>
+            <TabsTrigger 
+              value="homework" 
+              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-xs sm:text-sm font-semibold"
+            >
+              <FileText className="w-4 h-4 mr-1.5" />
+              숙제 기록
             </TabsTrigger>
             {(!limitations || limitations.weak_concept_analysis_enabled === 1) && (
               <TabsTrigger 
@@ -2320,6 +2391,128 @@ function StudentDetailContent() {
                           </p>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 숙제 제출 기록 탭 */}
+          <TabsContent value="homework" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-600" />
+                  숙제 제출 기록
+                </CardTitle>
+                <CardDescription>
+                  학생이 제출한 숙제와 AI 채점 결과를 확인할 수 있습니다
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingHomework ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                  </div>
+                ) : homeworkSubmissions.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">아직 제출한 숙제가 없습니다.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {homeworkSubmissions.map((submission: any) => (
+                      <Card key={submission.id} className="border-2 hover:border-indigo-300 transition-colors">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`text-2xl font-bold px-3 py-1 rounded-lg ${
+                                submission.score >= 90 ? 'bg-green-100 text-green-700' :
+                                submission.score >= 70 ? 'bg-blue-100 text-blue-700' :
+                                submission.score >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {submission.score}점
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-900">{submission.subject}</p>
+                                <p className="text-sm text-gray-500">
+                                  제출: {new Date(submission.submittedAt).toLocaleString('ko-KR')}
+                                </p>
+                              </div>
+                            </div>
+                            {submission.gradedAt && (
+                              <Badge className="bg-green-100 text-green-800">
+                                ✅ 채점 완료
+                              </Badge>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {/* 채점 통계 */}
+                          {submission.totalQuestions > 0 && (
+                            <div className="grid grid-cols-2 gap-4 p-3 bg-gray-50 rounded-lg">
+                              <div>
+                                <p className="text-xs text-gray-600">전체 문제</p>
+                                <p className="text-lg font-bold text-gray-900">{submission.totalQuestions}개</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-600">정답 수</p>
+                                <p className="text-lg font-bold text-indigo-600">{submission.correctAnswers}개</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 문제별 분석 */}
+                          {submission.detailedResults && submission.detailedResults.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold text-sm mb-2 text-gray-700">문제별 분석</h4>
+                              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                                {submission.detailedResults.map((result: any, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    className={`p-2 rounded-lg text-center border-2 ${
+                                      result.isCorrect
+                                        ? 'bg-green-50 border-green-200'
+                                        : 'bg-red-50 border-red-200'
+                                    }`}
+                                  >
+                                    <div className="text-xs text-gray-600 mb-1">
+                                      문제 {result.questionNumber || idx + 1}
+                                    </div>
+                                    <div className={`font-bold text-sm ${
+                                      result.isCorrect ? 'text-green-700' : 'text-red-700'
+                                    }`}>
+                                      {result.isCorrect ? '✓ 정답' : '✗ 오답'}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 종합 평가 */}
+                          {submission.overallFeedback && (
+                            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                              <h4 className="font-semibold text-sm mb-2 text-purple-700">종합 평가</h4>
+                              <p className="text-sm text-gray-700 leading-relaxed">
+                                {submission.overallFeedback}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* 개선할 점 */}
+                          {submission.improvements && (
+                            <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                              <h4 className="font-semibold text-sm mb-2 text-orange-700">개선할 점</h4>
+                              <p className="text-sm text-gray-700">
+                                {submission.improvements}
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
                 )}
