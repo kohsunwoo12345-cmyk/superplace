@@ -451,7 +451,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
@@ -502,23 +502,6 @@ export default function DashboardPage() {
               </p>
             </CardContent>
           </Card>
-
-          <Card className="border-2 border-red-100 hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                숙제 미제출
-              </CardTitle>
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-red-600">
-                {stats?.overdueHomework || 0}개
-              </div>
-              <p className="text-sm text-gray-500 mt-2">
-                기한 경과 (미제출)
-              </p>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Quick Actions - 바로가기 블록 */}
@@ -534,8 +517,7 @@ export default function DashboardPage() {
                   <Users className="h-8 w-8 text-blue-600" />
                 </div>
                 <h3 className="font-semibold text-lg mb-2">학생 관리</h3>
-                <p className="text-sm text-gray-600 mb-3">학생 정보 및 성적 관리</p>
-                <div className="text-2xl font-bold text-blue-600">{stats?.totalStudents || 0}명</div>
+                <p className="text-sm text-gray-600">학생 정보 및 성적 관리</p>
               </div>
             </CardContent>
           </Card>
@@ -551,8 +533,7 @@ export default function DashboardPage() {
                   <Clock className="h-8 w-8 text-green-600" />
                 </div>
                 <h3 className="font-semibold text-lg mb-2">출석 현황</h3>
-                <p className="text-sm text-gray-600 mb-3">오늘의 출석 체크</p>
-                <div className="text-2xl font-bold text-green-600">{stats?.todayStats?.attendance || 0}명</div>
+                <p className="text-sm text-gray-600">오늘의 출석 체크</p>
               </div>
             </CardContent>
           </Card>
@@ -568,8 +549,7 @@ export default function DashboardPage() {
                   <FileText className="h-8 w-8 text-purple-600" />
                 </div>
                 <h3 className="font-semibold text-lg mb-2">숙제 관리</h3>
-                <p className="text-sm text-gray-600 mb-3">숙제 등록 및 채점</p>
-                <div className="text-2xl font-bold text-purple-600">{stats?.todaySubmittedHomework || 0}개</div>
+                <p className="text-sm text-gray-600">숙제 등록 및 채점</p>
               </div>
             </CardContent>
           </Card>
@@ -586,8 +566,7 @@ export default function DashboardPage() {
                     <MessageCircle className="h-8 w-8 text-orange-600" />
                   </div>
                   <h3 className="font-semibold text-lg mb-2">알림톡 발송</h3>
-                  <p className="text-sm text-gray-600 mb-3">문자 및 알림 보내기</p>
-                  <div className="text-sm font-medium text-orange-600">바로가기</div>
+                  <p className="text-sm text-gray-600">문자 및 알림 보내기</p>
                 </div>
               </CardContent>
             </Card>
@@ -605,8 +584,7 @@ export default function DashboardPage() {
                     <BookOpen className="h-8 w-8 text-indigo-600" />
                   </div>
                   <h3 className="font-semibold text-lg mb-2">수업 관리</h3>
-                  <p className="text-sm text-gray-600 mb-3">내 수업 일정 확인</p>
-                  <div className="text-sm font-medium text-indigo-600">바로가기</div>
+                  <p className="text-sm text-gray-600">내 수업 일정 확인</p>
                 </div>
               </CardContent>
             </Card>
@@ -758,6 +736,33 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {/* 세미나 섹션 - 학원장 전용 */}
+        {isDirector && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-indigo-600" />
+                    진행 예정 세미나
+                  </CardTitle>
+                  <CardDescription>학원 운영에 도움이 되는 전문가 세미나</CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => router.push("/dashboard/seminars")}
+                >
+                  전체보기
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <SeminarWidget />
+            </CardContent>
+          </Card>
         )}
       </div>
     );
