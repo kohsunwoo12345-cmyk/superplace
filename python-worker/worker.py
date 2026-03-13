@@ -404,14 +404,13 @@ async def final_grading(
             grading_prompt = f"""숙제 채점:
 {context}
 
-간결한 JSON 응답:
+JSON 응답 (부족한 개념 중심으로):
 {{
   "totalQuestions": 문제수,
   "correctAnswers": 맞은수,
-  "detailedResults": [{{"questionNumber": 1, "isCorrect": true/false, "studentAnswer": "답", "correctAnswer": "정답", "explanation": "간결한 설명"}}],
-  "overallFeedback": "전체 피드백",
-  "strengths": "잘한 점",
-  "improvements": "개선점"
+  "detailedResults": [{{"questionNumber": 1, "isCorrect": true/false}}],
+  "overallFeedback": "부족한 개념 중심 피드백",
+  "improvements": "40토큰 이내"
 }}"""
             
             payload = {
@@ -479,18 +478,17 @@ async def grade_with_gemini(
         
         url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
         
-        # 간결한 채점 프롬프트
+        # 간결한 채점 프롬프트 - 부족한 개념 중심
         grading_prompt = f"""숙제 채점:
 {context}
 
-JSON 응답 (간결하게):
+JSON 응답 (부족한 개념 중심으로):
 {{
   "totalQuestions": 문제수,
   "correctAnswers": 맞은수,
-  "detailedResults": [{{"questionNumber": 1, "isCorrect": true/false, "studentAnswer": "답", "correctAnswer": "정답", "explanation": "간결한 설명"}}],
-  "overallFeedback": "전체 피드백",
-  "strengths": "잘한 점",
-  "improvements": "개선점"
+  "detailedResults": [{{"questionNumber": 1, "isCorrect": true/false}}],
+  "overallFeedback": "부족한 개념 중심 피드백",
+  "improvements": "40토큰 이내"
 }}"""
         
         payload = {
