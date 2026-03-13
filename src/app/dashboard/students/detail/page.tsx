@@ -1396,16 +1396,18 @@ function StudentDetailContent() {
                 </div>
               </div>
               
-              {/* 액션 버튼 */}
-              <Button
-                onClick={() => setShowProblemModal(true)}
-                disabled={weakConcepts.length === 0}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg whitespace-nowrap"
-                size="sm"
-              >
-                <ClipboardCheck className="w-4 h-4 mr-2" />
-                유사문제 출제
-              </Button>
+              {/* 액션 버튼 - 요금제 로직 연동 */}
+              {(!limitations || limitations.similar_problem_enabled === 1) && (
+                <Button
+                  onClick={() => setShowProblemModal(true)}
+                  disabled={weakConcepts.length === 0}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg whitespace-nowrap"
+                  size="sm"
+                >
+                  <ClipboardCheck className="w-4 h-4 mr-2" />
+                  유사문제 출제
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -2176,7 +2178,28 @@ function StudentDetailContent() {
                       학생의 출결 기록을 확인할 수 있습니다
                     </CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={fetchStudentData}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={async () => {
+                      // 출결 데이터만 별도로 다시 불러오기 (캐시 방지 위해 타임스탬프 추가)
+                      const token = localStorage.getItem("token");
+                      if (token && studentId) {
+                        try {
+                          const attendanceResponse = await fetch(`/api/students/attendance?studentId=${studentId}&t=${Date.now()}`, {
+                            headers: { 'Authorization': `Bearer ${token}` },
+                          });
+                          if (attendanceResponse.ok) {
+                            const attendanceData = await attendanceResponse.json();
+                            setAttendance(attendanceData.attendance || []);
+                            setAttendanceStats(attendanceData.stats || null);
+                          }
+                        } catch (error) {
+                          console.log('Failed to refresh attendance');
+                        }
+                      }
+                    }}
+                  >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     새로고침
                   </Button>

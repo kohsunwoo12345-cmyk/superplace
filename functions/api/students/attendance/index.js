@@ -24,8 +24,8 @@ export async function onRequestGet(context) {
 
     console.log('📊 Fetching attendance for student:', studentId);
 
-    // attendance_records_v3에서 모든 기록 조회 후 JavaScript 필터링
-    const result = await DB.prepare(`
+    // 1. attendance_records_v3 (QR/코드 출석) 조회
+    const v3Result = await DB.prepare(`
       SELECT 
         id,
         userId,
@@ -34,27 +34,64 @@ export async function onRequestGet(context) {
         status,
         academyId
       FROM attendance_records_v3
+      WHERE userId = ?
       ORDER BY checkInTime DESC
-      LIMIT 1000
-    `).all();
+      LIMIT ?
+    `).bind(studentId, limit).all();
     
-    // JavaScript에서 필터링
-    const records = (result.results || [])
-      .filter(r => String(r.userId) === String(studentId))
-      .slice(0, limit);
-    
-    console.log(`✅ Found ${records.length} records for student ${studentId}`);
-    
-    // 형식 변환
-    const attendanceRecords = records.map(r => ({
+    const v3Records = (v3Result.results || []).map(r => ({
       id: r.id,
       userId: r.userId,
       date: r.checkInTime ? r.checkInTime.substring(0, 10) : null,
       status: r.status?.toLowerCase() || 'present',
       checkInTime: r.checkInTime,
       createdAt: r.checkInTime,
-      notes: null,
+      notes: r.code ? `코드: ${r.code}` : null,
+      source: 'v3'
     }));
+
+    // 2. Attendance (수동 출석 관리) 조회
+    const manualResult = await DB.prepare(`
+      SELECT 
+        id,
+        userId,
+        date,
+        status,
+        note,
+        createdAt
+      FROM Attendance
+      WHERE userId = ?
+      ORDER BY date DESC, createdAt DESC
+      LIMIT ?
+    `).bind(studentId, limit).all();
+
+    const manualRecords = (manualResult.results || []).map(r => ({
+      id: r.id,
+      userId: r.userId,
+      date: r.date,
+      status: r.status?.toLowerCase() === 'tardy' ? 'late' : r.status?.toLowerCase() || 'present',
+      checkInTime: r.createdAt,
+      createdAt: r.createdAt,
+      notes: r.note,
+      source: 'manual'
+    }));
+
+    // 3. 데이터 통합 및 정렬 (최신순)
+    // 같은 날짜에 중복된 기록이 있을 경우 수동 기록이나 더 상세한 기록을 우선할 수 있으나, 일단 모두 표시
+    const allRecords = [...v3Records, ...manualRecords]
+      .sort((a, b) => {
+        // 날짜 우선 비교
+        if (a.date !== b.date) {
+          return b.date.localeCompare(a.date);
+        }
+        // 같은 날짜면 생성 시간 비교
+        return (b.createdAt || "").localeCompare(a.createdAt || "");
+      })
+      .slice(0, limit);
+
+    console.log(`✅ Found ${allRecords.length} total records for student ${studentId} (v3: ${v3Records.length}, manual: ${manualRecords.length})`);
+    
+    const attendanceRecords = allRecords;
 
     // 통계 계산
     const stats = {
