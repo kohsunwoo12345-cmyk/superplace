@@ -237,7 +237,70 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // 6. 결과를 DB에 저장
+    // 6. homework_gradings_v2 테이블 생성
+    await DB.prepare(`
+      CREATE TABLE IF NOT EXISTS homework_gradings_v2 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        submissionId TEXT NOT NULL,
+        userId INTEGER NOT NULL,
+        userName TEXT,
+        userEmail TEXT,
+        academyId INTEGER,
+        totalQuestions INTEGER,
+        correctAnswers INTEGER,
+        score INTEGER,
+        subject TEXT,
+        detailedResults TEXT,
+        overallFeedback TEXT,
+        strengths TEXT,
+        improvements TEXT,
+        weaknessTypes TEXT,
+        conceptsNeeded TEXT,
+        commonMistakes TEXT,
+        studyDirection TEXT,
+        problemAnalysis TEXT,
+        completionLevel TEXT,
+        effortLevel TEXT,
+        gradedAt TEXT,
+        createdAt TEXT DEFAULT (datetime('now'))
+      )
+    `).run();
+
+    // 7. 채점 결과를 homework_gradings_v2에 저장
+    for (const result of workerResult.results) {
+      const grading = result.grading;
+      const score = Math.round((grading.correctAnswers / grading.totalQuestions) * 100) || 0;
+
+      await DB.prepare(`
+        INSERT INTO homework_gradings_v2 (
+          submissionId, userId, userName, userEmail, academyId,
+          totalQuestions, correctAnswers, score, subject,
+          detailedResults, overallFeedback, strengths, improvements,
+          problemAnalysis, gradedAt
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        submissionId,
+        userId,
+        user.name,
+        user.email,
+        user.academyId || null,
+        grading.totalQuestions,
+        grading.correctAnswers,
+        score,
+        result.subject || 'other',
+        JSON.stringify(grading.detailedResults || []),
+        grading.overallFeedback || '',
+        grading.strengths || '',
+        grading.improvements || '',
+        JSON.stringify(grading.detailedResults || []),
+        kstTimestamp
+      ).run();
+
+      console.log(`✅ homework_gradings_v2에 저장 완료: ${submissionId}`);
+    }
+
+    // 8. homework_submissions_v2도 업데이트 (호환성 유지)
     const gradingResultJson = JSON.stringify(workerResult.results);
     
     await DB.prepare(`
@@ -250,7 +313,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ 채점 완료: ${submissionId}`);
 
-    // 7. 결과 반환
+    // 9. 결과 반환
     return new Response(
       JSON.stringify({
         success: true,
