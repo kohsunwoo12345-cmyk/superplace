@@ -234,7 +234,9 @@ export async function onRequestPost(context) {
       locationType,
       maxParticipants,
       formHtml,
-      useCustomForm
+      useCustomForm,
+      ctaButtonText,
+      requiredFields
     } = body;
 
     if (!title || !date || !time) {
@@ -258,32 +260,69 @@ export async function onRequestPost(context) {
       time
     });
 
-    // Insert into seminars table
-    await db.prepare(`
-      INSERT INTO seminars (
-        id, title, description, detailHtml, mainImage, instructor, 
-        date, time, location, locationType, maxParticipants, 
-        status, formHtml, useCustomForm, createdBy, createdAt, updatedAt
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)
-    `).bind(
-      seminarId,
-      title,
-      description || null,
-      detailHtml || null,
-      mainImage || null,
-      instructor || null,
-      date,
-      time,
-      location || null,
-      locationType || 'online',
-      maxParticipants || 100,
-      formHtml || null,
-      useCustomForm || 0,
-      user.id,
-      now,
-      now
-    ).run();
+    // Try to insert with new fields, fallback if columns don't exist
+    try {
+      await db.prepare(`
+        INSERT INTO seminars (
+          id, title, description, detailHtml, mainImage, instructor, 
+          date, time, location, locationType, maxParticipants, 
+          status, formHtml, useCustomForm, ctaButtonText, requiredFields, 
+          createdBy, createdAt, updatedAt
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        seminarId,
+        title,
+        description || null,
+        detailHtml || null,
+        mainImage || null,
+        instructor || null,
+        date,
+        time,
+        location || null,
+        locationType || 'online',
+        maxParticipants || 100,
+        formHtml || null,
+        useCustomForm || 0,
+        ctaButtonText || '신청하기',
+        requiredFields ? JSON.stringify(requiredFields) : null,
+        user.id,
+        now,
+        now
+      ).run();
+    } catch (insertError) {
+      // If new columns don't exist, use old schema
+      if (insertError.message.includes('no column named')) {
+        console.log('⚠️ Using legacy schema (without custom form fields)');
+        await db.prepare(`
+          INSERT INTO seminars (
+            id, title, description, detailHtml, mainImage, instructor, 
+            date, time, location, locationType, maxParticipants, 
+            status, formHtml, useCustomForm, createdBy, createdAt, updatedAt
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)
+        `).bind(
+          seminarId,
+          title,
+          description || null,
+          detailHtml || null,
+          mainImage || null,
+          instructor || null,
+          date,
+          time,
+          location || null,
+          locationType || 'online',
+          maxParticipants || 100,
+          formHtml || null,
+          useCustomForm || 0,
+          user.id,
+          now,
+          now
+        ).run();
+      } else {
+        throw insertError;
+      }
+    }
 
     console.log('✅ Seminar created:', seminarId);
 

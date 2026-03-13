@@ -33,6 +33,8 @@ export default function SeminarsAdminPage() {
   const [selectedSeminar, setSelectedSeminar] = useState(null);
   const [applications, setApplications] = useState([]);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -47,7 +49,9 @@ export default function SeminarsAdminPage() {
     locationType: 'online',
     maxParticipants: 100,
     formHtml: '',
-    useCustomForm: 0
+    useCustomForm: 0,
+    ctaButtonText: '신청하기',
+    requiredFields: []
   });
 
   useEffect(() => {
@@ -84,6 +88,53 @@ export default function SeminarsAdminPage() {
   const showMessage = (type, text) => {
     setMessage({ type, text });
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+  };
+
+  const handleImageUpload = async (file) => {
+    if (!file) return null;
+
+    try {
+      setUploadingImage(true);
+      const token = localStorage.getItem('token');
+      
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+
+      const response = await fetch('/api/upload/seminar-image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: uploadFormData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showMessage('success', '이미지 업로드 성공!');
+        return data.url;
+      } else {
+        showMessage('error', data.error || '이미지 업로드 실패');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      showMessage('error', '이미지 업로드 중 오류 발생');
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const url = await handleImageUpload(file);
+      if (url) {
+        setFormData({ ...formData, mainImage: url });
+      }
+    }
   };
 
   const handleCreate = async () => {
@@ -236,7 +287,9 @@ export default function SeminarsAdminPage() {
       locationType: seminar.locationType || 'online',
       maxParticipants: seminar.maxParticipants || 100,
       formHtml: seminar.formHtml || '',
-      useCustomForm: seminar.useCustomForm || 0
+      useCustomForm: seminar.useCustomForm || 0,
+      ctaButtonText: seminar.ctaButtonText || '신청하기',
+      requiredFields: seminar.requiredFields ? (typeof seminar.requiredFields === 'string' ? JSON.parse(seminar.requiredFields) : seminar.requiredFields) : []
     });
     setIsEditDialogOpen(true);
   };
@@ -254,9 +307,12 @@ export default function SeminarsAdminPage() {
       locationType: 'online',
       maxParticipants: 100,
       formHtml: '',
-      useCustomForm: 0
+      useCustomForm: 0,
+      ctaButtonText: '신청하기',
+      requiredFields: []
     });
     setSelectedSeminar(null);
+    setImageFile(null);
   };
 
   const handleChange = (field, value) => {
@@ -453,13 +509,38 @@ export default function SeminarsAdminPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="mainImage">메인 이미지 URL</Label>
-              <Input
-                id="mainImage"
-                value={formData.mainImage}
-                onChange={(e) => handleChange('mainImage', e.target.value)}
-                placeholder="https://example.com/image.jpg"
-              />
+              <Label htmlFor="mainImage">메인 이미지</Label>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    disabled={uploadingImage}
+                    className="flex-1"
+                  />
+                  {uploadingImage && (
+                    <span className="text-sm text-gray-500">업로드 중...</span>
+                  )}
+                </div>
+                <Input
+                  id="mainImage"
+                  value={formData.mainImage}
+                  onChange={(e) => handleChange('mainImage', e.target.value)}
+                  placeholder="또는 이미지 URL 직접 입력"
+                  className="text-sm"
+                />
+                {formData.mainImage && (
+                  <div className="mt-2">
+                    <img 
+                      src={formData.mainImage} 
+                      alt="Preview" 
+                      className="w-32 h-32 object-cover rounded border"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -548,6 +629,53 @@ export default function SeminarsAdminPage() {
               <p className="text-xs text-gray-500">HTML 코드를 입력하여 상세 페이지를 꾸밀 수 있습니다</p>
             </div>
 
+            {/* CTA Button Text */}
+            <div className="space-y-2">
+              <Label htmlFor="ctaButtonText">신청 버튼 텍스트</Label>
+              <Input
+                id="ctaButtonText"
+                value={formData.ctaButtonText}
+                onChange={(e) => handleChange('ctaButtonText', e.target.value)}
+                placeholder="신청하기"
+              />
+              <p className="text-xs text-gray-500">신청 버튼에 표시될 텍스트를 입력하세요</p>
+            </div>
+
+            {/* Required Fields Configuration */}
+            <div className="space-y-2">
+              <Label>필수 입력 필드 선택</Label>
+              <div className="grid grid-cols-2 gap-3 p-4 border rounded-lg">
+                {['name', 'email', 'phone', 'academy', 'position'].map((field) => (
+                  <div key={field} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`field-${field}`}
+                      checked={formData.requiredFields?.includes(field) || false}
+                      onChange={(e) => {
+                        const current = formData.requiredFields || [];
+                        if (e.target.checked) {
+                          handleChange('requiredFields', [...current, field]);
+                        } else {
+                          handleChange('requiredFields', current.filter(f => f !== field));
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <Label htmlFor={`field-${field}`} className="cursor-pointer">
+                      {field === 'name' && '이름'}
+                      {field === 'email' && '이메일'}
+                      {field === 'phone' && '전화번호'}
+                      {field === 'academy' && '학원명'}
+                      {field === 'position' && '직책'}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500">
+                선택한 필드는 신청 시 필수로 입력해야 합니다 (이름, 이메일은 기본 필수)
+              </p>
+            </div>
+
             {/* Custom Form */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -623,12 +751,38 @@ export default function SeminarsAdminPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-mainImage">메인 이미지 URL</Label>
-              <Input
-                id="edit-mainImage"
-                value={formData.mainImage}
-                onChange={(e) => handleChange('mainImage', e.target.value)}
-              />
+              <Label htmlFor="edit-mainImage">메인 이미지</Label>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    disabled={uploadingImage}
+                    className="flex-1"
+                  />
+                  {uploadingImage && (
+                    <span className="text-sm text-gray-500">업로드 중...</span>
+                  )}
+                </div>
+                <Input
+                  id="edit-mainImage"
+                  value={formData.mainImage}
+                  onChange={(e) => handleChange('mainImage', e.target.value)}
+                  placeholder="또는 이미지 URL 직접 입력"
+                  className="text-sm"
+                />
+                {formData.mainImage && (
+                  <div className="mt-2">
+                    <img 
+                      src={formData.mainImage} 
+                      alt="Preview" 
+                      className="w-32 h-32 object-cover rounded border"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -709,6 +863,53 @@ export default function SeminarsAdminPage() {
                 rows={8}
                 className="font-mono text-sm"
               />
+            </div>
+
+            {/* CTA Button Text */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-ctaButtonText">신청 버튼 텍스트</Label>
+              <Input
+                id="edit-ctaButtonText"
+                value={formData.ctaButtonText}
+                onChange={(e) => handleChange('ctaButtonText', e.target.value)}
+                placeholder="신청하기"
+              />
+              <p className="text-xs text-gray-500">신청 버튼에 표시될 텍스트를 입력하세요</p>
+            </div>
+
+            {/* Required Fields Configuration */}
+            <div className="space-y-2">
+              <Label>필수 입력 필드 선택</Label>
+              <div className="grid grid-cols-2 gap-3 p-4 border rounded-lg">
+                {['name', 'email', 'phone', 'academy', 'position'].map((field) => (
+                  <div key={field} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`edit-field-${field}`}
+                      checked={formData.requiredFields?.includes(field) || false}
+                      onChange={(e) => {
+                        const current = formData.requiredFields || [];
+                        if (e.target.checked) {
+                          handleChange('requiredFields', [...current, field]);
+                        } else {
+                          handleChange('requiredFields', current.filter(f => f !== field));
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <Label htmlFor={`edit-field-${field}`} className="cursor-pointer">
+                      {field === 'name' && '이름'}
+                      {field === 'email' && '이메일'}
+                      {field === 'phone' && '전화번호'}
+                      {field === 'academy' && '학원명'}
+                      {field === 'position' && '직책'}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500">
+                선택한 필드는 신청 시 필수로 입력해야 합니다 (이름, 이메일은 기본 필수)
+              </p>
             </div>
 
             <div className="space-y-2">
