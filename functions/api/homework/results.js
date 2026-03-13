@@ -171,10 +171,14 @@ export async function onRequestGet(context) {
     const formattedResults = results.map(r => {
       let gradingData = null;
       
+      // 디버그 로그
+      console.log(`🔍 제출 ${r.submissionId}: status=${r.status}, gradingResult=${r.gradingResult ? 'EXISTS' : 'NULL'}`);
+      
       // gradingResult JSON 파싱
       if (r.gradingResult && r.status === 'graded') {
         try {
           const parsed = JSON.parse(r.gradingResult);
+          console.log(`✅ gradingResult 파싱 성공 (${r.submissionId}):`, JSON.stringify(parsed).substring(0, 200));
           
           // Worker에서 반환하는 형식: [{subject, grading: {...}}]
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -187,6 +191,8 @@ export async function onRequestGet(context) {
             const score = totalQuestions > 0 
               ? Math.round((correctAnswers / totalQuestions) * 100) 
               : 0;
+            
+            console.log(`📊 점수 계산 (${r.submissionId}): ${correctAnswers}/${totalQuestions} = ${score}점`);
             
             gradingData = {
               score: score,
