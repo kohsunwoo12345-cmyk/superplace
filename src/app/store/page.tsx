@@ -117,7 +117,8 @@ const AIStorePage = () => {
             isTimeDeal: p.isTimeDeal,
             stockQuantity: p.stockQuantity,
             maxPurchasePerUser: p.maxPurchasePerUser,
-          }));
+          };
+          });
           
           setProducts(transformedProducts);
           console.log('📦 Transformed products:', transformedProducts.length);
