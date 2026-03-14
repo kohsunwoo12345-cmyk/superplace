@@ -1,5 +1,6 @@
 name = "superplacestudy"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
 
 # Cloudflare Pages Functions AI 바인딩
 [env.production]
