@@ -226,4 +226,3 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 };
-};
