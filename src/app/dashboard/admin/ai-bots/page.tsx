@@ -84,16 +84,31 @@ export default function AdminAIBotsPage() {
     }
 
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("로그인이 필요합니다.");
+        router.push("/login");
+        return;
+      }
+
       const response = await fetch(`/api/admin/ai-bots/${botId}`, {
         method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
       });
 
       if (response.ok) {
         alert("삭제되었습니다.");
         fetchBots();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(`삭제 실패: ${errorData.error || errorData.message || "알 수 없는 오류"}`);
+        console.error("삭제 실패:", response.status, errorData);
       }
     } catch (error) {
       console.error("삭제 실패:", error);
+      alert("삭제 중 오류가 발생했습니다.");
     }
   };
 

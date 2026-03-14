@@ -167,12 +167,41 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
 // AI 봇 삭제
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
   try {
-    const { DB } = context.env;
+    const { request, env } = context;
+    const { DB } = env;
     const botId = context.params.id as string;
 
+    // 인증 확인
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", message: "인증이 필요합니다." }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`🗑️ Deleting AI bot: ${botId}`);
+
+    // 봇 존재 확인
+    const existingBot = await DB.prepare(`
+      SELECT id, name FROM ai_bots WHERE id = ?
+    `).bind(botId).first();
+
+    if (!existingBot) {
+      return new Response(
+        JSON.stringify({ error: "Bot not found", message: "봇을 찾을 수 없습니다." }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`✅ Found bot to delete: ${existingBot.name}`);
+
+    // 삭제 실행
     await DB.prepare(`
       DELETE FROM ai_bots WHERE id = ?
     `).bind(botId).run();
+
+    console.log(`✅ Bot deleted successfully: ${existingBot.name}`);
 
     return new Response(
       JSON.stringify({ success: true, message: "AI bot deleted successfully" }),
