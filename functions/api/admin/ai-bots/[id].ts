@@ -281,7 +281,27 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
       console.log(`⚠️ chat_sessions: ${e.message}`);
     }
 
-    // 8. Finally, delete the bot itself
+    // 8. Delete from chat_messages
+    try {
+      const result8 = await DB.prepare(`
+        DELETE FROM chat_messages WHERE botId = ?
+      `).bind(botId).run();
+      console.log(`✅ Deleted ${result8.meta?.changes || 0} chat_messages`);
+    } catch (e: any) {
+      console.log(`⚠️ chat_messages: ${e.message}`);
+    }
+
+    // 9. Delete from bot_purchase_requests
+    try {
+      const result9 = await DB.prepare(`
+        DELETE FROM bot_purchase_requests WHERE botId = ?
+      `).bind(botId).run();
+      console.log(`✅ Deleted ${result9.meta?.changes || 0} bot_purchase_requests`);
+    } catch (e: any) {
+      console.log(`⚠️ bot_purchase_requests: ${e.message}`);
+    }
+
+    // 10. Finally, delete the bot itself
     console.log(`🗑️ Executing DELETE query for bot...`);
     const deleteResult = await DB.prepare(`
       DELETE FROM ai_bots WHERE id = ?
