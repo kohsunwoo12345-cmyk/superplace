@@ -107,13 +107,20 @@ export default function SeminarsAdminPage() {
   };
 
   const handleImageUpload = async (file) => {
-    if (!file) return null;
+    if (!file) {
+      console.log('⚠️ No file provided to upload');
+      return null;
+    }
+
+    console.log('📤 Starting image upload:', file.name, file.type, file.size);
 
     try {
       setUploadingImage(true);
       
       const uploadFormData = new FormData();
       uploadFormData.append('file', file);
+
+      console.log('🔑 Token for upload:', token ? 'Present' : 'Missing');
 
       const response = await fetch('/api/upload/seminar-image', {
         method: 'POST',
@@ -123,20 +130,25 @@ export default function SeminarsAdminPage() {
         body: uploadFormData
       });
 
+      console.log('📡 Upload response status:', response.status);
       const data = await response.json();
+      console.log('📦 Upload response data:', data);
 
       if (data.success) {
+        console.log('✅ Image uploaded successfully:', data.url);
         showMessage('success', '이미지 업로드 성공!');
         return data.url;
       } else {
+        console.error('❌ Image upload failed:', data.error);
         showMessage('error', data.error || '이미지 업로드 실패');
         return null;
       }
     } catch (error) {
-      console.error('Error uploading image:', error);
-      showMessage('error', '이미지 업로드 중 오류 발생');
+      console.error('❌ Error uploading image:', error);
+      showMessage('error', '이미지 업로드 중 오류 발생: ' + error.message);
       return null;
     } finally {
+      console.log('🏁 Upload finished, setting uploadingImage to false');
       setUploadingImage(false);
     }
   };
@@ -153,27 +165,43 @@ export default function SeminarsAdminPage() {
   };
 
   const handleCreate = async () => {
+    console.log('🔘 handleCreate called');
+    console.log('📊 Current state:', {
+      submitting,
+      uploadingImage,
+      formData: {
+        title: formData.title,
+        date: formData.date,
+        time: formData.time,
+        mainImage: formData.mainImage
+      }
+    });
+
     try {
       // Prevent double submission
       if (submitting) {
-        console.log('Already submitting, please wait...');
+        console.log('⚠️ Already submitting, please wait...');
         return;
       }
 
       // Validation
       if (!formData.title || !formData.title.trim()) {
+        console.log('❌ Validation failed: title missing');
         showMessage('error', '세미나 제목을 입력해주세요');
         return;
       }
       if (!formData.date) {
+        console.log('❌ Validation failed: date missing');
         showMessage('error', '날짜를 선택해주세요');
         return;
       }
       if (!formData.time || !formData.time.trim()) {
+        console.log('❌ Validation failed: time missing');
         showMessage('error', '시간을 입력해주세요');
         return;
       }
 
+      console.log('✅ Validation passed, starting submission...');
       setSubmitting(true);
       console.log('✅ Creating seminar with data:', formData);
       console.log('🔑 Token available:', !!token);
@@ -865,10 +893,25 @@ export default function SeminarsAdminPage() {
               </Button>
               <Button 
                 type="button"
-                onClick={handleCreate}
+                onClick={() => {
+                  console.log('🖱️ 등록 버튼 클릭됨');
+                  console.log('📊 submitting:', submitting);
+                  console.log('📊 uploadingImage:', uploadingImage);
+                  handleCreate();
+                }}
                 disabled={submitting}
               >
                 {submitting ? (
+                  <>
+                    <span className="animate-spin mr-2">⏳</span>
+                    등록 중...
+                  </>
+                ) : uploadingImage ? (
+                  <>
+                    <span className="animate-spin mr-2">📤</span>
+                    이미지 업로드 중...
+                  </>
+                ) : (
                   <>
                     <span className="animate-spin mr-2">⏳</span>
                     등록 중...
