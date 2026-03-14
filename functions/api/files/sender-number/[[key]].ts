@@ -6,7 +6,7 @@ interface Env {
 }
 
 export async function onRequest(context: { request: Request; env: Env; params: any }) {
-  const { env, params } = context;
+  const { env, params, request } = context;
   
   try {
     // URL에서 키 추출 (예: snr_xxx/telecom.pdf)
@@ -17,6 +17,11 @@ export async function onRequest(context: { request: Request; env: Env; params: a
     }
 
     console.log('📥 파일 요청:', key);
+
+    // download 파라미터 확인
+    const url = new URL(request.url);
+    const download = url.searchParams.get('download');
+    const filename = url.searchParams.get('filename');
 
     // R2에서 파일 가져오기
     if (!env.SENDER_NUMBER_BUCKET) {
@@ -33,6 +38,13 @@ export async function onRequest(context: { request: Request; env: Env; params: a
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Cache-Control', 'public, max-age=31536000');
+    
+    // 다운로드 모드이거나 filename이 지정된 경우 Content-Disposition 헤더 추가
+    if (download === 'true' || filename) {
+      const actualFilename = filename || key.split('/').pop() || 'download';
+      headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(actualFilename)}"`);
+      console.log('💾 다운로드 모드:', actualFilename);
+    }
 
     return new Response(object.body, {
       headers,

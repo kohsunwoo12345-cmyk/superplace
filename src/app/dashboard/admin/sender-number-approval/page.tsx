@@ -190,12 +190,13 @@ export default function SenderNumberApprovalPage() {
       link.click();
       document.body.removeChild(link);
     } else {
-      // R2 URL을 다운로드
-      console.log('🔗 R2 URL 다운로드:', url);
+      // R2 URL에 다운로드 파라미터 추가
+      const downloadUrl = `${url}?download=true&filename=${encodeURIComponent(actualFilename)}`;
+      console.log('🔗 R2 다운로드 URL:', downloadUrl);
+      
       const link = document.createElement('a');
-      link.href = url;
+      link.href = downloadUrl;
       link.download = actualFilename;
-      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
