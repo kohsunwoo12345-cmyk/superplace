@@ -477,60 +477,6 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                전체 학생
-              </CardTitle>
-              <Users className="h-5 w-5 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-blue-600">
-                {stats?.totalStudents || 0}명
-              </div>
-              <p className="text-sm text-gray-500 mt-2">
-                선생님 {stats?.totalTeachers || 0}명
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-green-100 hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                오늘 출석
-              </CardTitle>
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-green-600">
-                {stats?.todayStats?.attendance || 0}명
-              </div>
-              <p className="text-sm text-gray-500 mt-2">
-                출석률 {stats?.attendanceRate || 0}%
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-purple-100 hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                오늘 숙제 제출
-              </CardTitle>
-              <FileText className="h-5 w-5 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-purple-600">
-                {stats?.todaySubmittedHomework || 0}개
-              </div>
-              <p className="text-sm text-gray-500 mt-2">
-                오늘 제출됨
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Quick Actions - 바로가기 블록 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {/* 학생 관리 */}

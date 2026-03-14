@@ -187,7 +187,7 @@ export default function SeminarDetailPage() {
   }
 
   const isRegistrationOpen =
-    seminar.status === "upcoming" &&
+    (seminar.status === "upcoming" || seminar.status === "active") &&
     seminar.currentParticipants < seminar.maxParticipants;
 
   return (
@@ -287,7 +287,7 @@ export default function SeminarDetailPage() {
             <div className="mt-4 p-4 bg-gray-100 rounded-lg text-center">
               <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-500" />
               <p className="font-medium text-gray-700">
-                {seminar.status !== "upcoming"
+                {seminar.status === "cancelled" || seminar.status === "completed"
                   ? "종료된 세미나입니다"
                   : "신청이 마감되었습니다"}
               </p>
