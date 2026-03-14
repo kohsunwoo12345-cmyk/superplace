@@ -185,6 +185,15 @@ export default function SeminarsAdminPage() {
       }
 
       // Validation
+      console.log('🔍 Validating formData:', {
+        title: formData.title,
+        titleLength: formData.title?.length,
+        date: formData.date,
+        dateType: typeof formData.date,
+        time: formData.time,
+        timeLength: formData.time?.length
+      });
+
       if (!formData.title || !formData.title.trim()) {
         console.log('❌ Validation failed: title missing');
         showMessage('error', '세미나 제목을 입력해주세요');
@@ -192,6 +201,7 @@ export default function SeminarsAdminPage() {
       }
       if (!formData.date) {
         console.log('❌ Validation failed: date missing');
+        console.log('💡 Tip: date 필드에 값이 입력되었는지 확인하세요');
         showMessage('error', '날짜를 선택해주세요');
         return;
       }
@@ -401,7 +411,12 @@ export default function SeminarsAdminPage() {
   };
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    console.log(`📝 Field changed: ${field} = "${value}"`);
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      console.log('📊 Updated formData:', newData);
+      return newData;
+    });
   };
 
   const stats = {
