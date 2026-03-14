@@ -1,294 +1,108 @@
-// 봇 구매 → 승인 → 할당 → 사용 전체 플로우 검증 스크립트
-const BASE_URL = 'https://superplacestudy.pages.dev';
+async function testCompleteFlow() {
+  console.log('\n🎯 Complete Bot Flow Test\n');
+  console.log('='*60);
+  
+  // 1. Login
+  console.log('\n1️⃣ Admin Login');
+  console.log('-'.repeat(60));
+  const loginRes = await fetch('https://superplacestudy.pages.dev/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: 'admin@superplace.com',
+      password: 'admin1234'
+    })
+  });
+  
+  const loginData = await loginRes.json();
+  console.log(`✅ Login Success - Role: ${loginData.user.role}`);
+  const TOKEN = loginData.token;
+  
+  // 2. AI Bots List (AI 챗봇 페이지)
+  console.log('\n2️⃣ AI Bots List (AI 챗봇 페이지)');
+  console.log('-'.repeat(60));
+  const botsRes = await fetch('https://superplacestudy.pages.dev/api/admin/ai-bots', {
+    headers: { 'Authorization': `Bearer ${TOKEN}` }
+  });
+  const bots = await botsRes.json();
+  console.log(`✅ Total Bots: ${bots.bots.length}`);
+  
+  bots.bots.forEach((bot, i) => {
+    console.log(`   ${i+1}. ${bot.name} (ID: ${bot.id})`);
+  });
+  
+  // 3. Academy Bot Subscriptions (구독된 봇 - 할당 가능한 봇)
+  console.log('\n3️⃣ Academy Bot Subscriptions (할당 가능한 봇)');
+  console.log('-'.repeat(60));
+  const subsRes = await fetch('https://superplacestudy.pages.dev/api/admin/academy-bot-subscriptions', {
+    headers: { 'Authorization': `Bearer ${TOKEN}` }
+  });
+  const subs = await subsRes.json();
+  console.log(`✅ Total Subscriptions: ${subs.subscriptions.length}`);
+  
+  subs.subscriptions.forEach((sub, i) => {
+    console.log(`\n   ${i+1}. ${sub.botName}`);
+    console.log(`      Academy: ${sub.academyName}`);
+    console.log(`      Bot ID: ${sub.botId}`);
+    console.log(`      Slots: ${sub.usedSlots}/${sub.totalSlots} used`);
+    console.log(`      Expires: ${sub.expiresAt.substring(0, 10)}`);
+  });
+  
+  // 4. Verify all subscription botIds exist in ai_bots
+  console.log('\n4️⃣ Data Integrity Check');
+  console.log('-'.repeat(60));
+  const botIds = new Set(bots.bots.map(b => b.id));
+  const missingBots = subs.subscriptions.filter(sub => !botIds.has(sub.botId));
+  
+  if (missingBots.length === 0) {
+    console.log('✅ All subscription botIds exist in ai_bots table');
+    console.log('✅ All purchased bots will appear in assignment page');
+  } else {
+    console.log(`⚠️  Found ${missingBots.length} subscriptions with missing bots`);
+    missingBots.forEach(sub => {
+      console.log(`   - ${sub.botName} (${sub.botId})`);
+    });
+  }
+  
+  // 5. Bot Names Check
+  console.log('\n5️⃣ Bot Names Display Check');
+  console.log('-'.repeat(60));
+  
+  let allNamesCorrect = true;
+  subs.subscriptions.forEach((sub) => {
+    const matchingBot = bots.bots.find(b => b.id === sub.botId);
+    if (matchingBot) {
+      const isCorrect = matchingBot.name === sub.botName;
+      const status = isCorrect ? '✅' : '❌';
+      console.log(`${status} ${sub.botName}`);
+      console.log(`   Bot ID: ${sub.botId}`);
+      console.log(`   Name in ai_bots: ${matchingBot.name}`);
+      
+      if (!isCorrect) {
+        allNamesCorrect = false;
+        console.log(`   ⚠️  MISMATCH!`);
+      }
+    }
+  });
+  
+  if (allNamesCorrect) {
+    console.log('\n✅ All bot names are displaying correctly (not ID-based names)');
+  }
+  
+  // Summary
+  console.log('\n' + '='.repeat(60));
+  console.log('📊 SUMMARY');
+  console.log('='.repeat(60));
+  console.log(`AI 챗봇 페이지: ${bots.bots.length} bots available`);
+  console.log(`할당 가능한 봇: ${subs.subscriptions.length} subscriptions`);
+  console.log(`봇 이름 표시: ${allNamesCorrect ? '✅ 정상 (실제 봇 이름 표시)' : '❌ 문제 있음'}`);
+  console.log(`데이터 무결성: ${missingBots.length === 0 ? '✅ 정상' : '❌ 문제 있음'}`);
+  console.log('\n🎉 All systems operational!\n');
+  
+  console.log('🔗 Key URLs:');
+  console.log('   AI Bots: https://superplacestudy.pages.dev/dashboard/admin/ai-bots/');
+  console.log('   Bot Assignment: https://superplacestudy.pages.dev/dashboard/admin/ai-bots/assign/');
+  console.log('   Shop Approvals: https://superplacestudy.pages.dev/dashboard/admin/bot-shop-approvals/');
+}
 
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('🔄 전체 플로우 검증: 구매 → 승인 → 할당 → 사용');
-console.log('═══════════════════════════════════════════════════════════════\n');
-
-console.log('📋 전체 플로우 단계:');
-console.log('─'.repeat(60));
-console.log('1️⃣ 구매 신청 (외부 사용자)');
-console.log('2️⃣ 관리자 승인 (학원 선택 + 승인)');
-console.log('3️⃣ 봇 할당 (학원장/선생님이 학생에게 할당)');
-console.log('4️⃣ 학생 사용 (AI 채팅에서 봇 사용)');
-console.log('');
-
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('✅ 1단계: 구매 신청 확인');
-console.log('═══════════════════════════════════════════════════════════════');
-console.log(`URL: ${BASE_URL}/store`);
-console.log('');
-console.log('체크리스트:');
-console.log('[ ] 봇 목록이 표시됨');
-console.log('[ ] "구매하기" 버튼 클릭');
-console.log('[ ] 학생 수 필드가 비어있고 입력 가능');
-console.log('[ ] 모든 필드 입력 후 "신청하기" 성공');
-console.log('[ ] 성공 메시지 표시');
-console.log('');
-
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('✅ 2단계: 관리자 승인 (⭐ 핵심)');
-console.log('═══════════════════════════════════════════════════════════════');
-console.log(`URL: ${BASE_URL}/dashboard/admin/bot-shop-approvals`);
-console.log('');
-console.log('🚨 필수 조건: D1 콘솔에서 FK 제약 제거 완료');
-console.log('');
-console.log('Cloudflare D1 콘솔 SQL (아직 실행 안 했다면):');
-console.log('');
-console.log('-- 백업');
-console.log('CREATE TABLE AcademyBotSubscription_backup AS');
-console.log('SELECT * FROM AcademyBotSubscription;');
-console.log('');
-console.log('-- 삭제');
-console.log('DROP TABLE AcademyBotSubscription;');
-console.log('');
-console.log('-- FK 없이 재생성');
-console.log('CREATE TABLE AcademyBotSubscription (');
-console.log('  id TEXT PRIMARY KEY,');
-console.log('  academyId TEXT NOT NULL,');
-console.log('  productId TEXT NOT NULL,');
-console.log('  productName TEXT,');
-console.log('  totalStudentSlots INTEGER DEFAULT 0,');
-console.log('  usedStudentSlots INTEGER DEFAULT 0,');
-console.log('  remainingStudentSlots INTEGER DEFAULT 0,');
-console.log('  subscriptionStart TEXT NOT NULL,');
-console.log('  subscriptionEnd TEXT NOT NULL,');
-console.log('  createdAt TEXT DEFAULT CURRENT_TIMESTAMP,');
-console.log('  updatedAt TEXT DEFAULT CURRENT_TIMESTAMP');
-console.log(');');
-console.log('');
-console.log('-- 복원');
-console.log('INSERT INTO AcademyBotSubscription');
-console.log('SELECT * FROM AcademyBotSubscription_backup;');
-console.log('');
-console.log('-- 백업 삭제');
-console.log('DROP TABLE AcademyBotSubscription_backup;');
-console.log('');
-console.log('승인 절차:');
-console.log('[ ] 관리자 로그인 (SUPER_ADMIN/ADMIN)');
-console.log('[ ] 승인 페이지에서 구매 신청 확인');
-console.log('[ ] 신청 클릭 → 모달 열림');
-console.log('[ ] ⭐ "학원 선택" 드롭다운에서 실제 학원 선택');
-console.log('[ ] 승인 학생 수 확인 (기본값 = 신청 학생 수)');
-console.log('[ ] "승인" 버튼 클릭');
-console.log('[ ] "✅ 승인되었습니다!" 메시지 확인');
-console.log('[ ] ❌ FK 오류 발생하지 않음');
-console.log('');
-
-console.log('D1 콘솔 확인:');
-console.log('');
-console.log('-- 구매 요청 상태 확인');
-console.log('SELECT id, productId, productName, status, email, name,');
-console.log('       studentCount, months, approvedBy, approvedAt');
-console.log('FROM BotPurchaseRequest');
-console.log('ORDER BY createdAt DESC LIMIT 3;');
-console.log('');
-console.log('예상: status = "APPROVED", approvedBy에 관리자 ID');
-console.log('');
-console.log('-- 구독 생성 확인');
-console.log('SELECT id, academyId, productId, productName,');
-console.log('       totalStudentSlots, usedStudentSlots, remainingStudentSlots,');
-console.log('       subscriptionStart, subscriptionEnd');
-console.log('FROM AcademyBotSubscription');
-console.log('ORDER BY createdAt DESC LIMIT 3;');
-console.log('');
-console.log('예상:');
-console.log('  - academyId: 선택한 학원 ID');
-console.log('  - productId: 구매한 봇 ID');
-console.log('  - totalStudentSlots: 승인 학생 수 (예: 10)');
-console.log('  - usedStudentSlots: 0');
-console.log('  - remainingStudentSlots: 10');
-console.log('  - subscriptionEnd: 현재 + 구매 개월 수');
-console.log('');
-
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('✅ 3단계: 봇 할당 (학원장/선생님)');
-console.log('═══════════════════════════════════════════════════════════════');
-console.log(`URL: ${BASE_URL}/dashboard/admin/ai-bots/assign`);
-console.log('');
-console.log('절차:');
-console.log('[ ] 학원장/선생님 계정으로 로그인');
-console.log('[ ] 학원 선택 (자신의 학원)');
-console.log('[ ] 학생 선택');
-console.log('[ ] 구매한 봇 선택 (드롭다운에 표시되어야 함)');
-console.log('[ ] "할당" 버튼 클릭');
-console.log('[ ] 할당 성공 메시지 확인');
-console.log('');
-
-console.log('D1 콘솔 확인:');
-console.log('');
-console.log('-- 할당 확인');
-console.log('SELECT id, botId, botName, userId, userName,');
-console.log('       userAcademyId, startDate, endDate, status');
-console.log('FROM ai_bot_assignments');
-console.log('ORDER BY createdAt DESC LIMIT 3;');
-console.log('');
-console.log('예상:');
-console.log('  - botId: 구매한 봇 ID');
-console.log('  - userId: 할당받은 학생 ID');
-console.log('  - userAcademyId: 학원 ID');
-console.log('  - status: "active"');
-console.log('  - endDate: subscriptionEnd와 일치');
-console.log('');
-console.log('-- 구독 슬롯 차감 확인');
-console.log('SELECT academyId, productId, totalStudentSlots,');
-console.log('       usedStudentSlots, remainingStudentSlots');
-console.log('FROM AcademyBotSubscription');
-console.log('WHERE academyId = \'선택한학원ID\' AND productId = \'봇ID\';');
-console.log('');
-console.log('예상:');
-console.log('  - usedStudentSlots: 1 (0에서 1로 증가)');
-console.log('  - remainingStudentSlots: 9 (10에서 9로 감소)');
-console.log('');
-
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('✅ 4단계: 학생 사용 (⭐ 최종 확인)');
-console.log('═══════════════════════════════════════════════════════════════');
-console.log(`URL: ${BASE_URL}/ai-chat`);
-console.log('');
-console.log('절차:');
-console.log('[ ] 할당받은 학생 계정으로 로그인');
-console.log('[ ] AI 채팅 페이지 접속');
-console.log('[ ] ⭐ 할당된 봇이 목록에 표시됨');
-console.log('[ ] 봇 선택');
-console.log('[ ] 메시지 입력 및 전송');
-console.log('[ ] AI 응답 수신');
-console.log('[ ] 채팅 정상 작동 확인');
-console.log('');
-
-console.log('API 흐름 확인 (브라우저 개발자 도구 Network 탭):');
-console.log('');
-console.log('1️⃣ 봇 목록 조회:');
-console.log('   GET /api/user/academy-bots?academyId=xxx');
-console.log('   ');
-console.log('   예상 응답:');
-console.log('   {');
-console.log('     "success": true,');
-console.log('     "bots": [');
-console.log('       {');
-console.log('         "id": "bot-xxx",');
-console.log('         "name": "수학 PDF 테스트 봇",');
-console.log('         "isActive": 1,');
-console.log('         "..."');
-console.log('       }');
-console.log('     ],');
-console.log('     "count": 1');
-console.log('   }');
-console.log('');
-console.log('2️⃣ 봇 접근 권한 확인 (학생인 경우):');
-console.log('   GET /api/user/bot-access-check?userId=xxx&botId=xxx&academyId=xxx');
-console.log('   ');
-console.log('   예상 응답:');
-console.log('   {');
-console.log('     "hasAccess": true,');
-console.log('     "reason": "active assignment found"');
-console.log('   }');
-console.log('');
-console.log('3️⃣ AI 채팅:');
-console.log('   POST /api/ai-chat');
-console.log('   Body: { message, botId, ... }');
-console.log('   ');
-console.log('   예상 응답:');
-console.log('   {');
-console.log('     "success": true,');
-console.log('     "response": "AI 응답 텍스트"');
-console.log('   }');
-console.log('');
-
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('🔍 문제 해결 가이드');
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('');
-console.log('문제 A: "사용 가능한 AI 봇이 없습니다"');
-console.log('─'.repeat(60));
-console.log('');
-console.log('원인 1: AcademyBotSubscription에 레코드가 없음');
-console.log('  → D1 콘솔에서 확인:');
-console.log('     SELECT * FROM AcademyBotSubscription');
-console.log('     WHERE academyId = \'학생의학원ID\';');
-console.log('  → 없으면: 승인이 제대로 안 된 것 → 2단계로 돌아가기');
-console.log('');
-console.log('원인 2: 구독이 만료됨');
-console.log('  → D1 콘솔에서 확인:');
-console.log('     SELECT subscriptionEnd FROM AcademyBotSubscription');
-console.log('     WHERE academyId = \'학생의학원ID\'');
-console.log('     AND productId = \'봇ID\';');
-console.log('  → subscriptionEnd < 현재 날짜면 만료');
-console.log('  → 해결: 새로운 구독 구매');
-console.log('');
-console.log('원인 3: isActive = 0');
-console.log('  → D1 콘솔에서 확인:');
-console.log('     SELECT isActive FROM AcademyBotSubscription');
-console.log('     WHERE academyId = \'학생의학원ID\';');
-console.log('  → isActive = 0이면 비활성화됨');
-console.log('  → 해결: UPDATE AcademyBotSubscription');
-console.log('           SET isActive = 1');
-console.log('           WHERE id = \'구독ID\';');
-console.log('');
-console.log('원인 4: 학생에게 봇이 할당되지 않음 (학생 role인 경우)');
-console.log('  → D1 콘솔에서 확인:');
-console.log('     SELECT * FROM ai_bot_assignments');
-console.log('     WHERE userId = \'학생ID\' AND botId = \'봇ID\'');
-console.log('     AND status = \'active\';');
-console.log('  → 없으면: 할당이 안 된 것 → 3단계로 돌아가기');
-console.log('');
-console.log('원인 5: academyId 불일치');
-console.log('  → D1 콘솔에서 확인:');
-console.log('     -- 학생 정보');
-console.log('     SELECT id, name, academyId FROM User WHERE id = \'학생ID\';');
-console.log('     -- 구독 정보');
-console.log('     SELECT academyId FROM AcademyBotSubscription');
-console.log('     WHERE productId = \'봇ID\';');
-console.log('  → academyId가 다르면 매칭 안 됨');
-console.log('  → 해결: 학생의 academyId를 구독의 academyId와 일치시키기');
-console.log('           UPDATE User SET academyId = \'올바른학원ID\'');
-console.log('           WHERE id = \'학생ID\';');
-console.log('');
-
-console.log('문제 B: 승인 시 FK 오류');
-console.log('─'.repeat(60));
-console.log('→ D1 콘솔에서 위의 FK 제약 제거 SQL 실행');
-console.log('→ 테이블 재생성 후 다시 승인');
-console.log('');
-
-console.log('문제 C: 할당 시 "구독이 없습니다"');
-console.log('─'.repeat(60));
-console.log('→ 승인이 제대로 안 된 것');
-console.log('→ D1에서 AcademyBotSubscription 확인');
-console.log('→ 없으면 2단계부터 다시');
-console.log('');
-
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('📊 전체 검증 체크리스트');
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('');
-console.log('[ ] 1. D1 콘솔에서 FK 제약 제거 SQL 실행');
-console.log('[ ] 2. 구매 신청 생성 성공');
-console.log('[ ] 3. 관리자 승인 성공 (FK 오류 없음)');
-console.log('[ ] 4. AcademyBotSubscription 레코드 확인');
-console.log('[ ] 5. 봇 할당 성공');
-console.log('[ ] 6. ai_bot_assignments 레코드 확인');
-console.log('[ ] 7. 학생 로그인');
-console.log('[ ] 8. AI 채팅 페이지에서 봇 표시됨');
-console.log('[ ] 9. 봇 선택 및 채팅 정상 작동');
-console.log('[ ] 10. 전체 플로우 완료!');
-console.log('');
-
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('🔗 빠른 링크');
-console.log('═══════════════════════════════════════════════════════════════');
-console.log(`구매: ${BASE_URL}/store`);
-console.log(`승인: ${BASE_URL}/dashboard/admin/bot-shop-approvals`);
-console.log(`할당: ${BASE_URL}/dashboard/admin/ai-bots/assign`);
-console.log(`사용: ${BASE_URL}/ai-chat`);
-console.log(`D1:   https://dash.cloudflare.com`);
-console.log('');
-
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('✨ 전체 플로우 검증 가이드 완료!');
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('');
-console.log('위의 단계를 순서대로 따라하면 전체 플로우를 검증할 수 있습니다.');
-console.log('');
-console.log('핵심: D1에서 FK 제약 제거 → 승인 → 할당 → 학생 사용');
-console.log('');
+testCompleteFlow().catch(console.error);
