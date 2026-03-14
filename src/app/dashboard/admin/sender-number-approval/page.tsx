@@ -44,6 +44,7 @@ export default function SenderNumberApprovalPage() {
   const [processing, setProcessing] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('🚀 페이지 로드 - 버전: 2026-03-14-v2');
     fetchRequests();
   }, []);
 
@@ -330,14 +331,27 @@ export default function SenderNumberApprovalPage() {
                     
                     {/* 파일이 하나도 없거나 모두 placeholder면 안내 메시지 */}
                     {(() => {
-                      const hasValidFile = (url: string | undefined) => 
-                        url && !url.startsWith('placeholder_');
+                      const hasValidFile = (url: string | undefined) => {
+                        const isValid = url && !url.startsWith('placeholder_');
+                        console.log('🔍 파일 유효성 체크:', { url, isValid });
+                        return isValid;
+                      };
                       
-                      const hasAnyValidFile = 
-                        hasValidFile(request.fileUrls?.telecomCertificate) ||
-                        hasValidFile(request.fileUrls?.businessRegistration) ||
-                        hasValidFile(request.fileUrls?.serviceAgreement) ||
-                        hasValidFile(request.fileUrls?.privacyAgreement);
+                      const telecomValid = hasValidFile(request.fileUrls?.telecomCertificate);
+                      const businessValid = hasValidFile(request.fileUrls?.businessRegistration);
+                      const serviceValid = hasValidFile(request.fileUrls?.serviceAgreement);
+                      const privacyValid = hasValidFile(request.fileUrls?.privacyAgreement);
+                      
+                      console.log('📎 파일 유효성 종합:', {
+                        telecom: telecomValid,
+                        business: businessValid,
+                        service: serviceValid,
+                        privacy: privacyValid
+                      });
+                      
+                      const hasAnyValidFile = telecomValid || businessValid || serviceValid || privacyValid;
+                      
+                      console.log('✅ 표시 가능한 파일:', hasAnyValidFile ? '있음' : '없음');
                       
                       if (!hasAnyValidFile) {
                         return (
