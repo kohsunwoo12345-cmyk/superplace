@@ -913,11 +913,6 @@ export default function SeminarsAdminPage() {
                   </>
                 ) : (
                   <>
-                    <span className="animate-spin mr-2">⏳</span>
-                    등록 중...
-                  </>
-                ) : (
-                  <>
                     <Save className="w-4 h-4 mr-2" />
                     등록
                   </>
