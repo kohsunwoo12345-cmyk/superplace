@@ -157,6 +157,11 @@ export async function onRequestGet(context) {
         SELECT COUNT(*) as count FROM ClassStudent WHERE classId = ?
       `).bind(cls.id).first();
       cls.studentCount = countResult?.count || 0;
+      
+      // Add _count object for frontend compatibility
+      cls._count = {
+        students: countResult?.count || 0
+      };
 
       // Get schedules
       const schedules = await db.prepare(`
