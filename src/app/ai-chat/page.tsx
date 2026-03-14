@@ -1057,12 +1057,10 @@ export default function ModernAIChatPage() {
         
         problemText = problemText.trim();
         
-        // Step 4: 유효성 검사
+        // Step 4: 유효성 검사 (완화된 조건)
         const isValidProblem = 
           problemText.length >= 5 &&
-          problemText.length <= 2000 &&
-          (/계산|구하|풀이|답하|선택|고르|쓰시오|바꾸|번역|해석|영작|맞는|틀린|일치|다음|알맞|적절|solve|calculate|find|choose|what|which|translate|write|correct/i.test(problemText) ||
-           /[=?①②③④⑤]/.test(problemText));
+          problemText.length <= 2000;
         
         if (!isValidProblem) {
           console.log(`⏭️  Skipped: Invalid problem (length: ${problemText.length})`);
