@@ -162,26 +162,27 @@ export default function HomeworkGradingConfigPage() {
       const updatedFiles = [...knowledgeFiles, ...newFiles];
       setKnowledgeFiles(updatedFiles);
 
-      // RAG 업로드 처리
+      // RAG 업로드 처리 (Vectorize 통합)
       for (const file of newFiles) {
         try {
           const uploadResponse = await fetch('/api/rag/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              filename: `homework-grading-${file.name}`,
+              fileName: file.name,
+              subject: '수학', // TODO: UI에서 과목 선택 기능 추가
+              grade: 5,        // TODO: UI에서 학년 선택 기능 추가
+              fileType: 'reference', // 'textbook' | 'answer_key' | 'reference'
               content: file.content,
-              metadata: {
-                type: 'homework_grading_knowledge',
-                uploadedAt: new Date().toISOString(),
-              }
+              academyId: currentUser?.academyId || null
             }),
           });
 
           if (!uploadResponse.ok) {
             console.error('Failed to upload knowledge to RAG:', await uploadResponse.text());
           } else {
-            console.log('✅ Knowledge uploaded to RAG:', file.name);
+            const result = await uploadResponse.json();
+            console.log('✅ Knowledge uploaded to RAG:', result);
           }
         } catch (error) {
           console.error('Error uploading to RAG:', error);
