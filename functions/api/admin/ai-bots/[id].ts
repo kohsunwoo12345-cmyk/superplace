@@ -209,13 +209,85 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     }
 
     console.log(`✅ Found bot: ${existingBot.name} (${existingBot.id})`);
+    console.log(`🗑️ Deleting bot ${botId} and all related data...`);
 
-    // 삭제 실행
-    console.log(`🗑️ Executing DELETE query...`);
+    // 1. Delete from ai_bot_assignments
+    try {
+      const result1 = await DB.prepare(`
+        DELETE FROM ai_bot_assignments WHERE botId = ?
+      `).bind(botId).run();
+      console.log(`✅ Deleted ${result1.meta?.changes || 0} ai_bot_assignments`);
+    } catch (e: any) {
+      console.log(`⚠️ ai_bot_assignments: ${e.message}`);
+    }
+
+    // 2. Delete from bot_assignments
+    try {
+      const result2 = await DB.prepare(`
+        DELETE FROM bot_assignments WHERE botId = ?
+      `).bind(botId).run();
+      console.log(`✅ Deleted ${result2.meta?.changes || 0} bot_assignments`);
+    } catch (e: any) {
+      console.log(`⚠️ bot_assignments: ${e.message}`);
+    }
+
+    // 3. Delete from user_bot_assignments
+    try {
+      const result3 = await DB.prepare(`
+        DELETE FROM user_bot_assignments WHERE botId = ?
+      `).bind(botId).run();
+      console.log(`✅ Deleted ${result3.meta?.changes || 0} user_bot_assignments`);
+    } catch (e: any) {
+      console.log(`⚠️ user_bot_assignments: ${e.message}`);
+    }
+
+    // 4. Delete from knowledge_base_chunks
+    try {
+      const result4 = await DB.prepare(`
+        DELETE FROM knowledge_base_chunks WHERE botId = ?
+      `).bind(botId).run();
+      console.log(`✅ Deleted ${result4.meta?.changes || 0} knowledge_base_chunks`);
+    } catch (e: any) {
+      console.log(`⚠️ knowledge_base_chunks: ${e.message}`);
+    }
+
+    // 5. Delete from bot_usage_logs
+    try {
+      const result5 = await DB.prepare(`
+        DELETE FROM bot_usage_logs WHERE botId = ?
+      `).bind(botId).run();
+      console.log(`✅ Deleted ${result5.meta?.changes || 0} bot_usage_logs`);
+    } catch (e: any) {
+      console.log(`⚠️ bot_usage_logs: ${e.message}`);
+    }
+
+    // 6. Delete from ai_chat_logs
+    try {
+      const result6 = await DB.prepare(`
+        DELETE FROM ai_chat_logs WHERE botId = ?
+      `).bind(botId).run();
+      console.log(`✅ Deleted ${result6.meta?.changes || 0} ai_chat_logs`);
+    } catch (e: any) {
+      console.log(`⚠️ ai_chat_logs: ${e.message}`);
+    }
+
+    // 7. Delete from chat_sessions
+    try {
+      const result7 = await DB.prepare(`
+        DELETE FROM chat_sessions WHERE botId = ?
+      `).bind(botId).run();
+      console.log(`✅ Deleted ${result7.meta?.changes || 0} chat_sessions`);
+    } catch (e: any) {
+      console.log(`⚠️ chat_sessions: ${e.message}`);
+    }
+
+    // 8. Finally, delete the bot itself
+    console.log(`🗑️ Executing DELETE query for bot...`);
     const deleteResult = await DB.prepare(`
       DELETE FROM ai_bots WHERE id = ?
     `).bind(botId).run();
-
+    
+    console.log(`✅ Deleted bot from ai_bots`);
     console.log(`📊 Delete result:`, JSON.stringify(deleteResult));
     
     // 삭제 확인
@@ -235,6 +307,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     }
 
     console.log(`✅ Bot deleted and verified: ${existingBot.name}`);
+    console.log(`🎉 Bot ${botId} and all related data deleted successfully`);
 
     return new Response(
       JSON.stringify({ success: true, message: "AI bot deleted successfully" }),
