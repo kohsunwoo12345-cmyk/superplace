@@ -108,8 +108,14 @@ export default function AdminAIBotsPage() {
 
       if (response.ok) {
         console.log(`✅ Delete successful`);
+        
+        // UI에서 즉시 제거
+        setBots(prevBots => prevBots.filter(b => b.id !== botId));
+        
         alert("삭제되었습니다.");
-        fetchBots();
+        
+        // 백그라운드에서 최신 목록 가져오기
+        setTimeout(() => fetchBots(), 500);
       } else {
         console.error(`❌ Delete failed:`, responseData);
         const errorMsg = responseData.message || responseData.error || "알 수 없는 오류";

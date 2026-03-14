@@ -925,78 +925,216 @@ export default function ModernAIChatPage() {
 
       console.log(`📝 Generating print view with ${extractedProblems.length} problems`);
 
-      // 인쇄용 HTML 생성
-      const printContent = `
+      // 학원 이름 가져오기
+      const academyName = user?.academyName || '학원';
+      const printDate = new Date().toLocaleDateString('ko-KR');
+
+      // 답안지용 정답 목록
+      const answers = extractedProblems.map(p => ({
+        number: p.number,
+        answer: p.answer || '(정답 없음)'
+      }));
+
+      // 문제지 HTML 생성
+      const problemsHtml = `
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="UTF-8">
-          <title>AI 생성 문제지</title>
+          <title>문제지</title>
           <style>
             @media print {
-              @page { margin: 2cm; }
+              @page { 
+                margin: 15mm 20mm;
+                size: A4;
+              }
               body { margin: 0; }
+              .no-print { display: none; }
+              .page-break { page-break-before: always; }
             }
             body {
               font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-              padding: 20px;
-              line-height: 1.6;
+              line-height: 1.8;
+              color: #000;
             }
-            h1 {
+            .header {
               text-align: center;
-              font-size: 24px;
-              margin-bottom: 30px;
-              border-bottom: 2px solid #333;
-              padding-bottom: 10px;
+              margin-bottom: 25px;
+              padding-bottom: 15px;
+              border-bottom: 2px solid #000;
+            }
+            .academy-name {
+              font-size: 22px;
+              font-weight: bold;
+              margin-bottom: 8px;
+            }
+            .test-info {
+              font-size: 13px;
+              color: #333;
+            }
+            .student-info {
+              margin: 15px 0 25px 0;
+              font-size: 14px;
+            }
+            .student-info span {
+              display: inline-block;
+              margin-right: 30px;
+            }
+            .underline {
+              display: inline-block;
+              border-bottom: 1px solid #000;
+              min-width: 80px;
+              margin-left: 5px;
             }
             .problem {
-              margin-bottom: 30px;
+              margin-bottom: 25px;
               page-break-inside: avoid;
             }
             .problem-number {
               font-weight: bold;
-              font-size: 16px;
-              margin-bottom: 8px;
+              font-size: 15px;
+              margin-bottom: 6px;
             }
             .problem-content {
               font-size: 14px;
               white-space: pre-wrap;
-              margin-left: 20px;
-            }
-            .choice {
-              margin-left: 30px;
+              line-height: 1.7;
+              padding-left: 5px;
             }
           </style>
         </head>
         <body>
-          <h1>AI 생성 문제지</h1>
+          <div class="header">
+            <div class="academy-name">${academyName}</div>
+            <div class="test-info">문제지 · ${printDate}</div>
+          </div>
+          
+          <div class="student-info">
+            <span>학년: <span class="underline"></span></span>
+            <span>이름: <span class="underline"></span></span>
+          </div>
+
           ${extractedProblems.map(problem => `
             <div class="problem">
               <div class="problem-number">${problem.number}.</div>
-              <div class="problem-content">${problem.content.replace(/\n/g, '<br>')}</div>
+              <div class="problem-content">${problem.content.replace(/\n/g, '<br>').replace(/\*\*/g, '')}</div>
             </div>
           `).join('')}
+
+          <div class="no-print" style="text-align: center; margin-top: 30px; padding: 20px; background: #f0f0f0;">
+            <button onclick="window.print()" style="padding: 10px 30px; font-size: 16px; cursor: pointer;">인쇄하기</button>
+            <button onclick="window.close()" style="padding: 10px 30px; font-size: 16px; cursor: pointer; margin-left: 10px;">닫기</button>
+          </div>
         </body>
         </html>
       `;
 
-      // 새 창에서 인쇄창 열기
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(printContent);
-        printWindow.document.close();
+      // 답안지 HTML 생성
+      const answerSheetHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>답안지</title>
+          <style>
+            @media print {
+              @page { 
+                margin: 15mm 20mm;
+                size: A4;
+              }
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+            body {
+              font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+              line-height: 1.8;
+              color: #000;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 25px;
+              padding-bottom: 15px;
+              border-bottom: 2px solid #000;
+            }
+            .academy-name {
+              font-size: 22px;
+              font-weight: bold;
+              margin-bottom: 8px;
+            }
+            .test-info {
+              font-size: 13px;
+              color: #333;
+            }
+            .answer-list {
+              margin-top: 30px;
+            }
+            .answer-item {
+              padding: 8px 0;
+              border-bottom: 1px solid #eee;
+              font-size: 14px;
+            }
+            .answer-number {
+              display: inline-block;
+              width: 50px;
+              font-weight: bold;
+            }
+            .answer-content {
+              display: inline-block;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="academy-name">${academyName}</div>
+            <div class="test-info">답안지 · ${printDate}</div>
+          </div>
+
+          <div class="answer-list">
+            ${answers.map(ans => `
+              <div class="answer-item">
+                <span class="answer-number">${ans.number}.</span>
+                <span class="answer-content">${ans.answer.replace(/\*\*/g, '')}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="no-print" style="text-align: center; margin-top: 30px; padding: 20px; background: #f0f0f0;">
+            <button onclick="window.print()" style="padding: 10px 30px; font-size: 16px; cursor: pointer;">인쇄하기</button>
+            <button onclick="window.close()" style="padding: 10px 30px; font-size: 16px; cursor: pointer; margin-left: 10px;">닫기</button>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // 문제지 창 열기
+      const problemWindow = window.open('', '_blank');
+      if (problemWindow) {
+        problemWindow.document.write(problemsHtml);
+        problemWindow.document.close();
         
         // 로드 완료 후 인쇄창 열기
-        printWindow.onload = () => {
-          printWindow.focus();
-          printWindow.print();
+        problemWindow.onload = () => {
+          problemWindow.focus();
+          setTimeout(() => problemWindow.print(), 100);
         };
-        
-        console.log(`✅ Print dialog opened with ${extractedProblems.length} problems`);
-        alert(`문제지 인쇄창이 열렸습니다!\n${extractedProblems.length}개의 문제`);
-      } else {
-        alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
       }
+
+      // 답안지 창 열기 (1초 후)
+      setTimeout(() => {
+        const answerWindow = window.open('', '_blank');
+        if (answerWindow) {
+          answerWindow.document.write(answerSheetHtml);
+          answerWindow.document.close();
+          
+          answerWindow.onload = () => {
+            answerWindow.focus();
+            setTimeout(() => answerWindow.print(), 100);
+          };
+        }
+      }, 1000);
+
+      console.log(`✅ Print windows opened: ${extractedProblems.length} problems`);
+      alert(`문제지와 답안지 인쇄창이 열렸습니다!\n${extractedProblems.length}개의 문제`);
       
     } catch (error: any) {
       console.error('❌ PDF generation error:', error);
