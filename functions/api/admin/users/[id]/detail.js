@@ -94,18 +94,8 @@ export async function onRequestGet(context) {
 
     console.log('✅ Auth passed:', { email: tokenData.email, role });
 
-    // Fetch user details with LEFT JOIN to academy
-    const userQuery = `
-      SELECT 
-        u.*,
-        a.id as academyId,
-        a.name as academyName
-      FROM users u
-      LEFT JOIN academy a ON u.academyId = a.id
-      WHERE u.id = ?
-    `;
-    
-    const user = await DB.prepare(userQuery).bind(userId).first();
+    // Fetch user details
+    const user = await DB.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first();
 
     if (!user) {
       return new Response(JSON.stringify({
@@ -115,6 +105,18 @@ export async function onRequestGet(context) {
         status: 404,
         headers: { 'Content-Type': 'application/json' }
       });
+    }
+    
+    // Try to get academy info if academyId exists
+    if (user.academyId) {
+      try {
+        const academy = await DB.prepare('SELECT id, name FROM academy WHERE id = ?').bind(user.academyId).first();
+        if (academy) {
+          user.academyName = academy.name;
+        }
+      } catch (e) {
+        console.warn('Failed to fetch academy:', e);
+      }
     }
 
     // Fetch login logs (last 20)
