@@ -366,7 +366,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           strengths,
           suggestions
         FROM homework_submissions
-        WHERE userId = ? AND score IS NOT NULL
+        WHERE userId = ?
       `;
       
       const params: any[] = [actualStudentId];
@@ -389,13 +389,30 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       const homeworkResult = await DB.prepare(homeworkQuery).bind(...params).all();
       homeworkData = homeworkResult.results || [];
       
+      // 데이터가 있으면 상세 정보 출력
       if (homeworkData.length > 0) {
         console.log(`✅ Found ${homeworkData.length} homework records`);
-        console.log('📝 First homework date:', homeworkData[0].submittedAt);
-        console.log('📝 Last homework date:', homeworkData[homeworkData.length - 1].submittedAt);
+        console.log('📝 First homework:', {
+          date: homeworkData[0].submittedAt,
+          score: homeworkData[0].score,
+          subject: homeworkData[0].subject,
+          hasFeedback: !!homeworkData[0].feedback
+        });
+        console.log('📝 Last homework:', {
+          date: homeworkData[homeworkData.length - 1].submittedAt,
+          score: homeworkData[homeworkData.length - 1].score,
+          subject: homeworkData[homeworkData.length - 1].subject,
+          hasFeedback: !!homeworkData[homeworkData.length - 1].feedback
+        });
+        // 점수가 있는 숙제 개수 체크
+        const scoredHomework = homeworkData.filter((hw: any) => hw.score !== null && hw.score !== undefined);
+        console.log(`📊 Homework with scores: ${scoredHomework.length}/${homeworkData.length}`);
+      } else {
+        console.warn('⚠️ No homework data found for student:', actualStudentId);
       }
     } catch (dbError: any) {
-      console.warn('⚠️ Failed to fetch homework data:', dbError.message);
+      console.error('❌ Failed to fetch homework data:', dbError.message);
+      console.error('❌ Error details:', dbError);
       homeworkData = [];
     }
     
