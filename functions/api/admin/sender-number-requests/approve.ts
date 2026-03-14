@@ -113,12 +113,19 @@ export async function onRequest(context: { request: Request; env: Env }) {
     // request.userId가 있으면 해당 사용자의 레코드 업데이트
     if (request.userId) {
       try {
+        console.log('📝 업데이트 시작 - userId:', request.userId, 'senderNumbers:', request.senderNumbers);
+        
         // User 테이블 먼저 시도
         let updateResult = await db.prepare(`
           UPDATE User
           SET approvedSenderNumbers = ?
           WHERE id = ?
         `).bind(request.senderNumbers, request.userId).run();
+        
+        console.log('📊 User 테이블 업데이트 결과:', {
+          success: updateResult.success,
+          changes: updateResult.meta?.changes
+        });
         
         // User 테이블에 없으면 users 테이블 시도
         if (!updateResult.success || updateResult.meta.changes === 0) {
@@ -127,12 +134,19 @@ export async function onRequest(context: { request: Request; env: Env }) {
             SET approved_sender_numbers = ?
             WHERE id = ?
           `).bind(request.senderNumbers, request.userId).run();
+          
+          console.log('📊 users 테이블 업데이트 결과:', {
+            success: updateResult.success,
+            changes: updateResult.meta?.changes
+          });
         }
         
         console.log(`✅ 학원장(userId: ${request.userId})의 발신번호 저장 완료:`, request.senderNumbers);
         
         // SMSSender 테이블에도 발신번호 추가 (문자 발송 시 사용)
         const senderNumbers = request.senderNumbers.split(',').map((n: string) => n.trim());
+        
+        console.log('📱 SMSSender 테이블 업데이트 시작:', senderNumbers);
         
         for (const phoneNumber of senderNumbers) {
           // 이미 등록된 발신번호인지 확인
@@ -155,15 +169,17 @@ export async function onRequest(context: { request: Request; env: Env }) {
               now
             ).run();
             
-            console.log(`✅ SMSSender 테이블에 발신번호 추가: ${phoneNumber}`);
+            console.log(`✅ SMSSender 테이블에 발신번호 추가: ${phoneNumber}, senderId: ${senderId}`);
           } else {
-            console.log(`ℹ️ 이미 등록된 발신번호: ${phoneNumber}`);
+            console.log(`ℹ️ 이미 등록된 발신번호: ${phoneNumber}, existingId: ${existing.id}`);
           }
         }
       } catch (error: any) {
-        console.error('⚠️ 학원장 테이블 업데이트 실패:', error.message);
+        console.error('⚠️ 학원장 테이블 업데이트 실패:', error.message, error.stack);
         // 발신번호 저장 실패는 치명적이지 않으므로 계속 진행
       }
+    } else {
+      console.warn('⚠️ request.userId가 없음 - 사용자 테이블 업데이트 건너뜀');
     }
 
     console.log('✅ 발신번호 등록 승인:', requestId);

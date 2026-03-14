@@ -53,29 +53,42 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
 
     console.log('📊 Found requests:', requests.results?.length || 0);
 
-    const results = (requests.results || []).map((req: any) => ({
-      id: req.id,
-      userId: req.userId,
-      userName: req.userName,
-      companyName: req.companyName,
-      businessNumber: req.businessNumber,
-      address: req.address,
-      senderNumbers: req.senderNumbers,
-      representativeName: req.representativeName,
-      phone: req.phone,
-      email: req.email,
-      status: req.status,
-      fileUrls: {
-        telecomCertificate: req.telecomCertificateUrl,
-        businessRegistration: req.businessRegistrationUrl,
-        serviceAgreement: req.serviceAgreementUrl,
-        privacyAgreement: req.privacyAgreementUrl,
-      },
-      createdAt: req.createdAt,
-      approvedAt: req.approvedAt,
-      rejectedAt: req.rejectedAt,
-      rejectionReason: req.rejectionReason,
-    }));
+    const results = (requests.results || []).map((req: any) => {
+      console.log('📄 Processing request:', {
+        id: req.id,
+        userId: req.userId,
+        companyName: req.companyName,
+        senderNumbers: req.senderNumbers,
+        telecomUrl: req.telecomCertificateUrl,
+        businessUrl: req.businessRegistrationUrl,
+        serviceUrl: req.serviceAgreementUrl,
+        privacyUrl: req.privacyAgreementUrl
+      });
+      
+      return {
+        id: req.id,
+        userId: req.userId,
+        userName: req.userName,
+        companyName: req.companyName,
+        businessNumber: req.businessNumber,
+        address: req.address,
+        senderNumbers: req.senderNumbers,
+        representativeName: req.representativeName,
+        phone: req.phone,
+        email: req.email,
+        status: req.status,
+        fileUrls: {
+          telecomCertificate: req.telecomCertificateUrl,
+          businessRegistration: req.businessRegistrationUrl,
+          serviceAgreement: req.serviceAgreementUrl,
+          privacyAgreement: req.privacyAgreementUrl,
+        },
+        createdAt: req.createdAt,
+        approvedAt: req.approvedAt,
+        rejectedAt: req.rejectedAt,
+        rejectionReason: req.rejectionReason,
+      };
+    });
 
     return new Response(
       JSON.stringify({
