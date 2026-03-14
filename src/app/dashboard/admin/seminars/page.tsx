@@ -153,6 +153,22 @@ export default function SeminarsAdminPage() {
 
   const handleCreate = async () => {
     try {
+      // Validation
+      if (!formData.title || !formData.title.trim()) {
+        showMessage('error', '세미나 제목을 입력해주세요');
+        return;
+      }
+      if (!formData.date) {
+        showMessage('error', '날짜를 선택해주세요');
+        return;
+      }
+      if (!formData.time || !formData.time.trim()) {
+        showMessage('error', '시간을 입력해주세요');
+        return;
+      }
+
+      console.log('Creating seminar with data:', formData);
+
       const response = await fetch('/api/seminars', {
         method: 'POST',
         headers: {
@@ -164,17 +180,19 @@ export default function SeminarsAdminPage() {
 
       const data = await response.json();
       
+      console.log('Create response:', data);
+
       if (data.success) {
         showMessage('success', '세미나가 생성되었습니다');
         setIsCreateDialogOpen(false);
         resetForm();
         loadSeminars();
       } else {
-        showMessage('error', data.message || '세미나 생성에 실패했습니다');
+        showMessage('error', data.error || data.message || '세미나 생성에 실패했습니다');
       }
     } catch (error) {
       console.error('Error creating seminar:', error);
-      showMessage('error', '세미나 생성에 실패했습니다');
+      showMessage('error', '세미나 생성 중 오류가 발생했습니다');
     }
   };
 
@@ -508,6 +526,61 @@ export default function SeminarsAdminPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* 세미나별 신청목록 섹션 */}
+      {!loading && seminars.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>세미나별 신청목록</CardTitle>
+            <CardDescription>각 세미나의 신청자 현황을 확인하세요</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {seminars.map((seminar) => (
+                <div key={`applicants-${seminar.id}`} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="font-semibold text-lg">{seminar.title}</h4>
+                      <p className="text-sm text-gray-500">
+                        {seminar.date} {seminar.time} | {seminar.currentParticipants || 0}/{seminar.maxParticipants}명
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => loadApplications(seminar.id)}
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      상세보기
+                    </Button>
+                  </div>
+                  
+                  {seminar.currentParticipants > 0 ? (
+                    <div className="text-sm">
+                      <div className="flex items-center gap-2 text-green-600 mb-2">
+                        <Users className="w-4 h-4" />
+                        <span className="font-medium">{seminar.currentParticipants}명의 신청자</span>
+                      </div>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0 h-auto"
+                        onClick={() => loadApplications(seminar.id)}
+                      >
+                        신청자 목록 확인 →
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-400">
+                      아직 신청자가 없습니다
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
