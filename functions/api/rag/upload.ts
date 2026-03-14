@@ -1,6 +1,7 @@
 interface Env {
   DB: D1Database;
   VECTORIZE: Vectorize;
+  AI: any; // Cloudflare AI 바인딩
   GOOGLE_GEMINI_API_KEY: string;
 }
 
@@ -19,6 +20,8 @@ interface KnowledgeFile {
  * RAG 지식베이스 파일 업로드 API
  * POST /api/rag/upload
  * 
+ * Cloudflare AI (@cf/baai/bge-m3, 1024 dim) → knowledge-base-embeddings
+ * 
  * Body:
  * {
  *   fileName: string,
@@ -31,11 +34,11 @@ interface KnowledgeFile {
  */
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { DB, VECTORIZE, GOOGLE_GEMINI_API_KEY } = context.env;
+    const { DB, VECTORIZE, AI } = context.env;
     
-    if (!DB || !VECTORIZE) {
+    if (!DB || !VECTORIZE || !AI) {
       return new Response(
-        JSON.stringify({ error: "Database or Vectorize not configured" }),
+        JSON.stringify({ error: "Database, Vectorize, or Cloudflare AI not configured" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -92,7 +95,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`📄 총 ${chunks.length}개의 청크로 분할됨`);
 
-    // 4. Gemini API로 임베딩 생성
+    // 4. Cloudflare AI로 임베딩 생성 (@cf/baai/bge-m3, 1024 dim)
     const embeddings: Array<{ id: string; values: number[]; metadata: any }> = [];
     
     for (let i = 0; i < chunks.length; i++) {
@@ -100,28 +103,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const chunk = chunks[i];
       
       try {
-        // Gemini Embedding API 호출
-        const embeddingResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key=${GOOGLE_GEMINI_API_KEY}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: 'models/text-embedding-004',
-              content: {
-                parts: [{ text: chunk }]
-              }
-            })
-          }
-        );
+        // Cloudflare AI 임베딩 생성 (1024차원)
+        const embeddingResponse = await AI.run('@cf/baai/bge-m3', {
+          text: chunk
+        });
 
-        if (!embeddingResponse.ok) {
-          console.error(`❌ 청크 ${i} 임베딩 실패: HTTP ${embeddingResponse.status}`);
-          continue;
-        }
-
-        const embeddingData = await embeddingResponse.json();
-        const embedding = embeddingData.embedding?.values;
+        const embedding = embeddingResponse.data?.[0];
 
         if (!embedding || !Array.isArray(embedding)) {
           console.error(`❌ 청크 ${i} 임베딩 데이터 없음`);
@@ -143,7 +130,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           }
         });
 
-        console.log(`✅ 청크 ${i + 1}/${chunks.length} 임베딩 완료`);
+        console.log(`✅ 청크 ${i + 1}/${chunks.length} 임베딩 완료 (dim: ${embedding.length})`);
       } catch (error: any) {
         console.error(`❌ 청크 ${i} 임베딩 오류:`, error.message);
       }
