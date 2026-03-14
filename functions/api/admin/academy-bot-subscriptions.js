@@ -411,13 +411,13 @@ export async function onRequestGet(context) {
     console.log('📋 Fetching all academy bot subscriptions');
 
     // 모든 활성 구독 조회
-    const subscriptions = await DB.prepare(`
+    const subscriptionsResult = await DB.prepare(`
       SELECT 
         s.id,
         s.academyId,
         a.name as academyName,
-        s.productId as botId,
-        b.name as botName,
+        s.botId,
+        s.productName,
         s.totalStudentSlots as totalSlots,
         s.usedStudentSlots as usedSlots,
         s.remainingStudentSlots as remainingSlots,
@@ -428,19 +428,39 @@ export async function onRequestGet(context) {
           ELSE 0
         END as isActive
       FROM AcademyBotSubscription s
-      JOIN academy a ON s.academyId = a.id
-      JOIN ai_bots b ON s.productId = b.id
+      LEFT JOIN academy a ON s.academyId = a.id
       WHERE date(s.subscriptionEnd) >= date('now')
       ORDER BY s.subscriptionEnd DESC
     `).all();
+    
+    // 각 구독에 대해 ai_bots에서 봇 이름 가져오기
+    const subscriptions = await Promise.all((subscriptionsResult.results || []).map(async (sub) => {
+      let botName = sub.productName; // 기본값
+      
+      if (sub.botId) {
+        try {
+          const bot = await DB.prepare(`SELECT name FROM ai_bots WHERE id = ?`).bind(sub.botId).first();
+          if (bot) {
+            botName = bot.name;
+          }
+        } catch (e) {
+          console.warn(`Failed to fetch bot name for ${sub.botId}`);
+        }
+      }
+      
+      return {
+        ...sub,
+        botName
+      };
+    }));
 
-    console.log(`✅ Found ${subscriptions.results?.length || 0} active subscriptions`);
+    console.log(`✅ Found ${subscriptions.length} active subscriptions`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        subscriptions: subscriptions.results || [],
-        count: subscriptions.results?.length || 0,
+        subscriptions: subscriptions,
+        count: subscriptions.length,
       }),
       {
         status: 200,
