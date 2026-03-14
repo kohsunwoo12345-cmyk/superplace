@@ -667,6 +667,224 @@ export default function EditStoreProductPage() {
             </CardContent>
           </Card>
 
+          {/* 🎁 마케팅 & 프로모션 */}
+          <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-purple-700">
+                <span className="text-2xl">🎁</span>
+                마케팅 & 프로모션
+              </CardTitle>
+              <CardDescription>
+                할인, 쿠폰, 프로모션 등 마케팅 요소를 설정하세요
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* 할인 설정 */}
+              <div className="p-4 bg-white rounded-lg border border-purple-200">
+                <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <span>💰</span> 할인 설정
+                </h4>
+                
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">할인 유형</label>
+                    <select
+                      name="discountType"
+                      value={formData.discountType}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="none">할인 없음</option>
+                      <option value="percentage">정률 할인 (%)</option>
+                      <option value="fixed">정액 할인 (원)</option>
+                    </select>
+                  </div>
+
+                  {formData.discountType !== 'none' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {formData.discountType === 'percentage' ? '할인율 (%)' : '할인 금액 (원)'}
+                        </label>
+                        <input
+                          type="number"
+                          name="discountValue"
+                          value={formData.discountValue}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          placeholder={formData.discountType === 'percentage' ? '10' : '10000'}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">원가 (할인 전)</label>
+                        <input
+                          type="number"
+                          name="originalPrice"
+                          value={formData.originalPrice}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          placeholder="100000"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {formData.discountType !== 'none' && Number(formData.discountValue) > 0 && Number(formData.originalPrice) > 0 && (
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <p className="text-sm text-purple-800">
+                      💡 할인 계산: 
+                      {formData.discountType === 'percentage' 
+                        ? ` ${formData.originalPrice}원 - ${formData.discountValue}% = ${(Number(formData.originalPrice) * (1 - Number(formData.discountValue) / 100)).toLocaleString()}원`
+                        : ` ${formData.originalPrice}원 - ${Number(formData.discountValue).toLocaleString()}원 = ${(Number(formData.originalPrice) - Number(formData.discountValue)).toLocaleString()}원`
+                      }
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* 프로모션 설정 */}
+              <div className="p-4 bg-white rounded-lg border border-purple-200">
+                <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <span>🎉</span> 프로모션 설정
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">프로모션 유형</label>
+                    <select
+                      name="promotionType"
+                      value={formData.promotionType}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="none">프로모션 없음</option>
+                      <option value="1plus1">1+1 (하나 사면 하나 더)</option>
+                      <option value="2plus1">2+1 (두개 사면 하나 더)</option>
+                      <option value="gift">사은품 증정</option>
+                      <option value="bundle">묶음 할인</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      <input
+                        type="checkbox"
+                        name="isTimeDeal"
+                        checked={formData.isTimeDeal === 1}
+                        onChange={(e) => setFormData(prev => ({ ...prev, isTimeDeal: e.target.checked ? 1 : 0 }))}
+                        className="mr-2"
+                      />
+                      타임딜 (⏰ 시간 제한 특가)
+                    </label>
+                  </div>
+                </div>
+
+                {formData.promotionType !== 'none' && (
+                  <>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-2">프로모션 설명</label>
+                      <input
+                        type="text"
+                        name="promotionDescription"
+                        value={formData.promotionDescription}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        placeholder="3개월 구매 시 1개월 무료 추가!"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">프로모션 시작일</label>
+                        <input
+                          type="date"
+                          name="promotionStartDate"
+                          value={formData.promotionStartDate}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">프로모션 종료일</label>
+                        <input
+                          type="date"
+                          name="promotionEndDate"
+                          value={formData.promotionEndDate}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 배지 설정 */}
+              <div className="p-4 bg-white rounded-lg border border-purple-200">
+                <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <span>🏷️</span> 배지 설정
+                </h4>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">배지 (쉼표로 구분)</label>
+                  <input
+                    type="text"
+                    name="badges"
+                    value={formData.badges}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="NEW, HOT, BEST, 인기"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    예시: NEW, HOT, BEST, 추천, 인기, 한정판
+                  </p>
+                </div>
+              </div>
+
+              {/* 재고 및 구매 제한 */}
+              <div className="p-4 bg-white rounded-lg border border-purple-200">
+                <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <span>📦</span> 재고 & 구매 제한
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">재고 수량</label>
+                    <input
+                      type="number"
+                      name="stockQuantity"
+                      value={formData.stockQuantity}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="-1 (무제한)"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      -1: 무제한 / 0: 품절 / 양수: 재고 수량
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">1인당 최대 구매 수량</label>
+                    <input
+                      type="number"
+                      name="maxPurchasePerUser"
+                      value={formData.maxPurchasePerUser}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="-1 (무제한)"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      -1: 무제한 / 양수: 최대 구매 수량
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* 주요 기능 */}
           <Card>
             <CardHeader>
