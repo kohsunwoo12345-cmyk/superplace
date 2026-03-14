@@ -201,21 +201,40 @@ export async function onRequest(context: any) {
     // Save to database (even if already registered in Solapi)
     const db = env.DB;
     
-    // Check if already exists in our DB
-    const existing = await db.prepare(`
-      SELECT id FROM KakaoChannel WHERE searchId = ? AND userId = ?
-    `).bind(searchId, userId || 'anonymous').first();
-
-    if (existing) {
+    if (!db) {
+      console.error('❌ DB not configured');
       return new Response(
         JSON.stringify({ 
-          success: true,
-          channel: existing,
-          message: '이미 등록된 채널입니다.',
-          alreadyInDB: true
+          success: false,
+          error: 'Database not configured'
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+    
+    console.log('💾 Saving to DB...');
+    
+    try {
+      // Check if already exists in our DB
+      const existing = await db.prepare(`
+        SELECT id FROM KakaoChannel WHERE searchId = ? AND userId = ?
+      `).bind(searchId, userId || 'anonymous').first();
+
+      if (existing) {
+        console.log('✅ Channel already exists in DB:', existing.id);
+        return new Response(
+          JSON.stringify({ 
+            success: true,
+            channel: existing,
+            message: '이미 등록된 채널입니다.',
+            alreadyInDB: true
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } catch (error: any) {
+      console.error('⚠️ Failed to check existing channel:', error.message);
+      // Continue to create new channel
     }
 
     const channelId = `ch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -226,32 +245,67 @@ export async function onRequest(context: any) {
     const middleCategory = categoryCode.substring(3, 6);
     const subCategory = categoryCode.substring(6, 11);
 
-    await db.prepare(`
-      INSERT INTO KakaoChannel (
-        id, userId, userName, phoneNumber, channelName, searchId,
-        categoryCode, mainCategory, middleCategory, subCategory,
-        solapiChannelId, status, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)
-    `).bind(
+    console.log('📝 Inserting new channel:', {
       channelId,
-      userId || 'anonymous',
-      userName || '',
-      phoneNumber,
-      channelName || searchId,
+      userId: userId || 'anonymous',
       searchId,
-      categoryCode,
-      mainCategory,
-      middleCategory,
-      subCategory,
-      data.plusFriendId || data.id || searchId,
-      now,
-      now
-    ).run();
+      categoryCode
+    });
+
+    try {
+      await db.prepare(`
+        INSERT INTO KakaoChannel (
+          id, userId, userName, phoneNumber, channelName, searchId,
+          categoryCode, mainCategory, middleCategory, subCategory,
+          solapiChannelId, status, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)
+      `).bind(
+        channelId,
+        userId || 'anonymous',
+        userName || '',
+        phoneNumber,
+        channelName || searchId,
+        searchId,
+        categoryCode,
+        mainCategory,
+        middleCategory,
+        subCategory,
+        data.plusFriendId || data.id || searchId,
+        now,
+        now
+      ).run();
+      
+      console.log('✅ Channel inserted successfully');
+    } catch (error: any) {
+      console.error('❌ Failed to insert channel:', error.message);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Failed to save channel to database',
+          details: error.message
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Fetch the created channel
-    const channel = await db.prepare(`
-      SELECT * FROM KakaoChannel WHERE id = ?
-    `).bind(channelId).first();
+    let channel = null;
+    try {
+      channel = await db.prepare(`
+        SELECT * FROM KakaoChannel WHERE id = ?
+      `).bind(channelId).first();
+      console.log('✅ Channel fetched:', channel ? 'success' : 'not found');
+    } catch (error: any) {
+      console.error('⚠️ Failed to fetch channel:', error.message);
+      // Continue with success response even if fetch fails
+      channel = {
+        id: channelId,
+        searchId,
+        phoneNumber,
+        channelName: channelName || searchId,
+        status: 'ACTIVE'
+      };
+    }
 
     return new Response(
       JSON.stringify({ 
