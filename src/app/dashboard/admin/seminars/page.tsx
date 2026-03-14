@@ -20,7 +20,8 @@ import {
   Eye,
   Save,
   X,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
