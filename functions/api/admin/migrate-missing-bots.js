@@ -1,4 +1,55 @@
 // 누락된 봇을 ai_bots 테이블에 자동 생성하는 마이그레이션 API
+
+// GET: 마이그레이션 상태 확인
+export async function onRequestGet(context) {
+  try {
+    const { DB } = context.env;
+    
+    if (!DB) {
+      return new Response(JSON.stringify({ error: 'Database not configured' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // StoreProducts의 botId 개수
+    const { results: products } = await DB.prepare(`
+      SELECT DISTINCT botId FROM StoreProducts WHERE botId IS NOT NULL AND botId != ''
+    `).all();
+    
+    // ai_bots의 봇 개수
+    const { results: bots } = await DB.prepare(`
+      SELECT id FROM ai_bots
+    `).all();
+    
+    const productBotIds = new Set(products.map(p => p.botId));
+    const botIds = new Set(bots.map(b => b.id));
+    
+    const missing = Array.from(productBotIds).filter(id => !botIds.has(id));
+    
+    return new Response(JSON.stringify({
+      success: true,
+      productsWithBotId: products.length,
+      botsInDatabase: bots.length,
+      missingBots: missing.length,
+      missingBotIds: missing
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    return new Response(JSON.stringify({
+      error: 'Failed to check migration status',
+      message: error.message
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// POST: 마이그레이션 실행
 export async function onRequestPost(context) {
   try {
     const { DB } = context.env;
