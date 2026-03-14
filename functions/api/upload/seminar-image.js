@@ -108,9 +108,11 @@ export async function onRequestPost(context) {
 
     console.log(`✅ Successfully uploaded: ${filename}`);
 
-    // Generate public URL (assuming custom domain or R2.dev domain)
-    // For Cloudflare Pages, you'll need to configure R2 public access or use a custom domain
-    const publicUrl = `https://pub-5c8cea82b5ac42fcb002e7e3c3e4acf0.r2.dev/${filename}`;
+    // Use internal API endpoint to serve images from R2
+    // This avoids needing public R2 access
+    const publicUrl = `/api/files/seminar/${filename.replace('seminars/', '')}`;
+
+    console.log(`✅ Generated URL: ${publicUrl}`);
 
     return new Response(JSON.stringify({
       success: true,

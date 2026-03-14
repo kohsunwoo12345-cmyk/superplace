@@ -175,7 +175,8 @@ export default function SeminarsAdminPage() {
       }
 
       setSubmitting(true);
-      console.log('Creating seminar with data:', formData);
+      console.log('✅ Creating seminar with data:', formData);
+      console.log('🔑 Token available:', !!token);
 
       const response = await fetch('/api/seminars', {
         method: 'POST',
@@ -186,20 +187,22 @@ export default function SeminarsAdminPage() {
         body: JSON.stringify(formData)
       });
 
+      console.log('📡 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Response data:', data);
       
-      console.log('Create response:', response.status, data);
-
       if (data.success) {
         showMessage('success', '세미나가 생성되었습니다');
         setIsCreateDialogOpen(false);
         resetForm();
         await loadSeminars();
       } else {
-        showMessage('error', data.error || data.message || '세미나 생성에 실패했습니다');
+        const errorMsg = data.error || data.message || '세미나 생성에 실패했습니다';
+        console.error('❌ Create failed:', errorMsg);
+        showMessage('error', errorMsg);
       }
     } catch (error) {
-      console.error('Error creating seminar:', error);
+      console.error('❌ Error creating seminar:', error);
       showMessage('error', '세미나 생성 중 오류가 발생했습니다: ' + error.message);
     } finally {
       setSubmitting(false);
