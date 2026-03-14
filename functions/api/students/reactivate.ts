@@ -68,7 +68,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 학생 존재 여부 확인
     const studentCheck = await env.DB.prepare(
-      'SELECT id, name, email, role, isWithdrawn FROM User WHERE id = ?'
+      'SELECT id, name, email, role, isWithdrawn FROM users WHERE id = ?'
     ).bind(studentId).first();
 
     if (!studentCheck) {

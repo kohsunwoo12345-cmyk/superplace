@@ -43,7 +43,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (DB) {
       try {
         const student = await DB.prepare(`
-          SELECT id, academyId FROM User WHERE id = ?
+          SELECT id, academyId FROM users WHERE id = ?
         `).bind(parseInt(studentId)).first();
 
         if (student && student.academyId) {

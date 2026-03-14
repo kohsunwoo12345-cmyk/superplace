@@ -108,7 +108,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // 2. 사용자 포인트 증가 (User 테이블)
     // 사용자의 academyId와 role을 확인하고, 포인트 증가 전 상태 로깅
     const user = await env.DB.prepare(`
-      SELECT id, email, name, role, academyId, points FROM User WHERE id = ?
+      SELECT id, email, name, role, academyId, points FROM users WHERE id = ?
     `).bind(requestInfo.userId).first();
 
     if (!user) {
@@ -166,7 +166,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     // 최종 포인트 확인 (User 테이블)
     const updatedUser = await env.DB.prepare(`
-      SELECT id, email, name, role, academyId, points FROM User WHERE id = ?
+      SELECT id, email, name, role, academyId, points FROM users WHERE id = ?
     `).bind(requestInfo.userId).first();
 
     if (!updatedUser) {

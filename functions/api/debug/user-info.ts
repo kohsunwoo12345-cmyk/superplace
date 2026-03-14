@@ -38,12 +38,12 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     
     // User 테이블에서 사용자 정보 조회
     const user = await env.DB.prepare(`
-      SELECT id, email, role FROM User WHERE id = ?
+      SELECT id, email, role FROM users WHERE id = ?
     `).bind(userId).first();
     
     // 이메일로도 조회
     const userByEmail = await env.DB.prepare(`
-      SELECT id, email, role FROM User WHERE email = ?
+      SELECT id, email, role FROM users WHERE email = ?
     `).bind(tokenData.email).first();
     
     return new Response(JSON.stringify({

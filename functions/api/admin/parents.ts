@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 
     // 사용자 권한 확인
     const user = await db
-      .prepare('SELECT role FROM User WHERE id = ?')
+      .prepare('SELECT role FROM users WHERE id = ?')
       .bind(userId)
       .first();
 
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
 
     // 사용자 권한 확인
     const user = await db
-      .prepare('SELECT role FROM User WHERE id = ?')
+      .prepare('SELECT role FROM users WHERE id = ?')
       .bind(userId)
       .first();
 
@@ -202,7 +202,7 @@ export async function POST(request: Request) {
       // 학생의 parentPhone 업데이트 (주 연락처인 경우)
       if (isPrimary) {
         await db
-          .prepare('UPDATE User SET parentPhone = ? WHERE id = ?')
+          .prepare('UPDATE users SET parentPhone = ? WHERE id = ?')
           .bind(phone, studentId)
           .run();
       }

@@ -34,7 +34,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (table === 'users') {
       query = "SELECT id, name, email, academy_id as academyId, role FROM users WHERE id = ?";
     } else {
-      query = "SELECT id, name, email, academyId, role FROM User WHERE id = ?";
+      query = "SELECT id, name, email, academyId, role FROM users WHERE id = ?";
     }
 
     const user = await DB.prepare(query).bind(userId).first();

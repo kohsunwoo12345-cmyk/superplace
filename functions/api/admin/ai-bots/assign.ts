@@ -55,7 +55,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // Get requesting user from database
     const requestingUser = await DB
-      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first() as any;
 
@@ -88,7 +88,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     console.log("🤖 AI 봇 할당 요청:", { botId, userId, duration, durationUnit, providedDailyLimit });
 
     // 사용자 확인 (User 테이블)
-    const user = await DB.prepare("SELECT * FROM User WHERE id = ?")
+    const user = await DB.prepare("SELECT * FROM users WHERE id = ?")
       .bind(userId)
       .first() as any;
 

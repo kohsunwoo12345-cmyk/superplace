@@ -34,7 +34,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 이메일 중복 체크
     const existing = await DB.prepare(
-      "SELECT id FROM User WHERE email = ?"
+      "SELECT id FROM users WHERE email = ?"
     ).bind(email).first();
 
     if (existing) {
@@ -124,7 +124,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 사용자 생성
     const userRole = role || 'STUDENT';
     await DB.prepare(
-      `INSERT INTO User (id, name, email, password, role, phone, academyId, approved, createdAt, updatedAt)
+      `INSERT INTO users (id, name, email, password, role, phone, academyId, approved, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
     ).bind(userId, name, email, hashedPassword, userRole, phone || null, academyId || null, now, now).run();
 

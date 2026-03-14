@@ -52,7 +52,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
     // email 기반으로 사용자 찾기 (가장 확실한 방법)
     let user = await db
-      .prepare('SELECT id, email, approvedSenderNumbers FROM User WHERE email = ?')
+      .prepare('SELECT id, email, approvedSenderNumbers FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
 

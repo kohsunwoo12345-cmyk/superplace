@@ -64,7 +64,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     let requestingUser;
     try {
       requestingUser = await DB
-        .prepare('SELECT id, email, role FROM User WHERE email = ?')
+        .prepare('SELECT id, email, role FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
     } catch (dbError: any) {

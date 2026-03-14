@@ -35,7 +35,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
       // User 테이블에서 학생 조회
       const user = await DB.prepare(`
-        SELECT id FROM User WHERE id = ?
+        SELECT id FROM users WHERE id = ?
       `).bind(userId).first();
 
       if (!user) {

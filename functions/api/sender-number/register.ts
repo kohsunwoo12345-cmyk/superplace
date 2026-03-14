@@ -50,7 +50,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
     // 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블)
     let user = await db
-      .prepare('SELECT id, email, role, name FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, name FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
 

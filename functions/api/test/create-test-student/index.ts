@@ -26,7 +26,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     
     // User 테이블에 추가
     await DB.prepare(`
-      INSERT OR REPLACE INTO User (id, email, name, role, academyId)
+      INSERT OR REPLACE INTO users (id, email, name, role, academyId)
       VALUES (?, ?, ?, 'STUDENT', 1)
     `).bind(testUserId, testEmail, testName).run();
 

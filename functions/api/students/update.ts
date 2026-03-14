@@ -140,7 +140,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         
         if (updateFields.length > 0) {
           updateValues.push(studentId);
-          const query = `UPDATE User SET ${updateFields.join(', ')} WHERE id = ?`;
+          const query = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
           console.log('📝 UPDATE User:', query);
           console.log('📝 VALUES:', updateValues);
           await env.DB.prepare(query).bind(...updateValues).run();

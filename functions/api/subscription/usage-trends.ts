@@ -56,7 +56,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const aiTrend = await DB.prepare(`
       SELECT ${dateFormat} as period, COUNT(*) as count
       FROM usage_logs ul
-      JOIN User u ON ul.userId = u.id
+      JOIN users u ON ul.userId = u.id
       WHERE u.academyId = ? AND ul.type = 'ai_analysis'
       GROUP BY ${groupBy}
       ORDER BY period DESC
@@ -67,7 +67,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const similarTrend = await DB.prepare(`
       SELECT ${dateFormat} as period, COUNT(*) as count
       FROM usage_logs ul
-      JOIN User u ON ul.userId = u.id
+      JOIN users u ON ul.userId = u.id
       WHERE u.academyId = ? AND ul.type = 'similar_problem'
       GROUP BY ${groupBy}
       ORDER BY period DESC
@@ -158,14 +158,14 @@ async function getCurrentUsage(DB: D1Database, academyId: string) {
   const aiCount = await DB.prepare(`
     SELECT COUNT(*) as count 
     FROM usage_logs ul
-    JOIN User u ON ul.userId = u.id
+    JOIN users u ON ul.userId = u.id
     WHERE u.academyId = ? AND ul.type = 'ai_analysis'
   `).bind(academyId).first();
   
   const similarCount = await DB.prepare(`
     SELECT COUNT(*) as count 
     FROM usage_logs ul
-    JOIN User u ON ul.userId = u.id
+    JOIN users u ON ul.userId = u.id
     WHERE u.academyId = ? AND ul.type = 'similar_problem'
   `).bind(academyId).first();
   

@@ -48,7 +48,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 학생 정보 조회 (studentId는 문자열)
     const student = await DB.prepare(`
-      SELECT id, name, academyId FROM User WHERE id = ?
+      SELECT id, name, academyId FROM users WHERE id = ?
     `).bind(studentId).first();
 
     if (!student) {

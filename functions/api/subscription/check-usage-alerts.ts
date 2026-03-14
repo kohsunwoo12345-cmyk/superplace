@@ -33,7 +33,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const subscription = await DB.prepare(`
       SELECT us.*, u.id as directorId, u.name as directorName, u.email as directorEmail
       FROM user_subscriptions us
-      JOIN User u ON us.userId = u.id
+      JOIN users u ON us.userId = u.id
       WHERE u.academyId = ? 
         AND u.role = 'DIRECTOR'
         AND us.status = 'active'
@@ -72,7 +72,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const aiAnalysisResult = await DB.prepare(`
       SELECT COUNT(*) as count 
       FROM usage_logs ul
-      JOIN User u ON ul.userId = u.id
+      JOIN users u ON ul.userId = u.id
       WHERE u.academyId = ? AND ul.type = 'ai_analysis'
     `).bind(academyId).first();
     const actualAI = aiAnalysisResult?.count || 0;
@@ -80,7 +80,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const similarProblemsResult = await DB.prepare(`
       SELECT COUNT(*) as count 
       FROM usage_logs ul
-      JOIN User u ON ul.userId = u.id
+      JOIN users u ON ul.userId = u.id
       WHERE u.academyId = ? AND ul.type = 'similar_problem'
     `).bind(academyId).first();
     const actualSimilar = similarProblemsResult?.count || 0;

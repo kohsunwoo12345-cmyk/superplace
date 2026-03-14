@@ -43,7 +43,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     // 1. 학원장 제한 설정 확인 (competency_analysis_enabled)
     try {
       const student = await DB.prepare(`
-        SELECT id, academyId FROM User WHERE id = ?
+        SELECT id, academyId FROM users WHERE id = ?
       `).bind(parseInt(studentId)).first();
 
       if (student && student.academyId) {
@@ -201,7 +201,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     // 4. AI 분석 사용량 로그 기록
     try {
       const student = await DB.prepare(`
-        SELECT id, academyId FROM User WHERE id = ?
+        SELECT id, academyId FROM users WHERE id = ?
       `).bind(parseInt(studentId)).first();
 
       if (student && student.academyId) {

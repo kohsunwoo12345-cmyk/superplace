@@ -23,14 +23,14 @@ export async function onRequest(context: { request: Request; env: any }) {
     try {
       if (email) {
         results.userByEmail = await db
-          .prepare('SELECT * FROM User WHERE email = ?')
+          .prepare('SELECT * FROM users WHERE email = ?')
           .bind(email)
           .first();
       }
       
       if (userId) {
         results.userById = await db
-          .prepare('SELECT * FROM User WHERE id = ?')
+          .prepare('SELECT * FROM users WHERE id = ?')
           .bind(userId)
           .first();
       }

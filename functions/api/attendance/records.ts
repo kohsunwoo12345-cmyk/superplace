@@ -39,7 +39,7 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
         u.name as userName,
         u.email as userEmail
       FROM attendance_records_v2 ar
-      LEFT JOIN User u ON u.id = ar.userId
+      LEFT JOIN users u ON u.id = ar.userId
       WHERE 1=1
     `;
 

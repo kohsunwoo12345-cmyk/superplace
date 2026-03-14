@@ -17,7 +17,7 @@ export const onRequest: PagesFunction = async (context) => {
           u.phone as userPhone,
           u.academyId
         FROM subscription_requests sr
-        LEFT JOIN User u ON sr.userId = u.id
+        LEFT JOIN users u ON sr.userId = u.id
       `;
       if (status !== 'all') {
         query += ` WHERE sr.status = '${status}'`;

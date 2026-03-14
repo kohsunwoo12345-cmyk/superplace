@@ -138,7 +138,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // academyId로 구독 확인
     const subscription = await DB.prepare(`
       SELECT us.* FROM user_subscriptions us
-      JOIN User u ON us.userId = u.id
+      JOIN users u ON us.userId = u.id
       WHERE u.academyId = ? AND u.role = 'DIRECTOR' AND us.status = 'active'
       ORDER BY us.endDate DESC LIMIT 1
     `).bind(parseInt(tokenAcademyId)).first();
@@ -220,7 +220,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       logs.push('🔄 User 테이블에 삽입 시도...');
       
       const query = `
-        INSERT INTO User (
+        INSERT INTO users (
           id, email, name, password, phone, role, academyId, createdAt, updatedAt
         )
         VALUES (?, ?, ?, ?, ?, 'TEACHER', ?, datetime('now'), datetime('now'))

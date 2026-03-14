@@ -37,7 +37,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // Check user role (SUPER_ADMIN or ADMIN only)
     const user = await context.env.DB.prepare(
-      'SELECT role FROM User WHERE id = ?'
+      'SELECT role FROM users WHERE id = ?'
     ).bind(decoded.userId).first();
 
     if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN')) {
@@ -149,7 +149,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         let studentId: string | null = null;
         if (row.studentCode) {
           const student = await context.env.DB.prepare(
-            'SELECT id FROM User WHERE studentCode = ? AND role = ?'
+            'SELECT id FROM users WHERE studentCode = ? AND role = ?'
           ).bind(row.studentCode, 'STUDENT').first();
 
           if (student) {

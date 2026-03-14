@@ -45,7 +45,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
 
     // 사용자 정보 조회
     const user = await db
-      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
 
@@ -159,7 +159,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     // 사용자 정보 조회
     const user = await db
-      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
 
@@ -482,7 +482,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           const academyInfo = await db.prepare(`
             SELECT a.name as academyName, u.name as directorName
             FROM Academy a
-            LEFT JOIN User u ON a.id = u.academyId AND u.role = 'DIRECTOR'
+            LEFT JOIN users u ON a.id = u.academyId AND u.role = 'DIRECTOR'
             WHERE a.id = ?
             LIMIT 1
           `).bind(creatorAcademyId).first();

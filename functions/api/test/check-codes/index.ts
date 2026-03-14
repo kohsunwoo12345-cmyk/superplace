@@ -29,7 +29,7 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
         u.email,
         u.role
       FROM student_attendance_codes c
-      LEFT JOIN User u ON c.userId = u.id
+      LEFT JOIN users u ON c.userId = u.id
       WHERE c.isActive = 1
       ORDER BY c.createdAt DESC
       LIMIT 10

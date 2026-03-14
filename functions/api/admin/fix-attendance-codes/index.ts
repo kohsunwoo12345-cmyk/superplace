@@ -36,7 +36,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
       // User 테이블에서 학생 조회
       const user = await DB.prepare(`
-        SELECT id, name, email, role FROM User WHERE id = ?
+        SELECT id, name, email, role FROM users WHERE id = ?
       `).bind(userId).first();
 
       if (!user) {
@@ -55,7 +55,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // 3. 학생 역할을 가진 모든 사용자에게 코드가 있는지 확인
     const students = await DB.prepare(`
-      SELECT id, name, email FROM User WHERE role = 'STUDENT'
+      SELECT id, name, email FROM users WHERE role = 'STUDENT'
     `).all();
 
     logs.push(`\n📊 Student 역할 사용자: ${students.results?.length || 0}명`);

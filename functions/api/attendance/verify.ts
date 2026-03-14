@@ -87,7 +87,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // 2. 학생 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
     let student = await DB.prepare(`
-      SELECT id, name, email, academyId, class as classId FROM User WHERE id = ?
+      SELECT id, name, email, academyId, class as classId FROM users WHERE id = ?
     `).bind(userId).first();
 
     console.log('👤 User 테이블 조회:', student);

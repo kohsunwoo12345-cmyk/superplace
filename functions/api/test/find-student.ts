@@ -39,7 +39,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 1. User 테이블 검색 (ID로)
     try {
       const userById = await DB
-        .prepare(`SELECT * FROM User WHERE id = ?`)
+        .prepare(`SELECT * FROM users WHERE id = ?`)
         .bind(userId)
         .first();
       
@@ -54,7 +54,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 2. User 테이블 검색 (숫자 ID로)
     try {
       const userByNumId = await DB
-        .prepare(`SELECT * FROM User WHERE id = ?`)
+        .prepare(`SELECT * FROM users WHERE id = ?`)
         .bind(parseInt(userId))
         .first();
       

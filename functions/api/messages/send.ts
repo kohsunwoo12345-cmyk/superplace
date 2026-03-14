@@ -204,7 +204,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     // 사용자 포인트 확인
     const userResult = await env.DB.prepare(`
-      SELECT points FROM User WHERE id = ?
+      SELECT points FROM users WHERE id = ?
     `).bind(user.id || user.userId).first();
 
     const userPoints = (userResult?.points as number) || 0;
@@ -323,7 +323,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     // 포인트 차감
     await env.DB.prepare(`
-      UPDATE User SET points = points - ? WHERE id = ?
+      UPDATE users SET points = points - ? WHERE id = ?
     `).bind(totalCost, user.id || user.userId).run();
 
     console.log(`💰 포인트 차감: ${totalCost}P (잔액: ${userPoints - totalCost}P)`);

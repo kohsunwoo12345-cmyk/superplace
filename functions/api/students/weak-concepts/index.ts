@@ -192,7 +192,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     // 0. 학원장 제한 설정 확인 (weak_concept_analysis_enabled)
     try {
       const student = await DB.prepare(`
-        SELECT id, academyId FROM User WHERE id = ?
+        SELECT id, academyId FROM users WHERE id = ?
       `).bind(parseInt(studentId)).first();
 
       if (student && student.academyId) {
@@ -794,7 +794,7 @@ Rules:
     try {
       // studentId로부터 학생의 학원 정보 가져오기
       const student = await DB.prepare(`
-        SELECT id, academyId FROM User WHERE id = ?
+        SELECT id, academyId FROM users WHERE id = ?
       `).bind(parseInt(studentId)).first();
 
       if (student && student.academyId) {

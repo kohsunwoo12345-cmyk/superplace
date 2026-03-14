@@ -124,7 +124,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
         
         // 먼저 User 테이블에서 사용자 존재 확인 (ID로)
         let targetUser = await db.prepare(`
-          SELECT id, email FROM User WHERE id = ?
+          SELECT id, email FROM users WHERE id = ?
         `).bind(userIdStr).first();
         
         console.log('🔍 User 테이블 조회 (ID):', targetUser);
@@ -132,7 +132,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
         // ID로 못 찾으면 email로 시도
         if (!targetUser && request.email) {
           targetUser = await db.prepare(`
-            SELECT id, email FROM User WHERE email = ?
+            SELECT id, email FROM users WHERE email = ?
           `).bind(request.email).first();
           console.log('🔍 User 테이블 조회 (email):', targetUser);
         }

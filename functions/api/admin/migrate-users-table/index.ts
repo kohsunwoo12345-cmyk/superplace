@@ -53,7 +53,7 @@ export const onRequestPost = async (context: { env: Env }) => {
       try {
         // User 테이블에 이미 존재하는지 확인 (phone으로 중복 체크)
         const existingUser = await DB.prepare(`
-          SELECT id FROM User WHERE phone = ?
+          SELECT id FROM users WHERE phone = ?
         `).bind(user.phone).first();
 
         if (existingUser) {
@@ -68,7 +68,7 @@ export const onRequestPost = async (context: { env: Env }) => {
         const academyId = user.academy_id || user.academyId;
 
         await DB.prepare(`
-          INSERT INTO User (
+          INSERT INTO users (
             id, name, email, phone, password, role,
             school, grade, academyId, approved, createdAt, updatedAt
           )

@@ -45,7 +45,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // 1. 사용자 정보 조회
     const user = await DB.prepare(`
-      SELECT id, name, email, academyId FROM User WHERE id = ?
+      SELECT id, name, email, academyId FROM users WHERE id = ?
     `).bind(userId).first();
 
     if (!user) {

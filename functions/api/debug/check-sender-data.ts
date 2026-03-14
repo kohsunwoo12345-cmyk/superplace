@@ -33,7 +33,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
     // 2. User 테이블 확인 (파스칼케이스)
     if (userId) {
       const userPascal = await db
-        .prepare('SELECT id, email, name, approvedSenderNumbers FROM User WHERE id = ?')
+        .prepare('SELECT id, email, name, approvedSenderNumbers FROM users WHERE id = ?')
         .bind(userId)
         .first();
       results.userPascal = userPascal;

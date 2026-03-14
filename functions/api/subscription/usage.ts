@@ -45,7 +45,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     } else if (academyId) {
       subscription = await DB.prepare(`
         SELECT us.* FROM user_subscriptions us
-        JOIN User u ON us.userId = u.id
+        JOIN users u ON us.userId = u.id
         WHERE u.academyId = ? AND u.role = 'DIRECTOR' AND us.status = 'active'
         ORDER BY us.endDate DESC LIMIT 1
       `).bind(academyId).first();

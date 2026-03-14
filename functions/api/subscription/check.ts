@@ -39,7 +39,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log('📝 academyId로 조회:', academyId);
       subscription = await DB.prepare(`
         SELECT us.* FROM user_subscriptions us
-        JOIN User u ON us.userId = u.id
+        JOIN users u ON us.userId = u.id
         WHERE u.academyId = ? 
           AND u.role = 'DIRECTOR'
           AND us.status = 'active'
@@ -95,7 +95,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (!targetAcademyId && userId) {
       // userId로 조회 시 해당 사용자의 academyId 찾기
       const userAcademy = await DB.prepare(`
-        SELECT academyId FROM User WHERE id = ?
+        SELECT academyId FROM users WHERE id = ?
       `).bind(userId).first();
       targetAcademyId = userAcademy?.academyId;
     }
@@ -140,7 +140,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const homeworkResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM homework_submissions hs
-          JOIN User u ON CAST(hs.userId AS TEXT) = u.id
+          JOIN users u ON CAST(hs.userId AS TEXT) = u.id
           WHERE u.academyId = ?
             AND hs.submittedAt IS NOT NULL
             AND hs.submittedAt >= ?
@@ -158,7 +158,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const aiAnalysisResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM usage_logs ul
-          JOIN User u ON CAST(ul.userId AS TEXT) = u.id
+          JOIN users u ON CAST(ul.userId AS TEXT) = u.id
           WHERE u.academyId = ? 
             AND (ul.type = 'ai_analysis' OR ul.type = 'weak_concept')
             AND ul.createdAt >= ?
@@ -176,7 +176,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const similarProblemsResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM usage_logs ul
-          JOIN User u ON CAST(ul.userId AS TEXT) = u.id
+          JOIN users u ON CAST(ul.userId AS TEXT) = u.id
           WHERE u.academyId = ? 
             AND ul.type = 'similar_problem'
             AND ul.createdAt >= ?

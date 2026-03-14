@@ -45,7 +45,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.academyId,
         cs.enrolledAt
       FROM ClassStudent cs
-      INNER JOIN User u ON cs.studentId = u.id
+      INNER JOIN users u ON cs.studentId = u.id
       WHERE cs.classId = ?
       ORDER BY u.name
     `).bind(classId).all();

@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
     // 사용자 권한 확인
     const user = await db
-      .prepare('SELECT role FROM User WHERE id = ?')
+      .prepare('SELECT role FROM users WHERE id = ?')
       .bind(userId)
       .first();
 

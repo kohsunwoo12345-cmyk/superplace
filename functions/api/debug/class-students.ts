@@ -59,7 +59,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             u.email as studentEmail,
             c.name as className
           FROM ClassStudent cs
-          LEFT JOIN User u ON cs.studentId = u.id
+          LEFT JOIN users u ON cs.studentId = u.id
           LEFT JOIN Class c ON cs.classId = c.id
           WHERE cs.classId = ?
         `).bind(classId).all();
@@ -127,7 +127,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           c.name as className,
           datetime(cs.enrolledAt) as enrolledAtFormatted
         FROM ClassStudent cs
-        LEFT JOIN User u ON cs.studentId = u.id
+        LEFT JOIN users u ON cs.studentId = u.id
         LEFT JOIN Class c ON cs.classId = c.id
         ORDER BY cs.enrolledAt DESC
         LIMIT 10

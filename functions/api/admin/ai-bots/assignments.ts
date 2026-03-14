@@ -57,7 +57,7 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
 
     // Get user from database
     const user = await DB
-      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first() as any;
 

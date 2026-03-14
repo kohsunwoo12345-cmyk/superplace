@@ -163,7 +163,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.academyId,
         a.name as academyName
       FROM PointChargeRequest pcr
-      LEFT JOIN User u ON pcr.userId = u.id
+      LEFT JOIN users u ON pcr.userId = u.id
       LEFT JOIN academy a ON u.academyId = a.id
       WHERE pcr.status = 'APPROVED'
     `;
@@ -222,7 +222,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.email as userEmail,
         a.name as academyName
       FROM BotPurchaseRequest bpr
-      LEFT JOIN User u ON bpr.userId = u.id
+      LEFT JOIN users u ON bpr.userId = u.id
       LEFT JOIN academy a ON bpr.academyId = a.id
       WHERE bpr.status = 'APPROVED'
     `;
@@ -278,7 +278,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.academyId,
         a.name as academyName
       FROM subscription_requests sr
-      LEFT JOIN User u ON sr.userId = u.id
+      LEFT JOIN users u ON sr.userId = u.id
       LEFT JOIN academy a ON u.academyId = a.id
       WHERE sr.status = 'approved'
     `;
@@ -377,7 +377,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         SUM(pcr.totalPrice) as totalAmount,
         COUNT(*) as transactionCount
       FROM PointChargeRequest pcr
-      LEFT JOIN User u ON pcr.userId = u.id
+      LEFT JOIN users u ON pcr.userId = u.id
       LEFT JOIN academy a ON u.academyId = a.id
       WHERE pcr.status = 'APPROVED' AND u.academyId IS NOT NULL
     `;
@@ -446,7 +446,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         SUM(sr.finalPrice) as totalAmount,
         COUNT(*) as transactionCount
       FROM subscription_requests sr
-      LEFT JOIN User u ON sr.userId = u.id
+      LEFT JOIN users u ON sr.userId = u.id
       LEFT JOIN academy a ON u.academyId = a.id
       WHERE sr.status = 'approved' AND u.academyId IS NOT NULL
     `;

@@ -44,7 +44,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     console.log(`📚 숙제 채점 시작: ${imageArray.length}장 이미지, userId: ${userId}`);
 
     // 1. 사용자 정보 조회
-    let user = await DB.prepare("SELECT id, name, email, academyId FROM User WHERE id = ?")
+    let user = await DB.prepare("SELECT id, name, email, academyId FROM users WHERE id = ?")
       .bind(userId).first();
 
     if (!user) {

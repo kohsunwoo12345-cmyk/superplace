@@ -49,7 +49,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     try {
       console.log('Querying User table for points:', userId);
       const user = await env.DB.prepare(`
-        SELECT points FROM User WHERE id = ?
+        SELECT points FROM users WHERE id = ?
       `).bind(userId).first();
       
       if (user) {

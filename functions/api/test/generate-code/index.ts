@@ -28,7 +28,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     if (!targetUserId) {
       // 학생 역할을 가진 사용자 찾기
       const student = await DB.prepare(`
-        SELECT id, name, email FROM User WHERE role = 'STUDENT' LIMIT 1
+        SELECT id, name, email FROM users WHERE role = 'STUDENT' LIMIT 1
       `).first();
 
       if (!student) {
@@ -46,7 +46,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // 학생 정보 조회
     const student = await DB.prepare(`
-      SELECT id, name, email, role FROM User WHERE id = ?
+      SELECT id, name, email, role FROM users WHERE id = ?
     `).bind(targetUserId).first();
 
     if (!student) {

@@ -64,7 +64,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // Get user from database
-    const user = await DB.prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+    const user = await DB.prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
 

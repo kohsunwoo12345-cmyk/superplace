@@ -92,7 +92,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
 
     // 7. User 테이블에서 완전 삭제
     await DB.prepare(`
-      DELETE FROM User WHERE id = ?
+      DELETE FROM users WHERE id = ?
     `).bind(studentId).run();
     console.log('✅ Deleted from User table');
 

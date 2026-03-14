@@ -71,7 +71,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (academyId) {
       subscription = await DB.prepare(`
         SELECT us.* FROM user_subscriptions us
-        JOIN User u ON us.userId = u.id
+        JOIN users u ON us.userId = u.id
         WHERE u.academyId = ? 
           AND u.role = 'DIRECTOR'
           AND us.status = 'active'

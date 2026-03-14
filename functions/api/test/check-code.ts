@@ -48,7 +48,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     let student = null;
     try {
       student = await DB
-        .prepare(`SELECT * FROM User WHERE id = ?`)
+        .prepare(`SELECT * FROM users WHERE id = ?`)
         .bind(userId)
         .first();
       

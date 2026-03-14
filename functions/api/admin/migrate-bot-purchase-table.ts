@@ -19,7 +19,7 @@ export async function onRequestPost(context: any) {
     
     // 토큰으로 사용자 조회
     const adminUser = await env.DB.prepare(
-      'SELECT id, email, name, role FROM User WHERE token = ?'
+      'SELECT id, email, name, role FROM users WHERE token = ?'
     ).bind(token).first();
 
     if (!adminUser) {

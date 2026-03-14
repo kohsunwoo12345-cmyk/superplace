@@ -14,7 +14,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     
     // 2. 학생 수 (대소문자 무관)
     const totalStudents = await DB.prepare(`
-      SELECT COUNT(*) as count FROM User WHERE UPPER(role) = 'STUDENT'
+      SELECT COUNT(*) as count FROM users WHERE UPPER(role) = 'STUDENT'
     `).first();
     
     // 3. 활성 학생 수

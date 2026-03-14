@@ -51,7 +51,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
       console.log('📝 Updating User table (PascalCase)...');
       const userResult = await DB
-        .prepare(`UPDATE User SET academyId = ? WHERE id = ?`)
+        .prepare(`UPDATE users SET academyId = ? WHERE id = ?`)
         .bind(academyId, studentUserId)
         .run();
       

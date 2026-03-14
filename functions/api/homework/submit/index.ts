@@ -54,7 +54,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 1. 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
     console.log(`🔍 User 테이블 조회 시작: userId=${userId}`);
     let user = await DB.prepare(
-      "SELECT id, name, email, academyId FROM User WHERE id = ?"
+      "SELECT id, name, email, academyId FROM users WHERE id = ?"
     ).bind(userId).first();
 
     console.log(`📊 User 테이블 결과:`, user);

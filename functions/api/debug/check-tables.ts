@@ -44,7 +44,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (studentId) {
       try {
         const student = await DB.prepare(`
-          SELECT * FROM User WHERE id = ?
+          SELECT * FROM users WHERE id = ?
         `).bind(studentId).first();
         results.studentData = student;
       } catch (e: any) {

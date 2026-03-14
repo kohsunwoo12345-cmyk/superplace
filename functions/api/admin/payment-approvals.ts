@@ -534,7 +534,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         try {
           // 학원 ID 조회
           const userInfo = await DB.prepare(`
-            SELECT academyId FROM User WHERE id = ?
+            SELECT academyId FROM users WHERE id = ?
           `).bind(approval.userId).first();
 
           if (userInfo && userInfo.academyId) {

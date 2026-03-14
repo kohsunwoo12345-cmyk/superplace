@@ -35,7 +35,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     // 사용자 권한 확인
     const user = await db
-      .prepare('SELECT role FROM User WHERE id = ?')
+      .prepare('SELECT role FROM users WHERE id = ?')
       .bind(userId)
       .first();
 
@@ -126,7 +126,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     // 사용자 권한 확인
     const user = await db
-      .prepare('SELECT role FROM User WHERE id = ?')
+      .prepare('SELECT role FROM users WHERE id = ?')
       .bind(userId)
       .first();
 

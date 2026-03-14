@@ -27,14 +27,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         SELECT COUNT(*) as total,
                COUNT(CASE WHEN submittedAt IS NOT NULL THEN 1 END) as submitted
         FROM homework_submissions hs
-        JOIN User u ON hs.userId = u.id
+        JOIN users u ON hs.userId = u.id
         WHERE u.academyId = ?
       `).bind(academyId).first();
       
       const hwSample = await DB.prepare(`
         SELECT hs.id, hs.userId, hs.submittedAt, u.academyId
         FROM homework_submissions hs
-        JOIN User u ON hs.userId = u.id
+        JOIN users u ON hs.userId = u.id
         WHERE u.academyId = ?
         LIMIT 3
       `).bind(academyId).all();
@@ -85,7 +85,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           ul.type,
           COUNT(*) as count
         FROM usage_logs ul
-        JOIN User u ON ul.userId = u.id
+        JOIN users u ON ul.userId = u.id
         WHERE u.academyId = ?
         GROUP BY ul.type
       `).bind(academyId).all();
@@ -128,7 +128,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const subData = await DB.prepare(`
         SELECT us.*, u.academyId
         FROM user_subscriptions us
-        JOIN User u ON us.userId = u.id
+        JOIN users u ON us.userId = u.id
         WHERE u.academyId = ?
         LIMIT 1
       `).bind(academyId).first();

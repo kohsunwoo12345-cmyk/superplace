@@ -27,7 +27,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // Check user role
     const user = await context.env.DB.prepare(
-      'SELECT role FROM User WHERE id = ?'
+      'SELECT role FROM users WHERE id = ?'
     ).bind(decoded.userId).first();
 
     if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN')) {
@@ -65,7 +65,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         c.name as className
       FROM RecipientGroupMember rgm
       INNER JOIN Parent p ON rgm.parentId = p.id
-      LEFT JOIN User u ON rgm.studentId = u.id
+      LEFT JOIN users u ON rgm.studentId = u.id
       LEFT JOIN Class c ON u.classId = c.id
       WHERE rgm.groupId = ?
     `).bind(body.groupId).all();

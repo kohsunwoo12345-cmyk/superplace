@@ -25,7 +25,7 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
           u.name as studentName,
           f.name as folderName
         FROM LandingPage lp
-        LEFT JOIN User u ON lp.studentId = u.id
+        LEFT JOIN users u ON lp.studentId = u.id
         LEFT JOIN LandingPageFolder f ON lp.folderId = f.id
         WHERE lp.slug = ? AND lp.isActive = 1`
       )

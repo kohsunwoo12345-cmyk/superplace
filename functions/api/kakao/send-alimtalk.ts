@@ -241,7 +241,7 @@ export async function onRequestPost(context: any) {
     // Deduct points from user
     try {
       await env.DB.prepare(`
-        UPDATE User SET points = COALESCE(points, 0) - ? WHERE id = ?
+        UPDATE users SET points = COALESCE(points, 0) - ? WHERE id = ?
       `).bind(totalCost, userId).run();
       console.log(`✅ Points deducted successfully: ${totalCost} points`);
     } catch (pointError) {

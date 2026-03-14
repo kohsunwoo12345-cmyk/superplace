@@ -69,7 +69,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           '로그인' as action,
           COALESCE(u.name, u.email, '알 수 없음') || ' 님이 로그인하였습니다' as details
         FROM user_login_logs l
-        LEFT JOIN User u ON l.userId = u.id
+        LEFT JOIN users u ON l.userId = u.id
         WHERE 1=1
       `;
       const loginParams: any[] = [];
@@ -129,7 +129,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           a.details,
           a.createdAt as timestamp
         FROM ActivityLog a
-        LEFT JOIN User u ON a.userId = u.id
+        LEFT JOIN users u ON a.userId = u.id
         WHERE 1=1
       `;
       const activityParams: any[] = [];
