@@ -610,18 +610,33 @@ export async function onRequestDelete(context) {
 
     console.log('Deleting seminar:', seminarId);
 
-    // Change status to cancelled
-    const now = getKoreanTime();
+    // 1. 먼저 연관된 신청 데이터 삭제
+    const deleteApplicationsResult = await db.prepare(`
+      DELETE FROM seminar_applications WHERE seminarId = ?
+    `).bind(seminarId).run();
     
-    await db.prepare(`
-      UPDATE seminars SET status = 'cancelled', updatedAt = ? WHERE id = ?
-    `).bind(now, seminarId).run();
+    console.log('🗑️ Deleted applications:', deleteApplicationsResult.meta?.changes || 0);
 
-    console.log('✅ Seminar deleted:', seminarId);
+    // 2. 세미나 완전 삭제 (DB에서 실제로 삭제)
+    const result = await db.prepare(`
+      DELETE FROM seminars WHERE id = ?
+    `).bind(seminarId).run();
+
+    console.log('✅ Seminar deleted:', seminarId, 'Changes:', result.meta?.changes || 0);
+
+    if (result.meta?.changes === 0) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Seminar not found or already deleted'
+      }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     return new Response(JSON.stringify({
       success: true,
-      message: '세미나가 삭제되었습니다'
+      message: '세미나가 완전히 삭제되었습니다'
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
