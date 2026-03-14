@@ -195,6 +195,28 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
 
   console.log(`🗑️ STARTING FORCE DELETE for bot: ${botId}`);
   
+  // 먼저 봇이 존재하는지 확인
+  let botExists = false;
+  try {
+    const existingBot = await DB.prepare(`SELECT id, name FROM ai_bots WHERE id = ?`).bind(botId).first();
+    if (existingBot) {
+      botExists = true;
+      console.log(`✅ Bot found: ${JSON.stringify(existingBot)}`);
+    } else {
+      console.log(`❌ Bot not found with id: ${botId}`);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Bot not found",
+          message: "해당 봇을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다."
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  } catch (e: any) {
+    console.error(`❌ Error checking bot existence: ${e.message}`);
+  }
+  
   // 순서대로 하나씩 삭제 (에러 무시)
   const deleteSteps = [
     { table: 'ai_bot_assignments', column: 'botId' },
@@ -210,6 +232,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
   ];
 
   let deletedCount = 0;
+  const errors: string[] = [];
   
   for (const step of deleteSteps) {
     try {
@@ -220,33 +243,46 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
       deletedCount += changes;
       console.log(`✅ ${step.table}: deleted ${changes} rows`);
     } catch (e: any) {
-      console.log(`⚠️ ${step.table}: ${e.message}`);
+      const errorMsg = `${step.table}: ${e.message}`;
+      console.log(`⚠️ ${errorMsg}`);
+      errors.push(errorMsg);
       // 테이블이 없어도 계속 진행
     }
   }
 
   console.log(`📊 Total related records deleted: ${deletedCount}`);
+  if (errors.length > 0) {
+    console.log(`⚠️ Errors encountered: ${errors.join(', ')}`);
+  }
   
   // 이제 봇 자체를 삭제
   console.log(`🎯 Deleting bot from ai_bots table...`);
   let botDeleted = false;
+  let deleteError: string | null = null;
   
   try {
     const result = await DB.prepare(`DELETE FROM ai_bots WHERE id = ?`).bind(botId).run();
     const changes = result.meta?.changes || 0;
     botDeleted = changes > 0;
-    console.log(`✅ Bot deleted: ${changes} row(s) affected`);
+    console.log(`✅ Bot deletion result: ${changes} row(s) affected`);
+    
+    if (changes === 0) {
+      deleteError = "DELETE query returned 0 changes - bot may not exist or FK constraint blocking";
+      console.error(`❌ ${deleteError}`);
+    }
   } catch (e: any) {
-    console.error(`❌ Bot deletion failed: ${e.message}`);
+    deleteError = e.message;
+    console.error(`❌ Bot deletion exception: ${e.message}`);
     console.error(`Stack: ${e.stack}`);
-    // 에러가 나도 계속 진행
   }
 
   // 삭제 확인
+  let stillExists = false;
   try {
     const check = await DB.prepare(`SELECT id FROM ai_bots WHERE id = ?`).bind(botId).first();
     if (check) {
-      console.error(`❌ WARNING: Bot still exists after deletion!`);
+      stillExists = true;
+      console.error(`❌ CRITICAL: Bot still exists after deletion!`);
       console.error(`Bot data: ${JSON.stringify(check)}`);
     } else {
       console.log(`✅ VERIFIED: Bot no longer exists in database`);
@@ -256,6 +292,25 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
   }
 
   console.log(`🎉 DELETE operation completed for bot: ${botId}`);
+
+  // 실패한 경우 에러 반환
+  if (stillExists || !botDeleted) {
+    return new Response(
+      JSON.stringify({ 
+        success: false,
+        error: "Deletion failed",
+        message: `봇 삭제에 실패했습니다. ${deleteError || '알 수 없는 오류'}`,
+        details: {
+          deletedRelatedRecords: deletedCount,
+          botDeleted: botDeleted,
+          stillExists: stillExists,
+          deleteError: deleteError,
+          errors: errors
+        }
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   return new Response(
     JSON.stringify({ 
