@@ -240,6 +240,7 @@ export async function onRequestPost(context: any) {
             subscriptionEnd = ?,
             productId = ?,
             productName = ?,
+            botId = ?,
             updatedAt = ?
         WHERE id = ?
       `).bind(
@@ -248,6 +249,7 @@ export async function onRequestPost(context: any) {
         newEndDate.toISOString(),
         purchaseRequest.productId,
         purchaseRequest.productName,
+        botId,
         now,
         existingSubscription.id
       ).run();
