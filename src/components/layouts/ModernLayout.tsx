@@ -28,6 +28,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
+  const [userPoints, setUserPoints] = useState<number>(0);
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -46,11 +47,36 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
       try {
         const userData = JSON.parse(userStr);
         setUser(userData);
+        // 포인트 조회
+        fetchUserPoints(userData.id);
       } catch (error) {
         console.error('Failed to parse user data:', error);
       }
     }
   }, []);
+
+  // 사용자 포인트 조회
+  const fetchUserPoints = async (userId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/user/points', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ User points loaded:', data.points);
+        setUserPoints(data.points || 0);
+      } else {
+        console.error('❌ Failed to fetch user points:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching user points:', error);
+    }
+  };
 
   if (!mounted) {
     return null;
@@ -362,7 +388,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
             <div className="pt-3 border-t border-blue-200">
               <div className="flex items-center justify-between text-xs text-gray-600">
                 <span>포인트</span>
-                <span className="font-semibold text-blue-600">0 P</span>
+                <span className="font-semibold text-blue-600">{userPoints.toLocaleString()} P</span>
               </div>
             </div>
           </div>
