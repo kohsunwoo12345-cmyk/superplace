@@ -1,5 +1,5 @@
-// 클래스 생성 API - 완전히 새로 작성
-// academyId를 어떤 형태로든 받아서 문자열로 저장
+// 클래스 생성 API - Class 테이블 사용 (파스칼 케이스)
+// isActive를 명시적으로 1로 설정하여 목록에 표시되도록 함
 
 interface Env {
   DB: D1Database;
@@ -9,6 +9,27 @@ function getKoreanTime(): string {
   const now = new Date();
   const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
   return kst.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+// Simple token parser
+function parseToken(authHeader: string | null) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  
+  const token = authHeader.substring(7);
+  const parts = token.split('|');
+  
+  if (parts.length < 3) {
+    return null;
+  }
+  
+  return {
+    id: parts[0],
+    email: parts[1],
+    role: parts[2],
+    academyId: parts[3] || null
+  };
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -24,8 +45,42 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
+    console.log('📝 Create class API called');
+
+    // Parse token
+    const authHeader = context.request.headers.get('Authorization');
+    const tokenData = parseToken(authHeader);
+
+    if (!tokenData) {
+      console.error('❌ No token provided');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Unauthorized',
+        message: '인증이 필요합니다'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get user from database
+    const user = await DB.prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .bind(tokenData.email)
+      .first();
+
+    if (!user) {
+      console.error('❌ User not found:', tokenData.email);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'User not found'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     const body = await context.request.json();
-    const { academyId, name, grade, description, teacherId, color, schedules, studentIds } = body;
+    const { name, grade, description, color, capacity, schedules, students, studentIds } = body;
 
     if (!name) {
       return new Response(JSON.stringify({ 
@@ -37,42 +92,88 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const academyIdValue = academyId ? String(academyId) : null;
-    const teacherIdValue = teacherId ? String(teacherId) : null;
+    const academyIdValue = user.academyId || null;
+    const teacherIdValue = user.id;
     const classColor = color || '#3B82F6';
+    const classCapacity = capacity || 30;
     const koreanTime = getKoreanTime();
-
-    console.log('Creating class:', { academyIdValue, name });
-
-    const result = await DB.prepare(`
-      INSERT INTO classes (academy_id, class_name, grade, description, teacher_id, color, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).bind(academyIdValue, name, grade || null, description || null, teacherIdValue, classColor, koreanTime).run();
     
-    const classId = result.meta.last_row_id;
+    // Generate unique ID
+    const classId = `class-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    console.log('Class created:', classId);
+    console.log('Creating class:', { 
+      classId,
+      academyId: academyIdValue, 
+      name,
+      teacherId: teacherIdValue
+    });
 
-    // 학생 배정
-    if (studentIds && Array.isArray(studentIds)) {
-      for (const studentId of studentIds) {
+    // ✅ Class 테이블에 삽입 (파스칼 케이스), isActive = 1 명시
+    await DB.prepare(`
+      INSERT INTO Class (id, name, grade, description, academyId, teacherId, color, capacity, isActive, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+    `).bind(
+      classId,
+      name,
+      grade || null,
+      description || null,
+      academyIdValue,
+      teacherIdValue,
+      classColor,
+      classCapacity,
+      koreanTime,
+      koreanTime
+    ).run();
+    
+    console.log('✅ Class created in Class table with isActive=1:', classId);
+
+    // 학생 배정 (ClassStudent 테이블 사용)
+    const finalStudentIds = students || studentIds;
+    if (finalStudentIds && Array.isArray(finalStudentIds) && finalStudentIds.length > 0) {
+      for (const studentId of finalStudentIds) {
         try {
           const studentIdStr = String(studentId);
+          const csId = `cs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          
+          // Check if already exists
           const existing = await DB.prepare(
-            'SELECT id FROM class_students WHERE classId = ? AND studentId = ?'
+            'SELECT id FROM ClassStudent WHERE classId = ? AND studentId = ?'
           ).bind(classId, studentIdStr).first();
 
-          if (existing) {
+          if (!existing) {
             await DB.prepare(
-              'UPDATE class_students SET status = ?, enrolledAt = ? WHERE classId = ? AND studentId = ?'
-            ).bind('active', koreanTime, classId, studentIdStr).run();
-          } else {
-            await DB.prepare(
-              'INSERT INTO class_students (classId, studentId, enrolledAt, status) VALUES (?, ?, ?, ?)'
-            ).bind(classId, studentIdStr, koreanTime, 'active').run();
+              'INSERT INTO ClassStudent (id, classId, studentId, enrolledAt) VALUES (?, ?, ?, ?)'
+            ).bind(csId, classId, studentIdStr, koreanTime).run();
+            console.log('✅ Student enrolled:', studentIdStr);
           }
-        } catch (err) {
-          console.error('Student enrollment error:', err);
+        } catch (err: any) {
+          console.error('❌ Student enrollment error:', err.message);
+        }
+      }
+    }
+
+    // 스케줄 추가 (ClassSchedule 테이블 사용)
+    if (schedules && Array.isArray(schedules) && schedules.length > 0) {
+      for (const schedule of schedules) {
+        try {
+          const scheduleId = `schedule-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          
+          await DB.prepare(`
+            INSERT INTO ClassSchedule (id, classId, subject, dayOfWeek, startTime, endTime, createdAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            scheduleId,
+            classId,
+            schedule.subject || '수업',
+            schedule.dayOfWeek,
+            schedule.startTime,
+            schedule.endTime,
+            koreanTime
+          ).run();
+          
+          console.log('✅ Schedule added:', schedule);
+        } catch (err: any) {
+          console.error('❌ Schedule error:', err.message);
         }
       }
     }
