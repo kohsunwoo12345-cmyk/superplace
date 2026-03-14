@@ -151,6 +151,23 @@ export default function StoreManagementPage() {
     }
 
     try {
+      const token = localStorage.getItem("token");
+      
+      // API로 삭제 시도
+      const response = await fetch(`/api/admin/store-products?id=${productId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        alert("제품이 삭제되었습니다.");
+        fetchProducts();
+        return;
+      }
+
+      // API 실패 시 localStorage에서 삭제 (fallback)
       const storedProducts = localStorage.getItem("storeProducts");
       const products = storedProducts ? JSON.parse(storedProducts) : [];
       const updatedProducts = products.filter((p: any) => p.id !== productId);
@@ -160,21 +177,51 @@ export default function StoreManagementPage() {
       fetchProducts();
     } catch (error) {
       console.error("Error deleting product:", error);
-      alert("오류가 발생했습니다.");
+      alert("삭제 중 오류가 발생했습니다.");
     }
   };
 
   const toggleActive = async (productId: string, currentStatus: number) => {
     try {
+      const token = localStorage.getItem("token");
+      const newStatus = currentStatus === 1 ? 0 : 1;
+
+      // 먼저 현재 제품 정보 가져오기
+      const product = products.find((p) => p.id === productId);
+      if (!product) {
+        alert("제품을 찾을 수 없습니다.");
+        return;
+      }
+
+      // API로 업데이트 시도
+      const response = await fetch(`/api/admin/store-products?id=${productId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...product,
+          isActive: newStatus,
+        }),
+      });
+
+      if (response.ok) {
+        fetchProducts();
+        return;
+      }
+
+      // API 실패 시 localStorage에서 업데이트 (fallback)
       const storedProducts = localStorage.getItem("storeProducts");
-      const products = storedProducts ? JSON.parse(storedProducts) : [];
-      const updatedProducts = products.map((p: any) => 
-        p.id === productId ? { ...p, isActive: currentStatus === 1 ? 0 : 1 } : p
+      const allProducts = storedProducts ? JSON.parse(storedProducts) : [];
+      const updatedProducts = allProducts.map((p: any) =>
+        p.id === productId ? { ...p, isActive: newStatus } : p
       );
       localStorage.setItem("storeProducts", JSON.stringify(updatedProducts));
       fetchProducts();
     } catch (error) {
       console.error("Error toggling active status:", error);
+      alert("상태 변경 중 오류가 발생했습니다.");
     }
   };
 

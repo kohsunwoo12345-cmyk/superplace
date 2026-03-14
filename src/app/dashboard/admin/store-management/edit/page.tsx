@@ -90,41 +90,87 @@ export default function EditStoreProductPage() {
     }
   }, [router, productId]);
 
-  const loadProduct = () => {
-    const storedProducts = localStorage.getItem("storeProducts");
-    if (storedProducts) {
-      const products = JSON.parse(storedProducts);
-      const product = products.find((p: any) => p.id === productId);
-      
-      if (product) {
-        setFormData({
-          name: product.name || "",
-          category: product.category || "academy_operation",
-          section: product.section || "academy_bots",
-          description: product.description || "",
-          shortDescription: product.shortDescription || "",
-          price: product.price || "",
-          monthlyPrice: product.monthlyPrice || "",
-          yearlyPrice: product.yearlyPrice || "",
-          features: Array.isArray(product.features) 
-            ? product.features.join("\n") 
-            : product.features || "",
-          detailHtml: product.detailHtml || "",
-          imageUrl: product.imageUrl || "",
-          botId: product.botId || "",
-          isActive: product.isActive !== undefined ? product.isActive : 1,
-          isFeatured: product.isFeatured || 0,
-          displayOrder: product.displayOrder || "",
-          keywords: product.keywords || "",
-        });
-        
-        if (product.imageUrl) {
-          setImagePreview(product.imageUrl);
+  const loadProduct = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/admin/store-products?activeOnly=false", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const product = data.products?.find((p: any) => p.id === productId);
+
+        if (product) {
+          setFormData({
+            name: product.name || "",
+            category: product.category || "academy_operation",
+            section: product.section || "academy_bots",
+            description: product.description || "",
+            shortDescription: product.shortDescription || "",
+            price: product.price || "",
+            monthlyPrice: product.monthlyPrice || "",
+            yearlyPrice: product.yearlyPrice || "",
+            features: Array.isArray(product.features)
+              ? product.features.join("\n")
+              : product.features || "",
+            detailHtml: product.detailHtml || "",
+            imageUrl: product.imageUrl || "",
+            botId: product.botId || "",
+            isActive: product.isActive !== undefined ? product.isActive : 1,
+            isFeatured: product.isFeatured || 0,
+            displayOrder: product.displayOrder || "",
+            keywords: product.keywords || "",
+          });
+
+          if (product.imageUrl) {
+            setImagePreview(product.imageUrl);
+          }
+          return;
         }
-      } else {
-        alert("제품을 찾을 수 없습니다.");
-        router.push("/dashboard/admin/store-management");
       }
+
+      // Fallback to localStorage
+      const storedProducts = localStorage.getItem("storeProducts");
+      if (storedProducts) {
+        const products = JSON.parse(storedProducts);
+        const product = products.find((p: any) => p.id === productId);
+
+        if (product) {
+          setFormData({
+            name: product.name || "",
+            category: product.category || "academy_operation",
+            section: product.section || "academy_bots",
+            description: product.description || "",
+            shortDescription: product.shortDescription || "",
+            price: product.price || "",
+            monthlyPrice: product.monthlyPrice || "",
+            yearlyPrice: product.yearlyPrice || "",
+            features: Array.isArray(product.features)
+              ? product.features.join("\n")
+              : product.features || "",
+            detailHtml: product.detailHtml || "",
+            imageUrl: product.imageUrl || "",
+            botId: product.botId || "",
+            isActive: product.isActive !== undefined ? product.isActive : 1,
+            isFeatured: product.isFeatured || 0,
+            displayOrder: product.displayOrder || "",
+            keywords: product.keywords || "",
+          });
+
+          if (product.imageUrl) {
+            setImagePreview(product.imageUrl);
+          }
+        } else {
+          alert("제품을 찾을 수 없습니다.");
+          router.push("/dashboard/admin/store-management");
+        }
+      }
+    } catch (error) {
+      console.error("Error loading product:", error);
+      alert("제품 로드 중 오류가 발생했습니다.");
     }
   };
 
@@ -165,27 +211,51 @@ export default function EditStoreProductPage() {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem("token");
+
+      const updateData = {
+        ...formData,
+        price: formData.price === "" ? 0 : Number(formData.price),
+        monthlyPrice: formData.monthlyPrice === "" ? 0 : Number(formData.monthlyPrice),
+        yearlyPrice: formData.yearlyPrice === "" ? 0 : Number(formData.yearlyPrice),
+        displayOrder: formData.displayOrder === "" ? 0 : Number(formData.displayOrder),
+        features: formData.features ? formData.features.split("\n").filter((f) => f.trim()).join("\n") : "",
+      };
+
+      // API로 업데이트 시도
+      const response = await fetch(`/api/admin/store-products?id=${productId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        alert("제품이 성공적으로 수정되었습니다!");
+        router.push("/dashboard/admin/store-management");
+        return;
+      }
+
+      // API 실패 시 localStorage에 저장 (fallback)
       const storedProducts = localStorage.getItem("storeProducts");
       const products = storedProducts ? JSON.parse(storedProducts) : [];
-      
+
       const updatedProducts = products.map((p: any) => {
         if (p.id === productId) {
           return {
             ...p,
-            ...formData,
-            price: formData.price === "" ? 0 : Number(formData.price),
-            monthlyPrice: formData.monthlyPrice === "" ? 0 : Number(formData.monthlyPrice),
-            yearlyPrice: formData.yearlyPrice === "" ? 0 : Number(formData.yearlyPrice),
-            displayOrder: formData.displayOrder === "" ? 0 : Number(formData.displayOrder),
-            features: formData.features ? formData.features.split("\n").filter((f) => f.trim()) : [],
+            ...updateData,
+            features: updateData.features.split("\n").filter((f: string) => f.trim()),
             updatedAt: new Date().toISOString(),
           };
         }
         return p;
       });
-      
+
       localStorage.setItem("storeProducts", JSON.stringify(updatedProducts));
-      
+
       alert("제품이 성공적으로 수정되었습니다!");
       router.push("/dashboard/admin/store-management");
     } catch (error) {
