@@ -1,61 +1,9 @@
-name = "superplace"
-compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
+name = "superplacestudy"
+compatibility_date = "2024-01-01"
 
-# Cloudflare Pages configuration
-# Static export output directory
-pages_build_output_dir = "out"
+# Cloudflare Pages Functions AI 바인딩
+[env.production]
+ai = { binding = "AI" }
 
-# D1 Database (webapp-production)
-[[d1_databases]]
-binding = "DB"
-database_name = "webapp-production"
-database_id = "8c106540-21b4-4fa9-8879-c4956e459ca1"
-
-# R2 Storage (for SMS documents)
-[[r2_buckets]]
-binding = "SMS_DOCUMENTS"
-bucket_name = "superplacestudy"
-
-# R2 Storage (for sender number registration documents)
-[[r2_buckets]]
-binding = "SENDER_NUMBER_BUCKET"
-bucket_name = "superplacestudy"
-
-# Vectorize (for RAG - Knowledge Base embeddings)
-[[vectorize]]
-binding = "VECTORIZE"
-index_name = "knowledge-base-embeddings"
-
-# Queue (DISABLED for Pages deployment)
-# Background processing queue must be deployed as separate Worker
-# To enable: 
-#   1. Create queue: wrangler queues create homework-grading-queue
-#   2. Deploy consumer: wrangler deploy src/queue-consumer.ts --name homework-grading-consumer
-#   3. Uncomment below and redeploy Pages
-# [[queues.producers]]
-# binding = "HOMEWORK_QUEUE"
-# queue = "homework-grading-queue"
-
-# Workers AI (for embeddings and inference)
-[ai]
-binding = "AI"
-
-# Environment Variables
-# Note: These should be set in Cloudflare Pages dashboard
-# Settings > Environment variables > Production
-# 
-# Required for SMS functionality:
-# - SOLAPI_API_Key (Solapi API Key)
-# - SOLAPI_API_Secret (Solapi API Secret)
-#
-# Required for AI Models:
-# - GOOGLE_GEMINI_API_KEY (Get from: https://makersuite.google.com/app/apikey)
-# - ALL_AI_API_KEY (For DeepSeek OCR-2 model)
-# - OPENAI_API_KEY (For GPT-4o, GPT-4o mini, GPT-4.1, GPT-5 models)
-#
-# Sensitive variables (API keys, secrets) should ONLY be set in dashboard,
-# NOT in this file (wrangler.toml is committed to git)
-[vars]
-# Python Workers service URL for math problem solving
-PYTHON_WORKER_URL = "https://physonsuperplacestudy.kohsunwoo12345.workers.dev"
+[env.preview]
+ai = { binding = "AI" }
