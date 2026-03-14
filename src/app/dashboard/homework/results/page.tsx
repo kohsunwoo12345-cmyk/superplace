@@ -848,10 +848,44 @@ export default function TeacherHomeworkResultsPage() {
                 </CardHeader>
                 <CardContent className="pt-4">
                   <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                    {selectedSubmission.feedback}
+                    {selectedSubmission.feedback || selectedSubmission.strengths || selectedSubmission.improvements || "피드백이 없습니다."}
                   </p>
                 </CardContent>
               </Card>
+
+              {/* 잘한 점 */}
+              {selectedSubmission.strengths && (
+                <Card className="border-2 border-green-200">
+                  <CardHeader className="bg-green-50">
+                    <CardTitle className="flex items-center gap-2 text-green-700">
+                      <CheckCircle className="w-5 h-5" />
+                      ✅ 잘한 점
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                      {selectedSubmission.strengths}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* 개선할 점 */}
+              {selectedSubmission.improvements && (
+                <Card className="border-2 border-orange-200">
+                  <CardHeader className="bg-orange-50">
+                    <CardTitle className="flex items-center gap-2 text-orange-700">
+                      <TrendingUp className="w-5 h-5" />
+                      📝 개선할 점
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                      {selectedSubmission.improvements}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* 상세 분석 */}
               {selectedSubmission.detailedAnalysis && (
