@@ -38,6 +38,7 @@ export default function CreateStoreProductPage() {
     monthlyPrice: number | string;
     yearlyPrice: number | string;
     pricePerStudent: number | string;      // 🆕 학생당 월 가격
+    dailyChatLimit: number | string;       // 🆕 하루 채팅 제한 (학생별)
     // 🆕 마케팅 필드
     originalPrice: number | string;        // 원가 (할인 전 가격)
     discountType: string;                  // none, percentage, fixed
@@ -68,6 +69,7 @@ export default function CreateStoreProductPage() {
     monthlyPrice: "",
     yearlyPrice: "",
     pricePerStudent: "",                   // 🆕 학생당 월 가격 초기값
+    dailyChatLimit: "15",                   // 🆕 하루 채팅 제한 (기본 15개)
     // 🆕 마케팅 필드 초기값
     originalPrice: "",
     discountType: "none",
@@ -160,6 +162,7 @@ export default function CreateStoreProductPage() {
           monthlyPrice: formData.monthlyPrice === "" ? 0 : Number(formData.monthlyPrice),
           yearlyPrice: formData.yearlyPrice === "" ? 0 : Number(formData.yearlyPrice),
           pricePerStudent: formData.pricePerStudent === "" ? 0 : Number(formData.pricePerStudent),
+          dailyChatLimit: formData.dailyChatLimit === "" ? 15 : Number(formData.dailyChatLimit),
           originalPrice: formData.originalPrice === "" ? 0 : Number(formData.originalPrice),
           discountValue: formData.discountValue === "" ? 0 : Number(formData.discountValue),
           stockQuantity: formData.stockQuantity === "" ? -1 : Number(formData.stockQuantity),
@@ -634,6 +637,26 @@ export default function CreateStoreProductPage() {
                     placeholder="0"
                   />
                 </div>
+              </div>
+
+              {/* 🆕 하루 채팅 제한 필드 */}
+              <div className="border-t pt-4">
+                <label className="block text-sm font-medium mb-2">
+                  🆕 한 명당 하루 채팅 제한 (개)
+                  <span className="text-xs text-gray-500 ml-2">학생별 개별 제한</span>
+                </label>
+                <input
+                  type="number"
+                  name="dailyChatLimit"
+                  value={formData.dailyChatLimit}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="15"
+                  min="1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  이 봇을 구매한 학원의 각 학생은 하루에 최대 이 개수만큼 채팅할 수 있습니다 (기본: 15개)
+                </p>
               </div>
             </CardContent>
           </Card>

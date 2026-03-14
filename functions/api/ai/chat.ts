@@ -267,9 +267,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           );
         }
 
-        // 🆕 4. 일일 사용 한도 확인
+        // 🆕 4. 일일 사용 한도 확인 (구매한 제품의 dailyChatLimit 사용)
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        const dailyUsageLimit = assignment.dailyUsageLimit || 15;
+        
+        // 스토어 제품에서 dailyChatLimit 가져오기
+        const storeProduct = await DB.prepare(
+          `SELECT dailyChatLimit FROM StoreProducts WHERE id = ?`
+        ).bind(botId).first() as any;
+        
+        // 제품의 dailyChatLimit을 우선 사용, 없으면 assignment의 것 사용, 둘 다 없으면 15
+        const dailyUsageLimit = storeProduct?.dailyChatLimit 
+          || assignment.dailyUsageLimit 
+          || 15;
+        
+        console.log(`🛒 제품 일일 제한: ${storeProduct?.dailyChatLimit}, 할당 제한: ${assignment.dailyUsageLimit}, 최종: ${dailyUsageLimit}`);
         
         // 오늘 사용량 조회
         const usageToday = await DB.prepare(`
