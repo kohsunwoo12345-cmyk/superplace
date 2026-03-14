@@ -10,12 +10,24 @@ interface Product {
   description: string;
   price: string;
   pricePerStudent?: number;
+  numericPrice?: number;  // 숫자형 최종 가격
+  numericOriginalPrice?: number;  // 숫자형 원가
   category: string;
   imageUrl: string;
   keywords: string[];
   featured?: boolean;
   rating?: number;
   reviewCount?: number;
+  // 마케팅 필드
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
+  promotionType?: string;
+  promotionDescription?: string;
+  badges?: string;
+  isTimeDeal?: number;
+  stockQuantity?: number;
+  maxPurchasePerUser?: number;
 }
 
 const AIStorePage = () => {
@@ -54,7 +66,24 @@ const AIStorePage = () => {
           const data = await response.json();
           console.log('✅ Products loaded:', data.products?.length || 0);
           
-          const transformedProducts = (data.products || []).map((p: any) => ({
+          const transformedProducts = (data.products || []).map((p: any) => {
+            // 기본 가격 결정 (할인 전 원가)
+            let basePrice = p.price || p.pricePerStudent || p.monthlyPrice || p.yearlyPrice || 0;
+            
+            // originalPrice가 있으면 이를 기본가로 사용
+            if (p.originalPrice && p.originalPrice > 0) {
+              basePrice = p.originalPrice;
+            }
+            
+            // 할인 적용된 최종 가격 계산
+            let finalPrice = basePrice;
+            if (p.discountType === 'percentage' && p.discountValue > 0 && p.discountValue <= 100) {
+              finalPrice = basePrice * (1 - p.discountValue / 100);
+            } else if (p.discountType === 'fixed' && p.discountValue > 0) {
+              finalPrice = Math.max(0, basePrice - p.discountValue);
+            }
+            
+            return {
             id: p.id,
             name: p.name,
             description: p.shortDescription || p.description,
@@ -64,8 +93,12 @@ const AIStorePage = () => {
                 ? `₩${p.monthlyPrice.toLocaleString()}/월` 
                 : p.yearlyPrice 
                   ? `₩${p.yearlyPrice.toLocaleString()}/년`
-                  : '문의',
+                  : finalPrice > 0
+                    ? `₩${Math.round(finalPrice).toLocaleString()}`
+                    : '문의',
             pricePerStudent: p.pricePerStudent || 0,
+            numericPrice: finalPrice,  // 숫자형 최종 가격
+            numericOriginalPrice: basePrice,  // 숫자형 원가
             category: p.category === 'academy_operation' ? '학원 운영' 
                      : p.category === 'marketing_blog' ? '마케팅 & 블로그'
                      : p.category === 'expert' ? '전문가용' : p.category,
@@ -74,6 +107,16 @@ const AIStorePage = () => {
             featured: p.isFeatured === 1,
             rating: p.rating || 4.5,
             reviewCount: p.reviewCount || 0,
+            // 마케팅 필드
+            originalPrice: p.originalPrice,
+            discountType: p.discountType,
+            discountValue: p.discountValue,
+            promotionType: p.promotionType,
+            promotionDescription: p.promotionDescription,
+            badges: p.badges,
+            isTimeDeal: p.isTimeDeal,
+            stockQuantity: p.stockQuantity,
+            maxPurchasePerUser: p.maxPurchasePerUser,
           }));
           
           setProducts(transformedProducts);
@@ -194,7 +237,24 @@ const AIStorePage = () => {
     });
   };
 
-  const ProductCard = ({ product }: { product: Product }) => (
+  const ProductCard = ({ product }: { product: Product }) => {
+    // 배지 파싱
+    const badges = product.badges ? product.badges.split(',').map(b => b.trim()).filter(b => b) : [];
+    
+    // 할인율 계산
+    const getDiscountPercent = () => {
+      if (product.discountType === 'percentage' && product.discountValue && product.discountValue <= 100) {
+        return Math.round(product.discountValue);
+      } else if (product.discountType === 'fixed' && product.numericOriginalPrice && product.discountValue) {
+        const percent = (product.discountValue / product.numericOriginalPrice) * 100;
+        return Math.round(Math.min(percent, 100));  // 최대 100%
+      }
+      return 0;
+    };
+    
+    const discountPercent = getDiscountPercent();
+    
+    return (
     <div
       className={`group bg-white rounded-xl overflow-hidden transition-all hover:shadow-xl ${
         product.featured
@@ -204,14 +264,36 @@ const AIStorePage = () => {
     >
       {/* Image */}
       <div className="relative w-full pt-[65%] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-        {product.featured && (
-          <div className="absolute top-4 left-4 z-10">
-            <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
+        {/* 배지 표시 */}
+        <div className="absolute top-2 left-2 z-10 flex flex-wrap gap-1">
+          {product.featured && (
+            <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
               <Award className="w-3 h-3" />
               BEST
             </span>
+          )}
+          {badges.map((badge, idx) => (
+            <span key={idx} className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold shadow">
+              {badge}
+            </span>
+          ))}
+          {product.isTimeDeal === 1 && (
+            <span className="bg-orange-500 text-white px-2 py-1 rounded text-xs font-bold shadow animate-pulse">
+              ⏰ 타임딜
+            </span>
+          )}
+        </div>
+        
+        {/* 할인율 표시 */}
+        {discountPercent > 0 && (
+          <div className="absolute top-2 right-2 z-10">
+            <div className="bg-red-600 text-white px-3 py-2 rounded-lg shadow-lg">
+              <div className="text-xl font-bold">{discountPercent}%</div>
+              <div className="text-xs">할인</div>
+            </div>
           </div>
         )}
+        
         <img
           src={product.imageUrl}
           alt={product.name}
@@ -252,17 +334,45 @@ const AIStorePage = () => {
           </span>
         </div>
 
-        <p className="text-xs text-gray-600 mb-4 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-gray-600 mb-3 line-clamp-2 leading-relaxed">
           {product.description}
         </p>
+        
+        {/* 프로모션 표시 */}
+        {product.promotionDescription && product.promotionType && product.promotionType !== 'none' && (
+          <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+            <p className="text-xs text-yellow-800 font-semibold">
+              🎁 {product.promotionDescription}
+            </p>
+          </div>
+        )}
 
         {/* Price & Button */}
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              {product.price}
-            </span>
+            {product.numericOriginalPrice && product.numericOriginalPrice > 0 && discountPercent > 0 ? (
+              <>
+                <span className="text-sm text-gray-400 line-through">
+                  ₩{product.numericOriginalPrice.toLocaleString()}
+                </span>
+                <span className="text-xl font-bold text-red-600">
+                  ₩{(product.numericPrice || 0).toLocaleString()}
+                </span>
+              </>
+            ) : (
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {product.price}
+              </span>
+            )}
           </div>
+          
+          {/* 재고 정보 */}
+          {product.stockQuantity !== undefined && product.stockQuantity >= 0 && (
+            <p className="text-xs text-gray-500">
+              {product.stockQuantity === 0 ? '품절' : `재고 ${product.stockQuantity}개`}
+            </p>
+          )}
+          
           <Link
             href={`/store/detail?id=${product.id}`}
             className="block w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2.5 rounded-lg text-sm font-bold hover:shadow-lg hover:scale-105 transition-all text-center"

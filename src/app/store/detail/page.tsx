@@ -103,17 +103,36 @@ function ProductDetailPageContent() {
   };
 
   const calculateDiscount = () => {
-    if (!product || !product.originalPrice) return null;
+    if (!product) return null;
     
-    let discountedPrice = product.pricePerStudent || product.monthlyPrice || product.price;
+    // 기본 가격 결정
+    let basePrice = product.originalPrice || product.price || product.pricePerStudent || product.monthlyPrice || 0;
     
-    if (product.discountType === 'PERCENTAGE' && product.discountValue) {
-      return Math.round((product.originalPrice - discountedPrice) / product.originalPrice * 100);
-    } else if (product.discountType === 'AMOUNT' && product.discountValue) {
-      return Math.round((product.originalPrice - discountedPrice) / product.originalPrice * 100);
+    // 할인 계산
+    if (product.discountType === 'percentage' && product.discountValue && product.discountValue > 0 && product.discountValue <= 100) {
+      return Math.round(product.discountValue);
+    } else if (product.discountType === 'fixed' && product.discountValue && basePrice > 0) {
+      const percent = (product.discountValue / basePrice) * 100;
+      return Math.round(Math.min(percent, 100));  // 최대 100%
     }
     
     return null;
+  };
+
+  const calculateFinalPrice = () => {
+    if (!product) return 0;
+    
+    // 기본 가격 (원가)
+    let basePrice = product.originalPrice || product.price || product.pricePerStudent || product.monthlyPrice || 0;
+    
+    // 할인 적용
+    if (product.discountType === 'percentage' && product.discountValue && product.discountValue > 0 && product.discountValue <= 100) {
+      return Math.round(basePrice * (1 - product.discountValue / 100));
+    } else if (product.discountType === 'fixed' && product.discountValue) {
+      return Math.max(0, Math.round(basePrice - product.discountValue));
+    }
+    
+    return basePrice;
   };
 
   const formatPrice = (price: number) => {
@@ -149,12 +168,14 @@ function ProductDetailPageContent() {
   }
 
   const discountPercent = calculateDiscount();
+  const finalPrice = calculateFinalPrice();
+  const basePrice = product.originalPrice || product.price || product.pricePerStudent || product.monthlyPrice || 0;
   const badges = parseBadges(product.badges);
   const displayPrice = product.pricePerStudent 
-    ? `${formatPrice(product.pricePerStudent)}/학생/월`
+    ? `${formatPrice(finalPrice)}/학생/월`
     : product.monthlyPrice 
-      ? `${formatPrice(product.monthlyPrice)}/월`
-      : formatPrice(product.price);
+      ? `${formatPrice(finalPrice)}/월`
+      : formatPrice(finalPrice);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -247,10 +268,10 @@ function ProductDetailPageContent() {
 
           {/* Price Section */}
           <div className="mb-4">
-            {product.originalPrice && discountPercent && (
+            {basePrice > 0 && discountPercent && discountPercent > 0 && (
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xl text-gray-400 line-through">
-                  {formatPrice(product.originalPrice)}
+                  {formatPrice(basePrice)}
                 </span>
                 <span className="text-xl font-bold text-red-500">
                   {discountPercent}%
