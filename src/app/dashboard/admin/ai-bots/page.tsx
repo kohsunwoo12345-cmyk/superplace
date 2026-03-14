@@ -86,14 +86,10 @@ export default function AdminAIBotsPage() {
     console.log(`🗑️ Attempting to FORCE DELETE bot: ${botId} (${botName})`);
 
     try {
-      console.log(`🔥 Using FORCE DELETE endpoint (no auth required)`);
+      console.log(`🔥 Using GET endpoint with query parameter (no auth required)`);
 
-      const response = await fetch(`/api/admin/delete-bot`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ botId }),
+      const response = await fetch(`/api/admin/deletebot?botId=${encodeURIComponent(botId)}`, {
+        method: "GET",
       });
 
       console.log(`📡 Response status: ${response.status}`);
