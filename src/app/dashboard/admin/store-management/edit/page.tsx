@@ -238,17 +238,53 @@ export default function EditStoreProductPage() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // 파일 크기 체크 (10MB)
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`파일 크기가 너무 큽니다. 최대 ${MAX_FILE_SIZE / 1024 / 1024}MB까지 업로드 가능합니다.\n현재 파일 크기: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+        return;
+      }
+      
       setImageFile(file);
+      
+      // 로컬 미리보기용 Base64 생성
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
         setImagePreview(base64String);
-        setFormData((prev) => ({ ...prev, imageUrl: base64String }));
       };
       reader.readAsDataURL(file);
+      
+      // R2에 업로드
+      try {
+        console.log("📤 Uploading image to R2...");
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", file);
+        
+        const uploadResponse = await fetch("/api/admin/upload-image", {
+          method: "POST",
+          body: uploadFormData,
+        });
+        
+        if (uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json();
+          console.log("✅ Image uploaded to R2:", uploadResult.url);
+          
+          // R2 URL을 formData에 저장
+          setFormData((prev) => ({ ...prev, imageUrl: uploadResult.url }));
+          alert("이미지가 업로드되었습니다!");
+        } else {
+          const errorData = await uploadResponse.json();
+          console.error("❌ Upload failed:", errorData);
+          alert(`이미지 업로드 실패: ${errorData.message || errorData.error}`);
+        }
+      } catch (error) {
+        console.error("❌ Upload error:", error);
+        alert("이미지 업로드 중 오류가 발생했습니다.");
+      }
     }
   };
 

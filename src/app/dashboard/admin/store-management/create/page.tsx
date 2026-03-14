@@ -123,7 +123,7 @@ export default function CreateStoreProductPage() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       // 파일 크기 체크 (10MB)
@@ -134,13 +134,42 @@ export default function CreateStoreProductPage() {
       }
       
       setImageFile(file);
+      
+      // 로컬 미리보기용 Base64 생성
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
         setImagePreview(base64String);
-        setFormData((prev) => ({ ...prev, imageUrl: base64String }));
       };
       reader.readAsDataURL(file);
+      
+      // R2에 업로드
+      try {
+        console.log("📤 Uploading image to R2...");
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", file);
+        
+        const uploadResponse = await fetch("/api/admin/upload-image", {
+          method: "POST",
+          body: uploadFormData,
+        });
+        
+        if (uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json();
+          console.log("✅ Image uploaded to R2:", uploadResult.url);
+          
+          // R2 URL을 formData에 저장
+          setFormData((prev) => ({ ...prev, imageUrl: uploadResult.url }));
+          alert("이미지가 업로드되었습니다!");
+        } else {
+          const errorData = await uploadResponse.json();
+          console.error("❌ Upload failed:", errorData);
+          alert(`이미지 업로드 실패: ${errorData.message || errorData.error}`);
+        }
+      } catch (error) {
+        console.error("❌ Upload error:", error);
+        alert("이미지 업로드 중 오류가 발생했습니다.");
+      }
     }
   };
 
@@ -170,7 +199,7 @@ export default function CreateStoreProductPage() {
     // 크기 체크 (프론트엔드에서 미리 검증)
     const MAX_TEXT_SIZE = 500000; // 500KB
     const MAX_HTML_SIZE = 800000; // 800KB
-    const MAX_IMAGE_SIZE = 10000000; // 10MB
+    // 이미지는 R2에 저장되므로 URL만 저장 (크기 체크 불필요)
     
     if (formData.description.length > MAX_TEXT_SIZE) {
       alert(`설명이 너무 깁니다. 현재: ${Math.round(formData.description.length / 1000)}KB, 최대: 500KB`);
@@ -182,10 +211,7 @@ export default function CreateStoreProductPage() {
       return;
     }
     
-    if (formData.imageUrl && formData.imageUrl.length > MAX_IMAGE_SIZE) {
-      alert(`이미지 데이터가 너무 큽니다. 현재: ${Math.round(formData.imageUrl.length / 1000)}KB, 최대: ${MAX_IMAGE_SIZE / 1000}KB`);
-      return;
-    }
+    // 이미지는 R2에 저장되므로 URL만 체크 (크기 체크 불필요)
 
     setLoading(true);
 

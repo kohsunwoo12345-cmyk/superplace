@@ -184,7 +184,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 크기 제한 체크 (SQLite SQLITE_TOOBIG 방지)
     const MAX_TEXT_SIZE = 500000; // 500KB (SQLite 기본 제한은 1MB이지만 안전하게)
     const MAX_HTML_SIZE = 800000; // 800KB
-    const MAX_IMAGE_SIZE = 10000000; // 10MB (이미지 Base64 허용)
+    // 이미지는 R2 URL만 저장하므로 크기 체크 불필요
     
     if (description && description.length > MAX_TEXT_SIZE) {
       return new Response(JSON.stringify({ 
@@ -206,15 +206,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    if (imageUrl && imageUrl.length > MAX_IMAGE_SIZE) {
-      return new Response(JSON.stringify({ 
-        error: 'Image URL too large',
-        message: `이미지 데이터가 너무 큽니다. 현재: ${Math.round(imageUrl.length / 1000)}KB, 최대: ${MAX_IMAGE_SIZE / 1000}KB`
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    // imageUrl은 R2 URL이므로 크기 체크 불필요 (URL 길이는 매우 짧음)
 
     // StoreProducts 테이블 생성
     await env.DB.prepare(`
