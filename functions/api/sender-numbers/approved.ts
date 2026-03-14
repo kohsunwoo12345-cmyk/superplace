@@ -50,10 +50,13 @@ export async function onRequest(context: { request: Request; env: Env }) {
       role: tokenData.role
     });
 
+    // userId를 문자열로 변환
+    const userIdStr = String(tokenData.id);
+
     // 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블)
     let user = await db
       .prepare('SELECT id, email, approvedSenderNumbers as approved_sender_numbers FROM User WHERE id = ?')
-      .bind(tokenData.id)
+      .bind(userIdStr)
       .first();
 
     console.log('📊 User 테이블 조회 결과 (id):', user);
@@ -72,7 +75,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
       // User 테이블에 없으면 users 테이블 시도 (ID)
       user = await db
         .prepare('SELECT id, email, approved_sender_numbers FROM users WHERE id = ?')
-        .bind(tokenData.id)
+        .bind(userIdStr)
         .first();
       
       console.log('📊 users 테이블 조회 결과 (id):', user);

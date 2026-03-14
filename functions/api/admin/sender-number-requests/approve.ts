@@ -115,12 +115,15 @@ export async function onRequest(context: { request: Request; env: Env }) {
       try {
         console.log('📝 업데이트 시작 - userId:', request.userId, 'senderNumbers:', request.senderNumbers);
         
+        // userId를 문자열로 변환 (타입 문제 방지)
+        const userIdStr = String(request.userId);
+        
         // User 테이블 먼저 시도
         let updateResult = await db.prepare(`
           UPDATE User
           SET approvedSenderNumbers = ?
           WHERE id = ?
-        `).bind(request.senderNumbers, request.userId).run();
+        `).bind(request.senderNumbers, userIdStr).run();
         
         console.log('📊 User 테이블 업데이트 결과:', {
           success: updateResult.success,
@@ -133,7 +136,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
             UPDATE users
             SET approved_sender_numbers = ?
             WHERE id = ?
-          `).bind(request.senderNumbers, request.userId).run();
+          `).bind(request.senderNumbers, userIdStr).run();
           
           console.log('📊 users 테이블 업데이트 결과:', {
             success: updateResult.success,
@@ -141,7 +144,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
           });
         }
         
-        console.log(`✅ 학원장(userId: ${request.userId})의 발신번호 저장 완료:`, request.senderNumbers);
+        console.log(`✅ 학원장(userId: ${userIdStr})의 발신번호 저장 완료:`, request.senderNumbers);
         
         // SMSSender 테이블에도 발신번호 추가 (문자 발송 시 사용)
         const senderNumbers = request.senderNumbers.split(',').map((n: string) => n.trim());
@@ -163,7 +166,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
               ) VALUES (?, ?, ?, 1, 'ACTIVE', ?, ?)
             `).bind(
               senderId,
-              request.userId,
+              userIdStr,
               phoneNumber,
               now,
               now
