@@ -318,21 +318,49 @@ export default function SenderNumberApprovalPage() {
                       <FileText className="h-4 w-4" />
                       첨부 서류
                     </h4>
+                    
+                    {/* 디버그: 파일 URL 표시 */}
+                    {console.log('📎 첨부 서류 URL:', {
+                      telecomCertificate: request.fileUrls?.telecomCertificate,
+                      businessRegistration: request.fileUrls?.businessRegistration,
+                      serviceAgreement: request.fileUrls?.serviceAgreement,
+                      privacyAgreement: request.fileUrls?.privacyAgreement
+                    })}
+                    
+                    {/* 파일이 하나도 없으면 안내 메시지 */}
+                    {!request.fileUrls?.telecomCertificate && 
+                     !request.fileUrls?.businessRegistration && 
+                     !request.fileUrls?.serviceAgreement && 
+                     !request.fileUrls?.privacyAgreement && (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          첨부된 서류가 없습니다.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {request.fileUrls.telecomCertificate && (
+                      {request.fileUrls?.telecomCertificate && (
                         <div className="flex gap-1">
                           <Button
                             variant="outline"
                             size="sm"
                             className="justify-start flex-1"
                             onClick={() => {
-                              if (request.fileUrls.telecomCertificate.startsWith('data:')) {
+                              const url = request.fileUrls?.telecomCertificate;
+                              console.log('👁️ 통신사 가입증명원 보기:', url);
+                              if (!url) {
+                                alert('파일 URL이 없습니다.');
+                                return;
+                              }
+                              if (url.startsWith('data:')) {
                                 const win = window.open();
                                 if (win) {
-                                  win.document.write(`<html><head><title>통신사 가입증명원</title></head><body><img src="${request.fileUrls.telecomCertificate}" style="max-width:100%;"/></body></html>`);
+                                  win.document.write(`<html><head><title>통신사 가입증명원</title></head><body><img src="${url}" style="max-width:100%;"/></body></html>`);
                                 }
                               } else {
-                                window.open(request.fileUrls.telecomCertificate, '_blank');
+                                window.open(url, '_blank');
                               }
                             }}
                           >
@@ -342,26 +370,38 @@ export default function SenderNumberApprovalPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => downloadFile(request.fileUrls.telecomCertificate, '통신사가입증명원.pdf')}
+                            onClick={() => {
+                              const url = request.fileUrls?.telecomCertificate;
+                              console.log('💾 통신사 가입증명원 다운로드:', url);
+                              if (url) {
+                                downloadFile(url, '통신사가입증명원.pdf');
+                              }
+                            }}
                           >
                             <Download className="h-3 w-3" />
                           </Button>
                         </div>
                       )}
-                      {request.fileUrls.businessRegistration && (
+                      {request.fileUrls?.businessRegistration && (
                         <div className="flex gap-1">
                           <Button
                             variant="outline"
                             size="sm"
                             className="justify-start flex-1"
                             onClick={() => {
-                              if (request.fileUrls.businessRegistration.startsWith('data:')) {
+                              const url = request.fileUrls?.businessRegistration;
+                              console.log('👁️ 사업자등록증 보기:', url);
+                              if (!url) {
+                                alert('파일 URL이 없습니다.');
+                                return;
+                              }
+                              if (url.startsWith('data:')) {
                                 const win = window.open();
                                 if (win) {
-                                  win.document.write(`<html><head><title>사업자등록증</title></head><body><img src="${request.fileUrls.businessRegistration}" style="max-width:100%;"/></body></html>`);
+                                  win.document.write(`<html><head><title>사업자등록증</title></head><body><img src="${url}" style="max-width:100%;"/></body></html>`);
                                 }
                               } else {
-                                window.open(request.fileUrls.businessRegistration, '_blank');
+                                window.open(url, '_blank');
                               }
                             }}
                           >
@@ -371,26 +411,38 @@ export default function SenderNumberApprovalPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => downloadFile(request.fileUrls.businessRegistration, '사업자등록증.pdf')}
+                            onClick={() => {
+                              const url = request.fileUrls?.businessRegistration;
+                              console.log('💾 사업자등록증 다운로드:', url);
+                              if (url) {
+                                downloadFile(url, '사업자등록증.pdf');
+                              }
+                            }}
                           >
                             <Download className="h-3 w-3" />
                           </Button>
                         </div>
                       )}
-                      {request.fileUrls.serviceAgreement && (
+                      {request.fileUrls?.serviceAgreement && (
                         <div className="flex gap-1">
                           <Button
                             variant="outline"
                             size="sm"
                             className="justify-start flex-1"
                             onClick={() => {
-                              if (request.fileUrls.serviceAgreement.startsWith('data:')) {
+                              const url = request.fileUrls?.serviceAgreement;
+                              console.log('👁️ 이용계약서 보기:', url);
+                              if (!url) {
+                                alert('파일 URL이 없습니다.');
+                                return;
+                              }
+                              if (url.startsWith('data:')) {
                                 const win = window.open();
                                 if (win) {
-                                  win.document.write(`<html><head><title>이용계약서</title></head><body><img src="${request.fileUrls.serviceAgreement}" style="max-width:100%;"/></body></html>`);
+                                  win.document.write(`<html><head><title>이용계약서</title></head><body><img src="${url}" style="max-width:100%;"/></body></html>`);
                                 }
                               } else {
-                                window.open(request.fileUrls.serviceAgreement, '_blank');
+                                window.open(url, '_blank');
                               }
                             }}
                           >
@@ -400,26 +452,38 @@ export default function SenderNumberApprovalPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => downloadFile(request.fileUrls.serviceAgreement, '이용계약서.pdf')}
+                            onClick={() => {
+                              const url = request.fileUrls?.serviceAgreement;
+                              console.log('💾 이용계약서 다운로드:', url);
+                              if (url) {
+                                downloadFile(url, '이용계약서.pdf');
+                              }
+                            }}
                           >
                             <Download className="h-3 w-3" />
                           </Button>
                         </div>
                       )}
-                      {request.fileUrls.privacyAgreement && (
+                      {request.fileUrls?.privacyAgreement && (
                         <div className="flex gap-1">
                           <Button
                             variant="outline"
                             size="sm"
                             className="justify-start flex-1"
                             onClick={() => {
-                              if (request.fileUrls.privacyAgreement.startsWith('data:')) {
+                              const url = request.fileUrls?.privacyAgreement;
+                              console.log('👁️ 위탁계약서 보기:', url);
+                              if (!url) {
+                                alert('파일 URL이 없습니다.');
+                                return;
+                              }
+                              if (url.startsWith('data:')) {
                                 const win = window.open();
                                 if (win) {
-                                  win.document.write(`<html><head><title>위탁계약서</title></head><body><img src="${request.fileUrls.privacyAgreement}" style="max-width:100%;"/></body></html>`);
+                                  win.document.write(`<html><head><title>위탁계약서</title></head><body><img src="${url}" style="max-width:100%;"/></body></html>`);
                                 }
                               } else {
-                                window.open(request.fileUrls.privacyAgreement, '_blank');
+                                window.open(url, '_blank');
                               }
                             }}
                           >
@@ -429,7 +493,13 @@ export default function SenderNumberApprovalPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => downloadFile(request.fileUrls.privacyAgreement, '위탁계약서.pdf')}
+                            onClick={() => {
+                              const url = request.fileUrls?.privacyAgreement;
+                              console.log('💾 위탁계약서 다운로드:', url);
+                              if (url) {
+                                downloadFile(url, '위탁계약서.pdf');
+                              }
+                            }}
                           >
                             <Download className="h-3 w-3" />
                           </Button>
