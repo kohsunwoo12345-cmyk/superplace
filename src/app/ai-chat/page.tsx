@@ -845,17 +845,133 @@ export default function ModernAIChatPage() {
   };
 
 
-  // 체크박스 토글
-  const toggleMessageSelection = (messageId: string) => {
-    setSelectedMessageIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(messageId)) {
-        newSet.delete(messageId);
+  // 체크박스 토글 - 선택 시 바로 문제 출력
+  const toggleMessageSelection = async (messageId: string) => {
+    console.log('✅ Message selected for immediate print:', messageId);
+    
+    // 선택된 메시지 찾기
+    const message = messages.find(m => m.id === messageId);
+    if (!message || message.role !== 'assistant') {
+      console.error('❌ Invalid message for problem generation');
+      return;
+    }
+    
+    // 선택 상태 업데이트
+    const newSet = new Set<string>();
+    newSet.add(messageId);
+    setSelectedMessageIds(newSet);
+    
+    // enableProblemGeneration 체크
+    const enableFlag = selectedBot?.enableProblemGeneration;
+    const isProblemGenerationEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
+    
+    if (!isProblemGenerationEnabled) {
+      alert('이 AI 봇은 문제 출제 기능이 활성화되지 않았습니다.');
+      return;
+    }
+
+    console.log('🖨️ Immediately generating PDF for selected message...');
+
+    try {
+      // 문제 추출
+      const extractedProblems: Array<{
+        number: number;
+        content: string;
+        answer: string;
+        type: 'multiple' | 'descriptive';
+      }> = [];
+
+      let fullText = message.content;
+      
+      // 문제 추출 패턴
+      const problemPattern = /(?:^|\n)(?:문제\s*\d+[.:)]?|문제\s*[:\-]|\d+[.:)]\s*[가-힣]|\[\s*문제\s*\]|\*\*문제\*\*)([\s\S]+?)(?=(?:\n(?:문제\s*\d+[.:)]?|문제\s*[:\-]|\d+[.:)]\s*[가-힣]|\[\s*문제\s*\]|\*\*문제\*\*))|$)/gi;
+      const matches = [...fullText.matchAll(problemPattern)];
+
+      if (matches.length > 0) {
+        console.log(`✅ Found ${matches.length} structured problems`);
+        matches.forEach((match) => {
+          const problemText = match[1].trim();
+          const answerMatch = problemText.match(/(?:정답|답)[:\s]*([^\n]+)/i);
+          const answer = answerMatch ? answerMatch[1].trim() : '';
+          const content = answer ? problemText.split(/(?:정답|답)[:\s]*/i)[0].trim() : problemText;
+          const type = /①|②|③|④|⑤|\(1\)|\(2\)|\(3\)|\(4\)|\(5\)|1\)|2\)|3\)|4\)|5\)/.test(content) ? 'multiple' : 'descriptive';
+          
+          extractedProblems.push({
+            number: extractedProblems.length + 1,
+            content,
+            answer,
+            type
+          });
+        });
       } else {
-        newSet.add(messageId);
+        // 전체를 하나의 문제로
+        console.log('⚠️ No structured format, using whole text as problem');
+        const answerMatch = fullText.match(/(?:정답|답)[:\s]*([^\n]+)/i);
+        const answer = answerMatch ? answerMatch[1].trim() : '';
+        const content = answer ? fullText.split(/(?:정답|답)[:\s]*/i)[0].trim() : fullText;
+        const type = /①|②|③|④|⑤|\(1\)|\(2\)|\(3\)|\(4\)|\(5\)|1\)|2\)|3\)|4\)|5\)/.test(content) ? 'multiple' : 'descriptive';
+        
+        extractedProblems.push({
+          number: 1,
+          content,
+          answer,
+          type
+        });
       }
-      return newSet;
-    });
+
+      if (extractedProblems.length === 0) {
+        alert('문제를 찾을 수 없습니다.');
+        return;
+      }
+
+      console.log(`📝 Generating PDF with ${extractedProblems.length} problems`);
+
+      // PDF 생성
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const maxWidth = pageWidth - 2 * margin;
+      let yPosition = 30;
+
+      // 제목
+      pdf.setFont('NanumGothic', 'bold');
+      pdf.setFontSize(20);
+      pdf.text('AI 생성 문제지', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      // 문제들 출력
+      extractedProblems.forEach((problem) => {
+        if (yPosition > pageHeight - 40) {
+          pdf.addPage();
+          yPosition = 30;
+        }
+
+        // 문제 번호
+        pdf.setFont('NanumGothic', 'bold');
+        pdf.setFontSize(14);
+        pdf.text(`${problem.number}.`, margin, yPosition);
+        yPosition += 8;
+
+        // 문제 내용
+        pdf.setFont('NanumGothic', 'normal');
+        pdf.setFontSize(12);
+        const lines = pdf.splitTextToSize(problem.content, maxWidth);
+        pdf.text(lines, margin, yPosition);
+        yPosition += lines.length * 7 + 15;
+      });
+
+      // 저장
+      const fileName = `문제지_${new Date().toISOString().split('T')[0]}_${Date.now()}.pdf`;
+      pdf.save(fileName);
+      
+      console.log(`✅ PDF saved: ${fileName}`);
+      alert(`문제지가 생성되었습니다!\n${extractedProblems.length}개의 문제가 포함되어 있습니다.`);
+      
+    } catch (error: any) {
+      console.error('❌ PDF generation error:', error);
+      alert(`문제지 생성 중 오류: ${error.message}`);
+    }
   };
 
   const handlePrintProblems = async () => {
