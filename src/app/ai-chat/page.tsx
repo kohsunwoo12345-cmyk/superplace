@@ -923,49 +923,80 @@ export default function ModernAIChatPage() {
         return;
       }
 
-      console.log(`📝 Generating PDF with ${extractedProblems.length} problems`);
+      console.log(`📝 Generating print view with ${extractedProblems.length} problems`);
 
-      // PDF 생성
-      const pdf = new jsPDF();
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 20;
-      const maxWidth = pageWidth - 2 * margin;
-      let yPosition = 30;
+      // 인쇄용 HTML 생성
+      const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>AI 생성 문제지</title>
+          <style>
+            @media print {
+              @page { margin: 2cm; }
+              body { margin: 0; }
+            }
+            body {
+              font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+              padding: 20px;
+              line-height: 1.6;
+            }
+            h1 {
+              text-align: center;
+              font-size: 24px;
+              margin-bottom: 30px;
+              border-bottom: 2px solid #333;
+              padding-bottom: 10px;
+            }
+            .problem {
+              margin-bottom: 30px;
+              page-break-inside: avoid;
+            }
+            .problem-number {
+              font-weight: bold;
+              font-size: 16px;
+              margin-bottom: 8px;
+            }
+            .problem-content {
+              font-size: 14px;
+              white-space: pre-wrap;
+              margin-left: 20px;
+            }
+            .choice {
+              margin-left: 30px;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>AI 생성 문제지</h1>
+          ${extractedProblems.map(problem => `
+            <div class="problem">
+              <div class="problem-number">${problem.number}.</div>
+              <div class="problem-content">${problem.content.replace(/\n/g, '<br>')}</div>
+            </div>
+          `).join('')}
+        </body>
+        </html>
+      `;
 
-      // 제목
-      pdf.setFont('NanumGothic', 'bold');
-      pdf.setFontSize(20);
-      pdf.text('AI 생성 문제지', pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 15;
-
-      // 문제들 출력
-      extractedProblems.forEach((problem) => {
-        if (yPosition > pageHeight - 40) {
-          pdf.addPage();
-          yPosition = 30;
-        }
-
-        // 문제 번호
-        pdf.setFont('NanumGothic', 'bold');
-        pdf.setFontSize(14);
-        pdf.text(`${problem.number}.`, margin, yPosition);
-        yPosition += 8;
-
-        // 문제 내용
-        pdf.setFont('NanumGothic', 'normal');
-        pdf.setFontSize(12);
-        const lines = pdf.splitTextToSize(problem.content, maxWidth);
-        pdf.text(lines, margin, yPosition);
-        yPosition += lines.length * 7 + 15;
-      });
-
-      // 저장
-      const fileName = `문제지_${new Date().toISOString().split('T')[0]}_${Date.now()}.pdf`;
-      pdf.save(fileName);
-      
-      console.log(`✅ PDF saved: ${fileName}`);
-      alert(`문제지가 생성되었습니다!\n${extractedProblems.length}개의 문제가 포함되어 있습니다.`);
+      // 새 창에서 인쇄창 열기
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        
+        // 로드 완료 후 인쇄창 열기
+        printWindow.onload = () => {
+          printWindow.focus();
+          printWindow.print();
+        };
+        
+        console.log(`✅ Print dialog opened with ${extractedProblems.length} problems`);
+        alert(`문제지 인쇄창이 열렸습니다!\n${extractedProblems.length}개의 문제`);
+      } else {
+        alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+      }
       
     } catch (error: any) {
       console.error('❌ PDF generation error:', error);
