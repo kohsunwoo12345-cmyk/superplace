@@ -241,9 +241,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       console.error(`❌ 자동 채점 트리거 실패: ${submissionId}`, error);
     });
 
-    // Cloudflare Pages의 waitUntil을 사용하여 백그라운드 작업 등록
-    if (context.waitUntil) {
-      context.waitUntil(gradingPromise);
+    // 동기적으로 채점 완료 대기 (waitUntil이 제대로 작동하지 않음)
+    try {
+      await gradingPromise;
+      console.log(`✅ 채점 완료: ${submissionId}`);
+    } catch (error: any) {
+      console.error(`❌ 채점 실패: ${submissionId}`, error.message);
     }
 
     // 7. 즉시 응답 반환 (채점은 백그라운드에서 진행)
