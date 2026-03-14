@@ -165,12 +165,27 @@ export default function SenderNumberApprovalPage() {
       return;
     }
     
+    // URL에서 실제 파일 확장자 추출
+    const urlParts = url.split('/');
+    const urlFilename = urlParts[urlParts.length - 1];
+    const extension = urlFilename.split('.').pop() || 'pdf';
+    
+    // 기본 파일명에서 확장자 제거하고 실제 확장자 추가
+    const baseFilename = filename.replace(/\.[^/.]+$/, '');
+    const actualFilename = `${baseFilename}.${extension}`;
+    
+    console.log('📝 다운로드 파일명:', { 
+      original: filename, 
+      actual: actualFilename,
+      extension: extension 
+    });
+    
     if (url.startsWith('data:')) {
       // Base64 데이터를 다운로드
       console.log('📦 Base64 데이터 다운로드');
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename;
+      link.download = actualFilename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -179,7 +194,7 @@ export default function SenderNumberApprovalPage() {
       console.log('🔗 R2 URL 다운로드:', url);
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename;
+      link.download = actualFilename;
       link.target = '_blank';
       document.body.appendChild(link);
       link.click();
