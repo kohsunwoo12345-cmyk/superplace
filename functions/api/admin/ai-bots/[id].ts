@@ -211,6 +211,14 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     console.log(`✅ Found bot: ${existingBot.name} (${existingBot.id})`);
     console.log(`🗑️ Deleting bot ${botId} and all related data...`);
 
+    // Disable foreign key constraints temporarily
+    try {
+      await DB.prepare(`PRAGMA foreign_keys = OFF`).run();
+      console.log(`✅ Foreign key constraints disabled`);
+    } catch (e: any) {
+      console.log(`⚠️ Could not disable foreign keys: ${e.message}`);
+    }
+
     // 1. Delete from ai_bot_assignments
     try {
       const result1 = await DB.prepare(`
@@ -301,7 +309,17 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
       console.log(`⚠️ bot_purchase_requests: ${e.message}`);
     }
 
-    // 10. Finally, delete the bot itself
+    // 10. Delete from AcademyBotSubscription (productId references ai_bots)
+    try {
+      const result10 = await DB.prepare(`
+        DELETE FROM AcademyBotSubscription WHERE productId = ?
+      `).bind(botId).run();
+      console.log(`✅ Deleted ${result10.meta?.changes || 0} AcademyBotSubscription`);
+    } catch (e: any) {
+      console.log(`⚠️ AcademyBotSubscription: ${e.message}`);
+    }
+
+    // 11. Finally, delete the bot itself
     console.log(`🗑️ Executing DELETE query for bot...`);
     const deleteResult = await DB.prepare(`
       DELETE FROM ai_bots WHERE id = ?
@@ -329,6 +347,14 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     console.log(`✅ Bot deleted and verified: ${existingBot.name}`);
     console.log(`🎉 Bot ${botId} and all related data deleted successfully`);
 
+    // Re-enable foreign key constraints
+    try {
+      await DB.prepare(`PRAGMA foreign_keys = ON`).run();
+      console.log(`✅ Foreign key constraints re-enabled`);
+    } catch (e: any) {
+      console.log(`⚠️ Could not re-enable foreign keys: ${e.message}`);
+    }
+
     return new Response(
       JSON.stringify({ success: true, message: "AI bot deleted successfully" }),
       { status: 200, headers: { "Content-Type": "application/json" } }
@@ -336,6 +362,14 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
   } catch (error: any) {
     console.error("❌ AI bot deletion error:", error);
     console.error("❌ Error stack:", error.stack);
+    
+    // Try to re-enable foreign keys even on error
+    try {
+      await DB.prepare(`PRAGMA foreign_keys = ON`).run();
+    } catch (e: any) {
+      console.log(`⚠️ Could not re-enable foreign keys on error: ${e.message}`);
+    }
+
     return new Response(
       JSON.stringify({ 
         error: "Failed to delete AI bot",
