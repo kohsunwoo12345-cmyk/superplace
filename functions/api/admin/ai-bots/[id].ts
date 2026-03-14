@@ -171,48 +171,83 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     const { DB } = env;
     const botId = context.params.id as string;
 
+    console.log(`🗑️ Delete request for bot ID: ${botId}`);
+
+    // DB 확인
+    if (!DB) {
+      console.error("❌ Database not configured");
+      return new Response(
+        JSON.stringify({ error: "Database not configured", message: "데이터베이스가 설정되지 않았습니다." }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     // 인증 확인
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("❌ Unauthorized: No valid token");
       return new Response(
         JSON.stringify({ error: "Unauthorized", message: "인증이 필요합니다." }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`🗑️ Deleting AI bot: ${botId}`);
+    console.log(`🔐 Authorization check passed`);
 
     // 봇 존재 확인
+    console.log(`🔍 Checking if bot exists: ${botId}`);
     const existingBot = await DB.prepare(`
       SELECT id, name FROM ai_bots WHERE id = ?
     `).bind(botId).first();
 
     if (!existingBot) {
+      console.error(`❌ Bot not found: ${botId}`);
       return new Response(
         JSON.stringify({ error: "Bot not found", message: "봇을 찾을 수 없습니다." }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`✅ Found bot to delete: ${existingBot.name}`);
+    console.log(`✅ Found bot: ${existingBot.name} (${existingBot.id})`);
 
     // 삭제 실행
-    await DB.prepare(`
+    console.log(`🗑️ Executing DELETE query...`);
+    const deleteResult = await DB.prepare(`
       DELETE FROM ai_bots WHERE id = ?
     `).bind(botId).run();
 
-    console.log(`✅ Bot deleted successfully: ${existingBot.name}`);
+    console.log(`📊 Delete result:`, JSON.stringify(deleteResult));
+    
+    // 삭제 확인
+    const checkDeleted = await DB.prepare(`
+      SELECT id FROM ai_bots WHERE id = ?
+    `).bind(botId).first();
+
+    if (checkDeleted) {
+      console.error(`❌ Bot still exists after delete: ${botId}`);
+      return new Response(
+        JSON.stringify({ 
+          error: "Delete verification failed", 
+          message: "삭제 후에도 봇이 여전히 존재합니다." 
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`✅ Bot deleted and verified: ${existingBot.name}`);
 
     return new Response(
       JSON.stringify({ success: true, message: "AI bot deleted successfully" }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: any) {
-    console.error("AI bot deletion error:", error);
+    console.error("❌ AI bot deletion error:", error);
+    console.error("❌ Error stack:", error.stack);
     return new Response(
       JSON.stringify({ 
         error: "Failed to delete AI bot",
-        message: error.message 
+        message: error.message || "알 수 없는 오류",
+        details: error.stack
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );

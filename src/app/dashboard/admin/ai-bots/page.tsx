@@ -83,6 +83,8 @@ export default function AdminAIBotsPage() {
       return;
     }
 
+    console.log(`🗑️ Attempting to delete bot: ${botId} (${botName})`);
+
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -91,6 +93,8 @@ export default function AdminAIBotsPage() {
         return;
       }
 
+      console.log(`🔐 Token found, sending DELETE request...`);
+
       const response = await fetch(`/api/admin/ai-bots/${botId}`, {
         method: "DELETE",
         headers: {
@@ -98,17 +102,27 @@ export default function AdminAIBotsPage() {
         },
       });
 
+      console.log(`📡 Response status: ${response.status}`);
+      const responseData = await response.json();
+      console.log(`📦 Response data:`, responseData);
+
       if (response.ok) {
+        console.log(`✅ Delete successful`);
         alert("삭제되었습니다.");
         fetchBots();
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        alert(`삭제 실패: ${errorData.error || errorData.message || "알 수 없는 오류"}`);
-        console.error("삭제 실패:", response.status, errorData);
+        console.error(`❌ Delete failed:`, responseData);
+        const errorMsg = responseData.message || responseData.error || "알 수 없는 오류";
+        alert(`삭제 실패: ${errorMsg}`);
+        
+        // 추가 디버그 정보
+        if (responseData.details) {
+          console.error(`🔍 Error details:`, responseData.details);
+        }
       }
-    } catch (error) {
-      console.error("삭제 실패:", error);
-      alert("삭제 중 오류가 발생했습니다.");
+    } catch (error: any) {
+      console.error("❌ Delete request failed:", error);
+      alert(`삭제 중 오류가 발생했습니다: ${error.message}`);
     }
   };
 
