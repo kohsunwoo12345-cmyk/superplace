@@ -288,6 +288,31 @@ export default function AIBotAssignPage() {
           console.log('📊 Subscription count:', subscriptionsData.subscriptions?.length || 0);
           console.log('📊 Subscription details:', JSON.stringify(subscriptionsData.subscriptions, null, 2));
           setAcademySubscriptions(subscriptionsData.subscriptions || []);
+          
+          // 구독된 봇이 봇 목록에 없으면 추가 (구독 정보 기반)
+          const subscriptions = subscriptionsData.subscriptions || [];
+          setBots(prevBots => {
+            const botIds = new Set(prevBots.map(b => b.id));
+            const additionalBots: AIBot[] = [];
+            
+            subscriptions.forEach((sub: any) => {
+              if (sub.botId && !botIds.has(sub.botId)) {
+                additionalBots.push({
+                  id: sub.botId,
+                  name: sub.botName || sub.productName || `Bot ${sub.botId}`,
+                  description: `From subscription: ${sub.productName || ''}`,
+                  isActive: sub.isActive === 1
+                });
+                botIds.add(sub.botId);
+              }
+            });
+            
+            if (additionalBots.length > 0) {
+              console.log(`✅ Added ${additionalBots.length} bots from subscriptions to bot list`);
+            }
+            
+            return [...prevBots, ...additionalBots];
+          });
         } else {
           const errorText = await subscriptionsResponse.text();
           console.error('❌ Failed to load academy subscriptions:', subscriptionsResponse.status, errorText);
@@ -309,6 +334,31 @@ export default function AIBotAssignPage() {
             console.log('📊 Subscription count:', subscriptionsData.subscriptions?.length || 0);
             console.log('📊 Subscription details:', JSON.stringify(subscriptionsData.subscriptions, null, 2));
             setAcademySubscriptions(subscriptionsData.subscriptions || []);
+            
+            // 구독된 봇이 봇 목록에 없으면 추가 (구독 정보 기반)
+            const subscriptions = subscriptionsData.subscriptions || [];
+            setBots(prevBots => {
+              const botIds = new Set(prevBots.map(b => b.id));
+              const additionalBots: AIBot[] = [];
+              
+              subscriptions.forEach((sub: any) => {
+                if (sub.botId && !botIds.has(sub.botId)) {
+                  additionalBots.push({
+                    id: sub.botId,
+                    name: sub.botName || sub.productName || `Bot ${sub.botId}`,
+                    description: `From subscription: ${sub.productName || ''}`,
+                    isActive: sub.isActive === 1
+                  });
+                  botIds.add(sub.botId);
+                }
+              });
+              
+              if (additionalBots.length > 0) {
+                console.log(`✅ Added ${additionalBots.length} bots from my academy subscriptions to bot list`);
+              }
+              
+              return [...prevBots, ...additionalBots];
+            });
           } else {
             const errorText = await subscriptionsResponse.text();
             console.error('❌ Failed to load my academy subscriptions:', subscriptionsResponse.status, errorText);

@@ -158,6 +158,43 @@ export async function onRequestPost(context: any) {
     const botId = product?.botId || purchaseRequest.productId; // fallback to productId
     console.log(`🤖 Bot ID for subscription: ${botId}`);
     
+    // 0.6. AI 봇이 ai_bots 테이블에 없으면 자동 생성
+    const existingBot = await env.DB.prepare(`
+      SELECT id FROM ai_bots WHERE id = ?
+    `).bind(botId).first();
+    
+    if (!existingBot) {
+      console.log(`⚠️ Bot ${botId} not found in ai_bots table, creating...`);
+      
+      try {
+        const newBotId = `bot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        await env.DB.prepare(`
+          INSERT INTO ai_bots (
+            id, name, description, systemPrompt, 
+            welcomeMessage, model, temperature, 
+            maxTokens, isActive, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `).bind(
+          botId,  // 기존 botId 사용
+          purchaseRequest.productName,
+          `Auto-created from store product: ${purchaseRequest.productName}`,
+          `You are a helpful AI tutor for ${purchaseRequest.productName}.`,
+          `안녕하세요! ${purchaseRequest.productName} AI 튜터입니다.`,
+          'gemini-2.5-flash',
+          0.7,
+          2000,
+          1
+        ).run();
+        
+        console.log(`✅ Created bot ${botId} in ai_bots table`);
+      } catch (botError: any) {
+        console.warn(`⚠️ Failed to create bot in ai_bots:`, botError.message);
+        // Continue even if bot creation fails
+      }
+    } else {
+      console.log(`✅ Bot ${botId} exists in ai_bots table`);
+    }
+    
     // 1. 구매 요청 상태를 APPROVED로 업데이트
     await env.DB.prepare(`
       UPDATE BotPurchaseRequest 
