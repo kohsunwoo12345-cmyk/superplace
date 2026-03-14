@@ -108,14 +108,15 @@ function ProductDetailPageContent() {
     // 기본 가격 결정
     let basePrice = product.originalPrice || product.price || product.pricePerStudent || product.monthlyPrice || 0;
     
-    // 할인 계산
+    // 할인 계산 (유효성 검사 포함)
     if (product.discountType === 'percentage' && product.discountValue && product.discountValue > 0 && product.discountValue <= 100) {
       return Math.round(product.discountValue);
-    } else if (product.discountType === 'fixed' && product.discountValue && basePrice > 0) {
+    } else if (product.discountType === 'fixed' && product.discountValue && basePrice > 0 && product.discountValue < basePrice) {
       const percent = (product.discountValue / basePrice) * 100;
       return Math.round(Math.min(percent, 100));  // 최대 100%
     }
     
+    // 무효한 할인인 경우 null 반환
     return null;
   };
 
@@ -125,13 +126,14 @@ function ProductDetailPageContent() {
     // 기본 가격 (원가)
     let basePrice = product.originalPrice || product.price || product.pricePerStudent || product.monthlyPrice || 0;
     
-    // 할인 적용
+    // 할인 적용 (유효성 검사 포함)
     if (product.discountType === 'percentage' && product.discountValue && product.discountValue > 0 && product.discountValue <= 100) {
       return Math.round(basePrice * (1 - product.discountValue / 100));
-    } else if (product.discountType === 'fixed' && product.discountValue) {
+    } else if (product.discountType === 'fixed' && product.discountValue && product.discountValue > 0 && product.discountValue < basePrice) {
       return Math.max(0, Math.round(basePrice - product.discountValue));
     }
     
+    // 무효한 할인인 경우 원가 반환
     return basePrice;
   };
 

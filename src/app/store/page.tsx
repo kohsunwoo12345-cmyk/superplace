@@ -77,10 +77,19 @@ const AIStorePage = () => {
             
             // 할인 적용된 최종 가격 계산
             let finalPrice = basePrice;
+            let validDiscount = false;
+            
             if (p.discountType === 'percentage' && p.discountValue > 0 && p.discountValue <= 100) {
               finalPrice = basePrice * (1 - p.discountValue / 100);
-            } else if (p.discountType === 'fixed' && p.discountValue > 0) {
+              validDiscount = true;
+            } else if (p.discountType === 'fixed' && p.discountValue > 0 && p.discountValue < basePrice) {
               finalPrice = Math.max(0, basePrice - p.discountValue);
+              validDiscount = true;
+            }
+            
+            // 할인이 무효한 경우 (할인율 > 100% 등) 할인을 무시
+            if (!validDiscount) {
+              finalPrice = basePrice;
             }
             
             return {
@@ -109,8 +118,8 @@ const AIStorePage = () => {
             reviewCount: p.reviewCount || 0,
             // 마케팅 필드
             originalPrice: p.originalPrice,
-            discountType: p.discountType,
-            discountValue: p.discountValue,
+            discountType: validDiscount ? p.discountType : 'none',  // 무효한 할인은 none으로
+            discountValue: validDiscount ? p.discountValue : 0,  // 무효한 할인은 0으로
             promotionType: p.promotionType,
             promotionDescription: p.promotionDescription,
             badges: p.badges,
@@ -383,7 +392,8 @@ const AIStorePage = () => {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   if (loading) {
     return (
