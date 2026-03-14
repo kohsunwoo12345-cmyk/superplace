@@ -60,7 +60,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         a.name as academyName
       FROM PointChargeRequest pcr
       LEFT JOIN users u ON pcr.userId = u.id
-      LEFT JOIN Academy a ON u.academyId = a.id
+      LEFT JOIN academy a ON u.academyId = a.id
       WHERE 1=1
     `;
 

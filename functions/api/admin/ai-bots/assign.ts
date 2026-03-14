@@ -475,7 +475,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
       const actLogId = `activity-botassign-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       await DB.prepare(`
-        INSERT OR IGNORE INTO ActivityLog (id, userId, action, details, ip, userAgent, deviceType, country, userRole, academyId, createdAt)
+        INSERT OR IGNORE INTO activity_logs (id, userId, action, details, ip, userAgent, deviceType, country, userRole, academyId, createdAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       `).bind(
         actLogId,

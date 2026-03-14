@@ -108,8 +108,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           u.password,
           u.academyId, a.name as academyName,
           u.createdAt, u.approved, u.grade, u.updatedAt
-        FROM User u
-        LEFT JOIN Academy a ON u.academyId = a.id
+        FROM users u
+        LEFT JOIN academy a ON u.academyId = a.id
         WHERE u.id = ?
       `).bind(userId).first();
     } catch (sqlError: any) {

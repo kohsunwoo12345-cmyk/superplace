@@ -48,7 +48,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (role && role.toUpperCase() === 'STUDENT' && academyId) {
       // 해당 학원의 학원장 찾기
       const director = await DB.prepare(`
-        SELECT id FROM User 
+        SELECT id FROM users 
         WHERE academyId = ? AND role = 'DIRECTOR'
         LIMIT 1
       `).bind(academyId).first();
@@ -171,7 +171,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         // 🆕 학생 추가 사용량 기록
         if (academyId) {
           const director = await DB.prepare(`
-            SELECT id FROM User 
+            SELECT id FROM users 
             WHERE academyId = ? AND role = 'DIRECTOR'
             LIMIT 1
           `).bind(academyId).first();
@@ -220,7 +220,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const actLogId = `activity-useradd-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const actionLabel = userRole.toUpperCase() === 'STUDENT' ? '학생 추가' : '사용자 추가';
       await DB.prepare(`
-        INSERT OR IGNORE INTO ActivityLog (id, userId, action, details, ip, userAgent, deviceType, country, userRole, academyId, createdAt)
+        INSERT OR IGNORE INTO activity_logs (id, userId, action, details, ip, userAgent, deviceType, country, userRole, academyId, createdAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       `).bind(
         actLogId,

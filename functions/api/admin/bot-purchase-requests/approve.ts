@@ -133,7 +133,7 @@ export async function onRequestPost(context: any) {
     
     // 0. 외래 키 제약 확인: Academy와 Product가 존재하는지 검증
     const academy = await env.DB.prepare(`
-      SELECT id, name FROM Academy WHERE id = ?
+      SELECT id, name FROM academy WHERE id = ?
     `).bind(academyId).first();
 
     if (!academy) {

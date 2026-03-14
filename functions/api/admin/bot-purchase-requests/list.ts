@@ -77,7 +77,7 @@ export async function onRequestGet(context: any) {
         a.name as academyName
       FROM BotPurchaseRequest bpr
       LEFT JOIN users u ON bpr.userId = u.id
-      LEFT JOIN Academy a ON bpr.academyId = a.id
+      LEFT JOIN academy a ON bpr.academyId = a.id
       WHERE 1=1
     `;
     
