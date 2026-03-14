@@ -821,6 +821,7 @@ export default function SeminarsAdminPage() {
 
             <div className="flex justify-end gap-2 pt-4">
               <Button 
+                type="button"
                 variant="outline" 
                 onClick={() => { setIsCreateDialogOpen(false); resetForm(); }}
                 disabled={submitting}
@@ -829,6 +830,7 @@ export default function SeminarsAdminPage() {
                 취소
               </Button>
               <Button 
+                type="button"
                 onClick={handleCreate}
                 disabled={submitting}
               >
