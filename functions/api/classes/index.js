@@ -105,10 +105,10 @@ export async function onRequestGet(context) {
       console.log('🔓 Super Admin access - returning all classes');
       const result = await db.prepare(`
         SELECT * FROM Class 
-        WHERE isActive = 1
         ORDER BY createdAt DESC
       `).all();
       classes = result.results || [];
+      console.log(`📊 Found ${classes.length} classes (all)`);
     } 
     else if (role === 'ADMIN' || role === 'DIRECTOR' || role === 'TEACHER') {
       if (!academyId) {
@@ -125,20 +125,22 @@ export async function onRequestGet(context) {
       console.log('🏫 Filtering by academy:', academyId);
       const result = await db.prepare(`
         SELECT * FROM Class 
-        WHERE academyId = ? AND isActive = 1
+        WHERE academyId = ?
         ORDER BY createdAt DESC
       `).bind(academyId).all();
       classes = result.results || [];
+      console.log(`📊 Found ${classes.length} classes for academy ${academyId}`);
     }
     else if (role === 'STUDENT') {
       console.log('👨‍🎓 Student access - returning enrolled classes');
       const result = await db.prepare(`
         SELECT c.* FROM Class c
         INNER JOIN ClassStudent cs ON c.id = cs.classId
-        WHERE cs.studentId = ? AND c.isActive = 1
+        WHERE cs.studentId = ?
         ORDER BY c.createdAt DESC
       `).bind(userId).all();
       classes = result.results || [];
+      console.log(`📊 Found ${classes.length} classes for student ${userId}`);
     }
     else {
       console.error('❌ Invalid role:', role);
