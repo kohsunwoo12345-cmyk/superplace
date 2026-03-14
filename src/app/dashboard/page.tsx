@@ -410,9 +410,9 @@ export default function DashboardPage() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5 text-indigo-600" />
-                  진행 예정 세미나
+                  공지사항
                 </CardTitle>
-                <CardDescription>학원장을 위한 전문가 세미나 및 워크샵</CardDescription>
+                <CardDescription>학원 운영 관련 공지사항 및 안내</CardDescription>
               </div>
               <Button 
                 variant="outline" 
@@ -458,9 +458,9 @@ export default function DashboardPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Target className="h-5 w-5 text-indigo-600" />
-                    진행 예정 세미나
+                    공지사항
                   </CardTitle>
-                  <CardDescription>학원 운영에 도움이 되는 전문가 세미나</CardDescription>
+                  <CardDescription>학원 운영 관련 공지사항 및 안내</CardDescription>
                 </div>
                 <Button 
                   variant="outline" 
