@@ -36,7 +36,7 @@ export default function SeminarWidget() {
         return;
       }
 
-      const response = await fetch("/api/seminars?limit=3&status=upcoming", {
+      const response = await fetch("/api/seminars?limit=3&status=active", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
