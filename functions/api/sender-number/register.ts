@@ -48,18 +48,28 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
     const db = env.DB;
 
-    // 사용자 정보 조회
-    const user = await db
-      .prepare('SELECT id, email, role, name FROM users WHERE email = ?')
+    // 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블)
+    let user = await db
+      .prepare('SELECT id, email, role, name FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
 
     if (!user) {
+      user = await db
+        .prepare('SELECT id, email, role, name FROM users WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    }
+
+    if (!user) {
+      console.error('❌ User not found:', tokenData.email);
       return new Response(JSON.stringify({ error: "User not found" }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
       });
     }
+    
+    console.log('✅ User found:', user.email);
 
     // FormData 파싱
     const formData = await request.formData();

@@ -109,15 +109,25 @@ export async function onRequest(context: { request: Request; env: Env }) {
       WHERE id = ?
     `).bind(now, user.id, now, requestId).run();
 
-    // 학원장의 users 테이블에 승인된 발신번호 저장
+    // 학원장의 User/users 테이블에 승인된 발신번호 저장
     // request.userId가 있으면 해당 사용자의 레코드 업데이트
     if (request.userId) {
       try {
-        await db.prepare(`
-          UPDATE users
-          SET approved_sender_numbers = ?
+        // User 테이블 먼저 시도
+        let updateResult = await db.prepare(`
+          UPDATE User
+          SET approvedSenderNumbers = ?
           WHERE id = ?
         `).bind(request.senderNumbers, request.userId).run();
+        
+        // User 테이블에 없으면 users 테이블 시도
+        if (!updateResult.success || updateResult.meta.changes === 0) {
+          updateResult = await db.prepare(`
+            UPDATE users
+            SET approved_sender_numbers = ?
+            WHERE id = ?
+          `).bind(request.senderNumbers, request.userId).run();
+        }
         
         console.log(`✅ 학원장(userId: ${request.userId})의 발신번호 저장 완료:`, request.senderNumbers);
       } catch (error: any) {
