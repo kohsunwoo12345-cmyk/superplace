@@ -38,6 +38,18 @@ export default function EditStoreProductPage() {
     price: number | string;
     monthlyPrice: number | string;
     yearlyPrice: number | string;
+    pricePerStudent: number | string;
+    originalPrice: number | string;
+    discountType: string;
+    discountValue: number | string;
+    promotionType: string;
+    promotionDescription: string;
+    promotionStartDate: string;
+    promotionEndDate: string;
+    badges: string;
+    isTimeDeal: number;
+    stockQuantity: number | string;
+    maxPurchasePerUser: number | string;
     features: string;
     detailHtml: string;
     imageUrl: string;
@@ -46,6 +58,7 @@ export default function EditStoreProductPage() {
     isFeatured: number;
     displayOrder: number | string;
     keywords: string;
+    dailyChatLimit: number | string;
   }>({
     name: "",
     category: "academy_operation",
@@ -55,6 +68,18 @@ export default function EditStoreProductPage() {
     price: "",
     monthlyPrice: "",
     yearlyPrice: "",
+    pricePerStudent: "",
+    originalPrice: "",
+    discountType: "none",
+    discountValue: "",
+    promotionType: "none",
+    promotionDescription: "",
+    promotionStartDate: "",
+    promotionEndDate: "",
+    badges: "",
+    isTimeDeal: 0,
+    stockQuantity: -1,
+    maxPurchasePerUser: -1,
     features: "",
     detailHtml: "",
     imageUrl: "",
@@ -63,6 +88,7 @@ export default function EditStoreProductPage() {
     isFeatured: 0,
     displayOrder: "",
     keywords: "",
+    dailyChatLimit: 15,
   });
 
   useEffect(() => {
@@ -113,6 +139,18 @@ export default function EditStoreProductPage() {
             price: product.price || "",
             monthlyPrice: product.monthlyPrice || "",
             yearlyPrice: product.yearlyPrice || "",
+            pricePerStudent: product.pricePerStudent || "",
+            originalPrice: product.originalPrice || "",
+            discountType: product.discountType || "none",
+            discountValue: product.discountValue || "",
+            promotionType: product.promotionType || "none",
+            promotionDescription: product.promotionDescription || "",
+            promotionStartDate: product.promotionStartDate || "",
+            promotionEndDate: product.promotionEndDate || "",
+            badges: product.badges || "",
+            isTimeDeal: product.isTimeDeal || 0,
+            stockQuantity: product.stockQuantity !== undefined ? product.stockQuantity : -1,
+            maxPurchasePerUser: product.maxPurchasePerUser !== undefined ? product.maxPurchasePerUser : -1,
             features: Array.isArray(product.features)
               ? product.features.join("\n")
               : product.features || "",
@@ -123,6 +161,7 @@ export default function EditStoreProductPage() {
             isFeatured: product.isFeatured || 0,
             displayOrder: product.displayOrder || "",
             keywords: product.keywords || "",
+            dailyChatLimit: product.dailyChatLimit || 15,
           });
 
           if (product.imageUrl) {
@@ -148,6 +187,18 @@ export default function EditStoreProductPage() {
             price: product.price || "",
             monthlyPrice: product.monthlyPrice || "",
             yearlyPrice: product.yearlyPrice || "",
+            pricePerStudent: product.pricePerStudent || "",
+            originalPrice: product.originalPrice || "",
+            discountType: product.discountType || "none",
+            discountValue: product.discountValue || "",
+            promotionType: product.promotionType || "none",
+            promotionDescription: product.promotionDescription || "",
+            promotionStartDate: product.promotionStartDate || "",
+            promotionEndDate: product.promotionEndDate || "",
+            badges: product.badges || "",
+            isTimeDeal: product.isTimeDeal || 0,
+            stockQuantity: product.stockQuantity !== undefined ? product.stockQuantity : -1,
+            maxPurchasePerUser: product.maxPurchasePerUser !== undefined ? product.maxPurchasePerUser : -1,
             features: Array.isArray(product.features)
               ? product.features.join("\n")
               : product.features || "",
@@ -158,6 +209,7 @@ export default function EditStoreProductPage() {
             isFeatured: product.isFeatured || 0,
             displayOrder: product.displayOrder || "",
             keywords: product.keywords || "",
+            dailyChatLimit: product.dailyChatLimit || 15,
           });
 
           if (product.imageUrl) {
