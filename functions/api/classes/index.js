@@ -151,7 +151,7 @@ export async function onRequestGet(context) {
       });
     }
 
-    // Get student counts for each class
+    // Get student counts and student list for each class
     for (const cls of classes) {
       const countResult = await db.prepare(`
         SELECT COUNT(*) as count FROM ClassStudent WHERE classId = ?
@@ -162,6 +162,32 @@ export async function onRequestGet(context) {
       cls._count = {
         students: countResult?.count || 0
       };
+
+      // Get student list for edit page
+      const studentsResult = await db.prepare(`
+        SELECT 
+          cs.id as enrollmentId,
+          cs.studentId,
+          u.id,
+          u.name,
+          u.email,
+          u.phone,
+          u.academyId
+        FROM ClassStudent cs
+        INNER JOIN User u ON cs.studentId = u.id
+        WHERE cs.classId = ?
+      `).bind(cls.id).all();
+      
+      cls.students = (studentsResult.results || []).map(s => ({
+        id: s.enrollmentId,
+        student: {
+          id: s.studentId,
+          name: s.name,
+          email: s.email,
+          phone: s.phone,
+          academyId: s.academyId
+        }
+      }));
 
       // Get schedules
       const schedules = await db.prepare(`
