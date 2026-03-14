@@ -90,15 +90,27 @@ export default function MessageSendPage() {
 
         // 발신번호 목록 로드
         try {
+          console.log('📞 발신번호 로딩 시작...');
           const sendersRes = await fetch("/api/sender-numbers/approved", {
             headers: { Authorization: `Bearer ${token}` },
           });
+          
+          console.log('📡 발신번호 API 응답 상태:', sendersRes.status);
+          
           if (sendersRes.ok) {
             const data = await sendersRes.json();
+            console.log('📊 발신번호 API 응답:', data);
+            console.log('📱 발신번호 목록:', data.senderNumbers);
+            
             setSenderNumbers(data.senderNumbers || []);
             if (data.senderNumbers?.length > 0) {
               setSenderNumber(data.senderNumbers[0]);
+              console.log('✅ 기본 발신번호 설정:', data.senderNumbers[0]);
+            } else {
+              console.warn('⚠️ 발신번호 목록이 비어있습니다');
             }
+          } else {
+            console.error('❌ 발신번호 API 오류:', sendersRes.status);
           }
         } catch (error) {
           console.error("발신번호 로딩 실패:", error);

@@ -64,6 +64,20 @@ export default function SenderNumberApprovalPage() {
 
       if (response.ok && data.success) {
         console.log('✅ Requests loaded:', data.requests?.length || 0);
+        
+        // 각 신청의 파일 URL 상세 로그
+        data.requests?.forEach((req: any, idx: number) => {
+          console.log(`📄 Request #${idx + 1}:`, {
+            id: req.id,
+            companyName: req.companyName,
+            fileUrls: req.fileUrls,
+            telecomCertificate: req.fileUrls?.telecomCertificate,
+            businessRegistration: req.fileUrls?.businessRegistration,
+            serviceAgreement: req.fileUrls?.serviceAgreement,
+            privacyAgreement: req.fileUrls?.privacyAgreement
+          });
+        });
+        
         setRequests(data.requests || []);
       } else {
         console.error('❌ API Error:', data.error);
@@ -141,8 +155,17 @@ export default function SenderNumberApprovalPage() {
   };
 
   const downloadFile = (url: string, filename: string) => {
+    console.log('📥 다운로드 시도:', { url, filename });
+    
+    if (!url) {
+      console.error('❌ 파일 URL이 없습니다');
+      alert('파일 URL이 없습니다.');
+      return;
+    }
+    
     if (url.startsWith('data:')) {
       // Base64 데이터를 다운로드
+      console.log('📦 Base64 데이터 다운로드');
       const link = document.createElement('a');
       link.href = url;
       link.download = filename;
@@ -151,6 +174,7 @@ export default function SenderNumberApprovalPage() {
       document.body.removeChild(link);
     } else {
       // R2 URL을 다운로드
+      console.log('🔗 R2 URL 다운로드:', url);
       const link = document.createElement('a');
       link.href = url;
       link.download = filename;

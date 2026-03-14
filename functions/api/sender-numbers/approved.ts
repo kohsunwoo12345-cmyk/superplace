@@ -44,11 +44,19 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
     const db = context.env.DB;
 
+    console.log('🔍 발신번호 조회 시작 - tokenData:', {
+      id: tokenData.id,
+      email: tokenData.email,
+      role: tokenData.role
+    });
+
     // 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블)
     let user = await db
       .prepare('SELECT id, email, approvedSenderNumbers as approved_sender_numbers FROM User WHERE id = ?')
       .bind(tokenData.id)
       .first();
+
+    console.log('📊 User 테이블 조회 결과 (id):', user);
 
     if (!user) {
       // User 테이블에 없으면 email로 시도
@@ -56,6 +64,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
         .prepare('SELECT id, email, approvedSenderNumbers as approved_sender_numbers FROM User WHERE email = ?')
         .bind(tokenData.email)
         .first();
+      
+      console.log('📊 User 테이블 조회 결과 (email):', user);
     }
 
     if (!user) {
@@ -64,6 +74,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
         .prepare('SELECT id, email, approved_sender_numbers FROM users WHERE id = ?')
         .bind(tokenData.id)
         .first();
+      
+      console.log('📊 users 테이블 조회 결과 (id):', user);
     }
 
     if (!user) {
@@ -72,6 +84,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
         .prepare('SELECT id, email, approved_sender_numbers FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
+      
+      console.log('📊 users 테이블 조회 결과 (email):', user);
     }
 
     if (!user) {
@@ -88,6 +102,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
         }
       );
     }
+    
+    console.log('✅ 사용자 찾음:', {
+      id: user.id,
+      email: user.email,
+      approved_sender_numbers: user.approved_sender_numbers
+    });
 
     // approved_sender_numbers 파싱
     const approvedNumbers = user.approved_sender_numbers;
