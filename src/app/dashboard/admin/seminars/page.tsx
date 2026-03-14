@@ -39,6 +39,7 @@ export default function SeminarsAdminPage() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageFile, setImageFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -153,6 +154,12 @@ export default function SeminarsAdminPage() {
 
   const handleCreate = async () => {
     try {
+      // Prevent double submission
+      if (submitting) {
+        console.log('Already submitting, please wait...');
+        return;
+      }
+
       // Validation
       if (!formData.title || !formData.title.trim()) {
         showMessage('error', '세미나 제목을 입력해주세요');
@@ -167,6 +174,7 @@ export default function SeminarsAdminPage() {
         return;
       }
 
+      setSubmitting(true);
       console.log('Creating seminar with data:', formData);
 
       const response = await fetch('/api/seminars', {
@@ -180,19 +188,21 @@ export default function SeminarsAdminPage() {
 
       const data = await response.json();
       
-      console.log('Create response:', data);
+      console.log('Create response:', response.status, data);
 
       if (data.success) {
         showMessage('success', '세미나가 생성되었습니다');
         setIsCreateDialogOpen(false);
         resetForm();
-        loadSeminars();
+        await loadSeminars();
       } else {
         showMessage('error', data.error || data.message || '세미나 생성에 실패했습니다');
       }
     } catch (error) {
       console.error('Error creating seminar:', error);
-      showMessage('error', '세미나 생성 중 오류가 발생했습니다');
+      showMessage('error', '세미나 생성 중 오류가 발생했습니다: ' + error.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -813,13 +823,26 @@ export default function SeminarsAdminPage() {
               <Button 
                 variant="outline" 
                 onClick={() => { setIsCreateDialogOpen(false); resetForm(); }}
+                disabled={submitting}
               >
                 <X className="w-4 h-4 mr-2" />
                 취소
               </Button>
-              <Button onClick={handleCreate}>
-                <Save className="w-4 h-4 mr-2" />
-                등록
+              <Button 
+                onClick={handleCreate}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <>
+                    <span className="animate-spin mr-2">⏳</span>
+                    등록 중...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    등록
+                  </>
+                )}
               </Button>
             </div>
           </div>
