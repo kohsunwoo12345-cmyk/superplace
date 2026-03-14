@@ -111,18 +111,51 @@ export async function onRequest(context: { request: Request; env: Env }) {
       privacy: `${privacyAgreement?.name} (${Math.round(privacyAgreement.size / 1024)}KB)`,
     });
 
+    // 파일 내용에서 실제 타입 감지 (매직 넘버 기반)
+    const detectFileTypeFromContent = (buffer: ArrayBuffer): string => {
+      const arr = new Uint8Array(buffer).slice(0, 4);
+      const header = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join(' ').toUpperCase();
+      
+      // JPEG: FF D8 FF
+      if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) {
+        return 'image/jpeg';
+      }
+      
+      // PNG: 89 50 4E 47
+      if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) {
+        return 'image/png';
+      }
+      
+      // PDF: 25 50 44 46 (%PDF)
+      if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) {
+        return 'application/pdf';
+      }
+      
+      // GIF: 47 49 46 38
+      if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x38) {
+        return 'image/gif';
+      }
+      
+      console.warn(`⚠️ 알 수 없는 파일 타입, 헤더: ${header}`);
+      return 'application/octet-stream';
+    };
+    
     // R2에 파일 업로드하는 함수
     const uploadToR2 = async (file: File, key: string): Promise<string> => {
       const arrayBuffer = await file.arrayBuffer();
+      
+      // 파일 내용에서 실제 MIME 타입 감지
+      const actualContentType = detectFileTypeFromContent(arrayBuffer);
+      console.log(`🔍 파일 타입 감지: ${file.name} → ${actualContentType} (브라우저: ${file.type})`);
       
       // R2 버킷이 설정되어 있으면 업로드
       if (env.SENDER_NUMBER_BUCKET) {
         await env.SENDER_NUMBER_BUCKET.put(key, arrayBuffer, {
           httpMetadata: {
-            contentType: file.type,
+            contentType: actualContentType, // 실제 감지된 타입 사용
           },
         });
-        console.log(`✅ R2 업로드 성공: ${key}`);
+        console.log(`✅ R2 업로드 성공: ${key} (${actualContentType})`);
         return `/api/files/sender-number/${key}`;
       } else {
         // R2 버킷이 없으면 placeholder 반환
@@ -131,44 +164,48 @@ export async function onRequest(context: { request: Request; env: Env }) {
       }
     };
 
+    // 파일 내용에서 확장자 추출 (매직 넘버 기반)
+    const getExtensionFromContent = async (file: File): Promise<string> => {
+      const buffer = await file.arrayBuffer();
+      const arr = new Uint8Array(buffer).slice(0, 4);
+      
+      // 매직 넘버로 실제 파일 타입 확인
+      if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) {
+        return 'jpg'; // JPEG
+      }
+      if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) {
+        return 'png'; // PNG
+      }
+      if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) {
+        return 'pdf'; // PDF
+      }
+      if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x38) {
+        return 'gif'; // GIF
+      }
+      
+      // fallback: 파일명에서 추출
+      const fileNameExt = file.name.split('.').pop()?.toLowerCase();
+      if (fileNameExt && ['jpg', 'jpeg', 'png', 'pdf', 'gif', 'webp'].includes(fileNameExt)) {
+        return fileNameExt;
+      }
+      
+      return 'bin'; // 알 수 없는 파일
+    };
+    
     // 각 파일을 R2에 업로드
     const fileUrls: any = {};
     try {
-      // 실제 MIME 타입에서 확장자 추출 (파일명이 아닌 실제 타입 기반)
-      const getExtensionFromMimeType = (file: File): string => {
-        const mimeType = file.type.toLowerCase();
-        
-        // 이미지 파일
-        if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpg';
-        if (mimeType.includes('png')) return 'png';
-        if (mimeType.includes('gif')) return 'gif';
-        if (mimeType.includes('webp')) return 'webp';
-        
-        // 문서 파일
-        if (mimeType.includes('pdf')) return 'pdf';
-        if (mimeType.includes('msword') || mimeType.includes('wordprocessingml')) return 'docx';
-        if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'xlsx';
-        
-        // 기본값: 파일명에서 추출 시도
-        const fileNameExt = file.name.split('.').pop()?.toLowerCase();
-        if (fileNameExt && ['jpg', 'jpeg', 'png', 'pdf', 'gif', 'webp', 'docx', 'xlsx'].includes(fileNameExt)) {
-          return fileNameExt;
-        }
-        
-        // 그래도 없으면 jpg 기본값 (대부분 이미지일 가능성)
-        return 'jpg';
-      };
+      // 파일 내용 기반으로 확장자 감지
+      const telecomExt = await getExtensionFromContent(telecomCertificate);
+      const businessExt = await getExtensionFromContent(businessRegistration);
+      const serviceExt = await getExtensionFromContent(serviceAgreement);
+      const privacyExt = await getExtensionFromContent(privacyAgreement);
       
-      const telecomExt = getExtensionFromMimeType(telecomCertificate);
-      const businessExt = getExtensionFromMimeType(businessRegistration);
-      const serviceExt = getExtensionFromMimeType(serviceAgreement);
-      const privacyExt = getExtensionFromMimeType(privacyAgreement);
-      
-      console.log('📝 파일 확장자 감지:', {
-        telecom: `${telecomCertificate.name} → .${telecomExt} (${telecomCertificate.type})`,
-        business: `${businessRegistration.name} → .${businessExt} (${businessRegistration.type})`,
-        service: `${serviceAgreement.name} → .${serviceExt} (${serviceAgreement.type})`,
-        privacy: `${privacyAgreement.name} → .${privacyExt} (${privacyAgreement.type})`
+      console.log('📝 파일 확장자 감지 (매직 넘버 기반):', {
+        telecom: `${telecomCertificate.name} → .${telecomExt} (브라우저: ${telecomCertificate.type})`,
+        business: `${businessRegistration.name} → .${businessExt} (브라우저: ${businessRegistration.type})`,
+        service: `${serviceAgreement.name} → .${serviceExt} (브라우저: ${serviceAgreement.type})`,
+        privacy: `${privacyAgreement.name} → .${privacyExt} (브라우저: ${privacyAgreement.type})`
       });
       
       fileUrls.telecomCertificate = await uploadToR2(
