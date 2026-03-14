@@ -629,8 +629,11 @@ function StudentDetailContent() {
   };
 
   const analyzeCompetency = async () => {
+    console.log('='.repeat(60));
     console.log('🧠 AI 역량 분석 시작 (Gemini 2.5 Flash Lite)');
     console.log('📊 Current limitations:', limitations);
+    console.log('✅ 사용 모델: gemini-2.5-flash-lite-preview-06-17');
+    console.log('='.repeat(60));
     
     // 프론트엔드 제한 확인
     if (limitations && limitations.competency_analysis_enabled === 0) {
@@ -810,8 +813,11 @@ function StudentDetailContent() {
   };
 
   const analyzeWeakConcepts = async () => {
+    console.log('='.repeat(60));
     console.log('🧠 부족한 개념 분석 시작 (Gemini 2.5 Flash Lite)');
     console.log('📊 Current limitations:', limitations);
+    console.log('✅ 사용 모델: gemini-2.5-flash-lite-preview-06-17');
+    console.log('='.repeat(60));
     
     // 프론트엔드 제한 확인
     if (limitations && limitations.weak_concept_analysis_enabled === 0) {
@@ -891,8 +897,11 @@ function StudentDetailContent() {
   };
 
   const generateSimilarProblems = async () => {
+    console.log('='.repeat(60));
     console.log('📝 유사문제 생성 시작 (Gemini 2.5 Flash Lite)');
     console.log('📊 Current limitations:', limitations);
+    console.log('✅ 사용 모델: gemini-2.5-flash-lite-preview-06-17');
+    console.log('='.repeat(60));
     
     // 프론트엔드 제한 확인
     if (limitations && limitations.similar_problem_enabled === 0) {
@@ -1462,17 +1471,26 @@ function StudentDetailContent() {
               </div>
               
               {/* 액션 버튼 - 요금제 로직 연동 */}
-              {(!limitations || limitations.similar_problem_enabled === 1) && (
-                <Button
-                  onClick={() => setShowProblemModal(true)}
-                  disabled={weakConcepts.length === 0}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg whitespace-nowrap"
-                  size="sm"
-                >
-                  <ClipboardCheck className="w-4 h-4 mr-2" />
-                  유사문제 출제
-                </Button>
-              )}
+              {(() => {
+                const shouldShow = !limitations || limitations.similar_problem_enabled === 1;
+                console.log('🔍 유사문제 출제 버튼 표시 여부:', {
+                  shouldShow,
+                  limitations,
+                  similar_problem_enabled: limitations?.similar_problem_enabled,
+                  weakConceptsLength: weakConcepts.length
+                });
+                return shouldShow && (
+                  <Button
+                    onClick={() => setShowProblemModal(true)}
+                    disabled={weakConcepts.length === 0}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg whitespace-nowrap"
+                    size="sm"
+                  >
+                    <ClipboardCheck className="w-4 h-4 mr-2" />
+                    유사문제 출제
+                  </Button>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -2716,22 +2734,30 @@ function StudentDetailContent() {
                                 ))}
                               </div>
                             )}
-                            {(!limitations || limitations.similar_problem_enabled === 1) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="w-full sm:w-auto text-xs sm:text-sm"
-                              onClick={() => {
-                                // 해당 개념만 선택하여 모달 열기
-                                setSelectedConcepts([concept.concept]);
-                                setSelectedProblemTypes(['concept', 'pattern']);
-                                setSelectedQuestionFormats(['multiple_choice', 'open_ended']);
-                                setShowProblemModal(true);
-                              }}
-                            >
-                              📝 유사문제 출제
-                            </Button>
-                            )}
+                            {(() => {
+                              const shouldShow = !limitations || limitations.similar_problem_enabled === 1;
+                              console.log('🔍 개념별 유사문제 버튼 표시:', {
+                                concept: concept.concept,
+                                shouldShow,
+                                similar_problem_enabled: limitations?.similar_problem_enabled
+                              });
+                              return shouldShow && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full sm:w-auto text-xs sm:text-sm"
+                                  onClick={() => {
+                                    // 해당 개념만 선택하여 모달 열기
+                                    setSelectedConcepts([concept.concept]);
+                                    setSelectedProblemTypes(['concept', 'pattern']);
+                                    setSelectedQuestionFormats(['multiple_choice', 'open_ended']);
+                                    setShowProblemModal(true);
+                                  }}
+                                >
+                                  📝 유사문제 출제
+                                </Button>
+                              );
+                            })()}
                           </div>
                         ))}
                       </div>
