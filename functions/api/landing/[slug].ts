@@ -69,9 +69,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       '{{homeworkRate}}': '0',
       '{{homeworkCompleted}}': '0',
       '{{homeworkTotal}}': '0',
-      '{{weakConcepts}}': '',
-      '{{improvements}}': '',
-      '{{studyDirection}}': ''
+      '{{weakConcepts}}': '데이터 수집 중입니다.',
+      '{{improvements}}': '데이터 수집 중입니다.',
+      '{{studyDirection}}': '데이터 수집 중입니다.',
+      '{{analysisSummary}}': '학습 분석을 진행하고 있습니다.'
     };
 
     // 학생 ID가 있으면 학생 데이터 가져오기
@@ -79,9 +80,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       try {
         // 학생 기본 정보
         const student = await DB.prepare(`
-          SELECT u.name, u.email, s.phone 
-          FROM users u
-          LEFT JOIN Student s ON u.id = s.user_id
+          SELECT u.name, u.email
+          FROM User u
           WHERE u.id = ?
         `).bind(studentId).first();
 
@@ -97,8 +97,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as presentDays,
             SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absentDays,
             SUM(CASE WHEN status = 'tardy' THEN 1 ELSE 0 END) as tardyDays
-          FROM attendance
-          WHERE student_id = ? AND date >= ?
+          FROM Attendance
+          WHERE studentId = ? AND date >= ?
         `).bind(studentId, thirtyDaysAgo).first();
 
         if (attendanceStats) {
@@ -119,8 +119,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         // AI 채팅 횟수
         const aiChatCount = await DB.prepare(`
           SELECT COUNT(*) as count
-          FROM ai_chat_history
-          WHERE user_id = ? AND created_at >= ?
+          FROM AIChatHistory
+          WHERE userId = ? AND createdAt >= ?
         `).bind(studentId, thirtyDaysAgo).first();
 
         if (aiChatCount) {
@@ -131,9 +131,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const homeworkStats = await DB.prepare(`
           SELECT 
             COUNT(*) as totalHomework,
-            SUM(CASE WHEN completion_status = 'completed' THEN 1 ELSE 0 END) as completedHomework
-          FROM homework_submissions
-          WHERE student_id = ? AND submitted_at >= ?
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedHomework
+          FROM HomeworkSubmission
+          WHERE studentId = ? AND submittedAt >= ?
         `).bind(studentId, thirtyDaysAgo).first();
 
         if (homeworkStats) {
@@ -148,38 +148,57 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         // 부족한 개념 분석 데이터 (캐시된 데이터 사용)
         const weakConceptsData = await DB.prepare(`
-          SELECT analysis_result, analyzed_at
-          FROM student_weak_concepts_cache
-          WHERE student_id = ?
-          ORDER BY analyzed_at DESC
+          SELECT 
+            weakConcepts,
+            recommendations,
+            learningDirection,
+            summary,
+            detailedAnalysis,
+            analyzedAt
+          FROM student_weak_concepts
+          WHERE studentId = ?
+          ORDER BY analyzedAt DESC
           LIMIT 1
         `).bind(studentId).first();
 
-        if (weakConceptsData && weakConceptsData.analysis_result) {
+        if (weakConceptsData) {
           try {
-            const analysisResult = JSON.parse(weakConceptsData.analysis_result as string);
-            
             // 부족한 개념 목록
-            if (analysisResult.weakConcepts && analysisResult.weakConcepts.length > 0) {
-              const concepts = analysisResult.weakConcepts
-                .slice(0, 5) // 상위 5개
-                .map((c: any, idx: number) => `${idx + 1}. ${c.concept}: ${c.description}`)
-                .join('\n');
-              replacements['{{weakConcepts}}'] = concepts;
+            if (weakConceptsData.weakConcepts) {
+              const weakConceptsArray = JSON.parse(weakConceptsData.weakConcepts as string);
+              if (weakConceptsArray && weakConceptsArray.length > 0) {
+                const concepts = weakConceptsArray
+                  .slice(0, 5) // 상위 5개
+                  .map((c: any, idx: number) => {
+                    const severity = c.severity || 'medium';
+                    const severityIcon = severity === 'high' ? '🔴' : severity === 'medium' ? '🟡' : '🟢';
+                    return `${severityIcon} ${c.concept}: ${c.description}`;
+                  })
+                  .join('<br>');
+                replacements['{{weakConcepts}}'] = concepts;
+              }
             }
 
             // 학습 방향 및 개선점
-            if (analysisResult.learningDirection) {
-              replacements['{{studyDirection}}'] = analysisResult.learningDirection;
+            if (weakConceptsData.learningDirection) {
+              replacements['{{studyDirection}}'] = weakConceptsData.learningDirection as string;
             }
 
             // 개선 사항 (recommendations)
-            if (analysisResult.recommendations && analysisResult.recommendations.length > 0) {
-              const improvements = analysisResult.recommendations
-                .slice(0, 3) // 상위 3개
-                .map((r: any, idx: number) => `${idx + 1}. ${r.concept}: ${r.action}`)
-                .join('\n');
-              replacements['{{improvements}}'] = improvements;
+            if (weakConceptsData.recommendations) {
+              const recommendationsArray = JSON.parse(weakConceptsData.recommendations as string);
+              if (recommendationsArray && recommendationsArray.length > 0) {
+                const improvements = recommendationsArray
+                  .slice(0, 3) // 상위 3개
+                  .map((r: any, idx: number) => `✓ ${r.concept}: ${r.action}`)
+                  .join('<br>');
+                replacements['{{improvements}}'] = improvements;
+              }
+            }
+
+            // 요약 추가
+            if (weakConceptsData.summary) {
+              replacements['{{analysisSummary}}'] = weakConceptsData.summary as string;
             }
           } catch (parseError) {
             console.error('❌ Failed to parse weak concepts data:', parseError);
