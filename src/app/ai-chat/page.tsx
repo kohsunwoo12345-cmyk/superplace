@@ -882,40 +882,39 @@ export default function ModernAIChatPage() {
       }> = [];
 
       let fullText = message.content;
+      console.log('📄 Full text length:', fullText.length);
       
-      // 문제 추출 패턴
-      const problemPattern = /(?:^|\n)(?:문제\s*\d+[.:)]?|문제\s*[:\-]|\d+[.:)]\s*[가-힣]|\[\s*문제\s*\]|\*\*문제\*\*)([\s\S]+?)(?=(?:\n(?:문제\s*\d+[.:)]?|문제\s*[:\-]|\d+[.:)]\s*[가-힣]|\[\s*문제\s*\]|\*\*문제\*\*))|$)/gi;
+      // 개선된 문제 추출 패턴 - **숫자. 문제내용** 형식도 지원
+      const problemPattern = /(?:^|\n)\*?\*?(\d+)\.\s*([^\n]+(?:\n(?!\*?\*?\d+\.)(?!정답|답\s*:).+)*)/g;
       const matches = [...fullText.matchAll(problemPattern)];
 
+      console.log(`🔍 Found ${matches.length} problems with pattern matching`);
+
       if (matches.length > 0) {
-        console.log(`✅ Found ${matches.length} structured problems`);
         matches.forEach((match) => {
-          const problemText = match[1].trim();
-          const answerMatch = problemText.match(/(?:정답|답)[:\s]*([^\n]+)/i);
-          const answer = answerMatch ? answerMatch[1].trim() : '';
-          const content = answer ? problemText.split(/(?:정답|답)[:\s]*/i)[0].trim() : problemText;
-          const type = /①|②|③|④|⑤|\(1\)|\(2\)|\(3\)|\(4\)|\(5\)|1\)|2\)|3\)|4\)|5\)/.test(content) ? 'multiple' : 'descriptive';
+          const problemNumber = parseInt(match[1]);
+          const problemContent = match[2].trim();
+          
+          // 선택지 포함 여부 확인
+          const hasChoices = /[①②③④⑤]/.test(problemContent);
           
           extractedProblems.push({
-            number: extractedProblems.length + 1,
-            content,
-            answer,
-            type
+            number: problemNumber,
+            content: problemContent,
+            answer: '', // 별도 정답 섹션에서 추출
+            type: hasChoices ? 'multiple' : 'descriptive'
           });
         });
-      } else {
-        // 전체를 하나의 문제로
-        console.log('⚠️ No structured format, using whole text as problem');
-        const answerMatch = fullText.match(/(?:정답|답)[:\s]*([^\n]+)/i);
-        const answer = answerMatch ? answerMatch[1].trim() : '';
-        const content = answer ? fullText.split(/(?:정답|답)[:\s]*/i)[0].trim() : fullText;
-        const type = /①|②|③|④|⑤|\(1\)|\(2\)|\(3\)|\(4\)|\(5\)|1\)|2\)|3\)|4\)|5\)/.test(content) ? 'multiple' : 'descriptive';
         
+        console.log(`✅ Extracted ${extractedProblems.length} problems`);
+      } else {
+        // Fallback: 전체 텍스트를 문제로 처리
+        console.log('⚠️ No pattern match, using full text');
         extractedProblems.push({
           number: 1,
-          content,
-          answer,
-          type
+          content: fullText,
+          answer: '',
+          type: 'descriptive'
         });
       }
 
