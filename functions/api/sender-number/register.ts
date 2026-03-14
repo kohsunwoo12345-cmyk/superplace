@@ -134,26 +134,61 @@ export async function onRequest(context: { request: Request; env: Env }) {
     // 각 파일을 R2에 업로드
     const fileUrls: any = {};
     try {
-      const fileExtension = (fileName: string) => fileName.split('.').pop() || 'bin';
+      // 실제 MIME 타입에서 확장자 추출 (파일명이 아닌 실제 타입 기반)
+      const getExtensionFromMimeType = (file: File): string => {
+        const mimeType = file.type.toLowerCase();
+        
+        // 이미지 파일
+        if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpg';
+        if (mimeType.includes('png')) return 'png';
+        if (mimeType.includes('gif')) return 'gif';
+        if (mimeType.includes('webp')) return 'webp';
+        
+        // 문서 파일
+        if (mimeType.includes('pdf')) return 'pdf';
+        if (mimeType.includes('msword') || mimeType.includes('wordprocessingml')) return 'docx';
+        if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'xlsx';
+        
+        // 기본값: 파일명에서 추출 시도
+        const fileNameExt = file.name.split('.').pop()?.toLowerCase();
+        if (fileNameExt && ['jpg', 'jpeg', 'png', 'pdf', 'gif', 'webp', 'docx', 'xlsx'].includes(fileNameExt)) {
+          return fileNameExt;
+        }
+        
+        // 그래도 없으면 jpg 기본값 (대부분 이미지일 가능성)
+        return 'jpg';
+      };
+      
+      const telecomExt = getExtensionFromMimeType(telecomCertificate);
+      const businessExt = getExtensionFromMimeType(businessRegistration);
+      const serviceExt = getExtensionFromMimeType(serviceAgreement);
+      const privacyExt = getExtensionFromMimeType(privacyAgreement);
+      
+      console.log('📝 파일 확장자 감지:', {
+        telecom: `${telecomCertificate.name} → .${telecomExt} (${telecomCertificate.type})`,
+        business: `${businessRegistration.name} → .${businessExt} (${businessRegistration.type})`,
+        service: `${serviceAgreement.name} → .${serviceExt} (${serviceAgreement.type})`,
+        privacy: `${privacyAgreement.name} → .${privacyExt} (${privacyAgreement.type})`
+      });
       
       fileUrls.telecomCertificate = await uploadToR2(
         telecomCertificate,
-        `${requestId}/telecom.${fileExtension(telecomCertificate.name)}`
+        `${requestId}/telecom.${telecomExt}`
       );
       
       fileUrls.businessRegistration = await uploadToR2(
         businessRegistration,
-        `${requestId}/business.${fileExtension(businessRegistration.name)}`
+        `${requestId}/business.${businessExt}`
       );
       
       fileUrls.serviceAgreement = await uploadToR2(
         serviceAgreement,
-        `${requestId}/service.${fileExtension(serviceAgreement.name)}`
+        `${requestId}/service.${serviceExt}`
       );
       
       fileUrls.privacyAgreement = await uploadToR2(
         privacyAgreement,
-        `${requestId}/privacy.${fileExtension(privacyAgreement.name)}`
+        `${requestId}/privacy.${privacyExt}`
       );
       
       console.log('✅ 모든 파일 업로드 완료');
