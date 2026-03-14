@@ -104,11 +104,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // 메시지 타입 결정 (SMS: 90바이트 이하, LMS: 90바이트 초과)
-    const byteSize = new Blob([message]).size;
-    const messageType = byteSize > 90 ? 'LMS' : 'SMS';
-    const costPerMessage = messageType === 'LMS' ? 50 : 20;
+    // 메시지 타입 결정 및 포인트 계산
+    // SMS: 45자 이하 = 40P, LMS: 45자 초과 = 90P
+    const messageLength = message.length;
+    const messageType = messageLength > 45 ? 'LMS' : 'SMS';
+    const costPerMessage = messageLength > 45 ? 90 : 40;
     const totalCost = costPerMessage * receivers.length;
+    
+    console.log('📊 메시지 정보:', {
+      길이: messageLength,
+      타입: messageType,
+      단가: costPerMessage,
+      총비용: totalCost
+    });
 
     // 포인트 잔액 확인
     const balanceResult = await db

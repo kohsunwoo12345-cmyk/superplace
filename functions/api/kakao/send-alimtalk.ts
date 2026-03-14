@@ -165,6 +165,25 @@ export async function onRequestPost(context: any) {
         }
       };
     });
+    
+    // 알림톡 메시지 길이 제한 체크 (1000자)
+    // 템플릿 내용을 가져와서 변수를 치환한 후 길이 확인
+    // 참고: 실제로는 templateContent를 body에서 받아야 함
+    if (body.templateContent) {
+      let estimatedLength = body.templateContent.length;
+      console.log('📏 알림톡 예상 길이:', estimatedLength);
+      
+      if (estimatedLength > 1000) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: '알림톡은 1000자 이내만 발송 가능합니다',
+            currentLength: estimatedLength
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     // Send via Solapi (batch send)
     const response = await fetch('https://api.solapi.com/messages/v4/send-many', {
@@ -215,8 +234,8 @@ export async function onRequestPost(context: any) {
       successCount = recipients.length;
     }
 
-    // Deduct points from user (40 points per message)
-    const totalCost = successCount * 40;
+    // Deduct points from user (90 points per alimtalk message)
+    const totalCost = successCount * 90;
     console.log(`💰 Deducting ${totalCost} points from user ${userId}`);
 
     // Deduct points from user

@@ -44,14 +44,30 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
     const db = context.env.DB;
 
-    // 사용자 정보 조회 (ID 또는 email로)
+    // 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블)
     let user = await db
-      .prepare('SELECT id, email, approved_sender_numbers FROM users WHERE id = ?')
+      .prepare('SELECT id, email, approvedSenderNumbers as approved_sender_numbers FROM User WHERE id = ?')
       .bind(tokenData.id)
       .first();
 
     if (!user) {
-      // ID로 못 찾으면 email로 시도
+      // User 테이블에 없으면 email로 시도
+      user = await db
+        .prepare('SELECT id, email, approvedSenderNumbers as approved_sender_numbers FROM User WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    }
+
+    if (!user) {
+      // User 테이블에 없으면 users 테이블 시도 (ID)
+      user = await db
+        .prepare('SELECT id, email, approved_sender_numbers FROM users WHERE id = ?')
+        .bind(tokenData.id)
+        .first();
+    }
+
+    if (!user) {
+      // users 테이블에서 email로 시도
       user = await db
         .prepare('SELECT id, email, approved_sender_numbers FROM users WHERE email = ?')
         .bind(tokenData.email)
@@ -59,6 +75,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
     }
 
     if (!user) {
+      console.log('⚠️ 사용자를 찾을 수 없음:', tokenData.email);
       return new Response(
         JSON.stringify({ 
           success: true,
