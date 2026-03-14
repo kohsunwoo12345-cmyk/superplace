@@ -223,7 +223,7 @@ export default function EditStoreProductPage() {
       };
 
       // API로 업데이트 시도
-      const response = await fetch(`/api/admin/store-products?id=${productId}`, {
+      const response = await fetch(`/api/admin/store-products/${productId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

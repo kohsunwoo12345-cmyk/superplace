@@ -154,7 +154,7 @@ export default function StoreManagementPage() {
       const token = localStorage.getItem("token");
       
       // API로 삭제 시도
-      const response = await fetch(`/api/admin/store-products?id=${productId}`, {
+      const response = await fetch(`/api/admin/store-products/${productId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -194,7 +194,7 @@ export default function StoreManagementPage() {
       }
 
       // API로 업데이트 시도
-      const response = await fetch(`/api/admin/store-products?id=${productId}`, {
+      const response = await fetch(`/api/admin/store-products/${productId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
