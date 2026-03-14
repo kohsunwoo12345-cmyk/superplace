@@ -52,7 +52,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
     // email 기반으로 사용자 찾기 (가장 확실한 방법)
     let user = await db
-      .prepare('SELECT id, email, approvedSenderNumbers as approved_sender_numbers FROM User WHERE email = ?')
+      .prepare('SELECT id, email, approvedSenderNumbers FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first();
 
@@ -61,7 +61,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
     if (!user) {
       // User 테이블에 없으면 users 테이블 확인
       user = await db
-        .prepare('SELECT id, email, approved_sender_numbers FROM users WHERE email = ?')
+        .prepare('SELECT id, email, approved_sender_numbers as approvedSenderNumbers FROM users WHERE email = ?')
         .bind(tokenData.email)
         .first();
       
@@ -86,11 +86,11 @@ export async function onRequest(context: { request: Request; env: Env }) {
     console.log('✅ 사용자 찾음:', {
       id: user.id,
       email: user.email,
-      approved_sender_numbers: user.approved_sender_numbers
+      approvedSenderNumbers: user.approvedSenderNumbers
     });
 
-    // approved_sender_numbers 파싱
-    const approvedNumbers = user.approved_sender_numbers;
+    // approvedSenderNumbers 파싱
+    const approvedNumbers = user.approvedSenderNumbers;
     let senderNumbers: string[] = [];
 
     if (approvedNumbers) {
@@ -98,7 +98,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
       senderNumbers = approvedNumbers.split(',').map((n: string) => n.trim()).filter((n: string) => n);
     }
 
-    console.log(`✅ 승인된 발신번호 조회 - userId: ${user.id}, numbers: ${senderNumbers.join(', ')}`);
+    console.log(`✅ 승인된 발신번호 조회 완료:`, {
+      userId: user.id,
+      email: user.email,
+      approvedNumbers: approvedNumbers,
+      parsedNumbers: senderNumbers
+    });
 
     return new Response(
       JSON.stringify({
