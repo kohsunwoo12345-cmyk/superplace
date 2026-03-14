@@ -5,31 +5,27 @@ interface Env {
   OPENAI_API_KEY: string; // GPT 모델용
   VECTORIZE: VectorizeIndex;
   DB: D1Database;
+  AI: any; // Cloudflare AI 바인딩
 }
 
-// Gemini API로 쿼리 임베딩 생성
-async function generateQueryEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'models/text-embedding-004',
-        content: {
-          parts: [{ text }]
-        }
-      })
+// Cloudflare AI로 쿼리 임베딩 생성 (@cf/baai/bge-m3, 1024차원)
+async function generateQueryEmbedding(text: string, AI: any): Promise<number[]> {
+  try {
+    const response = await AI.run('@cf/baai/bge-m3', {
+      text: text
+    });
+
+    const embedding = response.data?.[0];
+    
+    if (!embedding || !Array.isArray(embedding)) {
+      throw new Error('임베딩 데이터 없음');
     }
-  );
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Gemini Embedding API error: ${error}`);
+    return embedding;
+  } catch (error: any) {
+    console.error('❌ Cloudflare AI 임베딩 오류:', error.message);
+    throw new Error(`임베딩 생성 실패: ${error.message}`);
   }
-
-  const data = await response.json();
-  return data.embedding.values;
 }
 
 // 학생 개인화 컨텍스트 생성
@@ -104,12 +100,12 @@ async function buildStudentContext(
   return context;
 }
 
-// Vectorize에서 관련 지식 검색
+// Vectorize에서 관련 지식 검색 (각 청크당 200자 제한)
 async function searchKnowledge(
   vectorize: VectorizeIndex,
   queryEmbedding: number[],
   botId: string,
-  topK: number = 3
+  topK: number = 5
 ): Promise<string> {
   try {
     const results = await vectorize.query(queryEmbedding, {
@@ -121,12 +117,15 @@ async function searchKnowledge(
       return '';
     }
 
-    // 검색된 청크들을 하나의 컨텍스트로 결합
+    // 검색된 청크들을 컨텍스트로 결합 (각 청크당 200자만!)
     const context = results.matches
       .map((match: any, idx: number) => {
-        const text = match.metadata?.text || '';
-        const score = match.score?.toFixed(3) || 'N/A';
-        return `[관련 지식 ${idx + 1}] (유사도: ${score})\n${text}`;
+        const fullText = match.metadata?.text || '';
+        // 각 청크당 최대 200자만 사용
+        const shortText = fullText.substring(0, 200);
+        const ellipsis = fullText.length > 200 ? '...' : '';
+        const score = (match.score * 100).toFixed(1);
+        return `[참고 ${idx + 1}] (유사도 ${score}%)\n${shortText}${ellipsis}`;
       })
       .join('\n\n');
 
@@ -139,7 +138,7 @@ async function searchKnowledge(
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const { GOOGLE_GEMINI_API_KEY, VECTORIZE, DB } = context.env;
+    const { GOOGLE_GEMINI_API_KEY, VECTORIZE, DB, AI } = context.env;
     
     if (!GOOGLE_GEMINI_API_KEY) {
       return new Response(
@@ -306,16 +305,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 🔥 RAG: Vectorize에서 관련 지식 검색
-    if (enableRAG && botId && VECTORIZE && GOOGLE_GEMINI_API_KEY) {
+    if (enableRAG && botId && VECTORIZE && AI) {
       try {
         console.log(`🔍 RAG enabled for bot ${botId}, searching knowledge...`);
         
-        // 1. 사용자 메시지를 임베딩으로 변환
-        const queryEmbedding = await generateQueryEmbedding(message, GOOGLE_GEMINI_API_KEY);
+        // 1. 사용자 메시지를 Cloudflare AI 임베딩으로 변환
+        const queryEmbedding = await generateQueryEmbedding(message, AI);
         console.log(`  └─ Query embedding generated (${queryEmbedding.length} dimensions)`);
         
-        // 2. Vectorize에서 유사한 지식 검색
-        knowledgeContext = await searchKnowledge(VECTORIZE, queryEmbedding, botId, 3);
+        // 2. Vectorize에서 유사한 지식 검색 (Top-5, 각 200자 제한)
+        knowledgeContext = await searchKnowledge(VECTORIZE, queryEmbedding, botId, 5);
         
         if (knowledgeContext) {
           ragEnabled = true;
