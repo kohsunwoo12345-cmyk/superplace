@@ -886,11 +886,15 @@ export default function ModernAIChatPage() {
 
     console.log('🖨️ 문제지 출력 시작...');
     console.log('📝 전체 메시지 개수:', messages.length);
+    console.log('📋 선택된 메시지 ID:', Array.from(selectedMessageIds));
 
-    // 체크된 메시지만 필터링
-    const assistantMessages = selectedMessageIds.size > 0 
-      ? messages.filter(m => m.role === 'assistant' && selectedMessageIds.has(m.id))
-      : messages.filter(m => m.role === 'assistant');
+    // 체크된 메시지만 필터링 (체크박스 선택이 필수)
+    if (selectedMessageIds.size === 0) {
+      alert('출력할 메시지를 선택해주세요. 각 AI 응답 옆의 체크박스를 클릭하여 선택할 수 있습니다.');
+      return;
+    }
+
+    const assistantMessages = messages.filter(m => m.role === 'assistant' && selectedMessageIds.has(m.id));
 
     if (assistantMessages.length === 0) {
       alert('출력할 메시지를 선택해주세요. 각 AI 응답 옆의 체크박스를 클릭하여 선택할 수 있습니다.');
@@ -1057,10 +1061,12 @@ export default function ModernAIChatPage() {
         
         problemText = problemText.trim();
         
-        // Step 4: 유효성 검사 (완화된 조건)
-        const isValidProblem = 
-          problemText.length >= 5 &&
-          problemText.length <= 2000;
+        // Step 4: 유효성 검사 (길이 + 기본 키워드 체크)
+        const hasValidLength = problemText.length >= 10 && problemText.length <= 2000;
+        const hasKeywords = /계산|구하|풀이|답하|선택|고르|쓰시오|바꾸|번역|해석|영작|맞는|틀린|일치|다음|알맞|적절|문제|solve|calculate|find|choose|what|which|translate|write|correct/i.test(problemText);
+        const hasSpecialChars = /[=?①②③④⑤⑥⑦⑧⑨⑩]/.test(problemText);
+        
+        const isValidProblem = hasValidLength && (hasKeywords || hasSpecialChars);
         
         if (!isValidProblem) {
           console.log(`⏭️  Skipped: Invalid problem (length: ${problemText.length})`);
