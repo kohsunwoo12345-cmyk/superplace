@@ -130,6 +130,36 @@ export async function onRequest(context: { request: Request; env: Env }) {
         }
         
         console.log(`✅ 학원장(userId: ${request.userId})의 발신번호 저장 완료:`, request.senderNumbers);
+        
+        // SMSSender 테이블에도 발신번호 추가 (문자 발송 시 사용)
+        const senderNumbers = request.senderNumbers.split(',').map((n: string) => n.trim());
+        
+        for (const phoneNumber of senderNumbers) {
+          // 이미 등록된 발신번호인지 확인
+          const existing = await db.prepare(`
+            SELECT id FROM SMSSender WHERE phoneNumber = ?
+          `).bind(phoneNumber).first();
+          
+          if (!existing) {
+            // 새 발신번호 등록
+            const senderId = `sender_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+            await db.prepare(`
+              INSERT INTO SMSSender (
+                id, userId, phoneNumber, verified, status, createdAt, updatedAt
+              ) VALUES (?, ?, ?, 1, 'ACTIVE', ?, ?)
+            `).bind(
+              senderId,
+              request.userId,
+              phoneNumber,
+              now,
+              now
+            ).run();
+            
+            console.log(`✅ SMSSender 테이블에 발신번호 추가: ${phoneNumber}`);
+          } else {
+            console.log(`ℹ️ 이미 등록된 발신번호: ${phoneNumber}`);
+          }
+        }
       } catch (error: any) {
         console.error('⚠️ 학원장 테이블 업데이트 실패:', error.message);
         // 발신번호 저장 실패는 치명적이지 않으므로 계속 진행

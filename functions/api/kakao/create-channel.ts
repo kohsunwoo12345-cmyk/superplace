@@ -44,9 +44,17 @@ export async function onRequest(context: any) {
     }
 
     // Handle trailing spaces in env var names
-    const SOLAPI_API_KEY = env.SOLAPI_API_Key;
-    const SOLAPI_API_SECRET = env.SOLAPI_API_Secret;
+    const SOLAPI_API_KEY = env['SOLAPI_API_Key'] || env['SOLAPI_API_Key '] || env.SOLAPI_API_KEY;
+    const SOLAPI_API_SECRET = env['SOLAPI_API_Secret'] || env['SOLAPI_API_Secret '] || env.SOLAPI_API_SECRET;
     const ENABLE_TEST_MODE = env.ENABLE_KAKAO_TEST_MODE === 'true';
+    
+    console.log('🔍 Environment check:', {
+      hasKey: !!SOLAPI_API_KEY,
+      hasSecret: !!SOLAPI_API_SECRET,
+      keyLength: SOLAPI_API_KEY ? SOLAPI_API_KEY.length : 0,
+      secretLength: SOLAPI_API_SECRET ? SOLAPI_API_SECRET.length : 0,
+      testMode: ENABLE_TEST_MODE
+    });
 
     // Test mode: Skip Solapi and save directly to DB
     if (!SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
