@@ -78,6 +78,7 @@ export async function onRequestPost(context) {
             subscriptionStart TEXT NOT NULL,
             subscriptionEnd TEXT NOT NULL,
             pricePerStudent REAL DEFAULT 0,
+            dailyUsageLimit INTEGER DEFAULT 15,
             memo TEXT,
             isActive INTEGER DEFAULT 1,
             createdAt TEXT DEFAULT (datetime('now')),
@@ -91,6 +92,30 @@ export async function onRequestPost(context) {
         await DB.prepare(`CREATE INDEX IF NOT EXISTS idx_academy_bot_subscription_end ON AcademyBotSubscription(subscriptionEnd)`).run();
         
         console.log('✅ AcademyBotSubscription 테이블 자동 생성 완료');
+      } else {
+        // 테이블이 있으면 누락된 컬럼 추가
+        try {
+          // pricePerStudent 컬럼 확인 및 추가
+          try {
+            await DB.prepare(`SELECT pricePerStudent FROM AcademyBotSubscription LIMIT 1`).first();
+          } catch (e) {
+            console.log('⚠️ Adding missing pricePerStudent column...');
+            await DB.prepare(`ALTER TABLE AcademyBotSubscription ADD COLUMN pricePerStudent REAL DEFAULT 0`).run();
+            console.log('✅ Added pricePerStudent column');
+          }
+          
+          // dailyUsageLimit 컬럼 확인 및 추가
+          try {
+            await DB.prepare(`SELECT dailyUsageLimit FROM AcademyBotSubscription LIMIT 1`).first();
+          } catch (e) {
+            console.log('⚠️ Adding missing dailyUsageLimit column...');
+            await DB.prepare(`ALTER TABLE AcademyBotSubscription ADD COLUMN dailyUsageLimit INTEGER DEFAULT 15`).run();
+            console.log('✅ Added dailyUsageLimit column');
+          }
+        } catch (migrationError) {
+          console.error('⚠️ Column migration error:', migrationError);
+          // 마이그레이션 실패는 무시하고 계속 진행
+        }
       }
     } catch (tableError) {
       console.error('❌ 테이블 체크/생성 오류:', tableError);

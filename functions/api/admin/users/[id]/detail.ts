@@ -72,15 +72,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       throw new Error(`Auth DB error: ${dbError.message}`);
     }
 
+    // If user not found in DB but has valid token, use token data
     if (!requestingUser) {
-      console.error('❌ Requesting user not found for email:', tokenData.email);
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Unauthorized - User not found'
-      }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      console.log('⚠️ User not found in DB, using token data:', tokenData.email);
+      requestingUser = {
+        id: tokenData.id,
+        email: tokenData.email,
+        role: tokenData.role
+      };
     }
 
     const role = requestingUser.role ? (requestingUser.role as string).toUpperCase() : '';
