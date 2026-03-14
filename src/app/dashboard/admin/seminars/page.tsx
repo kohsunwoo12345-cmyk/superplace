@@ -25,6 +25,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function SeminarsAdminPage() {
+  const [mounted, setMounted] = useState(false);
+  const [token, setToken] = useState('');
   const [seminars, setSeminars] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -55,14 +57,25 @@ export default function SeminarsAdminPage() {
     requiredFields: []
   });
 
+  // 마운트 및 토큰 초기화
   useEffect(() => {
-    loadSeminars();
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem('token') || '';
+      setToken(storedToken);
+    }
   }, []);
+
+  // 토큰 로드 후 세미나 불러오기
+  useEffect(() => {
+    if (mounted) {
+      loadSeminars();
+    }
+  }, [mounted]);
 
   const loadSeminars = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch('/api/seminars', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -96,7 +109,6 @@ export default function SeminarsAdminPage() {
 
     try {
       setUploadingImage(true);
-      const token = localStorage.getItem('token');
       
       const uploadFormData = new FormData();
       uploadFormData.append('file', file);
@@ -140,7 +152,6 @@ export default function SeminarsAdminPage() {
 
   const handleCreate = async () => {
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch('/api/seminars', {
         method: 'POST',
         headers: {
@@ -170,7 +181,6 @@ export default function SeminarsAdminPage() {
     if (!selectedSeminar) return;
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`/api/seminars?id=${selectedSeminar.id}`, {
         method: 'PATCH',
         headers: {
@@ -200,7 +210,6 @@ export default function SeminarsAdminPage() {
     if (!confirm('정말 이 세미나를 삭제하시겠습니까?')) return;
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`/api/seminars?id=${seminarId}`, {
         method: 'DELETE',
         headers: {
@@ -224,7 +233,6 @@ export default function SeminarsAdminPage() {
 
   const loadApplications = async (seminarId) => {
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`/api/seminars/apply?seminarId=${seminarId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -247,7 +255,6 @@ export default function SeminarsAdminPage() {
 
   const handleExportExcel = async (seminarId, seminarTitle) => {
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`/api/seminars/export?seminarId=${seminarId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -326,6 +333,18 @@ export default function SeminarsAdminPage() {
     participants: seminars.reduce((sum, s) => sum + (s.currentParticipants || 0), 0),
     upcoming: seminars.filter(s => new Date(s.date) > new Date()).length
   };
+
+  // 마운트되지 않았으면 로딩 표시
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
