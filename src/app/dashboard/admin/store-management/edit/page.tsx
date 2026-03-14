@@ -356,9 +356,23 @@ export default function EditStoreProductPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    
+    let finalValue = type === "number" ? (value === "" ? "" : parseInt(value) || 0) : value;
+    
+    // 할인율 검증 (0~100)
+    if (name === "discountValue" && formData.discountType === "percentage") {
+      const numValue = Number(finalValue);
+      if (numValue > 100) {
+        alert("할인율은 100%를 초과할 수 없습니다.");
+        finalValue = 100;
+      } else if (numValue < 0) {
+        finalValue = 0;
+      }
+    }
+    
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "number" ? (value === "" ? "" : parseInt(value) || 0) : value,
+      [name]: finalValue,
     }));
   };
 
@@ -747,9 +761,14 @@ export default function EditStoreProductPage() {
                           name="discountValue"
                           value={formData.discountValue}
                           onChange={handleChange}
+                          min="0"
+                          max={formData.discountType === 'percentage' ? '100' : undefined}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                           placeholder={formData.discountType === 'percentage' ? '10' : '10000'}
                         />
+                        {formData.discountType === 'percentage' && (
+                          <p className="text-xs text-gray-500 mt-1">* 0~100 사이의 값을 입력하세요</p>
+                        )}
                       </div>
 
                       <div>

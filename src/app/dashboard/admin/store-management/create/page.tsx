@@ -264,6 +264,17 @@ export default function CreateStoreProductPage() {
     
     let finalValue = type === "number" ? (value === "" ? "" : parseInt(value) || 0) : value;
     
+    // 할인율 검증 (0~100)
+    if (name === "discountValue" && formData.discountType === "percentage") {
+      const numValue = Number(finalValue);
+      if (numValue > 100) {
+        alert("할인율은 100%를 초과할 수 없습니다.");
+        finalValue = 100;
+      } else if (numValue < 0) {
+        finalValue = 0;
+      }
+    }
+    
     // imageUrl 필드인 경우 Google Drive URL 자동 변환
     if (name === "imageUrl" && typeof finalValue === "string") {
       finalValue = convertGoogleDriveUrl(finalValue);
@@ -781,9 +792,14 @@ export default function CreateStoreProductPage() {
                           name="discountValue"
                           value={formData.discountValue}
                           onChange={handleChange}
+                          min="0"
+                          max={formData.discountType === 'percentage' ? '100' : undefined}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                           placeholder={formData.discountType === 'percentage' ? '10' : '10000'}
                         />
+                        {formData.discountType === 'percentage' && (
+                          <p className="text-xs text-gray-500 mt-1">* 0~100 사이의 값을 입력하세요</p>
+                        )}
                       </div>
 
                       <div>
