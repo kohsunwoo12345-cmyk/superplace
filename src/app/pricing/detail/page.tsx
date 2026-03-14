@@ -98,6 +98,26 @@ function PricingDetailContent() {
         }
       }
 
+      // academyId가 없으면 임시 ID 생성 (DIRECTOR 역할의 사용자인 경우)
+      if (!academyId && storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          if (userData.role === 'DIRECTOR' || userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN') {
+            // 임시 academyId 생성
+            academyId = `temp-academy-${userId || Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+            console.log("생성된 임시 academyId:", academyId);
+          }
+        } catch (e) {
+          console.error("임시 academyId 생성 실패:", e);
+        }
+      }
+
+      // academyId가 여전히 없으면 기본값 사용
+      if (!academyId) {
+        academyId = `guest-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        console.log("기본 academyId 사용:", academyId);
+      }
+
       // 선택한 기간에 따른 금액 계산
       const priceMap: Record<string, number> = {
         "1month": plan.price_1month || plan.monthlyPrice,
