@@ -50,39 +50,16 @@ export async function onRequest(context: { request: Request; env: Env }) {
       role: tokenData.role
     });
 
-    // userId를 문자열로 변환
-    const userIdStr = String(tokenData.id);
-
-    // 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블)
+    // email 기반으로 사용자 찾기 (가장 확실한 방법)
     let user = await db
-      .prepare('SELECT id, email, approvedSenderNumbers as approved_sender_numbers FROM User WHERE id = ?')
-      .bind(userIdStr)
+      .prepare('SELECT id, email, approvedSenderNumbers as approved_sender_numbers FROM User WHERE email = ?')
+      .bind(tokenData.email)
       .first();
 
-    console.log('📊 User 테이블 조회 결과 (id):', user);
+    console.log('📊 User 테이블 조회 결과 (email):', user);
 
     if (!user) {
-      // User 테이블에 없으면 email로 시도
-      user = await db
-        .prepare('SELECT id, email, approvedSenderNumbers as approved_sender_numbers FROM User WHERE email = ?')
-        .bind(tokenData.email)
-        .first();
-      
-      console.log('📊 User 테이블 조회 결과 (email):', user);
-    }
-
-    if (!user) {
-      // User 테이블에 없으면 users 테이블 시도 (ID)
-      user = await db
-        .prepare('SELECT id, email, approved_sender_numbers FROM users WHERE id = ?')
-        .bind(userIdStr)
-        .first();
-      
-      console.log('📊 users 테이블 조회 결과 (id):', user);
-    }
-
-    if (!user) {
-      // users 테이블에서 email로 시도
+      // User 테이블에 없으면 users 테이블 확인
       user = await db
         .prepare('SELECT id, email, approved_sender_numbers FROM users WHERE email = ?')
         .bind(tokenData.email)

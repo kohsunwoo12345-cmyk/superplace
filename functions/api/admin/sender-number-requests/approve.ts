@@ -110,33 +110,77 @@ export async function onRequest(context: { request: Request; env: Env }) {
     `).bind(now, user.id, now, requestId).run();
 
     // 학원장의 User/users 테이블에 승인된 발신번호 저장
-    // request.userId가 있으면 해당 사용자의 레코드 업데이트
     if (request.userId) {
       try {
-        console.log('📝 업데이트 시작 - userId:', request.userId, 'senderNumbers:', request.senderNumbers);
+        console.log('📝 업데이트 시작 - request:', {
+          userId: request.userId,
+          userName: request.userName,
+          email: request.email,
+          senderNumbers: request.senderNumbers
+        });
         
-        // userId를 문자열로 변환 (타입 문제 방지)
+        // userId를 문자열로 변환
         const userIdStr = String(request.userId);
         
-        // User 테이블 먼저 시도
+        // 먼저 User 테이블에서 사용자 존재 확인 (ID로)
+        let targetUser = await db.prepare(`
+          SELECT id, email FROM User WHERE id = ?
+        `).bind(userIdStr).first();
+        
+        console.log('🔍 User 테이블 조회 (ID):', targetUser);
+        
+        // ID로 못 찾으면 email로 시도
+        if (!targetUser && request.email) {
+          targetUser = await db.prepare(`
+            SELECT id, email FROM User WHERE email = ?
+          `).bind(request.email).first();
+          console.log('🔍 User 테이블 조회 (email):', targetUser);
+        }
+        
+        // User 테이블에 없으면 users 테이블 확인
+        if (!targetUser) {
+          targetUser = await db.prepare(`
+            SELECT id, email FROM users WHERE id = ?
+          `).bind(userIdStr).first();
+          console.log('🔍 users 테이블 조회 (ID):', targetUser);
+        }
+        
+        if (!targetUser && request.email) {
+          targetUser = await db.prepare(`
+            SELECT id, email FROM users WHERE email = ?
+          `).bind(request.email).first();
+          console.log('🔍 users 테이블 조회 (email):', targetUser);
+        }
+        
+        if (!targetUser) {
+          console.error('❌ 대상 사용자를 찾을 수 없음');
+          throw new Error('사용자를 찾을 수 없습니다');
+        }
+        
+        console.log('✅ 대상 사용자 찾음:', targetUser);
+        
+        // 찾은 사용자 ID로 업데이트
+        const finalUserId = String(targetUser.id);
+        
+        // User 테이블 업데이트 시도
         let updateResult = await db.prepare(`
           UPDATE User
           SET approvedSenderNumbers = ?
           WHERE id = ?
-        `).bind(request.senderNumbers, userIdStr).run();
+        `).bind(request.senderNumbers, finalUserId).run();
         
         console.log('📊 User 테이블 업데이트 결과:', {
           success: updateResult.success,
           changes: updateResult.meta?.changes
         });
         
-        // User 테이블에 없으면 users 테이블 시도
+        // User 테이블 업데이트 실패하면 users 테이블 시도
         if (!updateResult.success || updateResult.meta.changes === 0) {
           updateResult = await db.prepare(`
             UPDATE users
             SET approved_sender_numbers = ?
             WHERE id = ?
-          `).bind(request.senderNumbers, userIdStr).run();
+          `).bind(request.senderNumbers, finalUserId).run();
           
           console.log('📊 users 테이블 업데이트 결과:', {
             success: updateResult.success,
@@ -144,21 +188,22 @@ export async function onRequest(context: { request: Request; env: Env }) {
           });
         }
         
-        console.log(`✅ 학원장(userId: ${userIdStr})의 발신번호 저장 완료:`, request.senderNumbers);
+        console.log(`✅ 발신번호 저장 완료 - userId: ${finalUserId}, numbers: ${request.senderNumbers}`);
         
-        // SMSSender 테이블에도 발신번호 추가 (문자 발송 시 사용)
+        // SMSSender 테이블에도 발신번호 추가
         const senderNumbers = request.senderNumbers.split(',').map((n: string) => n.trim());
         
         console.log('📱 SMSSender 테이블 업데이트 시작:', senderNumbers);
         
         for (const phoneNumber of senderNumbers) {
+          if (!phoneNumber) continue;
+          
           // 이미 등록된 발신번호인지 확인
           const existing = await db.prepare(`
             SELECT id FROM SMSSender WHERE phoneNumber = ?
           `).bind(phoneNumber).first();
           
           if (!existing) {
-            // 새 발신번호 등록
             const senderId = `sender_${Date.now()}_${Math.random().toString(36).substring(7)}`;
             await db.prepare(`
               INSERT INTO SMSSender (
@@ -166,23 +211,22 @@ export async function onRequest(context: { request: Request; env: Env }) {
               ) VALUES (?, ?, ?, 1, 'ACTIVE', ?, ?)
             `).bind(
               senderId,
-              userIdStr,
+              finalUserId,
               phoneNumber,
               now,
               now
             ).run();
             
-            console.log(`✅ SMSSender 테이블에 발신번호 추가: ${phoneNumber}, senderId: ${senderId}`);
+            console.log(`✅ SMSSender 추가: ${phoneNumber}, ID: ${senderId}`);
           } else {
-            console.log(`ℹ️ 이미 등록된 발신번호: ${phoneNumber}, existingId: ${existing.id}`);
+            console.log(`ℹ️ 이미 등록된 발신번호: ${phoneNumber}`);
           }
         }
       } catch (error: any) {
-        console.error('⚠️ 학원장 테이블 업데이트 실패:', error.message, error.stack);
-        // 발신번호 저장 실패는 치명적이지 않으므로 계속 진행
+        console.error('⚠️ 발신번호 저장 실패:', error.message, error.stack);
       }
     } else {
-      console.warn('⚠️ request.userId가 없음 - 사용자 테이블 업데이트 건너뜀');
+      console.warn('⚠️ request.userId가 없음');
     }
 
     console.log('✅ 발신번호 등록 승인:', requestId);
