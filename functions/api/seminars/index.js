@@ -236,7 +236,8 @@ export async function onRequestPost(context) {
       formHtml,
       useCustomForm,
       ctaButtonText,
-      requiredFields
+      requiredFields,
+      customFields
     } = body;
 
     if (!title || !date || !time) {
@@ -266,10 +267,10 @@ export async function onRequestPost(context) {
         INSERT INTO seminars (
           id, title, description, detailHtml, mainImage, instructor, 
           date, time, location, locationType, maxParticipants, 
-          status, formHtml, useCustomForm, ctaButtonText, requiredFields, 
+          status, formHtml, useCustomForm, ctaButtonText, requiredFields, customFields,
           createdBy, createdAt, updatedAt
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         seminarId,
         title,
@@ -286,6 +287,7 @@ export async function onRequestPost(context) {
         useCustomForm || 0,
         ctaButtonText || '신청하기',
         requiredFields ? JSON.stringify(requiredFields) : null,
+        customFields ? JSON.stringify(customFields) : null,
         user.id,
         now,
         now
@@ -433,7 +435,10 @@ export async function onRequestPatch(context) {
       maxParticipants,
       status,
       formHtml,
-      useCustomForm
+      useCustomForm,
+      ctaButtonText,
+      requiredFields,
+      customFields
     } = body;
 
     const updates = [];
@@ -490,6 +495,18 @@ export async function onRequestPatch(context) {
     if (useCustomForm !== undefined) {
       updates.push('useCustomForm = ?');
       params.push(useCustomForm);
+    }
+    if (ctaButtonText !== undefined) {
+      updates.push('ctaButtonText = ?');
+      params.push(ctaButtonText);
+    }
+    if (requiredFields !== undefined) {
+      updates.push('requiredFields = ?');
+      params.push(JSON.stringify(requiredFields));
+    }
+    if (customFields !== undefined) {
+      updates.push('customFields = ?');
+      params.push(JSON.stringify(customFields));
     }
 
     if (updates.length === 0) {
