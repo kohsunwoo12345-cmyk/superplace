@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, Send, Upload, X } from 'lucide-react';
+import { Loader2, Plus, Trash2, Send, Upload, X, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface Recipient {
@@ -158,52 +158,8 @@ export default function SendAlimtalkPage() {
       if (data.success) {
         const userTemplates = data.templates || [];
         
-        // Add 5 default Solapi templates
-        const defaultTemplates: Template[] = [
-          {
-            id: 'default-1',
-            templateCode: 'KA01TP230126085130773ZHclHN4i674',
-            templateName: '기본 템플릿 1',
-            content: '안녕하세요 #{name}님, 기본 템플릿 1입니다.',
-            solapiTemplateId: 'KA01TP230126085130773ZHclHN4i674',
-            variables: 'name'
-          },
-          {
-            id: 'default-2',
-            templateCode: 'KA01TP221027002252645FPwAcO9SguY',
-            templateName: '기본 템플릿 2',
-            content: '안녕하세요 #{name}님, 기본 템플릿 2입니다.',
-            solapiTemplateId: 'KA01TP221027002252645FPwAcO9SguY',
-            variables: 'name'
-          },
-          {
-            id: 'default-3',
-            templateCode: 'KA01TP221025083117992xkz17KyvNbr',
-            templateName: '기본 템플릿 3 - 학습 안내',
-            content: '[학습 안내]\n\n안녕하세요, #{name} 학생 학부모님\n꾸메땅학원입니다.\n\n오늘 준비된 맞춤형 학습 페이지 안내드립니다.\n아래 링크를 클릭하여 이번달 리포트를 확인해 주세요!\n\n■ 학습 페이지: #{url}\n\n※ 본 메시지는 수신 동의하신 분들께 발송되는 학습 안내 정보입니다.',
-            solapiTemplateId: 'KA01TP221025083117992xkz17KyvNbr',
-            variables: 'name,url'
-          },
-          {
-            id: 'default-4',
-            templateCode: 'KA01TP240110072220677clp0DwzaW23',
-            templateName: '기본 템플릿 4',
-            content: '안녕하세요 #{name}님, 기본 템플릿 4입니다.\n링크: #{url}',
-            solapiTemplateId: 'KA01TP240110072220677clp0DwzaW23',
-            variables: 'name,url'
-          },
-          {
-            id: 'default-5',
-            templateCode: 'KA01TP230131084504073zoRX27WkwHB',
-            templateName: '기본 템플릿 5',
-            content: '안녕하세요 #{name}님, 기본 템플릿 5입니다.\n링크: #{url}',
-            solapiTemplateId: 'KA01TP230131084504073zoRX27WkwHB',
-            variables: 'name,url'
-          }
-        ];
-        
-        // Combine default templates with user templates
-        setTemplates([...defaultTemplates, ...userTemplates]);
+        // Use only user templates (removed default templates)
+        setTemplates(userTemplates);
       }
     } catch (err) {
       console.error('Failed to fetch templates:', err);
@@ -334,6 +290,68 @@ export default function SendAlimtalkPage() {
       }
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // 실제 학생 데이터 가져오기
+      const response = await fetch('/api/students', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const studentList = data.students || [];
+        
+        if (studentList.length > 0) {
+          // 실제 학생 데이터로 템플릿 생성
+          const template = studentList.map((student: any) => ({
+            '학생이메일': student.email || '',
+            '학부모이름': '', // 빈 칸으로 남김
+            '학부모연락처': '', // 빈 칸으로 남김
+          }));
+          
+          const worksheet = XLSX.utils.json_to_sheet(template);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, '수신자목록');
+          XLSX.writeFile(workbook, '알림톡발송_템플릿.xlsx');
+          
+          alert(`✅ ${studentList.length}명의 학생 데이터로 템플릿이 생성되었습니다.`);
+        } else {
+          // 학생이 없으면 샘플 템플릿 제공
+          const template = [
+            { '학생이메일': 'student1@example.com', '학부모이름': '', '학부모연락처': '' },
+            { '학생이메일': 'student2@example.com', '학부모이름': '', '학부모연락처': '' },
+          ];
+          
+          const worksheet = XLSX.utils.json_to_sheet(template);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, '수신자목록');
+          XLSX.writeFile(workbook, '알림톡발송_템플릿.xlsx');
+          
+          alert('ℹ️ 등록된 학생이 없어 샘플 템플릿을 제공합니다.');
+        }
+      } else {
+        throw new Error('학생 데이터를 불러올 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('템플릿 생성 실패:', error);
+      
+      // 오류 시 샘플 템플릿 제공
+      const template = [
+        { '학생이메일': 'student1@example.com', '학부모이름': '', '학부모연락처': '' },
+        { '학생이메일': 'student2@example.com', '학부모이름': '', '학부모연락처': '' },
+      ];
+      
+      const worksheet = XLSX.utils.json_to_sheet(template);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '수신자목록');
+      XLSX.writeFile(workbook, '알림톡발송_템플릿.xlsx');
+      
+      alert('⚠️ 학생 데이터 로딩 실패. 샘플 템플릿을 제공합니다.');
+    }
   };
 
   const updatePreview = () => {
@@ -718,6 +736,18 @@ export default function SendAlimtalkPage() {
                       </p>
                     </div>
                   </label>
+                  
+                  {/* 템플릿 다운로드 버튼 */}
+                  <Button
+                    onClick={downloadTemplate}
+                    variant="outline"
+                    className="w-full mt-3"
+                    type="button"
+                  >
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    엑셀 템플릿 다운로드
+                  </Button>
+                  
                   {recipients.length > 1 && (
                     <Alert className="mt-4 bg-green-50 border-green-500">
                       <AlertDescription className="text-green-800">

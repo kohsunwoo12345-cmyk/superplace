@@ -473,14 +473,29 @@ export default function MessageSendPage() {
                 className="mt-1"
               />
               <div className="mt-2 text-sm text-gray-600">
-                <p className="font-semibold">사용 가능한 변수:</p>
-                <ul className="list-disc list-inside space-y-1 mt-1">
-                  <li><code>{"{학생이름}"}</code> - 엑셀의 학생이름</li>
-                  <li><code>{"{학생아이디}"}</code> - 엑셀의 학생아이디</li>
-                  <li><code>{"{랜딩페이지URL}"}</code> - 학생의 최신 랜딩페이지</li>
-                  <li><code>{"{학원이름}"}</code> - 현재 학원 이름</li>
-                  <li><code>{"{학부모연락처}"}</code> - 수신자 전화번호</li>
-                </ul>
+                <p className="font-semibold">사용 가능한 변수 (클릭하여 복사):</p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {[
+                    { var: '{학생이름}', desc: '엑셀의 학생이름' },
+                    { var: '{학생아이디}', desc: '엑셀의 학생아이디' },
+                    { var: '{랜딩페이지URL}', desc: '학생의 최신 랜딩페이지' },
+                    { var: '{학원이름}', desc: '현재 학원 이름' },
+                    { var: '{학부모연락처}', desc: '수신자 전화번호' }
+                  ].map(({ var: variable, desc }) => (
+                    <button
+                      key={variable}
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(variable);
+                        alert(`✅ "${variable}" 복사됨!`);
+                      }}
+                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md text-blue-700 font-mono text-sm transition-colors cursor-pointer"
+                      title={`클릭하여 복사: ${desc}`}
+                    >
+                      {variable}
+                    </button>
+                  ))}
+                </div>
               </div>
               <p className="mt-2 text-sm text-gray-500">
                 {messageContent.length}자 / {Math.ceil(messageContent.length / 90)}건
