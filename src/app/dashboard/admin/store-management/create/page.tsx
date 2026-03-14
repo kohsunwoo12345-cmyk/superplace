@@ -145,6 +145,25 @@ export default function CreateStoreProductPage() {
       return;
     }
 
+    // 크기 체크 (프론트엔드에서 미리 검증)
+    const MAX_TEXT_SIZE = 500000; // 500KB
+    const MAX_HTML_SIZE = 800000; // 800KB
+    
+    if (formData.description.length > MAX_TEXT_SIZE) {
+      alert(`설명이 너무 깁니다. 현재: ${Math.round(formData.description.length / 1000)}KB, 최대: 500KB`);
+      return;
+    }
+    
+    if (formData.detailHtml && formData.detailHtml.length > MAX_HTML_SIZE) {
+      alert(`상세 HTML이 너무 큽니다. 현재: ${Math.round(formData.detailHtml.length / 1000)}KB, 최대: 800KB`);
+      return;
+    }
+    
+    if (formData.imageUrl && formData.imageUrl.length > MAX_TEXT_SIZE) {
+      alert(`이미지 데이터가 너무 큽니다. 외부 URL을 사용하거나 이미지 크기를 줄여주세요. 현재: ${Math.round(formData.imageUrl.length / 1000)}KB, 최대: 500KB`);
+      return;
+    }
+
     setLoading(true);
 
     try {
