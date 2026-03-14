@@ -171,11 +171,15 @@ export async function onRequest(context: { request: Request; env: Env }) {
         
         console.log('📊 User 테이블 업데이트 결과:', {
           success: updateResult.success,
-          changes: updateResult.meta?.changes
+          meta: updateResult.meta
         });
         
         // User 테이블 업데이트 실패하면 users 테이블 시도
-        if (!updateResult.success || updateResult.meta.changes === 0) {
+        // meta.changes가 undefined일 수 있으므로 안전하게 체크
+        const userTableChanged = updateResult.success && (updateResult.meta?.changes === undefined || updateResult.meta?.changes > 0);
+        
+        if (!userTableChanged) {
+          console.log('⚠️ User 테이블 업데이트 실패 또는 변경 없음, users 테이블 시도');
           updateResult = await db.prepare(`
             UPDATE users
             SET approved_sender_numbers = ?
@@ -184,7 +188,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
           
           console.log('📊 users 테이블 업데이트 결과:', {
             success: updateResult.success,
-            changes: updateResult.meta?.changes
+            meta: updateResult.meta
           });
         }
         

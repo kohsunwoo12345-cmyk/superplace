@@ -327,21 +327,32 @@ export default function SenderNumberApprovalPage() {
                       privacyAgreement: request.fileUrls?.privacyAgreement
                     })}
                     
-                    {/* 파일이 하나도 없으면 안내 메시지 */}
-                    {!request.fileUrls?.telecomCertificate && 
-                     !request.fileUrls?.businessRegistration && 
-                     !request.fileUrls?.serviceAgreement && 
-                     !request.fileUrls?.privacyAgreement && (
-                      <Alert>
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          첨부된 서류가 없습니다.
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                    {/* 파일이 하나도 없거나 모두 placeholder면 안내 메시지 */}
+                    {(() => {
+                      const hasValidFile = (url: string | undefined) => 
+                        url && !url.startsWith('placeholder_');
+                      
+                      const hasAnyValidFile = 
+                        hasValidFile(request.fileUrls?.telecomCertificate) ||
+                        hasValidFile(request.fileUrls?.businessRegistration) ||
+                        hasValidFile(request.fileUrls?.serviceAgreement) ||
+                        hasValidFile(request.fileUrls?.privacyAgreement);
+                      
+                      if (!hasAnyValidFile) {
+                        return (
+                          <Alert>
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                              첨부된 서류가 없거나 파일 업로드가 실패했습니다.
+                            </AlertDescription>
+                          </Alert>
+                        );
+                      }
+                      return null;
+                    })()}
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {request.fileUrls?.telecomCertificate && (
+                      {request.fileUrls?.telecomCertificate && !request.fileUrls.telecomCertificate.startsWith('placeholder_') && (
                         <div className="flex gap-1">
                           <Button
                             variant="outline"
@@ -382,7 +393,7 @@ export default function SenderNumberApprovalPage() {
                           </Button>
                         </div>
                       )}
-                      {request.fileUrls?.businessRegistration && (
+                      {request.fileUrls?.businessRegistration && !request.fileUrls.businessRegistration.startsWith('placeholder_') && (
                         <div className="flex gap-1">
                           <Button
                             variant="outline"
@@ -423,7 +434,7 @@ export default function SenderNumberApprovalPage() {
                           </Button>
                         </div>
                       )}
-                      {request.fileUrls?.serviceAgreement && (
+                      {request.fileUrls?.serviceAgreement && !request.fileUrls.serviceAgreement.startsWith('placeholder_') && (
                         <div className="flex gap-1">
                           <Button
                             variant="outline"
@@ -464,7 +475,7 @@ export default function SenderNumberApprovalPage() {
                           </Button>
                         </div>
                       )}
-                      {request.fileUrls?.privacyAgreement && (
+                      {request.fileUrls?.privacyAgreement && !request.fileUrls.privacyAgreement.startsWith('placeholder_') && (
                         <div className="flex gap-1">
                           <Button
                             variant="outline"
