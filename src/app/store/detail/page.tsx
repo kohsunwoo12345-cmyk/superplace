@@ -42,6 +42,21 @@ function ProductDetailPageContent() {
   const [activeTab, setActiveTab] = useState<'detail' | 'reviews' | 'qna'>('detail');
   const [liked, setLiked] = useState(false);
 
+  // Google Drive URL을 직접 이미지 URL로 변환
+  const convertGoogleDriveUrl = (url: string): string => {
+    if (!url) return url;
+    
+    // Google Drive 공유 링크 패턴: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    const driveMatch = url.match(/\/file\/d\/([^\/]+)/);
+    if (driveMatch) {
+      const fileId = driveMatch[1];
+      // 직접 다운로드 가능한 URL로 변환
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+    
+    return url;
+  };
+
   useEffect(() => {
     if (productId) {
       loadProduct(productId);
@@ -57,6 +72,10 @@ function ProductDetailPageContent() {
         const data = await response.json();
         const foundProduct = data.products?.find((p: any) => p.id === id);
         if (foundProduct) {
+          // Google Drive URL 변환 적용
+          if (foundProduct.imageUrl) {
+            foundProduct.imageUrl = convertGoogleDriveUrl(foundProduct.imageUrl);
+          }
           setProduct(foundProduct);
         }
       }

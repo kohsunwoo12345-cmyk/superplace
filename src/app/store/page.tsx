@@ -29,6 +29,21 @@ const AIStorePage = () => {
   // 각 섹션별 슬라이더 위치
   const [sliderPositions, setSliderPositions] = useState<{ [key: string]: number }>({});
 
+  // Google Drive URL을 직접 이미지 URL로 변환
+  const convertGoogleDriveUrl = (url: string): string => {
+    if (!url) return url;
+    
+    // Google Drive 공유 링크 패턴: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    const driveMatch = url.match(/\/file\/d\/([^\/]+)/);
+    if (driveMatch) {
+      const fileId = driveMatch[1];
+      // 직접 다운로드 가능한 URL로 변환
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+    
+    return url;
+  };
+
   useEffect(() => {
     const loadProducts = async () => {
       try {
@@ -54,7 +69,7 @@ const AIStorePage = () => {
             category: p.category === 'academy_operation' ? '학원 운영' 
                      : p.category === 'marketing_blog' ? '마케팅 & 블로그'
                      : p.category === 'expert' ? '전문가용' : p.category,
-            imageUrl: p.imageUrl || 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image',
+            imageUrl: p.imageUrl ? convertGoogleDriveUrl(p.imageUrl) : 'https://placehold.co/400x480/e2e8f0/94a3b8?text=No+Image',
             keywords: p.keywords ? p.keywords.split(',').map((k: string) => k.trim()) : [],
             featured: p.isFeatured === 1,
             rating: p.rating || 4.5,

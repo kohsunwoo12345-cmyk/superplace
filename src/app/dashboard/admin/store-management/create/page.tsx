@@ -126,6 +126,13 @@ export default function CreateStoreProductPage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // 파일 크기 체크 (10MB)
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`파일 크기가 너무 큽니다. 최대 ${MAX_FILE_SIZE / 1024 / 1024}MB까지 업로드 가능합니다.\n현재 파일 크기: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+        return;
+      }
+      
       setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -135,6 +142,21 @@ export default function CreateStoreProductPage() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // Google Drive URL을 직접 이미지 URL로 변환
+  const convertGoogleDriveUrl = (url: string): string => {
+    if (!url) return url;
+    
+    // Google Drive 공유 링크 패턴: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    const driveMatch = url.match(/\/file\/d\/([^\/]+)/);
+    if (driveMatch) {
+      const fileId = driveMatch[1];
+      // 직접 다운로드 가능한 URL로 변환
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+    
+    return url;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -213,9 +235,17 @@ export default function CreateStoreProductPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    
+    let finalValue = type === "number" ? (value === "" ? "" : parseInt(value) || 0) : value;
+    
+    // imageUrl 필드인 경우 Google Drive URL 자동 변환
+    if (name === "imageUrl" && typeof finalValue === "string") {
+      finalValue = convertGoogleDriveUrl(finalValue);
+    }
+    
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "number" ? (value === "" ? "" : parseInt(value) || 0) : value,
+      [name]: finalValue,
     }));
   };
 
