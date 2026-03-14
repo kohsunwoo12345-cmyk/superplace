@@ -223,15 +223,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const productId = `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date().toISOString();
 
-    // 프로덕션 스키마에 맞춰서 INSERT (20개 컬럼만 사용)
+    // 실제 프로덕션 스키마 순서에 맞춰서 INSERT (33개 컬럼, dailyChatLimit은 맨 마지막)
     await env.DB.prepare(`
       INSERT INTO StoreProducts (
         id, name, category, section, description, shortDescription,
         price, monthlyPrice, yearlyPrice, pricePerStudent,
+        originalPrice, discountType, discountValue,
+        promotionType, promotionDescription, promotionStartDate, promotionEndDate,
+        badges, isTimeDeal, stockQuantity, maxPurchasePerUser,
         features, detailHtml, imageUrl, botId,
         isActive, isFeatured, displayOrder, keywords,
-        createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        createdById, createdAt, updatedAt,
+        dailyChatLimit
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       productId,
       name,
@@ -243,6 +247,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       monthlyPrice,
       yearlyPrice,
       pricePerStudent,
+      originalPrice,
+      discountType,
+      discountValue,
+      promotionType,
+      promotionDescription,
+      promotionStartDate,
+      promotionEndDate,
+      badges,
+      isTimeDeal,
+      stockQuantity,
+      maxPurchasePerUser,
       features,
       detailHtml,
       imageUrl,
@@ -251,8 +266,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       isFeatured,
       displayOrder,
       keywords,
+      tokenData.id,
       now,
-      now
+      now,
+      dailyChatLimit
     ).run();
 
     console.log('✅ Product created:', productId);
