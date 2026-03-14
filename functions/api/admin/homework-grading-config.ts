@@ -59,10 +59,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         topP REAL DEFAULT 0.95,
         enableRAG INTEGER DEFAULT 0,
         knowledgeBase TEXT,
+        subject TEXT DEFAULT 'math',
+        grade INTEGER DEFAULT 3,
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
         updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `).run();
+    
+    // subject, grade 컬럼 추가 (기존 테이블 업그레이드)
+    try {
+      await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN subject TEXT DEFAULT 'math'`).run();
+    } catch (e) {
+      // 이미 존재
+    }
+    try {
+      await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN grade INTEGER DEFAULT 3`).run();
+    } catch (e) {
+      // 이미 존재
+    }
 
     // 현재 설정 불러오기 (가장 최근 항목)
     const config = await DB.prepare(
@@ -152,6 +166,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topP = 0.95,
       enableRAG = 0,
       knowledgeBase = null,
+      subject = 'math',  // 과목 추가 (기본값: 수학)
+      grade = 3          // 학년 추가 (기본값: 3학년)
     } = body;
 
     // Ensure numeric fields have valid values
@@ -160,6 +176,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (temperature === undefined || temperature === null) temperature = 0.3;
     if (maxTokens === undefined || maxTokens === null) maxTokens = 2000;
     if (enableRAG === undefined || enableRAG === null) enableRAG = 0;
+    if (subject === undefined || subject === null) subject = 'math';
+    if (grade === undefined || grade === null) grade = 3;
 
     // 1. RAG 지식 베이스 처리 (Vectorize 업로드)
     if (enableRAG && knowledgeBase && knowledgeBase.length > 0) {
@@ -210,6 +228,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         topP REAL DEFAULT 0.95,
         enableRAG INTEGER DEFAULT 0,
         knowledgeBase TEXT,
+        subject TEXT DEFAULT 'math',
+        grade INTEGER DEFAULT 3,
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
         updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
       )
@@ -217,6 +237,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     try { await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN topK INTEGER DEFAULT 40`).run(); } catch (e) {}
     try { await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN topP REAL DEFAULT 0.95`).run(); } catch (e) {}
+    try { await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN subject TEXT DEFAULT 'math'`).run(); } catch (e) {}
+    try { await DB.prepare(`ALTER TABLE homework_grading_config ADD COLUMN grade INTEGER DEFAULT 3`).run(); } catch (e) {}
 
     const existing = await DB.prepare(
       `SELECT id FROM homework_grading_config ORDER BY id DESC LIMIT 1`
@@ -227,11 +249,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         UPDATE homework_grading_config
         SET systemPrompt = ?, model = ?, temperature = ?, maxTokens = ?,
             topK = ?, topP = ?, enableRAG = ?, knowledgeBase = ?,
+            subject = ?, grade = ?,
             updatedAt = CURRENT_TIMESTAMP
         WHERE id = ?
       `).bind(
         systemPrompt, model, temperature, maxTokens,
-        topK, topP, enableRAG, knowledgeBase, existing.id
+        topK, topP, enableRAG, knowledgeBase,
+        subject, grade,
+        existing.id
       ).run();
       
       return Response.json({
@@ -242,11 +267,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     } else {
       const result = await DB.prepare(`
         INSERT INTO homework_grading_config 
-        (systemPrompt, model, temperature, maxTokens, topK, topP, enableRAG, knowledgeBase)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (systemPrompt, model, temperature, maxTokens, topK, topP, enableRAG, knowledgeBase, subject, grade)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         systemPrompt, model, temperature, maxTokens,
-        topK, topP, enableRAG, knowledgeBase
+        topK, topP, enableRAG, knowledgeBase,
+        subject, grade
       ).run();
       
       return Response.json({

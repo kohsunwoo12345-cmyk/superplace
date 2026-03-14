@@ -129,8 +129,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       console.log(`✅ 새 제출 기록 생성: ${submissionId}`);
     }
 
-    // 5. Python Worker 호출
+    // 5. Python Worker 호출 (RAG 파라미터 포함)
     const workerUrl = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/grade';
+    
+    // RAG 설정: config에서 가져오거나 기본값 사용
+    const subject = config?.subject || 'math'; // 과목 (기본값: 수학)
+    const grade = config?.grade ? Number(config.grade) : 3; // 학년 (기본값: 3학년)
+    const topK = config?.topK ? Number(config.topK) : 5; // Vectorize Top-K (기본값: 5)
+    
     const workerRequest = {
       images: imageArray,
       userId: Number(userId),
@@ -140,9 +146,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       model,
       temperature,
       enableRAG,
+      subject,  // 과목 추가
+      grade,    // 학년 추가
+      topK      // Top-K 추가
     };
 
-    console.log(`📤 Python Worker 호출: ${workerUrl}`);
+    console.log(`📤 Python Worker 호출: ${workerUrl}, RAG=${enableRAG ? 'ON' : 'OFF'}, subject=${subject}, grade=${grade}, topK=${topK}`);
 
     const workerResponse = await fetch(workerUrl, {
       method: 'POST',
