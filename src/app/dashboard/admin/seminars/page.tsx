@@ -208,6 +208,12 @@ export default function SeminarsAdminPage() {
 
   const handleUpdate = async () => {
     if (!selectedSeminar) return;
+    if (submitting) return; // Prevent duplicate submissions
+
+    console.log('🔄 Updating seminar:', selectedSeminar.id);
+    console.log('📝 Form data:', formData);
+    
+    setSubmitting(true);
 
     try {
       const response = await fetch(`/api/seminars?id=${selectedSeminar.id}`, {
@@ -219,19 +225,24 @@ export default function SeminarsAdminPage() {
         body: JSON.stringify(formData)
       });
 
+      console.log('📡 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Response data:', data);
       
       if (data.success) {
         showMessage('success', '세미나가 수정되었습니다');
         setIsEditDialogOpen(false);
         resetForm();
-        loadSeminars();
+        await loadSeminars();
       } else {
+        console.error('❌ Update failed:', data.message);
         showMessage('error', data.message || '세미나 수정에 실패했습니다');
       }
     } catch (error) {
-      console.error('Error updating seminar:', error);
+      console.error('❌ Error updating seminar:', error);
       showMessage('error', '세미나 수정에 실패했습니다');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -261,6 +272,7 @@ export default function SeminarsAdminPage() {
   };
 
   const loadApplications = async (seminarId) => {
+    console.log('🔄 Loading applications for seminar:', seminarId);
     try {
       const response = await fetch(`/api/seminars/apply?seminarId=${seminarId}`, {
         headers: {
@@ -268,16 +280,21 @@ export default function SeminarsAdminPage() {
         }
       });
 
+      console.log('📡 Applications response status:', response.status);
       const data = await response.json();
+      console.log('📦 Applications data:', data);
       
       if (data.success) {
-        setApplications(data.applications || []);
+        const apps = data.applications || [];
+        console.log('✅ Loaded', apps.length, 'applications');
+        setApplications(apps);
         setIsApplicationsDialogOpen(true);
       } else {
-        showMessage('error', '신청자 목록을 불러오는데 실패했습니다');
+        console.error('❌ Failed to load applications:', data.error);
+        showMessage('error', data.error || '신청자 목록을 불러오는데 실패했습니다');
       }
     } catch (error) {
-      console.error('Error loading applications:', error);
+      console.error('❌ Error loading applications:', error);
       showMessage('error', '신청자 목록을 불러오는데 실패했습니다');
     }
   };
@@ -457,7 +474,21 @@ export default function SeminarsAdminPage() {
                   key={seminar.id}
                   className="border rounded-lg p-4 hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4 justify-between">
+                    {/* Seminar Image */}
+                    {seminar.mainImage && (
+                      <div className="flex-shrink-0">
+                        <img 
+                          src={seminar.mainImage} 
+                          alt={seminar.title}
+                          className="w-24 h-24 object-cover rounded border"
+                          onError={(e) => { 
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
+                    
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold mb-2">{seminar.title}</h3>
                       <div className="space-y-2 text-sm text-gray-600">
@@ -1073,9 +1104,18 @@ export default function SeminarsAdminPage() {
                 <X className="w-4 h-4 mr-2" />
                 취소
               </Button>
-              <Button onClick={handleUpdate}>
-                <Save className="w-4 h-4 mr-2" />
-                저장
+              <Button onClick={handleUpdate} disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    저장 중...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    저장
+                  </>
+                )}
               </Button>
             </div>
           </div>

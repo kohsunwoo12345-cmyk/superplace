@@ -127,33 +127,7 @@ export default function SeminarWidget() {
                 </div>
               </div>
 
-              {/* 신청률 프로그레스 바 - 향상된 디자인 */}
-              <div className="mt-4">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-indigo-600" />
-                    <span className="font-semibold text-gray-700">신청 현황</span>
-                  </div>
-                  <span className="font-bold text-indigo-600">
-                    {seminar.currentParticipants}/{seminar.maxParticipants}명 ({Math.round(
-                      (seminar.currentParticipants / seminar.maxParticipants) * 100
-                    )}%)
-                  </span>
-                </div>
-                <div className="relative w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
-                  <div
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full transition-all duration-700 ease-out shadow-lg"
-                    style={{
-                      width: `${Math.min(
-                        (seminar.currentParticipants / seminar.maxParticipants) * 100,
-                        100
-                      )}%`,
-                    }}
-                  >
-                    <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                  </div>
-                </div>
-              </div>
+              {/* Removed signup progress bar */}
 
               {/* Hover 상태 화살표 */}
               <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">

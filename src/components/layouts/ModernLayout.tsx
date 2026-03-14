@@ -118,6 +118,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         console.log('✅ ModernLayout - Loading DIRECTOR menu');
         return [
           { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
+          { id: 'seminars', href: '/dashboard/seminars', icon: Presentation, text: '무료 세미나 보기' },
           { id: 'students', href: '/dashboard/students', icon: Users, text: '학생 관리' },
           { id: 'teachers', href: '/dashboard/teacher-management', icon: GraduationCap, text: '교사 관리' },
           { id: 'classes', href: '/dashboard/classes', icon: BookOpen, text: '수업 관리' },
@@ -137,6 +138,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         console.log('✅ ModernLayout - Loading TEACHER menu');
         return [
           { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
+          { id: 'seminars', href: '/dashboard/seminars', icon: Presentation, text: '무료 세미나 보기' },
           { id: 'students', href: '/dashboard/students', icon: Users, text: '내 학생들' },
           { id: 'classes', href: '/dashboard/classes', icon: BookOpen, text: '수업' },
           { id: 'attendance', href: '/dashboard/attendance-statistics', icon: Clock, text: '출석 체크' },
@@ -149,6 +151,7 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
         console.log('✅ ModernLayout - Loading STUDENT menu');
         return [
           { id: 'home', href: '/dashboard', icon: Home, text: '대시보드' },
+          { id: 'seminars', href: '/dashboard/seminars', icon: Presentation, text: '무료 세미나 보기' },
           { id: 'attendance-verify', href: '/attendance-verify', icon: Clock, text: '출석하기' },
           { id: 'homework-submit', href: '/homework-check', icon: FileText, text: '숙제 제출' },
           { id: 'homework', href: '/dashboard/homework/student', icon: Award, text: '오늘의 숙제' },

@@ -96,6 +96,10 @@ export default function SeminarDetailPage() {
     e.preventDefault();
     if (!seminar) return;
 
+    console.log('🔄 Submitting application...');
+    console.log('📝 Form data:', formData);
+    console.log('🎯 Seminar ID:', seminar.id);
+
     try {
       setSubmitting(true);
       const token = localStorage.getItem("token");
@@ -105,29 +109,44 @@ export default function SeminarDetailPage() {
         return;
       }
 
+      const requestBody = {
+        seminarId: seminar.id,
+        ...formData,
+      };
+
+      console.log('📤 Request body:', requestBody);
+
       const response = await fetch("/api/seminars/apply", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          seminarId: seminar.id,
-          ...formData,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('📡 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Response data:', data);
 
       if (response.ok && data.success) {
         alert("세미나 신청이 완료되었습니다!");
         setShowApplicationForm(false);
+        setFormData({
+          applicantName: "",
+          applicantEmail: "",
+          applicantPhone: "",
+          academyName: "",
+          position: "",
+          additionalInfo: "",
+        });
         fetchSeminarDetail(); // 신청 후 최신 정보 다시 불러오기
       } else {
-        alert(data.error || "신청에 실패했습니다.");
+        console.error('❌ Application failed:', data.error || data.message);
+        alert(data.message || data.error || "신청에 실패했습니다.");
       }
     } catch (error) {
-      console.error("Error submitting application:", error);
+      console.error("❌ Error submitting application:", error);
       alert("신청 중 오류가 발생했습니다.");
     } finally {
       setSubmitting(false);
@@ -250,33 +269,6 @@ export default function SeminarDetailPage() {
                 <p className="text-xs text-gray-600">강사</p>
                 <p className="font-medium">{seminar.instructor}</p>
               </div>
-            </div>
-          </div>
-
-          {/* 신청 현황 */}
-          <div className="mt-6 p-4 bg-indigo-50 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-medium">신청 현황</span>
-              <span className="text-indigo-600 font-bold">
-                {seminar.currentParticipants}/{seminar.maxParticipants}명
-              </span>
-            </div>
-            <div className="w-full bg-white rounded-full h-3">
-              <div
-                className={`h-3 rounded-full transition-all ${
-                  (seminar.currentParticipants / seminar.maxParticipants) * 100 >= 100
-                    ? "bg-red-500"
-                    : (seminar.currentParticipants / seminar.maxParticipants) * 100 >= 80
-                    ? "bg-orange-500"
-                    : "bg-green-500"
-                }`}
-                style={{
-                  width: `${Math.min(
-                    (seminar.currentParticipants / seminar.maxParticipants) * 100,
-                    100
-                  )}%`,
-                }}
-              ></div>
             </div>
           </div>
 
