@@ -20,33 +20,41 @@ export async function onRequest(context: { request: Request; env: any }) {
     const results: any = {};
     
     // User 테이블 조회 (파스칼케이스)
-    if (email) {
-      results.userByEmail = await db
-        .prepare('SELECT id, email, name, role, approvedSenderNumbers FROM User WHERE email = ?')
-        .bind(email)
-        .first();
-    }
-    
-    if (userId) {
-      results.userById = await db
-        .prepare('SELECT id, email, name, role, approvedSenderNumbers FROM User WHERE id = ?')
-        .bind(userId)
-        .first();
+    try {
+      if (email) {
+        results.userByEmail = await db
+          .prepare('SELECT * FROM User WHERE email = ?')
+          .bind(email)
+          .first();
+      }
+      
+      if (userId) {
+        results.userById = await db
+          .prepare('SELECT * FROM User WHERE id = ?')
+          .bind(userId)
+          .first();
+      }
+    } catch (e: any) {
+      results.userTableError = e.message;
     }
     
     // users 테이블 조회 (스네이크케이스)
-    if (email) {
-      results.usersLowerByEmail = await db
-        .prepare('SELECT id, email, name, role, approved_sender_numbers FROM users WHERE email = ?')
-        .bind(email)
-        .first();
-    }
-    
-    if (userId) {
-      results.usersLowerById = await db
-        .prepare('SELECT id, email, name, role, approved_sender_numbers FROM users WHERE id = ?')
-        .bind(userId)
-        .first();
+    try {
+      if (email) {
+        results.usersLowerByEmail = await db
+          .prepare('SELECT * FROM users WHERE email = ?')
+          .bind(email)
+          .first();
+      }
+      
+      if (userId) {
+        results.usersLowerById = await db
+          .prepare('SELECT * FROM users WHERE id = ?')
+          .bind(userId)
+          .first();
+      }
+    } catch (e: any) {
+      results.usersTableError = e.message;
     }
     
     // SMSSender 테이블 조회
