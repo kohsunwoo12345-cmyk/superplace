@@ -107,6 +107,22 @@ export default function ModernAIChatPage() {
       name: userData.name
     });
     console.log('🆔 user.id 확인:', userData.id, '(타입:', typeof userData.id, ')');
+    
+    // 학원 정보 가져오기
+    if (userData.academyId && !userData.academyName) {
+      try {
+        const response = await fetch(`/api/academies/${userData.academyId}`);
+        if (response.ok) {
+          const data = await response.json();
+          userData.academyName = data.academy?.name || userData.name;
+          console.log('🏫 Academy name loaded:', userData.academyName);
+        }
+      } catch (e) {
+        console.log('⚠️ Could not load academy name, using user name');
+        userData.academyName = userData.name;
+      }
+    }
+    
     setUser(userData);
     
     // 관리자 체크
