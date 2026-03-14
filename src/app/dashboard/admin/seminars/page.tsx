@@ -40,6 +40,7 @@ export default function SeminarsAdminPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [newCustomField, setNewCustomField] = useState({ label: '', type: 'text' });
 
   // Form state
   const [formData, setFormData] = useState({
@@ -56,7 +57,8 @@ export default function SeminarsAdminPage() {
     formHtml: '',
     useCustomForm: 0,
     ctaButtonText: '신청하기',
-    requiredFields: []
+    requiredFields: [],
+    customFields: []
   });
 
   // 마운트 및 토큰 초기화
@@ -866,6 +868,76 @@ export default function SeminarsAdminPage() {
               <p className="text-xs text-gray-500">
                 선택한 필드는 신청 시 필수로 입력해야 합니다 (이름, 이메일은 기본 필수)
               </p>
+            </div>
+
+            {/* Custom Fields Section */}
+            <div className="space-y-2">
+              <Label>추가 필수 필드</Label>
+              <p className="text-xs text-gray-500 mb-2">
+                관리자가 직접 필드를 추가할 수 있습니다. 추가된 필드는 자동으로 필수 입력이 됩니다.
+              </p>
+              
+              {/* Display existing custom fields */}
+              {(formData.customFields || []).length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {(formData.customFields || []).map((field, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded border">
+                      <span className="flex-1 text-sm">{field.label}</span>
+                      <span className="text-xs text-gray-500">({field.type})</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const updated = [...(formData.customFields || [])];
+                          updated.splice(index, 1);
+                          handleChange('customFields', updated);
+                        }}
+                        className="h-6 px-2"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add new custom field */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="필드 이름 (예: 회사명)"
+                  value={newCustomField.label}
+                  onChange={(e) => setNewCustomField({ ...newCustomField, label: e.target.value })}
+                  className="flex-1"
+                />
+                <Select
+                  value={newCustomField.type}
+                  onValueChange={(value) => setNewCustomField({ ...newCustomField, type: value })}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">텍스트</SelectItem>
+                    <SelectItem value="number">숫자</SelectItem>
+                    <SelectItem value="tel">전화번호</SelectItem>
+                    <SelectItem value="textarea">장문</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (newCustomField.label.trim()) {
+                      const updated = [...(formData.customFields || []), newCustomField];
+                      handleChange('customFields', updated);
+                      setNewCustomField({ label: '', type: 'text' });
+                    }
+                  }}
+                  variant="secondary"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Custom Form */}

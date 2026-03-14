@@ -32,6 +32,9 @@ interface Seminar {
   status: string;
   formHtml: string;
   useCustomForm: number;
+  ctaButtonText: string;
+  requiredFields: string[] | string;
+  customFields: any[];
   createdAt: string;
 }
 
@@ -279,7 +282,7 @@ export default function SeminarDetailPage() {
               size="lg"
               onClick={() => setShowApplicationForm(true)}
             >
-              세미나 신청하기
+              {seminar.ctaButtonText || '세미나 신청하기'}
             </Button>
           )}
 
@@ -305,6 +308,7 @@ export default function SeminarDetailPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmitApplication} className="space-y-4">
+              {/* 이름 - 항상 필수 */}
               <div>
                 <label className="block text-sm font-medium mb-2">
                   이름 <span className="text-red-500">*</span>
@@ -321,6 +325,7 @@ export default function SeminarDetailPage() {
                 />
               </div>
 
+              {/* 이메일 - 항상 필수 */}
               <div>
                 <label className="block text-sm font-medium mb-2">
                   이메일 <span className="text-red-500">*</span>
@@ -337,66 +342,106 @@ export default function SeminarDetailPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  연락처 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.applicantPhone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, applicantPhone: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="010-1234-5678"
-                />
-              </div>
+              {/* 연락처 - requiredFields에 'phone' 포함 시에만 표시 */}
+              {(Array.isArray(seminar.requiredFields) 
+                ? seminar.requiredFields.includes('phone')
+                : typeof seminar.requiredFields === 'string' 
+                  ? JSON.parse(seminar.requiredFields || '[]').includes('phone')
+                  : false) && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    연락처 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.applicantPhone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, applicantPhone: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="010-1234-5678"
+                  />
+                </div>
+              )}
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  학원명
-                </label>
-                <input
-                  type="text"
-                  value={formData.academyName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, academyName: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="소속 학원명"
-                />
-              </div>
+              {/* 학원명 - requiredFields에 'academy' 포함 시에만 표시 */}
+              {(Array.isArray(seminar.requiredFields) 
+                ? seminar.requiredFields.includes('academy')
+                : typeof seminar.requiredFields === 'string' 
+                  ? JSON.parse(seminar.requiredFields || '[]').includes('academy')
+                  : false) && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    학원명 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.academyName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, academyName: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="소속 학원명"
+                  />
+                </div>
+              )}
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  직책
-                </label>
-                <input
-                  type="text"
-                  value={formData.position}
-                  onChange={(e) =>
-                    setFormData({ ...formData, position: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="예: 원장, 강사"
-                />
-              </div>
+              {/* 직책 - requiredFields에 'position' 포함 시에만 표시 */}
+              {(Array.isArray(seminar.requiredFields) 
+                ? seminar.requiredFields.includes('position')
+                : typeof seminar.requiredFields === 'string' 
+                  ? JSON.parse(seminar.requiredFields || '[]').includes('position')
+                  : false) && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    직책 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.position}
+                    onChange={(e) =>
+                      setFormData({ ...formData, position: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="예: 원장, 강사"
+                  />
+                </div>
+              )}
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  추가 정보
-                </label>
-                <textarea
-                  rows={4}
-                  value={formData.additionalInfo}
-                  onChange={(e) =>
-                    setFormData({ ...formData, additionalInfo: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="세미나에 대한 궁금한 점이나 요청사항을 입력하세요"
-                />
-              </div>
+              {/* 커스텀 필드 - customFields 배열에 있는 필드들 표시 */}
+              {seminar.customFields && Array.isArray(seminar.customFields) && seminar.customFields.map((field, index) => (
+                <div key={index}>
+                  <label className="block text-sm font-medium mb-2">
+                    {field.label} <span className="text-red-500">*</span>
+                  </label>
+                  {field.type === 'textarea' ? (
+                    <textarea
+                      required
+                      rows={4}
+                      value={formData[`custom_${index}`] || ''}
+                      onChange={(e) =>
+                        setFormData({ ...formData, [`custom_${index}`]: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder={`${field.label}을(를) 입력하세요`}
+                    />
+                  ) : (
+                    <input
+                      type={field.type}
+                      required
+                      value={formData[`custom_${index}`] || ''}
+                      onChange={(e) =>
+                        setFormData({ ...formData, [`custom_${index}`]: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder={`${field.label}을(를) 입력하세요`}
+                    />
+                  )}
+                </div>
+              ))}
 
               {/* Custom Form HTML */}
               {seminar.useCustomForm === 1 && seminar.formHtml && (
@@ -424,7 +469,7 @@ export default function SeminarDetailPage() {
                   className="flex-1"
                   disabled={submitting}
                 >
-                  {submitting ? "신청 중..." : "신청 완료"}
+                  {submitting ? "신청 중..." : (seminar.ctaButtonText || "신청 완료")}
                 </Button>
               </div>
             </form>
