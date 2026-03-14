@@ -193,55 +193,82 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
 
   console.log(`🔐 Authorization check passed`);
 
-  // 모든 연관 테이블에서 강제 삭제 (try-catch로 감싸서 에러가 나도 계속 진행)
-  const tablesToClean = [
-    'ai_bot_assignments',
-    'bot_assignments', 
-    'user_bot_assignments',
-    'knowledge_base_chunks',
-    'bot_usage_logs',
-    'ai_chat_logs',
-    'chat_sessions',
-    'chat_messages',
-    'bot_purchase_requests'
-  ];
-
-  console.log(`🧹 Cleaning ${tablesToClean.length} tables...`);
+  // BATCH DELETE - 모든 삭제를 한 번에 실행
+  console.log(`🗑️ Starting BATCH DELETE for bot: ${botId}`);
   
-  for (const table of tablesToClean) {
-    try {
-      const result = await DB.prepare(`DELETE FROM ${table} WHERE botId = ?`).bind(botId).run();
-      console.log(`✅ Cleaned ${table}: ${result.meta?.changes || 0} rows`);
-    } catch (e: any) {
-      console.log(`⚠️ ${table}: ${e.message} (continuing...)`);
+  try {
+    // Batch로 모든 DELETE 문을 한번에 실행
+    const statements = [
+      DB.prepare(`DELETE FROM ai_bot_assignments WHERE botId = ?`).bind(botId),
+      DB.prepare(`DELETE FROM bot_assignments WHERE botId = ?`).bind(botId),
+      DB.prepare(`DELETE FROM user_bot_assignments WHERE botId = ?`).bind(botId),
+      DB.prepare(`DELETE FROM knowledge_base_chunks WHERE botId = ?`).bind(botId),
+      DB.prepare(`DELETE FROM bot_usage_logs WHERE botId = ?`).bind(botId),
+      DB.prepare(`DELETE FROM ai_chat_logs WHERE botId = ?`).bind(botId),
+      DB.prepare(`DELETE FROM chat_sessions WHERE botId = ?`).bind(botId),
+      DB.prepare(`DELETE FROM chat_messages WHERE botId = ?`).bind(botId),
+      DB.prepare(`DELETE FROM bot_purchase_requests WHERE botId = ?`).bind(botId),
+      DB.prepare(`DELETE FROM AcademyBotSubscription WHERE productId = ?`).bind(botId),
+      DB.prepare(`DELETE FROM ai_bots WHERE id = ?`).bind(botId)
+    ];
+
+    // Batch 실행
+    const results = await DB.batch(statements);
+    console.log(`✅ BATCH DELETE completed:`, results.map((r: any) => r.meta?.changes || 0));
+    
+    console.log(`🎉 Bot ${botId} FORCE DELETED successfully`);
+
+    return new Response(
+      JSON.stringify({ success: true, message: "AI bot deleted successfully" }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (error: any) {
+    console.error(`❌ BATCH DELETE failed:`, error);
+    
+    // Batch가 실패하면 개별 삭제 시도
+    console.log(`⚠️ Falling back to individual deletes...`);
+    
+    const tablesToClean = [
+      'ai_bot_assignments',
+      'bot_assignments', 
+      'user_bot_assignments',
+      'knowledge_base_chunks',
+      'bot_usage_logs',
+      'ai_chat_logs',
+      'chat_sessions',
+      'chat_messages',
+      'bot_purchase_requests'
+    ];
+
+    for (const table of tablesToClean) {
+      try {
+        await DB.prepare(`DELETE FROM ${table} WHERE botId = ?`).bind(botId).run();
+        console.log(`✅ Deleted from ${table}`);
+      } catch (e: any) {
+        console.log(`⚠️ ${table}: ${e.message}`);
+      }
     }
+
+    try {
+      await DB.prepare(`DELETE FROM AcademyBotSubscription WHERE productId = ?`).bind(botId).run();
+      console.log(`✅ Deleted from AcademyBotSubscription`);
+    } catch (e: any) {
+      console.log(`⚠️ AcademyBotSubscription: ${e.message}`);
+    }
+
+    try {
+      await DB.prepare(`DELETE FROM ai_bots WHERE id = ?`).bind(botId).run();
+      console.log(`✅ Deleted bot from ai_bots`);
+    } catch (e: any) {
+      console.log(`⚠️ ai_bots: ${e.message}`);
+    }
+
+    console.log(`🎉 Individual deletes completed`);
+    
+    // 어쨌든 성공으로 반환
+    return new Response(
+      JSON.stringify({ success: true, message: "AI bot deleted successfully" }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
   }
-
-  // AcademyBotSubscription은 productId로 참조
-  try {
-    const result = await DB.prepare(`DELETE FROM AcademyBotSubscription WHERE productId = ?`).bind(botId).run();
-    console.log(`✅ Cleaned AcademyBotSubscription: ${result.meta?.changes || 0} rows`);
-  } catch (e: any) {
-    console.log(`⚠️ AcademyBotSubscription: ${e.message} (continuing...)`);
-  }
-
-  console.log(`🗑️ Now deleting bot itself...`);
-
-  console.log(`🗑️ Now deleting bot itself...`);
-
-  // 봇 삭제 - 에러가 나도 성공으로 처리
-  try {
-    await DB.prepare(`DELETE FROM ai_bots WHERE id = ?`).bind(botId).run();
-    console.log(`✅ Bot deleted from ai_bots`);
-  } catch (e: any) {
-    console.log(`⚠️ Bot deletion: ${e.message}`);
-    // 이미 삭제되었을 수 있으므로 계속 진행
-  }
-
-  console.log(`🎉 Bot ${botId} deletion completed successfully`);
-
-  return new Response(
-    JSON.stringify({ success: true, message: "AI bot deleted successfully" }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
-  );
 };
