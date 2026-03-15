@@ -60,8 +60,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         u.phone as userPhone,
         a.name as academyName
       FROM PointChargeRequest pcr
-      LEFT JOIN users u ON pcr.userId = u.id
-      LEFT JOIN academy a ON u.academyId = a.id
+      LEFT JOIN User u ON pcr.userId = u.id
+      LEFT JOIN Academy a ON u.academyId = a.id
     `;
 
     if (status !== 'ALL') {

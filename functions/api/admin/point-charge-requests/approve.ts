@@ -68,7 +68,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     // 요청 정보 조회 (academyId 포함)
     const requestInfo = await env.DB.prepare(`
-      SELECT * FROM point_charge_requests WHERE id = ?
+      SELECT * FROM PointChargeRequest WHERE id = ?
     `).bind(requestId).first();
 
     if (!requestInfo) {
@@ -106,7 +106,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     // 1. 요청 상태 업데이트
     await env.DB.prepare(`
-      UPDATE point_charge_requests
+      UPDATE PointChargeRequest
       SET status = 'APPROVED',
           approvedBy = ?,
           approvedAt = ?,
