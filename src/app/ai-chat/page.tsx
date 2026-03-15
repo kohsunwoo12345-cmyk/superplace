@@ -998,14 +998,18 @@ export default function ModernAIChatPage() {
         console.log(`✅ Extracted ${Object.keys(answersMap).length} answers from answer section:`, answersMap);
       }
       
-      // Step 1: 문제 섹션에서 문제 추출
+      // Step 1: 문제 섹션에서 문제 추출 (더 유연한 패턴)
       const lines = problemSection.split('\n');
       let currentProblemNum = '';
       let currentProblemText = '';
       
       for (const line of lines) {
         const trimmed = line.trim();
-        const numberMatch = trimmed.match(/^(\d+)[.\)]\s*(.*)$/);
+        // 다양한 번호 패턴 지원: "1. ", "1) ", "1.", "문제 1:", "[1]", "**1.**" 등
+        const numberMatch = trimmed.match(/^(?:\*\*)?(?:\[)?(\d+)(?:\])?[.\):](?:\*\*)?\s*(.*)$/) ||
+                           trimmed.match(/^문제\s*(\d+)\s*[:：]\s*(.*)$/i) ||
+                           trimmed.match(/^Q(\d+)[.:]?\s*(.*)$/i) ||
+                           trimmed.match(/^Question\s*(\d+)\s*[:：]?\s*(.*)$/i);
         
         if (numberMatch) {
           // 이전 문제가 있으면 처리
@@ -1091,9 +1095,22 @@ export default function ModernAIChatPage() {
     
     console.log(`\n📊 Total problems extracted: ${extractedProblems.length}`);
     console.log(`📊 Problems with answers: ${extractedProblems.filter(p => p.answer !== '정답 없음').length}`);
+    
+    // 디버그: 추출된 문제 샘플 출력
+    if (extractedProblems.length > 0) {
+      console.log('\n✅ 추출된 문제 샘플:');
+      extractedProblems.slice(0, 2).forEach(p => {
+        console.log(`  문제 ${p.number}: ${p.content.substring(0, 50)}...`);
+        console.log(`  답안: ${p.answer.substring(0, 30)}...`);
+      });
+    } else {
+      console.log('\n⚠️ 문제 추출 실패 원인 분석:');
+      console.log('  - AI 응답에 번호가 있는가? (1., 2., 등)');
+      console.log('  - 메시지 내용:', assistantMessages[0]?.content.substring(0, 200));
+    }
 
     if (extractedProblems.length === 0) {
-      alert('출력할 문제를 찾을 수 없습니다.\n\nAI에게 "수학 문제 3개 출제해줘" 같은 요청을 먼저 해보세요.');
+      alert('출력할 문제를 찾을 수 없습니다.\n\n다음을 확인해주세요:\n\n1. AI에게 "수학 문제 3개 출제해줘" 같은 요청을 했는지\n2. AI 응답에 번호가 있는지 (1., 2., 3. 등)\n3. 여러 메시지 중 문제가 포함된 메시지를 체크했는지\n\n💡 팁: AI 응답 옆의 체크박스를 클릭하여 출력할 메시지를 선택할 수 있습니다.');
       return;
     }
 
