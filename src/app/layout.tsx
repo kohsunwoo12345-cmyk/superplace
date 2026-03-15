@@ -10,9 +10,12 @@ export const metadata: Metadata = {
   keywords: ["학원", "학습 관리", "온라인 교육", "성적 관리", "과제 제출", "학습 자료", "슈퍼플레이스"],
   authors: [{ name: "SUPER PLACE" }],
   icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
-    apple: '/favicon.svg',
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/logo-suplace.png', sizes: '32x32', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
   },
   verification: {
     google: "HyehkpmoFcE3rVNEAqXJPD4NdGjZh571Pm4JM36JEfI",
