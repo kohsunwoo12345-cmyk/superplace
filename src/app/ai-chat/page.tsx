@@ -107,29 +107,7 @@ export default function ModernAIChatPage() {
       name: userData.name
     });
     console.log('🆔 user.id 확인:', userData.id, '(타입:', typeof userData.id, ')');
-    
-    // 일단 기본 사용자 정보 설정
     setUser(userData);
-    
-    // 학원 정보 비동기 로드를 즉시 실행 함수로 처리
-    (async () => {
-      if (userData.academyId && !userData.academyName) {
-        try {
-          const response = await fetch(`/api/academies/${userData.academyId}`);
-          if (response.ok) {
-            const data = await response.json();
-            userData.academyName = data.academy?.name || userData.name;
-            console.log('🏫 Academy name loaded:', userData.academyName);
-            // 학원 이름이 로드되면 사용자 정보 다시 업데이트
-            setUser({...userData});
-          }
-        } catch (e) {
-          console.log('⚠️ Could not load academy name, using user name');
-          userData.academyName = userData.name;
-          setUser({...userData});
-        }
-      }
-    })();
     
     // 관리자 체크
     const isAdmin = userData.email === 'admin@superplace.co.kr' || 
@@ -867,301 +845,17 @@ export default function ModernAIChatPage() {
   };
 
 
-  // 체크박스 토글 - 선택 시 바로 문제 출력
-  const toggleMessageSelection = async (messageId: string) => {
-    console.log('✅ Message selected for immediate print:', messageId);
-    
-    // 선택된 메시지 찾기
-    const message = messages.find(m => m.id === messageId);
-    if (!message || message.role !== 'assistant') {
-      console.error('❌ Invalid message for problem generation');
-      return;
-    }
-    
-    // 선택 상태 업데이트
-    const newSet = new Set<string>();
-    newSet.add(messageId);
-    setSelectedMessageIds(newSet);
-    
-    // enableProblemGeneration 체크
-    const enableFlag = selectedBot?.enableProblemGeneration;
-    const isProblemGenerationEnabled = enableFlag === 1 || enableFlag === "1" || enableFlag === true || Number(enableFlag) === 1;
-    
-    if (!isProblemGenerationEnabled) {
-      alert('이 AI 봇은 문제 출제 기능이 활성화되지 않았습니다.');
-      return;
-    }
-
-    console.log('🖨️ Immediately generating PDF for selected message...');
-
-    try {
-      // 문제 추출
-      const extractedProblems: Array<{
-        number: number;
-        content: string;
-        answer: string;
-        type: 'multiple' | 'descriptive';
-      }> = [];
-
-      let fullText = message.content;
-      console.log('📄 Full text length:', fullText.length);
-      
-      // 개선된 문제 추출 패턴 - **숫자. 문제내용** 형식도 지원
-      const problemPattern = /(?:^|\n)\*?\*?(\d+)\.\s*([^\n]+(?:\n(?!\*?\*?\d+\.)(?!정답|답\s*:).+)*)/g;
-      const matches = [...fullText.matchAll(problemPattern)];
-
-      console.log(`🔍 Found ${matches.length} problems with pattern matching`);
-
-      if (matches.length > 0) {
-        matches.forEach((match) => {
-          const problemNumber = parseInt(match[1]);
-          const problemContent = match[2].trim();
-          
-          // 선택지 포함 여부 확인
-          const hasChoices = /[①②③④⑤]/.test(problemContent);
-          
-          extractedProblems.push({
-            number: problemNumber,
-            content: problemContent,
-            answer: '', // 별도 정답 섹션에서 추출
-            type: hasChoices ? 'multiple' : 'descriptive'
-          });
-        });
-        
-        console.log(`✅ Extracted ${extractedProblems.length} problems`);
+  // 체크박스 토글
+  const toggleMessageSelection = (messageId: string) => {
+    setSelectedMessageIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
       } else {
-        // Fallback: 전체 텍스트를 문제로 처리
-        console.log('⚠️ No pattern match, using full text');
-        extractedProblems.push({
-          number: 1,
-          content: fullText,
-          answer: '',
-          type: 'descriptive'
-        });
+        newSet.add(messageId);
       }
-
-      if (extractedProblems.length === 0) {
-        alert('문제를 찾을 수 없습니다.');
-        return;
-      }
-
-      console.log(`📝 Generating print view with ${extractedProblems.length} problems`);
-
-      // 학원 이름 가져오기
-      const academyName = user?.academyName || '학원';
-      const printDate = new Date().toLocaleDateString('ko-KR');
-
-      // 답안지용 정답 목록
-      const answers = extractedProblems.map(p => ({
-        number: p.number,
-        answer: p.answer || '(정답 없음)'
-      }));
-
-      // 문제지 HTML 생성
-      const problemsHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>문제지</title>
-          <style>
-            @media print {
-              @page { 
-                margin: 15mm 20mm;
-                size: A4;
-              }
-              body { margin: 0; }
-              .no-print { display: none; }
-              .page-break { page-break-before: always; }
-            }
-            body {
-              font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-              line-height: 1.8;
-              color: #000;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 25px;
-              padding-bottom: 15px;
-              border-bottom: 2px solid #000;
-            }
-            .academy-name {
-              font-size: 22px;
-              font-weight: bold;
-              margin-bottom: 8px;
-            }
-            .test-info {
-              font-size: 13px;
-              color: #333;
-            }
-            .student-info {
-              margin: 15px 0 25px 0;
-              font-size: 14px;
-            }
-            .student-info span {
-              display: inline-block;
-              margin-right: 30px;
-            }
-            .underline {
-              display: inline-block;
-              border-bottom: 1px solid #000;
-              min-width: 80px;
-              margin-left: 5px;
-            }
-            .problem {
-              margin-bottom: 25px;
-              page-break-inside: avoid;
-            }
-            .problem-number {
-              font-weight: bold;
-              font-size: 15px;
-              margin-bottom: 6px;
-            }
-            .problem-content {
-              font-size: 14px;
-              white-space: pre-wrap;
-              line-height: 1.7;
-              padding-left: 5px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="academy-name">${academyName}</div>
-            <div class="test-info">문제지 · ${printDate}</div>
-          </div>
-          
-          <div class="student-info">
-            <span>학년: <span class="underline"></span></span>
-            <span>이름: <span class="underline"></span></span>
-          </div>
-
-          ${extractedProblems.map(problem => `
-            <div class="problem">
-              <div class="problem-number">${problem.number}.</div>
-              <div class="problem-content">${problem.content.replace(/\n/g, '<br>').replace(/\*\*/g, '')}</div>
-            </div>
-          `).join('')}
-
-          <div class="no-print" style="text-align: center; margin-top: 30px; padding: 20px; background: #f0f0f0;">
-            <button onclick="window.print()" style="padding: 10px 30px; font-size: 16px; cursor: pointer;">인쇄하기</button>
-            <button onclick="window.close()" style="padding: 10px 30px; font-size: 16px; cursor: pointer; margin-left: 10px;">닫기</button>
-          </div>
-        </body>
-        </html>
-      `;
-
-      // 답안지 HTML 생성
-      const answerSheetHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>답안지</title>
-          <style>
-            @media print {
-              @page { 
-                margin: 15mm 20mm;
-                size: A4;
-              }
-              body { margin: 0; }
-              .no-print { display: none; }
-            }
-            body {
-              font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-              line-height: 1.8;
-              color: #000;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 25px;
-              padding-bottom: 15px;
-              border-bottom: 2px solid #000;
-            }
-            .academy-name {
-              font-size: 22px;
-              font-weight: bold;
-              margin-bottom: 8px;
-            }
-            .test-info {
-              font-size: 13px;
-              color: #333;
-            }
-            .answer-list {
-              margin-top: 30px;
-            }
-            .answer-item {
-              padding: 8px 0;
-              border-bottom: 1px solid #eee;
-              font-size: 14px;
-            }
-            .answer-number {
-              display: inline-block;
-              width: 50px;
-              font-weight: bold;
-            }
-            .answer-content {
-              display: inline-block;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="academy-name">${academyName}</div>
-            <div class="test-info">답안지 · ${printDate}</div>
-          </div>
-
-          <div class="answer-list">
-            ${answers.map(ans => `
-              <div class="answer-item">
-                <span class="answer-number">${ans.number}.</span>
-                <span class="answer-content">${ans.answer.replace(/\*\*/g, '')}</span>
-              </div>
-            `).join('')}
-          </div>
-
-          <div class="no-print" style="text-align: center; margin-top: 30px; padding: 20px; background: #f0f0f0;">
-            <button onclick="window.print()" style="padding: 10px 30px; font-size: 16px; cursor: pointer;">인쇄하기</button>
-            <button onclick="window.close()" style="padding: 10px 30px; font-size: 16px; cursor: pointer; margin-left: 10px;">닫기</button>
-          </div>
-        </body>
-        </html>
-      `;
-
-      // 문제지 창 열기
-      const problemWindow = window.open('', '_blank');
-      if (problemWindow) {
-        problemWindow.document.write(problemsHtml);
-        problemWindow.document.close();
-        
-        // 로드 완료 후 인쇄창 열기
-        problemWindow.onload = () => {
-          problemWindow.focus();
-          setTimeout(() => problemWindow.print(), 100);
-        };
-      }
-
-      // 답안지 창 열기 (1초 후)
-      setTimeout(() => {
-        const answerWindow = window.open('', '_blank');
-        if (answerWindow) {
-          answerWindow.document.write(answerSheetHtml);
-          answerWindow.document.close();
-          
-          answerWindow.onload = () => {
-            answerWindow.focus();
-            setTimeout(() => answerWindow.print(), 100);
-          };
-        }
-      }, 1000);
-
-      console.log(`✅ Print windows opened: ${extractedProblems.length} problems`);
-      alert(`문제지와 답안지 인쇄창이 열렸습니다!\n${extractedProblems.length}개의 문제`);
-      
-    } catch (error: any) {
-      console.error('❌ PDF generation error:', error);
-      alert(`문제지 생성 중 오류: ${error.message}`);
-    }
+      return newSet;
+    });
   };
 
   const handlePrintProblems = async () => {
@@ -1192,15 +886,11 @@ export default function ModernAIChatPage() {
 
     console.log('🖨️ 문제지 출력 시작...');
     console.log('📝 전체 메시지 개수:', messages.length);
-    console.log('📋 선택된 메시지 ID:', Array.from(selectedMessageIds));
 
-    // 체크된 메시지만 필터링 (체크박스 선택이 필수)
-    if (selectedMessageIds.size === 0) {
-      alert('출력할 메시지를 선택해주세요. 각 AI 응답 옆의 체크박스를 클릭하여 선택할 수 있습니다.');
-      return;
-    }
-
-    const assistantMessages = messages.filter(m => m.role === 'assistant' && selectedMessageIds.has(m.id));
+    // 체크된 메시지만 필터링
+    const assistantMessages = selectedMessageIds.size > 0 
+      ? messages.filter(m => m.role === 'assistant' && selectedMessageIds.has(m.id))
+      : messages.filter(m => m.role === 'assistant');
 
     if (assistantMessages.length === 0) {
       alert('출력할 메시지를 선택해주세요. 각 AI 응답 옆의 체크박스를 클릭하여 선택할 수 있습니다.');
@@ -1367,12 +1057,10 @@ export default function ModernAIChatPage() {
         
         problemText = problemText.trim();
         
-        // Step 4: 유효성 검사 (길이 + 기본 키워드 체크)
-        const hasValidLength = problemText.length >= 10 && problemText.length <= 2000;
-        const hasKeywords = /계산|구하|풀이|답하|선택|고르|쓰시오|바꾸|번역|해석|영작|맞는|틀린|일치|다음|알맞|적절|문제|solve|calculate|find|choose|what|which|translate|write|correct/i.test(problemText);
-        const hasSpecialChars = /[=?①②③④⑤⑥⑦⑧⑨⑩]/.test(problemText);
-        
-        const isValidProblem = hasValidLength && (hasKeywords || hasSpecialChars);
+        // Step 4: 유효성 검사 (완화된 조건)
+        const isValidProblem = 
+          problemText.length >= 5 &&
+          problemText.length <= 2000;
         
         if (!isValidProblem) {
           console.log(`⏭️  Skipped: Invalid problem (length: ${problemText.length})`);
