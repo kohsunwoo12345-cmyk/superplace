@@ -128,13 +128,20 @@ function UserDetailPage() {
       });
       
       if (response.ok) {
-        const data = await response.json();
-        console.log("✅ API Response:", data);
-        setUser(data.user);
-        setLoginLogs(data.loginLogs || []);
-        setActivityLogs(data.activityLogs || []);
-        setBotAssignments(data.botAssignments || []);
-        setPayments(data.payments || []);
+        const result = await response.json();
+        console.log("✅ API Response:", result);
+        
+        // API 응답 구조: { success: true, data: { user, loginLogs, ... } }
+        if (result.success && result.data) {
+          setUser(result.data.user);
+          setLoginLogs(result.data.loginLogs || []);
+          setActivityLogs(result.data.activityLogs || []);
+          setBotAssignments(result.data.botAssignments || []);
+          setPayments(result.data.payments || []);
+        } else {
+          console.error("❌ Unexpected API response structure:", result);
+          alert("데이터 형식이 올바르지 않습니다.");
+        }
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error("❌ 데이터 로드 실패:", {
