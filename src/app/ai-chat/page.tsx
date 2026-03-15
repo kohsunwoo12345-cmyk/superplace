@@ -916,8 +916,10 @@ export default function ModernAIChatPage() {
       
       // Step 0: 구분선으로 문제/답안 섹션 분리
       const separatorPatterns = [
-        '\n**정답 및 해설**',
-        '\n**정답**',
+        '**강사용',
+        '**정답 및 해설**',
+        '**정답**',
+        '**해설**',
         '\n## 정답',
         '\n## 해설',
         '\n정답 및 해설',
@@ -928,12 +930,14 @@ export default function ModernAIChatPage() {
       let answerSection = '';
       let separatorFound = false;
       
-      // 먼저 명확한 답안 키워드 검색
+      // 먼저 명확한 답안 키워드 검색 (정규식으로 개선)
       for (const separator of separatorPatterns) {
-        const sepIndex = fullText.indexOf(separator);
-        if (sepIndex !== -1) {
+        const regex = new RegExp(separator.replace(/[*]/g, '\\*'), 'i');
+        const match = fullText.match(regex);
+        if (match && match.index !== undefined) {
+          const sepIndex = match.index;
           problemSection = fullText.substring(0, sepIndex);
-          answerSection = fullText.substring(sepIndex + separator.length);
+          answerSection = fullText.substring(sepIndex);
           console.log(`✂️  Found separator "${separator.trim()}" at index ${sepIndex}`);
           console.log(`📦 Problem section: ${problemSection.length} chars`);
           console.log(`📦 Answer section: ${answerSection.length} chars`);
@@ -963,39 +967,80 @@ export default function ModernAIChatPage() {
         }
       }
       
-      // 답안 섹션에서 답안 추출 (번호 -> 답안 매핑)
-      const answersMap: { [key: string]: string } = {};
+      // 답안 섹션에서 답안/해설 추출 (번호 -> {답안, 해설} 매핑)
+      const answersMap: { [key: string]: { answer: string; explanation: string } } = {};
       if (answerSection.trim()) {
         const answerLines = answerSection.split('\n');
         let currentNum = '';
         let currentAnswer = '';
+        let currentExplanation = '';
+        let isInExplanation = false;
         
         for (const line of answerLines) {
           const trimmed = line.trim();
           if (!trimmed) continue;
           
-          const match = trimmed.match(/^(\d+)[.\)]\s*(.*)$/);
-          if (match) {
-            // 이전 답안 저장
-            if (currentNum && currentAnswer) {
-              answersMap[currentNum] = currentAnswer.trim();
-            }
-            currentNum = match[1];
-            currentAnswer = match[2] || '';
-          } else {
-            // 현재 답안에 텍스트 추가
+          // 문제 번호 패턴: "1. ", "1) ", "**1.**" 등
+          const numberMatch = trimmed.match(/^(?:\*\*)?(\d+)[.\)](?:\*\*)?\s*(.*)$/);
+          if (numberMatch) {
+            // 이전 답안/해설 저장
             if (currentNum) {
-              currentAnswer += '\n' + trimmed;
+              answersMap[currentNum] = {
+                answer: currentAnswer.trim(),
+                explanation: currentExplanation.trim()
+              };
+            }
+            // 새 답안 시작
+            currentNum = numberMatch[1];
+            const restOfLine = numberMatch[2];
+            
+            // "정답: ①" 형태 즉시 파싱
+            const answerMatch = restOfLine.match(/^정답\s*[:：]\s*(.*)$/i);
+            if (answerMatch) {
+              currentAnswer = answerMatch[1];
+            } else {
+              currentAnswer = restOfLine;
+            }
+            currentExplanation = '';
+            isInExplanation = false;
+          } else if (currentNum) {
+            // "정답: ①" 별도 줄
+            const answerMatch = trimmed.match(/^정답\s*[:：]\s*(.*)$/i);
+            if (answerMatch) {
+              currentAnswer = answerMatch[1];
+              isInExplanation = false;
+            }
+            // "해설:", "풀이:", "단계별:", "주의:", "팁:" 등
+            else if (/^(?:해설|풀이|단계별|주의|팁|참고)\s*[:：]/i.test(trimmed)) {
+              isInExplanation = true;
+              const explMatch = trimmed.match(/^(?:해설|풀이|단계별|주의|팁|참고)\s*[:：]\s*(.*)$/i);
+              if (explMatch && explMatch[1]) {
+                currentExplanation += (currentExplanation ? '\n' : '') + explMatch[1];
+              }
+            }
+            // 해설 내용 계속
+            else if (isInExplanation) {
+              currentExplanation += '\n' + trimmed;
+            }
+            // 정답 내용 계속
+            else if (currentAnswer) {
+              currentAnswer += ' ' + trimmed;
             }
           }
         }
         
-        // 마지막 답안 저장
-        if (currentNum && currentAnswer) {
-          answersMap[currentNum] = currentAnswer.trim();
+        // 마지막 답안/해설 저장
+        if (currentNum) {
+          answersMap[currentNum] = {
+            answer: currentAnswer.trim(),
+            explanation: currentExplanation.trim()
+          };
         }
         
-        console.log(`✅ Extracted ${Object.keys(answersMap).length} answers from answer section:`, answersMap);
+        console.log(`✅ Extracted ${Object.keys(answersMap).length} answers from answer section:`);
+        Object.entries(answersMap).forEach(([num, data]) => {
+          console.log(`  ${num}. 정답: "${data.answer.substring(0, 30)}..." 해설: "${data.explanation.substring(0, 30)}..."`);
+        });
       }
       
       // Step 1: 문제 섹션에서 문제 추출 (더 유연한 패턴)
@@ -1071,8 +1116,9 @@ export default function ModernAIChatPage() {
           return;
         }
         
-        // Step 5: 답안 섹션에서 답안 가져오기
-        const answerText = answersMap[problemNum] || '';
+        // Step 5: 답안 섹션에서 답안/해설 가져오기
+        const answerData = answersMap[problemNum];
+        const answerText = answerData ? `${answerData.answer}${answerData.explanation ? '\n해설: ' + answerData.explanation : ''}` : '';
         
         // Step 6: 객관식/서술형 판단
         const isMultipleChoice = /[①②③④⑤⑥⑦⑧⑨⑩]/.test(problemText) ||
