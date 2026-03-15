@@ -15,6 +15,7 @@ export const metadata: Metadata = {
     apple: '/favicon.svg',
   },
   verification: {
+    google: "HyehkpmoFcE3rVNEAqXJPD4NdGjZh571Pm4JM36JEfI",
     other: {
       "naver-site-verification": "6817ba67ed17ecfd7f621742b503a0b5cff117cf",
     },
