@@ -220,6 +220,32 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     console.log('📝 Updating landing page:', id);
     console.log('📝 Request body:', JSON.stringify(body).substring(0, 500));
 
+    // 🔧 필요한 컬럼이 없으면 추가 (마이그레이션)
+    const tableInfo = await DB.prepare(`PRAGMA table_info(landing_pages)`).all();
+    const columns = tableInfo.results?.map((col: any) => col.name) || [];
+    
+    if (!columns.includes('thumbnail_url')) {
+      try {
+        await DB.prepare(`ALTER TABLE landing_pages ADD COLUMN thumbnail_url TEXT`).run();
+        console.log('✅ Added thumbnail_url column');
+      } catch (e: any) {
+        if (!e.message.includes('duplicate column')) {
+          console.error('⚠️ Failed to add thumbnail_url:', e.message);
+        }
+      }
+    }
+    
+    if (!columns.includes('subtitle')) {
+      try {
+        await DB.prepare(`ALTER TABLE landing_pages ADD COLUMN subtitle TEXT`).run();
+        console.log('✅ Added subtitle column');
+      } catch (e: any) {
+        if (!e.message.includes('duplicate column')) {
+          console.error('⚠️ Failed to add subtitle:', e.message);
+        }
+      }
+    }
+
     // 업데이트 쿼리 생성
     const updateFields: string[] = [];
     const updateValues: any[] = [];
