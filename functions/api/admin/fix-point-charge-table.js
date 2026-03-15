@@ -42,10 +42,19 @@ export async function onRequest(context) {
       SET academyId = (
         SELECT academyId FROM User WHERE User.id = PointChargeRequest.userId
       )
-      WHERE academyId IS NULL
+      WHERE academyId IS NULL AND userId IS NOT NULL
     `).run();
     
     console.log(`✅ Updated ${updateResult.meta?.changes || 0} records`);
+    
+    // 3.5. Check if there are still NULL academyIds
+    const nullCheck = await env.DB.prepare(`
+      SELECT COUNT(*) as count FROM PointChargeRequest WHERE academyId IS NULL
+    `).first();
+    
+    if (nullCheck && nullCheck.count > 0) {
+      console.warn(`⚠️ Still ${nullCheck.count} records with NULL academyId`);
+    }
     
     // 4. Verify the fix
     const updatedTableInfo = await env.DB.prepare(`
@@ -54,11 +63,21 @@ export async function onRequest(context) {
     
     console.log('📋 Updated columns:', updatedTableInfo.results?.map(c => c.name).join(', '));
     
-    // 5. Check sample data
+    // 5. Check sample data (including NULL academyIds)
     const sampleData = await env.DB.prepare(`
-      SELECT id, userId, academyId, requestedPoints, status, createdAt
-      FROM PointChargeRequest 
-      ORDER BY createdAt DESC
+      SELECT 
+        pcr.id, 
+        pcr.userId, 
+        pcr.academyId,
+        pcr.requestedPoints, 
+        pcr.status, 
+        pcr.createdAt,
+        u.name as userName,
+        u.email as userEmail,
+        u.academyId as userAcademyId
+      FROM PointChargeRequest pcr
+      LEFT JOIN User u ON pcr.userId = u.id
+      ORDER BY pcr.createdAt DESC
       LIMIT 10
     `).all();
     
