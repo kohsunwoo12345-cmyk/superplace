@@ -53,6 +53,32 @@ async function initializeTables(db) {
     }
   }
 
+  try {
+    await db.prepare(`
+      ALTER TABLE seminars ADD COLUMN customFields TEXT
+    `).run();
+    console.log('✅ Added customFields column');
+  } catch (error) {
+    if (error.message.includes('duplicate column')) {
+      console.log('⚠️ customFields column already exists');
+    } else if (!error.message.includes('no such table')) {
+      console.error('Error adding customFields:', error.message);
+    }
+  }
+
+  try {
+    await db.prepare(`
+      ALTER TABLE seminars ADD COLUMN currentParticipants INTEGER DEFAULT 0
+    `).run();
+    console.log('✅ Added currentParticipants column');
+  } catch (error) {
+    if (error.message.includes('duplicate column')) {
+      console.log('⚠️ currentParticipants column already exists');
+    } else if (!error.message.includes('no such table')) {
+      console.error('Error adding currentParticipants:', error.message);
+    }
+  }
+
   // Create seminar_applications table
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS seminar_applications (

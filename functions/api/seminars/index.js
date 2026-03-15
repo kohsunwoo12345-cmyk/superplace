@@ -81,12 +81,16 @@ export async function onRequestGet(context) {
         });
       }
 
-      // 신청자 수 조회
-      const applicationsCount = await db.prepare(`
-        SELECT COUNT(*) as count FROM seminar_applications WHERE seminarId = ?
-      `).bind(seminarId).first();
+      // 🆕 currentParticipants가 DB에 있으면 사용, 없으면 실제 신청 수 조회
+      if (seminar.currentParticipants === undefined || seminar.currentParticipants === null) {
+        // DB에 저장되지 않은 경우 실제 신청자 수 조회
+        const applicationsCount = await db.prepare(`
+          SELECT COUNT(*) as count FROM seminar_applications WHERE seminarId = ?
+        `).bind(seminarId).first();
 
-      seminar.currentParticipants = applicationsCount?.count || 0;
+        seminar.currentParticipants = applicationsCount?.count || 0;
+      }
+      // DB에 저장된 currentParticipants 값이 있으면 그대로 사용
 
       // 🆕 날짜/시간 기반 자동 상태 판단
       if (seminar.date && seminar.status !== 'cancelled') {
@@ -180,12 +184,16 @@ export async function onRequestGet(context) {
     const kstNow = new Date(now.getTime() + kstOffset * 60 * 1000);
     
     for (const seminar of seminarsResult.results || []) {
-      // 신청자 수 조회
-      const applicationsCount = await db.prepare(`
-        SELECT COUNT(*) as count FROM seminar_applications WHERE seminarId = ?
-      `).bind(seminar.id).first();
-      
-      seminar.currentParticipants = applicationsCount?.count || 0;
+      // 🆕 currentParticipants가 DB에 있으면 사용, 없으면 실제 신청 수 조회
+      if (seminar.currentParticipants === undefined || seminar.currentParticipants === null) {
+        // DB에 저장되지 않은 경우 실제 신청자 수 조회
+        const applicationsCount = await db.prepare(`
+          SELECT COUNT(*) as count FROM seminar_applications WHERE seminarId = ?
+        `).bind(seminar.id).first();
+        
+        seminar.currentParticipants = applicationsCount?.count || 0;
+      }
+      // DB에 저장된 currentParticipants 값이 있으면 그대로 사용
       
       // 🆕 날짜/시간 기반 자동 상태 판단
       if (seminar.date && seminar.status !== 'cancelled') {
@@ -336,6 +344,7 @@ export async function onRequestPost(context) {
       location, 
       locationType,
       maxParticipants,
+      currentParticipants,
       formHtml,
       useCustomForm,
       ctaButtonText,
@@ -369,11 +378,11 @@ export async function onRequestPost(context) {
       await db.prepare(`
         INSERT INTO seminars (
           id, title, description, detailHtml, mainImage, instructor, 
-          date, time, location, locationType, maxParticipants, 
+          date, time, location, locationType, maxParticipants, currentParticipants,
           status, formHtml, useCustomForm, ctaButtonText, requiredFields, customFields,
           createdBy, createdAt, updatedAt
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         seminarId,
         title,
@@ -386,6 +395,7 @@ export async function onRequestPost(context) {
         location || null,
         locationType || 'online',
         maxParticipants || 100,
+        currentParticipants || 0,
         formHtml || null,
         useCustomForm || 0,
         ctaButtonText || '신청하기',
@@ -536,6 +546,7 @@ export async function onRequestPatch(context) {
       location, 
       locationType,
       maxParticipants,
+      currentParticipants,
       status,
       formHtml,
       useCustomForm,
@@ -586,6 +597,10 @@ export async function onRequestPatch(context) {
     if (maxParticipants !== undefined) {
       updates.push('maxParticipants = ?');
       params.push(maxParticipants);
+    }
+    if (currentParticipants !== undefined) {
+      updates.push('currentParticipants = ?');
+      params.push(currentParticipants);
     }
     if (status !== undefined) {
       updates.push('status = ?');

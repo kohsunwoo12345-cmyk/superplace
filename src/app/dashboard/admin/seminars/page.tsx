@@ -54,6 +54,7 @@ export default function SeminarsAdminPage() {
     location: '',
     locationType: 'online',
     maxParticipants: 100,
+    currentParticipants: 0,
     formHtml: '',
     useCustomForm: 0,
     ctaButtonText: '신청하기',
@@ -383,6 +384,8 @@ export default function SeminarsAdminPage() {
       location: seminar.location || '',
       locationType: seminar.locationType || 'online',
       maxParticipants: seminar.maxParticipants || 100,
+      currentParticipants: seminar.currentParticipants || 0,
+      status: seminar.status || 'active',
       formHtml: seminar.formHtml || '',
       useCustomForm: seminar.useCustomForm || 0,
       ctaButtonText: seminar.ctaButtonText || '신청하기',
@@ -404,10 +407,13 @@ export default function SeminarsAdminPage() {
       location: '',
       locationType: 'online',
       maxParticipants: 100,
+      currentParticipants: 0,
+      status: 'active',
       formHtml: '',
       useCustomForm: 0,
       ctaButtonText: '신청하기',
-      requiredFields: []
+      requiredFields: [],
+      customFields: []
     });
     setSelectedSeminar(null);
     setImageFile(null);
@@ -780,6 +786,17 @@ export default function SeminarsAdminPage() {
                   onChange={(e) => handleChange('maxParticipants', parseInt(e.target.value))}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="currentParticipants">현재 신청 인원</Label>
+                <Input
+                  id="currentParticipants"
+                  type="number"
+                  value={formData.currentParticipants}
+                  onChange={(e) => handleChange('currentParticipants', parseInt(e.target.value))}
+                />
+                <p className="text-xs text-gray-500">관리자가 수동으로 설정할 수 있습니다</p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1114,6 +1131,37 @@ export default function SeminarsAdminPage() {
                   value={formData.maxParticipants}
                   onChange={(e) => handleChange('maxParticipants', parseInt(e.target.value))}
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-currentParticipants">현재 신청 인원</Label>
+                <Input
+                  id="edit-currentParticipants"
+                  type="number"
+                  value={formData.currentParticipants}
+                  onChange={(e) => handleChange('currentParticipants', parseInt(e.target.value))}
+                />
+                <p className="text-xs text-gray-500">관리자가 수동으로 설정할 수 있습니다</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">상태</Label>
+                <Select 
+                  value={formData.status} 
+                  onValueChange={(value) => handleChange('status', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">활성</SelectItem>
+                    <SelectItem value="upcoming">진행 예정</SelectItem>
+                    <SelectItem value="completed">종료</SelectItem>
+                    <SelectItem value="cancelled">취소</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
