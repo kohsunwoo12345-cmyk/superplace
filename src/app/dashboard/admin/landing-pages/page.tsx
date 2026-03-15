@@ -96,11 +96,9 @@ export default function LandingPagesPage() {
         console.error('❌ Response not OK:', response.status, response.statusText);
         const errorData = await response.json().catch(() => ({}));
         console.error('Error data:', errorData);
-        alert(`랜딩페이지 목록 조회 실패: ${errorData.error || response.statusText}\n\n브라우저 캐시를 삭제하고 다시 로그인해주세요.`);
       }
     } catch (error) {
       console.error("랜딩페이지 목록 조회 실패:", error);
-      alert(`랜딩페이지 목록 조회 중 오류가 발생했습니다.\n\n${error}\n\n브라우저 캐시를 삭제하고 다시 로그인해주세요.`);
     } finally {
       setLoading(false);
     }

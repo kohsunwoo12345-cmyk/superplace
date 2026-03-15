@@ -43,11 +43,19 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
 
     const db = context.env.DB;
 
-    // 사용자 정보 조회
-    const user = await db
+    // 사용자 정보 조회 - users 또는 User 테이블 시도
+    let user = await db
       .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
+
+    // users 테이블에 없으면 User 테이블 시도
+    if (!user) {
+      user = await db
+        .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    }
 
     if (!user) {
       return new Response(JSON.stringify({ error: "User not found" }), {
@@ -157,11 +165,19 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     const db = context.env.DB;
 
-    // 사용자 정보 조회
-    const user = await db
+    // 사용자 정보 조회 - users 또는 User 테이블 시도
+    let user = await db
       .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
+
+    // users 테이블에 없으면 User 테이블 시도
+    if (!user) {
+      user = await db
+        .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+    }
 
     if (!user) {
       return new Response(JSON.stringify({ error: "User not found" }), {
