@@ -76,18 +76,31 @@ export default function LandingPagesPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
+      
+      console.log('🔍 Fetching landing pages with token:', token ? 'exists' : 'missing');
+      
       const response = await fetch("/api/admin/landing-pages", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
+      console.log('📊 Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Landing pages data:', data);
+        console.log('📋 Landing pages count:', data.landingPages?.length || 0);
         setLandingPages(data.landingPages || []);
+      } else {
+        console.error('❌ Response not OK:', response.status, response.statusText);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error data:', errorData);
+        alert(`랜딩페이지 목록 조회 실패: ${errorData.error || response.statusText}\n\n브라우저 캐시를 삭제하고 다시 로그인해주세요.`);
       }
     } catch (error) {
       console.error("랜딩페이지 목록 조회 실패:", error);
+      alert(`랜딩페이지 목록 조회 중 오류가 발생했습니다.\n\n${error}\n\n브라우저 캐시를 삭제하고 다시 로그인해주세요.`);
     } finally {
       setLoading(false);
     }
@@ -362,6 +375,25 @@ export default function LandingPagesPage() {
 
         {/* 랜딩페이지 목록 */}
         <div className="space-y-4">
+          {/* 디버그 정보 표시 */}
+          {landingPages.length === 0 && !loading && (
+            <Card className="border-2 border-yellow-300 bg-yellow-50">
+              <CardContent className="py-4">
+                <p className="text-yellow-800 font-semibold mb-2">🔍 디버그 정보</p>
+                <ul className="text-sm text-yellow-700 space-y-1">
+                  <li>• 로딩 상태: {loading ? '로딩 중' : '완료'}</li>
+                  <li>• 전체 랜딩페이지 수: {landingPages.length}개</li>
+                  <li>• 필터링된 페이지 수: {filteredPages.length}개</li>
+                  <li>• 토큰 존재: {typeof window !== 'undefined' && localStorage.getItem('token') ? '있음' : '없음'}</li>
+                  <li className="font-bold text-yellow-900 mt-2">
+                    💡 데이터가 보이지 않는다면 브라우저 콘솔(F12)을 열어 에러를 확인하거나, 
+                    "캐시 초기화" 버튼을 클릭 후 다시 로그인해주세요.
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+          
           {filteredPages.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-16">
