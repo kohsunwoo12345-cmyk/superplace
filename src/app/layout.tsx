@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "슈퍼플레이스 스터디",
     description: "체계적인 학습 관리로 성적 향상을 실현하는 스마트 학습 관리 시스템",
-    url: "https://superplace-study.vercel.app",
+    url: "https://superplacestudy.pages.dev",
     siteName: "슈퍼플레이스 스터디",
     locale: "ko_KR",
     type: "website",
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
-  metadataBase: new URL("https://superplace-study.vercel.app"),
+  metadataBase: new URL("https://superplacestudy.pages.dev"),
 };
 
 export default function RootLayout({
