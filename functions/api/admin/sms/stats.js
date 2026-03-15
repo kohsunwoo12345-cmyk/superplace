@@ -88,6 +88,15 @@ export async function onRequest(context) {
       
       balance = result?.total || 0;
       console.log('💰 Total SMS Points (all academies):', balance);
+    } else {
+      // ✅ academyId가 없을 때 fallback: 전체 학원 포인트 합계 반환
+      console.log('⚠️ Academy ID not found, returning total points as fallback');
+      const result = await env.DB.prepare(`
+        SELECT SUM(smsPoints) as total FROM Academy
+      `).first();
+      
+      balance = result?.total || 0;
+      console.log('💰 Fallback - Total SMS Points:', balance);
     }
 
     // SMS 발송 통계 (학원별 또는 전체)
