@@ -140,7 +140,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const homeworkResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM homework_submissions hs
-          JOIN users u ON CAST(hs.userId AS TEXT) = u.id
+          JOIN User u ON CAST(hs.userId AS TEXT) = u.id
           WHERE u.academyId = ?
             AND hs.submittedAt IS NOT NULL
             AND hs.submittedAt >= ?
@@ -158,7 +158,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const aiAnalysisResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM usage_logs ul
-          JOIN users u ON CAST(ul.userId AS TEXT) = u.id
+          JOIN User u ON CAST(ul.userId AS TEXT) = u.id
           WHERE u.academyId = ? 
             AND (ul.type = 'ai_analysis' OR ul.type = 'weak_concept')
             AND ul.createdAt >= ?
@@ -176,7 +176,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const similarProblemsResult = await DB.prepare(`
           SELECT COUNT(*) as count 
           FROM usage_logs ul
-          JOIN users u ON CAST(ul.userId AS TEXT) = u.id
+          JOIN User u ON CAST(ul.userId AS TEXT) = u.id
           WHERE u.academyId = ? 
             AND ul.type = 'similar_problem'
             AND ul.createdAt >= ?
