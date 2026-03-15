@@ -238,8 +238,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     }
 
     if (subtitle !== undefined) {
-      // subtitle 컬럼은 실제 DB에 없음 - 스킵
-      console.log('⚠️ Skipping subtitle - column does not exist in DB');
+      // subtitle 컬럼 업데이트
+      updateFields.push('subtitle = ?');
+      updateValues.push(subtitle || null);
     }
 
     if (html_content !== undefined) {

@@ -692,6 +692,31 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     const columns = tableInfo.results?.map((col: any) => col.name) || [];
     console.log("📊 사용 가능한 컬럼:", columns);
     
+    // 🔧 필요한 컬럼이 없으면 추가 (마이그레이션)
+    if (!columns.includes('thumbnail_url')) {
+      try {
+        await db.prepare(`ALTER TABLE landing_pages ADD COLUMN thumbnail_url TEXT`).run();
+        console.log('✅ Added thumbnail_url column');
+        columns.push('thumbnail_url');
+      } catch (e: any) {
+        if (!e.message.includes('duplicate column')) {
+          console.error('⚠️ Failed to add thumbnail_url:', e.message);
+        }
+      }
+    }
+    
+    if (!columns.includes('subtitle')) {
+      try {
+        await db.prepare(`ALTER TABLE landing_pages ADD COLUMN subtitle TEXT`).run();
+        console.log('✅ Added subtitle column');
+        columns.push('subtitle');
+      } catch (e: any) {
+        if (!e.message.includes('duplicate column')) {
+          console.error('⚠️ Failed to add subtitle:', e.message);
+        }
+      }
+    }
+    
     // 2. 사용 가능한 컬럼만 사용해서 INSERT
     try {
       // 최소한의 필수 컬럼만 사용 (id, title)
@@ -719,6 +744,13 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         insertColumns.push('slug');
         insertValues.push('?');
         bindValues.push(slug);
+      }
+      
+      // subtitle
+      if (columns.includes('subtitle')) {
+        insertColumns.push('subtitle');
+        insertValues.push('?');
+        bindValues.push(subtitle || null);
       }
       
       // academyId (필수 - NOT NULL)
