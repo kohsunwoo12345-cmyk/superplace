@@ -119,6 +119,7 @@ export async function onRequestGet(context) {
         SELECT 
           id, name, code, description, address, phone, email,
           subscriptionPlan, maxStudents, maxTeachers, isActive,
+          smsPoints, senderNumber, registeredSenderNumbers,
           createdAt, updatedAt
         FROM Academy
         WHERE id = ?
@@ -307,7 +308,8 @@ export async function onRequestGet(context) {
       const academy = await env.DB.prepare(`
         SELECT 
           id, name, code, description, address, phone, email,
-          subscriptionPlan, isActive, createdAt
+          subscriptionPlan, isActive, createdAt,
+          smsPoints, senderNumber, registeredSenderNumbers
         FROM Academy
         WHERE id = ?
       `).bind(directorAcademyId).first();
@@ -353,7 +355,8 @@ export async function onRequestGet(context) {
     const academiesResult = await env.DB.prepare(`
       SELECT 
         id, name, code, description, address, phone, email,
-        subscriptionPlan, isActive, createdAt
+        subscriptionPlan, isActive, createdAt,
+        smsPoints, senderNumber, registeredSenderNumbers
       FROM Academy
       ORDER BY name ASC
     `).all();
