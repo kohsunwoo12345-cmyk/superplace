@@ -206,8 +206,9 @@ export default function AIBotAssignPage() {
         console.log('✅ Bots loaded:', botsData);
         setBots(botsData.bots || []);
         
+        // 봇이 없어도 팝업 표시하지 않음 (UI에서 자연스럽게 안내)
         if ((botsData.bots || []).length === 0) {
-          alert('할당된 AI 봇이 없습니다.\n관리자에게 봇 할당을 요청하세요.');
+          console.log('⚠️ No bots assigned, but continuing...');
         }
       } else {
         const errorData = await botsResponse.json().catch(() => ({}));
@@ -1073,30 +1074,6 @@ export default function AIBotAssignPage() {
                 <p className="text-xs text-gray-500">
                   학생이 하루에 이 봇을 사용할 수 있는 최대 횟수입니다 (기본값: 15회)
                 </p>
-              </div>
-            )}
-
-            {/* 학원장/선생님: 일일 사용 한도 자동 적용 안내 */}
-            {assignType === "user" && (currentUser?.role === 'DIRECTOR' || currentUser?.role === 'TEACHER') && selectedBot && (
-              <div className="md:col-span-2">
-                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-sm font-semibold text-green-900 mb-1">✅ 일일 사용 한도 자동 적용</p>
-                  <p className="text-sm text-green-800">
-                    {(() => {
-                      const now = new Date();
-                      const subscription = (academySubscriptions || []).find(sub => {
-                        if (String(sub.botId) !== String(selectedBot)) return false;
-                        const expiresAt = new Date(sub.expiresAt);
-                        return expiresAt >= now;
-                      });
-                      
-                      if (subscription && (subscription as any).dailyUsageLimit) {
-                        return `관리자가 설정한 일일 사용 한도 (${(subscription as any).dailyUsageLimit}회)가 자동으로 적용됩니다.`;
-                      }
-                      return '관리자가 설정한 일일 사용 한도가 자동으로 적용됩니다 (기본값: 15회)';
-                    })()}
-                  </p>
-                </div>
               </div>
             )}
 
