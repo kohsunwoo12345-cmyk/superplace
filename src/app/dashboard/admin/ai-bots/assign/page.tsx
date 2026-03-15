@@ -642,6 +642,13 @@ export default function AIBotAssignPage() {
         const successList = [];
         const failList = [];
         
+        // 🆕 학원장/선생님: 학원 구독의 dailyUsageLimit 사용
+        let effectiveDailyLimit = parseInt(dailyUsageLimit) || 15;
+        if (currentUser?.role === 'DIRECTOR' || currentUser?.role === 'TEACHER') {
+          effectiveDailyLimit = (subscription as any)?.dailyUsageLimit || 15;
+          console.log('✅ 학원장/선생님 할당 - 구독 일일 한도 사용:', effectiveDailyLimit);
+        }
+        
         for (const userId of selectedUsers) {
           try {
             const response = await fetch("/api/admin/ai-bots/assign", {
@@ -653,7 +660,7 @@ export default function AIBotAssignPage() {
               body: JSON.stringify({
                 botId: selectedBot,
                 userId: userId,
-                dailyUsageLimit: parseInt(dailyUsageLimit) || 15, // 🆕 일일 사용 한도
+                dailyUsageLimit: effectiveDailyLimit, // 🆕 학원 구독 한도 또는 관리자 설정 한도
               }),
             });
 
@@ -1050,8 +1057,8 @@ export default function AIBotAssignPage() {
               </>
             )}
 
-            {/* 🆕 일일 사용 한도 - 사용자 할당 시 표시 */}
-            {assignType === "user" && (
+            {/* 🆕 일일 사용 한도 - 관리자만 표시 */}
+            {assignType === "user" && (currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
               <div className="space-y-2">
                 <Label htmlFor="dailyUsageLimit">일일 사용 한도 (회)</Label>
                 <Input
@@ -1066,6 +1073,30 @@ export default function AIBotAssignPage() {
                 <p className="text-xs text-gray-500">
                   학생이 하루에 이 봇을 사용할 수 있는 최대 횟수입니다 (기본값: 15회)
                 </p>
+              </div>
+            )}
+
+            {/* 학원장/선생님: 일일 사용 한도 자동 적용 안내 */}
+            {assignType === "user" && (currentUser?.role === 'DIRECTOR' || currentUser?.role === 'TEACHER') && selectedBot && (
+              <div className="md:col-span-2">
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                  <p className="text-sm font-semibold text-green-900 mb-1">✅ 일일 사용 한도 자동 적용</p>
+                  <p className="text-sm text-green-800">
+                    {(() => {
+                      const now = new Date();
+                      const subscription = (academySubscriptions || []).find(sub => {
+                        if (String(sub.botId) !== String(selectedBot)) return false;
+                        const expiresAt = new Date(sub.expiresAt);
+                        return expiresAt >= now;
+                      });
+                      
+                      if (subscription && (subscription as any).dailyUsageLimit) {
+                        return `관리자가 설정한 일일 사용 한도 (${(subscription as any).dailyUsageLimit}회)가 자동으로 적용됩니다.`;
+                      }
+                      return '관리자가 설정한 일일 사용 한도가 자동으로 적용됩니다 (기본값: 15회)';
+                    })()}
+                  </p>
+                </div>
               </div>
             )}
 
