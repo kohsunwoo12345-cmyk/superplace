@@ -61,13 +61,22 @@ export async function onRequest(context) {
     }
 
     console.log('🏫 Academy ID:', academyId);
+    console.log('👤 User role:', tokenData.role);
+    console.log('📧 User email:', tokenData.email);
 
     // 학원의 SMS 포인트 잔액 조회
     let balance = 0;
     if (academyId) {
+      console.log('🔍 Querying Academy table for:', academyId);
       const academy = await env.DB.prepare(`
-        SELECT smsPoints FROM Academy WHERE id = ?
+        SELECT id, name, smsPoints FROM Academy WHERE id = ?
       `).bind(academyId).first();
+      
+      console.log('📦 Academy data:', JSON.stringify(academy));
+      
+      if (!academy) {
+        console.error('❌ Academy not found for ID:', academyId);
+      }
       
       balance = academy?.smsPoints || 0;
       console.log('💰 SMS Points balance:', balance);
