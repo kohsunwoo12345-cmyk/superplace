@@ -88,6 +88,34 @@ export async function onRequestGet(context) {
 
       seminar.currentParticipants = applicationsCount?.count || 0;
 
+      // 🆕 날짜/시간 기반 자동 상태 판단
+      if (seminar.date && seminar.status !== 'cancelled') {
+        try {
+          const now = new Date();
+          const kstOffset = 9 * 60;
+          const kstNow = new Date(now.getTime() + kstOffset * 60 * 1000);
+          
+          const seminarDateTime = new Date(`${seminar.date}T${seminar.time || '00:00'}:00+09:00`);
+          
+          if (kstNow > seminarDateTime) {
+            seminar.status = 'completed';
+            
+            // DB 업데이트
+            await db.prepare(`
+              UPDATE seminars SET status = 'completed', updatedAt = ? WHERE id = ? AND status != 'completed'
+            `).bind(getKoreanTime(), seminar.id).run();
+            
+            console.log(`✅ Auto-updated seminar ${seminar.id} to 'completed' (past date)`);
+          } else {
+            if (!seminar.status || seminar.status === 'active') {
+              seminar.status = 'upcoming';
+            }
+          }
+        } catch (dateError) {
+          console.error(`⚠️ Date parsing error:`, dateError.message);
+        }
+      }
+
       return new Response(JSON.stringify({
         success: true,
         seminar: seminar
@@ -130,21 +158,63 @@ export async function onRequestGet(context) {
       seminarsResult = await db.prepare(query).all();
     }
 
-    // 각 세미나의 신청자 수 조회
+    // 각 세미나의 신청자 수 조회 및 자동 상태 업데이트
+    const now = new Date();
+    const kstOffset = 9 * 60; // Korea is UTC+9
+    const kstNow = new Date(now.getTime() + kstOffset * 60 * 1000);
+    
     for (const seminar of seminarsResult.results || []) {
+      // 신청자 수 조회
       const applicationsCount = await db.prepare(`
         SELECT COUNT(*) as count FROM seminar_applications WHERE seminarId = ?
       `).bind(seminar.id).first();
       
       seminar.currentParticipants = applicationsCount?.count || 0;
+      
+      // 🆕 날짜/시간 기반 자동 상태 판단
+      if (seminar.date && seminar.status !== 'cancelled') {
+        try {
+          // 세미나 날짜 + 시간을 Date 객체로 변환
+          const seminarDateTime = new Date(`${seminar.date}T${seminar.time || '00:00'}:00+09:00`);
+          
+          // 현재 시간과 비교
+          if (kstNow > seminarDateTime) {
+            // 세미나 날짜/시간이 지났으면 자동으로 'completed'로 변경
+            seminar.status = 'completed';
+            
+            // DB에도 업데이트 (한 번만 실행되도록, status가 아직 'upcoming'인 경우만)
+            if (seminar.status !== 'completed') {
+              await db.prepare(`
+                UPDATE seminars SET status = 'completed', updatedAt = ? WHERE id = ? AND status != 'completed'
+              `).bind(getKoreanTime(), seminar.id).run();
+              
+              console.log(`✅ Auto-updated seminar ${seminar.id} to 'completed' (past date: ${seminar.date} ${seminar.time})`);
+            }
+          } else {
+            // 아직 시간이 안 됐으면 'upcoming'으로 유지
+            if (!seminar.status || seminar.status === 'active') {
+              seminar.status = 'upcoming';
+            }
+          }
+        } catch (dateError) {
+          console.error(`⚠️ Date parsing error for seminar ${seminar.id}:`, dateError.message);
+          // 날짜 파싱 실패 시 기존 status 유지
+        }
+      }
     }
 
-    console.log(`✅ Returning ${(seminarsResult.results || []).length} seminars`);
+    // 🆕 statusFilter 적용 후 다시 필터링
+    let filteredSeminars = seminarsResult.results || [];
+    if (statusFilter) {
+      filteredSeminars = filteredSeminars.filter(s => s.status === statusFilter);
+    }
+
+    console.log(`✅ Returning ${filteredSeminars.length} seminars (filter: ${statusFilter || 'all'})`);
 
     return new Response(JSON.stringify({
       success: true,
-      seminars: seminarsResult.results || [],
-      count: (seminarsResult.results || []).length
+      seminars: filteredSeminars,
+      count: filteredSeminars.length
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
