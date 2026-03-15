@@ -225,6 +225,13 @@ export default function TeacherHomeworkResultsPage() {
       console.log('✅ API 응답 상태:', response.status);
       const data = await response.json();
       console.log('📦 받은 데이터:', data);
+      console.log('📊 데이터 구조 확인:', {
+        success: data.success,
+        hasResults: !!data.results,
+        resultsType: typeof data.results,
+        resultsLength: data.results?.length,
+        firstResult: data.results?.[0]
+      });
 
       if (data.success) {
         // API는 results를 반환하므로 results를 submissions로 설정
@@ -292,6 +299,9 @@ export default function TeacherHomeworkResultsPage() {
             grading: result.grading
           };
         });
+        
+        console.log('✅ 포맷팅된 결과:', formattedResults.length, '건');
+        console.log('📋 첫 번째 아이템:', formattedResults[0]);
         
         setSubmissions(formattedResults);
         setStats(data.statistics ? {
