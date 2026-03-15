@@ -56,9 +56,10 @@ export async function onRequest(context) {
     
     // 5. Check sample data
     const sampleData = await env.DB.prepare(`
-      SELECT id, userId, academyId, requestedPoints, status 
+      SELECT id, userId, academyId, requestedPoints, status, createdAt
       FROM PointChargeRequest 
-      LIMIT 5
+      ORDER BY createdAt DESC
+      LIMIT 10
     `).all();
     
     console.log('📊 Sample data:', sampleData.results);
