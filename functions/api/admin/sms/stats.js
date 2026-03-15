@@ -36,6 +36,7 @@ export async function onRequest(context) {
     }
 
     console.log('📊 SMS Stats request from:', tokenData.email, tokenData.role);
+    console.log('🔑 Token data:', JSON.stringify(tokenData));
 
     // 관리자 또는 원장만 조회 가능
     if (!['SUPER_ADMIN', 'ADMIN', 'DIRECTOR'].includes(tokenData.role)) {
@@ -48,16 +49,31 @@ export async function onRequest(context) {
       });
     }
 
-    // 사용자의 학원 ID 가져오기
-    let academyId = tokenData.academyId;
+    // 사용자의 학원 ID 가져오기 (빈 문자열 처리 포함)
+    let academyId = tokenData.academyId && tokenData.academyId.trim() !== '' ? tokenData.academyId : null;
     
     if (!academyId && tokenData.role !== 'SUPER_ADMIN') {
-      // academyId가 토큰에 없으면 DB에서 조회
-      const user = await env.DB.prepare(`
-        SELECT academyId FROM User WHERE id = ?
-      `).bind(tokenData.id).first();
-      
-      academyId = user?.academyId;
+      // academyId가 토큰에 없으면 DB에서 조회 (User와 users 모두 시도)
+      try {
+        const user = await env.DB.prepare(`
+          SELECT academyId FROM User WHERE id = ?
+        `).bind(tokenData.id).first();
+        
+        academyId = user?.academyId;
+        console.log('🔍 DB User 조회 결과:', academyId);
+      } catch (e) {
+        console.log('⚠️ User 테이블 조회 실패, users 시도:', e.message);
+        try {
+          const user = await env.DB.prepare(`
+            SELECT academyId FROM users WHERE id = ?
+          `).bind(tokenData.id).first();
+          
+          academyId = user?.academyId;
+          console.log('🔍 DB users 조회 결과:', academyId);
+        } catch (e2) {
+          console.log('⚠️ users 테이블도 실패:', e2.message);
+        }
+      }
     }
 
     console.log('🏫 Academy ID:', academyId);
