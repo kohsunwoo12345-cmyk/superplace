@@ -60,7 +60,7 @@ export async function onRequestGet(context) {
     let requestingUser;
     try {
       requestingUser = await DB
-        .prepare('SELECT id, email, role FROM users WHERE email = ?')
+        .prepare('SELECT id, email, role FROM User WHERE email = ?')
         .bind(tokenData.email)
         .first();
     } catch (dbError) {
@@ -95,7 +95,7 @@ export async function onRequestGet(context) {
     console.log('✅ Auth passed:', { email: tokenData.email, role });
 
     // Fetch user details
-    const user = await DB.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first();
+    const user = await DB.prepare('SELECT * FROM User WHERE id = ?').bind(userId).first();
 
     if (!user) {
       return new Response(JSON.stringify({
@@ -110,7 +110,7 @@ export async function onRequestGet(context) {
     // Try to get academy info if academyId exists
     if (user.academyId) {
       try {
-        const academy = await DB.prepare('SELECT id, name FROM academy WHERE id = ?').bind(user.academyId).first();
+        const academy = await DB.prepare('SELECT id, name FROM Academy WHERE id = ?').bind(user.academyId).first();
         if (academy) {
           user.academyName = academy.name;
         }
