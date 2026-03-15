@@ -119,49 +119,73 @@ export async function onRequestGet(context) {
       }
     }
 
-    // Fetch login logs (last 20)
-    const loginLogsQuery = `
-      SELECT * FROM login_logs 
-      WHERE userId = ? 
-      ORDER BY loginAt DESC 
-      LIMIT 20
-    `;
-    const { results: loginLogs } = await DB.prepare(loginLogsQuery).bind(userId).all();
+    // Fetch login logs (last 20) - with error handling
+    let loginLogs = [];
+    try {
+      const loginLogsQuery = `
+        SELECT * FROM login_logs 
+        WHERE userId = ? 
+        ORDER BY loginAt DESC 
+        LIMIT 20
+      `;
+      const { results } = await DB.prepare(loginLogsQuery).bind(userId).all();
+      loginLogs = results || [];
+    } catch (e) {
+      console.warn('⚠️ login_logs table not found or query failed:', e.message);
+    }
 
-    // Fetch activity logs (last 50)
-    const activityLogsQuery = `
-      SELECT * FROM activity_logs 
-      WHERE userId = ? 
-      ORDER BY timestamp DESC 
-      LIMIT 50
-    `;
-    const { results: activityLogs } = await DB.prepare(activityLogsQuery).bind(userId).all();
+    // Fetch activity logs (last 50) - with error handling
+    let activityLogs = [];
+    try {
+      const activityLogsQuery = `
+        SELECT * FROM activity_logs 
+        WHERE userId = ? 
+        ORDER BY timestamp DESC 
+        LIMIT 50
+      `;
+      const { results } = await DB.prepare(activityLogsQuery).bind(userId).all();
+      activityLogs = results || [];
+    } catch (e) {
+      console.warn('⚠️ activity_logs table not found or query failed:', e.message);
+    }
 
-    // Fetch AI bot assignments
-    const botAssignmentsQuery = `
-      SELECT * FROM academy_bot_assignments 
-      WHERE userId = ? 
-      ORDER BY assignedAt DESC
-    `;
-    const { results: botAssignments } = await DB.prepare(botAssignmentsQuery).bind(userId).all();
+    // Fetch AI bot assignments - with error handling
+    let botAssignments = [];
+    try {
+      const botAssignmentsQuery = `
+        SELECT * FROM academy_bot_assignments 
+        WHERE userId = ? 
+        ORDER BY assignedAt DESC
+      `;
+      const { results } = await DB.prepare(botAssignmentsQuery).bind(userId).all();
+      botAssignments = results || [];
+    } catch (e) {
+      console.warn('⚠️ academy_bot_assignments table not found or query failed:', e.message);
+    }
 
-    // Fetch payment history
-    const paymentsQuery = `
-      SELECT * FROM payments 
-      WHERE userId = ? 
-      ORDER BY createdAt DESC 
-      LIMIT 20
-    `;
-    const { results: payments } = await DB.prepare(paymentsQuery).bind(userId).all();
+    // Fetch payment history - with error handling
+    let payments = [];
+    try {
+      const paymentsQuery = `
+        SELECT * FROM payments 
+        WHERE userId = ? 
+        ORDER BY createdAt DESC 
+        LIMIT 20
+      `;
+      const { results } = await DB.prepare(paymentsQuery).bind(userId).all();
+      payments = results || [];
+    } catch (e) {
+      console.warn('⚠️ payments table not found or query failed:', e.message);
+    }
 
     return new Response(JSON.stringify({
       success: true,
       data: {
         user,
-        loginLogs: loginLogs || [],
-        activityLogs: activityLogs || [],
-        botAssignments: botAssignments || [],
-        payments: payments || []
+        loginLogs: loginLogs,
+        activityLogs: activityLogs,
+        botAssignments: botAssignments,
+        payments: payments
       }
     }), {
       status: 200,
