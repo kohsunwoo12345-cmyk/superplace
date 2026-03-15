@@ -1,6 +1,6 @@
 // Fix PointChargeRequest table - Add missing academyId column
 
-export async function onRequestPost(context) {
+export async function onRequest(context) {
   const { env } = context;
   
   try {
