@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import Image from 'next/image';
 import { 
   Menu, X, LogOut, User, Bell, Search, Home, BookOpen, 
   Users, Calendar, MessageCircle, BarChart2, Settings,
@@ -252,10 +253,13 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
               </button>
               
               <div className="flex items-center gap-3">
-                <img 
+                <Image 
                   src="/logo-suplace.png" 
                   alt="SUPLACE Study" 
-                  className="h-10 w-10 object-contain"
+                  width={40}
+                  height={40}
+                  className="object-contain"
+                  priority
                 />
                 <div className="hidden md:block">
                   <h1 className="text-xl font-bold text-gray-900">SUPLACE Study</h1>
