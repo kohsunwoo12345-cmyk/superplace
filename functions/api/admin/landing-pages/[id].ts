@@ -265,8 +265,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     }
 
     if (thumbnail_url !== undefined) {
-      // thumbnail_url 컬럼은 DB에 없음 - 스킵
-      console.log('⚠️ Skipping thumbnail_url - column does not exist in DB');
+      // thumbnail_url 컬럼 업데이트
+      updateFields.push('thumbnail_url = ?');
+      updateValues.push(thumbnail_url || null);
     }
 
     // updatedAt 컬럼이 실제 DB에 없을 수 있으므로 제거

@@ -46,6 +46,8 @@ export default function EditLandingPagePage() {
   const [ogTitle, setOgTitle] = useState("");
   const [ogDescription, setOgDescription] = useState("");
   const [status, setStatus] = useState("active");
+  const [thumbnail, setThumbnail] = useState("");
+  const [thumbnailPreview, setThumbnailPreview] = useState("");
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -126,6 +128,8 @@ export default function EditLandingPagePage() {
         setOgTitle(page.og_title || page.title || "");
         setOgDescription(page.og_description || "");
         setStatus(page.status || "active");
+        setThumbnail(page.thumbnail_url || "");
+        setThumbnailPreview(page.thumbnail_url || "");
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error("❌ API 응답 오류:", response.status, errorData);
@@ -138,6 +142,47 @@ export default function EditLandingPagePage() {
       router.push("/dashboard/admin/landing-pages");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 로컬 미리보기 먼저 표시
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setThumbnailPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // R2에 업로드
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("file", file);
+
+      console.log("📤 Uploading thumbnail to R2...");
+
+      const response = await fetch("/api/admin/upload-image", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("✅ Thumbnail uploaded:", data.url);
+        setThumbnail(data.url); // R2 URL 저장
+      } else {
+        console.error("❌ Upload failed:", response.status);
+        alert("썸네일 업로드에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("❌ Upload error:", error);
+      alert("썸네일 업로드 중 오류가 발생했습니다.");
     }
   };
 
@@ -210,6 +255,7 @@ export default function EditLandingPagePage() {
         title: title.trim(),
         html_content: latestHtmlContent,
         status,
+        thumbnail_url: thumbnail,
       };
       
       console.log('💾 전송할 데이터:', JSON.stringify(requestBody).substring(0, 500));
@@ -373,6 +419,57 @@ export default function EditLandingPagePage() {
                     <option value="active">활성</option>
                     <option value="inactive">비활성</option>
                   </select>
+                </div>
+
+                <div>
+                  <Label>썸네일 이미지</Label>
+                  <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                    {thumbnailPreview ? (
+                      <div className="space-y-3">
+                        <img
+                          src={thumbnailPreview}
+                          alt="Thumbnail"
+                          className="max-w-full h-auto max-h-48 mx-auto rounded-lg shadow"
+                        />
+                        <div className="flex gap-2 justify-center">
+                          <label className="cursor-pointer">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleThumbnailUpload}
+                              className="hidden"
+                            />
+                            <span className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                              변경
+                            </span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setThumbnail("");
+                              setThumbnailPreview("");
+                            }}
+                            className="px-3 py-1.5 border border-red-300 text-red-600 rounded-md text-sm hover:bg-red-50"
+                          >
+                            제거
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer block">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleThumbnailUpload}
+                          className="hidden"
+                        />
+                        <div className="py-4">
+                          <p className="text-sm text-gray-500">클릭하여 썸네일 이미지 업로드</p>
+                          <p className="text-xs text-gray-400 mt-1">PNG, JPG, GIF (최대 10MB)</p>
+                        </div>
+                      </label>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -142,11 +142,8 @@ export default function LandingPagesPage() {
   };
 
   const clearCache = () => {
-    if (confirm("모든 캐시를 초기화하시겠습니까?")) {
-      localStorage.removeItem("landing_pages_cache");
-      alert("캐시가 초기화되었습니다.");
-      fetchLandingPages();
-    }
+    // 카카오 공유 디버거로 이동
+    window.open("https://developers.kakao.com/tool/debugger/sharing", "_blank");
   };
 
   const deleteLandingPage = async (id: string) => {

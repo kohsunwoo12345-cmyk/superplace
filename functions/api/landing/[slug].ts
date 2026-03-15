@@ -244,6 +244,20 @@ src="https://www.facebook.com/tr?id=${landingPage.meta_pixel_id}&ev=PageView&nos
       html = html.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value);
     }
 
+    // 썸네일 OG 이미지 메타태그 추가
+    if (landingPage.thumbnail_url) {
+      const ogImageTag = `<meta property="og:image" content="${landingPage.thumbnail_url}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${landingPage.thumbnail_url}">`;
+      
+      // <head> 태그 안에 삽입
+      if (html.includes('</head>')) {
+        html = html.replace('</head>', `${ogImageTag}\n</head>`);
+      }
+    }
+
     return new Response(html, {
       status: 200,
       headers: { 

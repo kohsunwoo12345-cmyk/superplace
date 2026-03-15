@@ -179,16 +179,44 @@ export default function CreateLandingPagePage() {
     }
   };
 
-  const handleThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setThumbnail(base64);
-        setThumbnailPreview(base64);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // 로컬 미리보기 먼저 표시
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setThumbnailPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // R2에 업로드
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("file", file);
+
+      console.log("📤 Uploading thumbnail to R2...");
+
+      const response = await fetch("/api/admin/upload-image", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("✅ Thumbnail uploaded:", data.url);
+        setThumbnail(data.url); // R2 URL 저장
+      } else {
+        console.error("❌ Upload failed:", response.status);
+        alert("썸네일 업로드에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("❌ Upload error:", error);
+      alert("썸네일 업로드 중 오류가 발생했습니다.");
     }
   };
 
