@@ -252,9 +252,11 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
               </button>
               
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getRoleGradient()} flex items-center justify-center shadow-lg`}>
-                  <span className="text-white font-bold text-lg">S</span>
-                </div>
+                <img 
+                  src="/logo-suplace.png" 
+                  alt="SUPLACE Study" 
+                  className="h-10 w-10 object-contain"
+                />
                 <div className="hidden md:block">
                   <h1 className="text-xl font-bold text-gray-900">SUPLACE Study</h1>
                   <p className="text-xs text-gray-500">{getRoleText()} 대시보드</p>

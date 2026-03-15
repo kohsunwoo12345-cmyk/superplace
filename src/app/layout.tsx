@@ -27,11 +27,20 @@ export const metadata: Metadata = {
     siteName: "슈퍼플레이스 스터디",
     locale: "ko_KR",
     type: "website",
+    images: [
+      {
+        url: "/thumbnail-default.png",
+        width: 1024,
+        height: 576,
+        alt: "슈퍼플레이스 스터디 - 학원 AI 자동화 시스템",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "슈퍼플레이스 스터디",
     description: "체계적인 학습 관리로 성적 향상을 실현하는 스마트 학습 관리 시스템",
+    images: ["/thumbnail-default.png"],
   },
   robots: {
     index: true,
