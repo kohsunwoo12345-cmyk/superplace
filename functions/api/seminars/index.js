@@ -95,20 +95,36 @@ export async function onRequestGet(context) {
           const kstOffset = 9 * 60;
           const kstNow = new Date(now.getTime() + kstOffset * 60 * 1000);
           
-          const seminarDateTime = new Date(`${seminar.date}T${seminar.time || '00:00'}:00+09:00`);
+          // 시간 필드 정규화
+          let normalizedTime = '23:59';
+          if (seminar.time) {
+            const timeMatch = seminar.time.match(/(\d{1,2}):(\d{2})/);
+            if (timeMatch) {
+              normalizedTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
+            }
+          }
           
-          if (kstNow > seminarDateTime) {
-            seminar.status = 'completed';
-            
-            // DB 업데이트
-            await db.prepare(`
-              UPDATE seminars SET status = 'completed', updatedAt = ? WHERE id = ? AND status != 'completed'
-            `).bind(getKoreanTime(), seminar.id).run();
-            
-            console.log(`✅ Auto-updated seminar ${seminar.id} to 'completed' (past date)`);
+          const seminarDateTime = new Date(`${seminar.date}T${normalizedTime}:00+09:00`);
+          
+          if (isNaN(seminarDateTime.getTime())) {
+            console.warn(`⚠️ Invalid date for seminar ${seminar.id}: ${seminar.date} ${seminar.time}`);
           } else {
-            if (!seminar.status || seminar.status === 'active') {
-              seminar.status = 'upcoming';
+            if (kstNow > seminarDateTime) {
+              const previousStatus = seminar.status;
+              seminar.status = 'completed';
+              
+              // DB 업데이트
+              if (previousStatus !== 'completed') {
+                await db.prepare(`
+                  UPDATE seminars SET status = 'completed', updatedAt = ? WHERE id = ? AND status != 'completed'
+                `).bind(getKoreanTime(), seminar.id).run();
+                
+                console.log(`✅ Auto-updated seminar ${seminar.id} to 'completed' (past date)`);
+              }
+            } else {
+              if (!seminar.status || seminar.status === 'active') {
+                seminar.status = 'upcoming';
+              }
             }
           }
         } catch (dateError) {
@@ -174,26 +190,43 @@ export async function onRequestGet(context) {
       // 🆕 날짜/시간 기반 자동 상태 판단
       if (seminar.date && seminar.status !== 'cancelled') {
         try {
-          // 세미나 날짜 + 시간을 Date 객체로 변환
-          const seminarDateTime = new Date(`${seminar.date}T${seminar.time || '00:00'}:00+09:00`);
+          // 시간 필드 정규화 (HH:MM 형식이 아닌 경우 기본값 사용)
+          let normalizedTime = '23:59'; // 기본값: 해당 날짜 끝
           
-          // 현재 시간과 비교
-          if (kstNow > seminarDateTime) {
-            // 세미나 날짜/시간이 지났으면 자동으로 'completed'로 변경
-            seminar.status = 'completed';
-            
-            // DB에도 업데이트 (한 번만 실행되도록, status가 아직 'upcoming'인 경우만)
-            if (seminar.status !== 'completed') {
-              await db.prepare(`
-                UPDATE seminars SET status = 'completed', updatedAt = ? WHERE id = ? AND status != 'completed'
-              `).bind(getKoreanTime(), seminar.id).run();
-              
-              console.log(`✅ Auto-updated seminar ${seminar.id} to 'completed' (past date: ${seminar.date} ${seminar.time})`);
+          if (seminar.time) {
+            // HH:MM 형식 추출 (예: "14:00", "09:30")
+            const timeMatch = seminar.time.match(/(\d{1,2}):(\d{2})/);
+            if (timeMatch) {
+              normalizedTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
             }
+          }
+          
+          // 세미나 날짜 + 시간을 Date 객체로 변환
+          const seminarDateTime = new Date(`${seminar.date}T${normalizedTime}:00+09:00`);
+          
+          // 날짜 유효성 검사
+          if (isNaN(seminarDateTime.getTime())) {
+            console.warn(`⚠️ Invalid date for seminar ${seminar.id}: ${seminar.date} ${seminar.time}`);
           } else {
-            // 아직 시간이 안 됐으면 'upcoming'으로 유지
-            if (!seminar.status || seminar.status === 'active') {
-              seminar.status = 'upcoming';
+            // 현재 시간과 비교
+            if (kstNow > seminarDateTime) {
+              // 세미나 날짜/시간이 지났으면 자동으로 'completed'로 변경
+              const previousStatus = seminar.status;
+              seminar.status = 'completed';
+              
+              // DB에도 업데이트 (status가 아직 'completed'가 아닌 경우만)
+              if (previousStatus !== 'completed') {
+                await db.prepare(`
+                  UPDATE seminars SET status = 'completed', updatedAt = ? WHERE id = ? AND status != 'completed'
+                `).bind(getKoreanTime(), seminar.id).run();
+                
+                console.log(`✅ Auto-updated seminar ${seminar.id} to 'completed' (past date: ${seminar.date} ${normalizedTime})`);
+              }
+            } else {
+              // 아직 시간이 안 됐으면 'upcoming'으로 유지
+              if (!seminar.status || seminar.status === 'active') {
+                seminar.status = 'upcoming';
+              }
             }
           }
         } catch (dateError) {
