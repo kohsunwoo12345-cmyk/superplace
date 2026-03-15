@@ -39,7 +39,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log('📝 academyId로 조회:', academyId);
       subscription = await DB.prepare(`
         SELECT us.* FROM user_subscriptions us
-        JOIN users u ON us.userId = u.id
+        JOIN User u ON us.userId = u.id
         WHERE u.academyId = ? 
           AND u.role = 'DIRECTOR'
           AND us.status = 'active'
@@ -95,7 +95,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (!targetAcademyId && userId) {
       // userId로 조회 시 해당 사용자의 academyId 찾기
       const userAcademy = await DB.prepare(`
-        SELECT academyId FROM users WHERE id = ?
+        SELECT academyId FROM User WHERE id = ?
       `).bind(userId).first();
       targetAcademyId = userAcademy?.academyId;
     }

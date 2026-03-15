@@ -87,11 +87,22 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     console.log('✅ Request found:', {
       userId: requestInfo.userId,
-      points: requestInfo.requestedPoints,
+      points: requestInfo.requestedPoints || requestInfo.amount,
       academyId: requestInfo.academyId
     });
 
     const now = new Date().toISOString();
+    
+    // Get the points amount (support both old and new column names)
+    const pointsToAdd = requestInfo.requestedPoints || requestInfo.amount;
+    
+    if (!pointsToAdd) {
+      console.error('❌ No points amount found in request');
+      return new Response(JSON.stringify({ error: 'Invalid request: no points amount' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     // 1. 요청 상태 업데이트
     await env.DB.prepare(`
@@ -131,8 +142,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       academyId: academy.id,
       academyName: academy.name,
       beforePoints,
-      pointsToAdd: requestInfo.amount,
-      expectedAfterPoints: beforePoints + requestInfo.amount
+      pointsToAdd,
+      expectedAfterPoints: beforePoints + pointsToAdd
     });
 
     // 포인트 증가 (Academy 테이블의 smsPoints 사용)
@@ -140,7 +151,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       UPDATE Academy
       SET smsPoints = COALESCE(smsPoints, 0) + ?
       WHERE id = ?
-    `).bind(requestInfo.amount, requestInfo.academyId).run();
+    `).bind(pointsToAdd, requestInfo.academyId).run();
 
     console.log('✅ Points UPDATE query executed:', {
       success: updateResult.success,
@@ -149,7 +160,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     // 3. 포인트 트랜잭션 로그 기록
     const transactionId = `pt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newBalance = beforePoints + requestInfo.amount;
+    const newBalance = beforePoints + pointsToAdd;
     
     await env.DB.prepare(`
       INSERT INTO point_transactions (
@@ -161,7 +172,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       requestInfo.academyId,
       tokenData.id, // approver ID
       'CHARGE',
-      requestInfo.amount,
+      pointsToAdd,
       newBalance,
       `포인트 충전 승인 (요청 ID: ${requestId})`,
       requestId,
@@ -193,29 +204,29 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       academyName: updatedAcademy.name,
       beforePoints,
       afterPoints,
-      expectedIncrease: requestInfo.amount,
+      expectedIncrease: pointsToAdd,
       actualIncrease,
-      match: actualIncrease === requestInfo.amount
+      match: actualIncrease === pointsToAdd
     });
 
     // 검증: 실제 증가량과 예상 증가량 비교
-    if (actualIncrease !== requestInfo.amount) {
+    if (actualIncrease !== pointsToAdd) {
       console.error('⚠️ Point increase mismatch!', {
-        expected: requestInfo.amount,
+        expected: pointsToAdd,
         actual: actualIncrease
       });
     }
 
     return new Response(JSON.stringify({ 
       success: true,
-      message: `포인트 충전이 승인되었습니다. ${requestInfo.amount.toLocaleString()}P가 ${updatedAcademy.name} 학원에 추가되었습니다.`,
+      message: `포인트 충전이 승인되었습니다. ${pointsToAdd.toLocaleString()}P가 ${updatedAcademy.name} 학원에 추가되었습니다.`,
       data: {
         academyId: updatedAcademy.id,
         academyName: updatedAcademy.name,
         beforePoints,
         afterPoints,
         addedPoints: actualIncrease,
-        requestedPoints: requestInfo.amount,
+        requestedPoints: pointsToAdd,
         approvedAt: now,
         transactionId
       }
