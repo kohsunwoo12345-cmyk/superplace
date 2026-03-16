@@ -36,7 +36,7 @@ export default function SeminarWidget() {
         return;
       }
 
-      const response = await fetch("/api/seminars?limit=3&status=active", {
+      const response = await fetch("/api/seminars?limit=3", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -44,7 +44,11 @@ export default function SeminarWidget() {
 
       if (response.ok) {
         const data = await response.json();
-        setSeminars(data.seminars || []);
+        // 활성 또는 예정된 세미나만 표시
+        const activeSeminars = (data.seminars || []).filter(
+          (s: Seminar) => s.status === 'active' || s.status === 'upcoming'
+        );
+        setSeminars(activeSeminars);
       }
     } catch (error) {
       console.error("Failed to fetch seminars:", error);
