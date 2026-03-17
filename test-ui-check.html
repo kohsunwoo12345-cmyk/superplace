@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI 상태 체크</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-item { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        .loading { background-color: #fff3cd; }
+    </style>
+</head>
+<body>
+    <h1>슈퍼플레이스 스터디 UI 상태 체크</h1>
+    <div id="results"></div>
+    
+    <script>
+        const testUrls = [
+            { name: '메인 페이지', url: '/' },
+            { name: '로그인 페이지', url: '/login' },
+            { name: '회원가입 페이지', url: '/signup' },
+            { name: '대시보드', url: '/dashboard' },
+            { name: '발신번호 등록', url: '/dashboard/sender-number-register/' }
+        ];
+        
+        const resultsDiv = document.getElementById('results');
+        
+        async function checkUrl(test) {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'test-item loading';
+            itemDiv.innerHTML = `<strong>${test.name}</strong>: 테스트 중...`;
+            resultsDiv.appendChild(itemDiv);
+            
+            try {
+                const response = await fetch(test.url);
+                const text = await response.text();
+                
+                if (response.ok && text.length > 1000) {
+                    itemDiv.className = 'test-item success';
+                    itemDiv.innerHTML = `<strong>${test.name}</strong>: ✅ 정상 (${response.status}, ${(text.length/1024).toFixed(1)}KB)`;
+                } else {
+                    itemDiv.className = 'test-item error';
+                    itemDiv.innerHTML = `<strong>${test.name}</strong>: ❌ 문제 발견 (${response.status}, ${(text.length/1024).toFixed(1)}KB)`;
+                }
+            } catch (error) {
+                itemDiv.className = 'test-item error';
+                itemDiv.innerHTML = `<strong>${test.name}</strong>: ❌ 에러: ${error.message}`;
+            }
+        }
+        
+        async function runTests() {
+            for (const test of testUrls) {
+                await checkUrl(test);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+        
+        runTests();
+    </script>
+</body>
+</html>

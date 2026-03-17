@@ -6,8 +6,8 @@ interface Env {
   SENDER_NUMBER_BUCKET: R2Bucket;
 }
 
-// 토큰 파싱 함수
-function parseToken(authHeader: string | null): { id: string; email: string; role: string } | null {
+// 토큰 파싱 함수 (3개 또는 5개 파트 지원)
+function parseToken(authHeader: string | null): { id: string; email: string; role: string; academyId?: string } | null {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
@@ -19,10 +19,13 @@ function parseToken(authHeader: string | null): { id: string; email: string; rol
     return null;
   }
   
+  // 3개 파트 토큰: ID|email|role
+  // 5개 파트 토큰: ID|email|role|academyId|timestamp (신규 로그인)
   return {
     id: parts[0],
     email: parts[1],
-    role: parts[2]
+    role: parts[2],
+    academyId: parts.length >= 4 ? parts[3] : undefined
   };
 }
 

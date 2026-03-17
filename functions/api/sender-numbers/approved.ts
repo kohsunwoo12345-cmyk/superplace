@@ -5,7 +5,8 @@ interface Env {
   DB: D1Database;
 }
 
-function parseToken(authHeader: string | null): { id: string; email: string; role: string } | null {
+// 토큰 파싱 함수 (3개 또는 5개 파트 지원)
+function parseToken(authHeader: string | null): { id: string; email: string; role: string; academyId?: string } | null {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
@@ -17,10 +18,13 @@ function parseToken(authHeader: string | null): { id: string; email: string; rol
     return null;
   }
   
+  // 3개 파트 토큰: ID|email|role
+  // 5개 파트 토큰: ID|email|role|academyId|timestamp (신규 로그인)
   return {
     id: parts[0],
     email: parts[1],
-    role: parts[2]
+    role: parts[2],
+    academyId: parts.length >= 4 ? parts[3] : undefined
   };
 }
 
@@ -52,21 +56,11 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
     // email 기반으로 사용자 찾기 (가장 확실한 방법)
     let user = await db
-      .prepare('SELECT id, email, approvedSenderNumbers FROM users WHERE email = ?')
+      .prepare('SELECT id, email, approved_sender_numbers as approvedSenderNumbers FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
 
-    console.log('📊 User 테이블 조회 결과 (email):', user);
-
-    if (!user) {
-      // User 테이블에 없으면 users 테이블 확인
-      user = await db
-        .prepare('SELECT id, email, approved_sender_numbers as approvedSenderNumbers FROM users WHERE email = ?')
-        .bind(tokenData.email)
-        .first();
-      
-      console.log('📊 users 테이블 조회 결과 (email):', user);
-    }
+    console.log('📊 users 테이블 조회 결과 (email):', user);
 
     if (!user) {
       console.log('⚠️ 사용자를 찾을 수 없음:', tokenData.email);
