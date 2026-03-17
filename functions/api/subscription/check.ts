@@ -135,11 +135,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `).bind(targetAcademyId).first();
       actualStudentCount = studentCountResult?.count || 0;
 
-      // 2️⃣ 숙제 검사 횟수 - homework_submissions 테이블 (실제 제출된 숙제)
+      // 2️⃣ 숙제 검사 횟수 - homework_images 테이블 (업로드된 페이지 수)
       try {
         const homeworkResult = await DB.prepare(`
           SELECT COUNT(*) as count 
-          FROM homework_submissions hs
+          FROM homework_images hi
+          JOIN homework_submissions hs ON hi.submissionId = hs.id
           JOIN User u ON CAST(hs.userId AS TEXT) = u.id
           WHERE u.academyId = ?
             AND hs.submittedAt IS NOT NULL
@@ -147,9 +148,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             AND hs.submittedAt <= ?
         `).bind(targetAcademyId, planStartISO, planEndISO).first();
         actualHomeworkChecks = homeworkResult?.count || 0;
-        console.log(`✅ 숙제 검사 ${actualHomeworkChecks}개`);
+        console.log(`✅ 숙제 검사 (업로드된 페이지 수) ${actualHomeworkChecks}개`);
       } catch (e: any) {
-        console.log('⚠️ homework_submissions 조회 실패:', e.message);
+        console.log('⚠️ homework_images 조회 실패:', e.message);
         actualHomeworkChecks = 0;
       }
 

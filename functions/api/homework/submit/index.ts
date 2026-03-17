@@ -84,7 +84,63 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ 사용자 확인: ${user.name} (${user.email})`);
 
-    // 2. homework_submissions_v2 테이블 생성 및 마이그레이션
+    // 2. 구독 제한 확인 (숙제 검사 초과 시 차단)
+    if (user.academyId) {
+      try {
+        // 활성 구독 조회
+        const subscription = await DB.prepare(`
+          SELECT * FROM subscriptions 
+          WHERE userId = ? 
+            AND status = 'active'
+            AND datetime(startDate) <= datetime('now')
+            AND datetime(endDate) >= datetime('now')
+          ORDER BY startDate DESC
+          LIMIT 1
+        `).bind(user.academyId).first();
+
+        if (subscription) {
+          const planStartISO = subscription.startDate;
+          const planEndISO = subscription.endDate;
+
+          // 현재 업로드된 페이지 수 조회
+          const currentUsage = await DB.prepare(`
+            SELECT COUNT(*) as count 
+            FROM homework_images hi
+            JOIN homework_submissions hs ON hi.submissionId = hs.id
+            JOIN User u ON CAST(hs.userId AS TEXT) = u.id
+            WHERE u.academyId = ?
+              AND hs.submittedAt IS NOT NULL
+              AND hs.submittedAt >= ?
+              AND hs.submittedAt <= ?
+          `).bind(user.academyId, planStartISO, planEndISO).first();
+
+          const currentPages = currentUsage?.count || 0;
+          const maxPages = subscription.maxHomeworkChecks || -1;
+
+          console.log(`📊 숙제 검사 사용량: ${currentPages}/${maxPages === -1 ? '무제한' : maxPages}`);
+
+          // 초과 시 완전 차단
+          if (maxPages !== -1 && currentPages + imageArray.length > maxPages) {
+            console.error(`❌ 숙제 검사 한도 초과: ${currentPages}/${maxPages}, 추가 시도: ${imageArray.length}페이지`);
+            return new Response(
+              JSON.stringify({ 
+                error: "Homework check limit exceeded",
+                message: `숙제 검사 한도를 초과했습니다 (현재 ${currentPages}/${maxPages} 사용 중). 플랜 업그레이드가 필요합니다.`,
+                currentUsage: currentPages,
+                maxLimit: maxPages,
+                attemptedPages: imageArray.length
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
+        }
+      } catch (e: any) {
+        console.error('⚠️ 구독 제한 확인 실패:', e.message);
+        // 에러 시에도 제출은 허용 (서비스 중단 방지)
+      }
+    }
+
+    // 3. homework_submissions_v2 테이블 생성 및 마이그레이션
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_submissions_v2 (
         id TEXT PRIMARY KEY,
