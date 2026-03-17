@@ -2,7 +2,7 @@ interface Env {
   DB: D1Database;
 }
 
-// Simple token parser
+// Enhanced token parser (supports both 3-part and 5-part tokens)
 function parseToken(authHeader: string | null) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
@@ -11,6 +11,7 @@ function parseToken(authHeader: string | null) {
   const token = authHeader.substring(7);
   const parts = token.split('|');
   
+  // Support both 3-part (id|email|role) and 5-part (id|email|role|name|academyId) tokens
   if (parts.length < 3) {
     return null;
   }
@@ -18,7 +19,9 @@ function parseToken(authHeader: string | null) {
   return {
     id: parts[0],
     email: parts[1],
-    role: parts[2]
+    role: parts[2],
+    name: parts[3] || '',
+    academyId: parts[4] || null
   };
 }
 
