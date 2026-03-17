@@ -61,18 +61,57 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
     console.log('✅ Token role verified:', tokenData.role);
     
-    // DB에서 사용자 정보 조회 (ID 또는 email로)
-    let user = await db
-      .prepare('SELECT id, email, role FROM users WHERE id = ?')
-      .bind(tokenData.id)
-      .first();
-
-    if (!user) {
-      // ID로 못 찾으면 email로 시도
+    // DB에서 사용자 정보 조회 - 다중 테이블 패턴
+    let user: any = null;
+    
+    // 패턴 1: User 테이블 (대문자) - id
+    try {
       user = await db
-        .prepare('SELECT id, email, role FROM users WHERE email = ?')
-        .bind(tokenData.email)
+        .prepare('SELECT id, email, role FROM User WHERE id = ?')
+        .bind(tokenData.id)
         .first();
+      if (user) console.log('✅ User 테이블에서 발견 (id)');
+    } catch (e) {
+      console.log('⚠️ User 테이블 조회 실패');
+    }
+
+    // 패턴 2: users 테이블 (소문자) - id
+    if (!user) {
+      try {
+        user = await db
+          .prepare('SELECT id, email, role FROM users WHERE id = ?')
+          .bind(tokenData.id)
+          .first();
+        if (user) console.log('✅ users 테이블에서 발견 (id)');
+      } catch (e) {
+        console.log('⚠️ users 테이블 조회 실패');
+      }
+    }
+
+    // 패턴 3: User 테이블 - email
+    if (!user) {
+      try {
+        user = await db
+          .prepare('SELECT id, email, role FROM User WHERE email = ?')
+          .bind(tokenData.email)
+          .first();
+        if (user) console.log('✅ User 테이블에서 발견 (email)');
+      } catch (e) {
+        console.log('⚠️ User 테이블 email 조회 실패');
+      }
+    }
+
+    // 패턴 4: users 테이블 - email
+    if (!user) {
+      try {
+        user = await db
+          .prepare('SELECT id, email, role FROM users WHERE email = ?')
+          .bind(tokenData.email)
+          .first();
+        if (user) console.log('✅ users 테이블에서 발견 (email)');
+      } catch (e) {
+        console.log('⚠️ users 테이블 email 조회 실패');
+      }
     }
 
     // DB에서 못 찾아도 토큰의 role이 ADMIN이면 허용

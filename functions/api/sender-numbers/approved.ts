@@ -54,13 +54,58 @@ export async function onRequest(context: { request: Request; env: Env }) {
       role: tokenData.role
     });
 
-    // email 기반으로 사용자 찾기 (가장 확실한 방법)
-    let user = await db
-      .prepare('SELECT id, email, approved_sender_numbers as approvedSenderNumbers FROM users WHERE email = ?')
-      .bind(tokenData.email)
-      .first();
+    // 사용자 정보 조회 - 다중 테이블 패턴 시도
+    let user: any = null;
+    
+    // 패턴 1: User 테이블 (대문자) - email
+    try {
+      user = await db
+        .prepare('SELECT id, email, approved_sender_numbers as approvedSenderNumbers FROM User WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+      if (user) console.log('✅ User 테이블에서 발견');
+    } catch (e) {
+      console.log('⚠️ User 테이블 조회 실패');
+    }
 
-    console.log('📊 users 테이블 조회 결과 (email):', user);
+    // 패턴 2: users 테이블 (소문자) - email
+    if (!user) {
+      try {
+        user = await db
+          .prepare('SELECT id, email, approved_sender_numbers as approvedSenderNumbers FROM users WHERE email = ?')
+          .bind(tokenData.email)
+          .first();
+        if (user) console.log('✅ users 테이블에서 발견');
+      } catch (e) {
+        console.log('⚠️ users 테이블 조회 실패');
+      }
+    }
+
+    // 패턴 3: ID로 재시도 (User 테이블)
+    if (!user) {
+      try {
+        user = await db
+          .prepare('SELECT id, email, approved_sender_numbers as approvedSenderNumbers FROM User WHERE id = ?')
+          .bind(tokenData.id)
+          .first();
+        if (user) console.log('✅ User 테이블에서 발견 (ID)');
+      } catch (e) {
+        console.log('⚠️ User 테이블 ID 조회 실패');
+      }
+    }
+
+    // 패턴 4: ID로 재시도 (users 테이블)
+    if (!user) {
+      try {
+        user = await db
+          .prepare('SELECT id, email, approved_sender_numbers as approvedSenderNumbers FROM users WHERE id = ?')
+          .bind(tokenData.id)
+          .first();
+        if (user) console.log('✅ users 테이블에서 발견 (ID)');
+      } catch (e) {
+        console.log('⚠️ users 테이블 ID 조회 실패');
+      }
+    }
 
     if (!user) {
       console.log('⚠️ 사용자를 찾을 수 없음:', tokenData.email);
