@@ -22,22 +22,70 @@ function parseToken(authHeader) {
 }
 
 // Helper: Get user from DB
-async function getUser(db, email) {
-  // Try User table first
-  let user = await db
-    .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
-    .bind(email)
-    .first();
+async function getUser(db, email, userId) {
+  let user = null;
   
-  if (!user) {
-    // Try users table with snake_case
+  // Pattern 1: User table by email
+  try {
+    user = await db
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+      .bind(email)
+      .first();
+    if (user) {
+      console.log('✅ Found in User table (email)');
+      return user;
+    }
+  } catch (e) {
+    console.log('⚠️ User table query failed (email)');
+  }
+  
+  // Pattern 2: users table by email
+  try {
     user = await db
       .prepare('SELECT id, email, role, academy_id as academyId FROM users WHERE email = ?')
       .bind(email)
       .first();
+    if (user) {
+      console.log('✅ Found in users table (email)');
+      return user;
+    }
+  } catch (e) {
+    console.log('⚠️ users table query failed (email)');
   }
   
-  return user;
+  // Pattern 3: User table by id
+  if (userId) {
+    try {
+      user = await db
+        .prepare('SELECT id, email, role, academyId FROM User WHERE id = ?')
+        .bind(userId)
+        .first();
+      if (user) {
+        console.log('✅ Found in User table (id)');
+        return user;
+      }
+    } catch (e) {
+      console.log('⚠️ User table query failed (id)');
+    }
+  }
+  
+  // Pattern 4: users table by id
+  if (userId) {
+    try {
+      user = await db
+        .prepare('SELECT id, email, role, academy_id as academyId FROM users WHERE id = ?')
+        .bind(userId)
+        .first();
+      if (user) {
+        console.log('✅ Found in users table (id)');
+        return user;
+      }
+    } catch (e) {
+      console.log('⚠️ users table query failed (id)');
+    }
+  }
+  
+  return null;
 }
 
 // GET: 반 목록 조회
@@ -74,7 +122,7 @@ export async function onRequestGet(context) {
       });
     }
 
-    const user = await getUser(db, tokenData.email);
+    const user = await getUser(db, tokenData.email, tokenData.id);
 
     if (!user) {
       console.error('❌ User not found:', tokenData.email);
@@ -252,7 +300,7 @@ export async function onRequestPost(context) {
       });
     }
 
-    const user = await getUser(db, tokenData.email);
+    const user = await getUser(db, tokenData.email, tokenData.id);
 
     if (!user) {
       return new Response(JSON.stringify({
@@ -418,7 +466,7 @@ export async function onRequestPatch(context) {
       });
     }
 
-    const user = await getUser(db, tokenData.email);
+    const user = await getUser(db, tokenData.email, tokenData.id);
 
     if (!user) {
       return new Response(JSON.stringify({
@@ -567,7 +615,7 @@ export async function onRequestDelete(context) {
       });
     }
 
-    const user = await getUser(db, tokenData.email);
+    const user = await getUser(db, tokenData.email, tokenData.id);
 
     if (!user) {
       return new Response(JSON.stringify({
