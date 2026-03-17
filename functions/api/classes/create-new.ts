@@ -63,10 +63,54 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // Get user from database
-    const user = await DB.prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
-      .bind(tokenData.email)
-      .first();
+    // Get user from database - 다중 패턴 시도
+    let user: any = null;
+    
+    // Pattern 1: User 테이블 (대문자) - email
+    try {
+      user = await DB.prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
+        .bind(tokenData.email)
+        .first();
+      if (user) console.log('✅ User 테이블에서 발견 (email)');
+    } catch (e) {
+      console.log('⚠️ User 테이블 조회 실패 (email)');
+    }
+    
+    // Pattern 2: users 테이블 (소문자) - email
+    if (!user) {
+      try {
+        user = await DB.prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
+          .bind(tokenData.email)
+          .first();
+        if (user) console.log('✅ users 테이블에서 발견 (email)');
+      } catch (e) {
+        console.log('⚠️ users 테이블 조회 실패 (email)');
+      }
+    }
+    
+    // Pattern 3: User 테이블 - id
+    if (!user) {
+      try {
+        user = await DB.prepare('SELECT id, email, role, academyId FROM User WHERE id = ?')
+          .bind(tokenData.id)
+          .first();
+        if (user) console.log('✅ User 테이블에서 발견 (id)');
+      } catch (e) {
+        console.log('⚠️ User 테이블 조회 실패 (id)');
+      }
+    }
+    
+    // Pattern 4: users 테이블 - id
+    if (!user) {
+      try {
+        user = await DB.prepare('SELECT id, email, role, academyId FROM users WHERE id = ?')
+          .bind(tokenData.id)
+          .first();
+        if (user) console.log('✅ users 테이블에서 발견 (id)');
+      } catch (e) {
+        console.log('⚠️ users 테이블 조회 실패 (id)');
+      }
+    }
 
     if (!user) {
       console.error('❌ User not found:', tokenData.email);
