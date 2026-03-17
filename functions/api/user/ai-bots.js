@@ -93,27 +93,28 @@ export async function onRequestGet(context) {
     // 3️⃣ 기존 bot_assignments 테이블도 조회 (호환성, 학원장/선생님만)
     if (!userId) {
       try {
-      const oldBots = await db.prepare(`
-        SELECT 
-          ba.botId,
-          ba.expiresAt
-        FROM bot_assignments ba
-        WHERE ba.academyId = ?
-          AND ba.isActive = 1
-          AND (ba.expiresAt IS NULL OR datetime(ba.expiresAt) > datetime('now'))
-      `).bind(academyId).all();
+        const oldBots = await db.prepare(`
+          SELECT 
+            ba.botId,
+            ba.expiresAt
+          FROM bot_assignments ba
+          WHERE ba.academyId = ?
+            AND ba.isActive = 1
+            AND (ba.expiresAt IS NULL OR datetime(ba.expiresAt) > datetime('now'))
+        `).bind(academyId).all();
 
-      if (oldBots.results) {
-        console.log(`✅ 기존 bot_assignments 봇: ${oldBots.results.length}개`);
-        oldBots.results.forEach(bot => {
-          botIds.add(bot.botId);
-          if (!botMap.has(bot.botId)) {
-            botMap.set(bot.botId, { expiresAt: bot.expiresAt });
-          }
-        });
+        if (oldBots.results) {
+          console.log(`✅ 기존 bot_assignments 봇: ${oldBots.results.length}개`);
+          oldBots.results.forEach(bot => {
+            botIds.add(bot.botId);
+            if (!botMap.has(bot.botId)) {
+              botMap.set(bot.botId, { expiresAt: bot.expiresAt });
+            }
+          });
+        }
+      } catch (e) {
+        console.log('ℹ️ bot_assignments 조회 실패:', e.message);
       }
-    } catch (e) {
-      console.log('ℹ️ bot_assignments 조회 실패:', e.message);
     }
 
     // 4️⃣ 모든 봇 ID로 실제 봇 정보 조회
