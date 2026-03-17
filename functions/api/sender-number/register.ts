@@ -58,22 +58,57 @@ export async function onRequest(context: { request: Request; env: Env }) {
       academyId: tokenData.academyId
     });
 
-    // 사용자 정보 조회 - email 기반 (가장 확실한 방법)
-    let user = await db
-      .prepare('SELECT id, email, role, name, academyId FROM users WHERE email = ?')
-      .bind(tokenData.email)
-      .first();
-
-    console.log('📊 users 테이블 조회 결과 (email):', user);
-
-    // email로 못 찾으면 id로 시도
-    if (!user) {
-      console.log('⚠️ email로 못 찾음, id로 재시도:', tokenData.id);
+    // 사용자 정보 조회 - 다중 테이블 패턴 시도
+    let user: any = null;
+    
+    // 패턴 1: User 테이블 (대문자) - email
+    try {
       user = await db
-        .prepare('SELECT id, email, role, name, academyId FROM users WHERE id = ?')
-        .bind(tokenData.id)
+        .prepare('SELECT id, email, role, name, academyId FROM User WHERE email = ?')
+        .bind(tokenData.email)
         .first();
-      console.log('📊 users 테이블 조회 결과 (id):', user);
+      if (user) console.log('✅ User 테이블에서 발견 (email)');
+    } catch (e) {
+      console.log('⚠️ User 테이블 조회 실패 (email)');
+    }
+
+    // 패턴 2: users 테이블 (소문자) - email
+    if (!user) {
+      try {
+        user = await db
+          .prepare('SELECT id, email, role, name, academyId FROM users WHERE email = ?')
+          .bind(tokenData.email)
+          .first();
+        if (user) console.log('✅ users 테이블에서 발견 (email)');
+      } catch (e) {
+        console.log('⚠️ users 테이블 조회 실패 (email)');
+      }
+    }
+
+    // 패턴 3: User 테이블 - id
+    if (!user) {
+      try {
+        user = await db
+          .prepare('SELECT id, email, role, name, academyId FROM User WHERE id = ?')
+          .bind(tokenData.id)
+          .first();
+        if (user) console.log('✅ User 테이블에서 발견 (id)');
+      } catch (e) {
+        console.log('⚠️ User 테이블 조회 실패 (id)');
+      }
+    }
+
+    // 패턴 4: users 테이블 - id
+    if (!user) {
+      try {
+        user = await db
+          .prepare('SELECT id, email, role, name, academyId FROM users WHERE id = ?')
+          .bind(tokenData.id)
+          .first();
+        if (user) console.log('✅ users 테이블에서 발견 (id)');
+      } catch (e) {
+        console.log('⚠️ users 테이블 조회 실패 (id)');
+      }
     }
 
     if (!user) {
