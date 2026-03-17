@@ -718,80 +718,176 @@ export default function DashboardPage() {
   if (isStudent) {
     return (
       <div className="space-y-4 sm:space-y-6">
-        {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl p-8 text-white">
-          <div className="flex items-center justify-between">
+        {/* Welcome Section - 더 화려하게 */}
+        <div className="relative bg-gradient-to-br from-purple-600 via-blue-600 to-cyan-500 rounded-3xl p-8 overflow-hidden shadow-2xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full -ml-32 -mb-32 blur-3xl"></div>
+          <div className="relative flex items-center justify-between">
             <div>
-              <h1 className="text-xl sm:text-2xl sm:text-3xl font-bold mb-2">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 text-white drop-shadow-lg">
                 안녕하세요, {user.name}님! 🎓
               </h1>
-              <p className="text-green-100">
+              <p className="text-lg text-white/90 font-medium">
                 {stats?.academyName ? `${stats.academyName} | ` : ''}오늘도 열심히 공부해봐요!
               </p>
+              <div className="flex gap-2 mt-4">
+                <Button 
+                  variant="secondary" 
+                  size="sm"
+                  onClick={() => router.push("/ai-chat")}
+                  className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm"
+                >
+                  AI 챗봇 💬
+                </Button>
+                <Button 
+                  variant="secondary" 
+                  size="sm"
+                  onClick={() => router.push("/dashboard/homework/student")}
+                  className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm"
+                >
+                  과제 확인 📚
+                </Button>
+              </div>
             </div>
-            <Award className="h-16 w-16 opacity-80" />
+            <div className="hidden sm:block">
+              <div className="relative">
+                <div className="absolute inset-0 bg-white/20 rounded-full blur-2xl"></div>
+                <Award className="relative h-20 w-20 lg:h-24 lg:w-24 text-white drop-shadow-2xl" />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <Card className="border-2 border-blue-100 hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                출석일
-              </CardTitle>
-              <Calendar className="h-5 w-5 text-blue-600" />
+        {/* Stats Cards - 더 시각적으로 */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <Card className="border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-blue-100 rounded-xl">
+                  <Calendar className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-blue-600">
-                {stats?.attendanceDays || 0}일
+              <div className="text-3xl sm:text-4xl font-bold text-blue-600 mb-1">
+                {stats?.attendanceDays || 0}
               </div>
-              <p className="text-sm text-gray-500 mt-2">이번 달</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600">출석일</p>
+              <p className="text-xs text-gray-500 mt-1">이번 달</p>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-green-100 hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                완료 과제
-              </CardTitle>
-              <CheckCircle className="h-5 w-5 text-green-600" />
+          <Card className="border-2 border-green-100 bg-gradient-to-br from-green-50 to-white hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-green-100 rounded-xl">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-green-600">
-                {stats?.completedHomework || 0}개
+              <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-1">
+                {stats?.completedHomework || 0}
               </div>
-              <p className="text-sm text-gray-500 mt-2">이번 달</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600">완료 과제</p>
+              <p className="text-xs text-gray-500 mt-1">이번 달</p>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-purple-100 hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                평균 점수
-              </CardTitle>
-              <Award className="h-5 w-5 text-purple-600" />
+          <Card className="border-2 border-purple-100 bg-gradient-to-br from-purple-50 to-white hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-purple-100 rounded-xl">
+                  <Award className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-purple-600">
-                {stats?.averageScore || 0}점
+              <div className="text-3xl sm:text-4xl font-bold text-purple-600 mb-1">
+                {stats?.averageScore || 0}
               </div>
-              <p className="text-sm text-gray-500 mt-2">전체 평균</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600">평균 점수</p>
+              <p className="text-xs text-gray-500 mt-1">전체 평균</p>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-orange-100 hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                학습 시간
-              </CardTitle>
-              <Clock className="h-5 w-5 text-orange-600" />
+          <Card className="border-2 border-orange-100 bg-gradient-to-br from-orange-50 to-white hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-orange-100 rounded-xl">
+                  <Clock className="h-6 w-6 text-orange-600" />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-orange-600">
-                {stats?.studyHours || 0}시간
+              <div className="text-3xl sm:text-4xl font-bold text-orange-600 mb-1">
+                {stats?.studyHours || 0}
               </div>
-              <p className="text-sm text-gray-500 mt-2">이번 주</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600">학습 시간</p>
+              <p className="text-xs text-gray-500 mt-1">이번 주</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Action Cards - 새로 추가 */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <Card 
+            className="hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-pink-50 to-white border-2 border-pink-100"
+            onClick={() => router.push("/ai-chat")}
+          >
+            <CardContent className="pt-6 pb-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-3 bg-pink-100 rounded-2xl mb-3">
+                  <MessageCircle className="h-8 w-8 text-pink-600" />
+                </div>
+                <p className="font-semibold text-sm">AI 챗봇</p>
+                <p className="text-xs text-gray-500 mt-1">24시간 학습 도우미</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-indigo-50 to-white border-2 border-indigo-100"
+            onClick={() => router.push("/dashboard/homework/student")}
+          >
+            <CardContent className="pt-6 pb-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-3 bg-indigo-100 rounded-2xl mb-3">
+                  <FileText className="h-8 w-8 text-indigo-600" />
+                </div>
+                <p className="font-semibold text-sm">과제 제출</p>
+                <p className="text-xs text-gray-500 mt-1">숙제 확인하기</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-teal-50 to-white border-2 border-teal-100"
+            onClick={() => router.push("/dashboard/my-attendance")}
+          >
+            <CardContent className="pt-6 pb-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-3 bg-teal-100 rounded-2xl mb-3">
+                  <CheckCircle className="h-8 w-8 text-teal-600" />
+                </div>
+                <p className="font-semibold text-sm">출석 체크</p>
+                <p className="text-xs text-gray-500 mt-1">내 출석 현황</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-amber-50 to-white border-2 border-amber-100"
+            onClick={() => router.push("/dashboard/reports/student")}
+          >
+            <CardContent className="pt-6 pb-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-3 bg-amber-100 rounded-2xl mb-3">
+                  <BarChart3 className="h-8 w-8 text-amber-600" />
+                </div>
+                <p className="font-semibold text-sm">학습 리포트</p>
+                <p className="text-xs text-gray-500 mt-1">성적 확인</p>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -799,67 +895,85 @@ export default function DashboardPage() {
         {/* Student Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Pending Homework */}
-          <Card>
-            <CardHeader>
+          <Card className="shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-orange-50 to-white border-b">
               <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-orange-600" />
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <FileText className="h-5 w-5 text-orange-600" />
+                </div>
                 제출할 과제
               </CardTitle>
-              <CardDescription>마감일이 임박한 과제</CardDescription>
+              <CardDescription>마감일이 임박한 과제를 확인하세요</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               <div className="space-y-3">
                 {(stats?.pendingHomework || []).map((hw: any, index: number) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-orange-50 transition-colors"
+                    className="flex items-center justify-between p-4 border-2 border-orange-100 rounded-xl hover:bg-orange-50 hover:border-orange-200 transition-all cursor-pointer"
                   >
                     <div>
-                      <p className="font-medium">{hw.title}</p>
-                      <p className="text-sm text-gray-600">{hw.subject}</p>
+                      <p className="font-semibold text-gray-800">{hw.title}</p>
+                      <p className="text-sm text-gray-600 mt-1">{hw.subject}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-orange-600">
-                        {hw.daysLeft}일 남음
+                      <p className="text-sm font-bold text-orange-600 mb-2">
+                        D-{hw.daysLeft}
                       </p>
-                      <Button size="sm" className="mt-2">제출하기</Button>
+                      <Button size="sm" className="bg-orange-600 hover:bg-orange-700">제출하기</Button>
                     </div>
                   </div>
                 ))}
                 {(!stats?.pendingHomework || stats.pendingHomework.length === 0) && (
-                  <p className="text-center text-gray-500 py-8">제출할 과제가 없습니다 🎉</p>
+                  <div className="text-center py-12">
+                    <div className="inline-block p-4 bg-green-100 rounded-full mb-4">
+                      <CheckCircle className="h-12 w-12 text-green-600" />
+                    </div>
+                    <p className="text-lg font-semibold text-gray-700">제출할 과제가 없습니다</p>
+                    <p className="text-sm text-gray-500 mt-2">모든 과제를 완료했어요! 🎉</p>
+                  </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
           {/* Today's Schedule */}
-          <Card>
-            <CardHeader>
+          <Card className="shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-white border-b">
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Calendar className="h-5 w-5 text-blue-600" />
+                </div>
                 오늘의 일정
               </CardTitle>
-              <CardDescription>오늘 진행될 수업</CardDescription>
+              <CardDescription>오늘 진행될 수업 일정</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               <div className="space-y-3">
                 {(stats?.todaySchedule || []).map((schedule: any, index: number) => (
                   <div
                     key={index}
-                    className="flex items-center gap-4 p-4 border rounded-lg"
+                    className="flex items-center gap-4 p-4 border-2 border-blue-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all"
                   >
-                    <div className="text-center">
-                      <p className="text-xl sm:text-2xl font-bold text-blue-600">{schedule.time}</p>
+                    <div className="text-center min-w-[80px]">
+                      <div className="p-3 bg-blue-100 rounded-lg">
+                        <p className="text-2xl font-bold text-blue-600">{schedule.time}</p>
+                      </div>
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium">{schedule.subject}</p>
-                      <p className="text-sm text-gray-600">{schedule.teacher}</p>
+                      <p className="font-semibold text-gray-800">{schedule.subject}</p>
+                      <p className="text-sm text-gray-600 mt-1">👨‍🏫 {schedule.teacher}</p>
                     </div>
                   </div>
                 ))}
                 {(!stats?.todaySchedule || stats.todaySchedule.length === 0) && (
-                  <p className="text-center text-gray-500 py-8">오늘 일정이 없습니다</p>
+                  <div className="text-center py-12">
+                    <div className="inline-block p-4 bg-gray-100 rounded-full mb-4">
+                      <Calendar className="h-12 w-12 text-gray-400" />
+                    </div>
+                    <p className="text-lg font-semibold text-gray-700">오늘 수업 일정이 없습니다</p>
+                    <p className="text-sm text-gray-500 mt-2">편안한 하루 보내세요! 😊</p>
+                  </div>
                 )}
               </div>
             </CardContent>
