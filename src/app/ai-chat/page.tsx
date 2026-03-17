@@ -287,10 +287,16 @@ export default function ModernAIChatPage() {
   const fetchBots = async (academyId: string) => {
     try {
       console.log(`🔍 학원(${academyId})의 할당된 봇 조회`);
+      console.log('🔍 현재 user:', user);
+      console.log('🔍 user.role:', user?.role);
+      console.log('🔍 user.role 타입:', typeof user?.role);
+      console.log('🔍 user.role 대문자:', user?.role?.toUpperCase());
       
       // 🔒 학생은 개별 할당된 봇만 조회
+      const userRole = (user?.role || '').toUpperCase();
       let apiUrl = '';
-      if (user?.role === 'STUDENT') {
+      
+      if (userRole === 'STUDENT') {
         apiUrl = `/api/user/ai-bots?academyId=${academyId}&userId=${user.id}`;
         console.log('👨‍🎓 학생 - 개별 할당된 봇만 조회:', apiUrl);
       } else {
@@ -308,7 +314,7 @@ export default function ModernAIChatPage() {
           // 학생은 이미 개별 할당 봇만 받았으므로 추가 체크 불필요
           let accessibleBots = data.bots;
           
-          if (user?.role === 'STUDENT') {
+          if (userRole === 'STUDENT') {
             console.log('✅ 학생 - 개별 할당된 봇만 표시:', accessibleBots.length);
           } else {
             // 🔒 학원장/선생님은 봇 접근 권한 체크 (필요시)
