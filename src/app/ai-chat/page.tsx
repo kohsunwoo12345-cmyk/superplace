@@ -129,7 +129,7 @@ export default function ModernAIChatPage() {
     } else if (userData.academyId) {
       // 일반 사용자는 할당된 봇만 조회
       console.log(`👥 일반 사용자 (academyId: ${userData.academyId}) - 할당된 봇 조회`);
-      fetchBots(userData.academyId);
+      fetchBots(userData.academyId, userData);  // userData 전달
     } else {
       console.warn("⚠️ academyId가 없습니다. AI 봇을 사용할 수 없습니다.");
       console.warn("⚠️ 사용자 정보:", userData);
@@ -284,20 +284,23 @@ export default function ModernAIChatPage() {
     }
   };
 
-  const fetchBots = async (academyId: string) => {
+  const fetchBots = async (academyId: string, userData?: any) => {
     try {
       console.log(`🔍 학원(${academyId})의 할당된 봇 조회`);
-      console.log('🔍 현재 user:', user);
-      console.log('🔍 user.role:', user?.role);
-      console.log('🔍 user.role 타입:', typeof user?.role);
-      console.log('🔍 user.role 대문자:', user?.role?.toUpperCase());
+      
+      // userData가 전달되면 사용, 아니면 state의 user 사용
+      const currentUser = userData || user;
+      console.log('🔍 현재 user:', currentUser);
+      console.log('🔍 user.role:', currentUser?.role);
+      console.log('🔍 user.role 타입:', typeof currentUser?.role);
+      console.log('🔍 user.role 대문자:', currentUser?.role?.toUpperCase());
       
       // 🔒 학생은 개별 할당된 봇만 조회
-      const userRole = (user?.role || '').toUpperCase();
+      const userRole = (currentUser?.role || '').toUpperCase();
       let apiUrl = '';
       
       if (userRole === 'STUDENT') {
-        apiUrl = `/api/user/ai-bots?academyId=${academyId}&userId=${user.id}`;
+        apiUrl = `/api/user/ai-bots?academyId=${academyId}&userId=${currentUser.id}`;
         console.log('👨‍🎓 학생 - 개별 할당된 봇만 조회:', apiUrl);
       } else {
         // 학원장/선생님은 학원 전체 구독 봇 조회
