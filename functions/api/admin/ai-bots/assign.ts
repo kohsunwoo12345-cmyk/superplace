@@ -170,7 +170,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         SELECT 
           id, 
           academyId, 
-          botId, 
+          productId as botId, 
           totalStudentSlots, 
           usedStudentSlots, 
           remainingStudentSlots,
@@ -181,7 +181,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           createdAt,
           updatedAt
         FROM AcademyBotSubscription 
-        WHERE academyId = ? AND botId = ?
+        WHERE academyId = ? AND productId = ?
         ORDER BY subscriptionEnd DESC
         LIMIT 1
       `).bind(userAcademyId, botId).first() as any;
@@ -453,7 +453,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
               ELSE 0 
             END,
             updatedAt = datetime('now')
-        WHERE academyId = ? AND botId = ?
+        WHERE academyId = ? AND productId = ?
       `).bind(user.academyId, botId).run();
 
       console.log('✅ Subscription slot decreased:', updateResult);
@@ -462,7 +462,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       const updatedSubscription = await DB.prepare(`
         SELECT totalStudentSlots, usedStudentSlots, remainingStudentSlots
         FROM AcademyBotSubscription
-        WHERE academyId = ? AND botId = ?
+        WHERE academyId = ? AND productId = ?
       `).bind(user.academyId, botId).first() as any;
 
       if (updatedSubscription) {
