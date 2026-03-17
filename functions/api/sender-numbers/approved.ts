@@ -128,20 +128,37 @@ export async function onRequest(context: { request: Request; env: Env }) {
       approvedSenderNumbers: user.approvedSenderNumbers
     });
 
-    // approvedSenderNumbers 파싱
-    const approvedNumbers = user.approvedSenderNumbers;
+    // SMSSender 테이블에서 승인된 발신번호 조회
     let senderNumbers: string[] = [];
-
-    if (approvedNumbers) {
-      // 쉼표로 구분된 경우
-      senderNumbers = approvedNumbers.split(',').map((n: string) => n.trim()).filter((n: string) => n);
+    
+    try {
+      const smsSenders = await db
+        .prepare('SELECT phoneNumber FROM SMSSender WHERE userId = ? AND status = ? AND verified = 1')
+        .bind(user.id, 'ACTIVE')
+        .all();
+      
+      console.log('📱 SMSSender 조회 결과:', smsSenders);
+      
+      if (smsSenders.results && smsSenders.results.length > 0) {
+        senderNumbers = smsSenders.results.map((s: any) => s.phoneNumber).filter((n: string) => n);
+      }
+      
+      console.log(`✅ SMSSender에서 발견한 발신번호: ${senderNumbers.length}개`, senderNumbers);
+    } catch (e: any) {
+      console.error('❌ SMSSender 조회 실패:', e.message);
+    }
+    
+    // SMSSender에서 못 찾으면 approved_sender_numbers 컬럼 확인 (fallback)
+    if (senderNumbers.length === 0 && user.approvedSenderNumbers) {
+      senderNumbers = user.approvedSenderNumbers.split(',').map((n: string) => n.trim()).filter((n: string) => n);
+      console.log(`ℹ️ approved_sender_numbers 컬럼에서 조회: ${senderNumbers.length}개`, senderNumbers);
     }
 
-    console.log(`✅ 승인된 발신번호 조회 완료:`, {
+    console.log(`✅ 최종 승인된 발신번호:`, {
       userId: user.id,
       email: user.email,
-      approvedNumbers: approvedNumbers,
-      parsedNumbers: senderNumbers
+      count: senderNumbers.length,
+      numbers: senderNumbers
     });
 
     return new Response(
