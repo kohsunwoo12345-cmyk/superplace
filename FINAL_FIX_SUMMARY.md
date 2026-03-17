@@ -1,141 +1,100 @@
-# ✅ AI 봇 할당 400 오류 최종 해결
+# 🎯 최종 수정 사항 요약 (2026-03-17)
 
-## 🔍 문제 근본 원인
+## 문제
+학생 계정으로 `/ai-chat/` 접속 시 학원의 모든 구독 봇이 보이는 문제
+- 로그: `🔍 현재 user: null` → fetchBots 호출 시 user 상태가 null
+- 원인: useEffect에서 `setUser(userData)` 실행 전에 `fetchBots(academyId)` 호출
 
-**프론트엔드와 백엔드 간 파라미터 불일치**
-
-### 프론트엔드 (page.tsx)
+## 해결 방법
+### 1. fetchBots 함수 수정 (src/app/ai-chat/page.tsx)
 ```typescript
-const payload = {
-  academyId: selectedAcademy,
-  productId: selectedBot,  // ❌ productId 전송
-  studentCount: parseInt(studentLimit),
-  ...
-};
-```
-
-### 백엔드 (academy-bot-subscriptions.js)
-```javascript
-const { academyId, productId, ... } = body;  // ✅ productId 기대
-```
-
-**BUT**, 로그를 보면 실제로는 **`botId`를 전송**하고 있었음!
-
-## 🎯 해결 방법
-
-### 1. 프론트엔드 수정
-`src/app/dashboard/admin/ai-bots/assign/page.tsx` (라인 441)
-
-```typescript
-// ❌ 이전
-const payload = {
-  academyId: selectedAcademy,
-  productId: selectedBot,  // 잘못됨
-  ...
-};
+// ❌ 이전 코드
+const fetchBots = async (academyId: string) => {
+  console.log("🔍 현재 user:", user); // null
+  if (user.role === "STUDENT") { // 에러: user가 null
+    // 학생 전용 API 호출
+  }
+}
 
 // ✅ 수정 후
-const payload = {
-  academyId: selectedAcademy,
-  botId: selectedBot,  // 올바름
-  ...
-};
+const fetchBots = async (academyId: string, userData: any) => {
+  console.log("🔍 현재 userData:", userData); // 정상
+  if (userData?.role?.toUpperCase() === "STUDENT") {
+    // 학생 전용 API 호출
+    const response = await fetch(`/api/user/ai-bots?academyId=${academyId}&userId=${userData.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    // 학생에게 개별 할당된 봇만 표시
+  } else {
+    // 학원장/선생님 - 학원 구독 봇 조회
+    const response = await fetch(`/api/user/academy-bots?academyId=${academyId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  }
+}
 ```
 
-### 2. 백엔드 수정 (하위 호환성 유지)
-`functions/api/admin/academy-bot-subscriptions.js`
+### 2. fetchBots 호출 수정
+```typescript
+// ❌ 이전 코드
+setUser(userData);
+fetchBots(academyId); // user가 아직 null
 
-```javascript
-// ✅ botId와 productId 모두 지원
-const {
-  academyId,
-  productId,  // 기존 필드 (하위 호환성)
-  botId,      // 새로운 필드
-  ...
-} = body;
-
-// botId 우선, 없으면 productId 사용
-const finalBotId = botId || productId;
-
-// 모든 쿼리에서 finalBotId 사용
-await DB.prepare('SELECT * FROM ai_bots WHERE id = ?')
-  .bind(finalBotId).first();
+// ✅ 수정 후
+setUser(userData);
+fetchBots(academyId, userData); // userData 직접 전달
 ```
 
-## 📦 배포 정보
+## API 엔드포인트 차이
+| 역할 | API | 조회 대상 |
+|------|-----|----------|
+| **학생 (STUDENT)** | `/api/user/ai-bots?academyId=xxx&userId=yyy` | `ai_bot_assignments` 테이블 - 개별 할당된 봇만 |
+| **학원장/선생님** | `/api/user/academy-bots?academyId=xxx` | `AcademyBotSubscription` 테이블 - 학원 전체 구독 봇 |
+| **관리자 (ADMIN)** | `/api/admin/ai-bots` | `ai_bots` 테이블 - 모든 봇 |
 
-- **Commit ID:** `c0f4779c`
-- **GitHub:** https://github.com/kohsunwoo12345-cmyk/superplace/commit/c0f4779c
-- **배포 URL:** https://superplacestudy.pages.dev/dashboard/admin/ai-bots/assign/
-- **프로덕션 URL:** https://suplacestudy.com/dashboard/admin/ai-bots/assign/
-- **상태:** ✅ 푸시 완료 (6f235a35 → c0f4779c)
-- **전파 시간:** 약 5-8분
+## 배포 정보
+- **커밋**: `3b8db593`
+- **메시지**: "fix: fetchBots에 userData 전달하여 user null 문제 해결"
+- **배포 시간**: 2026-03-17
+- **적용 예상**: 3-5분 후
 
-## 🔧 수정 파일
+## 테스트 절차 (배포 3-5분 후)
+1. **학생 계정으로 로그인**
+   - 계정: `student_1773655529913@temp.superplace.local`
+   - 학원: 꾸메땅학원 (academy-1771479246368-5viyubmqk)
 
-1. **src/app/dashboard/admin/ai-bots/assign/page.tsx**
-   - Line 441: `productId` → `botId`
+2. **페이지 접속**
+   - URL: `https://suplacestudy.com/ai-chat/`
+   - **하드 리프레시 필수**: Ctrl+Shift+R (Windows) / Cmd+Shift+R (Mac)
 
-2. **functions/api/admin/academy-bot-subscriptions.js**
-   - Line 128-141: botId/productId 파라미터 추가 및 처리
-   - Line 198: botCheck 쿼리에 finalBotId 사용
-   - Line 210: 로그에 botId 출력
-   - Line 225: 기존 구독 조회에 finalBotId 사용
-   - Line 301, 335: INSERT 파라미터에 finalBotId 사용
+3. **F12 콘솔 확인**
+   ```
+   ✅ 예상 로그:
+   🔍 현재 userData: {id: 'student-...', role: 'STUDENT', ...}
+   🔍 user.role: STUDENT
+   🔍 user.role 대문자: STUDENT
+   🎓 학생 - 개별 할당된 봇만 조회: /api/user/ai-bots?academyId=...&userId=...
+   ✅ 학생에게 할당된 봇 X개 표시
+   ```
 
-## ✅ 보증 사항
+4. **결과 확인**
+   - ✅ 학생에게 **개별 할당된 봇만** 표시
+   - ✅ 학원 전체 구독 봇 중 할당되지 않은 봇은 **표시되지 않음**
 
-1. ✅ **프론트엔드-백엔드 파라미터 일치** (botId 사용)
-2. ✅ **하위 호환성 유지** (productId도 계속 작동)
-3. ✅ **개별 사용자 할당** (이미 botId 사용 중, 영향 없음)
-4. ✅ **학원 전체 할당** (이제 정상 작동)
-5. ✅ **토큰 파서** (이전 수정에서 이미 해결됨)
+## 이전 수정 이력
+1. **커밋 `dc425bda`**: 학생 role 체크 추가 (하지만 user가 null이라 작동 안 함)
+2. **커밋 `eab6b7e3`**: 대소문자 구분 없는 role 체크 (여전히 user가 null)
+3. **커밋 `3b8db593`**: ✅ **최종 해결** - userData 직접 전달
 
-## 🧪 테스트 시나리오 (5-8분 후)
+## 관련 파일
+- `src/app/ai-chat/page.tsx`: fetchBots 함수 및 호출 수정
+- `functions/api/user/ai-bots.js`: 학생 전용 봇 조회 API
+- `functions/api/user/academy-bots.js`: 학원 구독 봇 조회 API
 
-### 학원 전체 할당 테스트
-1. 학원장 로그인
-2. https://suplacestudy.com/dashboard/admin/ai-bots/assign/ 접속
-3. **"학원 전체" 옵션 선택**
-4. AI 봇 선택
-5. 학원 선택
-6. 학생 수 제한 입력 (예: 30명)
-7. 일일 사용 한도 입력 (예: 15회)
-8. 구독 기간 입력 (예: 1개월)
-9. **"봇 할당하기" 버튼 클릭**
-10. ✅ **성공 확인** (400 오류 없어야 함)
-
-### 개별 사용자 할당 테스트
-1. 학원장 로그인
-2. https://suplacestudy.com/dashboard/admin/ai-bots/assign/ 접속
-3. **"개별 사용자" 옵션 선택**
-4. AI 봇 선택
-5. 학생 선택 (다중 선택 가능)
-6. 일일 사용 한도 입력
-7. **"봇 할당하기" 버튼 클릭**
-8. ✅ **성공 확인**
-
-## 📊 수정 이력
-
-1. `e75089c5`: User/users 테이블 지원 추가
-2. `07ff28d2`: 구독 없이도 할당 가능하도록 수정
-3. `68072048`: 빌드 오류 수정 (중복 코드 제거)
-4. `5c61dd35`: 토큰 파서 5부분 지원 추가 (academyId 위치 오류)
-5. `6f235a35`: 토큰 파서 academyId 위치 수정
-6. **`c0f4779c`: 프론트엔드-백엔드 파라미터 불일치 해결 (최종)** ✅ ← **현재**
-
-## 🎯 예상 결과
-
-- ✅ **400 Bad Request 오류 완전 해결**
-- ✅ **학원 전체 AI 봇 할당 정상 작동**
-- ✅ **개별 사용자 할당 계속 작동**
-- ✅ **프론트엔드-백엔드 완전 동기화**
-- ✅ **기존 기능 모두 보존**
+## 핵심 요약
+**문제**: fetchBots 호출 시 user 상태가 null
+**해결**: fetchBots(academyId, userData)로 userData 직접 전달
+**결과**: 학생은 개별 할당된 봇만, 학원장은 학원 구독 봇만 표시
 
 ---
-
-**마지막 배포:** 2026-03-17  
-**상태:** ✅ **완료 및 배포됨 (c0f4779c)**  
-**다음 단계:** 5-8분 후 프로덕션에서 학원 전체 할당 테스트
-
-**🎉 이번에야말로 100% 해결되었습니다!**
+**최종 테스트 대기 중** (배포 후 3-5분) 🚀

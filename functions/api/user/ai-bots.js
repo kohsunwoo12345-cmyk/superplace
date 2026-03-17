@@ -36,31 +36,11 @@ export async function onRequestGet(context) {
     const botIds = new Set();
     const botMap = new Map();
 
-    // 1️⃣ 학원 전체 할당된 봇 조회 (AcademyBotSubscription)
-    try {
-      const academyBots = await db.prepare(`
-        SELECT 
-          productId as botId,
-          subscriptionEnd as expiresAt
-        FROM AcademyBotSubscription
-        WHERE academyId = ?
-          AND isActive = 1
-          AND date(subscriptionEnd) >= date('now')
-      `).bind(academyId).all();
-
-      if (academyBots.results) {
-        console.log(`✅ 학원 전체 할당 봇: ${academyBots.results.length}개`);
-        academyBots.results.forEach(bot => {
-          botIds.add(bot.botId);
-          botMap.set(bot.botId, { expiresAt: bot.expiresAt });
-        });
-      }
-    } catch (e) {
-      console.log('ℹ️ AcademyBotSubscription 조회 실패:', e.message);
-    }
-
-    // 2️⃣ 개별 학생에게 할당된 봇 조회 (ai_bot_assignments - 새 테이블)
+    // 🚨 userId가 있으면 개별 할당 봇만 조회 (학원 전체 봇 조회 안 함!)
     if (userId) {
+      console.log(`🎓 학생 모드: userId=${userId} - 개별 할당 봇만 조회`);
+      
+      // 개별 학생에게 할당된 봇만 조회 (ai_bot_assignments)
       try {
         const userBots = await db.prepare(`
           SELECT 
@@ -76,18 +56,43 @@ export async function onRequestGet(context) {
           console.log(`✅ 개별 학생 할당 봇: ${userBots.results.length}개`);
           userBots.results.forEach(bot => {
             botIds.add(bot.botId);
-            if (!botMap.has(bot.botId)) {
-              botMap.set(bot.botId, { expiresAt: bot.expiresAt });
-            }
+            botMap.set(bot.botId, { expiresAt: bot.expiresAt });
           });
         }
       } catch (e) {
-        console.log('ℹ️ ai_bot_assignments 조회 실패:', e.message);
+        console.log('❌ ai_bot_assignments 조회 실패:', e.message);
+      }
+    } else {
+      // 👔 학원장/선생님 모드: 학원 전체 봇 조회
+      console.log(`👔 학원장/선생님 모드: 학원 전체 봇 조회`);
+      
+      // 1️⃣ 학원 전체 할당된 봇 조회 (AcademyBotSubscription)
+      try {
+        const academyBots = await db.prepare(`
+          SELECT 
+            productId as botId,
+            subscriptionEnd as expiresAt
+          FROM AcademyBotSubscription
+          WHERE academyId = ?
+            AND isActive = 1
+            AND date(subscriptionEnd) >= date('now')
+        `).bind(academyId).all();
+
+        if (academyBots.results) {
+          console.log(`✅ 학원 전체 할당 봇: ${academyBots.results.length}개`);
+          academyBots.results.forEach(bot => {
+            botIds.add(bot.botId);
+            botMap.set(bot.botId, { expiresAt: bot.expiresAt });
+          });
+        }
+      } catch (e) {
+        console.log('ℹ️ AcademyBotSubscription 조회 실패:', e.message);
       }
     }
 
-    // 3️⃣ 기존 bot_assignments 테이블도 조회 (호환성)
-    try {
+    // 3️⃣ 기존 bot_assignments 테이블도 조회 (호환성, 학원장/선생님만)
+    if (!userId) {
+      try {
       const oldBots = await db.prepare(`
         SELECT 
           ba.botId,
