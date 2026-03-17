@@ -438,12 +438,12 @@ export default function AIBotAssignPage() {
         
         const payload = {
           academyId: selectedAcademy,
-          botId: selectedBot,  // ✅ productId에서 botId로 수정
+          productId: selectedBot,
           studentCount: parseInt(studentLimit),
           subscriptionStart: startDate.toISOString().split('T')[0],
           subscriptionEnd: endDate.toISOString().split('T')[0],
           pricePerStudent: 0,
-          dailyUsageLimit: parseInt(dailyUsageLimit) || 15, // 🆕 일일 사용 한도
+          dailyUsageLimit: parseInt(dailyUsageLimit) || 15,
           memo: `Duration: ${durationNumber} ${durationUnit}`,
         };
         
