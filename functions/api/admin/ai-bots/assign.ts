@@ -472,11 +472,6 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     } else if ((role === 'DIRECTOR' || role === 'TEACHER') && !subscription) {
       console.log('⚠️ No subscription found, skipping slot decrease (trial/test mode)');
     }
-          used: updatedSubscription.usedStudentSlots,
-          remaining: updatedSubscription.remainingStudentSlots
-        });
-      }
-    }
 
     console.log("✅ AI 봇 할당 완료:", assignmentId);
 
