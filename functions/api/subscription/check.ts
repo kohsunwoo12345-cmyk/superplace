@@ -135,22 +135,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `).bind(targetAcademyId).first();
       actualStudentCount = studentCountResult?.count || 0;
 
-      // 2️⃣ 숙제 검사 횟수 - homework_images 테이블 (업로드된 페이지 수)
+      // 2️⃣ 숙제 검사 횟수 - usage_logs 테이블 (플랜 시작일부터 채점 완료된 횟수)
       try {
         const homeworkResult = await DB.prepare(`
-          SELECT COUNT(*) as count 
-          FROM homework_images hi
-          JOIN homework_submissions hs ON hi.submissionId = hs.id
-          JOIN User u ON CAST(hs.userId AS TEXT) = u.id
+          SELECT SUM(CAST(json_extract(metadata, '$.pageCount') AS INTEGER)) as pageCount
+          FROM usage_logs ul
+          JOIN User u ON CAST(ul.userId AS TEXT) = u.id
           WHERE u.academyId = ?
-            AND hs.submittedAt IS NOT NULL
-            AND hs.submittedAt >= ?
-            AND hs.submittedAt <= ?
+            AND ul.type = 'homework_check'
+            AND ul.createdAt >= ?
+            AND ul.createdAt <= ?
         `).bind(targetAcademyId, planStartISO, planEndISO).first();
-        actualHomeworkChecks = homeworkResult?.count || 0;
-        console.log(`✅ 숙제 검사 (업로드된 페이지 수) ${actualHomeworkChecks}개`);
+        actualHomeworkChecks = homeworkResult?.pageCount || 0;
+        console.log(`✅ 숙제 검사 (플랜 시작일부터 채점된 페이지 수) ${actualHomeworkChecks}개`);
       } catch (e: any) {
-        console.log('⚠️ homework_images 조회 실패:', e.message);
+        console.log('⚠️ usage_logs(homework_check) 조회 실패:', e.message);
         actualHomeworkChecks = 0;
       }
 

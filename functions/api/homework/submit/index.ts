@@ -102,19 +102,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           const planStartISO = subscription.startDate;
           const planEndISO = subscription.endDate;
 
-          // 현재 업로드된 페이지 수 조회
+          // 플랜 기간 동안 채점된 페이지 수 조회 (usage_logs 기반)
           const currentUsage = await DB.prepare(`
-            SELECT COUNT(*) as count 
-            FROM homework_images hi
-            JOIN homework_submissions hs ON hi.submissionId = hs.id
-            JOIN User u ON CAST(hs.userId AS TEXT) = u.id
+            SELECT SUM(CAST(json_extract(metadata, '$.pageCount') AS INTEGER)) as pageCount
+            FROM usage_logs ul
+            JOIN User u ON CAST(ul.userId AS TEXT) = u.id
             WHERE u.academyId = ?
-              AND hs.submittedAt IS NOT NULL
-              AND hs.submittedAt >= ?
-              AND hs.submittedAt <= ?
+              AND ul.type = 'homework_check'
+              AND ul.createdAt >= ?
+              AND ul.createdAt <= ?
           `).bind(user.academyId, planStartISO, planEndISO).first();
 
-          const currentPages = currentUsage?.count || 0;
+          const currentPages = currentUsage?.pageCount || 0;
           const maxPages = subscription.maxHomeworkChecks || -1;
 
           console.log(`📊 숙제 검사 사용량: ${currentPages}/${maxPages === -1 ? '무제한' : maxPages}`);

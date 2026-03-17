@@ -267,7 +267,32 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       gradingResult.studyDirection || ''
     ).run();
 
-    // 6. 제출 상태 업데이트
+    // 6. usage_logs에 숙제 검사 기록 (플랜 사용량 집계용)
+    try {
+      await DB.prepare(`
+        INSERT INTO usage_logs (id, userId, academyId, type, metadata, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(
+        `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        submission.userId,
+        submission.academyId || null,
+        'homework_check',
+        JSON.stringify({
+          submissionId: submissionId,
+          gradingId: gradingId,
+          score: gradingResult.score,
+          pageCount: imageArray.length,
+          subject: gradingResult.subject
+        }),
+        kstTimestamp
+      ).run();
+      console.log(`📝 usage_logs 기록 완료: homework_check (${imageArray.length}페이지)`);
+    } catch (logError: any) {
+      console.error('⚠️ usage_logs 기록 실패:', logError.message);
+      // 로그 실패는 무시 (채점 결과는 정상 반환)
+    }
+
+    // 7. 제출 상태 업데이트
     await DB.prepare(`
       UPDATE homework_submissions_v2
       SET status = 'graded'
