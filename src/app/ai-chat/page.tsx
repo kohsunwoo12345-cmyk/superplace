@@ -288,44 +288,31 @@ export default function ModernAIChatPage() {
     try {
       console.log(`🔍 학원(${academyId})의 할당된 봇 조회`);
       
-      const response = await fetch(`/api/user/academy-bots?academyId=${academyId}`);
+      // 🔒 학생은 개별 할당된 봇만 조회
+      let apiUrl = '';
+      if (user?.role === 'STUDENT') {
+        apiUrl = `/api/user/ai-bots?academyId=${academyId}&userId=${user.id}`;
+        console.log('👨‍🎓 학생 - 개별 할당된 봇만 조회:', apiUrl);
+      } else {
+        // 학원장/선생님은 학원 전체 구독 봇 조회
+        apiUrl = `/api/user/academy-bots?academyId=${academyId}`;
+        console.log('👔 학원장/선생님 - 학원 구독 봇 조회:', apiUrl);
+      }
+      
+      const response = await fetch(apiUrl);
       if (response.ok) {
         const data = await response.json();
         console.log(`✅ 할당된 봇 ${data.count}개 발견`);
         
         if (data.bots && data.bots.length > 0) {
-          // 🔒 각 봇에 대해 접근 권한 체크 (학생만)
+          // 학생은 이미 개별 할당 봇만 받았으므로 추가 체크 불필요
           let accessibleBots = data.bots;
+          
           if (user?.role === 'STUDENT') {
-            console.log('🔐 학생 계정 - 봇 접근 권한 체크 중...');
-            const accessChecks = await Promise.all(
-              data.bots.map(async (bot: AIBot) => {
-                try {
-                  const checkResponse = await fetch(
-                    `/api/user/bot-access-check?userId=${user.id}&botId=${bot.id}&academyId=${academyId}`
-                  );
-                  if (checkResponse.ok) {
-                    const checkData = await checkResponse.json();
-                    return { bot, hasAccess: checkData.hasAccess, reason: checkData.reason };
-                  }
-                  return { bot, hasAccess: false, reason: 'API 오류' };
-                } catch (err) {
-                  console.error(`❌ 봇 ${bot.id} 접근 권한 체크 실패:`, err);
-                  return { bot, hasAccess: false, reason: '접근 권한 확인 실패' };
-                }
-              })
-            );
-            
-            accessibleBots = accessChecks
-              .filter(check => check.hasAccess)
-              .map(check => check.bot);
-            
-            const blockedBots = accessChecks.filter(check => !check.hasAccess);
-            if (blockedBots.length > 0) {
-              console.warn('🚫 접근 불가 봇:', blockedBots.map(b => `${b.bot.name} (${b.reason})`));
-            }
-            
-            console.log(`✅ 접근 가능한 봇: ${accessibleBots.length}/${data.bots.length}`);
+            console.log('✅ 학생 - 개별 할당된 봇만 표시:', accessibleBots.length);
+          } else {
+            // 🔒 학원장/선생님은 봇 접근 권한 체크 (필요시)
+            console.log('✅ 학원장/선생님 - 학원 구독 봇 표시:', accessibleBots.length);
           }
           
           setBots(accessibleBots);
