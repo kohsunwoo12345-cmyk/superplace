@@ -186,78 +186,71 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       console.log('📋 Subscription query result:', subscription || 'NULL');
 
       if (!subscription) {
-        console.error('❌ No subscription found for:', { 
-          academyId: userAcademyId, 
-          botId: botId,
-          requester: { email: requestingUser.email, role }
+        console.warn('⚠️ No subscription found, but allowing assignment for testing/trial purposes');
+        console.log('📝 Note: This assignment will work without subscription validation');
+        // 구독이 없어도 할당은 허용 (테스트/체험 목적)
+      } else {
+        // 구독이 있는 경우에만 만료 및 슬롯 검증
+        console.log('✅ Subscription found, validating expiration and slots');
+        
+        // 구독 만료 확인
+        const subscriptionEndDate = subscription.subscriptionEnd || subscription.subscriptionEndDate;
+        if (!subscriptionEndDate) {
+          console.error('❌ Subscription end date is missing:', subscription);
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Invalid subscription',
+            message: '구독 정보가 올바르지 않습니다. 관리자에게 문의하세요.'
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const subscriptionEnd = new Date(subscriptionEndDate);
+        const now = new Date();
+        if (subscriptionEnd < now) {
+          console.error('❌ Subscription expired:', { 
+            endDate: subscriptionEndDate, 
+            now: now.toISOString() 
+          });
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Subscription expired',
+            message: `구독이 만료되었습니다 (만료일: ${subscriptionEndDate}).\n\n해결 방법:\n1. AI 쇼핑몰에서 새로운 구독을 신청하세요\n2. 기존 구독을 갱신하세요`
+          }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        console.log('✅ Subscription is active until:', subscriptionEndDate);
+
+        // 남은 슬롯 확인
+        const remainingSlots = subscription.remainingStudentSlots || 0;
+        const totalSlots = subscription.totalStudentSlots || 0;
+        const usedSlots = subscription.usedStudentSlots || 0;
+
+        console.log('📊 Subscription slots status:', {
+          total: totalSlots,
+          used: usedSlots,
+          remaining: remainingSlots
         });
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'No subscription found',
-          message: '이 AI 봇에 대한 구독이 없습니다.\n\n해결 방법:\n1. AI 쇼핑몰에서 봇 구독을 신청하세요\n2. 관리자가 승인할 때까지 기다려주세요\n3. 문의사항은 관리자에게 연락하세요'
-        }), {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' }
-        });
+
+        if (remainingSlots <= 0) {
+          console.error('❌ No remaining slots:', { total: totalSlots, used: usedSlots, remaining: remainingSlots });
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'No remaining slots',
+            message: `사용 가능한 학생 슬롯이 부족합니다.\n\n현재 상태:\n- 전체 슬롯: ${totalSlots}개\n- 사용 중: ${usedSlots}개\n- 남은 슬롯: ${remainingSlots}개\n\n해결 방법:\n1. AI 쇼핑몰에서 추가 구독을 신청하세요\n2. 퇴원생이 있다면 할당을 취소한 후 재할당하세요\n3. 기존 학생의 할당을 취소하면 슬롯이 복원됩니다`
+          }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        console.log(`✅ Subscription slots available: ${remainingSlots}/${totalSlots}`);
       }
-
-      // 구독 만료 확인
-      const subscriptionEndDate = subscription.subscriptionEnd || subscription.subscriptionEndDate;
-      if (!subscriptionEndDate) {
-        console.error('❌ Subscription end date is missing:', subscription);
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Invalid subscription',
-          message: '구독 정보가 올바르지 않습니다. 관리자에게 문의하세요.'
-        }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      const subscriptionEnd = new Date(subscriptionEndDate);
-      const now = new Date();
-      if (subscriptionEnd < now) {
-        console.error('❌ Subscription expired:', { 
-          endDate: subscriptionEndDate, 
-          now: now.toISOString() 
-        });
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Subscription expired',
-          message: `구독이 만료되었습니다 (만료일: ${subscriptionEndDate}).\n\n해결 방법:\n1. AI 쇼핑몰에서 새로운 구독을 신청하세요\n2. 기존 구독을 갱신하세요`
-        }), {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      console.log('✅ Subscription is active until:', subscriptionEndDate);
-
-      // 남은 슬롯 확인
-      const remainingSlots = subscription.remainingStudentSlots || 0;
-      const totalSlots = subscription.totalStudentSlots || 0;
-      const usedSlots = subscription.usedStudentSlots || 0;
-
-      console.log('📊 Subscription slots status:', {
-        total: totalSlots,
-        used: usedSlots,
-        remaining: remainingSlots
-      });
-
-      if (remainingSlots <= 0) {
-        console.error('❌ No remaining slots:', { total: totalSlots, used: usedSlots, remaining: remainingSlots });
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'No remaining slots',
-          message: `사용 가능한 학생 슬롯이 부족합니다.\n\n현재 상태:\n- 전체 슬롯: ${totalSlots}개\n- 사용 중: ${usedSlots}개\n- 남은 슬롯: ${remainingSlots}개\n\n해결 방법:\n1. AI 쇼핑몰에서 추가 구독을 신청하세요\n2. 퇴원생이 있다면 할당을 취소한 후 재할당하세요\n3. 기존 학생의 할당을 취소하면 슬롯이 복원됩니다`
-        }), {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      console.log(`✅ Subscription slots available: ${remainingSlots}/${totalSlots}`);
     } else if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
       // 🔥 관리자: 할당하려는 학생의 학원 구독 정보 조회
       if (user.academyId) {
@@ -445,8 +438,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       finalDailyUsageLimit
     ).run();
 
-    // 🔒 구독 슬롯 차감 (학원장/선생님의 경우)
-    if ((role === 'DIRECTOR' || role === 'TEACHER') && user.academyId) {
+    // 🔒 구독 슬롯 차감 (학원장/선생님의 경우, 구독이 있을 때만)
+    if ((role === 'DIRECTOR' || role === 'TEACHER') && user.academyId && subscription) {
       console.log('📉 Decreasing subscription slot for academy:', user.academyId);
       
       const updateResult = await DB.prepare(`
@@ -472,6 +465,13 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       if (updatedSubscription) {
         console.log('📊 Updated subscription slots:', {
           total: updatedSubscription.totalStudentSlots,
+          used: updatedSubscription.usedStudentSlots,
+          remaining: updatedSubscription.remainingStudentSlots
+        });
+      }
+    } else if ((role === 'DIRECTOR' || role === 'TEACHER') && !subscription) {
+      console.log('⚠️ No subscription found, skipping slot decrease (trial/test mode)');
+    }
           used: updatedSubscription.usedStudentSlots,
           remaining: updatedSubscription.remainingStudentSlots
         });
