@@ -389,12 +389,14 @@ export default function ModernLayout({ children, role }: ModernLayoutProps) {
                 <p className="text-xs text-gray-600">{getRoleText()}</p>
               </div>
             </div>
-            <div className="pt-3 border-t border-blue-200">
-              <div className="flex items-center justify-between text-xs text-gray-600">
-                <span>포인트</span>
-                <span className="font-semibold text-blue-600">{userPoints.toLocaleString()} P</span>
+            {role !== 'STUDENT' && (
+              <div className="pt-3 border-t border-blue-200">
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>포인트</span>
+                  <span className="font-semibold text-blue-600">{userPoints.toLocaleString()} P</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </aside>
 
