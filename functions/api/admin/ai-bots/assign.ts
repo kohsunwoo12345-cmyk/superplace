@@ -53,14 +53,23 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       });
     }
 
-    // Get requesting user from database
-    const requestingUser = await DB
-      .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
+    // Get requesting user from database (User 테이블 먼저, 없으면 users 테이블)
+    let requestingUser = await DB
+      .prepare('SELECT id, email, role, academyId FROM User WHERE email = ?')
       .bind(tokenData.email)
       .first() as any;
 
+    // User 테이블에 없으면 users 테이블 확인
     if (!requestingUser) {
-      console.error('❌ Requesting user not found');
+      console.log('🔍 User 테이블에 없음, users 테이블 확인 중...');
+      requestingUser = await DB
+        .prepare('SELECT id, email, role, academyId FROM users WHERE email = ?')
+        .bind(tokenData.email)
+        .first() as any;
+    }
+
+    if (!requestingUser) {
+      console.error('❌ Requesting user not found in both User and users tables');
       return new Response(JSON.stringify({
         success: false,
         error: 'User not found'
@@ -87,12 +96,21 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     console.log("🤖 AI 봇 할당 요청:", { botId, userId, duration, durationUnit, providedDailyLimit });
 
-    // 사용자 확인 (User 테이블)
-    const user = await DB.prepare("SELECT * FROM users WHERE id = ?")
+    // 사용자 확인 (User 테이블 먼저, 없으면 users 테이블)
+    let user = await DB.prepare("SELECT * FROM User WHERE id = ?")
       .bind(userId)
       .first() as any;
 
+    // User 테이블에 없으면 users 테이블 확인
     if (!user) {
+      console.log('🔍 User 테이블에 없음, users 테이블 확인 중...');
+      user = await DB.prepare("SELECT * FROM users WHERE id = ?")
+        .bind(userId)
+        .first() as any;
+    }
+
+    if (!user) {
+      console.error('❌ Target user not found in both User and users tables');
       return new Response(
         JSON.stringify({ success: false, error: "사용자를 찾을 수 없습니다" }),
         { status: 404, headers: { "Content-Type": "application/json" } }
