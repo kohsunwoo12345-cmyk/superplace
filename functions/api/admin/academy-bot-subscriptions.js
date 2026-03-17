@@ -124,6 +124,8 @@ export async function onRequestPost(context) {
 
     // 요청 본문 파싱
     const body = await context.request.json();
+    
+    console.log('📥 Received request body:', JSON.stringify(body, null, 2));
 
     const {
       academyId,
@@ -139,24 +141,51 @@ export async function onRequestPost(context) {
 
     // botId 또는 productId 중 하나 사용 (botId 우선)
     const finalBotId = botId || productId;
+    
+    console.log('🔍 Parsed fields:', {
+      academyId,
+      productId,
+      botId,
+      finalBotId,
+      studentCount,
+      subscriptionStart,
+      subscriptionEnd,
+      dailyUsageLimit
+    });
 
     // 필수 필드 체크
     if (!academyId || !finalBotId) {
-      return new Response(JSON.stringify({ error: 'academyId and botId (or productId) are required' }), {
+      console.error('❌ Missing required fields:', {
+        academyId: !!academyId,
+        finalBotId: !!finalBotId,
+        originalBody: body
+      });
+      return new Response(JSON.stringify({ 
+        error: 'academyId and botId (or productId) are required',
+        received: { academyId, botId, productId, finalBotId }
+      }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
     if (!studentCount || studentCount <= 0) {
-      return new Response(JSON.stringify({ error: 'studentCount must be greater than 0' }), {
+      console.error('❌ Invalid studentCount:', studentCount);
+      return new Response(JSON.stringify({ 
+        error: 'studentCount must be greater than 0',
+        received: { studentCount, type: typeof studentCount }
+      }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
     if (!subscriptionStart || !subscriptionEnd) {
-      return new Response(JSON.stringify({ error: 'subscriptionStart and subscriptionEnd are required' }), {
+      console.error('❌ Missing dates:', { subscriptionStart, subscriptionEnd });
+      return new Response(JSON.stringify({ 
+        error: 'subscriptionStart and subscriptionEnd are required',
+        received: { subscriptionStart, subscriptionEnd }
+      }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -167,14 +196,32 @@ export async function onRequestPost(context) {
     const endDate = new Date(subscriptionEnd);
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return new Response(JSON.stringify({ error: 'Invalid date format' }), {
+      console.error('❌ Invalid date format:', { 
+        subscriptionStart, 
+        subscriptionEnd,
+        startDateValid: !isNaN(startDate.getTime()),
+        endDateValid: !isNaN(endDate.getTime())
+      });
+      return new Response(JSON.stringify({ 
+        error: 'Invalid date format',
+        received: { subscriptionStart, subscriptionEnd }
+      }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
     if (startDate >= endDate) {
-      return new Response(JSON.stringify({ error: 'subscriptionEnd must be after subscriptionStart' }), {
+      console.error('❌ Invalid date range:', { 
+        subscriptionStart, 
+        subscriptionEnd,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+      return new Response(JSON.stringify({ 
+        error: 'subscriptionEnd must be after subscriptionStart',
+        received: { subscriptionStart, subscriptionEnd, startDate, endDate }
+      }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
