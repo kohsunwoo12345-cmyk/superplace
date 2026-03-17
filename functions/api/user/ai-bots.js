@@ -48,7 +48,7 @@ export async function onRequestGet(context) {
             a.endDate as expiresAt
           FROM ai_bot_assignments a
           WHERE a.userId = ?
-            AND a.status = 'ACTIVE'
+            AND (LOWER(a.status) = 'active' OR a.status = 'ACTIVE')
             AND date(a.endDate) >= date('now')
         `).bind(userId).all();
 
