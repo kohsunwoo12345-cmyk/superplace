@@ -127,7 +127,8 @@ export async function onRequestPost(context) {
 
     const {
       academyId,
-      productId,
+      productId,  // 기존 필드 (하위 호환성)
+      botId,      // 새로운 필드
       studentCount,
       subscriptionStart,
       subscriptionEnd,
@@ -136,9 +137,12 @@ export async function onRequestPost(context) {
       memo,
     } = body;
 
+    // botId 또는 productId 중 하나 사용 (botId 우선)
+    const finalBotId = botId || productId;
+
     // 필수 필드 체크
-    if (!academyId || !productId) {
-      return new Response(JSON.stringify({ error: 'academyId and productId are required' }), {
+    if (!academyId || !finalBotId) {
+      return new Response(JSON.stringify({ error: 'academyId and botId (or productId) are required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -191,7 +195,7 @@ export async function onRequestPost(context) {
     // AI 봇 존재 확인
     const botCheck = await DB.prepare(
       'SELECT id, name FROM ai_bots WHERE id = ?'
-    ).bind(productId).first();
+    ).bind(finalBotId).first();
 
     if (!botCheck) {
       return new Response(JSON.stringify({ error: 'AI Bot not found' }), {
@@ -203,8 +207,8 @@ export async function onRequestPost(context) {
     console.log('📋 Creating academy bot subscription:', {
       academyId,
       academyName: academyCheck.name,
-      productId,
-      productName: botCheck.name,
+      botId: finalBotId,
+      botName: botCheck.name,
       studentCount,
       subscriptionStart,
       subscriptionEnd,
@@ -218,7 +222,7 @@ export async function onRequestPost(context) {
       WHERE academyId = ? AND productId = ?
       ORDER BY subscriptionEnd DESC
       LIMIT 1
-    `).bind(academyId, productId).first();
+    `).bind(academyId, finalBotId).first();
 
     let subscriptionId;
     let result;
@@ -294,7 +298,7 @@ export async function onRequestPost(context) {
         insertParams = [
           subscriptionId,
           academyId,
-          productId,
+          finalBotId,
           botCheck.name,
           studentCount,
           0,
@@ -328,7 +332,7 @@ export async function onRequestPost(context) {
         insertParams = [
           subscriptionId,
           academyId,
-          productId,
+          finalBotId,
           botCheck.name,
           studentCount,
           0,

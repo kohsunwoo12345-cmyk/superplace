@@ -438,7 +438,7 @@ export default function AIBotAssignPage() {
         
         const payload = {
           academyId: selectedAcademy,
-          productId: selectedBot,
+          botId: selectedBot,  // ✅ productId에서 botId로 수정
           studentCount: parseInt(studentLimit),
           subscriptionStart: startDate.toISOString().split('T')[0],
           subscriptionEnd: endDate.toISOString().split('T')[0],

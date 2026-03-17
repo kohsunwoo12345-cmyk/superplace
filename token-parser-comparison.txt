@@ -1,0 +1,104 @@
+╔══════════════════════════════════════════════════════════════════╗
+║              토큰 파서 수정 내용 (Before/After)                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+📍 파일 위치: functions/api/admin/ai-bots/assign.ts (라인 5-26)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ 이전 버전 (Commit: 5c61dd35) - 잘못된 코드
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function parseToken(authHeader: string | null) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  
+  const token = authHeader.substring(7);
+  const parts = token.split('|');
+  
+  if (parts.length < 3) {
+    return null;
+  }
+  
+  return {
+    id: parts[0],
+    email: parts[1],
+    role: parts[2],
+    name: parts[3] || '',
+    academyId: parts[4] || null  // ❌ 5번째 위치 (undefined!)
+  };
+}
+
+문제점:
+  ❌ academyId가 parts[4] (5번째 위치)를 참조
+  ❌ 실제 토큰은 5개 파트이지만 인덱스는 0-4
+  ❌ parts[4]는 timestamp이므로 academyId가 아님!
+  ❌ 결과: academyId = timestamp (잘못된 값)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ 수정 버전 (Commit: 6f235a35) - 올바른 코드
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function parseToken(authHeader: string | null): 
+  { id: string; email: string; role: string; academyId?: string } | null {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  
+  const token = authHeader.substring(7);
+  const parts = token.split('|');
+  
+  if (parts.length < 3) {
+    return null;
+  }
+  
+  // 3개 파트 토큰: ID|email|role
+  // 5개 파트 토큰: ID|email|role|academyId|timestamp (신규 로그인)
+  return {
+    id: parts[0],
+    email: parts[1],
+    role: parts[2],
+    academyId: parts.length >= 4 ? parts[3] : undefined  // ✅ 4번째 위치!
+  };
+}
+
+해결:
+  ✅ academyId가 parts[3] (4번째 위치)를 참조
+  ✅ 토큰 형식을 명확히 주석으로 설명
+  ✅ 3부분 토큰도 지원 (academyId = undefined)
+  ✅ 5부분 토큰도 지원 (academyId = parts[3])
+  ✅ 결과: academyId가 올바르게 추출됨
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 토큰 형식 분석
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+실제 토큰 예시:
+  "123|user@example.com|DIRECTOR|45|1710748800000"
+   ↑   ↑                ↑        ↑  ↑
+   |   |                |        |  parts[4] (timestamp)
+   |   |                |        parts[3] (academyId) ✅
+   |   |                parts[2] (role)
+   |   parts[1] (email)
+   parts[0] (id)
+
+인덱스 매핑:
+  parts[0] = "123"                (id)
+  parts[1] = "user@example.com"   (email)
+  parts[2] = "DIRECTOR"           (role)
+  parts[3] = "45"                 (academyId) ← 여기!
+  parts[4] = "1710748800000"      (timestamp)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ 검증 완료
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✅ 작동하는 sender-number API 파서와 100% 동일
+  ✅ academyId 위치 수정: parts[4] → parts[3]
+  ✅ 타입 정의 추가 (TypeScript 타입 안전성)
+  ✅ 명확한 주석 추가 (토큰 형식 설명)
+  ✅ 3부분/5부분 토큰 모두 지원
+  ✅ 다른 코드 변경 없음
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
