@@ -51,28 +51,52 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
     const db = env.DB;
 
-    // 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블)
+    console.log('🔍 발신번호 신청 - 사용자 조회 시작:', {
+      id: tokenData.id,
+      email: tokenData.email,
+      role: tokenData.role,
+      academyId: tokenData.academyId
+    });
+
+    // 사용자 정보 조회 - email 기반 (가장 확실한 방법)
     let user = await db
-      .prepare('SELECT id, email, role, name FROM users WHERE email = ?')
+      .prepare('SELECT id, email, role, name, academyId FROM users WHERE email = ?')
       .bind(tokenData.email)
       .first();
 
+    console.log('📊 users 테이블 조회 결과 (email):', user);
+
+    // email로 못 찾으면 id로 시도
     if (!user) {
+      console.log('⚠️ email로 못 찾음, id로 재시도:', tokenData.id);
       user = await db
-        .prepare('SELECT id, email, role, name FROM users WHERE email = ?')
-        .bind(tokenData.email)
+        .prepare('SELECT id, email, role, name, academyId FROM users WHERE id = ?')
+        .bind(tokenData.id)
         .first();
+      console.log('📊 users 테이블 조회 결과 (id):', user);
     }
 
     if (!user) {
-      console.error('❌ User not found:', tokenData.email);
-      return new Response(JSON.stringify({ error: "User not found" }), {
+      console.error('❌ User not found in DB:', {
+        email: tokenData.email,
+        id: tokenData.id,
+        role: tokenData.role
+      });
+      return new Response(JSON.stringify({ 
+        error: "User not found",
+        details: "사용자 정보를 데이터베이스에서 찾을 수 없습니다. 로그아웃 후 다시 로그인 해주세요.",
+        debugInfo: {
+          tokenEmail: tokenData.email,
+          tokenId: tokenData.id,
+          timestamp: new Date().toISOString()
+        }
+      }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
       });
     }
     
-    console.log('✅ User found:', user.email);
+    console.log('✅ User found:', { id: user.id, email: user.email, role: user.role });
 
     // FormData 파싱
     const formData = await request.formData();
