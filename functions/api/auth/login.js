@@ -199,6 +199,18 @@ export async function onRequestPost(context) {
         console.error('❌ Hashes do not match');
       }
     }
+    
+    // 🆕 If still not valid, try plaintext comparison (for legacy users)
+    if (!isValid) {
+      console.log('🔐 Trying plaintext password comparison...');
+      isValid = password === user.password;
+      if (isValid) {
+        console.log('✅ Password verified with plaintext (legacy mode)');
+        console.warn('⚠️ WARNING: User has plaintext password - should be migrated to hash!');
+      } else {
+        console.error('❌ Plaintext verification also failed');
+      }
+    }
 
     if (!isValid) {
       return new Response(
