@@ -1,4 +1,5 @@
 // Cloudflare Pages Function - Login API (JavaScript) - 모든 패턴 시도
+// Updated: 2026-03-17 - SHA-256 + plaintext support
 
 export async function onRequestPost(context) {
   try {
