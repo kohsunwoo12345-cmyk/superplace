@@ -758,78 +758,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Stats Cards - 더 시각적으로 */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <Card className="border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="p-2 bg-blue-100 rounded-xl">
-                  <Calendar className="h-6 w-6 text-blue-600" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl sm:text-4xl font-bold text-blue-600 mb-1">
-                {stats?.attendanceDays || 0}
-              </div>
-              <p className="text-xs sm:text-sm font-medium text-gray-600">출석일</p>
-              <p className="text-xs text-gray-500 mt-1">이번 달</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-green-100 bg-gradient-to-br from-green-50 to-white hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="p-2 bg-green-100 rounded-xl">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-1">
-                {stats?.completedHomework || 0}
-              </div>
-              <p className="text-xs sm:text-sm font-medium text-gray-600">완료 과제</p>
-              <p className="text-xs text-gray-500 mt-1">이번 달</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-purple-100 bg-gradient-to-br from-purple-50 to-white hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="p-2 bg-purple-100 rounded-xl">
-                  <Award className="h-6 w-6 text-purple-600" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl sm:text-4xl font-bold text-purple-600 mb-1">
-                {stats?.averageScore || 0}
-              </div>
-              <p className="text-xs sm:text-sm font-medium text-gray-600">평균 점수</p>
-              <p className="text-xs text-gray-500 mt-1">전체 평균</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-orange-100 bg-gradient-to-br from-orange-50 to-white hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="p-2 bg-orange-100 rounded-xl">
-                  <Clock className="h-6 w-6 text-orange-600" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl sm:text-4xl font-bold text-orange-600 mb-1">
-                {stats?.studyHours || 0}
-              </div>
-              <p className="text-xs sm:text-sm font-medium text-gray-600">학습 시간</p>
-              <p className="text-xs text-gray-500 mt-1">이번 주</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Action Cards - 새로 추가 */}
+        {/* Quick Action Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card 
             className="hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-pink-50 to-white border-2 border-pink-100"
