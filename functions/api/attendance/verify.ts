@@ -84,12 +84,16 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     }
 
     const userId = attendanceCode.userId;
+    
+    console.log('🔍 Attempting to find student with userId:', userId, 'type:', typeof userId);
 
     // 2. 학생 정보 조회
     // 실제 스키마: academyId (TEXT), academy_id (INTEGER), assigned_class (TEXT)
     let student = await DB.prepare(`
       SELECT id, name, email, academyId, academy_id, assigned_class as classId FROM users WHERE id = ?
     `).bind(userId).first();
+    
+    console.log('🔎 Student query result:', student ? `Found: ${student.name} (id: ${student.id})` : 'NULL - student not found');
 
     console.log('👤 users 테이블 조회 (academyId, academy_id, assigned_class):', student);
 
@@ -100,11 +104,42 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     }
 
     if (!student) {
-      console.error('❌ 학생을 찾을 수 없음: userId =', userId);
-      return new Response(
-        JSON.stringify({ success: false, error: "학생 정보를 찾을 수 없습니다" }),
-        { status: 404, headers: { "Content-Type": "application/json" } }
-      );
+      console.error('❌ 학생을 찾을 수 없음: userId =', userId, 'type:', typeof userId);
+      
+      // 디버깅: users 테이블의 샘플 데이터 확인
+      const sampleUsers = await DB.prepare(`
+        SELECT id, name, email FROM users LIMIT 5
+      `).all();
+      console.error('📊 Sample users in database:', sampleUsers.results);
+      
+      // userId로 다시 검색 시도 (타입 변환)
+      const userIdInt = parseInt(String(userId), 10);
+      if (!isNaN(userIdInt)) {
+        const retryStudent = await DB.prepare(`
+          SELECT id, name, email, academyId, academy_id, assigned_class as classId FROM users WHERE id = ?
+        `).bind(userIdInt).first();
+        
+        if (retryStudent) {
+          console.log('✅ Found student with parseInt:', retryStudent.name);
+          student = retryStudent;
+        }
+      }
+      
+      if (!student) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "학생 정보를 찾을 수 없습니다",
+            debug: {
+              userId: userId,
+              userIdType: typeof userId,
+              codeUserId: attendanceCode.userId,
+              sampleUsers: sampleUsers.results?.map(u => ({ id: u.id, name: u.name }))
+            }
+          }),
+          { status: 404, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
 
     console.log('✅ 학생 확인 완료:', student.name, 'academyId:', student.academyId);
