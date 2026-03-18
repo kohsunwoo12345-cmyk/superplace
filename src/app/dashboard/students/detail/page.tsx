@@ -540,30 +540,37 @@ function StudentDetailContent() {
           console.log('Failed to fetch attendance');
         }
 
-        // 4. 출석 코드 조회
+        // 4. 출석 코드 조회 (student.id 사용)
         try {
-          console.log('🎯 Fetching attendance code for userId:', studentId);
-          const attendanceCodeResponse = await fetch(`/api/students/attendance-code?userId=${studentId}`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
-          console.log('📡 Attendance code response status:', attendanceCodeResponse.status);
+          // student 객체에서 실제 숫자 ID 가져오기
+          const numericUserId = studentData?.id || studentData?.userId;
+          console.log('🎯 Fetching attendance code for numeric userId:', numericUserId, '(studentId was:', studentId, ')');
           
-          if (attendanceCodeResponse.ok) {
-            const codeData = await attendanceCodeResponse.json();
-            console.log('📦 Attendance code data:', codeData);
-            
-            if (codeData.success) {
-              console.log('✅ Setting attendance code:', codeData.code);
-              setAttendanceCode({
-                code: codeData.code,
-                userId: codeData.userId,
-                isActive: codeData.isActive,
-              });
-            } else {
-              console.error('❌ Attendance code fetch failed:', codeData.error || 'Unknown error');
-            }
+          if (!numericUserId) {
+            console.error('❌ No numeric user ID found in student data');
           } else {
-            console.error('❌ Attendance code response not ok:', attendanceCodeResponse.status);
+            const attendanceCodeResponse = await fetch(`/api/students/attendance-code?userId=${numericUserId}`, {
+              headers: { 'Authorization': `Bearer ${token}` },
+            });
+            console.log('📡 Attendance code response status:', attendanceCodeResponse.status);
+            
+            if (attendanceCodeResponse.ok) {
+              const codeData = await attendanceCodeResponse.json();
+              console.log('📦 Attendance code data:', codeData);
+              
+              if (codeData.success) {
+                console.log('✅ Setting attendance code:', codeData.code);
+                setAttendanceCode({
+                  code: codeData.code,
+                  userId: codeData.userId,
+                  isActive: codeData.isActive,
+                });
+              } else {
+                console.error('❌ Attendance code fetch failed:', codeData.error || 'Unknown error');
+              }
+            } else {
+              console.error('❌ Attendance code response not ok:', attendanceCodeResponse.status);
+            }
           }
         } catch (error) {
           console.error('❌ Failed to fetch attendance code:', error);
