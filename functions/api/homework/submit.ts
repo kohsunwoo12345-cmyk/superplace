@@ -60,15 +60,36 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // users 테이블 먼저 조회 (실제 운영 데이터)
     try {
       if (phone) {
+        // 전화번호로 조회 (출석 API와 동일한 방식)
+        const normalizedPhone = phone.replace(/\D/g, '');  // 숫자만 추출
+        
         user = await DB.prepare(
-          "SELECT id, name, email, academyId, academy_id, phone FROM users WHERE id = ? OR phone = ?"
-        ).bind(userId, phone).first();
-        console.log(`📊 users 테이블 조회 결과 (id OR phone):`, user);
+          "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT'"
+        ).bind(normalizedPhone).first();
+        console.log(`📊 users 테이블 조회 (phone=${normalizedPhone}):`, user);
+        
+        // 하이픈 포함 형식도 시도
+        if (!user) {
+          const phoneWithHyphen = normalizedPhone.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3');
+          user = await DB.prepare(
+            "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT'"
+          ).bind(phoneWithHyphen).first();
+          console.log(`📊 users 테이블 조회 (phone with hyphen=${phoneWithHyphen}):`, user);
+        }
+        
+        // 전화번호로 못 찾으면 userId로 시도
+        if (!user && userId) {
+          user = await DB.prepare(
+            "SELECT * FROM users WHERE id = ?"
+          ).bind(userId).first();
+          console.log(`📊 users 테이블 조회 (id=${userId}):`, user);
+        }
       } else {
+        // phone이 없으면 userId로만 조회
         user = await DB.prepare(
-          "SELECT id, name, email, academyId, academy_id, phone FROM users WHERE id = ?"
+          "SELECT * FROM users WHERE id = ?"
         ).bind(userId).first();
-        console.log(`📊 users 테이블 조회 결과 (id only):`, user);
+        console.log(`📊 users 테이블 조회 (id only):`, user);
       }
     } catch (e) {
       console.error(`❌ users 테이블 조회 오류:`, e.message);
@@ -76,19 +97,36 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // users 테이블에 없으면 User 테이블 확인 (대문자 버전)
     if (!user) {
-      console.log(`🔍 users 테이블에 없음, User 테이블 확인 중... (userId: ${userId}, phone: ${phone})`);
+      console.log(`🔍 users 테이블에 없음, User 테이블 확인 중...`);
       
       try {
         if (phone) {
+          const normalizedPhone = phone.replace(/\D/g, '');
+          
           user = await DB.prepare(
-            "SELECT id, name, email, academyId, academy_id, phone FROM User WHERE id = ? OR phone = ?"
-          ).bind(userId, phone).first();
-          console.log(`📊 User 테이블 조회 결과 (id OR phone):`, user);
+            "SELECT * FROM User WHERE phone = ? AND role = 'STUDENT'"
+          ).bind(normalizedPhone).first();
+          console.log(`📊 User 테이블 조회 (phone):`, user);
+          
+          if (!user) {
+            const phoneWithHyphen = normalizedPhone.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3');
+            user = await DB.prepare(
+              "SELECT * FROM User WHERE phone = ? AND role = 'STUDENT'"
+            ).bind(phoneWithHyphen).first();
+            console.log(`📊 User 테이블 조회 (phone with hyphen):`, user);
+          }
+          
+          if (!user && userId) {
+            user = await DB.prepare(
+              "SELECT * FROM User WHERE id = ?"
+            ).bind(userId).first();
+            console.log(`📊 User 테이블 조회 (id):`, user);
+          }
         } else {
           user = await DB.prepare(
-            "SELECT id, name, email, academyId, academy_id, phone FROM User WHERE id = ?"
+            "SELECT * FROM User WHERE id = ?"
           ).bind(userId).first();
-          console.log(`📊 User 테이블 조회 결과 (id only):`, user);
+          console.log(`📊 User 테이블 조회 (id only):`, user);
         }
       } catch (e) {
         console.error(`❌ User 테이블 조회 오류:`, e.message);
