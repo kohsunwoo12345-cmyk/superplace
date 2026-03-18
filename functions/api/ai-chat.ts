@@ -191,9 +191,11 @@ async function callGeminiDirect(
       parsedError = { rawError: errorText };
     }
     
-    // 상세한 에러 정보를 포함하여 throw
     const errorMessage = parsedError?.error?.message || errorText;
-    throw new Error(`Gemini API ${response.status}: ${errorMessage}`);
+    const error = new Error(`Gemini API ${response.status}: ${errorMessage}`);
+    (error as any).status = response.status;
+    (error as any).isRetryable = response.status === 503 || response.status === 429;
+    throw error;
   }
 
   const data = await response.json();
@@ -334,33 +336,73 @@ ${contextText}
       systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식을 참고하여 답변하세요.`;
     }
 
-    try {
-      console.log(`🚀 [${requestId}] Gemini API 호출 시작...`);
-      aiResponse = await callGeminiDirect(
-        data.message,
-        systemPrompt,
-        data.conversationHistory || [],
-        apiKey,
-        modelToUse
-      );
-      console.log(`✅ [${requestId}] Gemini 응답 성공 (${aiResponse.length} 글자)`);
-    } catch (geminiError: any) {
-      console.error(`❌ [${requestId}] Gemini 직접 호출 실패:`, geminiError.message);
-      console.error(`❌ [${requestId}] 에러 스택:`, geminiError.stack);
+    // 🔄 재시도 로직 with fallback models
+    const fallbackModels = [
+      modelToUse,
+      'gemini-2.0-flash-exp',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro'
+    ];
+    
+    let lastError: any = null;
+    let retryAttempt = 0;
+    const maxRetries = 3;
+    
+    for (const tryModel of fallbackModels) {
+      try {
+        console.log(`🚀 [${requestId}] Gemini API 호출 시도 ${retryAttempt + 1}/${maxRetries} (모델: ${tryModel})`);
+        
+        aiResponse = await callGeminiDirect(
+          data.message,
+          systemPrompt,
+          data.conversationHistory || [],
+          apiKey,
+          tryModel
+        );
+        
+        console.log(`✅ [${requestId}] Gemini 응답 성공 (${aiResponse.length} 글자, 모델: ${tryModel})`);
+        break; // 성공하면 루프 탈출
+        
+      } catch (geminiError: any) {
+        lastError = geminiError;
+        const isRetryable = geminiError.isRetryable || geminiError.status === 503 || geminiError.status === 429;
+        
+        console.error(`❌ [${requestId}] 모델 ${tryModel} 실패:`, geminiError.message);
+        
+        retryAttempt++;
+        
+        // 재시도 가능한 에러이고 아직 시도할 모델이 있으면 계속
+        if (isRetryable && retryAttempt < fallbackModels.length) {
+          console.log(`⏳ [${requestId}] 다음 모델로 재시도... (${retryAttempt + 1}/${fallbackModels.length})`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryAttempt)); // 점진적 backoff
+          continue;
+        }
+        
+        // 마지막 시도였거나 재시도 불가능한 에러면 throw
+        if (retryAttempt >= fallbackModels.length || !isRetryable) {
+          console.error(`❌ [${requestId}] 모든 재시도 실패`);
+          break;
+        }
+      }
+    }
+    
+    // 모든 시도가 실패한 경우
+    if (!aiResponse && lastError) {
+      console.error(`❌ [${requestId}] 최종 실패:`, lastError.message);
       
-      // 🔥 더 상세한 에러 정보 반환
       return new Response(
         JSON.stringify({
           success: false,
-          message: "AI 응답 생성 중 오류가 발생했습니다",
-          error: geminiError.message,
+          message: "AI 응답 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+          error: lastError.message,
           errorDetails: {
-            stack: geminiError.stack,
-            name: geminiError.name,
+            status: lastError.status,
+            retriesAttempted: retryAttempt,
+            modelsAttempted: fallbackModels.slice(0, retryAttempt).join(', '),
           },
           requestId,
         }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        { status: 503, headers: { "Content-Type": "application/json" } }
       );
     }
 
