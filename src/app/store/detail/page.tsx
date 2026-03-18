@@ -283,6 +283,28 @@ function ProductDetailPageContent() {
             <div className="text-3xl font-bold text-gray-900">
               {displayPrice}
             </div>
+            
+            {/* 학생당 가격 정보 표시 */}
+            {product.pricePerStudent && product.pricePerStudent > 0 && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900 mb-1">
+                      💡 학생당 가격 안내
+                    </p>
+                    <p className="text-xs text-blue-700">
+                      학생 1명당 월 {formatPrice(product.pricePerStudent)}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      총 가격 = (기본 가격 {product.monthlyPrice ? formatPrice(product.monthlyPrice) : formatPrice(product.price || 0)} + 학생당 가격 × 학생 수) × 개월 수
+                    </p>
+                    <p className="text-xs text-gray-600 mt-2 italic">
+                      예: 기본 {formatPrice(product.monthlyPrice || product.price || 0)} + {formatPrice(product.pricePerStudent)} × 10명 × 3개월 = {formatPrice((product.monthlyPrice || product.price || 0) * 3 + product.pricePerStudent * 10 * 3)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Promotion Banner */}

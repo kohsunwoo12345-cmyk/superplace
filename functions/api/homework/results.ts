@@ -38,6 +38,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // URL에서 파라미터 추출
     const url = new URL(context.request.url);
     const academyId = url.searchParams.get("academyId");
+    const userId = url.searchParams.get("userId");
 
     const today = getKoreanDate();
 
@@ -81,6 +82,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (academyId) {
       query += ` AND (COALESCE(users_lower.academyId, users_upper.academyId, hs.academyId) = ?)`;
       bindings.push(parseInt(academyId));
+    }
+
+    if (userId) {
+      query += ` AND hs.userId = ?`;
+      bindings.push(userId);
     }
 
     query += ` ORDER BY hs.submittedAt DESC LIMIT 100`;

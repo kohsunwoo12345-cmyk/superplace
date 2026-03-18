@@ -307,7 +307,7 @@ export default function TeacherHomeworkResultsPage() {
         setStats(data.statistics ? {
           totalSubmissions: data.statistics.total || 0,
           averageScore: data.statistics.averageScore || 0,
-          todaySubmissions: data.statistics.total || 0,
+          todaySubmissions: data.statistics.todaySubmissions || 0,
           pendingReview: data.statistics.pending || 0,
         } : null);
       } else {

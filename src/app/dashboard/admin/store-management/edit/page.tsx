@@ -714,6 +714,28 @@ export default function EditStoreProductPage() {
                   />
                 </div>
               </div>
+
+              <div className="border-t pt-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    학생당 가격 (월별)
+                    <span className="text-xs text-gray-500 ml-2">
+                      * 총 가격 = (기본 가격 + 학생당 가격 × 학생 수) × 개월 수
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    name="pricePerStudent"
+                    value={formData.pricePerStudent}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    예: 학생당 월 10,000원 입력 시, 10명 × 3개월 = 300,000원이 기본 가격에 추가됩니다
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
