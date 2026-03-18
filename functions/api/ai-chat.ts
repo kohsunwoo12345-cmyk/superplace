@@ -205,32 +205,51 @@ async function callGeminiDirect(
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
+  // 🔍 요청 시작 로깅
+  const requestStartTime = Date.now();
+  const requestId = `req-${requestStartTime}`;
+  console.log(`🚀 [${requestId}] AI Chat 요청 시작`);
+  
   try {
     const apiKey = context.env.GOOGLE_GEMINI_API_KEY;
     
     if (!apiKey) {
+      console.error(`❌ [${requestId}] API 키 없음`);
       return new Response(
         JSON.stringify({
           success: false,
           message: "API 키가 설정되지 않았습니다",
+          requestId,
         }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
     const data: ChatRequest = await context.request.json();
+    console.log(`📦 [${requestId}] 요청 데이터:`, {
+      messageLength: data.message?.length,
+      botId: data.botId,
+      historyLength: data.conversationHistory?.length || 0,
+      userId: data.userId,
+      hasImage: !!data.imageUrl,
+    });
     
     if (!data.message || !data.botId) {
+      console.error(`❌ [${requestId}] 필수 파라미터 누락:`, {
+        hasMessage: !!data.message,
+        hasBotId: !!data.botId,
+      });
       return new Response(
         JSON.stringify({
           success: false,
           message: "메시지와 봇 ID가 필요합니다",
+          requestId,
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`🤖 AI 챗봇 요청 - botId: ${data.botId}, message: ${data.message.substring(0, 50)}...`);
+    console.log(`🤖 [${requestId}] AI 챗봇 요청 - botId: ${data.botId}, message: ${data.message.substring(0, 50)}...`);
 
     // 봇 정보 조회
     const db = context.env.DB;
@@ -240,20 +259,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .first() as any;
 
     if (!bot) {
-      console.error(`❌ 봇을 찾을 수 없음: ${data.botId}`);
+      console.error(`❌ [${requestId}] 봇을 찾을 수 없음: ${data.botId}`);
       return new Response(
         JSON.stringify({
           success: false,
           message: "봇을 찾을 수 없습니다",
+          requestId,
         }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
 
     const modelToUse = bot.model || 'gemini-2.0-flash-exp';
-    console.log(`✅ 봇 발견: ${bot.name}`);
-    console.log(`📊 모델: ${modelToUse}`);
-    console.log(`📚 지식베이스: ${bot.knowledgeBase ? '있음' : '없음'}`);
+    console.log(`✅ [${requestId}] 봇 발견: ${bot.name}`);
+    console.log(`📊 [${requestId}] 모델: ${modelToUse}`);
+    console.log(`📚 [${requestId}] 지식베이스: ${bot.knowledgeBase ? '있음' : '없음'}`);
 
     let aiResponse = '';
     let useWorkerRAG = false;
@@ -285,14 +305,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // Gemini 호출 (RAG 컨텍스트 포함)
-    console.log('📚 Gemini 호출 준비');
-    console.log(`🎯 사용 모델: ${modelToUse}`);
+    console.log(`📚 [${requestId}] Gemini 호출 준비`);
+    console.log(`🎯 [${requestId}] 사용 모델: ${modelToUse}`);
     
     let systemPrompt = bot.systemPrompt || '';
     
     // RAG 컨텍스트를 시스템 프롬프트에 추가
     if (ragContext && ragContext.length > 0) {
-      console.log(`✅ RAG 컨텍스트 ${ragContext.length}개를 시스템 프롬프트에 추가`);
+      console.log(`✅ [${requestId}] RAG 컨텍스트 ${ragContext.length}개를 시스템 프롬프트에 추가`);
       const contextText = ragContext
         .map((ctx, idx) => `[컨텍스트 ${idx + 1}]\n${ctx.text}`)
         .join('\n\n');
@@ -310,11 +330,12 @@ ${contextText}
 절대로 "Google 언어 모델" 등의 일반적인 AI 소개를 하지 마세요.`;
     } else if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
       // Fallback: knowledgeBase 전체 사용
-      console.log('⚠️ RAG 컨텍스트 없음, 전체 knowledgeBase 사용');
+      console.log(`⚠️ [${requestId}] RAG 컨텍스트 없음, 전체 knowledgeBase 사용`);
       systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식을 참고하여 답변하세요.`;
     }
 
     try {
+      console.log(`🚀 [${requestId}] Gemini API 호출 시작...`);
       aiResponse = await callGeminiDirect(
         data.message,
         systemPrompt,
@@ -322,11 +343,25 @@ ${contextText}
         apiKey,
         modelToUse
       );
-      console.log(`✅ Gemini 응답 성공 (${aiResponse.length} 글자)`);
+      console.log(`✅ [${requestId}] Gemini 응답 성공 (${aiResponse.length} 글자)`);
     } catch (geminiError: any) {
-      console.error(`❌ Gemini 직접 호출 실패:`, geminiError.message);
-      console.error(`❌ 에러 스택:`, geminiError.stack);
-      throw geminiError;
+      console.error(`❌ [${requestId}] Gemini 직접 호출 실패:`, geminiError.message);
+      console.error(`❌ [${requestId}] 에러 스택:`, geminiError.stack);
+      
+      // 🔥 더 상세한 에러 정보 반환
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "AI 응답 생성 중 오류가 발생했습니다",
+          error: geminiError.message,
+          errorDetails: {
+            stack: geminiError.stack,
+            name: geminiError.name,
+          },
+          requestId,
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     // 봇 사용 통계 업데이트
@@ -340,22 +375,35 @@ ${contextText}
       .bind(data.botId)
       .run();
 
+    const requestDuration = Date.now() - requestStartTime;
+    console.log(`✅ [${requestId}] 요청 완료 (${requestDuration}ms)`);
+    
     return new Response(
       JSON.stringify({
         success: true,
         response: aiResponse,
         workerRAGUsed: useWorkerRAG,
-        ragContextCount: ragContextCount
+        ragContextCount: ragContextCount,
+        requestId,
+        duration: requestDuration,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: any) {
-    console.error("❌ AI 챗봇 오류:", error);
+    const requestDuration = Date.now() - requestStartTime;
+    console.error(`❌ [${requestId}] AI 챗봇 오류 (${requestDuration}ms):`, error);
+    console.error(`❌ [${requestId}] 에러 타입:`, error.name);
+    console.error(`❌ [${requestId}] 에러 메시지:`, error.message);
+    console.error(`❌ [${requestId}] 에러 스택:`, error.stack);
+    
     return new Response(
       JSON.stringify({
         success: false,
         message: "오류가 발생했습니다",
         error: error.message,
+        errorType: error.name,
+        requestId,
+        duration: requestDuration,
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
