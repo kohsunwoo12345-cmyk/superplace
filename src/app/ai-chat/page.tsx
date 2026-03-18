@@ -680,7 +680,9 @@ export default function ModernAIChatPage() {
         console.log('✅ API 응답 성공:', {
           success: data.success,
           responseLength: data.response?.length,
-          responsePreview: data.response?.substring(0, 100)
+          responsePreview: data.response?.substring(0, 100),
+          attemptedModels: data.attemptedModels,
+          retryCount: data.retryCount
         });
         
         const assistantMessage: Message = {
@@ -708,12 +710,46 @@ export default function ModernAIChatPage() {
         await saveChatSession(updatedSession);
         console.log('✅ 세션 업데이트 완료:', sessionId);
       } else {
-        const errorData = await response.json();
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          console.error('❌ 에러 응답 JSON 파싱 실패:', e);
+        }
+        
         console.error('❌ API 응답 오류:', {
           status: response.status,
+          statusText: response.statusText,
           errorData: errorData,
         });
-        throw new Error(errorData.message || "AI 응답 실패");
+        
+        // 503 Service Unavailable 에러 특별 처리
+        if (response.status === 503) {
+          const retryAfter = errorData.retryAfterSeconds || 60;
+          throw new Error(
+            `서버가 일시적으로 과부하 상태입니다.\n\n` +
+            `${retryAfter}초 후 자동으로 다시 시도하거나, 잠시 후 직접 재전송해 주세요.\n\n` +
+            `시도된 모델: ${errorData.attemptedModels?.join(' → ') || '알 수 없음'}`
+          );
+        }
+        
+        // 429 Too Many Requests 에러 처리
+        if (response.status === 429) {
+          throw new Error(
+            `요청이 너무 많습니다.\n\n잠시 후 다시 시도해 주세요.`
+          );
+        }
+        
+        // 500 Internal Server Error 에러 처리
+        if (response.status === 500) {
+          throw new Error(
+            `서버 내부 오류가 발생했습니다.\n\n잠시 후 다시 시도해 주세요.\n\n` +
+            `오류 상세: ${errorData.error || '알 수 없음'}`
+          );
+        }
+        
+        // 기타 에러
+        throw new Error(errorData.error || errorData.message || `AI 응답 실패 (HTTP ${response.status})`);
       }
     } catch (error: any) {
       console.error('❌ AI 채팅 오류:', error);
@@ -721,10 +757,20 @@ export default function ModernAIChatPage() {
       console.error('❌ 에러 메시지:', error.message);
       console.error('❌ 에러 스택:', error.stack);
       
+      // 사용자 친화적인 에러 메시지 생성
+      let userFriendlyMessage = error.message;
+      
+      // 네트워크 오류 처리
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        userFriendlyMessage = 
+          `네트워크 연결 오류가 발생했습니다.\n\n` +
+          `인터넷 연결을 확인하고 다시 시도해 주세요.`;
+      }
+      
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",
-        content: `죄송합니다. 오류가 발생했습니다: ${error.message || "다시 시도해주세요."}`,
+        content: `죄송합니다. 오류가 발생했습니다.\n\n${userFriendlyMessage}`,
         timestamp: new Date(),
       };
       const finalMessages = [...updatedMessages, errorMessage];
@@ -1543,7 +1589,9 @@ export default function ModernAIChatPage() {
         console.log('✅ API 응답 성공:', {
           success: data.success,
           responseLength: data.response?.length,
-          responsePreview: data.response?.substring(0, 100)
+          responsePreview: data.response?.substring(0, 100),
+          attemptedModels: data.attemptedModels,
+          retryCount: data.retryCount
         });
         
         const assistantMessage: Message = {
@@ -1571,21 +1619,65 @@ export default function ModernAIChatPage() {
         await saveChatSession(updatedSession);
         console.log('✅ 세션 업데이트 완료:', sessionId);
       } else {
-        const errorData = await response.json();
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          console.error('❌ 에러 응답 JSON 파싱 실패:', e);
+        }
+        
         console.error('❌ API 응답 오류:', {
           status: response.status,
+          statusText: response.statusText,
           errorData: errorData,
         });
-        throw new Error(errorData.message || "AI 응답 실패");
+        
+        // 503 Service Unavailable 에러 특별 처리
+        if (response.status === 503) {
+          const retryAfter = errorData.retryAfterSeconds || 60;
+          throw new Error(
+            `서버가 일시적으로 과부하 상태입니다.\n\n` +
+            `${retryAfter}초 후 자동으로 다시 시도하거나, 잠시 후 직접 재전송해 주세요.\n\n` +
+            `시도된 모델: ${errorData.attemptedModels?.join(' → ') || '알 수 없음'}`
+          );
+        }
+        
+        // 429 Too Many Requests 에러 처리
+        if (response.status === 429) {
+          throw new Error(
+            `요청이 너무 많습니다.\n\n잠시 후 다시 시도해 주세요.`
+          );
+        }
+        
+        // 500 Internal Server Error 에러 처리
+        if (response.status === 500) {
+          throw new Error(
+            `서버 내부 오류가 발생했습니다.\n\n잠시 후 다시 시도해 주세요.\n\n` +
+            `오류 상세: ${errorData.error || '알 수 없음'}`
+          );
+        }
+        
+        // 기타 에러
+        throw new Error(errorData.error || errorData.message || `AI 응답 실패 (HTTP ${response.status})`);
       }
     } catch (error: any) {
       console.error('❌ AI 채팅 오류:', error);
       console.error('❌ 에러 메시지:', error.message);
       
+      // 사용자 친화적인 에러 메시지 생성
+      let userFriendlyMessage = error.message;
+      
+      // 네트워크 오류 처리
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        userFriendlyMessage = 
+          `네트워크 연결 오류가 발생했습니다.\n\n` +
+          `인터넷 연결을 확인하고 다시 시도해 주세요.`;
+      }
+      
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",
-        content: `죄송합니다. 이미지 분석 중 오류가 발생했습니다: ${error.message || "다시 시도해주세요."}`,
+        content: `죄송합니다. 이미지 분석 중 오류가 발생했습니다.\n\n${userFriendlyMessage}`,
         timestamp: new Date(),
       };
       const finalMessages = [...updatedMessages, errorMessage];
