@@ -478,8 +478,9 @@ ${knowledgeContext}
     }
     // Gemini 모델 (GOOGLE_GEMINI_API_KEY)
     else {
+      // Gemini API 버전: 1.0-pro만 v1, 나머지는 모두 v1beta
       let apiVersion = 'v1beta';
-      if (model.includes('1.0') || model.includes('2.0')) {
+      if (model === 'gemini-1.0-pro' || model === 'gemini-1.0-pro-latest') {
         apiVersion = 'v1';
       }
       
