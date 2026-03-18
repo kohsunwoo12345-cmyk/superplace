@@ -46,22 +46,23 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       );
     }
 
-    // 2. Delete orphaned codes
-    let deletedCount = 0;
-    const failedDeletions: any[] = [];
+    // 2. Deactivate orphaned codes (set isActive = 0)
+    let deactivatedCount = 0;
+    const failedDeactivations: any[] = [];
 
     for (const code of orphanedCodes) {
       try {
         await DB.prepare(`
-          DELETE FROM student_attendance_codes 
+          UPDATE student_attendance_codes 
+          SET isActive = 0
           WHERE id = ?
         `).bind(code.id).run();
         
-        deletedCount++;
-        console.log(`✅ Deleted orphaned code: ${code.code} (userId: ${code.userId})`);
+        deactivatedCount++;
+        console.log(`✅ Deactivated orphaned code: ${code.code} (userId: ${code.userId})`);
       } catch (error) {
-        console.error(`❌ Failed to delete code ${code.code}:`, error);
-        failedDeletions.push({
+        console.error(`❌ Failed to deactivate code ${code.code}:`, error);
+        failedDeactivations.push({
           code: code.code,
           userId: code.userId,
           error: error instanceof Error ? error.message : String(error)
@@ -69,18 +70,19 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       }
     }
 
-    console.log(`✅ Cleanup completed: ${deletedCount} deleted, ${failedDeletions.length} failed`);
+    console.log(`✅ Cleanup completed: ${deactivatedCount} deactivated, ${failedDeactivations.length} failed`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Cleanup completed",
+        message: "Cleanup completed - orphaned codes deactivated",
         stats: {
           totalOrphaned: orphanedCodes.length,
-          deleted: deletedCount,
-          failed: failedDeletions.length
+          deactivated: deactivatedCount,
+          failed: failedDeactivations.length
         },
-        failedDeletions: failedDeletions
+        failedDeactivations: failedDeactivations,
+        orphanedCodes: orphanedCodes.map(c => ({ userId: c.userId, code: c.code }))
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
