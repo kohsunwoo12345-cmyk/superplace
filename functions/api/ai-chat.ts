@@ -115,7 +115,7 @@ async function callGeminiDirect(
 
   console.log(`📊 총 contents 수: ${contents.length}개`);
 
-  // 🔧 systemInstruction 사용 (Gemini 1.5+ 지원)
+  // 🔧 최소한의 requestBody (테스트용)
   const requestBody: any = {
     contents: contents,
     generationConfig: {
@@ -123,16 +123,9 @@ async function callGeminiDirect(
       maxOutputTokens: 8192
     }
   };
-  
-  // systemPrompt가 있으면 systemInstruction으로 추가
-  if (systemPrompt && systemPrompt.trim().length > 0) {
-    requestBody.systemInstruction = {
-      parts: [{ text: systemPrompt }]
-    };
-    console.log(`📊 systemInstruction 추가됨 (${systemPrompt.length}자)`);
-  }
 
-  console.log(`📤 Request Body:`, JSON.stringify(requestBody, null, 2).substring(0, 500));
+  console.log(`📤 Request Body Keys:`, Object.keys(requestBody));
+  console.log(`📤 Contents 첫 항목:`, JSON.stringify(contents[0]));
   console.log(`⏳ Gemini API 호출 중...`);
 
   const response = await fetch(url, {
@@ -221,8 +214,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let useWorkerRAG = false;
     let ragContextCount = 0;
 
-    // 🔥 Worker RAG 모드 (knowledgeBase가 있을 때)
-    if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
+    // 🔥 Worker RAG 모드 임시 비활성화 (디버깅)
+    const ENABLE_WORKER_RAG = false;
+    
+    if (ENABLE_WORKER_RAG && bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
       try {
         console.log('🚀 Worker RAG 모드 활성화');
         
@@ -250,15 +245,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       console.log('📚 Gemini 직접 호출 모드');
       console.log(`🎯 사용 모델: ${modelToUse}`);
       
-      let systemPrompt = bot.systemPrompt || '';
-      if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
-        systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식을 참고하여 답변하세요.`;
-      }
+      // 🔧 테스트: systemPrompt 제거, 순수 메시지만
+      const testSystemPrompt = ''; // systemPrompt 비활성화
+      
+      console.log(`⚠️ 테스트 모드: systemPrompt 비활성화`);
 
       try {
         aiResponse = await callGeminiDirect(
           data.message,
-          systemPrompt,
+          testSystemPrompt, // 빈 문자열
           data.conversationHistory || [],
           apiKey,
           modelToUse
