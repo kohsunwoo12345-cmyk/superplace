@@ -86,25 +86,17 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     const userId = attendanceCode.userId;
 
     // 2. 학생 정보 조회
-    // 주의: 'class' 컬럼은 존재하지 않으므로 classId, academy_id 등 실제 컬럼명 사용
+    // 실제 스키마: academyId (TEXT), academy_id (INTEGER), assigned_class (TEXT)
     let student = await DB.prepare(`
-      SELECT id, name, email, academyId, classId FROM users WHERE id = ?
+      SELECT id, name, email, academyId, academy_id, assigned_class as classId FROM users WHERE id = ?
     `).bind(userId).first();
 
-    console.log('👤 users 테이블 조회 (academyId, classId):', student);
+    console.log('👤 users 테이블 조회 (academyId, academy_id, assigned_class):', student);
 
-    // 첫 번째 시도 실패 시 snake_case 컬럼명으로 재시도
-    if (!student) {
-      console.log('🔍 snake_case 컬럼명으로 재시도...');
-      const altStudent = await DB.prepare(`
-        SELECT id, name, email, academy_id as academyId, class_id as classId FROM users WHERE id = ?
-      `).bind(userId).first();
-      
-      console.log('👤 users 테이블 조회 (academy_id, class_id):', altStudent);
-      
-      if (altStudent) {
-        student = altStudent;
-      }
+    // academyId가 없으면 academy_id를 사용
+    if (student && !student.academyId && student.academy_id) {
+      student.academyId = student.academy_id;
+      console.log('✅ academy_id를 academyId로 설정:', student.academyId);
     }
 
     if (!student) {
