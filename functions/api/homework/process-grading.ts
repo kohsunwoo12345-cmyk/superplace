@@ -231,9 +231,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let gradedByModel = 'AI';
     if (model.startsWith('gemini')) {
       gradedByModel = `Google Gemini (${model})`;
+      console.log(`✅ [GRADING] Gemini 모델 사용: ${gradedByModel}`);
     } else if (model.startsWith('deepseek')) {
       gradedByModel = `DeepSeek (${model})`;
+      console.log(`✅ [GRADING] DeepSeek 모델 사용: ${gradedByModel}`);
+    } else {
+      console.warn(`⚠️ [GRADING] 알 수 없는 모델: ${model}`);
     }
+    console.log(`🔍 [GRADING] gradedByModel 최종 값: "${gradedByModel}"`);
 
     // 5. Python Worker로 수학 문제 검증 (옵션)
     if (PYTHON_WORKER_URL_ && gradingResult.problemAnalysis && gradingResult.problemAnalysis.length > 0) {
@@ -289,6 +294,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const suggestionsStr = Array.isArray(gradingResult.suggestions)
       ? gradingResult.suggestions.join(', ')
       : (typeof gradingResult.suggestions === 'string' ? gradingResult.suggestions : '');
+
+    console.log(`💾 [DB INSERT] gradedByModel 값: "${gradedByModel}"`);
+    console.log(`💾 [DB INSERT] 채점 결과 - score: ${gradingResult.score}, subject: ${gradingResult.subject}`);
 
     await DB.prepare(`
       INSERT INTO homework_gradings_v2 (
