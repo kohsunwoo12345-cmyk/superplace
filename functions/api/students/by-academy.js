@@ -46,8 +46,9 @@ export async function onRequestGet(context) {
       // 단일 학생 조회
       let student = null;
       
-      // User 테이블 조회
+      // User 테이블 조회 (id 또는 student_code로 검색)
       try {
+        // 먼저 숫자 ID로 시도
         student = await DB.prepare(`
           SELECT 
             u.*,
@@ -56,6 +57,19 @@ export async function onRequestGet(context) {
           LEFT JOIN Academy a ON u.academyId = a.id
           WHERE u.id = ?
         `).bind(requestedId).first();
+        
+        // 못 찾으면 student_code로 시도
+        if (!student) {
+          console.log('ID로 못찾음, student_code로 재시도:', requestedId);
+          student = await DB.prepare(`
+            SELECT 
+              u.*,
+              a.name as academyName
+            FROM User u
+            LEFT JOIN Academy a ON u.academyId = a.id
+            WHERE u.student_code = ?
+          `).bind(requestedId).first();
+        }
         
         if (student && student.role === 'STUDENT') {
           console.log('✅ 학생 발견:', student.name);
@@ -92,9 +106,16 @@ export async function onRequestGet(context) {
         console.log('User 테이블 조회 실패:', e.message);
       }
       
-      // users 테이블 조회 (fallback)
+      // users 테이블 조회 (fallback) - id 또는 student_code로 검색
       try {
         student = await DB.prepare('SELECT * FROM users WHERE id = ?').bind(requestedId).first();
+        
+        // 못 찾으면 student_code로 시도
+        if (!student) {
+          console.log('users 테이블: ID로 못찾음, student_code로 재시도');
+          student = await DB.prepare('SELECT * FROM users WHERE student_code = ?').bind(requestedId).first();
+        }
+        
         if (student && student.role === 'STUDENT') {
           console.log('✅ 학생 발견 (users):', student.name);
           return new Response(JSON.stringify({

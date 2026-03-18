@@ -548,6 +548,13 @@ function StudentDetailContent() {
           
           if (!numericUserId) {
             console.error('❌ No numeric user ID found in student data');
+            // 학생이 존재하지 않음을 명확히 표시
+            setAttendanceCode({
+              code: 'ERROR',
+              userId: 0,
+              isActive: 0,
+              error: '학생 정보를 찾을 수 없습니다. 학생 목록에서 다시 선택해주세요.',
+            });
           } else {
             const attendanceCodeResponse = await fetch(`/api/students/attendance-code?userId=${numericUserId}`, {
               headers: { 'Authorization': `Bearer ${token}` },
@@ -567,13 +574,31 @@ function StudentDetailContent() {
                 });
               } else {
                 console.error('❌ Attendance code fetch failed:', codeData.error || 'Unknown error');
+                setAttendanceCode({
+                  code: 'ERROR',
+                  userId: 0,
+                  isActive: 0,
+                  error: codeData.error || '출석 코드를 불러올 수 없습니다.',
+                });
               }
             } else {
               console.error('❌ Attendance code response not ok:', attendanceCodeResponse.status);
+              setAttendanceCode({
+                code: 'ERROR',
+                userId: 0,
+                isActive: 0,
+                error: '출석 코드 조회에 실패했습니다.',
+              });
             }
           }
         } catch (error) {
           console.error('❌ Failed to fetch attendance code:', error);
+          setAttendanceCode({
+            code: 'ERROR',
+            userId: 0,
+            isActive: 0,
+            error: '출석 코드 조회 중 오류가 발생했습니다.',
+          });
         }
 
         // 5. 캐시된 부족한 개념 분석 결과 조회
