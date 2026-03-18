@@ -388,14 +388,19 @@ export default function AttendanceVerifyPage() {
     setGrading(true);
     try {
       console.log("📤 숙제 제출 시작... 총", capturedImages.length, "장");
+      // userId는 studentInfo.userId 또는 studentInfo.id 사용
+      const userId = studentInfo?.userId || studentInfo?.id;
+      
       console.log("📊 전송할 학생 정보:", {
-        userId: studentInfo?.userId,
+        userId: userId,
+        studentInfoId: studentInfo?.id,
+        studentInfoUserId: studentInfo?.userId,
         phone: studentInfo?.phone || code,
         imagesCount: capturedImages.length
       });
       
       // userId 검증
-      if (!studentInfo?.userId) {
+      if (!userId) {
         console.error("❌ userId가 없습니다!", studentInfo);
         alert("학생 정보를 찾을 수 없습니다. 다시 출석 인증을 해주세요.");
         setGrading(false);
@@ -407,7 +412,7 @@ export default function AttendanceVerifyPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: studentInfo.userId,
+          userId: userId,
           phone: studentInfo.phone || code,
           images: capturedImages, // 다중 이미지 전달
         }),
