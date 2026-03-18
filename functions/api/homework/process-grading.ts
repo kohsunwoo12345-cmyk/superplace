@@ -418,6 +418,32 @@ async function performDeepSeekGrading(
   const responseText = data.choices[0].message.content;
   console.log('📄 DeepSeek 응답:', responseText.substring(0, 200) + '...');
   
+  // ✨ 디버깅: AI 응답 전체를 DB에 저장
+  try {
+    await DB.prepare(`
+      CREATE TABLE IF NOT EXISTS ai_response_debug (
+        id TEXT PRIMARY KEY,
+        submissionId TEXT,
+        model TEXT,
+        response TEXT,
+        createdAt TEXT DEFAULT (datetime('now'))
+      )
+    `).run();
+    
+    await DB.prepare(`
+      INSERT INTO ai_response_debug (id, submissionId, model, response)
+      VALUES (?, ?, ?, ?)
+    `).bind(
+      `debug-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      submissionId,
+      model,
+      responseText
+    ).run();
+    console.log('✅ AI 응답 디버그 저장 완료');
+  } catch (debugError: any) {
+    console.warn('⚠️ AI 응답 디버그 저장 실패:', debugError.message);
+  }
+  
   // JSON 추출
   const match = responseText.match(/\{[\s\S]*\}/);
   
