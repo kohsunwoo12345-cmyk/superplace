@@ -36,13 +36,95 @@ export async function onRequestPost(context) {
     // Authorization 헤더에서 사용자 정보 추출
     const authHeader = context.request.headers.get('Authorization');
     let tokenAcademyId = academyId;
+    let userId = null;
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const parts = token.split('|');
       if (parts.length >= 4) {
+        userId = parts[0];
         tokenAcademyId = parts[3] || academyId;
-        logs.push(`✅ 토큰에서 academyId 추출: ${tokenAcademyId}`);
+        logs.push(`✅ 토큰에서 사용자 정보 추출: userId=${userId}, academyId=${tokenAcademyId}`);
+      }
+    }
+
+    // 🔒 구독 확인 (필수)
+    if (userId) {
+      logs.push('🔒 구독 확인 중...');
+      const subscription = await DB.prepare(`
+        SELECT * FROM user_subscriptions 
+        WHERE userId = ? AND status = 'active'
+        ORDER BY endDate DESC LIMIT 1
+      `).bind(userId).first();
+
+      if (!subscription) {
+        logs.push('❌ 활성화된 구독이 없습니다');
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'NO_SUBSCRIPTION',
+          message: '활성화된 구독이 없습니다. 요금제를 선택해주세요.',
+          redirectTo: '/pricing',
+          logs
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      // 만료 확인
+      const now = new Date();
+      const endDate = new Date(subscription.endDate);
+      if (now > endDate) {
+        logs.push('❌ 구독이 만료되었습니다');
+        await DB.prepare(`
+          UPDATE user_subscriptions SET status = 'expired', updatedAt = datetime('now')
+          WHERE id = ?
+        `).bind(subscription.id).run();
+        
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'SUBSCRIPTION_EXPIRED',
+          message: '구독이 만료되었습니다. 요금제를 갱신해주세요.',
+          redirectTo: '/pricing',
+          logs
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      logs.push(`✅ 구독 활성화 확인: ${subscription.id}`);
+
+      // 학생 수 제한 체크 (플랜의 max_students 확인)
+      const plan = await DB.prepare(`
+        SELECT max_students FROM pricing_plans WHERE id = ?
+      `).bind(subscription.planId).first();
+
+      if (plan && plan.max_students > 0) {
+        const studentCount = await DB.prepare(`
+          SELECT COUNT(*) as count FROM User 
+          WHERE academyId = ? AND role = 'STUDENT' AND (isWithdrawn IS NULL OR isWithdrawn = 0)
+        `).bind(tokenAcademyId).first();
+        
+        const currentStudents = studentCount?.count || 0;
+        logs.push(`📊 현재 학생 수: ${currentStudents}/${plan.max_students}`);
+        
+        if (currentStudents >= plan.max_students) {
+          logs.push(`❌ 학생 수 제한 초과 (최대 ${plan.max_students}명)`);
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'STUDENT_LIMIT_EXCEEDED',
+            message: `학생 수 제한을 초과했습니다. (최대 ${plan.max_students}명)`,
+            currentCount: currentStudents,
+            maxLimit: plan.max_students,
+            logs
+          }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      } else {
+        logs.push('📊 무제한 플랜 - 학생 수 제한 없음');
       }
     }
 
