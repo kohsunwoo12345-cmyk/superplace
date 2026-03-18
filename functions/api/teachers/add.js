@@ -290,7 +290,7 @@ export async function onRequestPost(context) {
     const randomStr = Math.random().toString(36).substring(2, 15);
     const teacherId = `teacher-${timestamp}-${randomStr}`;
 
-    const now = new Date().toISOString();
+    const nowISO = new Date().toISOString();
 
     console.log('➕ Inserting new teacher into User table...');
     console.log('📋 Teacher details:');
@@ -311,7 +311,7 @@ export async function onRequestPost(context) {
       INSERT INTO User 
       (id, email, password, name, phone, role, academyId, approved, isWithdrawn, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, 'TEACHER', ?, 1, 0, ?, ?)
-    `).bind(teacherId, email, hashedPassword, name, phone, academyId, now, now);
+    `).bind(teacherId, email, hashedPassword, name, phone, academyId, nowISO, nowISO);
     
     // Immediate SELECT after INSERT to verify it's in PRIMARY DB
     const selectStmt = db.prepare(`
@@ -364,8 +364,8 @@ export async function onRequestPost(context) {
       isWithdrawn: 0,
       permissions: [],
       assignedClasses: [],
-      createdAt: now,
-      updatedAt: now
+      createdAt: nowISO,
+      updatedAt: nowISO
     };
 
     console.log('✅ Returning teacher data:', newTeacher);
