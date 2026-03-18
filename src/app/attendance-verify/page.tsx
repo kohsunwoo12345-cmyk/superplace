@@ -407,12 +407,11 @@ export default function AttendanceVerifyPage() {
         return;
       }
       
-      console.log("🌐 API 호출 시작: /api/homework/submit");
-      const response = await fetch("/api/homework/submit", {
+      console.log("🌐 API 호출 시작: /api/homework-v2/submit");
+      const response = await fetch("/api/homework-v2/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: userId,
           phone: studentInfo.phone || code,
           images: capturedImages, // 다중 이미지 전달
         }),
