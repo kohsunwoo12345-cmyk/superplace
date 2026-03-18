@@ -96,16 +96,16 @@ export async function onRequestPost(context: any) {
 
     console.log('📅 현재 한국 시간:', { today, currentTime });
 
-    // 오늘 이미 출석했는지 확인
+    // 오늘 이미 출석했는지 확인 (attendance_records_v2 사용)
     let existingAttendance = null;
     try {
       existingAttendance = await DB.prepare(`
-        SELECT * FROM Attendance 
-        WHERE studentId = ? AND date = ?
+        SELECT * FROM attendance_records_v2
+        WHERE userId = ? AND SUBSTR(checkInTime, 1, 10) = ?
         ORDER BY id DESC LIMIT 1
       `).bind(student.id, today).first();
     } catch (e) {
-      console.log('Attendance 테이블 조회 실패:', e.message);
+      console.log('attendance_records_v2 조회 실패:', e.message);
     }
 
     if (existingAttendance) {
@@ -129,27 +129,42 @@ export async function onRequestPost(context: any) {
 
     console.log('⏰ 출석 시각:', { hour, minute, isLate });
 
-    // 새 출석 기록 생성
+    // 새 출석 기록 생성 (attendance_records_v2 사용)
     const attendanceStatus = isLate ? 'LATE' : 'PRESENT';
+    const recordId = `${student.id}-${today}-${Date.now()}`;
 
     try {
+      // 테이블 생성 (없을 경우 대비)
       await DB.prepare(`
-        INSERT INTO Attendance (studentId, date, status, checkInTime, createdAt)
-        VALUES (?, ?, ?, ?, ?)
+        CREATE TABLE IF NOT EXISTS attendance_records_v2 (
+          id TEXT PRIMARY KEY,
+          userId INTEGER NOT NULL,
+          code TEXT NOT NULL,
+          checkInTime TEXT NOT NULL,
+          status TEXT NOT NULL,
+          academyId INTEGER
+        )
+      `).run();
+
+      // 출석 기록 삽입
+      await DB.prepare(`
+        INSERT INTO attendance_records_v2 (id, userId, code, checkInTime, status, academyId)
+        VALUES (?, ?, ?, ?, ?, ?)
       `).bind(
+        recordId,
         student.id,
-        today,
+        normalizedPhone,  // 전화번호를 code로 저장
+        `${today} ${currentTime}`,
         attendanceStatus,
-        currentTime,
-        koreaTime.toISOString()
+        student.academyId || student.academy_id || null
       ).run();
 
       console.log('✅ 출석 기록 생성 완료');
 
       // 생성된 출석 기록 조회
       const newAttendance = await DB.prepare(`
-        SELECT * FROM Attendance 
-        WHERE studentId = ? AND date = ?
+        SELECT * FROM attendance_records_v2
+        WHERE userId = ? AND SUBSTR(checkInTime, 1, 10) = ?
         ORDER BY id DESC LIMIT 1
       `).bind(student.id, today).first();
 
@@ -164,7 +179,7 @@ export async function onRequestPost(context: any) {
         headers: { 'Content-Type': 'application/json' }
       });
 
-    } catch (e) {
+    } catch (e: any) {
       console.error('❌ 출석 기록 생성 실패:', e.message);
       return new Response(JSON.stringify({
         success: false,
