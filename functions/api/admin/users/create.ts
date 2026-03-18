@@ -117,16 +117,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log('🔐 Password hashed for user:', { email, originalLength: password.length, hashLength: hashedPassword.length });
 
-    // 사용자 ID 생성
-    const userId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // 사용자 ID 생성 - INTEGER로 자동 생성되도록 NULL 사용
     const now = new Date().toISOString();
-
-    // 사용자 생성
     const userRole = role || 'STUDENT';
-    await DB.prepare(
-      `INSERT INTO users (id, name, email, password, role, phone, academyId, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(userId, name, email, hashedPassword, userRole, phone || null, academyId || null, now).run();
+    
+    // academy_id는 INTEGER, academyId는 TEXT
+    const academyIdInt = academyId ? parseInt(academyId, 10) : null;
+    const academyIdText = academyId ? String(academyId) : null;
+
+    // 사용자 생성 (id는 자동 생성)
+    const insertResult = await DB.prepare(
+      `INSERT INTO users (name, email, password, role, phone, academy_id, academyId, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       RETURNING id`
+    ).bind(name, email, hashedPassword, userRole, phone || null, academyIdInt, academyIdText, now).run();
+    
+    // 생성된 ID 가져오기
+    const userId = insertResult.results && insertResult.results.length > 0 
+      ? insertResult.results[0].id 
+      : insertResult.meta.last_row_id;
 
     // 학생인 경우 자동으로 출석 코드 생성
     let attendanceCode = null;
@@ -164,7 +173,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         await DB.prepare(`
           INSERT INTO student_attendance_codes (id, userId, code, academyId, isActive)
           VALUES (?, ?, ?, ?, 1)
-        `).bind(codeId, userId, code, academyId || null).run();
+        `).bind(codeId, userId, code, academyIdInt).run();
 
         attendanceCode = code;
 
