@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 챗봇 디버그 도구</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 24px;
+            font-size: 32px;
+        }
+        .section {
+            margin-bottom: 32px;
+            padding: 24px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 16px;
+            font-size: 20px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-right: 12px;
+            margin-bottom: 12px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .status.success { background: #10b981; color: white; }
+        .status.error { background: #ef4444; color: white; }
+        .status.warning { background: #f59e0b; color: white; }
+        .info-box {
+            background: #e0e7ff;
+            border: 1px solid #667eea;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .input-group {
+            margin-bottom: 16px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 AI 챗봇 디버그 도구</h1>
+        
+        <div class="info-box">
+            <strong>사용 방법:</strong> 학생/원장 계정으로 로그인한 상태에서 각 버튼을 클릭하여 문제를 진단하세요.
+        </div>
+
+        <!-- 사용자 정보 -->
+        <div class="section">
+            <h2>👤 1. 사용자 정보 확인</h2>
+            <button onclick="checkUser()">사용자 정보 확인</button>
+            <div id="userOutput" class="output" style="display:none;"></div>
+        </div>
+
+        <!-- 봇 목록 조회 -->
+        <div class="section">
+            <h2>🤖 2. 할당된 봇 목록 조회</h2>
+            <button onclick="checkBots()">봇 목록 조회</button>
+            <div id="botsOutput" class="output" style="display:none;"></div>
+        </div>
+
+        <!-- AI 챗 테스트 -->
+        <div class="section">
+            <h2>💬 3. AI 챗 API 테스트</h2>
+            <div class="input-group">
+                <label>봇 ID (자동 입력됨 또는 직접 입력):</label>
+                <input type="text" id="testBotId" placeholder="bot-xxxx-xxxx">
+            </div>
+            <div class="input-group">
+                <label>테스트 메시지:</label>
+                <input type="text" id="testMessage" value="안녕하세요" placeholder="안녕하세요">
+            </div>
+            <button onclick="testAIChat()">AI 챗 테스트</button>
+            <div id="chatOutput" class="output" style="display:none;"></div>
+        </div>
+
+        <!-- 봇 접근 권한 체크 -->
+        <div class="section">
+            <h2>🔐 4. 봇 접근 권한 체크 (학생 계정만)</h2>
+            <button onclick="checkBotAccess()">권한 체크</button>
+            <div id="accessOutput" class="output" style="display:none;"></div>
+        </div>
+
+        <!-- 전체 테스트 -->
+        <div class="section">
+            <h2>🎯 5. 전체 테스트 실행</h2>
+            <button onclick="runAllTests()">전체 테스트 실행</button>
+            <div id="allOutput" class="output" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        let globalUser = null;
+        let globalBots = [];
+
+        function log(elementId, message, type = 'info') {
+            const output = document.getElementById(elementId);
+            output.style.display = 'block';
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            output.innerHTML += `[${timestamp}] ${prefix} ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearLog(elementId) {
+            const output = document.getElementById(elementId);
+            output.innerHTML = '';
+        }
+
+        async function checkUser() {
+            clearLog('userOutput');
+            log('userOutput', '사용자 정보를 확인하는 중...');
+            
+            try {
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                globalUser = user;
+                
+                if (!user.id) {
+                    log('userOutput', '로그인되지 않았습니다. /login 페이지로 이동하세요.', 'error');
+                    return;
+                }
+                
+                log('userOutput', '사용자 정보:', 'success');
+                log('userOutput', JSON.stringify({
+                    id: user.id,
+                    email: user.email,
+                    role: user.role,
+                    academyId: user.academyId,
+                    name: user.name
+                }, null, 2));
+                
+            } catch (error) {
+                log('userOutput', `오류: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkBots() {
+            clearLog('botsOutput');
+            log('botsOutput', '봇 목록을 조회하는 중...');
+            
+            if (!globalUser || !globalUser.id) {
+                log('botsOutput', '먼저 "사용자 정보 확인"을 실행하세요.', 'error');
+                return;
+            }
+            
+            try {
+                const apiUrl = globalUser.role === 'STUDENT' 
+                    ? `/api/user/ai-bots?academyId=${globalUser.academyId}&userId=${globalUser.id}`
+                    : `/api/user/academy-bots?academyId=${globalUser.academyId}`;
+                
+                log('botsOutput', `API 호출: ${apiUrl}`);
+                
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                log('botsOutput', `응답 상태: ${response.status} ${response.statusText}`);
+                log('botsOutput', JSON.stringify(data, null, 2));
+                
+                if (data.bots && data.bots.length > 0) {
+                    globalBots = data.bots;
+                    log('botsOutput', `✅ 할당된 봇 ${data.bots.length}개 발견`, 'success');
+                    
+                    // 첫 번째 봇 ID 자동 입력
+                    document.getElementById('testBotId').value = data.bots[0].id;
+                } else {
+                    log('botsOutput', '할당된 봇이 없습니다.', 'warning');
+                }
+                
+            } catch (error) {
+                log('botsOutput', `오류: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAIChat() {
+            clearLog('chatOutput');
+            log('chatOutput', 'AI 챗 API를 테스트하는 중...');
+            
+            if (!globalUser || !globalUser.id) {
+                log('chatOutput', '먼저 "사용자 정보 확인"을 실행하세요.', 'error');
+                return;
+            }
+            
+            const botId = document.getElementById('testBotId').value.trim();
+            const message = document.getElementById('testMessage').value.trim();
+            
+            if (!botId) {
+                log('chatOutput', '봇 ID를 입력하세요.', 'error');
+                return;
+            }
+            
+            try {
+                log('chatOutput', `봇 ID: ${botId}`);
+                log('chatOutput', `메시지: ${message}`);
+                
+                const requestBody = {
+                    message: message,
+                    botId: botId,
+                    userId: globalUser.id,
+                    conversationHistory: [],
+                    userRole: globalUser.role,
+                    userAcademyId: globalUser.academyId
+                };
+                
+                log('chatOutput', '요청 바디:');
+                log('chatOutput', JSON.stringify(requestBody, null, 2));
+                
+                const response = await fetch('/api/ai-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                log('chatOutput', `응답 상태: ${response.status} ${response.statusText}`);
+                
+                const data = await response.json();
+                log('chatOutput', 'API 응답:');
+                log('chatOutput', JSON.stringify(data, null, 2));
+                
+                if (data.success) {
+                    log('chatOutput', '✅ AI 챗 성공!', 'success');
+                    log('chatOutput', `AI 응답: ${data.response}`);
+                } else {
+                    log('chatOutput', `❌ AI 챗 실패: ${data.message || data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                log('chatOutput', `오류: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkBotAccess() {
+            clearLog('accessOutput');
+            log('accessOutput', '봇 접근 권한을 체크하는 중...');
+            
+            if (!globalUser || !globalUser.id) {
+                log('accessOutput', '먼저 "사용자 정보 확인"을 실행하세요.', 'error');
+                return;
+            }
+            
+            if (globalUser.role !== 'STUDENT') {
+                log('accessOutput', '학생 계정이 아닙니다. 권한 체크를 건너뜁니다.', 'warning');
+                return;
+            }
+            
+            const botId = document.getElementById('testBotId').value.trim();
+            
+            if (!botId) {
+                log('accessOutput', '봇 ID를 입력하세요.', 'error');
+                return;
+            }
+            
+            try {
+                const apiUrl = `/api/user/bot-access-check?userId=${globalUser.id}&botId=${botId}&academyId=${globalUser.academyId}`;
+                log('accessOutput', `API 호출: ${apiUrl}`);
+                
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                log('accessOutput', `응답 상태: ${response.status} ${response.statusText}`);
+                log('accessOutput', JSON.stringify(data, null, 2));
+                
+                if (data.hasAccess) {
+                    log('accessOutput', '✅ 접근 가능', 'success');
+                } else {
+                    log('accessOutput', `❌ 접근 불가: ${data.reason} - ${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                log('accessOutput', `오류: ${error.message}`, 'error');
+            }
+        }
+
+        async function runAllTests() {
+            clearLog('allOutput');
+            log('allOutput', '==================================');
+            log('allOutput', '전체 테스트를 시작합니다...');
+            log('allOutput', '==================================\n');
+            
+            // 1. 사용자 정보
+            log('allOutput', '1️⃣ 사용자 정보 확인');
+            try {
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                globalUser = user;
+                if (user.id) {
+                    log('allOutput', `✅ 사용자: ${user.name} (${user.role})`, 'success');
+                } else {
+                    log('allOutput', '❌ 로그인되지 않음', 'error');
+                    return;
+                }
+            } catch (e) {
+                log('allOutput', `❌ 오류: ${e.message}`, 'error');
+                return;
+            }
+            
+            await new Promise(r => setTimeout(r, 500));
+            
+            // 2. 봇 목록
+            log('allOutput', '\n2️⃣ 봇 목록 조회');
+            try {
+                const apiUrl = globalUser.role === 'STUDENT' 
+                    ? `/api/user/ai-bots?academyId=${globalUser.academyId}&userId=${globalUser.id}`
+                    : `/api/user/academy-bots?academyId=${globalUser.academyId}`;
+                
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                if (data.bots && data.bots.length > 0) {
+                    globalBots = data.bots;
+                    log('allOutput', `✅ 할당된 봇 ${data.bots.length}개`, 'success');
+                    document.getElementById('testBotId').value = data.bots[0].id;
+                } else {
+                    log('allOutput', '❌ 할당된 봇이 없음', 'error');
+                    return;
+                }
+            } catch (e) {
+                log('allOutput', `❌ 오류: ${e.message}`, 'error');
+                return;
+            }
+            
+            await new Promise(r => setTimeout(r, 500));
+            
+            // 3. AI 챗 테스트
+            log('allOutput', '\n3️⃣ AI 챗 API 테스트');
+            try {
+                const botId = globalBots[0].id;
+                const response = await fetch('/api/ai-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: '안녕하세요',
+                        botId: botId,
+                        userId: globalUser.id,
+                        conversationHistory: []
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    log('allOutput', `✅ AI 챗 성공 (${data.response.length}자)`, 'success');
+                } else {
+                    log('allOutput', `❌ AI 챗 실패: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                log('allOutput', `❌ 오류: ${e.message}`, 'error');
+            }
+            
+            log('allOutput', '\n==================================');
+            log('allOutput', '✅ 전체 테스트 완료', 'success');
+            log('allOutput', '==================================');
+        }
+
+        // 페이지 로드 시 자동 실행
+        window.addEventListener('load', () => {
+            checkUser();
+        });
+    </script>
+</body>
+</html>
