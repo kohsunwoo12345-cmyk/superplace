@@ -1,52 +1,71 @@
 #!/bin/bash
 
-API_KEY="YOUR_API_KEY_HERE"
-
-echo "🔍 Google Gemini API 직접 호출 테스트"
-echo "=========================================="
+echo "=== 직접 API 테스트 ==="
 echo ""
 
-# 테스트할 모델 리스트
-MODELS=(
-  "gemini-1.5-flash"
-  "gemini-1.5-pro"
-  "gemini-pro"
-  "gemini-2.0-flash-exp"
-  "gemini-1.5-flash-latest"
-)
+# 1. 출석 API로 실제 학생 정보 가져오기
+echo "1️⃣ 출석 API 호출..."
+ATTENDANCE=$(curl -s -X POST "https://suplacestudy.com/api/attendance/verify-phone" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"01051363624"}')
 
-for MODEL in "${MODELS[@]}"; do
-  echo "Testing: $MODEL"
-  
-  RESPONSE=$(curl -s -X POST \
-    "https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "contents": [{
-        "parts": [{"text": "Say hello"}]
-      }]
-    }')
-  
-  # 응답 확인
-  if echo "$RESPONSE" | grep -q "candidates"; then
-    echo "  ✅ 작동! 응답:"
-    echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null || echo "$RESPONSE"
-    echo ""
-    echo "🎯 사용 가능한 모델: $MODEL"
-    break
-  elif echo "$RESPONSE" | grep -q "404"; then
-    echo "  ❌ 404 Not Found"
-  elif echo "$RESPONSE" | grep -q "API key"; then
-    echo "  ❌ API 키 오류"
-    echo "  상세: $(echo "$RESPONSE" | jq -r '.error.message' 2>/dev/null)"
-    break
-  else
-    echo "  ❌ 오류"
-    echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
-  fi
+echo "$ATTENDANCE" | jq '.'
+echo ""
+
+# 학생 ID 추출
+STUDENT_ID=$(echo "$ATTENDANCE" | jq -r '.student.id')
+STUDENT_PHONE=$(echo "$ATTENDANCE" | jq -r '.student.phone')
+STUDENT_NAME=$(echo "$ATTENDANCE" | jq -r '.student.name')
+
+echo "추출된 정보:"
+echo "  ID: $STUDENT_ID"
+echo "  Phone: $STUDENT_PHONE"
+echo "  Name: $STUDENT_NAME"
+echo ""
+
+# 2. 매우 작은 테스트 이미지 생성 (1x1 투명 PNG)
+TEST_IMAGE="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+# 3. 숙제 제출 API 테스트 (여러 조합 시도)
+echo "2️⃣ 숙제 제출 API 테스트..."
+echo ""
+
+# 테스트 1: userId + phone
+echo "테스트 A: userId + phone"
+RESULT_A=$(curl -s -X POST "https://suplacestudy.com/api/homework/submit" \
+  -H "Content-Type: application/json" \
+  -d "{\"userId\":\"$STUDENT_ID\",\"phone\":\"$STUDENT_PHONE\",\"images\":[\"$TEST_IMAGE\"]}")
+echo "$RESULT_A" | jq '.'
+echo ""
+
+# 테스트 2: userId만
+echo "테스트 B: userId만"
+RESULT_B=$(curl -s -X POST "https://suplacestudy.com/api/homework/submit" \
+  -H "Content-Type: application/json" \
+  -d "{\"userId\":\"$STUDENT_ID\",\"images\":[\"$TEST_IMAGE\"]}")
+echo "$RESULT_B" | jq '.'
+echo ""
+
+# 테스트 3: phone만 (userId 없이)
+echo "테스트 C: phone만"
+RESULT_C=$(curl -s -X POST "https://suplacestudy.com/api/homework/submit" \
+  -H "Content-Type: application/json" \
+  -d "{\"phone\":\"$STUDENT_PHONE\",\"images\":[\"$TEST_IMAGE\"]}")
+echo "$RESULT_C" | jq '.'
+echo ""
+
+# 결과 분석
+if echo "$RESULT_A" | jq -e '.success == true' > /dev/null; then
+  echo "✅ 테스트 A 성공!"
+elif echo "$RESULT_B" | jq -e '.success == true' > /dev/null; then
+  echo "✅ 테스트 B 성공!"
+elif echo "$RESULT_C" | jq -e '.success == true' > /dev/null; then
+  echo "✅ 테스트 C 성공!"
+else
+  echo "❌ 모든 테스트 실패"
   echo ""
-done
-
-echo "=========================================="
-echo ""
-echo "⚠️ 주의: 위 스크립트에서 YOUR_API_KEY_HERE를 실제 API 키로 교체하세요"
+  echo "에러 메시지:"
+  echo "A: $(echo "$RESULT_A" | jq -r '.error // "N/A"')"
+  echo "B: $(echo "$RESULT_B" | jq -r '.error // "N/A"')"
+  echo "C: $(echo "$RESULT_C" | jq -r '.error // "N/A"')"
+fi

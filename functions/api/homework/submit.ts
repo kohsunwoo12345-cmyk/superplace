@@ -54,28 +54,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`🔍 사용자 조회 시작: userId=${userId}, phone=${phone}, type=${typeof userId}`);
 
-    // 1. 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
-    // userId 또는 phone으로 조회 (student_code 문자열 ID도 지원)
+    // 1. 사용자 정보 조회 (users 테이블 우선 - 실제 데이터가 여기 있음)
     let user;
     
-    // phone이 있으면 phone으로도 조회
-    if (phone) {
-      user = await DB.prepare(
-        "SELECT id, name, email, academyId, academy_id, phone FROM User WHERE id = ? OR phone = ?"
-      ).bind(userId, phone).first();
-      console.log(`📊 User 테이블 조회 결과 (id OR phone):`, user);
-    } else {
-      // phone이 없으면 userId만으로 조회
-      user = await DB.prepare(
-        "SELECT id, name, email, academyId, academy_id, phone FROM User WHERE id = ?"
-      ).bind(userId).first();
-      console.log(`📊 User 테이블 조회 결과 (id only):`, user);
-    }
-
-    // User 테이블에 없으면 users 테이블 확인 (레거시 지원)
-    if (!user) {
-      console.log(`🔍 User 테이블에 없음, users 테이블 확인 중... (userId: ${userId}, phone: ${phone})`);
-      
+    // users 테이블 먼저 조회 (실제 운영 데이터)
+    try {
       if (phone) {
         user = await DB.prepare(
           "SELECT id, name, email, academyId, academy_id, phone FROM users WHERE id = ? OR phone = ?"
@@ -86,6 +69,29 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           "SELECT id, name, email, academyId, academy_id, phone FROM users WHERE id = ?"
         ).bind(userId).first();
         console.log(`📊 users 테이블 조회 결과 (id only):`, user);
+      }
+    } catch (e) {
+      console.error(`❌ users 테이블 조회 오류:`, e.message);
+    }
+
+    // users 테이블에 없으면 User 테이블 확인 (대문자 버전)
+    if (!user) {
+      console.log(`🔍 users 테이블에 없음, User 테이블 확인 중... (userId: ${userId}, phone: ${phone})`);
+      
+      try {
+        if (phone) {
+          user = await DB.prepare(
+            "SELECT id, name, email, academyId, academy_id, phone FROM User WHERE id = ? OR phone = ?"
+          ).bind(userId, phone).first();
+          console.log(`📊 User 테이블 조회 결과 (id OR phone):`, user);
+        } else {
+          user = await DB.prepare(
+            "SELECT id, name, email, academyId, academy_id, phone FROM User WHERE id = ?"
+          ).bind(userId).first();
+          console.log(`📊 User 테이블 조회 결과 (id only):`, user);
+        }
+      } catch (e) {
+        console.error(`❌ User 테이블 조회 오류:`, e.message);
       }
     }
 
