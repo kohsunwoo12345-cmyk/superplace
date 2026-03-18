@@ -542,21 +542,31 @@ function StudentDetailContent() {
 
         // 4. 출석 코드 조회
         try {
+          console.log('🎯 Fetching attendance code for userId:', studentId);
           const attendanceCodeResponse = await fetch(`/api/students/attendance-code?userId=${studentId}`, {
             headers: { 'Authorization': `Bearer ${token}` },
           });
+          console.log('📡 Attendance code response status:', attendanceCodeResponse.status);
+          
           if (attendanceCodeResponse.ok) {
             const codeData = await attendanceCodeResponse.json();
+            console.log('📦 Attendance code data:', codeData);
+            
             if (codeData.success) {
+              console.log('✅ Setting attendance code:', codeData.code);
               setAttendanceCode({
                 code: codeData.code,
                 userId: codeData.userId,
                 isActive: codeData.isActive,
               });
+            } else {
+              console.error('❌ Attendance code fetch failed:', codeData.error || 'Unknown error');
             }
+          } else {
+            console.error('❌ Attendance code response not ok:', attendanceCodeResponse.status);
           }
         } catch (error) {
-          console.log('Failed to fetch attendance code');
+          console.error('❌ Failed to fetch attendance code:', error);
         }
 
         // 5. 캐시된 부족한 개념 분석 결과 조회
@@ -2190,6 +2200,9 @@ function StudentDetailContent() {
                   <div className="text-center py-12">
                     <ClipboardCheck className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 mb-4">출석 코드를 불러오는 중...</p>
+                    <p className="text-xs text-gray-400">
+                      출석 코드가 표시되지 않으면 브라우저 콘솔(F12)을 확인하세요
+                    </p>
                   </div>
                 )}
               </CardContent>
