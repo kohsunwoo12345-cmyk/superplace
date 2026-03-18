@@ -120,6 +120,21 @@ async function callGeminiDirect(
     });
   });
 
+  // 🔥 현재 메시지 추가 전에 System Prompt 재강조 (대화가 없을 때만)
+  if (conversationHistory.length === 0 && systemPrompt && systemPrompt.trim().length > 0) {
+    // 첫 메시지일 때 System Prompt를 한 번 더 강조
+    const roleReminder = systemPrompt.split('\n')[0].substring(0, 200); // 첫 줄만 추출
+    contents.push({
+      role: "user",
+      parts: [{ text: `[REMINDER BEFORE FIRST RESPONSE] ${roleReminder}` }]
+    });
+    contents.push({
+      role: "model",
+      parts: [{ text: "네, 제 역할을 명확히 기억하고 있습니다." }]
+    });
+    console.log(`✅ System Prompt 재강조 추가`);
+  }
+
   // 현재 메시지 추가
   contents.push({
     role: "user",
