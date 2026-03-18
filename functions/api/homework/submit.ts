@@ -25,14 +25,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 다중 이미지 또는 단일 이미지 처리
     const imageArray = images || (image ? [image] : []);
 
-    if (!userId || imageArray.length === 0) {
+    // phone이 반드시 필요함
+    if (!phone || imageArray.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: "userId and images are required" }),
+        JSON.stringify({ success: false, error: "phone and images are required" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`📚 숙제 제출: userId=${userId}, ${imageArray.length}장 이미지`);
+    console.log(`📚 숙제 제출: phone=${phone}, ${imageArray.length}장 이미지`);
     
     // 이미지 크기 검증 (각 이미지 최대 4MB)
     const MAX_IMAGE_SIZE = 4 * 1024 * 1024; // 4MB
@@ -52,96 +53,46 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    console.log(`🔍 사용자 조회 시작: userId=${userId}, phone=${phone}, type=${typeof userId}`);
+    console.log(`🔍 사용자 조회 시작: phone=${phone}`);
 
-    // 1. 사용자 정보 조회 (users 테이블 우선 - 실제 데이터가 여기 있음)
-    let user;
+    // 1. 전화번호로 사용자 조회 (users 테이블 - 실제 데이터)
+    const normalizedPhone = phone.replace(/\D/g, '');  // 숫자만 추출
+    console.log(`🔍 정규화된 전화번호: ${normalizedPhone}`);
     
-    // users 테이블 먼저 조회 (실제 운영 데이터)
+    let user = null;
+    
+    // users 테이블에서 전화번호로 조회
     try {
-      if (phone) {
-        // 전화번호로 조회 (출석 API와 동일한 방식)
-        const normalizedPhone = phone.replace(/\D/g, '');  // 숫자만 추출
-        
+      user = await DB.prepare(
+        "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT' LIMIT 1"
+      ).bind(normalizedPhone).first();
+      console.log(`📊 users 테이블 조회 (phone=${normalizedPhone}):`, user ? `찾음: ${user.name}` : '못 찾음');
+      
+      // 하이픈 포함 형식도 시도
+      if (!user) {
+        const phoneWithHyphen = normalizedPhone.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3');
         user = await DB.prepare(
-          "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT'"
-        ).bind(normalizedPhone).first();
-        console.log(`📊 users 테이블 조회 (phone=${normalizedPhone}):`, user);
-        
-        // 하이픈 포함 형식도 시도
-        if (!user) {
-          const phoneWithHyphen = normalizedPhone.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3');
-          user = await DB.prepare(
-            "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT'"
-          ).bind(phoneWithHyphen).first();
-          console.log(`📊 users 테이블 조회 (phone with hyphen=${phoneWithHyphen}):`, user);
-        }
-        
-        // 전화번호로 못 찾으면 userId로 시도
-        if (!user && userId) {
-          user = await DB.prepare(
-            "SELECT * FROM users WHERE id = ?"
-          ).bind(userId).first();
-          console.log(`📊 users 테이블 조회 (id=${userId}):`, user);
-        }
-      } else {
-        // phone이 없으면 userId로만 조회
-        user = await DB.prepare(
-          "SELECT * FROM users WHERE id = ?"
-        ).bind(userId).first();
-        console.log(`📊 users 테이블 조회 (id only):`, user);
+          "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT' LIMIT 1"
+        ).bind(phoneWithHyphen).first();
+        console.log(`📊 users 테이블 조회 (phone with hyphen=${phoneWithHyphen}):`, user ? `찾음: ${user.name}` : '못 찾음');
       }
     } catch (e) {
       console.error(`❌ users 테이블 조회 오류:`, e.message);
-    }
-
-    // users 테이블에 없으면 User 테이블 확인 (대문자 버전)
-    if (!user) {
-      console.log(`🔍 users 테이블에 없음, User 테이블 확인 중...`);
-      
-      try {
-        if (phone) {
-          const normalizedPhone = phone.replace(/\D/g, '');
-          
-          user = await DB.prepare(
-            "SELECT * FROM User WHERE phone = ? AND role = 'STUDENT'"
-          ).bind(normalizedPhone).first();
-          console.log(`📊 User 테이블 조회 (phone):`, user);
-          
-          if (!user) {
-            const phoneWithHyphen = normalizedPhone.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3');
-            user = await DB.prepare(
-              "SELECT * FROM User WHERE phone = ? AND role = 'STUDENT'"
-            ).bind(phoneWithHyphen).first();
-            console.log(`📊 User 테이블 조회 (phone with hyphen):`, user);
-          }
-          
-          if (!user && userId) {
-            user = await DB.prepare(
-              "SELECT * FROM User WHERE id = ?"
-            ).bind(userId).first();
-            console.log(`📊 User 테이블 조회 (id):`, user);
-          }
-        } else {
-          user = await DB.prepare(
-            "SELECT * FROM User WHERE id = ?"
-          ).bind(userId).first();
-          console.log(`📊 User 테이블 조회 (id only):`, user);
-        }
-      } catch (e) {
-        console.error(`❌ User 테이블 조회 오류:`, e.message);
-      }
-    }
-
-    if (!user) {
-      console.error(`❌ 사용자를 찾을 수 없음: userId=${userId}, phone=${phone}`);
       return new Response(
-        JSON.stringify({ success: false, error: "User not found", details: `userId: ${userId}, phone: ${phone}` }),
+        JSON.stringify({ success: false, error: "Database query error", details: e.message }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!user) {
+      console.error(`❌ 사용자를 찾을 수 없음: phone=${normalizedPhone}`);
+      return new Response(
+        JSON.stringify({ success: false, error: "User not found", details: `phone: ${normalizedPhone}` }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`✅ 사용자 확인: ${user.name} (${user.email})`);
+    console.log(`✅ 사용자 확인: ${user.name} (${user.email}) - ID: ${user.id}`);
 
     // 2. homework_submissions_v2 테이블 생성 (userId는 TEXT로 문자열 ID 지원)
     await DB.prepare(`
