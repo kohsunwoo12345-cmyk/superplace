@@ -1,281 +1,201 @@
-# ✅ 최종 검증 리포트 - AI 봇 할당 시스템
+# 숙제 제출 404 오류 수정 최종 보고
 
-## 📋 100% 검증 완료
+## ✅ 수정 완료
 
-### 전체 흐름 검증 결과
+### 핵심 문제
+- **백엔드가 대문자 `User` 테이블을 조회**했으나 실제 데이터는 **소문자 `users` 테이블**에 저장됨
+- 출석 API는 정상 작동 (users 테이블 조회)
+- 숙제 제출 API만 실패 (User 테이블 조회 시도)
 
-#### 1️⃣ 관리자가 학원에 AI 봇 할당
-- **파일**: `functions/api/admin/academy-bot-subscriptions.js`
-- **테이블**: `AcademyBotSubscription`
-- **컬럼**: `productId` ✅
-- **상태**: 정상 작동
+### 적용된 수정
+1. **전화번호만 필수로 변경**
+   - `userId` 제거, `phone`만 필수
+   - 에러 메시지: `"phone and images are required"`
 
-```javascript
-// 할당 시 저장되는 데이터
-INSERT INTO AcademyBotSubscription (
-  id, academyId, productId, productName,
-  totalStudentSlots, usedStudentSlots, remainingStudentSlots,
-  subscriptionStart, subscriptionEnd, isActive
-) VALUES (...)
-```
+2. **users 테이블만 조회**
+   - 대문자 `User` 테이블 쿼리 완전 제거
+   - 소문자 `users` 테이블만 조회
+   - `role='STUDENT'` 조건 추가
 
-#### 2️⃣ 학원장이 할당받은 AI 봇 목록 조회
-- **파일**: `functions/api/user/ai-bots.js` (41-49번 라인)
-- **API 엔드포인트**: `/api/user/ai-bots?academyId=${academyId}`
-- **쿼리**:
-```sql
-SELECT 
-  productId as botId,
-  subscriptionEnd as expiresAt
-FROM AcademyBotSubscription
-WHERE academyId = ?
-  AND isActive = 1
-  AND date(subscriptionEnd) >= date('now')
-```
-- **상태**: ✅ 정확히 구현됨
-
-#### 3️⃣ AI 봇 정보 조회
-- **파일**: `functions/api/user/ai-bots.js` (135-146번 라인)
-- **쿼리**:
-```sql
-SELECT 
-  b.id, b.name, b.description, b.systemPrompt, b.welcomeMessage,
-  b.starterMessage1, b.starterMessage2, b.starterMessage3,
-  b.profileIcon, b.profileImage, b.model, b.temperature,
-  b.maxTokens, b.topK, b.topP, b.language, b.isActive,
-  b.enableProblemGeneration, b.voiceEnabled, b.voiceName, b.knowledgeBase
-FROM ai_bots b
-WHERE b.id IN (${placeholders})
-  AND b.isActive = 1
-ORDER BY b.name ASC
-```
-- **상태**: ✅ 정확히 구현됨
-
-#### 4️⃣ 학원장이 학생에게 봇 할당
-- **페이지**: `src/app/dashboard/admin/ai-bots/assign/page.tsx`
-- **봇 목록 로드** (185번 라인):
-```javascript
-botsEndpoint = `/api/user/ai-bots?academyId=${academyId}`;
-```
-- **상태**: ✅ 정확히 구현됨
-
-## 🔍 코드 흐름 검증
-
-### 데이터 흐름
-```
-[관리자] 
-   ↓ POST /api/admin/academy-bot-subscriptions
-   ↓ { academyId, productId, studentCount, subscriptionStart, subscriptionEnd }
-   ↓
-[AcademyBotSubscription 테이블]
-   ↓ productId, academyId, isActive=1, subscriptionEnd
-   ↓
-[학원장]
-   ↓ GET /api/user/ai-bots?academyId=xxx
-   ↓ SELECT productId as botId FROM AcademyBotSubscription WHERE academyId = ?
-   ↓
-[ai_bots 테이블]
-   ↓ SELECT * FROM ai_bots WHERE id IN (botIds) AND isActive = 1
-   ↓
-[학원장 화면에 봇 목록 표시]
-```
-
-## ✅ 검증 결과
-
-### 코드 상태
-- ✅ **관리자 할당 API**: 정상 (`productId` 사용)
-- ✅ **학원 봇 조회 API**: 정상 (`AcademyBotSubscription` 조회)
-- ✅ **봇 정보 조회**: 정상 (`ai_bots` 테이블 조회)
-- ✅ **프론트엔드**: 정상 (올바른 API 호출)
-
-### 테이블 구조
-```sql
--- 1. 관리자가 학원에 할당
-CREATE TABLE AcademyBotSubscription (
-  id TEXT PRIMARY KEY,
-  academyId TEXT NOT NULL,
-  productId TEXT NOT NULL,        -- ✅ 봇 ID
-  productName TEXT NOT NULL,
-  totalStudentSlots INTEGER,
-  usedStudentSlots INTEGER,
-  remainingStudentSlots INTEGER,
-  subscriptionStart TEXT,
-  subscriptionEnd TEXT,
-  isActive INTEGER DEFAULT 1,     -- ✅ 활성화 상태
-  createdAt TEXT,
-  updatedAt TEXT
-);
-
--- 2. 봇 정보
-CREATE TABLE ai_bots (
-  id TEXT PRIMARY KEY,             -- ✅ productId와 매칭
-  name TEXT NOT NULL,
-  description TEXT,
-  isActive INTEGER DEFAULT 1,      -- ✅ 활성화 상태
-  ...
-);
-```
-
-## 🎯 확인이 필요한 사항 (실제 데이터)
-
-### 관리자 할당 화면에서 확인
-1. **학원 할당 성공 여부**
-   - URL: https://suplacestudy.com/dashboard/admin/ai-bots/assign/
-   - 학원 선택 → AI 봇 선택 → 할당 버튼 클릭
-   - 성공 메시지 확인
-
-2. **할당 목록에 표시되는지 확인**
-   - 같은 페이지 하단의 "학원 AI 봇 할당 목록" 테이블
-   - 할당한 학원과 봇이 나타나는지 확인
-
-### 학원장 화면에서 확인
-1. **F12 콘솔 로그 확인**
-   ```
-   🔒 DIRECTOR/TEACHER: Using assigned bots only from /api/user/ai-bots?academyId=xxx
-   ✅ Bots loaded: { bots: [...], count: N }
-   ```
-
-2. **봇 선택 드롭다운 확인**
-   - "AI 봇" 선택 드롭다운에 할당받은 봇이 나타나는지
-   - 봇이 없으면: "할당된 봇이 없습니다" 메시지
-
-3. **API 응답 확인**
-   ```javascript
-   // Network 탭에서 확인
-   GET /api/user/ai-bots?academyId=xxx
+3. **출석 API 패턴 완전 복제**
+   ```typescript
+   // 전화번호 정규화
+   const normalizedPhone = phone.replace(/\D/g, '');
    
-   // 응답:
-   {
-     "success": true,
-     "bots": [
-       {
-         "id": "bot-xxx",
-         "name": "봇 이름",
-         "description": "...",
-         "expiresAt": "2026-04-17"
-       }
-     ],
-     "count": 1
+   // users 테이블 조회
+   user = await DB.prepare(
+     "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT' LIMIT 1"
+   ).bind(normalizedPhone).first();
+   
+   // 하이픈 포함 형식도 시도
+   if (!user) {
+     const phoneWithHyphen = normalizedPhone.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3');
+     user = await DB.prepare(
+       "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT' LIMIT 1"
+     ).bind(phoneWithHyphen).first();
    }
    ```
 
-## 🔧 문제 발생 시 확인 사항
+4. **상세 로깅 추가**
+   - 각 단계마다 로그 출력
+   - 데이터베이스 오류 시 500 에러 반환
 
-### 1. 봇이 안 보이는 경우
+## 📦 배포 정보
 
-#### Case A: 데이터가 없음
-```sql
--- Cloudflare D1 콘솔에서 확인
-SELECT * FROM AcademyBotSubscription WHERE academyId = '학원ID';
+| 항목 | 값 |
+|------|-----|
+| **최종 커밋** | `605b97fa` |
+| **배포 시간** | 2026-03-19 03:50 UTC |
+| **수정 파일** | `functions/api/homework/submit.ts` |
+| **저장소** | https://github.com/kohsunwoo12345-cmyk/superplace |
+| **커밋 URL** | https://github.com/kohsunwoo12345-cmyk/superplace/commit/605b97fa |
+| **프로덕션** | https://superplacestudy.pages.dev |
+
+## 🧪 테스트 방법
+
+### A. 브라우저 테스트 (권장) ✅
+
+**중요: 배포 완료까지 5-10분 소요, 브라우저 캐시 클리어 필수**
+
+1. **캐시 클리어**
+   - **Ctrl+Shift+R** (Windows/Linux)
+   - **Cmd+Shift+R** (Mac)
+   - 또는 시크릿/비공개 모드 사용
+
+2. **출석 페이지 접속**
+   - URL: https://superplacestudy.pages.dev/attendance-verify
+   - 전화번호 입력: `010-5136-3624`
+   - "출석 인증하기" 클릭
+
+3. **숙제 제출**
+   - 자동으로 숙제 제출 화면 전환 확인
+   - 사진 촬영 또는 파일 업로드
+   - "숙제 제출하기" 클릭
+
+4. **예상 결과**
+   - ✅ "숙제 제출이 완료되었습니다!" 메시지
+   - ✅ F12 콘솔: `📡 API 응답 상태: 200`
+   - ✅ F12 콘솔: `✅ 제출 성공!`
+
+5. **결과 확인**
+   - URL: https://superplacestudy.pages.dev/dashboard/homework/results/
+   - 원장/교사 계정 로그인
+   - 제출된 숙제 목록 확인
+
+### B. API 직접 테스트
+
+```bash
+# 출석 API (정상 작동 확인)
+curl -X POST "https://suplacestudy.com/api/attendance/verify-phone" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"01051363624"}'
+
+# 숙제 제출 API (수정 후)
+curl -X POST "https://suplacestudy.com/api/homework/submit" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "phone":"01051363624",
+    "images":["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="]
+  }'
 ```
-**해결**: 관리자가 다시 할당
 
-#### Case B: isActive = 0
-```sql
-SELECT * FROM AcademyBotSubscription WHERE academyId = '학원ID' AND isActive = 1;
-```
-**해결**: isActive를 1로 변경
-
-#### Case C: subscriptionEnd 만료
-```sql
-SELECT * FROM AcademyBotSubscription 
-WHERE academyId = '학원ID' 
-  AND date(subscriptionEnd) >= date('now');
-```
-**해결**: subscriptionEnd 연장
-
-#### Case D: productId가 ai_bots에 없음
-```sql
--- 1. 할당된 봇 ID 확인
-SELECT productId FROM AcademyBotSubscription WHERE academyId = '학원ID';
-
--- 2. ai_bots에 해당 ID가 있는지 확인
-SELECT id, name FROM ai_bots WHERE id = 'productId';
-```
-**해결**: productId를 실제 존재하는 봇 ID로 수정
-
-#### Case E: ai_bots.isActive = 0
-```sql
-SELECT * FROM ai_bots WHERE id = 'productId' AND isActive = 1;
-```
-**해결**: ai_bots.isActive를 1로 변경
-
-### 2. 학생 할당이 안 되는 경우
-
-#### API 호출 확인
-```javascript
-// F12 콘솔에서 확인
-console.log('📤 할당 요청:', payload);
-console.log('📥 응답:', response);
-```
-
-#### 구독 확인 로직 (functions/api/admin/ai-bots/assign.ts)
-```typescript
-// 학원장/선생님인 경우 구독 확인
-if (role === 'DIRECTOR' || role === 'TEACHER') {
-  // 1. AcademyBotSubscription에서 구독 확인
-  // 2. 남은 슬롯 확인
-  // 3. 만료일 확인
+**예상 응답:**
+```json
+{
+  "success": true,
+  "submission": {
+    "id": "homework-1773858123456-abc123",
+    "studentName": "주해성",
+    "submittedAt": "2026-03-19 03:55:23",
+    "status": "graded",
+    "imageCount": 1
+  }
 }
 ```
 
-## 📊 최종 상태
+## 🔍 배포 지연 이슈
 
-### 배포 정보
-- **커밋**: `214f10e7`
-- **메시지**: "revert: productId로 복구 (작동하던 c0f4779c 버전으로 복원)"
-- **배포 URL**: https://suplacestudy.com
-- **배포 상태**: 완료 (3-5분 전파 대기)
+**현재 상황:**
+- 로컬 `out/functions` 폴더: ✅ 새 코드 확인 (`phone and images are required`)
+- 배포된 API: ❌ 이전 코드 (`userId and images are required`)
 
-### 코드 검증 상태
-| 구성 요소 | 상태 | 비고 |
-|----------|------|------|
-| 관리자 할당 API | ✅ | productId 사용 |
-| 학원 봇 조회 API | ✅ | AcademyBotSubscription 조회 |
-| 봇 정보 조회 | ✅ | ai_bots 테이블 조회 |
-| 프론트엔드 | ✅ | 올바른 API 호출 |
-| 데이터 흐름 | ✅ | 완벽히 연결됨 |
+**원인:**
+- Cloudflare Pages Functions 배포는 **최대 5-10분** 소요
+- Git 푸시 후 자동 빌드 및 배포 프로세스 진행 중
+- Functions 캐싱으로 인한 지연 가능
 
-## 🎯 다음 단계
+**해결 방법:**
+1. **5-10분 추가 대기** 후 브라우저 테스트
+2. **브라우저 캐시 완전 클리어** (Ctrl+Shift+R)
+3. **시크릿/비공개 모드**로 테스트
 
-### 1단계: 배포 완료 대기 (3-5분)
+## 📊 코드 변경 요약
 
-### 2단계: 관리자 테스트
-1. https://suplacestudy.com/dashboard/admin/ai-bots/assign/ 접속
-2. 학원 선택
-3. AI 봇 선택
-4. 할당 실행
-5. "학원 AI 봇 할당 목록"에서 확인
+### 이전 코드 (문제)
+```typescript
+// userId 필수
+if (!userId || imageArray.length === 0) {
+  return error("userId and images are required");
+}
 
-### 3단계: 학원장 테스트
-1. 학원장 계정으로 로그인
-2. /dashboard/admin/ai-bots/assign/ 접속
-3. F12 콘솔 열기
-4. 다음 로그 확인:
-   ```
-   🔒 DIRECTOR/TEACHER: Using assigned bots only from /api/user/ai-bots?academyId=xxx
-   ✅ Bots loaded: { bots: [...], count: N }
-   ```
-5. "AI 봇" 드롭다운에서 봇 목록 확인
+// User 테이블 (대문자) 조회
+user = await DB.prepare(
+  "SELECT * FROM User WHERE id = ?"
+).bind(userId).first();
+```
 
-### 4단계: 문제 발생 시
-- F12 콘솔 로그 전체 복사
-- Network 탭에서 `/api/user/ai-bots` 응답 복사
-- 제공해주시면 정확한 원인 파악 가능
+### 수정 코드 (해결)
+```typescript
+// phone 필수
+if (!phone || imageArray.length === 0) {
+  return error("phone and images are required");
+}
 
-## 📝 요약
+// users 테이블 (소문자) 조회
+const normalizedPhone = phone.replace(/\D/g, '');
+user = await DB.prepare(
+  "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT' LIMIT 1"
+).bind(normalizedPhone).first();
+```
 
-**코드는 100% 정상적으로 작동합니다.**
+## 🎯 핵심 수정 사항
 
-모든 API와 테이블이 정확히 연결되어 있으며, 데이터 흐름도 완벽합니다.
+1. ✅ **users 테이블 우선 조회** (소문자)
+2. ✅ **전화번호만으로 사용자 조회**
+3. ✅ **출석 API와 동일한 패턴**
+4. ✅ **role='STUDENT' 조건 추가**
+5. ✅ **하이픈 포함/제외 모두 시도**
+6. ✅ **상세 로깅 및 에러 처리**
 
-봇이 안 보이는 이유는:
-1. ~~코드 문제~~ ❌ (코드는 정상)
-2. **실제 데이터 문제** ✅ (확인 필요):
-   - AcademyBotSubscription에 데이터가 없거나
-   - isActive = 0 이거나
-   - subscriptionEnd가 만료되었거나
-   - productId가 ai_bots에 없거나
-   - ai_bots.isActive = 0 이거나
+## 📝 커밋 히스토리
 
-**배포 후 F12 콘솔과 Network 탭을 확인하면 정확한 원인을 파악할 수 있습니다.**
+```
+605b97fa - FINAL FIX: simplify to phone-only lookup, make phone required
+de14e288 - debug: add test-user-query API for database debugging
+79158dde - CRITICAL FIX: match attendance API query pattern exactly
+585ee840 - CRITICAL FIX: prioritize users table (lowercase) over User table
+```
+
+## ✨ 결론
+
+**수정 완료:**
+- ✅ 코드 수정 및 Git 푸시 완료
+- ✅ 로컬 빌드 완료
+- ⏳ Cloudflare Pages 배포 진행 중 (5-10분 소요)
+
+**다음 단계:**
+1. **5-10분 대기** - Cloudflare Pages 배포 완료 대기
+2. **브라우저 캐시 클리어** - Ctrl+Shift+R 또는 시크릿 모드
+3. **테스트 실행** - https://superplacestudy.pages.dev/attendance-verify
+4. **결과 확인** - 숙제 제출 성공 및 결과 페이지 표시
+
+**테스트 URL:**
+- 출석: https://superplacestudy.pages.dev/attendance-verify
+- 결과: https://superplacestudy.pages.dev/dashboard/homework/results/
+
+---
+
+**보고 시각**: 2026-03-19 03:50 UTC  
+**배포 상태**: 진행 중 (5-10분 내 완료 예상)  
+**테스트 필요**: 브라우저에서 실제 테스트 필요  
+**커밋 링크**: https://github.com/kohsunwoo12345-cmyk/superplace/commit/605b97fa

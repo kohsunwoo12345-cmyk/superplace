@@ -122,9 +122,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     await DB.prepare(`
       INSERT INTO homework_submissions_v2 (id, userId, code, imageUrl, submittedAt, status, academyId)
       VALUES (?, ?, ?, ?, ?, 'graded', ?)
-    `).bind(submissionId, user.id, phone || null, imageUrlsJson, kstTimestamp, user.academyId || user.academy_id || null).run();
+    `).bind(submissionId, userId, phone || null, imageUrlsJson, kstTimestamp, user.academyId || user.academy_id || null).run();
 
-    console.log(`✅ 숙제 제출 기록 생성: ${submissionId} (userId: ${user.id})`);
+    console.log(`✅ 숙제 제출 기록 생성: ${submissionId}`);
 
     // 4. 즉시 응답 반환 (간단한 성공 메시지)
     return new Response(
@@ -133,7 +133,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         message: `숙제가 제출되었습니다 (${imageArray.length}장)`,
         submission: {
           id: submissionId,
-          userId: user.id,
+          userId: userId,
           studentName: user.name,
           submittedAt: kstTimestamp,
           status: 'graded',
