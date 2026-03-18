@@ -107,34 +107,38 @@ async function callGeminiDirect(
     });
   });
 
-  // 현재 메시지 추가 (systemPrompt가 있으면 함께 포함)
-  const finalMessage = systemPrompt 
-    ? `${systemPrompt}\n\n사용자 질문: ${message}`
-    : message;
-  
+  // 현재 메시지 추가
   contents.push({
     role: "user",
-    parts: [{ text: finalMessage }]
+    parts: [{ text: message }]
   });
 
   console.log(`📊 총 contents 수: ${contents.length}개`);
 
-  // 🔧 단순한 generationConfig (필수 항목만)
-  const generationConfig: any = {
-    temperature: 1.0,
-    maxOutputTokens: 8192
+  // 🔧 systemInstruction 사용 (Gemini 1.5+ 지원)
+  const requestBody: any = {
+    contents: contents,
+    generationConfig: {
+      temperature: 1.0,
+      maxOutputTokens: 8192
+    }
   };
+  
+  // systemPrompt가 있으면 systemInstruction으로 추가
+  if (systemPrompt && systemPrompt.trim().length > 0) {
+    requestBody.systemInstruction = {
+      parts: [{ text: systemPrompt }]
+    };
+    console.log(`📊 systemInstruction 추가됨 (${systemPrompt.length}자)`);
+  }
 
-  console.log(`📤 generationConfig:`, JSON.stringify(generationConfig));
+  console.log(`📤 Request Body:`, JSON.stringify(requestBody, null, 2).substring(0, 500));
   console.log(`⏳ Gemini API 호출 중...`);
 
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: contents,
-      generationConfig: generationConfig
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   console.log(`📡 응답 상태: ${response.status} ${response.statusText}`);
