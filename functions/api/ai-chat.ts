@@ -80,7 +80,13 @@ async function callGeminiDirect(
   apiKey: string,
   model: string
 ): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+  // 🔧 Gemini API 버전 선택
+  let apiVersion = 'v1beta';
+  if (model === 'gemini-1.0-pro' || model === 'gemini-1.0-pro-latest') {
+    apiVersion = 'v1';
+  }
+  
+  const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
 
   const contents: any[] = [];
   
@@ -107,19 +113,30 @@ async function callGeminiDirect(
     parts: [{ text: message }]
   });
 
+  // 🔧 Gemini 2.5 모델은 topK 지원 안함
+  const generationConfig: any = {
+    temperature: 0.7,
+    maxOutputTokens: 2000,
+    topP: 0.95
+  };
+  
+  // topK는 Gemini 1.x 모델만 지원
+  if (model.startsWith('gemini-1.')) {
+    generationConfig.topK = 40;
+  }
+
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: contents,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 2000,
-      }
+      generationConfig: generationConfig
     }),
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`❌ Gemini API Error (${response.status}):`, errorText);
     throw new Error(`Gemini API 오류: ${response.status}`);
   }
 
