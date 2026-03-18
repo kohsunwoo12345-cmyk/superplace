@@ -57,11 +57,11 @@ async function callWorkerRAG(
     const data = await response.json();
     
     if (data.success) {
-      console.log(`✅ Worker RAG 완료: ${data.ragContextCount}개 컨텍스트 사용`);
+      console.log(`✅ Worker RAG 검색 완료: ${data.ragContextCount}개 컨텍스트`);
       return {
-        response: data.response,
         ragEnabled: data.ragEnabled,
-        ragContextCount: data.ragContextCount
+        ragContextCount: data.ragContextCount,
+        ragContext: data.ragContext || []
       };
     } else {
       throw new Error(data.error || 'Worker 오류');
@@ -99,6 +99,19 @@ async function callGeminiDirect(
 
   const contents: any[] = [];
   
+  // ✅ systemPrompt를 첫 번째 메시지로 강력하게 주입
+  if (systemPrompt && systemPrompt.trim().length > 0) {
+    contents.push({
+      role: "user",
+      parts: [{ text: `[SYSTEM INSTRUCTION - CRITICAL]\nYou MUST follow these instructions exactly. This defines your identity and behavior:\n\n${systemPrompt}\n\n[IMPORTANT] You are NOT a "Google large language model" or "AI assistant". You MUST act according to the instructions above. Do NOT mention Google or being a language model. Always stay in character as defined above.` }]
+    });
+    contents.push({
+      role: "model",
+      parts: [{ text: "알겠습니다. 제시된 지침을 정확히 따르겠습니다. 저는 위에 명시된 역할과 정체성을 가지고 행동하겠습니다." }]
+    });
+    console.log(`✅ System Prompt를 강력하게 주입 (${systemPrompt.length}자)`);
+  }
+  
   // 대화 기록 추가
   conversationHistory.forEach(msg => {
     contents.push({
@@ -115,7 +128,7 @@ async function callGeminiDirect(
 
   console.log(`📊 총 contents 수: ${contents.length}개`);
 
-  // 🔧 최소한의 requestBody (테스트용)
+  // 🔧 Request Body 구성
   const requestBody: any = {
     contents: contents,
     generationConfig: {
@@ -125,7 +138,7 @@ async function callGeminiDirect(
   };
 
   console.log(`📤 Request Body Keys:`, Object.keys(requestBody));
-  console.log(`📤 Contents 첫 항목:`, JSON.stringify(contents[0]));
+  console.log(`📤 Contents 수: ${contents.length}개`);
   console.log(`⏳ Gemini API 호출 중...`);
 
   const response = await fetch(url, {
@@ -219,6 +232,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let ragContextCount = 0;
 
     // 🔥 Worker RAG 모드 (knowledgeBase가 있을 때)
+    let ragContext: any[] = [];
     if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
       try {
         console.log('🚀 Worker RAG 모드 활성화');
@@ -231,41 +245,49 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           true
         );
         
-        aiResponse = workerResult.response;
         useWorkerRAG = workerResult.ragEnabled;
         ragContextCount = workerResult.ragContextCount;
+        ragContext = workerResult.ragContext || [];
         
-        console.log(`✅ Worker RAG 완료: ${ragContextCount}개 컨텍스트 사용`);
+        console.log(`✅ Worker RAG 검색 완료: ${ragContextCount}개 컨텍스트`);
       } catch (workerError: any) {
         console.error('⚠️ Worker RAG 실패, Fallback 모드:', workerError.message);
         console.error('⚠️ Worker 에러 스택:', workerError.stack);
       }
     }
 
-    // Fallback: Worker 실패 또는 RAG 미사용 시 직접 호출
-    if (!aiResponse) {
-      console.log('📚 Gemini 직접 호출 모드');
-      console.log(`🎯 사용 모델: ${modelToUse}`);
-      
-      let systemPrompt = bot.systemPrompt || '';
-      if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
-        systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식을 참고하여 답변하세요.`;
-      }
+    // Gemini 호출 (RAG 컨텍스트 포함)
+    console.log('📚 Gemini 호출 준비');
+    console.log(`🎯 사용 모델: ${modelToUse}`);
+    
+    let systemPrompt = bot.systemPrompt || '';
+    
+    // RAG 컨텍스트를 시스템 프롬프트에 추가
+    if (ragContext && ragContext.length > 0) {
+      console.log(`✅ RAG 컨텍스트 ${ragContext.length}개를 시스템 프롬프트에 추가`);
+      const contextText = ragContext
+        .map((ctx, idx) => `[컨텍스트 ${idx + 1}]\n${ctx.text}`)
+        .join('\n\n');
+      systemPrompt += `\n\n--- 검색된 지식 (RAG) ---\n${contextText}\n--- 지식 끝 ---\n\n위 검색된 지식을 참고하여 답변하세요.`;
+    } else if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
+      // Fallback: knowledgeBase 전체 사용
+      console.log('⚠️ RAG 컨텍스트 없음, 전체 knowledgeBase 사용');
+      systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식을 참고하여 답변하세요.`;
+    }
 
-      try {
-        aiResponse = await callGeminiDirect(
-          data.message,
-          systemPrompt,
-          data.conversationHistory || [],
-          apiKey,
-          modelToUse
-        );
-        console.log(`✅ Gemini 응답 성공 (${aiResponse.length} 글자)`);
-      } catch (geminiError: any) {
-        console.error(`❌ Gemini 직접 호출 실패:`, geminiError.message);
-        console.error(`❌ 에러 스택:`, geminiError.stack);
-        throw geminiError;
-      }
+    try {
+      aiResponse = await callGeminiDirect(
+        data.message,
+        systemPrompt,
+        data.conversationHistory || [],
+        apiKey,
+        modelToUse
+      );
+      console.log(`✅ Gemini 응답 성공 (${aiResponse.length} 글자)`);
+    } catch (geminiError: any) {
+      console.error(`❌ Gemini 직접 호출 실패:`, geminiError.message);
+      console.error(`❌ 에러 스택:`, geminiError.stack);
+      throw geminiError;
     }
 
     // 봇 사용 통계 업데이트

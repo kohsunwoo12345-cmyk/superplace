@@ -27,6 +27,7 @@ async function handleRequest(request, env, ctx) {
       endpoints: {
         grade: 'POST /grade - 숙제 채점 (OCR + RAG + AI)',
         chat: 'POST /chat - AI 챗봇 (Cloudflare AI 번역 + Vectorize RAG)',
+        'bot/upload-knowledge': 'POST /bot/upload-knowledge - AI 봇 지식 베이스 업로드 (자동 임베딩)',
         solve: 'POST /solve - 수학 문제 풀이 (방정식 및 계산)',
         'vectorize-upload': 'POST /vectorize-upload - Vectorize에 벡터 업로드',
         'generate-embedding': 'POST /generate-embedding - Cloudflare AI 임베딩 생성'
@@ -157,6 +158,104 @@ async function handleRequest(request, env, ctx) {
     }
   }
 
+  // 🆕 AI 봇 지식 베이스 업로드 엔드포인트
+  if (url.pathname === '/bot/upload-knowledge' && request.method === 'POST') {
+    const apiKey = request.headers.get('X-API-Key');
+    const expectedKey = env.WORKER_API_KEY || env.API_KEY;
+    
+    if (!expectedKey || apiKey !== expectedKey) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: corsHeaders
+      });
+    }
+
+    try {
+      const body = await request.json();
+      const { botId, fileName, fileContent } = body;
+
+      if (!botId || !fileName || !fileContent) {
+        return new Response(JSON.stringify({ 
+          error: 'botId, fileName, fileContent are required' 
+        }), {
+          status: 400,
+          headers: corsHeaders
+        });
+      }
+
+      console.log(`📤 지식 베이스 업로드: botId=${botId}, file=${fileName}, size=${fileContent.length}자`);
+
+      // 1️⃣ 텍스트를 청크로 분할 (500자 단위)
+      const chunks = [];
+      const chunkSize = 500;
+      for (let i = 0; i < fileContent.length; i += chunkSize) {
+        chunks.push(fileContent.slice(i, i + chunkSize));
+      }
+
+      console.log(`📋 청크 분할 완료: ${chunks.length}개`);
+
+      // 2️⃣ 각 청크에 대해 임베딩 생성 및 Vectorize 저장
+      const vectors = [];
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        
+        // 임베딩 생성
+        const embedding = await generateEmbedding(chunk, env);
+        
+        // Vectorize 벡터 포맷 (ID는 64바이트 이하로 제한)
+        // botId 해시 생성 (더 짧은 ID)
+        const botIdHash = await crypto.subtle.digest(
+          'SHA-256',
+          new TextEncoder().encode(botId)
+        ).then(buf => Array.from(new Uint8Array(buf))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('')
+          .substring(0, 16) // 16자로 축약
+        );
+        
+        vectors.push({
+          id: `${botIdHash}-${i}`, // 최대 약 20자
+          values: embedding,
+          metadata: {
+            botId: botId,
+            fileName: fileName,
+            chunkIndex: i,
+            text: chunk,
+            totalChunks: chunks.length,
+            uploadedAt: new Date().toISOString()
+          }
+        });
+      }
+
+      console.log(`✅ 임베딩 생성 완료: ${vectors.length}개`);
+
+      // 3️⃣ Vectorize에 벡터 삽입
+      if (!env.VECTORIZE) {
+        throw new Error('VECTORIZE binding not configured');
+      }
+
+      await env.VECTORIZE.insert(vectors);
+
+      console.log(`✅ Vectorize 업로드 완료: ${vectors.length}개 벡터`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: `지식 베이스 업로드 완료: ${chunks.length}개 청크`,
+        chunks: chunks.length,
+        vectors: vectors.length,
+        embedding: 'Cloudflare AI (@cf/baai/bge-m3)',
+        vectorIndex: 'knowledge-base-embeddings'
+      }), { headers: corsHeaders });
+
+    } catch (error) {
+      console.error('❌ 지식 베이스 업로드 오류:', error.message);
+      return new Response(JSON.stringify({
+        success: false,
+        error: error.message
+      }), { status: 500, headers: corsHeaders });
+    }
+  }
+
   // 🆕 AI 챗봇 RAG 엔드포인트
   if (url.pathname === '/chat' && request.method === 'POST') {
     const apiKey = request.headers.get('X-API-Key');
@@ -235,21 +334,16 @@ async function handleRequest(request, env, ctx) {
         }
       }
 
-      // 3️⃣ 최종 응답 생성 (Gemini)
-      const aiResponse = await generateChatResponse({
-        message,
-        systemPrompt,
-        conversationHistory,
-        ragContext,
-        ragEnabled
-      }, env);
+      // 3️⃣ RAG 컨텍스트 반환 (Gemini 호출은 Pages Functions에서 처리)
+      console.log(`✅ RAG 검색 완료: ${ragContext.length}개 컨텍스트`);
 
       return new Response(JSON.stringify({
         success: true,
-        response: aiResponse,
         ragEnabled,
+        ragContext: ragContext,
         ragContextCount: ragContext.length,
-        translatedQuery: translatedQuery !== message ? translatedQuery : null
+        translatedQuery: translatedQuery !== message ? translatedQuery : null,
+        message: 'RAG context retrieved successfully'
       }), { headers: corsHeaders });
 
     } catch (error) {
@@ -354,7 +448,10 @@ async function generateEmbedding(text, env) {
 async function generateChatResponse({ message, systemPrompt, conversationHistory, ragContext, ragEnabled }, env) {
   try {
     const apiKey = env.GOOGLE_GEMINI_API_KEY;
-    if (!apiKey) return 'AI API 키가 설정되지 않았습니다.';
+    if (!apiKey) {
+      console.error('❌ GOOGLE_GEMINI_API_KEY not found');
+      return 'AI API 키가 설정되지 않았습니다.';
+    }
     
     let enhancedSystemPrompt = systemPrompt || '당신은 친절하고 유능한 AI 선생님입니다.';
     if (ragEnabled && ragContext.length > 0) {
@@ -366,20 +463,62 @@ async function generateChatResponse({ message, systemPrompt, conversationHistory
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const contents = [{ parts: [{ text: enhancedSystemPrompt }] }];
-    conversationHistory.forEach(msg => contents.push({ parts: [{ text: msg.role === 'user' ? `사용자: ${msg.content}` : `AI: ${msg.content}` }] }));
-    contents.push({ parts: [{ text: `사용자: ${message}` }] });
+    
+    // 올바른 contents 구조 (Gemini API는 첫 메시지가 반드시 user여야 함)
+    const contents = [];
+    
+    // 대화 기록 추가
+    if (conversationHistory && conversationHistory.length > 0) {
+      conversationHistory.forEach(msg => {
+        contents.push({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }]
+        });
+      });
+    }
+    
+    // 현재 메시지 추가 (systemPrompt 포함)
+    const finalMessage = enhancedSystemPrompt + '\n\n사용자 질문: ' + message;
+    contents.push({
+      role: 'user',
+      parts: [{ text: finalMessage }]
+    });
+
+    // 첫 메시지가 user가 아니면 조정
+    if (contents.length > 0 && contents[0].role !== 'user') {
+      contents.unshift({
+        role: 'user',
+        parts: [{ text: '시작합니다.' }]
+      });
+    }
+
+    console.log('📤 Gemini API 호출:', url.replace(/key=.+/, 'key=[HIDDEN]'));
+    console.log('📝 Contents 수:', contents.length, '첫 role:', contents[0]?.role);
 
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents, generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } })
+      body: JSON.stringify({ 
+        contents,
+        generationConfig: { 
+          temperature: 0.7, 
+          maxOutputTokens: 2048 
+        } 
+      })
     });
     
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Gemini API 오류:', response.status, errorText);
+      return `Gemini API 오류: ${response.status}`;
+    }
+    
     const result = await response.json();
+    console.log('✅ Gemini 응답 받음');
     return result.candidates?.[0]?.content?.parts?.[0]?.text || 'AI 응답을 생성할 수 없습니다.';
   } catch (error) {
-    return 'AI 응답 생성 오류가 발생했습니다.';
+    console.error('❌ generateChatResponse 오류:', error.message);
+    return `AI 응답 생성 오류: ${error.message}`;
   }
 }
 
