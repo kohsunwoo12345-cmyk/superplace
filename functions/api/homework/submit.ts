@@ -52,45 +52,46 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    console.log(`🔍 사용자 조회 시작: userId=${userId}, type=${typeof userId}`);
+    console.log(`🔍 사용자 조회 시작: userId=${userId}, phone=${phone}, type=${typeof userId}`);
 
     // 1. 사용자 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
+    // userId 또는 phone으로 조회 (student_code 문자열 ID도 지원)
     let user = await DB.prepare(
-      "SELECT id, name, email, academyId, academy_id FROM User WHERE id = ?"
-    ).bind(userId).first();
+      "SELECT id, name, email, academyId, academy_id, phone FROM User WHERE id = ? OR phone = ?"
+    ).bind(userId, phone).first();
 
     console.log(`📊 User 테이블 조회 결과:`, user);
 
     // User 테이블에 없으면 users 테이블 확인 (레거시 지원)
     if (!user) {
-      console.log(`🔍 User 테이블에 없음, users 테이블 확인 중... (userId: ${userId})`);
+      console.log(`🔍 User 테이블에 없음, users 테이블 확인 중... (userId: ${userId}, phone: ${phone})`);
       user = await DB.prepare(
-        "SELECT id, name, email, academyId, academy_id FROM users WHERE id = ?"
-      ).bind(userId).first();
+        "SELECT id, name, email, academyId, academy_id, phone FROM users WHERE id = ? OR phone = ?"
+      ).bind(userId, phone).first();
       
       console.log(`📊 users 테이블 조회 결과:`, user);
     }
 
     if (!user) {
-      console.error(`❌ 사용자를 찾을 수 없음: userId=${userId}`);
+      console.error(`❌ 사용자를 찾을 수 없음: userId=${userId}, phone=${phone}`);
       return new Response(
-        JSON.stringify({ success: false, error: "User not found" }),
+        JSON.stringify({ success: false, error: "User not found", details: `userId: ${userId}, phone: ${phone}` }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
 
     console.log(`✅ 사용자 확인: ${user.name} (${user.email})`);
 
-    // 2. homework_submissions_v2 테이블 생성
+    // 2. homework_submissions_v2 테이블 생성 (userId는 TEXT로 문자열 ID 지원)
     await DB.prepare(`
       CREATE TABLE IF NOT EXISTS homework_submissions_v2 (
         id TEXT PRIMARY KEY,
-        userId INTEGER NOT NULL,
+        userId TEXT NOT NULL,
         code TEXT,
         imageUrl TEXT,
         submittedAt TEXT DEFAULT (datetime('now')),
         status TEXT DEFAULT 'submitted',
-        academyId INTEGER
+        academyId TEXT
       )
     `).run();
 
