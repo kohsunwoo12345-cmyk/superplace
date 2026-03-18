@@ -350,11 +350,23 @@ ${contextText}
     
     let lastError: any = null;
     let retryAttempt = 0;
-    const maxRetries = uniqueModels.length;
+    const maxRetries = uniqueModels.length * 2; // 각 모델당 2번씩 시도
+    const attemptedModels: string[] = [];
     
-    for (const tryModel of uniqueModels) {
+    for (let i = 0; i < maxRetries; i++) {
+      const modelIndex = i % uniqueModels.length;
+      const tryModel = uniqueModels[modelIndex];
+      
       try {
-        console.log(`🚀 [${requestId}] Gemini API 호출 시도 ${retryAttempt + 1}/${maxRetries} (모델: ${tryModel})`);
+        console.log(`🚀 [${requestId}] Gemini API 호출 시도 ${i + 1}/${maxRetries} (모델: ${tryModel})`);
+        
+        // 첫 시도가 아니면 백오프 적용
+        if (i > 0) {
+          // 지수 백오프: 2초 → 4초 → 8초 → 12초 → 16초
+          const waitTime = Math.min(2000 * Math.pow(1.5, i - 1), 16000);
+          console.log(`⏳ [${requestId}] ${Math.round(waitTime/1000)}초 대기 후 재시도...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
         
         aiResponse = await callGeminiDirect(
           data.message,
@@ -364,29 +376,31 @@ ${contextText}
           tryModel
         );
         
-        console.log(`✅ [${requestId}] Gemini 응답 성공 (${aiResponse.length} 글자, 모델: ${tryModel})`);
+        console.log(`✅ [${requestId}] Gemini 응답 성공 (${aiResponse.length} 글자, 모델: ${tryModel}, 시도 횟수: ${i + 1})`);
+        attemptedModels.push(tryModel);
+        retryAttempt = i;
         break; // 성공하면 루프 탈출
         
       } catch (geminiError: any) {
         lastError = geminiError;
+        attemptedModels.push(tryModel);
         const isRetryable = geminiError.isRetryable || geminiError.status === 503 || geminiError.status === 429 || geminiError.status === 500;
         
-        console.error(`❌ [${requestId}] 모델 ${tryModel} 실패:`, geminiError.message);
+        console.error(`❌ [${requestId}] 모델 ${tryModel} 실패 (시도 ${i + 1}/${maxRetries}):`, geminiError.message);
         console.error(`❌ [${requestId}] 에러 상태:`, geminiError.status);
+        console.error(`❌ [${requestId}] 재시도 가능:`, isRetryable);
         
-        retryAttempt++;
+        retryAttempt = i;
         
-        // 재시도 가능한 에러이고 아직 시도할 모델이 있으면 계속
-        if (isRetryable && retryAttempt < uniqueModels.length) {
-          const waitTime = Math.min(1000 * Math.pow(2, retryAttempt - 1), 8000); // 지수 backoff (최대 8초)
-          console.log(`⏳ [${requestId}] ${waitTime}ms 대기 후 다음 모델로 재시도... (${retryAttempt + 1}/${uniqueModels.length})`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
-          continue;
+        // 재시도 불가능한 에러면 즉시 중단
+        if (!isRetryable) {
+          console.error(`❌ [${requestId}] 재시도 불가능한 에러, 중단`);
+          break;
         }
         
-        // 마지막 시도였거나 재시도 불가능한 에러면 break
-        if (retryAttempt >= uniqueModels.length || !isRetryable) {
-          console.error(`❌ [${requestId}] 모든 재시도 실패 (총 ${retryAttempt}회 시도)`);
+        // 마지막 시도였으면 break
+        if (i >= maxRetries - 1) {
+          console.error(`❌ [${requestId}] 모든 재시도 실패 (총 ${i + 1}회 시도)`);
           break;
         }
       }
@@ -395,32 +409,40 @@ ${contextText}
     // 모든 시도가 실패한 경우
     if (!aiResponse && lastError) {
       console.error(`❌ [${requestId}] 최종 실패:`, lastError.message);
+      console.error(`❌ [${requestId}] 시도한 모델:`, attemptedModels.join(' → '));
+      console.error(`❌ [${requestId}] 총 시도 횟수:`, retryAttempt + 1);
       
       // 사용자 친화적인 에러 메시지
       let userMessage = "AI 응답 생성 중 오류가 발생했습니다.";
+      let retryAfterSeconds = 10;
+      
       if (lastError.status === 503) {
-        userMessage = "현재 AI 서비스가 많은 요청을 처리 중입니다. 잠시 후 다시 시도해주세요. (1-2분 후)";
+        userMessage = `현재 AI 서비스가 많은 요청을 처리 중입니다.\n\n${retryAfterSeconds}초 후 자동으로 다시 시도하거나, 잠시 후 직접 재전송해 주세요.\n\n시도한 모델: ${attemptedModels.slice(0, 3).join(' → ')}`;
+        retryAfterSeconds = 60;
       } else if (lastError.status === 429) {
-        userMessage = "요청이 너무 많습니다. 잠시 후 다시 시도해주세요. (30초 후)";
+        userMessage = `요청이 너무 많습니다.\n\n${retryAfterSeconds}초 후 다시 시도해주세요.`;
+        retryAfterSeconds = 30;
       } else if (lastError.status === 500) {
-        userMessage = "AI 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.";
+        userMessage = `AI 서비스에 일시적인 문제가 발생했습니다.\n\n${retryAfterSeconds}초 후 다시 시도해주세요.`;
+        retryAfterSeconds = 20;
       }
       
       return new Response(
         JSON.stringify({
           success: false,
-          message: userMessage,
-          error: lastError.message,
-          errorDetails: {
-            status: lastError.status,
-            retriesAttempted: retryAttempt,
-            modelsAttempted: uniqueModels.slice(0, retryAttempt).join(', '),
-          },
+          error: userMessage,
+          attemptedModels: attemptedModels,
+          retryCount: retryAttempt,
+          retryAfterSeconds: retryAfterSeconds,
           requestId,
-          // 재시도 권장 시간
-          retryAfterSeconds: lastError.status === 503 ? 60 : lastError.status === 429 ? 30 : 10,
         }),
-        { status: 503, headers: { "Content-Type": "application/json" } }
+        { 
+          status: 503, 
+          headers: { 
+            "Content-Type": "application/json",
+            "Retry-After": retryAfterSeconds.toString()
+          } 
+        }
       );
     }
 
@@ -444,6 +466,8 @@ ${contextText}
         response: aiResponse,
         workerRAGUsed: useWorkerRAG,
         ragContextCount: ragContextCount,
+        attemptedModels: attemptedModels.length > 1 ? attemptedModels : undefined,
+        retryCount: retryAttempt > 0 ? retryAttempt : undefined,
         requestId,
         duration: requestDuration,
       }),
