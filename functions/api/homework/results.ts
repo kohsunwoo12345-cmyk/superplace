@@ -41,7 +41,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const today = getKoreanDate();
 
-    // 학원의 모든 숙제 제출 조회 - homework_submissions_v2 테이블 사용 (gradingResult JSON 필드 포함)
+    // 학원의 모든 숙제 제출 조회 - homework_gradings_v2 테이블과 JOIN
     // LEFT JOIN으로 변경하여 사용자 정보가 없어도 제출 기록은 표시
     // users 테이블과 User 테이블 모두 조회 시도
     let query = `
@@ -54,12 +54,25 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         hs.code,
         hs.imageUrl,
         hs.submittedAt,
-        hs.gradedAt,
         hs.status,
-        hs.gradingResult
+        hg.score,
+        hg.feedback,
+        hg.strengths,
+        hg.suggestions,
+        hg.subject,
+        hg.completion,
+        hg.gradedAt,
+        hg.gradedBy,
+        hg.totalQuestions,
+        hg.correctAnswers,
+        hg.problemAnalysis,
+        hg.weaknessTypes,
+        hg.detailedAnalysis,
+        hg.studyDirection
       FROM homework_submissions_v2 hs
       LEFT JOIN users users_lower ON hs.userId = CAST(users_lower.id AS TEXT)
       LEFT JOIN User users_upper ON hs.userId = users_upper.id
+      LEFT JOIN homework_gradings_v2 hg ON hs.id = hg.submissionId
       WHERE 1=1
     `;
 
@@ -82,23 +95,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       console.log('📋 첫 번째 결과:', submissions.results[0]);
     }
 
-    // gradingResult JSON 파싱 및 결과 가공
+    // 결과 가공
     const processedResults = (submissions.results || []).map((row: any) => {
-      let gradingData: any = {};
-      
-      // gradingResult JSON 파싱
-      if (row.gradingResult) {
-        try {
-          const parsed = JSON.parse(row.gradingResult);
-          // results 배열에서 첫 번째 grading 정보 추출
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            gradingData = parsed[0].grading || {};
-          }
-        } catch (e) {
-          console.error('JSON 파싱 오류:', e);
-        }
-      }
-      
       // 이미지 URL 파싱
       let imageCount = 0;
       if (row.imageUrl) {
@@ -107,6 +105,26 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           imageCount = Array.isArray(images) ? images.length : 1;
         } catch {
           imageCount = 1;
+        }
+      }
+      
+      // problemAnalysis와 weaknessTypes JSON 파싱
+      let problemAnalysis = [];
+      let weaknessTypes = [];
+      
+      if (row.problemAnalysis) {
+        try {
+          problemAnalysis = JSON.parse(row.problemAnalysis);
+        } catch (e) {
+          console.error('problemAnalysis 파싱 오류:', e);
+        }
+      }
+      
+      if (row.weaknessTypes) {
+        try {
+          weaknessTypes = JSON.parse(row.weaknessTypes);
+        } catch (e) {
+          console.error('weaknessTypes 파싱 오류:', e);
         }
       }
       
@@ -122,15 +140,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         submittedAt: row.submittedAt,
         status: row.status,
         grading: {
-          score: gradingData.score || 0,
-          feedback: gradingData.overallFeedback || gradingData.feedback || '',
-          subject: gradingData.subject || '미지정',
-          totalQuestions: gradingData.totalQuestions || 0,
-          correctAnswers: gradingData.correctAnswers || 0,
-          detailedResults: gradingData.detailedResults || [],
-          strengths: gradingData.strengths || '',
-          improvements: gradingData.improvements || '',
+          score: row.score || 0,
+          feedback: row.feedback || '',
+          subject: row.subject || '미지정',
+          totalQuestions: row.totalQuestions || 0,
+          correctAnswers: row.correctAnswers || 0,
+          problemAnalysis: problemAnalysis,
+          weaknessTypes: weaknessTypes,
+          strengths: row.strengths || '',
+          suggestions: row.suggestions || '',
+          detailedAnalysis: row.detailedAnalysis || '',
+          studyDirection: row.studyDirection || '',
           gradedAt: row.gradedAt,
+          gradedBy: row.gradedBy,
+          completion: row.completion
         },
       };
     });
