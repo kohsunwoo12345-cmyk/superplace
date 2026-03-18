@@ -133,14 +133,28 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
-    const code = await DB.prepare(
+    const userIdInt = parseInt(userId, 10);
+    const codeRecord = await DB.prepare(
       `SELECT * FROM student_attendance_codes 
        WHERE userId = ? AND isActive = 1 
        ORDER BY createdAt DESC LIMIT 1`
-    ).bind(userId).first();
+    ).bind(userIdInt).first();
+
+    if (!codeRecord) {
+      return new Response(
+        JSON.stringify({ success: false, code: null, message: "No active code found" }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     return new Response(
-      JSON.stringify({ code }),
+      JSON.stringify({ 
+        success: true,
+        code: codeRecord.code,
+        userId: codeRecord.userId,
+        isActive: codeRecord.isActive,
+        createdAt: codeRecord.createdAt
+      }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: any) {
