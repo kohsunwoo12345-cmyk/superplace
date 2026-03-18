@@ -140,8 +140,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const systemPrompt = config?.systemPrompt || defaultSystemPrompt;
     const temperature = config?.temperature ? Number(config.temperature) : 0.3;
     const enableRAG = config?.enableRAG ? Boolean(Number(config.enableRAG)) : false;
+    const knowledgeBase = config?.knowledgeBase || '';
 
     console.log(`🔧 채점 설정: model=${model}, temperature=${temperature}, RAG=${enableRAG}`);
+    
+    // RAG 지식 베이스를 시스템 프롬프트에 추가
+    let finalSystemPrompt = systemPrompt;
+    if (enableRAG && knowledgeBase && knowledgeBase.trim().length > 0) {
+      console.log(`📚 RAG 지식 베이스 추가 (${knowledgeBase.length}자)`);
+      finalSystemPrompt = `${systemPrompt}\n\n### 참고 지식 베이스:\n${knowledgeBase}\n\n위 지식 베이스를 참고하여 채점하세요.`;
+    }
 
     // API 키 선택
     let apiKey: string | undefined;
@@ -217,7 +225,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     console.log(`📚 채점할 이미지 수: ${imageArray.length}장`);
 
     // 4. AI 모델로 채점 수행
-    let gradingResult = await performGrading(imageArray, apiKey, model, systemPrompt, temperature, submissionId, DB);
+    let gradingResult = await performGrading(imageArray, apiKey, model, finalSystemPrompt, temperature, submissionId, DB);
+
+    // 실제 사용된 모델 이름 결정
+    let gradedByModel = 'AI';
+    if (model.startsWith('gemini')) {
+      gradedByModel = `Google Gemini (${model})`;
+    } else if (model.startsWith('deepseek')) {
+      gradedByModel = `DeepSeek (${model})`;
+    }
 
     // 5. Python Worker로 수학 문제 검증 (옵션)
     if (PYTHON_WORKER_URL_ && gradingResult.problemAnalysis && gradingResult.problemAnalysis.length > 0) {
@@ -281,7 +297,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         totalQuestions, correctAnswers, problemAnalysis, weaknessTypes,
         detailedAnalysis, studyDirection
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?, ?, 'DeepSeek AI', ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       gradingId,
       submissionId,
@@ -293,6 +309,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       gradingResult.completion,
       imageArray.length,
       kstTimestamp,
+      gradedByModel,
       gradingResult.totalQuestions,
       gradingResult.correctAnswers,
       JSON.stringify(gradingResult.problemAnalysis || []),
