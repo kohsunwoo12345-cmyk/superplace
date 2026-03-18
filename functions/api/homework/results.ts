@@ -43,14 +43,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 학원의 모든 숙제 제출 조회 - homework_submissions_v2 테이블 사용 (gradingResult JSON 필드 포함)
     // LEFT JOIN으로 변경하여 사용자 정보가 없어도 제출 기록은 표시
-    // User 테이블과 users 테이블 모두 조회 시도
+    // users 테이블과 User 테이블 모두 조회 시도
     let query = `
       SELECT 
         hs.id,
         hs.userId,
-        COALESCE(u.name, U.name, '알 수 없음') as userName,
-        COALESCE(u.email, U.email, '이메일 없음') as userEmail,
-        COALESCE(u.academyId, U.academyId, hs.academyId) as academyId,
+        COALESCE(users_lower.name, users_upper.name, '알 수 없음') as userName,
+        COALESCE(users_lower.email, users_upper.email, '이메일 없음') as userEmail,
+        COALESCE(users_lower.academyId, users_upper.academyId, hs.academyId) as academyId,
         hs.code,
         hs.imageUrl,
         hs.submittedAt,
@@ -58,15 +58,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         hs.status,
         hs.gradingResult
       FROM homework_submissions_v2 hs
-      LEFT JOIN users u ON hs.userId = CAST(u.id AS TEXT)
-      LEFT JOIN User U ON hs.userId = U.id
+      LEFT JOIN users users_lower ON hs.userId = CAST(users_lower.id AS TEXT)
+      LEFT JOIN User users_upper ON hs.userId = users_upper.id
       WHERE 1=1
     `;
 
     const bindings: any[] = [];
 
     if (academyId) {
-      query += ` AND (COALESCE(u.academyId, U.academyId, hs.academyId) = ?)`;
+      query += ` AND (COALESCE(users_lower.academyId, users_upper.academyId, hs.academyId) = ?)`;
       bindings.push(parseInt(academyId));
     }
 
