@@ -141,12 +141,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const imageUrlsJson = JSON.stringify(imageArray);
     
     // *** 핵심 수정: user.id 사용 (undefined userId 대신) ***
+    // status를 'processing'으로 설정하여 채점 대기 상태로 표시
     await DB.prepare(`
       INSERT INTO homework_submissions_v2 (id, userId, code, imageUrl, submittedAt, status, academyId)
-      VALUES (?, ?, ?, ?, ?, 'graded', ?)
+      VALUES (?, ?, ?, ?, ?, 'processing', ?)
     `).bind(submissionId, user.id, phone || null, imageUrlsJson, kstTimestamp, user.academyId || user.academy_id || null).run();
 
-    console.log(`✅ [V2] 숙제 제출 기록 생성: ${submissionId} (userId: ${user.id})`);
+    console.log(`✅ [V2] 숙제 제출 기록 생성: ${submissionId} (userId: ${user.id}, status: processing)`);
 
     // 4. 이미지를 homework_images 테이블에 저장 (채점 API가 조회할 수 있도록)
     await DB.prepare(`
