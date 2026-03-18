@@ -33,32 +33,32 @@ export default function AttendanceVerifyPage() {
   }, [stream]);
 
   const handleVerify = async () => {
-    const trimmedCode = code.trim();
+    const trimmedPhone = code.trim();
     
-    if (!trimmedCode) {
-      alert("출석 코드를 입력해주세요.");
+    if (!trimmedPhone) {
+      alert("전화번호를 입력해주세요.");
       return;
     }
 
-    if (trimmedCode.length !== 6) {
-      alert("6자리 출석 코드를 입력해주세요.");
+    if (trimmedPhone.length < 10 || trimmedPhone.length > 11) {
+      alert("올바른 전화번호를 입력해주세요. (10-11자리)");
       return;
     }
 
     // 숫자만 포함되어 있는지 확인
-    if (!/^\d{6}$/.test(trimmedCode)) {
-      alert("출석 코드는 6자리 숫자여야 합니다.");
+    if (!/^\d{10,11}$/.test(trimmedPhone)) {
+      alert("전화번호는 숫자만 입력해주세요.");
       return;
     }
 
     setLoading(true);
     try {
-      console.log("📤 출석 인증 요청:", { code: trimmedCode });
+      console.log("📤 전화번호로 출석 인증 요청:", { phone: trimmedPhone });
       
-      const response = await fetch("/api/attendance/verify", {
+      const response = await fetch("/api/attendance/verify-phone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: trimmedCode }),
+        body: JSON.stringify({ phone: trimmedPhone }),
       });
 
       const data = await response.json();
@@ -78,7 +78,7 @@ export default function AttendanceVerifyPage() {
           userId: data.student?.id,
           userName: data.student?.name,
           userEmail: data.student?.email,
-          attendanceCode: trimmedCode,
+          phone: trimmedPhone,
           verifiedAt: new Date().toLocaleString('ko-KR'),
           status: data.attendance?.status,
           statusText: data.attendance?.status === 'LATE' ? '지각' : '출석',
@@ -90,7 +90,7 @@ export default function AttendanceVerifyPage() {
         console.log("✅ 저장된 학생 정보:", {
           userId: data.student?.id,
           userName: data.student?.name,
-          attendanceCode: trimmedCode,
+          phone: trimmedPhone,
           fullInfo: newStudentInfo
         });
         
@@ -390,7 +390,7 @@ export default function AttendanceVerifyPage() {
       console.log("📤 숙제 제출 시작... 총", capturedImages.length, "장");
       console.log("📊 전송할 학생 정보:", {
         userId: studentInfo?.userId,
-        attendanceCode: studentInfo?.attendanceCode || code,
+        phone: studentInfo?.phone || code,
         imagesCount: capturedImages.length
       });
       
@@ -408,7 +408,7 @@ export default function AttendanceVerifyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: studentInfo.userId,
-          code: studentInfo.attendanceCode || code,
+          phone: studentInfo.phone || code,
           images: capturedImages, // 다중 이미지 전달
         }),
       });
@@ -468,7 +468,7 @@ export default function AttendanceVerifyPage() {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && code.length === 6 && !loading) {
+    if (e.key === 'Enter' && code.length >= 10 && !loading) {
       handleVerify();
     }
   };
@@ -713,7 +713,7 @@ export default function AttendanceVerifyPage() {
             출석 인증
           </CardTitle>
           <CardDescription className="text-base mt-2">
-            선생님이 알려준 6자리 출석 코드를 입력하세요
+            학생 전화번호를 입력하세요 (숫자만)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -722,36 +722,38 @@ export default function AttendanceVerifyPage() {
             <div className="flex items-start gap-3">
               <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-blue-800">
-                <p className="font-medium mb-1">출석 코드로 간편하게!</p>
+                <p className="font-medium mb-1">전화번호로 간편하게!</p>
                 <p className="text-xs text-blue-600">
-                  코드 입력 → 숙제 사진 촬영 → AI 자동 채점
+                  전화번호 입력 → 숙제 사진 촬영 → AI 자동 채점
                 </p>
               </div>
             </div>
           </div>
 
-          {/* 출석 코드 입력 */}
+          {/* 전화번호 입력 */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700">출석 코드</label>
+            <label className="text-sm font-medium text-gray-700">전화번호 (하이픈 없이)</label>
             <Input
-              type="text"
-              placeholder="000000"
+              type="tel"
+              placeholder="01012345678"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 11))}
               onKeyPress={handleKeyPress}
-              maxLength={6}
-              className="text-center text-3xl tracking-[1em] font-bold h-16 border-2 focus:border-blue-500"
+              maxLength={11}
+              className="text-center text-2xl tracking-wider font-bold h-16 border-2 focus:border-blue-500"
               disabled={loading}
               autoFocus
             />
             <p className="text-xs text-gray-500 text-center">
-              {code.length}/6 자리 입력됨
+              {code.length === 0 ? '전화번호를 입력하세요' : 
+               code.length < 10 ? `${code.length}자리 입력됨 (최소 10자리)` :
+               `${code.length}자리 입력됨`}
             </p>
           </div>
 
           <Button
             onClick={handleVerify}
-            disabled={loading || code.length !== 6}
+            disabled={loading || code.length < 10}
             className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
             size="lg"
           >
