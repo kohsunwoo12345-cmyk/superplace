@@ -80,13 +80,22 @@ async function callGeminiDirect(
   apiKey: string,
   model: string
 ): Promise<string> {
+  console.log(`🔧 callGeminiDirect 시작`);
+  console.log(`📊 모델: ${model}`);
+  console.log(`📊 메시지 길이: ${message.length}자`);
+  console.log(`📊 시스템 프롬프트 길이: ${systemPrompt.length}자`);
+  console.log(`📊 대화 기록: ${conversationHistory.length}개`);
+  
   // 🔧 Gemini API 버전 선택
   let apiVersion = 'v1beta';
   if (model === 'gemini-1.0-pro' || model === 'gemini-1.0-pro-latest') {
     apiVersion = 'v1';
   }
   
+  console.log(`📊 API 버전: ${apiVersion}`);
+  
   const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
+  console.log(`📤 URL: ${url.replace(/key=.+/, 'key=[HIDDEN]')}`);
 
   const contents: any[] = [];
   
@@ -113,6 +122,8 @@ async function callGeminiDirect(
     parts: [{ text: message }]
   });
 
+  console.log(`📊 총 contents 수: ${contents.length}개`);
+
   // 🔧 Gemini 2.5 모델은 topK 지원 안함
   const generationConfig: any = {
     temperature: 0.7,
@@ -123,7 +134,13 @@ async function callGeminiDirect(
   // topK는 Gemini 1.x 모델만 지원
   if (model.startsWith('gemini-1.')) {
     generationConfig.topK = 40;
+    console.log(`📊 topK 추가됨: 40`);
+  } else {
+    console.log(`📊 topK 제외됨 (Gemini 2.x)`);
   }
+
+  console.log(`📤 generationConfig:`, JSON.stringify(generationConfig));
+  console.log(`⏳ Gemini API 호출 중...`);
 
   const response = await fetch(url, {
     method: "POST",
@@ -134,14 +151,29 @@ async function callGeminiDirect(
     }),
   });
 
+  console.log(`📡 응답 상태: ${response.status} ${response.statusText}`);
+
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`❌ Gemini API Error (${response.status}):`, errorText);
+    
+    // JSON 파싱 시도
+    try {
+      const errorJson = JSON.parse(errorText);
+      console.error(`❌ 파싱된 에러:`, JSON.stringify(errorJson, null, 2));
+    } catch (e) {
+      console.error(`❌ 에러 텍스트 (JSON 파싱 실패):`, errorText);
+    }
+    
     throw new Error(`Gemini API 오류: ${response.status}`);
   }
 
   const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
+  
+  console.log(`✅ Gemini 응답 받음: ${text.length}자`);
+  
+  return text;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -180,6 +212,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .first() as any;
 
     if (!bot) {
+      console.error(`❌ 봇을 찾을 수 없음: ${data.botId}`);
       return new Response(
         JSON.stringify({
           success: false,
@@ -189,7 +222,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    console.log(`✅ 봇 발견: ${bot.name} (model: ${bot.model || 'gemini-2.0-flash-exp'})`);
+    const modelToUse = bot.model || 'gemini-2.0-flash-exp';
+    console.log(`✅ 봇 발견: ${bot.name}`);
+    console.log(`📊 모델: ${modelToUse}`);
+    console.log(`📚 지식베이스: ${bot.knowledgeBase ? '있음' : '없음'}`);
 
     let aiResponse = '';
     let useWorkerRAG = false;
@@ -215,25 +251,34 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         console.log(`✅ Worker RAG 완료: ${ragContextCount}개 컨텍스트 사용`);
       } catch (workerError: any) {
         console.error('⚠️ Worker RAG 실패, Fallback 모드:', workerError.message);
+        console.error('⚠️ Worker 에러 스택:', workerError.stack);
       }
     }
 
     // Fallback: Worker 실패 또는 RAG 미사용 시 직접 호출
     if (!aiResponse) {
       console.log('📚 Gemini 직접 호출 모드');
+      console.log(`🎯 사용 모델: ${modelToUse}`);
       
       let systemPrompt = bot.systemPrompt || '';
       if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
         systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식을 참고하여 답변하세요.`;
       }
 
-      aiResponse = await callGeminiDirect(
-        data.message,
-        systemPrompt,
-        data.conversationHistory || [],
-        apiKey,
-        bot.model || 'gemini-2.0-flash-exp'
-      );
+      try {
+        aiResponse = await callGeminiDirect(
+          data.message,
+          systemPrompt,
+          data.conversationHistory || [],
+          apiKey,
+          modelToUse
+        );
+        console.log(`✅ Gemini 응답 성공 (${aiResponse.length} 글자)`);
+      } catch (geminiError: any) {
+        console.error(`❌ Gemini 직접 호출 실패:`, geminiError.message);
+        console.error(`❌ 에러 스택:`, geminiError.stack);
+        throw geminiError;
+      }
     }
 
     // 봇 사용 통계 업데이트
