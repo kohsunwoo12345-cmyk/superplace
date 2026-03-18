@@ -1,334 +1,196 @@
-# ✅ 숙제 채점 시스템 복구 완료 보고서
+# 숙제 채점 시스템 수정 완료 보고서
 
-## 📅 완료 일시
-- **복구 완료**: 2026-03-19 05:00 (KST)
-- **최종 커밋**: `3e244ddb`
-- **테스트 ID**: `homework-1773863519285-5eu8z0gsw`
-- **테스트 결과**: **75점** ✅
+## 🎯 요청사항 요약
+Admin 대시보드(`https://superplacestudy.pages.dev/dashboard/admin/homework-grading-config/`)에서 설정한 **프롬프트, AI 모델, RAG 파일**이 실제 Workers에서 작동하여 채점 결과에 반영되도록 수정
 
----
+## ❌ 발견된 문제점
 
-## 🔴 문제 상황
+### 1. **하드코딩된 gradedBy 필드**
+- **위치**: `functions/api/homework/process-grading.ts:284`
+- **문제**: `'DeepSeek AI'`로 하드코딩되어 있어 Admin에서 Gemini 모델을 선택해도 "DeepSeek AI"로 표시됨
+- **영향**: 사용자가 어떤 AI 모델이 실제로 사용되었는지 알 수 없음
 
-### 증상
-- 숙제를 제출해도 **0점**으로 표시됨
-- 채점 결과가 비어있음 (피드백, 과목 등 모두 빈 값)
-- "이상한" 결과가 표시됨
+### 2. **RAG 지식 베이스 미사용**
+- **문제**: Admin에서 RAG를 활성화하고 지식 베이스를 입력해도 실제 채점에 사용되지 않음
+- **원인**: `enableRAG`와 `knowledgeBase` 설정을 로드하지만 System Prompt에 추가하는 로직이 없었음
+- **영향**: 관리자가 설정한 참고 자료가 채점에 반영되지 않음
 
-### 근본 원인
+### 3. **0점 표시 문제**
+- **원인**: 프론트엔드에서 JOIN이 실패하거나 채점 데이터가 없는 경우
+- **상태**: 기존 제출에 대한 채점은 완료되었으나 DB 스키마 불일치로 인해 일부 0점 표시
 
-1. **V2 API가 채점을 하지 않음**
-   - `/api/homework-v2/submit`는 제출만 하고 채점 API를 호출하지 않음
-   - `status`를 `'graded'`로 설정했지만 실제 채점 결과는 없음
+### 4. **AI 응답 문제 (빈 problemAnalysis)**
+- **원인**: 테스트에 사용한 1×1 투명 PNG 이미지는 분석할 내용이 없음
+- **결과**: AI가 JSON을 올바르게 생성하지 못하고 기본값 반환
+- **해결**: 실제 숙제 이미지로 테스트 필요
 
-2. **채점 API 자동 호출 실패**
-   - `context.waitUntil()`로 비동기 호출을 시도했으나 작동하지 않음
-   - Cloudflare Pages Functions의 제한 사항으로 추정
+## ✅ 적용된 수정사항
 
-3. **Status 값 잘못 설정**
-   - `'graded'`로 설정하여 process-grading API가 건너뛰도록 함
-   - 이중 채점 방지 로직이 오히려 문제가 됨
-
----
-
-## ✅ 해결 방법
-
-### 1. homework_images 테이블에 이미지 저장
-**목적**: process-grading API가 이미지를 조회할 수 있도록
-
+### 1. **동적 gradedBy 모델 이름 적용**
 ```typescript
-// homework_images 테이블 생성
-await DB.prepare(`
-  CREATE TABLE IF NOT EXISTS homework_images (
-    id TEXT PRIMARY KEY,
-    submissionId TEXT NOT NULL,
-    imageIndex INTEGER NOT NULL,
-    imageData TEXT NOT NULL,
-    createdAt TEXT DEFAULT (datetime('now'))
-  )
-`).run();
+// 수정 전
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?, ?, 'DeepSeek AI', ?, ?, ?, ?, ?, ?)
 
-// 각 이미지를 개별적으로 저장
-for (let i = 0; i < imageArray.length; i++) {
-  const imageId = `img-${submissionId}-${i}`;
-  await DB.prepare(`
-    INSERT INTO homework_images (id, submissionId, imageIndex, imageData)
-    VALUES (?, ?, ?, ?)
-  `).bind(imageId, submissionId, i, imageArray[i]).run();
+// 수정 후
+let gradedByModel = 'AI';
+if (model.startsWith('gemini')) {
+  gradedByModel = `Google Gemini (${model})`;
+} else if (model.startsWith('deepseek')) {
+  gradedByModel = `DeepSeek (${model})`;
 }
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+// gradedByModel이 bind()로 전달됨
 ```
 
-### 2. Status를 'processing'으로 설정
-**변경 전**:
-```sql
-VALUES (?, ?, ?, ?, ?, 'graded', ?)  -- ❌ 잘못된 상태
-```
-
-**변경 후**:
-```sql
-VALUES (?, ?, ?, ?, ?, 'processing', ?)  -- ✅ 올바른 상태
-```
-
-### 3. 채점 API 비동기 호출 (waitUntil)
+### 2. **RAG 지식 베이스 통합**
 ```typescript
-if (context.waitUntil) {
-  context.waitUntil(
-    fetch(`${new URL(context.request.url).origin}/api/homework/process-grading`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ submissionId })
-    })
-    .then(res => console.log(`✅ 채점 완료: ${res.status}`))
-    .catch(err => console.error(`❌ 채점 실패:`, err.message))
-  );
+// RAG 설정 로드
+const enableRAG = config?.enableRAG ? Boolean(Number(config.enableRAG)) : false;
+const knowledgeBase = config?.knowledgeBase || '';
+
+// 지식 베이스를 System Prompt에 추가
+let finalSystemPrompt = systemPrompt;
+if (enableRAG && knowledgeBase && knowledgeBase.trim().length > 0) {
+  console.log(`📚 RAG 지식 베이스 추가 (${knowledgeBase.length}자)`);
+  finalSystemPrompt = `${systemPrompt}\n\n### 참고 지식 베이스:\n${knowledgeBase}\n\n위 지식 베이스를 참고하여 채점하세요.`;
 }
+
+// 채점 시 finalSystemPrompt 사용
+await performGrading(imageArray, apiKey, model, finalSystemPrompt, temperature, submissionId, DB);
 ```
 
-### 4. process-grading API의 JOIN 쿼리 개선
-**문제**: 문자열 userId와 매칭되지 않음
+### 3. **수정된 파일 목록**
+- `functions/api/homework/process-grading.ts` (주요 수정)
+  - gradedBy 동적 생성 로직 추가
+  - RAG 지식 베이스 통합 로직 추가
+  - finalSystemPrompt 사용
 
-**해결**:
-```sql
-SELECT 
-  s.id, s.userId, s.imageUrl, s.code, s.academyId,
-  COALESCE(users_lower.name, users_upper.name) as name,
-  COALESCE(users_lower.email, users_upper.email) as email
-FROM homework_submissions_v2 s
-LEFT JOIN users users_lower ON s.userId = CAST(users_lower.id AS TEXT)
-LEFT JOIN User users_upper ON s.userId = users_upper.id
-WHERE s.id = ?
-```
+## 📊 검증 방법
 
----
-
-## 🧪 테스트 결과
-
-### 최종 검증 테스트
-
-**1단계: 숙제 제출**
-```json
-{
-  "success": true,
-  "message": "숙제가 제출되었습니다 (1장)",
-  "submission": {
-    "id": "homework-1773863519285-5eu8z0gsw",
-    "userId": "student-1772865608071-3s67r1wq6n5",
-    "studentName": "주해성",
-    "submittedAt": "2026-03-19 04:51:59",
-    "status": "processing",  ✅ 올바른 상태
-    "imageCount": 1
-  }
-}
-```
-
-**2단계: 채점 API 호출**
+### Admin 설정 확인
 ```bash
-curl -X POST "https://suplacestudy.com/api/homework/process-grading" \
+curl -s "https://suplacestudy.com/api/admin/homework-grading-config" \
+  -H "Authorization: Bearer test-token" | jq '.config'
+```
+
+**현재 설정:**
+- Model: `gemini-2.5-flash-lite`
+- Temperature: `0.3`
+- EnableRAG: `1` (true)
+- KnowledgeBase 길이: `73,833자`
+
+### 숙제 제출 및 채점 확인
+```bash
+# 1. 숙제 제출
+curl -X POST "https://suplacestudy.com/api/homework-v2/submit" \
   -H "Content-Type: application/json" \
-  -d '{"submissionId":"homework-1773863519285-5eu8z0gsw"}'
+  -d '{"phone": "01051363624", "images": ["data:image/png;base64,...]}'
+
+# 2. 채점 결과 확인
+curl "https://suplacestudy.com/api/homework/debug-submission?submissionId=..." | jq '.grading.gradedBy'
 ```
 
-**결과**:
-```json
-{
-  "success": true,
-  "message": "이미 채점이 완료되었습니다",
-  "grading": {
-    "id": "grading-1773863522627-9fit06e63",
-    "score": 75,  ✅ 정상 점수!
-    "subject": "기타"
-  }
-}
-```
+**기대 결과:**
+- gradedBy: `"Google Gemini (gemini-2.5-flash-lite)"`
+- 실제 Gemini API가 호출됨
+- RAG 지식 베이스가 프롬프트에 포함됨
 
-### 데이터베이스 검증 (debug-submission API)
-```json
-{
-  "success": true,
-  "submission": {
-    "id": "homework-1773863519285-5eu8z0gsw",
-    "userId": "student-1772865608071-3s67r1wq6n5",
-    "status": "graded",  ✅ 채점 후 상태 변경됨
-    ...
-  },
-  "grading": {
-    "id": "grading-1773863522627-9fit06e63",
-    "score": 75,  ✅ 채점 결과 존재
-    "feedback": "성실하게 숙제를 완성했습니다.",
-    "subject": "기타",
-    ...
-  },
-  "images": [
-    {
-      "id": "img-homework-1773863519285-5eu8z0gsw-0",
-      "imageIndex": 0,
-      "imageSize": 118
-    }
-  ],
-  "imageCount": 1  ✅ 이미지 저장됨
-}
-```
+## 🔄 배포 상태
 
----
+**커밋 정보:**
+- Commit: `28abf039`
+- Message: "FIX: dynamic gradedBy model name, implement RAG knowledge base usage"
+- 푸시 완료: `main` 브랜치
+- Cloudflare Pages 자동 배포 중
 
-## ⚠️ 알려진 제한 사항
-
-### waitUntil 동작 불안정
-**증상**: 
-- `context.waitUntil()`로 채점 API를 호출했으나 30초 내에 완료되지 않음
-- Cloudflare Workers/Pages의 제한 사항으로 추정
-
-**현재 동작**:
-1. 제출 시 `waitUntil`로 채점 API 호출 시도
-2. 실패하거나 느리게 실행됨
-3. 사용자가 결과 페이지에서 "AI 채점" 버튼을 클릭하면 수동 실행 가능
-
-**영향**:
-- 자동 채점이 즉시 완료되지 않을 수 있음
-- 프론트엔드에서 수동 채점 트리거 필요 (이미 구현됨)
-
-### 해결 방안 (향후)
-1. **Cloudflare Queue 사용** (Enterprise 플랜 필요)
-2. **Cloudflare Workers Cron** (정기적으로 미채점 항목 처리)
-3. **프론트엔드에서 자동 폴링** (제출 후 5초마다 상태 확인)
-4. **Webhook 방식** (외부 서비스로 채점 작업 전달)
-
----
-
-## 📊 현재 시스템 플로우
-
-### 제출 플로우
-```
-1. 학생이 숙제 제출
-   ↓
-2. V2 API: homework_submissions_v2 테이블에 저장 (status: 'processing')
-   ↓
-3. V2 API: homework_images 테이블에 이미지 저장
-   ↓
-4. V2 API: process-grading API 호출 (비동기)
-   ↓
-5. 즉시 응답 반환 (status: 'processing')
-```
-
-### 채점 플로우
-```
-1. process-grading API 호출됨
-   ↓
-2. homework_submissions_v2와 homework_images 조회
-   ↓
-3. AI 모델로 채점 수행 (DeepSeek/Gemini)
-   ↓
-4. homework_gradings_v2에 결과 저장
-   ↓
-5. homework_submissions_v2 상태를 'graded'로 업데이트
-```
-
----
-
-## 📂 변경된 파일
-
-### 커밋 히스토리
-```
-3e244ddb - CRITICAL FIX: set status to 'processing' not 'graded' on submission
-b3e75f16 - debug: add submission debug API
-66d9826d - CRITICAL FIX: restore automatic homework grading in V2 API
-```
-
-### 수정 파일 목록
-1. ✅ `functions/api/homework-v2/submit.ts`
-   - homework_images 테이블에 이미지 저장 추가
-   - status를 'processing'으로 변경
-   - waitUntil로 채점 API 호출
-
-2. ✅ `functions/api/homework/process-grading.ts`
-   - LEFT JOIN으로 변경
-   - CAST를 사용한 문자열 ID 매칭
-
-3. ✅ `functions/api/homework/debug-submission.ts` (신규)
-   - 제출 정보 디버깅용 API
-
----
-
-## 🎯 사용 방법
-
-### 자동 채점 (권장)
-1. 숙제 제출 후 1-2분 대기
-2. 결과 페이지 새로고침
-3. 점수 및 피드백 확인
-
-### 수동 채점 (자동 실패 시)
-1. 결과 페이지에서 제출 항목 클릭
-2. "AI 채점" 버튼 클릭
-3. 채점 완료 대기 (10-30초)
-4. 결과 확인
-
-### API를 통한 채점 (개발자용)
+**배포 확인 방법:**
 ```bash
-curl -X POST "https://suplacestudy.com/api/homework/process-grading" \
-  -H "Content-Type: "application/json" \
-  -d '{"submissionId":"homework-xxx"}'
+# 3분 대기 후 테스트 스크립트 실행
+./final-verification-test.sh
 ```
 
----
+## 🎓 Admin 대시보드 작동 흐름 (수정 후)
 
-## 🔍 디버깅 방법
-
-### 제출 정보 확인
-```bash
-curl "https://suplacestudy.com/api/homework/debug-submission?submissionId=homework-xxx"
+```mermaid
+graph TD
+    A[Admin 설정 입력] --> B[homework_grading_config 테이블 저장]
+    B --> C{숙제 제출}
+    C --> D[process-grading.ts 실행]
+    D --> E[최신 config 조회]
+    E --> F{Model 확인}
+    F -->|gemini*| G[Gemini API 호출]
+    F -->|deepseek*| H[DeepSeek API 호출]
+    G --> I{RAG 활성화?}
+    H --> I
+    I -->|Yes| J[knowledgeBase를 systemPrompt에 추가]
+    I -->|No| K[systemPrompt만 사용]
+    J --> L[AI 채점 실행]
+    K --> L
+    L --> M[gradedBy 동적 생성]
+    M --> N[DB 저장: Google Gemini 또는 DeepSeek]
+    N --> O[프론트엔드에 표시]
 ```
 
-**확인 사항**:
-- `submission.status`: `'processing'` 또는 `'graded'`
-- `grading`: 채점 결과 존재 여부
-- `images`: 이미지 저장 여부
-- `imageCount`: 이미지 개수
+## 📝 주요 변경 로그
 
-### 채점 결과 확인
-```bash
-curl "https://suplacestudy.com/api/homework/results" \
-  -H "Authorization: Bearer your-token"
-```
+| 날짜 | 커밋 | 변경 내용 |
+|------|------|----------|
+| 2026-03-19 | `28abf039` | 동적 gradedBy, RAG 통합 |
+| 2026-03-19 | `f97e9cc9` | AI 디버깅 로직 추가 |
+| 2026-03-19 | `fa0cac55` | System Prompt 최적화 |
+| 2026-03-19 | `80fdbe57` | AI 응답 디버그 테이블 추가 |
+
+## ⚠️ 주의사항 및 제한사항
+
+### 1. **테스트 이미지 문제**
+- 현재 테스트에 사용 중인 1×1 투명 PNG는 AI가 분석할 내용이 없음
+- **실제 숙제 사진으로 테스트해야 정확한 결과 확인 가능**
+
+### 2. **Python Workers 상태**
+- Python Workers(`physonsuperplacestudy.kohsunwoo12345.workers.dev`)는 **`eval()` 에러**로 인해 작동하지 않음
+- 현재는 **수학 문제 검증 용도로만** 설계되어 있으며 주요 채점에는 사용되지 않음
+- Gemini 또는 DeepSeek API가 **실제 채점 엔진**
+
+### 3. **배포 시간**
+- Cloudflare Pages 배포는 보통 **2-3분** 소요
+- `final-verification-test.sh` 스크립트는 3분 대기 후 테스트 수행
+
+## ✅ 최종 체크리스트
+
+- [x] Admin 설정이 DB에 올바르게 저장되는지 확인
+- [x] process-grading.ts가 최신 config를 로드하는지 확인
+- [x] Gemini/DeepSeek 모델이 설정에 따라 선택되는지 확인
+- [x] gradedBy 필드가 동적으로 생성되는지 확인
+- [x] RAG 지식 베이스가 프롬프트에 추가되는지 확인
+- [x] 빌드 및 커밋 완료
+- [x] GitHub 푸시 완료
+- [ ] **Cloudflare Pages 배포 완료 확인 (3-5분 대기)**
+- [ ] **실제 숙제 이미지로 최종 검증**
+
+## 🚀 다음 단계
+
+1. **배포 확인 (3-5분 후)**
+   ```bash
+   ./final-verification-test.sh
+   ```
+
+2. **실제 학생 제출로 테스트**
+   - 실제 숙제 사진을 업로드
+   - https://superplacestudy.pages.dev/dashboard/homework/results/ 에서 결과 확인
+   - gradedBy 필드에 `Google Gemini (gemini-2.5-flash-lite)` 표시 확인
+   - problemAnalysis, weaknessTypes 등 상세 데이터 확인
+
+3. **Python Workers 수정 (선택 사항)**
+   - `eval()` 대신 안전한 수학 계산 라이브러리 사용
+   - 또는 Cloudflare Workers 환경에서 Python 대신 JavaScript로 재작성
+
+## 📞 문의 및 추가 요청
+
+추가 수정사항이나 문제가 있으면 말씀해주세요!
 
 ---
 
-## ✅ 최종 상태
-
-### 시스템 상태
-- 🟢 **제출 기능**: 정상 작동
-- 🟢 **이미지 저장**: 정상 작동
-- 🟢 **채점 API**: 정상 작동 (75점 반환)
-- 🟡 **자동 채점**: 부분 작동 (waitUntil 불안정)
-- 🟢 **수동 채점**: 정상 작동
-
-### 검증 완료
-- ✅ 제출 성공: `homework-1773863519285-5eu8z0gsw`
-- ✅ 이미지 저장: 1장 저장됨
-- ✅ 채점 완료: 75점
-- ✅ 피드백 생성: "성실하게 숙제를 완성했습니다."
-- ✅ 과목 인식: "기타"
-
----
-
-## 📝 다음 단계
-
-### 권장 개선 사항
-1. **프론트엔드 폴링 추가**
-   - 제출 후 자동으로 5초마다 상태 확인
-   - 채점 완료 시 자동 새로고침
-
-2. **Cloudflare Queue 도입**
-   - Enterprise 플랜 업그레이드 시
-   - 안정적인 비동기 처리 가능
-
-3. **Cron Job 설정**
-   - 매 1분마다 미채점 항목 확인
-   - 자동으로 process-grading 호출
-
----
-
-**복구 완료 일시**: 2026-03-19 05:00 (KST)  
-**최종 커밋**: 3e244ddb  
-**테스트 점수**: 75점 ✅  
-**리포지토리**: https://github.com/kohsunwoo12345-cmyk/superplace  
-**프로덕션**: https://superplacestudy.pages.dev
+**작성일**: 2026-03-19  
+**작성자**: AI Assistant  
+**커밋**: `28abf039`  
+**상태**: ✅ 수정 완료, 배포 대기 중
