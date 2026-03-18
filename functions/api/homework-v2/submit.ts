@@ -148,22 +148,83 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`✅ [V2] 숙제 제출 기록 생성: ${submissionId} (userId: ${user.id})`);
 
-    // 4. 즉시 응답 반환 (간단한 성공 메시지)
-    return new Response(
+    // 4. 이미지를 homework_images 테이블에 저장 (채점 API가 조회할 수 있도록)
+    await DB.prepare(`
+      CREATE TABLE IF NOT EXISTS homework_images (
+        id TEXT PRIMARY KEY,
+        submissionId TEXT NOT NULL,
+        imageIndex INTEGER NOT NULL,
+        imageData TEXT NOT NULL,
+        createdAt TEXT DEFAULT (datetime('now'))
+      )
+    `).run();
+
+    // 각 이미지를 개별적으로 저장
+    for (let i = 0; i < imageArray.length; i++) {
+      const imageId = `img-${submissionId}-${i}`;
+      await DB.prepare(`
+        INSERT INTO homework_images (id, submissionId, imageIndex, imageData)
+        VALUES (?, ?, ?, ?)
+      `).bind(imageId, submissionId, i, imageArray[i]).run();
+    }
+    
+    console.log(`✅ [V2] 이미지 ${imageArray.length}장 저장 완료`);
+
+    // 5. 백그라운드에서 채점 시작 (즉시 응답 후 비동기 처리)
+    // fetch를 사용하여 자체 process-grading API 호출
+    console.log(`🤖 [V2] 채점 API 호출 시작: ${submissionId}`);
+    
+    // 즉시 응답 반환하고, 채점은 별도로 진행
+    const response = new Response(
       JSON.stringify({
         success: true,
         message: `숙제가 제출되었습니다 (${imageArray.length}장)`,
         submission: {
           id: submissionId,
-          userId: user.id,  // *** user.id 사용 ***
+          userId: user.id,
           studentName: user.name,
           submittedAt: kstTimestamp,
-          status: 'graded',
+          status: 'processing',
           imageCount: imageArray.length
         }
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
+
+    // 채점 API 비동기 호출 (context.waitUntil 사용)
+    if (context.waitUntil) {
+      context.waitUntil(
+        fetch(`${new URL(context.request.url).origin}/api/homework/process-grading`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ submissionId })
+        })
+        .then(res => {
+          console.log(`✅ [V2] 채점 API 호출 완료: ${submissionId} (status: ${res.status})`);
+          return res.json();
+        })
+        .then(data => {
+          console.log(`✅ [V2] 채점 결과:`, data);
+        })
+        .catch(err => {
+          console.error(`❌ [V2] 채점 API 호출 실패:`, err.message);
+        })
+      );
+    } else {
+      // waitUntil이 없는 경우 (로컬 개발 환경) 동기적으로 호출
+      try {
+        const gradingResponse = await fetch(`${new URL(context.request.url).origin}/api/homework/process-grading`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ submissionId })
+        });
+        console.log(`✅ [V2] 채점 API 호출 완료: ${submissionId} (status: ${gradingResponse.status})`);
+      } catch (err: any) {
+        console.error(`❌ [V2] 채점 API 호출 실패:`, err.message);
+      }
+    }
+
+    return response;
 
   } catch (error: any) {
     console.error("❌ [V2] 숙제 제출 오류:", error.message);

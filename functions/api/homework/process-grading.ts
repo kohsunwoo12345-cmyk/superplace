@@ -63,28 +63,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`📝 제출 정보 조회 시작: ${submissionId}`);
 
-    // 2. 제출 정보 조회 (User 테이블 먼저, 없으면 users 테이블 확인)
+    // 2. 제출 정보 조회 (users 테이블과 User 테이블 모두 시도)
     let submission = await DB.prepare(`
-      SELECT s.id, s.userId, s.imageUrl, s.code, s.academyId, u.name, u.email
+      SELECT 
+        s.id, s.userId, s.imageUrl, s.code, s.academyId,
+        COALESCE(users_lower.name, users_upper.name) as name,
+        COALESCE(users_lower.email, users_upper.email) as email
       FROM homework_submissions_v2 s
-      JOIN users u ON s.userId = u.id
+      LEFT JOIN users users_lower ON s.userId = CAST(users_lower.id AS TEXT)
+      LEFT JOIN User users_upper ON s.userId = users_upper.id
       WHERE s.id = ?
     `).bind(submissionId).first();
 
-    console.log(`📊 User 테이블 JOIN 결과:`, submission);
-
-    // User 테이블에 없으면 users 테이블 확인 (레거시 지원)
-    if (!submission) {
-      console.log(`🔍 User 테이블 JOIN 실패, users 테이블로 재시도...`);
-      submission = await DB.prepare(`
-        SELECT s.id, s.userId, s.imageUrl, s.code, s.academyId, u.name, u.email
-        FROM homework_submissions_v2 s
-        JOIN users u ON s.userId = u.id
-        WHERE s.id = ?
-      `).bind(submissionId).first();
-      
-      console.log(`📊 users 테이블 JOIN 결과:`, submission);
-    }
+    console.log(`📊 제출 정보 조회 결과:`, submission);
 
     if (!submission) {
       console.log(`⚠️ 제출 정보 없음: ${submissionId}`);
