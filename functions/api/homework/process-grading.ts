@@ -217,7 +217,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     console.log(`📚 채점할 이미지 수: ${imageArray.length}장`);
 
     // 4. AI 모델로 채점 수행
-    let gradingResult = await performGrading(imageArray, apiKey, model, systemPrompt, temperature);
+    let gradingResult = await performGrading(imageArray, apiKey, model, systemPrompt, temperature, submissionId, DB);
 
     // 5. Python Worker로 수학 문제 검증 (옵션)
     if (PYTHON_WORKER_URL_ && gradingResult.problemAnalysis && gradingResult.problemAnalysis.length > 0) {
@@ -370,18 +370,20 @@ async function performGrading(
   apiKey: string, 
   model: string, 
   systemPrompt: string, 
-  temperature: number
+  temperature: number,
+  submissionId: string,
+  DB: D1Database
 ) {
   console.log(`🤖 채점 모델: ${model}, 온도: ${temperature}`);
   
   // DeepSeek 모델인 경우
   if (model.startsWith('deepseek')) {
-    return await performDeepSeekGrading(imageArray, apiKey, model, systemPrompt, temperature);
+    return await performDeepSeekGrading(imageArray, apiKey, model, systemPrompt, temperature, submissionId, DB);
   }
   
   // Gemini 모델인 경우
   if (model.startsWith('gemini')) {
-    return await performGeminiGrading(imageArray, apiKey, model, systemPrompt, temperature);
+    return await performGeminiGrading(imageArray, apiKey, model, systemPrompt, temperature, submissionId, DB);
   }
   
   throw new Error(`Unsupported model: ${model}`);
@@ -396,7 +398,9 @@ async function performDeepSeekGrading(
   apiKey: string,
   model: string,
   systemPrompt: string,
-  temperature: number
+  temperature: number,
+  submissionId: string,
+  DB: D1Database
 ) {
   console.log('📝 DeepSeek API를 통한 채점 시작...');
   
@@ -544,7 +548,9 @@ async function performGeminiGrading(
   apiKey: string,
   model: string,
   systemPrompt: string,
-  temperature: number
+  temperature: number,
+  submissionId: string,
+  DB: D1Database
 ) {
   console.log('📝 Gemini API를 통한 채점 시작...');
   
