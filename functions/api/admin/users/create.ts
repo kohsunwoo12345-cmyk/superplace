@@ -128,14 +128,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 사용자 생성 (id는 자동 생성)
     const insertResult = await DB.prepare(
       `INSERT INTO users (name, email, password, role, phone, academy_id, academyId, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       RETURNING id`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(name, email, hashedPassword, userRole, phone || null, academyIdInt, academyIdText, now).run();
     
     // 생성된 ID 가져오기
-    const userId = insertResult.results && insertResult.results.length > 0 
-      ? insertResult.results[0].id 
-      : insertResult.meta.last_row_id;
+    const userId = insertResult.meta.last_row_id;
 
     // 학생인 경우 자동으로 출석 코드 생성
     let attendanceCode = null;
