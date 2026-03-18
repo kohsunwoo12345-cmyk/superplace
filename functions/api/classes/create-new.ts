@@ -137,6 +137,85 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const academyIdValue = user.academyId || null;
+
+    if (!academyIdValue) {
+      console.error('❌ academyId not found');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Academy ID not found',
+        message: '학원 정보를 찾을 수 없습니다. 다시 로그인해주세요.'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 🔒 구독 확인 (필수)
+    console.log('🔒 구독 확인 중...');
+    const subscription = await DB.prepare(`
+      SELECT * FROM user_subscriptions 
+      WHERE userId = ? AND status = 'active'
+      ORDER BY endDate DESC LIMIT 1
+    `).bind(user.id).first();
+
+    if (!subscription) {
+      console.log('❌ 활성화된 구독이 없습니다');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'NO_SUBSCRIPTION',
+        message: '활성화된 구독이 없습니다. 요금제를 선택해주세요.',
+        redirectTo: '/pricing'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 만료 확인
+    const now = new Date();
+    const endDate = new Date(subscription.endDate);
+    if (now > endDate) {
+      console.log('❌ 구독이 만료되었습니다');
+      await DB.prepare(`
+        UPDATE user_subscriptions SET status = 'expired', updatedAt = datetime('now')
+        WHERE id = ?
+      `).bind(subscription.id).run();
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'SUBSCRIPTION_EXPIRED',
+        message: '구독이 만료되었습니다. 요금제를 갱신해주세요.',
+        redirectTo: '/pricing'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('✅ 구독 활성화 확인:', subscription.id);
+
+    // 반 수 제한 체크 (최대 2000개)
+    const classCount = await DB.prepare(`
+      SELECT COUNT(*) as count FROM Class 
+      WHERE academyId = ? AND (isActive IS NULL OR isActive = 1)
+    `).bind(academyIdValue).first();
+    
+    const currentClasses = classCount?.count || 0;
+    console.log(`📊 현재 반 수: ${currentClasses}/2000`);
+    
+    if (currentClasses >= 2000) {
+      console.log('❌ 반 수 제한 초과 (최대 2000개)');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'CLASS_LIMIT_EXCEEDED',
+        message: '반 수 제한을 초과했습니다. (최대 2000개)',
+        currentCount: currentClasses,
+        maxLimit: 2000
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
     const teacherIdValue = user.id;
     const classColor = color || '#3B82F6';
     const classCapacity = capacity || 30;

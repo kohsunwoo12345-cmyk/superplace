@@ -173,6 +173,73 @@ export async function onRequestPost(context) {
 
     console.log('🏫 Academy ID:', academyId);
 
+    // 🔒 구독 확인 (필수)
+    console.log('🔒 구독 확인 중...');
+    const subscription = await db.prepare(`
+      SELECT * FROM user_subscriptions 
+      WHERE userId = ? AND status = 'active'
+      ORDER BY endDate DESC LIMIT 1
+    `).bind(user.id).first();
+
+    if (!subscription) {
+      console.log('❌ 활성화된 구독이 없습니다');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'NO_SUBSCRIPTION',
+        message: '활성화된 구독이 없습니다. 요금제를 선택해주세요.',
+        redirectTo: '/pricing'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 만료 확인
+    const now = new Date();
+    const endDate = new Date(subscription.endDate);
+    if (now > endDate) {
+      console.log('❌ 구독이 만료되었습니다');
+      await db.prepare(`
+        UPDATE user_subscriptions SET status = 'expired', updatedAt = datetime('now')
+        WHERE id = ?
+      `).bind(subscription.id).run();
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'SUBSCRIPTION_EXPIRED',
+        message: '구독이 만료되었습니다. 요금제를 갱신해주세요.',
+        redirectTo: '/pricing'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('✅ 구독 활성화 확인:', subscription.id);
+
+    // 교사 수 제한 체크 (최대 500명)
+    const teacherCount = await db.prepare(`
+      SELECT COUNT(*) as count FROM User 
+      WHERE academyId = ? AND role = 'TEACHER' AND (isWithdrawn IS NULL OR isWithdrawn = 0)
+    `).bind(academyId).first();
+    
+    const currentTeachers = teacherCount?.count || 0;
+    console.log(`📊 현재 교사 수: ${currentTeachers}/500`);
+    
+    if (currentTeachers >= 500) {
+      console.log('❌ 교사 수 제한 초과 (최대 500명)');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'TEACHER_LIMIT_EXCEEDED',
+        message: '교사 수 제한을 초과했습니다. (최대 500명)',
+        currentCount: currentTeachers,
+        maxLimit: 500
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     // Check for existing phone in User table
     const existingUserByPhone = await db
       .prepare('SELECT id FROM User WHERE phone = ?')
