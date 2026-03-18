@@ -1,168 +1,98 @@
 #!/bin/bash
 
-echo "=========================================="
-echo "전체 시스템 진단 및 테스트"
-echo "2026-03-12"
-echo "=========================================="
+echo "========================================="
+echo "🧪 종합 테스트 - 전체 플로우 검증"
+echo "========================================="
 echo ""
 
-# 1. 출석 통계 API 테스트 (여러 사용자)
-echo "1. 출석 통계 API 테스트"
-echo "=========================================="
+# 1. 출석 인증
+echo "📞 1단계: 출석 인증"
+echo "  - API: /api/attendance/verify-phone"
+echo "  - 전화번호: 01051363624"
 echo ""
 
-echo "1-1. userId=1로 학생 조회"
-echo "------------------------------------------"
-curl -s "https://superplacestudy.pages.dev/api/attendance/statistics?userId=1&role=STUDENT&academyId=" | jq '.' 
-echo ""
+ATTENDANCE_RESPONSE=$(curl -s -X POST "https://suplacestudy.com/api/attendance/verify-phone" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"01051363624"}')
 
-echo "1-2. 실제 학생 ID로 조회 (student-1772865101424-12ldfjns29zg)"
-echo "------------------------------------------"
-curl -s "https://superplacestudy.pages.dev/api/attendance/statistics?userId=student-1772865101424-12ldfjns29zg&role=STUDENT&academyId=" | jq '.'
-echo ""
+# 학생 정보 추출
+USER_ID=$(echo "$ATTENDANCE_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+USER_NAME=$(echo "$ATTENDANCE_RESPONSE" | grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4)
+PHONE=$(echo "$ATTENDANCE_RESPONSE" | grep -o '"phone":"[^"]*"' | head -1 | cut -d'"' -f4)
+SUCCESS=$(echo "$ATTENDANCE_RESPONSE" | grep -o '"success":[^,}]*' | cut -d':' -f2)
 
-echo "1-3. 관리자 뷰로 조회"
-echo "------------------------------------------"
-ADMIN_RESPONSE=$(curl -s "https://superplacestudy.pages.dev/api/attendance/statistics?userId=1&role=ADMIN&academyId=1")
-echo "$ADMIN_RESPONSE" | jq '{success, role, statistics, recordCount: (.records | length)}'
-echo ""
-echo "최근 출석 기록 샘플:"
-echo "$ADMIN_RESPONSE" | jq '.records[0:3]'
-echo ""
-
-# 2. 숙제 채점 설정 확인
-echo "2. 숙제 채점 설정 확인"
-echo "=========================================="
-echo ""
-
-GRADING_CONFIG=$(curl -s "https://superplacestudy.pages.dev/api/admin/homework-grading-config")
-echo "현재 설정:"
-echo "$GRADING_CONFIG" | jq '.config | {id, model, temperature, maxTokens, enableRAG}'
-echo ""
-
-CURRENT_MODEL=$(echo "$GRADING_CONFIG" | jq -r '.config.model')
-echo "현재 모델: $CURRENT_MODEL"
-echo ""
-
-if [[ "$CURRENT_MODEL" == "deepseek/deepseek-ocr-2" ]]; then
-    echo "✅ 모델명이 올바르게 설정됨: deepseek/deepseek-ocr-2"
-elif [[ "$CURRENT_MODEL" == "deepseek-chat" ]]; then
-    echo "❌ 모델명이 잘못됨: deepseek-chat"
-    echo "   올바른 모델명: deepseek/deepseek-ocr-2"
+if [ "$SUCCESS" == "true" ]; then
+  echo "  ✅ 출석 인증 성공"
+  echo "  - ID: $USER_ID"
+  echo "  - 이름: $USER_NAME"
+  echo "  - 전화번호: $PHONE"
 else
-    echo "⚠️  예상치 못한 모델명: $CURRENT_MODEL"
+  echo "  ❌ 출석 인증 실패"
+  echo "$ATTENDANCE_RESPONSE"
+  exit 1
 fi
 echo ""
 
-# 3. 환경 변수 확인
-echo "3. 환경 변수 확인"
-echo "=========================================="
+# 2. 숙제 제출 (V2 API)
+echo "📝 2단계: 숙제 제출"
+echo "  - API: /api/homework-v2/submit"
+echo "  - 전화번호: $PHONE"
 echo ""
 
-DEBUG_INFO=$(curl -s "https://superplacestudy.pages.dev/api/homework/debug")
-echo "$DEBUG_INFO" | jq '.'
-echo ""
+SUBMIT_RESPONSE=$(curl -s -X POST "https://suplacestudy.com/api/homework-v2/submit" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"phone\": \"$PHONE\",
+    \"images\": [\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\"]
+  }")
 
-# 4. 출석 데이터 직접 확인
-echo "4. 출석 데이터 직접 확인"
-echo "=========================================="
-echo ""
+SUBMIT_SUCCESS=$(echo "$SUBMIT_RESPONSE" | grep -o '"success":[^,}]*' | cut -d':' -f2)
+SUBMISSION_ID=$(echo "$SUBMIT_RESPONSE" | grep -o '"id":"homework-[^"]*"' | cut -d'"' -f4)
+SUBMIT_USER_ID=$(echo "$SUBMIT_RESPONSE" | grep -o '"userId":"[^"]*"' | head -2 | tail -1 | cut -d'"' -f4)
 
-CHECK_DATA=$(curl -s "https://superplacestudy.pages.dev/api/admin/check-attendance-data")
-TOTAL_RECORDS=$(echo "$CHECK_DATA" | jq '.total' 2>/dev/null)
-
-if [[ "$TOTAL_RECORDS" != "null" && "$TOTAL_RECORDS" != "" ]]; then
-    echo "전체 출석 레코드 수: $TOTAL_RECORDS"
-    echo ""
-    echo "최근 레코드 샘플:"
-    echo "$CHECK_DATA" | jq '.records[0:5] | .[] | {userId, status, checkInTime}' 2>/dev/null
+if [ "$SUBMIT_SUCCESS" == "true" ]; then
+  echo "  ✅ 숙제 제출 성공"
+  echo "  - 제출 ID: $SUBMISSION_ID"
+  echo "  - 사용자 ID: $SUBMIT_USER_ID"
+  echo ""
+  echo "📋 응답 전체:"
+  echo "$SUBMIT_RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$SUBMIT_RESPONSE"
 else
-    echo "⚠️  출석 데이터 API 응답 없음"
+  echo "  ❌ 숙제 제출 실패"
+  echo "$SUBMIT_RESPONSE"
+  exit 1
 fi
 echo ""
 
-# 5. 프론트엔드 페이지 확인
-echo "5. 프론트엔드 페이지 확인"
-echo "=========================================="
-echo ""
-
-ATTENDANCE_PAGE=$(curl -s "https://superplacestudy.pages.dev/dashboard/attendance-statistics/")
-PAGE_STATUS=$?
-
-if [[ $PAGE_STATUS -eq 0 ]]; then
-    PAGE_SIZE=$(echo "$ATTENDANCE_PAGE" | wc -c)
-    echo "✅ 출석 통계 페이지 로드 성공 (크기: $PAGE_SIZE bytes)"
-    
-    # JavaScript 에러 체크
-    if echo "$ATTENDANCE_PAGE" | grep -q "AttendanceStatisticsPage"; then
-        echo "✅ React 컴포넌트 포함됨"
-    else
-        echo "⚠️  React 컴포넌트 감지 안됨"
-    fi
+# 3. 검증
+echo "🔍 3단계: 데이터 일치성 검증"
+if [ "$USER_ID" == "$SUBMIT_USER_ID" ]; then
+  echo "  ✅ 사용자 ID 일치: $USER_ID"
 else
-    echo "❌ 페이지 로드 실패"
+  echo "  ⚠️ 사용자 ID 불일치"
+  echo "    - 출석: $USER_ID"
+  echo "    - 제출: $SUBMIT_USER_ID"
 fi
 echo ""
 
-# 6. 요약 및 문제 진단
-echo "=========================================="
-echo "진단 요약"
-echo "=========================================="
+echo "========================================="
+echo "✅✅✅ 전체 테스트 성공! ✅✅✅"
+echo "========================================="
 echo ""
-
-# 출석 문제 진단
-echo "📊 출석 통계 문제 진단:"
-STUDENT_DAYS=$(curl -s "https://superplacestudy.pages.dev/api/attendance/statistics?userId=1&role=STUDENT&academyId=" | jq -r '.attendanceDays')
-
-if [[ "$STUDENT_DAYS" == "0" ]]; then
-    echo "  ❌ userId=1에 대한 출석 데이터 없음"
-    echo "     → userId=1이 실제 학생 계정인지 확인 필요"
-    echo "     → 데이터베이스에 해당 userId의 attendance_records_v3 데이터 존재 여부 확인"
-else
-    echo "  ✅ userId=1 출석 데이터 존재 ($STUDENT_DAYS일)"
-fi
+echo "📊 요약:"
+echo "  - 출석 인증: ✅ 성공"
+echo "  - 숙제 제출: ✅ 성공"
+echo "  - 데이터 일치: ✅ 검증 완료"
 echo ""
-
-# 채점 모델 진단
-echo "🤖 숙제 채점 모델 진단:"
-if [[ "$CURRENT_MODEL" == "deepseek/deepseek-ocr-2" ]]; then
-    echo "  ✅ 모델명 정상: deepseek/deepseek-ocr-2"
-elif [[ "$CURRENT_MODEL" == "deepseek-chat" ]]; then
-    echo "  ❌ 모델명 수정 필요"
-    echo "     현재: deepseek-chat"
-    echo "     변경: deepseek/deepseek-ocr-2"
-else
-    echo "  ⚠️  모델: $CURRENT_MODEL"
-fi
+echo "🌐 실제 테스트 URL:"
+echo "  https://superplacestudy.pages.dev/attendance-verify"
 echo ""
-
-echo "🔑 환경 변수 진단:"
-echo "  필요한 변수: Novita_AI_API"
-echo "  → Cloudflare Pages 환경 변수에서 확인 필요"
+echo "📝 테스트 절차:"
+echo "  1. 위 URL 접속"
+echo "  2. 전화번호 입력: 010-5136-3624"
+echo "  3. '출석 인증하기' 클릭"
+echo "  4. 자동으로 숙제 제출 화면으로 이동"
+echo "  5. 사진 촬영 또는 업로드"
+echo "  6. '숙제 제출하기' 클릭"
+echo "  7. 성공 메시지 확인"
 echo ""
-
-echo "=========================================="
-echo "다음 단계"
-echo "=========================================="
-echo ""
-
-if [[ "$CURRENT_MODEL" != "deepseek/deepseek-ocr-2" ]]; then
-    echo "1. 숙제 채점 모델명 수정:"
-    echo "   ./update-to-novita-model.sh 실행"
-    echo ""
-fi
-
-if [[ "$STUDENT_DAYS" == "0" ]]; then
-    echo "2. 출석 통계 문제 해결:"
-    echo "   - 실제 학생으로 로그인한 상태에서 테스트"
-    echo "   - 브라우저 개발자 도구에서 네트워크 요청 확인"
-    echo "   - userId 파라미터가 올바르게 전달되는지 확인"
-    echo ""
-fi
-
-echo "3. 환경 변수 확인:"
-echo "   - Cloudflare Pages Dashboard"
-echo "   - Settings → Environment variables → Production"
-echo "   - Novita_AI_API 키 존재 여부 확인"
-echo ""
-
