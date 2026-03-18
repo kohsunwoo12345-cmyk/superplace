@@ -23,23 +23,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // 출석 코드 테이블 생성
-    await DB.prepare(`
-      CREATE TABLE IF NOT EXISTS student_attendance_codes (
-        id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL UNIQUE,
-        code TEXT NOT NULL UNIQUE,
-        academyId TEXT,
-        isActive INTEGER DEFAULT 1,
-        createdAt TEXT DEFAULT (datetime('now')),
-        updatedAt TEXT DEFAULT (datetime('now'))
-      )
-    `).run();
+    // 출석 코드 테이블은 이미 생성되어 있음 (userId는 INTEGER)
+    // CREATE TABLE 호출 제거 - 스키마 충돌 방지
 
-    // 기존 코드 확인
+    // userId를 INTEGER로 변환
+    const userIdInt = parseInt(userId, 10);
+    if (isNaN(userIdInt)) {
+      return new Response(JSON.stringify({ error: "Invalid userId" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // 기존 코드 확인 (userId는 INTEGER)
     const existing = await DB.prepare(`
       SELECT * FROM student_attendance_codes WHERE userId = ?
-    `).bind(userId).first();
+    `).bind(userIdInt).first();
 
     if (existing) {
       return new Response(
@@ -81,12 +80,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // 코드 저장
+    // 코드 저장 (userId는 INTEGER)
     const codeId = `code-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     await DB.prepare(`
       INSERT INTO student_attendance_codes (id, userId, code, isActive)
       VALUES (?, ?, ?, 1)
-    `).bind(codeId, userId, code).run();
+    `).bind(codeId, userIdInt, code).run();
 
     return new Response(
       JSON.stringify({
