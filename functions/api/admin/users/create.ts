@@ -124,9 +124,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 사용자 생성
     const userRole = role || 'STUDENT';
     await DB.prepare(
-      `INSERT INTO users (id, name, email, password, role, phone, academyId, approved, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
-    ).bind(userId, name, email, hashedPassword, userRole, phone || null, academyId || null, now, now).run();
+      `INSERT INTO users (id, name, email, password, role, phone, academyId, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(userId, name, email, hashedPassword, userRole, phone || null, academyId || null, now).run();
 
     // 학생인 경우 자동으로 출석 코드 생성
     let attendanceCode = null;
