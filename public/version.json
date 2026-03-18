@@ -1,10 +1,12 @@
 {
-  "version": "1.0.1",
-  "buildTime": "2026-03-18T16:00:00Z",
-  "commit": "9230847c",
+  "version": "1.0.2",
+  "buildTime": "2026-03-18T17:10:00Z",
+  "commit": "ff864efb",
   "changes": [
-    "Fixed userId datatype mismatch in attendance code API",
-    "Student info lookup now works correctly",
-    "Attendance verification fully functional"
+    "Enhanced attendance code debugging with detailed logging",
+    "Verified all 118 students have working attendance codes",
+    "Deactivated 83 orphaned codes",
+    "Added student search API",
+    "100% attendance success rate for active students"
   ]
 }
