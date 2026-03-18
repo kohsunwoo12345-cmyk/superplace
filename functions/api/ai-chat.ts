@@ -336,19 +336,23 @@ ${contextText}
       systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식을 참고하여 답변하세요.`;
     }
 
-    // 🔄 재시도 로직 with fallback models
+    // 🔄 재시도 로직 with fallback models (503 에러 대응 강화)
     const fallbackModels = [
       modelToUse,
       'gemini-2.0-flash-exp',
       'gemini-1.5-flash',
-      'gemini-1.5-pro'
+      'gemini-1.5-pro',
+      'gemini-1.5-flash-8b'  // 추가: 더 작고 빠른 모델
     ];
+    
+    // 중복 제거
+    const uniqueModels = [...new Set(fallbackModels)];
     
     let lastError: any = null;
     let retryAttempt = 0;
-    const maxRetries = 3;
+    const maxRetries = uniqueModels.length;
     
-    for (const tryModel of fallbackModels) {
+    for (const tryModel of uniqueModels) {
       try {
         console.log(`🚀 [${requestId}] Gemini API 호출 시도 ${retryAttempt + 1}/${maxRetries} (모델: ${tryModel})`);
         
@@ -365,22 +369,24 @@ ${contextText}
         
       } catch (geminiError: any) {
         lastError = geminiError;
-        const isRetryable = geminiError.isRetryable || geminiError.status === 503 || geminiError.status === 429;
+        const isRetryable = geminiError.isRetryable || geminiError.status === 503 || geminiError.status === 429 || geminiError.status === 500;
         
         console.error(`❌ [${requestId}] 모델 ${tryModel} 실패:`, geminiError.message);
+        console.error(`❌ [${requestId}] 에러 상태:`, geminiError.status);
         
         retryAttempt++;
         
         // 재시도 가능한 에러이고 아직 시도할 모델이 있으면 계속
-        if (isRetryable && retryAttempt < fallbackModels.length) {
-          console.log(`⏳ [${requestId}] 다음 모델로 재시도... (${retryAttempt + 1}/${fallbackModels.length})`);
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryAttempt)); // 점진적 backoff
+        if (isRetryable && retryAttempt < uniqueModels.length) {
+          const waitTime = Math.min(1000 * Math.pow(2, retryAttempt - 1), 8000); // 지수 backoff (최대 8초)
+          console.log(`⏳ [${requestId}] ${waitTime}ms 대기 후 다음 모델로 재시도... (${retryAttempt + 1}/${uniqueModels.length})`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
           continue;
         }
         
-        // 마지막 시도였거나 재시도 불가능한 에러면 throw
-        if (retryAttempt >= fallbackModels.length || !isRetryable) {
-          console.error(`❌ [${requestId}] 모든 재시도 실패`);
+        // 마지막 시도였거나 재시도 불가능한 에러면 break
+        if (retryAttempt >= uniqueModels.length || !isRetryable) {
+          console.error(`❌ [${requestId}] 모든 재시도 실패 (총 ${retryAttempt}회 시도)`);
           break;
         }
       }
@@ -390,17 +396,29 @@ ${contextText}
     if (!aiResponse && lastError) {
       console.error(`❌ [${requestId}] 최종 실패:`, lastError.message);
       
+      // 사용자 친화적인 에러 메시지
+      let userMessage = "AI 응답 생성 중 오류가 발생했습니다.";
+      if (lastError.status === 503) {
+        userMessage = "현재 AI 서비스가 많은 요청을 처리 중입니다. 잠시 후 다시 시도해주세요. (1-2분 후)";
+      } else if (lastError.status === 429) {
+        userMessage = "요청이 너무 많습니다. 잠시 후 다시 시도해주세요. (30초 후)";
+      } else if (lastError.status === 500) {
+        userMessage = "AI 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.";
+      }
+      
       return new Response(
         JSON.stringify({
           success: false,
-          message: "AI 응답 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+          message: userMessage,
           error: lastError.message,
           errorDetails: {
             status: lastError.status,
             retriesAttempted: retryAttempt,
-            modelsAttempted: fallbackModels.slice(0, retryAttempt).join(', '),
+            modelsAttempted: uniqueModels.slice(0, retryAttempt).join(', '),
           },
           requestId,
+          // 재시도 권장 시간
+          retryAfterSeconds: lastError.status === 503 ? 60 : lastError.status === 429 ? 30 : 10,
         }),
         { status: 503, headers: { "Content-Type": "application/json" } }
       );
