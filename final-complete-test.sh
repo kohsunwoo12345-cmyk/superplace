@@ -1,128 +1,110 @@
 #!/bin/bash
-set -e
 
-echo "=========================================="
-echo "🔍 전체 시스템 최종 테스트"
-echo "=========================================="
+echo "============================================="
+echo "최종 완전 테스트 (배포 대기 3분)"
+echo "============================================="
 echo ""
+echo "⏳ Cloudflare Pages 배포 대기..."
+sleep 180
 
-BASE_URL="https://superplacestudy.pages.dev"
+TIMESTAMP=$(date +%s)
 
-# 1. 환경 변수 확인
-echo "1️⃣ 환경 변수 확인..."
-DEBUG_INFO=$(curl -s "${BASE_URL}/api/homework/debug")
-echo "$DEBUG_INFO" | jq '{
-  hasNovitaApiKey: .environment.hasNovitaApiKey,
-  novitaKeyLength: .environment.novitaKeyLength,
-  hasPythonWorker: (.environment.hasPythonWorkerUrl // false)
-}'
 echo ""
+echo "=== 1단계: 새 학생 생성 ==="
+STUDENT_EMAIL="final-${TIMESTAMP}@test.com"
+STUDENT_NAME="최종테스트${TIMESTAMP}"
 
-# 2. 채점 설정 확인
-echo "2️⃣ 채점 설정 확인..."
-CONFIG=$(curl -s "${BASE_URL}/api/admin/homework-grading-config")
-echo "$CONFIG" | jq '{
-  model: .config.model,
-  temperature: .config.temperature,
-  promptLength: (.config.systemPrompt | length)
-}'
-echo ""
-
-# 3. 출석 통계 확인 (실제 학생)
-echo "3️⃣ 출석 통계 확인 (학생: 정유빈)..."
-STUDENT_ID="student-1772865101424-12ldfjns29zg"
-ATTENDANCE=$(curl -s "${BASE_URL}/api/attendance/statistics?userId=${STUDENT_ID}")
-echo "$ATTENDANCE" | jq '{
-  success: .success,
-  role: .role,
-  attendanceDays: .attendanceDays,
-  calendar: .calendar
-}'
-echo ""
-
-# 4. 출석 통계 확인 (관리자)
-echo "4️⃣ 출석 통계 확인 (관리자)..."
-ADMIN_ATTENDANCE=$(curl -s "${BASE_URL}/api/attendance/statistics?userId=admin-test&academyId=1")
-echo "$ADMIN_ATTENDANCE" | jq '{
-  success: .success,
-  totalStudents: .totalStudents,
-  todayAttendance: .todayAttendance,
-  monthAttendance: .monthAttendance,
-  recentRecords: (.recentRecords | length)
-}'
-echo ""
-
-echo "5️⃣ 최근 출석 레코드 샘플 (3개)..."
-echo "$ADMIN_ATTENDANCE" | jq -r '.recentRecords[:3][] | "   \(.date) - \(.studentName): \(.status)"'
-echo ""
-
-# 5. 새 숙제 제출 및 채점 테스트
-echo "6️⃣ 숙제 제출 및 채점 테스트..."
-echo "   (10x10px 테스트 이미지 사용)"
-
-TEST_IMAGE="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjuAAAAAElFTkSuQmCC"
-
-SUBMIT=$(curl -s -X POST "${BASE_URL}/api/homework/submit" \
+CREATE_RESPONSE=$(curl -s -X POST "https://suplacestudy.com/api/admin/users/create" \
   -H "Content-Type: application/json" \
   -d "{
-    \"userId\": \"${STUDENT_ID}\",
-    \"studentName\": \"정유빈\",
-    \"images\": [\"$TEST_IMAGE\"],
-    \"subject\": \"수학\",
-    \"grade\": 3,
-    \"assignmentType\": \"homework\"
+    \"name\": \"$STUDENT_NAME\",
+    \"email\": \"$STUDENT_EMAIL\",
+    \"password\": \"test123\",
+    \"role\": \"STUDENT\",
+    \"academyId\": \"1\"
   }")
 
-SUBMISSION_ID=$(echo "$SUBMIT" | jq -r '.submission.id // empty')
+echo "학생 생성 응답:"
+echo "$CREATE_RESPONSE" | python3 -m json.tool
 
-if [ -z "$SUBMISSION_ID" ]; then
-  echo "   ❌ 숙제 제출 실패!"
-  echo "$SUBMIT" | jq '.'
+STUDENT_ID=$(echo "$CREATE_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('user', {}).get('id', ''))" 2>/dev/null)
+CODE_FROM_CREATE=$(echo "$CREATE_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('attendanceCode', ''))" 2>/dev/null)
+
+echo ""
+echo "생성된 학생 ID: $STUDENT_ID"
+echo "생성 시 받은 출석 코드: $CODE_FROM_CREATE"
+
+if [ -z "$STUDENT_ID" ]; then
+  echo "❌ 학생 생성 실패"
   exit 1
 fi
 
-echo "   ✅ 제출 ID: $SUBMISSION_ID"
 echo ""
+echo "=== 2단계: 학생 상세 페이지 API로 출석 코드 조회 (프론트엔드 시나리오) ==="
+CODE_RESPONSE=$(curl -s "https://suplacestudy.com/api/students/attendance-code?userId=$STUDENT_ID")
 
-# 채점 대기
-echo "7️⃣ 채점 결과 대기 (최대 30초)..."
-for i in {1..6}; do
-  sleep 5
-  echo -n "   $((i*5))초... "
-  
-  STATUS=$(curl -s "${BASE_URL}/api/homework/status/${SUBMISSION_ID}")
-  GRADING_STATUS=$(echo "$STATUS" | jq -r '.status // "pending"')
-  
-  if [ "$GRADING_STATUS" == "graded" ]; then
-    echo "✅ 완료!"
-    echo ""
-    echo "📊 채점 결과:"
-    echo "$STATUS" | jq '{
-      score: .grading.score,
-      subject: .grading.subject,
-      totalQuestions: .grading.totalQuestions,
-      correctAnswers: .grading.correctAnswers,
-      problemAnalysisCount: (.grading.problemAnalysis | length),
-      detailedResultsCount: (.grading.detailedResults | length // 0)
-    }'
-    echo ""
-    
-    PROBLEM_COUNT=$(echo "$STATUS" | jq '.grading.problemAnalysis | length')
-    if [ "$PROBLEM_COUNT" -gt 0 ]; then
-      echo "✅ problemAnalysis에 $PROBLEM_COUNT 개 문제 포함됨"
-      echo "$STATUS" | jq -r '.grading.problemAnalysis[] | "   문제 \(.page // .questionNumber): \(if .isCorrect then "✅ 정답" else "❌ 오답" end)"'
-    else
-      echo "⚠️  problemAnalysis가 비어 있음 (기본값 사용)"
-    fi
-    echo ""
-    exit 0
+echo "출석 코드 조회 응답:"
+echo "$CODE_RESPONSE" | python3 -m json.tool
+
+CODE_FROM_API=$(echo "$CODE_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('code', ''))" 2>/dev/null)
+
+echo ""
+echo "API에서 조회한 출석 코드: $CODE_FROM_API"
+
+if [ -z "$CODE_FROM_API" ] || [ "$CODE_FROM_API" = "null" ]; then
+  echo "❌ 출석 코드 조회 실패"
+  exit 1
+fi
+
+if [ "$CODE_FROM_CREATE" != "$CODE_FROM_API" ]; then
+  echo "⚠️  생성 시 코드와 조회 코드가 다릅니다!"
+  echo "   생성: $CODE_FROM_CREATE"
+  echo "   조회: $CODE_FROM_API"
+fi
+
+echo ""
+echo "=== 3단계: 조회한 코드로 출석 인증 ==="
+VERIFY_RESPONSE=$(curl -s -X POST "https://suplacestudy.com/api/attendance/verify" \
+  -H "Content-Type: application/json" \
+  -d "{\"code\": \"$CODE_FROM_API\"}")
+
+echo "출석 인증 응답:"
+echo "$VERIFY_RESPONSE" | python3 -m json.tool
+
+VERIFY_SUCCESS=$(echo "$VERIFY_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('success', False))" 2>/dev/null)
+VERIFY_STUDENT_ID=$(echo "$VERIFY_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('student', {}).get('id', ''))" 2>/dev/null)
+VERIFY_STUDENT_NAME=$(echo "$VERIFY_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('student', {}).get('name', ''))" 2>/dev/null)
+VERIFY_ERROR=$(echo "$VERIFY_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('error', ''))" 2>/dev/null)
+
+echo ""
+if [ "$VERIFY_SUCCESS" = "True" ]; then
+  echo "✅ 출석 인증 성공!"
+  echo "   학생 ID: $VERIFY_STUDENT_ID"
+  echo "   학생 이름: $VERIFY_STUDENT_NAME"
+else
+  echo "❌ 출석 인증 실패"
+  if [ -n "$VERIFY_ERROR" ]; then
+    echo "   오류: $VERIFY_ERROR"
   fi
-  
-  echo "($GRADING_STATUS)"
-done
+fi
 
 echo ""
-echo "⏰ 타임아웃 (30초)"
-echo "   제출 ID: $SUBMISSION_ID"
-echo "   수동 확인: ${BASE_URL}/api/homework/status/${SUBMISSION_ID}"
-echo ""
+echo "============================================="
+echo "최종 테스트 결과"
+echo "============================================="
+echo "1. 학생 생성: $([ -n "$STUDENT_ID" ] && echo "✅ 성공 (ID: $STUDENT_ID)" || echo '❌ 실패')"
+echo "2. 출석 코드 생성: $([ -n "$CODE_FROM_CREATE" ] && echo "✅ 성공 (코드: $CODE_FROM_CREATE)" || echo '❌ 실패')"
+echo "3. 출석 코드 조회: $([ -n "$CODE_FROM_API" ] && echo "✅ 성공 (코드: $CODE_FROM_API)" || echo '❌ 실패')"
+echo "4. 출석 인증: $([ "$VERIFY_SUCCESS" = "True" ] && echo '✅ 성공' || echo '❌ 실패')"
+echo "5. 학생 정보 찾기: $([ -n "$VERIFY_STUDENT_ID" ] && echo '✅ 성공' || echo '❌ 실패 - 학생 정보를 찾을 수 없습니다')"
+echo "============================================="
+
+if [ "$VERIFY_SUCCESS" = "True" ] && [ -n "$VERIFY_STUDENT_ID" ]; then
+  echo ""
+  echo "🎉 모든 테스트 통과!"
+  echo "   학생 상세 페이지에서 생성된 코드로 출석이 정상 작동합니다."
+else
+  echo ""
+  echo "❌ 테스트 실패 - 추가 디버깅 필요"
+fi
+
