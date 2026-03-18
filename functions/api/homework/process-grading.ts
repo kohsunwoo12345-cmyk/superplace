@@ -94,7 +94,50 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     `).first();
 
     const model = config?.model || 'deepseek-chat';
-    const systemPrompt = config?.systemPrompt || `당신은 전문 교사입니다. 제공된 숙제 이미지를 분석하여 채점하세요.`;
+    
+    // 최적화된 System Prompt (JSON 형식 명확히 지정)
+    const defaultSystemPrompt = `당신은 전문 교사입니다. 제공된 숙제 이미지를 분석하여 **반드시 JSON 형식으로만** 채점하세요.
+
+**필수 응답 형식:**
+\`\`\`json
+{
+  "score": 85,
+  "subject": "수학",
+  "feedback": "전반적으로 잘 완성했습니다.",
+  "strengths": "계산 능력이 뛰어남",
+  "suggestions": "문제 풀이 과정을 더 자세히 쓰세요",
+  "completion": "excellent",
+  "totalQuestions": 10,
+  "correctAnswers": 8,
+  "problemAnalysis": [
+    {
+      "questionNumber": 1,
+      "problem": "2 + 3 = ?",
+      "studentAnswer": "5",
+      "isCorrect": true,
+      "explanation": "정답입니다"
+    },
+    {
+      "questionNumber": 2,
+      "problem": "5 × 4 = ?",
+      "studentAnswer": "21",
+      "isCorrect": false,
+      "explanation": "정답은 20입니다"
+    }
+  ],
+  "weaknessTypes": ["곱셈 실수", "받아올림 오류"],
+  "detailedAnalysis": "전반적으로 기초 계산은 잘하나, 곱셈에서 실수가 있음",
+  "studyDirection": "곱셈구구를 복습하세요"
+}
+\`\`\`
+
+**중요 규칙:**
+1. 반드시 위 JSON 형식으로만 응답
+2. problemAnalysis 배열에 모든 문제를 포함
+3. weaknessTypes에 발견된 실수 유형 나열
+4. 추가 설명 없이 JSON만 반환`;
+    
+    const systemPrompt = config?.systemPrompt || defaultSystemPrompt;
     const temperature = config?.temperature ? Number(config.temperature) : 0.3;
     const enableRAG = config?.enableRAG ? Boolean(Number(config.enableRAG)) : false;
 
