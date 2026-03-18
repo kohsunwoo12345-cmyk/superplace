@@ -368,6 +368,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           id: gradingId,
           score: gradingResult.score,
           subject: gradingResult.subject
+        },
+        debug: {
+          modelUsed: model,
+          gradedBy: gradedByModel,
+          enableRAG: enableRAG,
+          systemPromptLength: finalSystemPrompt.length
         }
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
