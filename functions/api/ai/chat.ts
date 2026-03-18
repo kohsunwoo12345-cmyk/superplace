@@ -494,6 +494,18 @@ ${knowledgeContext}
       apiEndpoint = `https://generativelanguage.googleapis.com/${apiVersion}/models/${effectiveModel}:generateContent?key=${context.env.GOOGLE_GEMINI_API_KEY}`;
       apiKey = context.env.GOOGLE_GEMINI_API_KEY;
       
+      // 🔧 Gemini 2.5 모델은 topK를 지원하지 않음 (고정값 64)
+      const generationConfig: any = {
+        temperature: temperature,
+        maxOutputTokens: maxTokens,
+        topP: topP,
+      };
+      
+      // topK는 Gemini 1.x 모델만 지원
+      if (effectiveModel.startsWith('gemini-1.')) {
+        generationConfig.topK = topK;
+      }
+      
       requestBody = {
         contents: [
           {
@@ -506,12 +518,7 @@ ${knowledgeContext}
             ],
           },
         ],
-        generationConfig: {
-          temperature: temperature,
-          maxOutputTokens: maxTokens,
-          topK: topK,
-          topP: topP,
-        },
+        generationConfig: generationConfig,
         safetySettings: [
           {
             category: "HARM_CATEGORY_HARASSMENT",
