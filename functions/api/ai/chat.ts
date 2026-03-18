@@ -543,6 +543,16 @@ ${knowledgeContext}
       headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
+    // 🔍 요청 페이로드 로그 (디버깅용)
+    console.log('📤 API 요청:', {
+      endpoint: apiEndpoint.replace(/key=.+/, 'key=[HIDDEN]'),
+      model: model,
+      messageLength: message.length,
+      systemPromptLength: enhancedSystemPrompt?.length || 0,
+      temperature,
+      maxTokens,
+    });
+
     const apiResponse = await fetch(apiEndpoint, {
       method: "POST",
       headers: headers,
@@ -551,15 +561,26 @@ ${knowledgeContext}
 
     if (!apiResponse.ok) {
       const errorData = await apiResponse.text();
-      console.error(`${model} API Error:`, errorData);
+      console.error(`❌ ${model} API Error (${apiResponse.status}):`, errorData);
+      
+      // 🔍 자세한 에러 로그 (디버깅용)
+      let parsedError;
+      try {
+        parsedError = JSON.parse(errorData);
+        console.error('📋 Parsed Error:', JSON.stringify(parsedError, null, 2));
+      } catch (e) {
+        console.error('📋 Raw Error Text:', errorData);
+      }
       
       return new Response(
         JSON.stringify({
-          error: `${model} API request failed`,
-          details: errorData,
+          success: false,
+          message: '오류가 발생했습니다',
+          error: `Gemini API 오류: ${apiResponse.status}`,
+          details: parsedError || errorData,
         }),
         {
-          status: apiResponse.status,
+          status: 500,
           headers: { "Content-Type": "application/json" },
         }
       );
