@@ -141,14 +141,18 @@ async function callGeminiDirect(
     console.error(`❌ Gemini API Error (${response.status}):`, errorText);
     
     // JSON 파싱 시도
+    let parsedError;
     try {
-      const errorJson = JSON.parse(errorText);
-      console.error(`❌ 파싱된 에러:`, JSON.stringify(errorJson, null, 2));
+      parsedError = JSON.parse(errorText);
+      console.error(`❌ 파싱된 에러:`, JSON.stringify(parsedError, null, 2));
     } catch (e) {
       console.error(`❌ 에러 텍스트 (JSON 파싱 실패):`, errorText);
+      parsedError = { rawError: errorText };
     }
     
-    throw new Error(`Gemini API 오류: ${response.status}`);
+    // 상세한 에러 정보를 포함하여 throw
+    const errorMessage = parsedError?.error?.message || errorText;
+    throw new Error(`Gemini API ${response.status}: ${errorMessage}`);
   }
 
   const data = await response.json();
@@ -214,10 +218,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let useWorkerRAG = false;
     let ragContextCount = 0;
 
-    // 🔥 Worker RAG 모드 임시 비활성화 (디버깅)
-    const ENABLE_WORKER_RAG = false;
-    
-    if (ENABLE_WORKER_RAG && bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
+    // 🔥 Worker RAG 모드 (knowledgeBase가 있을 때)
+    if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
       try {
         console.log('🚀 Worker RAG 모드 활성화');
         
@@ -245,15 +247,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       console.log('📚 Gemini 직접 호출 모드');
       console.log(`🎯 사용 모델: ${modelToUse}`);
       
-      // 🔧 테스트: systemPrompt 제거, 순수 메시지만
-      const testSystemPrompt = ''; // systemPrompt 비활성화
-      
-      console.log(`⚠️ 테스트 모드: systemPrompt 비활성화`);
+      let systemPrompt = bot.systemPrompt || '';
+      if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
+        systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식을 참고하여 답변하세요.`;
+      }
 
       try {
         aiResponse = await callGeminiDirect(
           data.message,
-          testSystemPrompt, // 빈 문자열
+          systemPrompt,
           data.conversationHistory || [],
           apiKey,
           modelToUse
