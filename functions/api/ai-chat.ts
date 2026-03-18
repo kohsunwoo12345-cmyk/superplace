@@ -114,9 +114,22 @@ async function callGeminiDirect(
   
   // 대화 기록 추가
   conversationHistory.forEach(msg => {
+    // 🔥 두 가지 형식 모두 지원: {role, content} 또는 {role, parts: [{text}]}
+    let messageText = '';
+    if (msg.content) {
+      // 형식 1: {role: "user", content: "text"}
+      messageText = msg.content;
+    } else if (msg.parts && msg.parts.length > 0 && msg.parts[0].text) {
+      // 형식 2: {role: "user", parts: [{text: "text"}]}
+      messageText = msg.parts[0].text;
+    } else {
+      console.warn('⚠️ 대화 기록 형식 오류:', msg);
+      messageText = ''; // 빈 텍스트로 fallback
+    }
+    
     contents.push({
       role: msg.role === "user" ? "user" : "model",
-      parts: [{ text: msg.content }]
+      parts: [{ text: messageText }]
     });
   });
 
