@@ -55,33 +55,54 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`🔍 [V2] 사용자 조회 시작: phone=${phone}`);
 
-    // 1. 전화번호로 사용자 조회 (users 테이블 - 실제 데이터)
+    // 1. 전화번호로 사용자 조회 (User 테이블 우선, users 테이블 fallback - 출석 API와 동일)
     const normalizedPhone = phone.replace(/\D/g, '');  // 숫자만 추출
     console.log(`🔍 [V2] 정규화된 전화번호: ${normalizedPhone}`);
     
     let user = null;
     
-    // users 테이블에서 전화번호로 조회
+    // User 테이블 조회 (대문자)
     try {
       user = await DB.prepare(
-        "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT' LIMIT 1"
+        "SELECT * FROM User WHERE phone = ? AND role = 'STUDENT' LIMIT 1"
       ).bind(normalizedPhone).first();
-      console.log(`📊 [V2] users 테이블 조회 (phone=${normalizedPhone}):`, user ? `찾음: ${user.name}, id=${user.id}` : '못 찾음');
+      console.log(`📊 [V2] User 테이블 조회 (phone=${normalizedPhone}):`, user ? `찾음: ${user.name}, id=${user.id}` : '못 찾음');
       
       // 하이픈 포함 형식도 시도
       if (!user) {
         const phoneWithHyphen = normalizedPhone.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3');
         user = await DB.prepare(
-          "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT' LIMIT 1"
+          "SELECT * FROM User WHERE phone = ? AND role = 'STUDENT' LIMIT 1"
         ).bind(phoneWithHyphen).first();
-        console.log(`📊 [V2] users 테이블 조회 (phone with hyphen=${phoneWithHyphen}):`, user ? `찾음: ${user.name}, id=${user.id}` : '못 찾음');
+        console.log(`📊 [V2] User 테이블 조회 (phone with hyphen=${phoneWithHyphen}):`, user ? `찾음: ${user.name}, id=${user.id}` : '못 찾음');
       }
     } catch (e) {
-      console.error(`❌ [V2] users 테이블 조회 오류:`, e.message);
-      return new Response(
-        JSON.stringify({ success: false, error: "Database query error", details: e.message }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+      console.log(`⚠️ [V2] User 테이블 조회 실패:`, e.message);
+    }
+
+    // users 테이블에서 전화번호로 조회 (소문자 - fallback)
+    if (!user) {
+      try {
+        user = await DB.prepare(
+          "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT' LIMIT 1"
+        ).bind(normalizedPhone).first();
+        console.log(`📊 [V2] users 테이블 조회 (phone=${normalizedPhone}):`, user ? `찾음: ${user.name}, id=${user.id}` : '못 찾음');
+        
+        // 하이픈 포함 형식도 시도
+        if (!user) {
+          const phoneWithHyphen = normalizedPhone.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3');
+          user = await DB.prepare(
+            "SELECT * FROM users WHERE phone = ? AND role = 'STUDENT' LIMIT 1"
+          ).bind(phoneWithHyphen).first();
+          console.log(`📊 [V2] users 테이블 조회 (phone with hyphen=${phoneWithHyphen}):`, user ? `찾음: ${user.name}, id=${user.id}` : '못 찾음');
+        }
+      } catch (e) {
+        console.error(`❌ [V2] users 테이블 조회 오류:`, e.message);
+        return new Response(
+          JSON.stringify({ success: false, error: "Database query error", details: e.message }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
 
     if (!user) {
