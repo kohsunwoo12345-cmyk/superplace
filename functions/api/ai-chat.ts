@@ -268,7 +268,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const contextText = ragContext
         .map((ctx, idx) => `[컨텍스트 ${idx + 1}]\n${ctx.text}`)
         .join('\n\n');
-      systemPrompt += `\n\n--- 검색된 지식 (RAG) ---\n${contextText}\n--- 지식 끝 ---\n\n위 검색된 지식을 참고하여 답변하세요.`;
+      
+      // ⭐ System Prompt를 더 강력하게 - 역할을 먼저, 지식을 나중에
+      systemPrompt = `${bot.systemPrompt}
+
+=== 📚 검색된 지식 베이스 (참고용) ===
+${contextText}
+=== 지식 끝 ===
+
+[CRITICAL INSTRUCTION] 
+위 지식 베이스를 참고하되, 당신은 반드시 처음에 명시된 역할과 정체성을 유지해야 합니다.
+첫 인사나 자기소개를 요청받으면 반드시 자신이 누구인지(${bot.name})를 밝혀야 합니다.
+절대로 "Google 언어 모델" 등의 일반적인 AI 소개를 하지 마세요.`;
     } else if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
       // Fallback: knowledgeBase 전체 사용
       console.log('⚠️ RAG 컨텍스트 없음, 전체 knowledgeBase 사용');
