@@ -9,6 +9,7 @@ interface Product {
   name: string;
   pricePerStudent?: number;
   monthlyPrice?: number;
+  price?: number;
   imageUrl: string;
 }
 
@@ -29,6 +30,7 @@ function PurchasePageContent() {
   const [academyName, setAcademyName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [requestMessage, setRequestMessage] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'BANK_TRANSFER'>('CARD');
 
   useEffect(() => {
     if (productId) {
@@ -56,8 +58,12 @@ function PurchasePageContent() {
   const calculateTotal = () => {
     if (!product) return 0;
     const count = Number(studentCount) || 0;
-    const basePrice = product.pricePerStudent || product.monthlyPrice || 0;
-    return count * months * basePrice;
+    // 기본 가격 (monthlyPrice 또는 price)
+    const basePrice = product.monthlyPrice || product.price || 0;
+    // 학생당 가격
+    const pricePerStudent = product.pricePerStudent || 0;
+    // 총액 = (기본가격 + 학생당가격 × 학생수) × 개월수
+    return (basePrice + (pricePerStudent * count)) * months;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,13 +119,15 @@ function PurchasePageContent() {
         productName: product.name,
         studentCount: count,
         months,
-        pricePerStudent: product.pricePerStudent || product.monthlyPrice || 0,
+        pricePerStudent: product.pricePerStudent || 0,
+        basePrice: product.monthlyPrice || product.price || 0,
         totalPrice: calculateTotal(),
         email,
         name,
         academyName,
         phoneNumber,
         requestMessage,
+        paymentMethod,
       };
 
       const response = await fetch('/api/bot-purchase-requests/create', {
@@ -324,6 +332,65 @@ function PurchasePageContent() {
             </div>
           </div>
 
+          {/* Payment Method */}
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              결제 방법 <span className="text-red-500">*</span>
+            </label>
+            <div className="space-y-3">
+              <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                paymentMethod === 'CARD' 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-200 hover:border-blue-300'
+              }`}>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="CARD"
+                  checked={paymentMethod === 'CARD'}
+                  onChange={(e) => setPaymentMethod('CARD')}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <div className="ml-3 flex-1">
+                  <div className="font-medium text-gray-900">카드 결제</div>
+                  <div className="text-xs text-gray-500 mt-1">승인 후 카드 결제 링크를 보내드립니다</div>
+                </div>
+              </label>
+              
+              <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                paymentMethod === 'BANK_TRANSFER' 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-200 hover:border-blue-300'
+              }`}>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="BANK_TRANSFER"
+                  checked={paymentMethod === 'BANK_TRANSFER'}
+                  onChange={(e) => setPaymentMethod('BANK_TRANSFER')}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <div className="ml-3 flex-1">
+                  <div className="font-medium text-gray-900">계좌이체</div>
+                  <div className="text-xs text-gray-500 mt-1">아래 계좌로 입금해주세요</div>
+                </div>
+              </label>
+            </div>
+            
+            {paymentMethod === 'BANK_TRANSFER' && (
+              <div className="mt-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="text-sm font-medium text-gray-900 mb-2">입금 계좌 정보</div>
+                <div className="space-y-1 text-sm text-gray-700">
+                  <div className="font-medium text-blue-600">하나은행 746-910023-17004</div>
+                  <div>예금주: (주)우리는 슈퍼플레이스다</div>
+                </div>
+                <div className="mt-2 text-xs text-gray-600">
+                  입금자명을 신청자명과 동일하게 입력해주세요
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Message */}
           <div className="bg-white rounded-lg p-4 shadow-sm">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -340,21 +407,35 @@ function PurchasePageContent() {
 
           {/* Price Summary */}
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-gray-700">학생 수</span>
-              <span className="font-medium">{studentCount}명</span>
+            <div className="text-sm font-medium text-gray-900 mb-3">요금 계산</div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-700">기본 가격 (월)</span>
+                <span className="font-medium">
+                  ₩{((product.monthlyPrice || product.price || 0)).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-700">학생당 가격 (월)</span>
+                <span className="font-medium">
+                  ₩{(product.pricePerStudent || 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-gray-600">
+                <span>학생 수</span>
+                <span>{studentCount || 0}명</span>
+              </div>
+              <div className="flex justify-between items-center text-gray-600">
+                <span>이용 기간</span>
+                <span>{months}개월</span>
+              </div>
+              <div className="border-t border-blue-200 pt-2 mt-2">
+                <div className="text-xs text-gray-600 mb-2">
+                  계산식: (기본 ₩{((product.monthlyPrice || product.price || 0)).toLocaleString()} + 학생당 ₩{(product.pricePerStudent || 0).toLocaleString()} × {studentCount || 0}명) × {months}개월
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-gray-700">이용 기간</span>
-              <span className="font-medium">{months}개월</span>
-            </div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-gray-700">월 단가</span>
-              <span className="font-medium">
-                ₩{(product.pricePerStudent || product.monthlyPrice || 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="border-t border-blue-200 my-2"></div>
+            <div className="border-t border-blue-300 my-3"></div>
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold text-gray-900">총 결제 금액</span>
               <span className="text-2xl font-bold text-blue-600">

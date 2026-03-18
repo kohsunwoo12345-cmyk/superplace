@@ -50,12 +50,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       studentCount,
       months,
       pricePerStudent,
+      basePrice,
       totalPrice,
       email,
       name,
       academyName,
       phoneNumber,
-      requestMessage
+      requestMessage,
+      paymentMethod
     } = await request.json();
 
     // 유효성 검사
@@ -112,12 +114,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           studentCount INTEGER NOT NULL,
           months INTEGER NOT NULL,
           pricePerStudent INTEGER NOT NULL,
+          basePrice INTEGER,
           totalPrice INTEGER NOT NULL,
           email TEXT,
           name TEXT,
           requestAcademyName TEXT,
           phoneNumber TEXT,
           requestMessage TEXT,
+          paymentMethod TEXT DEFAULT 'CARD',
           status TEXT DEFAULT 'PENDING',
           approvedBy TEXT,
           approvedAt TEXT,
@@ -131,11 +135,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       console.log('✅ BotPurchaseRequest table created or already exists');
 
       // 2. 기존 테이블에 컬럼 추가 (없으면)
-      const columnsToAdd = ['email', 'name', 'requestAcademyName', 'phoneNumber'];
+      const columnsToAdd = ['email', 'name', 'requestAcademyName', 'phoneNumber', 'paymentMethod', 'basePrice'];
       for (const column of columnsToAdd) {
         try {
+          const columnType = column === 'basePrice' ? 'INTEGER' : 'TEXT';
           await env.DB.prepare(`
-            ALTER TABLE BotPurchaseRequest ADD COLUMN ${column} TEXT
+            ALTER TABLE BotPurchaseRequest ADD COLUMN ${column} ${columnType}
           `).run();
           console.log(`✅ Added column: ${column}`);
         } catch (alterError: any) {
@@ -158,10 +163,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     await env.DB.prepare(`
       INSERT INTO BotPurchaseRequest (
         id, productId, productName, userId, academyId,
-        studentCount, months, pricePerStudent, totalPrice,
-        email, name, requestAcademyName, phoneNumber, requestMessage,
+        studentCount, months, pricePerStudent, basePrice, totalPrice,
+        email, name, requestAcademyName, phoneNumber, requestMessage, paymentMethod,
         status, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
     `).bind(
       requestId,
       productId,
@@ -171,12 +176,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       studentCount,
       months,
       pricePerStudent,
+      basePrice || 0,
       totalPrice,
       email || null,
       name || null,
       academyName || null,
       phoneNumber || null,
       requestMessage || null,
+      paymentMethod || 'CARD',
       now,
       now
     ).run();

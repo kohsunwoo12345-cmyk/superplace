@@ -12,12 +12,14 @@ interface PurchaseRequest {
   studentCount: number;
   months: number;
   pricePerStudent: number;
+  basePrice?: number;
   totalPrice: number;
   email: string;
   name: string;
   requestAcademyName: string;
   phoneNumber: string;
   requestMessage: string;
+  paymentMethod?: 'CARD' | 'BANK_TRANSFER';
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason?: string;
   createdAt: string;
@@ -416,10 +418,38 @@ export default function BotShopApprovalsPage() {
                   <div><span className="font-medium">제품명:</span> {selectedRequest.productName}</div>
                   <div><span className="font-medium">학생 수:</span> {selectedRequest.studentCount}명</div>
                   <div><span className="font-medium">이용 기간:</span> {selectedRequest.months}개월</div>
-                  <div><span className="font-medium">월 단가:</span> ₩{selectedRequest.pricePerStudent.toLocaleString()}</div>
+                  <div><span className="font-medium">기본 가격:</span> ₩{(selectedRequest.basePrice || 0).toLocaleString()}/월</div>
+                  <div><span className="font-medium">학생당 가격:</span> ₩{selectedRequest.pricePerStudent.toLocaleString()}/월</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    계산식: (기본가 ₩{(selectedRequest.basePrice || 0).toLocaleString()} + 학생당 ₩{selectedRequest.pricePerStudent.toLocaleString()} × {selectedRequest.studentCount}명) × {selectedRequest.months}개월
+                  </div>
                   <div className="pt-2 border-t border-blue-200">
                     <span className="font-bold text-lg text-blue-600">총 금액: ₩{selectedRequest.totalPrice.toLocaleString()}</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Payment Info */}
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-2">결제 정보</h3>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="font-medium">결제 방법:</span>{' '}
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      selectedRequest.paymentMethod === 'BANK_TRANSFER' 
+                        ? 'bg-yellow-100 text-yellow-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {selectedRequest.paymentMethod === 'BANK_TRANSFER' ? '계좌이체' : '카드결제'}
+                    </span>
+                  </div>
+                  {selectedRequest.paymentMethod === 'BANK_TRANSFER' && (
+                    <div className="bg-white p-3 rounded border border-purple-200 mt-2">
+                      <div className="font-medium text-purple-900 mb-1">입금 계좌 정보</div>
+                      <div className="text-purple-700">하나은행 746-910023-17004</div>
+                      <div className="text-purple-700">예금주: (주)우리는 슈퍼플레이스다</div>
+                    </div>
+                  )}
                 </div>
               </div>
 
