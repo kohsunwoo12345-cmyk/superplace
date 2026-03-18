@@ -478,13 +478,20 @@ ${knowledgeContext}
     }
     // Gemini 모델 (GOOGLE_GEMINI_API_KEY)
     else {
+      // 🔧 Gemini 2.5 Flash Lite는 Vertex AI 전용이므로 폴백
+      let effectiveModel = model;
+      if (model === 'gemini-2.5-flash-lite') {
+        console.warn('⚠️ gemini-2.5-flash-lite는 Vertex AI 전용 모델입니다. gemini-2.5-flash로 폴백합니다.');
+        effectiveModel = 'gemini-2.5-flash';
+      }
+      
       // Gemini API 버전: 1.0-pro만 v1, 나머지는 모두 v1beta
       let apiVersion = 'v1beta';
-      if (model === 'gemini-1.0-pro' || model === 'gemini-1.0-pro-latest') {
+      if (effectiveModel === 'gemini-1.0-pro' || effectiveModel === 'gemini-1.0-pro-latest') {
         apiVersion = 'v1';
       }
       
-      apiEndpoint = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${context.env.GOOGLE_GEMINI_API_KEY}`;
+      apiEndpoint = `https://generativelanguage.googleapis.com/${apiVersion}/models/${effectiveModel}:generateContent?key=${context.env.GOOGLE_GEMINI_API_KEY}`;
       apiKey = context.env.GOOGLE_GEMINI_API_KEY;
       
       requestBody = {
