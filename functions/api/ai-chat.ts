@@ -99,17 +99,7 @@ async function callGeminiDirect(
 
   const contents: any[] = [];
   
-  if (systemPrompt) {
-    contents.push({
-      role: "user",
-      parts: [{ text: systemPrompt }]
-    });
-    contents.push({
-      role: "model",
-      parts: [{ text: "알겠습니다. 답변하겠습니다." }]
-    });
-  }
-
+  // 대화 기록 추가
   conversationHistory.forEach(msg => {
     contents.push({
       role: msg.role === "user" ? "user" : "model",
@@ -117,27 +107,23 @@ async function callGeminiDirect(
     });
   });
 
+  // 현재 메시지 추가 (systemPrompt가 있으면 함께 포함)
+  const finalMessage = systemPrompt 
+    ? `${systemPrompt}\n\n사용자 질문: ${message}`
+    : message;
+  
   contents.push({
     role: "user",
-    parts: [{ text: message }]
+    parts: [{ text: finalMessage }]
   });
 
   console.log(`📊 총 contents 수: ${contents.length}개`);
 
-  // 🔧 Gemini 2.5 모델은 topK 지원 안함
+  // 🔧 단순한 generationConfig (필수 항목만)
   const generationConfig: any = {
-    temperature: 0.7,
-    maxOutputTokens: 2000,
-    topP: 0.95
+    temperature: 1.0,
+    maxOutputTokens: 8192
   };
-  
-  // topK는 Gemini 1.x 모델만 지원
-  if (model.startsWith('gemini-1.')) {
-    generationConfig.topK = 40;
-    console.log(`📊 topK 추가됨: 40`);
-  } else {
-    console.log(`📊 topK 제외됨 (Gemini 2.x)`);
-  }
 
   console.log(`📤 generationConfig:`, JSON.stringify(generationConfig));
   console.log(`⏳ Gemini API 호출 중...`);

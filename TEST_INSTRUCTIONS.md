@@ -1,117 +1,118 @@
-# 테스트 방법 (배포 완료 후 5분)
+# ✅ 상세 로그 배포 완료
 
-## 1단계: 캐시 완전 삭제
+**커밋**: 8407a646  
+**배포 완료**: 2026-03-18 10:18 UTC  
 
-### 방법 A: 시크릿 모드
-```
-1. Chrome/Edge: Ctrl + Shift + N
-2. 시크릿 창에서 사이트 접속
-```
+---
 
-### 방법 B: 캐시 및 쿠키 삭제
-```
-1. F12 (개발자 도구)
-2. Application 탭
-3. Clear storage
-4. Clear site data 클릭
-5. 페이지 새로고침 (Ctrl + Shift + R)
-```
+## 📋 테스트 방법
 
-### 방법 C: 하드 리프레시
-```
-Windows/Linux: Ctrl + Shift + R
-Mac: Cmd + Shift + R
-```
+### 1. 웹에서 테스트
+1. https://suplacestudy.com/ai-chat/ 접속
+2. 로그인
+3. 아무 봇이나 선택
+4. 메시지 입력: "안녕하세요"
+5. **F12 콘솔 확인 (에러 발생 시)**
 
-## 2단계: 페이지 접속
+### 2. Cloudflare Functions 로그 확인 (필수!)
+1. https://dash.cloudflare.com 접속
+2. **Pages** → **superplace** → **Functions** 탭
+3. **Logs** 클릭
+4. 최근 로그에서 다음 확인:
+
 ```
-https://superplacestudy.pages.dev/dashboard/students/detail/?id=157
-```
-
-## 3단계: 부족한 개념 탭 확인
-
-### 확인 사항
-1. ✅ "부족한 개념" 탭 클릭
-2. ✅ [개념 분석 실행] 버튼이 **활성화** (파란색)
-3. ✅ 버튼 클릭 가능
-4. ✅ 클릭 후 "분석 중..." 표시
-5. ✅ 5초 후 결과 표시:
-   - 전반적인 이해도 (파란 박스)
-   - 부족한 개념 5개 (카드 형태)
-   - 학습 개선 방안 (보라 박스)
-   - 매일 학습 기록 (테이블)
-
-## 4단계: 결과 예시
-
-### 전반적인 이해도
-```
-평균 점수 61.6점 (정답률 53.6%). 
-최근 7개의 수학 숙제를 분석했습니다. 
-특히 문자 곱셈 시 지수 처리에서 반복적인 실수가 나타났습니다.
+🤖 AI 챗봇 요청 - botId: ..., message: ...
+✅ 봇 발견: ...
+📊 모델: gemini-2.5-flash-lite (또는 다른 모델)
+📚 지식베이스: 있음/없음
+🚀 Worker RAG 모드 활성화 (또는)
+📚 Gemini 직접 호출 모드
+🎯 사용 모델: ...
+🔧 callGeminiDirect 시작
+📊 모델: ...
+📊 메시지 길이: ...
+📊 API 버전: v1beta (또는 v1)
+📤 URL: https://generativelanguage.googleapis.com/...
+📊 총 contents 수: ...
+📊 topK 제외됨 (Gemini 2.x) (또는) topK 추가됨: 40
+📤 generationConfig: {...}
+⏳ Gemini API 호출 중...
+📡 응답 상태: 200 OK (또는 에러)
 ```
 
-### 부족한 개념 (5개)
+---
+
+## 🔍 로그에서 확인할 핵심 정보
+
+### A) 정상 케이스
 ```
-1. 문자 곱셈 시 지수 처리 (x*x = x²) [낮음]
-2. 다항식의 완전한 분배 [낮음]
-3. 완전 제곱 공식 (a+b)² 전개 [낮음]
-4. 계수 계산 실수 [낮음]
-5. 지수법칙 적용 오류 [낮음]
+📡 응답 상태: 200 OK
+✅ Gemini 응답 받음: XXX자
+✅ Gemini 응답 성공 (XXX 글자)
 ```
 
-### 매일 학습 기록
+### B) Gemini API 오류
 ```
-날짜       | 과목 | 점수  | 상태   | 메모
-2026-02-10 | 수학 | 53.3점| 개선됨 | 8/15 정답
-2026-02-10 | 수학 | 26.7점| 개선됨 | 4/15 정답
-...
-```
-
-## 문제 해결
-
-### 버튼이 비활성화된 경우
-```
-원인: 브라우저 캐시
-해결: 시크릿 모드 또는 캐시 완전 삭제
+📡 응답 상태: 400 (또는 403, 429)
+❌ Gemini API Error (400):
+❌ 파싱된 에러: {
+  "error": {
+    "code": 400,
+    "message": "...",  ← 정확한 에러 메시지!
+    "status": "..."
+  }
+}
 ```
 
-### "개념 분석을 시작해보세요" 표시
+### C) Worker RAG 오류
 ```
-원인: 아직 버튼을 클릭하지 않음
-해결: [개념 분석 실행] 버튼 클릭
-```
-
-### 클릭해도 반응 없음
-```
-원인: 배포 미완료 또는 캐시
-해결: 
-1. 5분 대기
-2. 하드 리프레시 (Ctrl + Shift + R)
-3. 시크릿 모드 재시도
+⚠️ Worker RAG 실패, Fallback 모드: ...
+⚠️ Worker 에러 스택: ...
 ```
 
-## 현재 상태
-
-- ✅ 코드 수정 완료
-- ✅ GitHub 푸시 완료
-- ⏳ Cloudflare 배포 중
-- 🕐 예상 완료: 5-7분
-
-## API 직접 테스트
-
-터미널에서 테스트:
-```bash
-curl -X POST https://superplacestudy.pages.dev/api/students/weak-concepts \
-  -H "Content-Type: application/json" \
-  -d '{"studentId":"157"}' | jq '.weakConcepts | length'
-
-# 예상 결과: 5
+### D) 모델 정보
+```
+📊 모델: gemini-2.5-flash-lite
+📊 API 버전: v1beta
+📊 topK 제외됨 (Gemini 2.x)
 ```
 
-## 배포 확인 URL
-```
-https://dash.cloudflare.com
-→ Workers & Pages
-→ superplace
-→ Deployments (최신 배포 확인)
-```
+---
+
+## 🎯 보고해야 할 정보
+
+Cloudflare Functions 로그에서 다음을 복사해주세요:
+
+1. **봇 정보**:
+   - `✅ 봇 발견: ...`
+   - `📊 모델: ...`
+   - `📚 지식베이스: ...`
+
+2. **API 호출 정보**:
+   - `📊 API 버전: ...`
+   - `📊 topK 제외됨/추가됨: ...`
+   - `📤 generationConfig: ...`
+
+3. **응답 정보**:
+   - `📡 응답 상태: ...`
+   - (에러 발생 시) `❌ Gemini API Error ...` 전체
+   - (에러 발생 시) `❌ 파싱된 에러: ...` 전체
+
+---
+
+## 🚀 예상 결과
+
+### 성공 케이스
+- Gemini 2.5 Flash Lite: topK 제외, v1beta, 200 OK
+- Gemini 1.5 Flash: topK 포함, v1beta, 200 OK
+- Gemini 1.0 Pro: topK 포함, v1, 200 OK
+
+### 실패 시 원인 파악
+- 400: 요청 파라미터 문제 (에러 메시지에서 정확한 원인 확인)
+- 403: API 키 문제
+- 429: Rate limit 초과
+
+---
+
+**이제 테스트 후 Cloudflare Functions 로그를 복사해서 보내주세요!**
+
