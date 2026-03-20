@@ -105,27 +105,68 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // Get free plan
-    const freePlan = await db
+    // Get free plan (or create if doesn't exist)
+    let freePlan = await db
       .prepare(`
         SELECT * FROM pricing_plans 
-        WHERE name LIKE '%무료%' OR name LIKE '%Free%' OR price = 0
-        ORDER BY price ASC LIMIT 1
+        WHERE name LIKE '%무료%' OR name LIKE '%Free%' OR price_1month = 0
+        ORDER BY price_1month ASC LIMIT 1
       `)
       .first();
 
     if (!freePlan) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'FREE_PLAN_NOT_FOUND',
-        message: '무료 플랜을 찾을 수 없습니다.'
-      }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      // Create free plan automatically
+      console.log('🔧 Creating free plan...');
+      const freePlanId = `plan-free-${Date.now()}`;
+      
+      await db
+        .prepare(`
+          INSERT INTO pricing_plans (
+            id, name, description, 
+            price_1month, price_6months, price_12months,
+            max_students, max_homework_checks, max_ai_analysis, 
+            max_similar_problems, max_landing_pages,
+            features, isPopular, color, \`order\`, isActive,
+            createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `)
+        .bind(
+          freePlanId,
+          '무료 체험',
+          '30일 무료 체험 플랜',
+          0, // price_1month
+          0, // price_6months
+          0, // price_12months
+          5, // max_students: 5명
+          100, // max_homework_checks: 100회
+          10, // max_ai_analysis: 10회
+          5, // max_similar_problems: 5회
+          3, // max_landing_pages: 3개
+          JSON.stringify([
+            '최대 5명의 학생 관리',
+            '월 100회 숙제 검사',
+            '월 10회 AI 역량 분석',
+            '월 5회 유사문제 출제',
+            '최대 3개 랜딩페이지',
+            '30일 무료 체험'
+          ]),
+          0, // isPopular
+          '#10b981', // color: green
+          -1, // order: show first
+          1 // isActive
+        )
+        .run();
+      
+      console.log('✅ Free plan created:', freePlanId);
+      
+      // Fetch the newly created plan
+      freePlan = await db
+        .prepare('SELECT * FROM pricing_plans WHERE id = ?')
+        .bind(freePlanId)
+        .first();
+    } else {
+      console.log('✅ Free plan found:', freePlan.id);
     }
-
-    console.log('✅ Free plan found:', freePlan.id);
 
     // Create subscription (30 days)
     const now = new Date();
