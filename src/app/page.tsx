@@ -252,31 +252,31 @@ export default function Home() {
   const marketingMenu = {
     title: "학원 운영 및 마케팅",
     description: "학원 운영을 위한 통합 마케팅 솔루션",
-    link: "/marketing",
+    link: "https://wearesuperplace.com/",
     items: [
       {
         icon: "📱",
         title: "소셜미디어 관리",
         description: "인스타그램, 블로그 등 통합 관리",
-        href: "/marketing"
+        href: "https://wearesuperplace.com/"
       },
       {
         icon: "📊",
         title: "마케팅 분석",
         description: "실시간 마케팅 성과 분석",
-        href: "/marketing"
+        href: "https://wearesuperplace.com/"
       },
       {
         icon: "🎯",
         title: "타겟 광고",
         description: "효율적인 광고 캠페인 운영",
-        href: "/marketing"
+        href: "https://wearesuperplace.com/"
       },
       {
         icon: "💬",
         title: "고객 소통",
         description: "학부모 및 학생 커뮤니케이션",
-        href: "/marketing"
+        href: "https://wearesuperplace.com/"
       }
     ]
   };
