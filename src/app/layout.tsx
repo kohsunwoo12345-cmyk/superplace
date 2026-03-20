@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     apple: '/apple-touch-icon.png',
   },
   verification: {
-    google: "HyehkpmoFcE3rVNEAqXJPD4NdGjZh571Pm4JM36JEfI",
+    google: "rAfiAnVUcei580-5s7tP3ixaDc8FTGJyt_DTQpe47h8",
     other: {
       "naver-site-verification": "6817ba67ed17ecfd7f621742b503a0b5cff117cf",
     },
