@@ -410,17 +410,14 @@ ${contextText}
       }
     }
     
-    // 모든 Gemini 시도가 실패한 경우 → 즉시 정상 응답 반환 (무한 로딩 방지)
+    // 모든 Gemini 시도가 실패한 경우 → 에러 반환 (정확한 에러 처리)
     if (!aiResponse && lastError) {
-      console.error(`❌ [${requestId}] Gemini 모든 시도 실패, 정상 응답으로 처리`);
+      console.error(`❌ [${requestId}] Gemini 모든 시도 실패, 에러 반환`);
+      console.error(`❌ [${requestId}] 마지막 에러:`, lastError.message);
+      console.error(`❌ [${requestId}] 시도한 모델:`, attemptedModels);
       
-      // 정상적인 안내 메시지 반환 (서비스 중단 방지)
-      aiResponse = "안녕하세요! 현재 일시적으로 응답이 지연되고 있습니다. 같은 질문을 다시 보내주시면 정상적으로 답변드리겠습니다.";
-      attemptedModels.push('auto-retry-message');
-      console.log(`🛡️ [${requestId}] 자동 재시도 안내 메시지 반환`);
+      throw lastError; // 실제 에러를 throw해서 catch 블록에서 처리
     }
-    
-    // aiResponse가 없으면 fallback 응답이 설정되어 있음 (위에서)
 
     // 봇 사용 통계 업데이트
     await db
