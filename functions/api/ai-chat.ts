@@ -336,13 +336,15 @@ ${contextText}
       systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식을 참고하여 답변하세요.`;
     }
 
-    // 🔄 재시도 로직 with fallback models (503 에러 대응 강화)
+    // 🔄 재시도 로직 with fallback models (503 에러 대응 강화 - 더 많은 모델)
     const fallbackModels = [
       modelToUse,
-      'gemini-2.0-flash-exp',
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-1.5-flash-8b'  // 추가: 더 작고 빠른 모델
+      'gemini-1.5-flash',          // 가장 안정적
+      'gemini-1.5-flash-8b',       // 초경량
+      'gemini-2.0-flash-exp',      // 실험 버전
+      'gemini-1.5-pro',            // 고성능
+      'gemini-1.0-pro',            // 레거시 안정
+      'gemini-pro'                 // 추가 안정 모델
     ];
     
     // 중복 제거
@@ -350,8 +352,10 @@ ${contextText}
     
     let lastError: any = null;
     let retryAttempt = 0;
-    const maxRetries = uniqueModels.length * 2; // 각 모델당 2번씩 시도
+    const maxRetries = uniqueModels.length * 3; // 각 모델당 3번씩 시도
     const attemptedModels: string[] = [];
+    
+    console.log(`🔄 [${requestId}] 재시도 전략: ${uniqueModels.length}개 모델 × 3회 = 최대 ${maxRetries}회 시도`);
     
     for (let i = 0; i < maxRetries; i++) {
       const modelIndex = i % uniqueModels.length;
@@ -360,11 +364,11 @@ ${contextText}
       try {
         console.log(`🚀 [${requestId}] Gemini API 호출 시도 ${i + 1}/${maxRetries} (모델: ${tryModel})`);
         
-        // 첫 시도가 아니면 백오프 적용
+        // 첫 시도가 아니면 짧은 백오프 적용 (빠른 재시도)
         if (i > 0) {
-          // 지수 백오프: 2초 → 4초 → 8초 → 12초 → 16초
-          const waitTime = Math.min(2000 * Math.pow(1.5, i - 1), 16000);
-          console.log(`⏳ [${requestId}] ${Math.round(waitTime/1000)}초 대기 후 재시도...`);
+          // 짧은 백오프: 500ms → 1s → 1.5s → 2s → 최대 3초
+          const waitTime = Math.min(500 * Math.pow(1.5, Math.min(i - 1, 5)), 3000);
+          console.log(`⏳ [${requestId}] ${Math.round(waitTime)}ms 대기 후 재시도...`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
         }
         
@@ -417,8 +421,8 @@ ${contextText}
       let retryAfterSeconds = 10;
       
       if (lastError.status === 503) {
-        userMessage = `현재 AI 서비스가 많은 요청을 처리 중입니다.\n\n${retryAfterSeconds}초 후 자동으로 다시 시도하거나, 잠시 후 직접 재전송해 주세요.\n\n시도한 모델: ${attemptedModels.slice(0, 3).join(' → ')}`;
-        retryAfterSeconds = 60;
+        userMessage = `서버가 일시적으로 과부하 상태입니다.\n\n10초 후 자동으로 다시 시도하거나, 잠시 후 직접 재전송해 주세요.\n\n시도된 모델: ${attemptedModels[attemptedModels.length - 1]}`;
+        retryAfterSeconds = 10;
       } else if (lastError.status === 429) {
         userMessage = `요청이 너무 많습니다.\n\n${retryAfterSeconds}초 후 다시 시도해주세요.`;
         retryAfterSeconds = 30;
