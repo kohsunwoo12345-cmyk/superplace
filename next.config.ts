@@ -3,6 +3,10 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   output: 'export', // ✅ Static export for CloudFlare Pages
   trailingSlash: true,
+  // 강제 캐시 무효화
+  generateBuildId: async () => {
+    return `build-${Date.now()}-openrouter-v6`;
+  },
   images: {
     unoptimized: true,
   },

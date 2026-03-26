@@ -1,3 +1,4 @@
+// FORCE CACHE BUST: v6.0-openrouter-final-2026-03-26-20:30
 "use client";
 
 import { useState, useEffect, useRef } from "react";
