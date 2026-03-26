@@ -410,13 +410,53 @@ ${contextText}
       }
     }
     
-    // 모든 시도가 실패한 경우
+    // 모든 Gemini 시도가 실패한 경우 → OpenRouter 최종 시도
+    if (!aiResponse && lastError) {
+      console.error(`❌ [${requestId}] Gemini 모든 시도 실패, OpenRouter 사용`);
+      
+      try {
+        // OpenRouter로 최종 시도
+        console.log(`🛡️ [${requestId}] OpenRouter fallback 시작`);
+        
+        const messages = [
+          { role: "system", content: systemPrompt },
+          ...(data.conversationHistory || []).map((msg: any) => ({
+            role: msg.role,
+            content: msg.content,
+          })),
+          { role: "user", content: data.message },
+        ];
+        
+        const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer sk-or-v1-d2f8d7b4d3b3fd4e9f0c7a9e3f0b6c8a1d5e2f7a9c4b8d6e1f3a7b9c5d8e2f4a6b',
+            'HTTP-Referer': 'https://suplacestudy.com',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-flash-1.5',
+            messages: messages,
+          })
+        });
+        
+        if (openRouterRes.ok) {
+          const openRouterData = await openRouterRes.json();
+          aiResponse = openRouterData.choices?.[0]?.message?.content;
+          if (aiResponse) {
+            console.log(`✅ [${requestId}] OpenRouter 성공!`);
+            attemptedModels.push('openrouter/gemini-flash-1.5');
+          }
+        }
+      } catch (openRouterError) {
+        console.error(`❌ [${requestId}] OpenRouter 실패:`, openRouterError);
+      }
+    }
+    
+    // OpenRouter도 실패한 경우에만 에러 반환
     if (!aiResponse && lastError) {
       console.error(`❌ [${requestId}] 최종 실패:`, lastError.message);
-      console.error(`❌ [${requestId}] 시도한 모델:`, attemptedModels.join(' → '));
-      console.error(`❌ [${requestId}] 총 시도 횟수:`, retryAttempt + 1);
       
-      // 사용자 친화적인 에러 메시지
       let userMessage = "AI 응답 생성 중 오류가 발생했습니다.";
       let retryAfterSeconds = 10;
       
