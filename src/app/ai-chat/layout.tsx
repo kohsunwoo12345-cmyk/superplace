@@ -13,6 +13,18 @@ export default function AIChatLayout({
 
   useEffect(() => {
     setMounted(true);
+    
+    // 🔥 CRITICAL: 캐시 버스트 체크
+    const REQUIRED_VERSION = 'v7.0-FALLBACK-REMOVED';
+    const currentVersion = sessionStorage.getItem('cache-bust-version');
+    
+    if (currentVersion !== REQUIRED_VERSION) {
+      console.log('🔄 캐시 버전 불일치 - 강제 리로드');
+      sessionStorage.setItem('cache-bust-version', REQUIRED_VERSION);
+      window.location.reload();
+      return;
+    }
+    
     // 로그인 체크
     const userStr = localStorage.getItem('user');
     if (!userStr) {
