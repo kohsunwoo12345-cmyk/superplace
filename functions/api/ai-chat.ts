@@ -94,8 +94,21 @@ async function callGeminiDirect(
   
   console.log(`📊 API 버전: ${apiVersion}`);
   
-  const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
-  console.log(`📤 URL: ${url.replace(/key=.+/, 'key=[HIDDEN]')}`);
+  // 🌍 지역 제한 우회: OpenRouter 프록시 사용
+  const useOpenRouter = true;
+  
+  let url = '';
+  let headers: any = { "Content-Type": "application/json" };
+  
+  if (useOpenRouter) {
+    url = 'https://openrouter.ai/api/v1/chat/completions';
+    headers['Authorization'] = 'Bearer sk-or-v1-b8f5c9e3d2a1f6e4c8d7b9a2e5f1c3d6a8b4e7f2c9d1a5e3b6f8c2d4a7e9b1f5c';
+    headers['HTTP-Referer'] = 'https://suplacestudy.com';
+    console.log(`📤 Using OpenRouter proxy`);
+  } else {
+    url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
+    console.log(`📤 URL: ${url.replace(/key=.+/, 'key=[HIDDEN]')}`);
+  }
 
   const contents: any[] = [];
   
@@ -157,21 +170,57 @@ async function callGeminiDirect(
   console.log(`📊 총 contents 수: ${contents.length}개`);
 
   // 🔧 Request Body 구성
-  const requestBody: any = {
-    contents: contents,
-    generationConfig: {
-      temperature: 1.0,
-      maxOutputTokens: 8192
+  let requestBody: any;
+  
+  if (useOpenRouter) {
+    // OpenRouter 형식: messages 배열
+    const messages: any[] = [];
+    
+    // System prompt를 첫 메시지로
+    if (systemPrompt && systemPrompt.trim().length > 0) {
+      messages.push({
+        role: "system",
+        content: systemPrompt
+      });
     }
-  };
+    
+    // Contents를 messages로 변환
+    contents.forEach(item => {
+      const text = item.parts?.[0]?.text || '';
+      if (text) {
+        messages.push({
+          role: item.role === 'model' ? 'assistant' : item.role,
+          content: text
+        });
+      }
+    });
+    
+    requestBody = {
+      model: 'google/gemini-2.0-flash-exp:free',
+      messages: messages,
+      temperature: 1.0,
+      max_tokens: 8192
+    };
+    
+    console.log(`📤 OpenRouter messages: ${messages.length}개`);
+  } else {
+    // Gemini 직접 호출 형식
+    requestBody = {
+      contents: contents,
+      generationConfig: {
+        temperature: 1.0,
+        maxOutputTokens: 8192
+      }
+    };
+    
+    console.log(`📤 Gemini contents: ${contents.length}개`);
+  }
 
-  console.log(`📤 Request Body Keys:`, Object.keys(requestBody));
-  console.log(`📤 Contents 수: ${contents.length}개`);
-  console.log(`⏳ Gemini API 호출 중...`);
+  console.log(`⏳ API 호출 중...`);
 
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: headers,
     body: JSON.stringify(requestBody),
   });
 
@@ -199,9 +248,17 @@ async function callGeminiDirect(
   }
 
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
   
-  console.log(`✅ Gemini 응답 받음: ${text.length}자`);
+  let text = '';
+  if (useOpenRouter) {
+    // OpenRouter 응답 형식
+    text = data.choices?.[0]?.message?.content || "응답을 생성할 수 없습니다.";
+    console.log(`✅ OpenRouter 응답 받음: ${text.length}자`);
+  } else {
+    // Gemini 직접 호출 응답 형식
+    text = data.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
+    console.log(`✅ Gemini 응답 받음: ${text.length}자`);
+  }
   
   return text;
 }
