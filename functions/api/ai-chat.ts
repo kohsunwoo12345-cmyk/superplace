@@ -410,85 +410,17 @@ ${contextText}
       }
     }
     
-    // 모든 Gemini 시도가 실패한 경우 → OpenRouter 최종 시도
+    // 모든 Gemini 시도가 실패한 경우 → 간단한 응답 반환 (OpenRouter 제거)
     if (!aiResponse && lastError) {
-      console.error(`❌ [${requestId}] Gemini 모든 시도 실패, OpenRouter 사용`);
+      console.error(`❌ [${requestId}] Gemini 모든 시도 실패`);
       
-      try {
-        // OpenRouter로 최종 시도
-        console.log(`🛡️ [${requestId}] OpenRouter fallback 시작`);
-        
-        const messages = [
-          { role: "system", content: systemPrompt },
-          ...(data.conversationHistory || []).map((msg: any) => ({
-            role: msg.role,
-            content: msg.content,
-          })),
-          { role: "user", content: data.message },
-        ];
-        
-        const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer sk-or-v1-d2f8d7b4d3b3fd4e9f0c7a9e3f0b6c8a1d5e2f7a9c4b8d6e1f3a7b9c5d8e2f4a6b',
-            'HTTP-Referer': 'https://suplacestudy.com',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-flash-1.5',
-            messages: messages,
-          })
-        });
-        
-        if (openRouterRes.ok) {
-          const openRouterData = await openRouterRes.json();
-          aiResponse = openRouterData.choices?.[0]?.message?.content;
-          if (aiResponse) {
-            console.log(`✅ [${requestId}] OpenRouter 성공!`);
-            attemptedModels.push('openrouter/gemini-flash-1.5');
-          }
-        }
-      } catch (openRouterError) {
-        console.error(`❌ [${requestId}] OpenRouter 실패:`, openRouterError);
-      }
+      // 간단한 fallback 응답 제공 (서비스 중단 방지)
+      aiResponse = "죄송합니다. 현재 AI 서비스가 일시적으로 불안정합니다. 잠시 후 다시 시도해 주세요.";
+      attemptedModels.push('fallback-response');
+      console.log(`🛡️ [${requestId}] Fallback 응답 사용`);
     }
     
-    // OpenRouter도 실패한 경우에만 에러 반환
-    if (!aiResponse && lastError) {
-      console.error(`❌ [${requestId}] 최종 실패:`, lastError.message);
-      
-      let userMessage = "AI 응답 생성 중 오류가 발생했습니다.";
-      let retryAfterSeconds = 10;
-      
-      if (lastError.status === 503) {
-        userMessage = `서버가 일시적으로 과부하 상태입니다.\n\n10초 후 자동으로 다시 시도하거나, 잠시 후 직접 재전송해 주세요.\n\n시도된 모델: ${attemptedModels[attemptedModels.length - 1]}`;
-        retryAfterSeconds = 10;
-      } else if (lastError.status === 429) {
-        userMessage = `요청이 너무 많습니다.\n\n${retryAfterSeconds}초 후 다시 시도해주세요.`;
-        retryAfterSeconds = 30;
-      } else if (lastError.status === 500) {
-        userMessage = `AI 서비스에 일시적인 문제가 발생했습니다.\n\n${retryAfterSeconds}초 후 다시 시도해주세요.`;
-        retryAfterSeconds = 20;
-      }
-      
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: userMessage,
-          attemptedModels: attemptedModels,
-          retryCount: retryAttempt,
-          retryAfterSeconds: retryAfterSeconds,
-          requestId,
-        }),
-        { 
-          status: 503, 
-          headers: { 
-            "Content-Type": "application/json",
-            "Retry-After": retryAfterSeconds.toString()
-          } 
-        }
-      );
-    }
+    // aiResponse가 없으면 fallback 응답이 설정되어 있음 (위에서)
 
     // 봇 사용 통계 업데이트
     await db
