@@ -132,9 +132,10 @@ export default function ModernAIChatPage() {
       console.log(`👥 일반 사용자 (academyId: ${userData.academyId}) - 할당된 봇 조회`);
       fetchBots(userData.academyId, userData);  // userData 전달
     } else {
-      console.warn("⚠️ academyId가 없습니다. AI 봇을 사용할 수 없습니다.");
+      // academyId가 없으면 모든 봇 조회 (Fallback)
+      console.warn("⚠️ academyId가 없습니다. 모든 봇 조회로 전환");
       console.warn("⚠️ 사용자 정보:", userData);
-      alert("학원 정보가 없습니다. 관리자에게 문의하세요.");
+      fetchAllBots();
     }
 
     // 모바일 감지
