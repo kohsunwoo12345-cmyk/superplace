@@ -345,20 +345,50 @@ ${contextText}
       systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---`;
     }
 
-    // Gemini 직접 호출
+    // 🔥 임시: Gemini 직접 호출 대신 Worker를 통한 전체 AI 처리
+    const attemptedModels: string[] = [];
+    
     try {
-      aiResponse = await callGeminiDirect(
-        data.message,
-        systemPrompt,
-        data.conversationHistory || [],
-        apiKey,
-        modelToUse
-      );
+      console.log('🚀 Worker를 통한 전체 AI 처리');
       
-      console.log(`✅ Gemini 응답 성공: ${aiResponse.length}자`);
-    } catch (geminiError: any) {
-      console.error('❌ Gemini 호출 실패:', geminiError.message);
-      throw geminiError;
+      const WORKER_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/ai-complete';
+      const WORKER_API_KEY = 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u';
+      
+      const workerAIResponse = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': WORKER_API_KEY
+        },
+        body: JSON.stringify({
+          message: data.message,
+          systemPrompt: systemPrompt,
+          conversationHistory: data.conversationHistory || [],
+          model: modelToUse,
+          apiKey: apiKey
+        })
+      });
+
+      if (workerAIResponse.ok) {
+        const workerData = await workerAIResponse.json();
+        
+        if (workerData.success && workerData.response) {
+          aiResponse = workerData.response;
+          attemptedModels.push(workerData.model || modelToUse);
+          console.log(`✅ Worker AI 응답 성공: ${aiResponse.length}자`);
+        } else {
+          throw new Error(workerData.error || 'Worker AI 응답 실패');
+        }
+      } else {
+        throw new Error(`Worker AI 호출 실패: ${workerAIResponse.status}`);
+      }
+    } catch (workerError: any) {
+      console.error('❌ Worker AI 호출 실패:', workerError.message);
+      
+      // Fallback: 기본 응답
+      aiResponse = `안녕하세요! ${bot.name}입니다.\n\n죄송하지만 현재 일시적으로 AI 서비스에 문제가 있습니다. 잠시 후 다시 시도해 주세요.`;
+      attemptedModels.push('fallback');
+      console.log('⚠️ Fallback 응답 사용');
     }
 
     // 봇 사용 통계 업데이트
