@@ -348,72 +348,52 @@ ${contextText}
     // 🔥 정상 응답 생성 (Gemini API 키 문제로 임시 응답)
     const attemptedModels: string[] = [];
     
-    // 🔥 OpenRouter API를 통한 Gemini 호출 (지역 제한 없음)
-    const OPENROUTER_API_KEY = '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';
+    // 🔥 Gemini API 직접 호출 (재시도 로직 포함)
+    console.log(`🚀 [${requestId}] Gemini API 직접 호출 시작 (모델: ${modelToUse})`);
     
-    console.log(`🚀 [${requestId}] OpenRouter API 호출 시작 (모델: ${modelToUse})`);
+    let lastError: any = null;
+    const maxAttempts = 3;
     
-    // OpenRouter 형식으로 메시지 구성
-    const messages: any[] = [];
-    
-    // System prompt를 첫 메시지로 추가
-    if (systemPrompt && systemPrompt.trim()) {
-      messages.push({
-        role: 'system',
-        content: systemPrompt
-      });
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`  [시도 ${attempt}/${maxAttempts}] Gemini API 호출...`);
+        
+        aiResponse = await callGeminiDirect(
+          data.message,
+          systemPrompt,
+          data.conversationHistory || [],
+          apiKey,
+          modelToUse
+        );
+        
+        attemptedModels.push(modelToUse);
+        console.log(`✅ [${requestId}] Gemini 응답 성공 (${aiResponse.length}자, 시도: ${attempt}/${maxAttempts})`);
+        break;  // 성공하면 루프 종료
+        
+      } catch (error: any) {
+        lastError = error;
+        console.error(`❌ [${requestId}] Gemini 시도 ${attempt} 실패:`, error.message);
+        
+        // 지역 제한 오류가 아니거나 마지막 시도인 경우
+        if (!error.message.includes('User location is not supported') || attempt === maxAttempts) {
+          // 다른 모델로 재시도
+          if (attempt < maxAttempts) {
+            const fallbackModels = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro'];
+            modelToUse = fallbackModels[attempt - 1] || modelToUse;
+            console.log(`  ↻ 다음 모델로 재시도: ${modelToUse}`);
+            await new Promise(resolve => setTimeout(resolve, 500 * attempt));  // 백오프
+          }
+        } else {
+          throw error;  // 지역 제한 오류면 즉시 throw
+        }
+      }
     }
     
-    // 대화 히스토리 추가
-    if (data.conversationHistory && data.conversationHistory.length > 0) {
-      data.conversationHistory.forEach((msg: any) => {
-        messages.push({
-          role: msg.role,
-          content: msg.content
-        });
-      });
+    // 모든 시도가 실패한 경우
+    if (!aiResponse) {
+      console.error(`❌ [${requestId}] 모든 Gemini 시도 실패:`, lastError);
+      throw lastError || new Error('Gemini API 호출 실패');
     }
-    
-    // 현재 메시지 추가
-    messages.push({
-      role: 'user',
-      content: data.message
-    });
-    
-    console.log(`📊 [${requestId}] 총 메시지 수: ${messages.length}개`);
-    
-    const openrouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://suplacestudy.com',
-        'X-Title': '꾸메땅학원 AI 챗봇'
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-exp:free',  // OpenRouter의 무료 Gemini 모델
-        messages: messages,
-        temperature: 1.0,
-        max_tokens: 8192
-      })
-    });
-    
-    if (!openrouterResponse.ok) {
-      const errorText = await openrouterResponse.text();
-      console.error(`❌ [${requestId}] OpenRouter API 호출 실패: ${openrouterResponse.status}`, errorText);
-      throw new Error(`OpenRouter API 오류: ${errorText}`);
-    }
-    
-    const openrouterData = await openrouterResponse.json();
-    
-    if (!openrouterData.choices || openrouterData.choices.length === 0) {
-      console.error(`❌ [${requestId}] OpenRouter 응답에 choices 없음:`, openrouterData);
-      throw new Error('OpenRouter에서 응답을 생성하지 못했습니다');
-    }
-    
-    aiResponse = openrouterData.choices[0].message.content;
-    attemptedModels.push('google/gemini-2.0-flash-exp:free');
-    console.log(`✅ [${requestId}] OpenRouter 응답 성공 (${aiResponse.length}자)`);
 
     // 봇 사용 통계 업데이트
     await db
