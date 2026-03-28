@@ -284,54 +284,82 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let aiResponse = '';
     let useWorkerRAG = false;
     let ragContextCount = 0;
+    let ragContext: any[] = [];
 
-    // 🔥 모든 AI 호출을 Worker로 위임 (지역 제한 우회)
-    try {
-      console.log('🚀 Worker AI 호출 (Gemini + RAG)');
-      
-      const WORKER_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/chat';
-      const WORKER_API_KEY = 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u';
-      
-      const workerResponse = await fetch(WORKER_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': WORKER_API_KEY
-        },
-        body: JSON.stringify({
-          message: data.message,
-          botId: data.botId,
-          systemPrompt: bot.systemPrompt || '',
-          conversationHistory: data.conversationHistory || [],
-          enableRAG: !!(bot.knowledgeBase && bot.knowledgeBase.trim().length > 0),
-          topK: 5,
-          model: modelToUse
-        })
-      });
-
-      if (workerResponse.ok) {
-        const workerData = await workerResponse.json();
+    // 🔥 Worker RAG + Functions Gemini 조합
+    if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
+      try {
+        console.log('🚀 Worker RAG 호출');
         
-        if (workerData.success && workerData.response) {
-          aiResponse = workerData.response;
-          useWorkerRAG = workerData.ragEnabled || false;
-          ragContextCount = workerData.ragContextCount || 0;
+        const WORKER_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/chat';
+        const WORKER_API_KEY = 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u';
+        
+        const workerResponse = await fetch(WORKER_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': WORKER_API_KEY
+          },
+          body: JSON.stringify({
+            message: data.message,
+            botId: data.botId,
+            systemPrompt: bot.systemPrompt || '',
+            conversationHistory: data.conversationHistory || [],
+            enableRAG: true,
+            topK: 5
+          })
+        });
+
+        if (workerResponse.ok) {
+          const workerData = await workerResponse.json();
           
-          console.log(`✅ Worker AI 응답 성공: ${aiResponse.length}자`);
-          console.log(`✅ Worker RAG: ${useWorkerRAG}, 컨텍스트: ${ragContextCount}개`);
-        } else {
-          throw new Error(workerData.error || 'Worker에서 응답을 생성하지 못했습니다');
+          if (workerData.success) {
+            useWorkerRAG = workerData.ragEnabled || false;
+            ragContextCount = workerData.ragContextCount || 0;
+            ragContext = workerData.ragContext || [];
+            
+            console.log(`✅ Worker RAG 성공: ${ragContextCount}개 컨텍스트`);
+          }
         }
-      } else {
-        const errorText = await workerResponse.text();
-        throw new Error(`Worker 호출 실패 (${workerResponse.status}): ${errorText}`);
+      } catch (workerError: any) {
+        console.error('⚠️ Worker RAG 실패, 전체 지식베이스 사용:', workerError.message);
       }
-    } catch (workerError: any) {
-      console.error('❌ Worker AI 호출 실패:', workerError.message);
-      throw workerError;
     }
 
-    // Worker가 AI 응답을 생성했으므로 추가 로직 불필요
+    // System Prompt에 RAG 컨텍스트 추가
+    let systemPrompt = bot.systemPrompt || '';
+    
+    if (ragContext && ragContext.length > 0) {
+      const contextText = ragContext
+        .map((ctx, idx) => `[컨텍스트 ${idx + 1}]\n${ctx.text}`)
+        .join('\n\n');
+      
+      systemPrompt = `${bot.systemPrompt}
+
+=== 📚 검색된 지식 베이스 ===
+${contextText}
+=== 지식 끝 ===
+
+위 지식을 참고하여 답변하세요.`;
+    } else if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
+      systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---`;
+    }
+
+    // Gemini 직접 호출
+    try {
+      aiResponse = await callGeminiDirect(
+        data.message,
+        systemPrompt,
+        data.conversationHistory || [],
+        apiKey,
+        modelToUse
+      );
+      
+      console.log(`✅ Gemini 응답 성공: ${aiResponse.length}자`);
+    } catch (geminiError: any) {
+      console.error('❌ Gemini 호출 실패:', geminiError.message);
+      throw geminiError;
+    }
 
     // 봇 사용 통계 업데이트
     await db
