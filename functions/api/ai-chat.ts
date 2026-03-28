@@ -94,21 +94,11 @@ async function callGeminiDirect(
   
   console.log(`📊 API 버전: ${apiVersion}`);
   
-  // 🌍 지역 제한 우회: OpenRouter 프록시 사용
-  const useOpenRouter = true;
+  // 🌍 지역 제한 우회 방법: Gemini API 직접 호출 (API 키가 올바르게 설정되어 있다고 가정)
+  const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
+  const headers: any = { "Content-Type": "application/json" };
   
-  let url = '';
-  let headers: any = { "Content-Type": "application/json" };
-  
-  if (useOpenRouter) {
-    url = 'https://openrouter.ai/api/v1/chat/completions';
-    headers['Authorization'] = 'Bearer sk-or-v1-b8f5c9e3d2a1f6e4c8d7b9a2e5f1c3d6a8b4e7f2c9d1a5e3b6f8c2d4a7e9b1f5c';
-    headers['HTTP-Referer'] = 'https://suplacestudy.com';
-    console.log(`📤 Using OpenRouter proxy`);
-  } else {
-    url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
-    console.log(`📤 URL: ${url.replace(/key=.+/, 'key=[HIDDEN]')}`);
-  }
+  console.log(`📤 Gemini API 직접 호출 (${apiVersion})`);
 
   const contents: any[] = [];
   
@@ -169,52 +159,16 @@ async function callGeminiDirect(
 
   console.log(`📊 총 contents 수: ${contents.length}개`);
 
-  // 🔧 Request Body 구성
-  let requestBody: any;
-  
-  if (useOpenRouter) {
-    // OpenRouter 형식: messages 배열
-    const messages: any[] = [];
-    
-    // System prompt를 첫 메시지로
-    if (systemPrompt && systemPrompt.trim().length > 0) {
-      messages.push({
-        role: "system",
-        content: systemPrompt
-      });
-    }
-    
-    // Contents를 messages로 변환
-    contents.forEach(item => {
-      const text = item.parts?.[0]?.text || '';
-      if (text) {
-        messages.push({
-          role: item.role === 'model' ? 'assistant' : item.role,
-          content: text
-        });
-      }
-    });
-    
-    requestBody = {
-      model: 'google/gemini-2.0-flash-exp:free',
-      messages: messages,
+  // 🔧 Request Body 구성 (항상 Gemini 형식)
+  const requestBody: any = {
+    contents: contents,
+    generationConfig: {
       temperature: 1.0,
-      max_tokens: 8192
-    };
-    
-    console.log(`📤 OpenRouter messages: ${messages.length}개`);
-  } else {
-    // Gemini 직접 호출 형식
-    requestBody = {
-      contents: contents,
-      generationConfig: {
-        temperature: 1.0,
-        maxOutputTokens: 8192
-      }
-    };
-    
-    console.log(`📤 Gemini contents: ${contents.length}개`);
-  }
+      maxOutputTokens: 8192
+    }
+  };
+  
+  console.log(`📤 Request body: ${contents.length}개 contents`);
 
   console.log(`⏳ API 호출 중...`);
 
@@ -249,16 +203,9 @@ async function callGeminiDirect(
 
   const data = await response.json();
   
-  let text = '';
-  if (useOpenRouter) {
-    // OpenRouter 응답 형식
-    text = data.choices?.[0]?.message?.content || "응답을 생성할 수 없습니다.";
-    console.log(`✅ OpenRouter 응답 받음: ${text.length}자`);
-  } else {
-    // Gemini 직접 호출 응답 형식
-    text = data.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
-    console.log(`✅ Gemini 응답 받음: ${text.length}자`);
-  }
+  // Gemini 응답 형식 (Worker도 동일한 형식 반환)
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
+  console.log(`✅ Gemini 응답 받음: ${text.length}자`);
   
   return text;
 }
@@ -338,143 +285,53 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let useWorkerRAG = false;
     let ragContextCount = 0;
 
-    // 🔥 Worker RAG 모드 (knowledgeBase가 있을 때)
-    let ragContext: any[] = [];
-    if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
-      try {
-        console.log('🚀 Worker RAG 모드 활성화');
+    // 🔥 모든 AI 호출을 Worker로 위임 (지역 제한 우회)
+    try {
+      console.log('🚀 Worker AI 호출 (Gemini + RAG)');
+      
+      const WORKER_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/chat';
+      const WORKER_API_KEY = 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u';
+      
+      const workerResponse = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': WORKER_API_KEY
+        },
+        body: JSON.stringify({
+          message: data.message,
+          botId: data.botId,
+          systemPrompt: bot.systemPrompt || '',
+          conversationHistory: data.conversationHistory || [],
+          enableRAG: !!(bot.knowledgeBase && bot.knowledgeBase.trim().length > 0),
+          topK: 5,
+          model: modelToUse
+        })
+      });
+
+      if (workerResponse.ok) {
+        const workerData = await workerResponse.json();
         
-        const workerResult = await callWorkerRAG(
-          data.message,
-          data.botId,
-          bot.systemPrompt || '',
-          data.conversationHistory || [],
-          true
-        );
-        
-        useWorkerRAG = workerResult.ragEnabled;
-        ragContextCount = workerResult.ragContextCount;
-        ragContext = workerResult.ragContext || [];
-        
-        console.log(`✅ Worker RAG 검색 완료: ${ragContextCount}개 컨텍스트`);
-      } catch (workerError: any) {
-        console.error('⚠️ Worker RAG 실패, Fallback 모드:', workerError.message);
-        console.error('⚠️ Worker 에러 스택:', workerError.stack);
+        if (workerData.success && workerData.response) {
+          aiResponse = workerData.response;
+          useWorkerRAG = workerData.ragEnabled || false;
+          ragContextCount = workerData.ragContextCount || 0;
+          
+          console.log(`✅ Worker AI 응답 성공: ${aiResponse.length}자`);
+          console.log(`✅ Worker RAG: ${useWorkerRAG}, 컨텍스트: ${ragContextCount}개`);
+        } else {
+          throw new Error(workerData.error || 'Worker에서 응답을 생성하지 못했습니다');
+        }
+      } else {
+        const errorText = await workerResponse.text();
+        throw new Error(`Worker 호출 실패 (${workerResponse.status}): ${errorText}`);
       }
+    } catch (workerError: any) {
+      console.error('❌ Worker AI 호출 실패:', workerError.message);
+      throw workerError;
     }
 
-    // Gemini 호출 (RAG 컨텍스트 포함)
-    console.log(`📚 [${requestId}] Gemini 호출 준비`);
-    console.log(`🎯 [${requestId}] 사용 모델: ${modelToUse}`);
-    
-    let systemPrompt = bot.systemPrompt || '';
-    
-    // RAG 컨텍스트를 시스템 프롬프트에 추가
-    if (ragContext && ragContext.length > 0) {
-      console.log(`✅ [${requestId}] RAG 컨텍스트 ${ragContext.length}개를 시스템 프롬프트에 추가`);
-      const contextText = ragContext
-        .map((ctx, idx) => `[컨텍스트 ${idx + 1}]\n${ctx.text}`)
-        .join('\n\n');
-      
-      // ⭐ System Prompt를 더 강력하게 - 역할을 먼저, 지식을 나중에
-      systemPrompt = `${bot.systemPrompt}
-
-=== 📚 검색된 지식 베이스 (참고용) ===
-${contextText}
-=== 지식 끝 ===
-
-[CRITICAL INSTRUCTION] 
-위 지식 베이스를 참고하되, 당신은 반드시 처음에 명시된 역할과 정체성을 유지해야 합니다.
-첫 인사나 자기소개를 요청받으면 반드시 자신이 누구인지(${bot.name})를 밝혀야 합니다.
-절대로 "Google 언어 모델" 등의 일반적인 AI 소개를 하지 마세요.`;
-    } else if (bot.knowledgeBase && bot.knowledgeBase.trim().length > 0) {
-      // Fallback: knowledgeBase 전체 사용
-      console.log(`⚠️ [${requestId}] RAG 컨텍스트 없음, 전체 knowledgeBase 사용`);
-      systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---\n\n위 지식을 참고하여 답변하세요.`;
-    }
-
-    // 🔄 재시도 로직 with fallback models (503 에러 대응 강화 - 더 많은 모델)
-    const fallbackModels = [
-      modelToUse,
-      'gemini-1.5-flash',          // 가장 안정적
-      'gemini-1.5-flash-8b',       // 초경량
-      'gemini-2.0-flash-exp',      // 실험 버전
-      'gemini-1.5-pro',            // 고성능
-      'gemini-1.0-pro',            // 레거시 안정
-      'gemini-pro'                 // 추가 안정 모델
-    ];
-    
-    // 중복 제거
-    const uniqueModels = [...new Set(fallbackModels)];
-    
-    let lastError: any = null;
-    let retryAttempt = 0;
-    const maxRetries = uniqueModels.length * 3; // 각 모델당 3번씩 시도
-    const attemptedModels: string[] = [];
-    
-    console.log(`🔄 [${requestId}] 재시도 전략: ${uniqueModels.length}개 모델 × 3회 = 최대 ${maxRetries}회 시도`);
-    
-    for (let i = 0; i < maxRetries; i++) {
-      const modelIndex = i % uniqueModels.length;
-      const tryModel = uniqueModels[modelIndex];
-      
-      try {
-        console.log(`🚀 [${requestId}] Gemini API 호출 시도 ${i + 1}/${maxRetries} (모델: ${tryModel})`);
-        
-        // 첫 시도가 아니면 짧은 백오프 적용 (빠른 재시도)
-        if (i > 0) {
-          // 짧은 백오프: 500ms → 1s → 1.5s → 2s → 최대 3초
-          const waitTime = Math.min(500 * Math.pow(1.5, Math.min(i - 1, 5)), 3000);
-          console.log(`⏳ [${requestId}] ${Math.round(waitTime)}ms 대기 후 재시도...`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
-        }
-        
-        aiResponse = await callGeminiDirect(
-          data.message,
-          systemPrompt,
-          data.conversationHistory || [],
-          apiKey,
-          tryModel
-        );
-        
-        console.log(`✅ [${requestId}] Gemini 응답 성공 (${aiResponse.length} 글자, 모델: ${tryModel}, 시도 횟수: ${i + 1})`);
-        attemptedModels.push(tryModel);
-        retryAttempt = i;
-        break; // 성공하면 루프 탈출
-        
-      } catch (geminiError: any) {
-        lastError = geminiError;
-        attemptedModels.push(tryModel);
-        const isRetryable = geminiError.isRetryable || geminiError.status === 503 || geminiError.status === 429 || geminiError.status === 500;
-        
-        console.error(`❌ [${requestId}] 모델 ${tryModel} 실패 (시도 ${i + 1}/${maxRetries}):`, geminiError.message);
-        console.error(`❌ [${requestId}] 에러 상태:`, geminiError.status);
-        console.error(`❌ [${requestId}] 재시도 가능:`, isRetryable);
-        
-        retryAttempt = i;
-        
-        // 재시도 불가능한 에러면 즉시 중단
-        if (!isRetryable) {
-          console.error(`❌ [${requestId}] 재시도 불가능한 에러, 중단`);
-          break;
-        }
-        
-        // 마지막 시도였으면 break
-        if (i >= maxRetries - 1) {
-          console.error(`❌ [${requestId}] 모든 재시도 실패 (총 ${i + 1}회 시도)`);
-          break;
-        }
-      }
-    }
-    
-    // 모든 Gemini 시도가 실패한 경우 → 에러 반환 (정확한 에러 처리)
-    if (!aiResponse && lastError) {
-      console.error(`❌ [${requestId}] Gemini 모든 시도 실패, 에러 반환`);
-      console.error(`❌ [${requestId}] 마지막 에러:`, lastError.message);
-      console.error(`❌ [${requestId}] 시도한 모델:`, attemptedModels);
-      
-      throw lastError; // 실제 에러를 throw해서 catch 블록에서 처리
-    }
+    // Worker가 AI 응답을 생성했으므로 추가 로직 불필요
 
     // 봇 사용 통계 업데이트
     await db
