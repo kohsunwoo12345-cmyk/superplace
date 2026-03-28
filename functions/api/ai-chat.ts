@@ -348,52 +348,43 @@ ${contextText}
     // 🔥 정상 응답 생성 (Gemini API 키 문제로 임시 응답)
     const attemptedModels: string[] = [];
     
-    // 🔥 Gemini API 직접 호출 (재시도 로직 포함)
-    console.log(`🚀 [${requestId}] Gemini API 직접 호출 시작 (모델: ${modelToUse})`);
+    // 🔥 Worker AI Complete를 통한 실제 Gemini 호출
+    const WORKER_AI_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/ai-complete';
+    const WORKER_API_KEY = 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u';
     
-    let lastError: any = null;
-    const maxAttempts = 3;
+    console.log(`🚀 [${requestId}] Worker AI Complete 호출 시작`);
     
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        console.log(`  [시도 ${attempt}/${maxAttempts}] Gemini API 호출...`);
-        
-        aiResponse = await callGeminiDirect(
-          data.message,
-          systemPrompt,
-          data.conversationHistory || [],
-          apiKey,
-          modelToUse
-        );
-        
-        attemptedModels.push(modelToUse);
-        console.log(`✅ [${requestId}] Gemini 응답 성공 (${aiResponse.length}자, 시도: ${attempt}/${maxAttempts})`);
-        break;  // 성공하면 루프 종료
-        
-      } catch (error: any) {
-        lastError = error;
-        console.error(`❌ [${requestId}] Gemini 시도 ${attempt} 실패:`, error.message);
-        
-        // 지역 제한 오류가 아니거나 마지막 시도인 경우
-        if (!error.message.includes('User location is not supported') || attempt === maxAttempts) {
-          // 다른 모델로 재시도
-          if (attempt < maxAttempts) {
-            const fallbackModels = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro'];
-            modelToUse = fallbackModels[attempt - 1] || modelToUse;
-            console.log(`  ↻ 다음 모델로 재시도: ${modelToUse}`);
-            await new Promise(resolve => setTimeout(resolve, 500 * attempt));  // 백오프
-          }
-        } else {
-          throw error;  // 지역 제한 오류면 즉시 throw
-        }
-      }
+    const workerResponse = await fetch(WORKER_AI_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': WORKER_API_KEY
+      },
+      body: JSON.stringify({
+        message: data.message,
+        systemPrompt: systemPrompt,
+        conversationHistory: data.conversationHistory || [],
+        model: modelToUse,
+        apiKey: apiKey  // ✅ 올바른 Gemini API 키 전달
+      })
+    });
+    
+    if (!workerResponse.ok) {
+      const errorText = await workerResponse.text();
+      console.error(`❌ [${requestId}] Worker AI 호출 실패: ${workerResponse.status}`, errorText);
+      throw new Error(`Worker AI 호출 실패: ${errorText}`);
     }
     
-    // 모든 시도가 실패한 경우
-    if (!aiResponse) {
-      console.error(`❌ [${requestId}] 모든 Gemini 시도 실패:`, lastError);
-      throw lastError || new Error('Gemini API 호출 실패');
+    const workerData = await workerResponse.json();
+    
+    if (!workerData.success) {
+      console.error(`❌ [${requestId}] Worker AI 오류:`, workerData.error);
+      throw new Error(workerData.error || 'Worker에서 응답을 생성하지 못했습니다');
     }
+    
+    aiResponse = workerData.response;
+    attemptedModels.push(modelToUse);
+    console.log(`✅ [${requestId}] Worker AI 응답 성공 (${aiResponse.length}자, 모델: ${modelToUse})`);
 
     // 봇 사용 통계 업데이트
     await db
