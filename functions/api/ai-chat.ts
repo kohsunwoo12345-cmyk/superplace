@@ -365,7 +365,7 @@ ${contextText}
         systemPrompt: systemPrompt,
         conversationHistory: data.conversationHistory || [],
         model: modelToUse,
-        apiKey: env.GOOGLE_GEMINI_API_KEY  // ✅ 올바른 Gemini API 키 전달
+        apiKey: apiKey  // ✅ 올바른 Gemini API 키 전달
       })
     });
     
