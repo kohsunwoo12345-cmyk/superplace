@@ -348,43 +348,72 @@ ${contextText}
     // 🔥 정상 응답 생성 (Gemini API 키 문제로 임시 응답)
     const attemptedModels: string[] = [];
     
-    // 🔥 Worker AI Complete를 통한 실제 Gemini 호출
-    const WORKER_AI_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/ai-complete';
-    const WORKER_API_KEY = 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u';
+    // 🔥 OpenRouter API를 통한 Gemini 호출 (지역 제한 없음)
+    const OPENROUTER_API_KEY = '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';
     
-    console.log(`🚀 [${requestId}] Worker AI Complete 호출 시작`);
+    console.log(`🚀 [${requestId}] OpenRouter API 호출 시작 (모델: ${modelToUse})`);
     
-    const workerResponse = await fetch(WORKER_AI_URL, {
+    // OpenRouter 형식으로 메시지 구성
+    const messages: any[] = [];
+    
+    // System prompt를 첫 메시지로 추가
+    if (systemPrompt && systemPrompt.trim()) {
+      messages.push({
+        role: 'system',
+        content: systemPrompt
+      });
+    }
+    
+    // 대화 히스토리 추가
+    if (data.conversationHistory && data.conversationHistory.length > 0) {
+      data.conversationHistory.forEach((msg: any) => {
+        messages.push({
+          role: msg.role,
+          content: msg.content
+        });
+      });
+    }
+    
+    // 현재 메시지 추가
+    messages.push({
+      role: 'user',
+      content: data.message
+    });
+    
+    console.log(`📊 [${requestId}] 총 메시지 수: ${messages.length}개`);
+    
+    const openrouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': WORKER_API_KEY
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://suplacestudy.com',
+        'X-Title': '꾸메땅학원 AI 챗봇'
       },
       body: JSON.stringify({
-        message: data.message,
-        systemPrompt: systemPrompt,
-        conversationHistory: data.conversationHistory || [],
-        model: modelToUse,
-        apiKey: apiKey  // ✅ 올바른 Gemini API 키 전달
+        model: 'google/gemini-2.0-flash-exp:free',  // OpenRouter의 무료 Gemini 모델
+        messages: messages,
+        temperature: 1.0,
+        max_tokens: 8192
       })
     });
     
-    if (!workerResponse.ok) {
-      const errorText = await workerResponse.text();
-      console.error(`❌ [${requestId}] Worker AI 호출 실패: ${workerResponse.status}`, errorText);
-      throw new Error(`Worker AI 호출 실패: ${errorText}`);
+    if (!openrouterResponse.ok) {
+      const errorText = await openrouterResponse.text();
+      console.error(`❌ [${requestId}] OpenRouter API 호출 실패: ${openrouterResponse.status}`, errorText);
+      throw new Error(`OpenRouter API 오류: ${errorText}`);
     }
     
-    const workerData = await workerResponse.json();
+    const openrouterData = await openrouterResponse.json();
     
-    if (!workerData.success) {
-      console.error(`❌ [${requestId}] Worker AI 오류:`, workerData.error);
-      throw new Error(workerData.error || 'Worker에서 응답을 생성하지 못했습니다');
+    if (!openrouterData.choices || openrouterData.choices.length === 0) {
+      console.error(`❌ [${requestId}] OpenRouter 응답에 choices 없음:`, openrouterData);
+      throw new Error('OpenRouter에서 응답을 생성하지 못했습니다');
     }
     
-    aiResponse = workerData.response;
-    attemptedModels.push(modelToUse);
-    console.log(`✅ [${requestId}] Worker AI 응답 성공 (${aiResponse.length}자, 모델: ${modelToUse})`);
+    aiResponse = openrouterData.choices[0].message.content;
+    attemptedModels.push('google/gemini-2.0-flash-exp:free');
+    console.log(`✅ [${requestId}] OpenRouter 응답 성공 (${aiResponse.length}자)`);
 
     // 봇 사용 통계 업데이트
     await db
