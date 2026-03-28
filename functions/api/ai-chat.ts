@@ -345,15 +345,45 @@ ${contextText}
       systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---`;
     }
 
-    // 🔥 간단한 테스트 응답 (Gemini 지역 제한 우회를 위한 임시)
+    // 🔥 Worker를 통한 Gemini API 호출 (지역 제한 우회)
     const attemptedModels: string[] = [];
     
-    aiResponse = `안녕하세요! ${bot.name}입니다.\n\n` +
-      `${data.message.includes('안녕') ? '[이름]과 [몇 과]의 [어느 영역(전체/본문/대화문)]을 시험 보실지 말씀해 주세요.' : '테스트 응답입니다.'}\n\n` +
-      `(현재 Gemini API 지역 제한으로 인해 임시 응답을 제공합니다. Worker 업데이트 진행 중)`;
-    
-    attemptedModels.push('temporary-response');
-    console.log(`⚠️ 임시 응답 사용 (Gemini 지역 제한 우회 준비 중)`);
+    try {
+      console.log('🚀 Worker AI Complete 호출');
+      
+      const workerResponse = await fetch('https://physonsuperplacestudy.kohsunwoo12345.workers.dev/ai-complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u'
+        },
+        body: JSON.stringify({
+          message: data.message,
+          systemPrompt: systemPrompt,
+          conversationHistory: data.conversationHistory || [],
+          model: modelToUse,
+          apiKey: apiKey  // 실제 Gemini API key 전달
+        })
+      });
+      
+      if (workerResponse.ok) {
+        const workerData = await workerResponse.json();
+        
+        if (workerData.success && workerData.response) {
+          aiResponse = workerData.response;
+          attemptedModels.push(workerData.model || modelToUse);
+          console.log(`✅ Worker AI 응답 성공: ${aiResponse.length}자`);
+        } else {
+          throw new Error(workerData.error || 'Worker에서 응답 생성 실패');
+        }
+      } else {
+        const errorText = await workerResponse.text();
+        throw new Error(`Worker 호출 실패 (${workerResponse.status}): ${errorText}`);
+      }
+    } catch (workerError: any) {
+      console.error('❌ Worker 호출 실패:', workerError.message);
+      throw workerError;
+    }
 
     // 봇 사용 통계 업데이트
     await db
