@@ -94,14 +94,7 @@ async function callGeminiDirect(
   
   console.log(`📊 API 버전: ${apiVersion}`);
   
-  // 🌍 AllOrigins 프록시를 통한 Gemini API 호출 (지역 제한 우회)
-  const geminiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
-  const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(geminiUrl)}`;
-  const headers: any = { 
-    "Content-Type": "application/json"
-  };
-  
-  console.log(`📤 Gemini API 직접 호출 (${apiVersion})`);
+  console.log(`📤 Worker를 통한 Gemini API 호출 (${apiVersion})`);
 
   const contents: any[] = [];
   
@@ -162,53 +155,38 @@ async function callGeminiDirect(
 
   console.log(`📊 총 contents 수: ${contents.length}개`);
 
-  // 🔧 Request Body 구성 (항상 Gemini 형식)
-  const requestBody: any = {
-    contents: contents,
-    generationConfig: {
-      temperature: 1.0,
-      maxOutputTokens: 8192
-    }
-  };
+  // 🔧 Worker 호출
+  const WORKER_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/gemini';
+  const WORKER_API_KEY = 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u';
   
-  console.log(`📤 Request body: ${contents.length}개 contents`);
+  console.log(`📤 Worker로 요청 (${contents.length}개 contents)`);
 
-  console.log(`⏳ API 호출 중...`);
+  console.log(`⏳ Worker API 호출 중...`);
 
-  const response = await fetch(url, {
+  const response = await fetch(WORKER_URL, {
     method: "POST",
-    headers: headers,
-    body: JSON.stringify(requestBody),
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": WORKER_API_KEY
+    },
+    body: JSON.stringify({
+      model: model,
+      contents: contents,
+      apiKey: apiKey
+    }),
   });
 
-  console.log(`📡 응답 상태: ${response.status} ${response.statusText}`);
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`❌ Gemini API Error (${response.status}):`, errorText);
-    
-    // JSON 파싱 시도
-    let parsedError;
-    try {
-      parsedError = JSON.parse(errorText);
-      console.error(`❌ 파싱된 에러:`, JSON.stringify(parsedError, null, 2));
-    } catch (e) {
-      console.error(`❌ 에러 텍스트 (JSON 파싱 실패):`, errorText);
-      parsedError = { rawError: errorText };
-    }
-    
-    const errorMessage = parsedError?.error?.message || errorText;
-    const error = new Error(`Gemini API ${response.status}: ${errorMessage}`);
-    (error as any).status = response.status;
-    (error as any).isRetryable = response.status === 503 || response.status === 429;
-    throw error;
-  }
+  console.log(`📡 Worker 응답 상태: ${response.status}`);
 
   const data = await response.json();
   
-  // Gemini 응답 형식 (Worker도 동일한 형식 반환)
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
-  console.log(`✅ Gemini 응답 받음: ${text.length}자`);
+  if (!data.success) {
+    console.error(`❌ Worker 오류:`, data.error);
+    throw new Error(data.error);
+  }
+
+  const text = data.response;
+  console.log(`✅ Worker 응답 받음: ${text.length}자`);
   
   return text;
 }
