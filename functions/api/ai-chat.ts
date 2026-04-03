@@ -94,12 +94,10 @@ async function callGeminiDirect(
   
   console.log(`📊 API 버전: ${apiVersion}`);
   
-  // 🌍 CORS 프록시를 통한 Gemini API 호출 (지역 제한 우회)
-  const geminiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent`;
-  const url = `https://corsproxy.io/?${encodeURIComponent(geminiUrl + '?key=' + apiKey)}`;
+  // 🌍 Gemini API 직접 호출
+  const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
   const headers: any = { 
-    "Content-Type": "application/json",
-    "Origin": "https://suplacestudy.com"
+    "Content-Type": "application/json"
   };
   
   console.log(`📤 Gemini API 직접 호출 (${apiVersion})`);
