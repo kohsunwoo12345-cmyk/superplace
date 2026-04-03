@@ -26,7 +26,7 @@ import {
 import { useEffect, useState, useRef } from "react";
 
 // ── 스크롤 감지 커스텀 훅 ──────────────────────────
-function useScrollReveal(threshold = 100) {
+function useScrollReveal(threshold = 80) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -34,12 +34,38 @@ function useScrollReveal(threshold = 100) {
     if (!el) return;
     const obs = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) setVisible(true); },
-      { rootMargin: `0px 0px -${threshold}px 0px` }
+      { rootMargin: `0px 0px -${threshold}px 0px`, threshold: 0.1 }
     );
     obs.observe(el);
     return () => obs.disconnect();
   }, [threshold]);
   return { ref, visible };
+}
+
+// ── 스크롤 시 아래→위 등장 래퍼 ──────────────────────
+function RevealSection({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  const { ref, visible } = useScrollReveal(60);
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0px)" : "translateY(60px)",
+        transition: `opacity 0.7s ease ${delay}ms, transform 0.7s cubic-bezier(0.16,1,0.3,1) ${delay}ms`,
+      }}
+    >
+      {children}
+    </div>
+  );
 }
 
 // ── 카운트업 애니메이션 ────────────────────────────
@@ -504,21 +530,18 @@ export default function Home() {
       </header>
 
       {/* ══ HERO ════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-purple-950 text-white">
-        {/* 배경 장식 */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-full blur-3xl" />
-          {/* 그리드 패턴 */}
-          <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
+      <section className="relative overflow-hidden text-white" style={{ minHeight: "100vh" }}>
+        {/* 배경 이미지 */}
+        <div className="absolute inset-0">
+          <img
+            src="/hero-classroom.jpg"
+            alt="학원 교실 배경"
+            className="w-full h-full object-cover object-center"
+          />
+          {/* 어두운 오버레이 */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/55 to-black/75" />
+          {/* 블루/퍼플 컬러 오버레이 */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/30 via-transparent to-purple-900/30" />
         </div>
 
         <div
@@ -586,22 +609,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* 통계 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
-            {[
-              { value: 500, suffix: "+", label: "재원생", color: "text-blue-400" },
-              { value: 95, suffix: "%", label: "학습 만족도", color: "text-purple-400" },
-              { value: 3, suffix: "분", label: "평균 채점 시간", color: "text-cyan-400" },
-              { value: 24, suffix: "/7", label: "AI 학습 지원", color: "text-pink-400" },
-            ].map((s, i) => (
-              <div key={i} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5">
-                <div className={`text-3xl font-black ${s.color} mb-1`}>
-                  <CountUp target={s.value} suffix={s.suffix} />
-                </div>
-                <div className="text-white/50 text-sm">{s.label}</div>
-              </div>
-            ))}
-          </div>
+
         </div>
 
         {/* 물결 구분선 */}
@@ -652,12 +660,14 @@ export default function Home() {
       {/* ══ 프로세스 요약 ════════════════════════════════════ */}
       <section className="py-24 px-4 bg-gradient-to-br from-slate-900 to-blue-950 text-white overflow-hidden">
         <div className="container mx-auto max-w-5xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-black mb-4">
-              도입 후 달라지는 학원 하루
-            </h2>
-            <p className="text-blue-200/70 text-lg">기존 3시간 업무 → SUPER PLACE와 함께 15분으로</p>
-          </div>
+          <RevealSection>
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-black mb-4">
+                도입 후 달라지는 학원 하루
+              </h2>
+              <p className="text-blue-200/70 text-lg">기존 3시간 업무 → SUPER PLACE와 함께 15분으로</p>
+            </div>
+          </RevealSection>
 
           <div className="grid md:grid-cols-5 gap-4">
             {[
@@ -667,18 +677,20 @@ export default function Home() {
               { time: "저녁", icon: MessageSquare, text: "학부모 리포트\n자동 발송", color: "from-orange-500 to-amber-500" },
               { time: "심야", icon: Brain, text: "학생 AI 질문\n24시간 응답", color: "from-pink-500 to-rose-500" },
             ].map((step, i) => (
-              <div key={i} className="relative text-center">
-                {i < 4 && (
-                  <div className="hidden md:block absolute top-10 right-0 translate-x-1/2 z-10">
-                    <ArrowRight className="h-5 w-5 text-white/30" />
+              <RevealSection key={i} delay={i * 100}>
+                <div className="relative text-center">
+                  {i < 4 && (
+                    <div className="hidden md:block absolute top-10 right-0 translate-x-1/2 z-10">
+                      <ArrowRight className="h-5 w-5 text-white/30" />
+                    </div>
+                  )}
+                  <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${step.color} flex items-center justify-center shadow-xl`}>
+                    <step.icon className="h-9 w-9 text-white" />
                   </div>
-                )}
-                <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${step.color} flex items-center justify-center shadow-xl`}>
-                  <step.icon className="h-9 w-9 text-white" />
+                  <div className="text-xs text-blue-300/60 font-semibold mb-1 uppercase tracking-wide">{step.time}</div>
+                  <div className="text-white font-bold text-sm leading-relaxed whitespace-pre-line">{step.text}</div>
                 </div>
-                <div className="text-xs text-blue-300/60 font-semibold mb-1 uppercase tracking-wide">{step.time}</div>
-                <div className="text-white font-bold text-sm leading-relaxed whitespace-pre-line">{step.text}</div>
-              </div>
+              </RevealSection>
             ))}
           </div>
         </div>
@@ -687,36 +699,38 @@ export default function Home() {
       {/* ══ CTA ═════════════════════════════════════════════ */}
       {!isLoggedIn && (
         <section className="py-28 px-4 bg-white">
-          <div className="container mx-auto max-w-3xl text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-semibold mb-8">
-              <Sparkles className="h-4 w-4" />
-              지금 바로 무료 체험
+          <RevealSection>
+            <div className="container mx-auto max-w-3xl text-center">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-semibold mb-8">
+                <Sparkles className="h-4 w-4" />
+                지금 바로 무료 체험
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 leading-tight">
+                우리 학원도 AI로<br />
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  한 단계 도약할 수 있습니다
+                </span>
+              </h2>
+              <p className="text-gray-500 text-lg mb-10">
+                설치 없이 바로 사용 · 무료 체험 제공 · 도입 상담 무료
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="/register">
+                  <Button size="lg" className="text-lg px-12 py-7 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-2xl hover:shadow-blue-500/30 transition-all transform hover:scale-105">
+                    <Zap className="mr-2 h-5 w-5" />
+                    무료로 시작하기
+                  </Button>
+                </a>
+                <a href="/teacher-login">
+                  <Button size="lg" variant="outline" className="text-lg px-12 py-7 border-2 border-gray-200 hover:border-blue-300 hover:text-blue-600 transition-all">
+                    <Users className="mr-2 h-5 w-5" />
+                    학원장 로그인
+                  </Button>
+                </a>
+              </div>
+              <p className="text-gray-400 text-sm mt-6">신용카드 불필요 · 언제든 취소 가능</p>
             </div>
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 leading-tight">
-              우리 학원도 AI로<br />
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                한 단계 도약할 수 있습니다
-              </span>
-            </h2>
-            <p className="text-gray-500 text-lg mb-10">
-              설치 없이 바로 사용 · 무료 체험 제공 · 도입 상담 무료
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="/register">
-                <Button size="lg" className="text-lg px-12 py-7 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-2xl hover:shadow-blue-500/30 transition-all transform hover:scale-105">
-                  <Zap className="mr-2 h-5 w-5" />
-                  무료로 시작하기
-                </Button>
-              </a>
-              <a href="/teacher-login">
-                <Button size="lg" variant="outline" className="text-lg px-12 py-7 border-2 border-gray-200 hover:border-blue-300 hover:text-blue-600 transition-all">
-                  <Users className="mr-2 h-5 w-5" />
-                  학원장 로그인
-                </Button>
-              </a>
-            </div>
-            <p className="text-gray-400 text-sm mt-6">신용카드 불필요 · 언제든 취소 가능</p>
-          </div>
+          </RevealSection>
         </section>
       )}
 
