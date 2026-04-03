@@ -410,7 +410,7 @@ async function handleRequest(request, env, ctx) {
     }
   }
 
-  // 🌐 Gemini API 프록시 엔드포인트 (지역 제한 우회)
+  // 🌐 AI 프록시 엔드포인트 (Cloudflare AI 우선 → Gemini fallback, 지역 제한 완전 우회)
   if (url.pathname === '/gemini-proxy' && request.method === 'POST') {
     const apiKey = request.headers.get('X-API-Key');
     const expectedKey = env.WORKER_API_KEY || env.API_KEY;
@@ -428,7 +428,7 @@ async function handleRequest(request, env, ctx) {
         message, 
         systemPrompt = '', 
         conversationHistory = [], 
-        model = 'gemini-2.5-flash',
+        model = 'gemini-1.5-flash',
         geminiApiKey
       } = body;
 
@@ -439,87 +439,134 @@ async function handleRequest(request, env, ctx) {
         });
       }
 
-      const geminiKey = geminiApiKey || env.GOOGLE_GEMINI_API_KEY;
-      if (!geminiKey) {
-        return new Response(JSON.stringify({ error: 'Gemini API key not configured' }), {
-          status: 500,
-          headers: corsHeaders
-        });
-      }
+      console.log(`🤖 AI 프록시 요청: model=${model}, messageLen=${message.length}`);
 
-      console.log(`🤖 Gemini 프록시 요청: model=${model}, messageLen=${message.length}`);
-
-      // contents 배열 구성
-      const contents = [];
-
-      // System 프롬프트를 첫 user/model 교환으로 처리
+      // OpenAI 호환 메시지 구성 (Cloudflare AI & Gemini 공통)
+      const cfMessages = [];
       if (systemPrompt && systemPrompt.trim().length > 0) {
-        contents.push({ role: 'user', parts: [{ text: systemPrompt }] });
-        contents.push({ role: 'model', parts: [{ text: '네, 이해했습니다. 그 역할을 수행하겠습니다.' }] });
+        cfMessages.push({ role: 'system', content: systemPrompt });
       }
-
-      // 대화 기록 추가
       for (const msg of conversationHistory) {
-        let text = msg.content || (msg.parts && msg.parts[0] && msg.parts[0].text) || '';
+        const text = msg.content || (msg.parts && msg.parts[0] && msg.parts[0].text) || '';
         if (text) {
-          contents.push({
-            role: msg.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text }]
+          cfMessages.push({
+            role: msg.role === 'assistant' ? 'assistant' : 'user',
+            content: text
           });
         }
       }
+      cfMessages.push({ role: 'user', content: message });
 
-      // 현재 메시지 추가
-      contents.push({ role: 'user', parts: [{ text: message }] });
-
-      // Gemini API 버전 선택
-      let apiVersion = 'v1beta';
-
-      const geminiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${geminiKey}`;
-
-      const geminiResponse = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          generationConfig: {
-            temperature: 1.0,
-            maxOutputTokens: 8192
+      // ===== 1순위: Cloudflare AI 바인딩 (지역 제한 없음) =====
+      if (env.AI) {
+        try {
+          console.log(`🔵 Cloudflare AI 호출 시도 (@cf/meta/llama-3.3-70b-instruct-fp8-fast)`);
+          const cfResult = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+            messages: cfMessages,
+            max_tokens: 4096,
+            temperature: 0.9,
+          });
+          const cfText = cfResult?.response || cfResult?.result?.response;
+          if (cfText && cfText.trim().length > 0) {
+            console.log(`✅ Cloudflare AI 응답 완료: ${cfText.length}자`);
+            return new Response(JSON.stringify({
+              success: true,
+              response: cfText,
+              model: 'cloudflare-llama-3.3-70b',
+              provider: 'cloudflare-ai'
+            }), { headers: corsHeaders });
           }
-        })
-      });
-
-      if (!geminiResponse.ok) {
-        const errorText = await geminiResponse.text();
-        console.error(`❌ Gemini API 오류 (${geminiResponse.status}):`, errorText.substring(0, 200));
-        return new Response(JSON.stringify({
-          success: false,
-          error: `Gemini API 오류: ${geminiResponse.status}`,
-          details: errorText.substring(0, 300)
-        }), { status: geminiResponse.status, headers: corsHeaders });
+        } catch (cfErr) {
+          console.warn(`⚠️ Cloudflare AI 실패: ${cfErr.message}, Gemini로 fallback`);
+        }
       }
 
-      const geminiData = await geminiResponse.json();
-      const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      // ===== 2순위: Gemini API (Smart Placement로 미국/유럽 엣지에서 실행) =====
+      const geminiKey = geminiApiKey || env.GOOGLE_GEMINI_API_KEY;
+      if (geminiKey) {
+        try {
+          console.log(`🟡 Gemini API 호출 시도 (model=${model})`);
 
-      if (!responseText) {
-        console.error('❌ Gemini 응답에 텍스트 없음:', JSON.stringify(geminiData).substring(0, 200));
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'AI 응답을 생성할 수 없습니다.'
-        }), { status: 500, headers: corsHeaders });
+          // Gemini 형식으로 변환
+          const contents = [];
+          if (systemPrompt && systemPrompt.trim().length > 0) {
+            contents.push({ role: 'user', parts: [{ text: systemPrompt }] });
+            contents.push({ role: 'model', parts: [{ text: '네, 이해했습니다. 그 역할을 수행하겠습니다.' }] });
+          }
+          for (const msg of conversationHistory) {
+            const text = msg.content || (msg.parts && msg.parts[0] && msg.parts[0].text) || '';
+            if (text) {
+              contents.push({
+                role: msg.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text }]
+              });
+            }
+          }
+          contents.push({ role: 'user', parts: [{ text: message }] });
+
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
+          const geminiResponse = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents,
+              generationConfig: { temperature: 1.0, maxOutputTokens: 8192 }
+            })
+          });
+
+          if (geminiResponse.ok) {
+            const geminiData = await geminiResponse.json();
+            const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (responseText) {
+              console.log(`✅ Gemini 응답 완료: ${responseText.length}자`);
+              return new Response(JSON.stringify({
+                success: true,
+                response: responseText,
+                model,
+                provider: 'gemini'
+              }), { headers: corsHeaders });
+            }
+          } else {
+            const errText = await geminiResponse.text();
+            console.warn(`⚠️ Gemini API 오류 (${geminiResponse.status}): ${errText.substring(0, 100)}`);
+          }
+        } catch (gemErr) {
+          console.warn(`⚠️ Gemini 호출 실패: ${gemErr.message}`);
+        }
       }
 
-      console.log(`✅ Gemini 프록시 응답 완료: ${responseText.length}자`);
+      // ===== 3순위: Cloudflare AI 소형 모델 (최후 수단) =====
+      if (env.AI) {
+        try {
+          console.log(`🔵 Cloudflare AI 소형 모델 시도 (@cf/meta/llama-3.1-8b-instruct)`);
+          const cfResult2 = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+            messages: cfMessages,
+            max_tokens: 2048,
+            temperature: 0.9,
+          });
+          const cfText2 = cfResult2?.response || cfResult2?.result?.response;
+          if (cfText2 && cfText2.trim().length > 0) {
+            console.log(`✅ Cloudflare AI 소형 모델 응답: ${cfText2.length}자`);
+            return new Response(JSON.stringify({
+              success: true,
+              response: cfText2,
+              model: 'cloudflare-llama-3.1-8b',
+              provider: 'cloudflare-ai-fallback'
+            }), { headers: corsHeaders });
+          }
+        } catch (cfErr2) {
+          console.error(`❌ Cloudflare AI 소형 모델도 실패: ${cfErr2.message}`);
+        }
+      }
 
+      // 모두 실패
       return new Response(JSON.stringify({
-        success: true,
-        response: responseText,
-        model
-      }), { headers: corsHeaders });
+        success: false,
+        error: 'AI 서비스에 연결할 수 없습니다.'
+      }), { status: 503, headers: corsHeaders });
 
     } catch (error) {
-      console.error('❌ Gemini 프록시 오류:', error.message);
+      console.error('❌ AI 프록시 오류:', error.message);
       return new Response(JSON.stringify({
         success: false,
         error: error.message

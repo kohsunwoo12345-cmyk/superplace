@@ -350,27 +350,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       } catch (directError: any) {
         console.warn(`⚠️ [${requestId}] [1단계] 직접 호출 실패: ${directError.message}`);
 
-        // ===== 2단계: Worker 프록시 fallback (지역 제한 우회 시도) =====
-        const isLocationError = directError.message.startsWith('LOCATION_RESTRICTED:')
-          || directError.message.includes('User location is not supported')
-          || directError.message.includes('400');
-
-        if (isLocationError) {
-          try {
-            console.log(`🔄 [${requestId}] [2단계] Worker 프록시 fallback`);
-            aiResponse = await callGeminiViaWorker(
-              data.message,
-              systemPrompt,
-              data.conversationHistory || [],
-              geminiApiKey,
-              modelToUse
-            );
-            usedProvider = 'gemini-worker-proxy';
-            console.log(`✅ [${requestId}] [2단계] Worker 프록시 성공`);
-          } catch (workerError: any) {
-            console.warn(`⚠️ [${requestId}] [2단계] Worker 프록시 실패: ${workerError.message}`);
-            // Worker도 실패 → 3단계 OpenAI로 계속
-          }
+        // ===== 2단계: Worker 프록시 fallback (Gemini 오류 시 항상 시도) =====
+        // Worker는 Cloudflare AI 바인딩을 우선 사용 → 지역 제한 없음
+        try {
+          console.log(`🔄 [${requestId}] [2단계] Worker(Cloudflare AI) 프록시 fallback`);
+          aiResponse = await callGeminiViaWorker(
+            data.message,
+            systemPrompt,
+            data.conversationHistory || [],
+            geminiApiKey,
+            modelToUse
+          );
+          usedProvider = 'cloudflare-ai-worker';
+          console.log(`✅ [${requestId}] [2단계] Worker 프록시 성공`);
+        } catch (workerError: any) {
+          console.warn(`⚠️ [${requestId}] [2단계] Worker 프록시 실패: ${workerError.message}`);
+          // Worker도 실패 → 3단계 OpenAI로 계속
         }
       }
     }
