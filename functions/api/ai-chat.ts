@@ -280,7 +280,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    const modelToUse = bot.model || 'gemini-2.0-flash-exp';
+    const modelToUse = bot.model || 'gemini-1.5-flash';
     console.log(`✅ [${requestId}] 봇 발견: ${bot.name}`);
     console.log(`📊 [${requestId}] 모델: ${modelToUse}`);
     console.log(`📚 [${requestId}] 지식베이스: ${bot.knowledgeBase ? '있음' : '없음'}`);
@@ -349,46 +349,54 @@ ${contextText}
       systemPrompt += `\n\n--- 지식 베이스 ---\n${bot.knowledgeBase}\n--- 지식 베이스 끝 ---`;
     }
 
-    // 🔥 정상 응답 생성 (Gemini API 키 문제로 임시 응답)
+    // 🔥 Gemini API 직접 호출 (CORS 프록시 사용)
     const attemptedModels: string[] = [];
     
-    // 🔥 Worker AI Complete를 통한 실제 Gemini 호출
-    const WORKER_AI_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev/ai-complete';
-    const WORKER_API_KEY = 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u';
+    console.log(`🚀 [${requestId}] Gemini API 직접 호출 시작 (모델: ${modelToUse})`);
     
-    console.log(`🚀 [${requestId}] Worker AI Complete 호출 시작`);
-    
-    const workerResponse = await fetch(WORKER_AI_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': WORKER_API_KEY
-      },
-      body: JSON.stringify({
-        message: data.message,
-        systemPrompt: systemPrompt,
-        conversationHistory: data.conversationHistory || [],
-        model: modelToUse,
-        apiKey: apiKey  // ✅ 올바른 Gemini API 키 전달
-      })
-    });
-    
-    if (!workerResponse.ok) {
-      const errorText = await workerResponse.text();
-      console.error(`❌ [${requestId}] Worker AI 호출 실패: ${workerResponse.status}`, errorText);
-      throw new Error(`Worker AI 호출 실패: ${errorText}`);
+    try {
+      aiResponse = await callGeminiDirect(
+        data.message,
+        systemPrompt,
+        data.conversationHistory || [],
+        apiKey,
+        modelToUse
+      );
+      
+      attemptedModels.push(modelToUse);
+      console.log(`✅ [${requestId}] Gemini 응답 성공 (${aiResponse.length}자)`);
+      
+    } catch (error: any) {
+      console.error(`❌ [${requestId}] Gemini 호출 실패:`, error.message);
+      
+      // Fallback 모델로 재시도
+      const fallbackModels = ['gemini-1.5-flash-8b', 'gemini-1.5-pro'];
+      let retrySuccess = false;
+      
+      for (const fallbackModel of fallbackModels) {
+        try {
+          console.log(`  ↻ Fallback 모델 시도: ${fallbackModel}`);
+          aiResponse = await callGeminiDirect(
+            data.message,
+            systemPrompt,
+            data.conversationHistory || [],
+            apiKey,
+            fallbackModel
+          );
+          
+          attemptedModels.push(fallbackModel);
+          console.log(`✅ [${requestId}] Fallback 성공 (${aiResponse.length}자, 모델: ${fallbackModel})`);
+          retrySuccess = true;
+          break;
+        } catch (retryError: any) {
+          console.error(`  ❌ ${fallbackModel} 실패:`, retryError.message);
+        }
+      }
+      
+      if (!retrySuccess) {
+        throw error;  // 모든 재시도 실패 시 원래 오류 throw
+      }
     }
-    
-    const workerData = await workerResponse.json();
-    
-    if (!workerData.success) {
-      console.error(`❌ [${requestId}] Worker AI 오류:`, workerData.error);
-      throw new Error(workerData.error || 'Worker에서 응답을 생성하지 못했습니다');
-    }
-    
-    aiResponse = workerData.response;
-    attemptedModels.push(modelToUse);
-    console.log(`✅ [${requestId}] Worker AI 응답 성공 (${aiResponse.length}자, 모델: ${modelToUse})`);
 
     // 봇 사용 통계 업데이트
     await db
