@@ -1,8 +1,10 @@
-// API: AI 챗봇 대화 (Gemini API 직접 호출 + 지역 제한 시 Worker 프록시 fallback)
+// API: AI 챗봇 대화 (Gemini 직접 호출 → Worker 프록시 → OpenAI fallback)
 // POST /api/ai-chat
 
 interface Env {
   GOOGLE_GEMINI_API_KEY: string;
+  OPENAI_API_KEY: string;
+  Novita_AI_API: string;
   DB: D1Database;
 }
 
@@ -20,6 +22,141 @@ interface ChatRequest {
 
 const WORKER_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev';
 const WORKER_API_KEY = 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u';
+
+// Gemini 모델명을 OpenAI 호환 모델명으로 변환
+function getOpenAIModelFallback(geminiModel: string): string {
+  // Gemini 2.5 계열 → GPT-4o-mini (가장 안정적)
+  if (geminiModel.includes('2.5') || geminiModel.includes('2-5')) {
+    return 'gpt-4o-mini';
+  }
+  // Gemini 1.5 Pro → GPT-4o-mini
+  if (geminiModel.includes('1.5-pro') || geminiModel.includes('pro')) {
+    return 'gpt-4o-mini';
+  }
+  // 기본값
+  return 'gpt-4o-mini';
+}
+
+// OpenAI API 호출 (최종 fallback)
+async function callOpenAI(
+  message: string,
+  systemPrompt: string,
+  conversationHistory: any[],
+  apiKey: string,
+  geminiModel: string
+): Promise<string> {
+  const openAIModel = getOpenAIModelFallback(geminiModel);
+  console.log(`🔵 OpenAI fallback 호출 (모델: ${openAIModel})`);
+
+  const messages: any[] = [];
+
+  // 시스템 프롬프트
+  if (systemPrompt && systemPrompt.trim().length > 0) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+
+  // 대화 기록
+  conversationHistory.forEach(msg => {
+    const content = msg.content || (msg.parts && msg.parts[0] && msg.parts[0].text) || '';
+    if (content) {
+      messages.push({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content,
+      });
+    }
+  });
+
+  // 현재 메시지
+  messages.push({ role: 'user', content: message });
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: openAIModel,
+      messages,
+      max_tokens: 4096,
+      temperature: 0.9,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`❌ OpenAI API 오류 (${response.status}):`, errorText.substring(0, 200));
+    throw new Error(`OpenAI API 오류: ${response.status} - ${errorText.substring(0, 100)}`);
+  }
+
+  const data: any = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+
+  if (!text) {
+    throw new Error('OpenAI 응답에 텍스트가 없습니다.');
+  }
+
+  console.log(`✅ OpenAI 응답 받음: ${text.length}자`);
+  return text;
+}
+
+// Novita AI (DeepSeek) fallback
+async function callNovitaAI(
+  message: string,
+  systemPrompt: string,
+  conversationHistory: any[],
+  apiKey: string
+): Promise<string> {
+  console.log(`🟣 Novita AI fallback 호출`);
+
+  const messages: any[] = [];
+
+  if (systemPrompt && systemPrompt.trim().length > 0) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+
+  conversationHistory.forEach(msg => {
+    const content = msg.content || (msg.parts && msg.parts[0] && msg.parts[0].text) || '';
+    if (content) {
+      messages.push({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content,
+      });
+    }
+  });
+
+  messages.push({ role: 'user', content: message });
+
+  const response = await fetch('https://api.novita.ai/v3/openai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'deepseek/deepseek-chat-v3-0324',
+      messages,
+      max_tokens: 4096,
+      temperature: 0.9,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`❌ Novita AI 오류 (${response.status}):`, errorText.substring(0, 200));
+    throw new Error(`Novita AI 오류: ${response.status} - ${errorText.substring(0, 100)}`);
+  }
+
+  const data: any = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+
+  if (!text) {
+    throw new Error('Novita AI 응답에 텍스트가 없습니다.');
+  }
+
+  console.log(`✅ Novita AI 응답 받음: ${text.length}자`);
+  return text;
+}
 
 // Worker 프록시를 통한 Gemini API 호출 (지역 제한 우회)
 async function callGeminiViaWorker(
@@ -42,27 +179,32 @@ async function callGeminiViaWorker(
       systemPrompt,
       conversationHistory,
       model,
-      geminiApiKey, // Pages Function의 유효한 API 키를 Worker에 전달
+      geminiApiKey,
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`❌ Worker 프록시 오류 (${response.status}):`, errorText.substring(0, 200));
-    throw new Error(`Worker 프록시 오류: ${response.status} - ${errorText.substring(0, 100)}`);
+    throw new Error(`Worker 프록시 오류: ${response.status} - ${errorText.substring(0, 200)}`);
   }
 
   const data: any = await response.json();
 
   if (!data.success) {
-    throw new Error(data.error || 'Worker 프록시에서 응답을 생성할 수 없습니다.');
+    const errMsg = data.error || 'Worker 프록시에서 응답을 생성할 수 없습니다.';
+    // Gemini 지역 제한 오류이면 LOCATION_RESTRICTED로 감싸서 상위에서 fallback 처리
+    if (errMsg.includes('User location is not supported') || errMsg.includes('400')) {
+      throw new Error(`WORKER_LOCATION_RESTRICTED:${errMsg}`);
+    }
+    throw new Error(errMsg);
   }
 
   console.log(`✅ Worker 프록시 응답 받음: ${data.response?.length}자`);
   return data.response;
 }
 
-// Gemini API 직접 호출 (Cloudflare Workers는 서버사이드이므로 직접 호출 가능)
+// Gemini API 직접 호출
 async function callGeminiDirect(
   message: string,
   systemPrompt: string,
@@ -74,7 +216,6 @@ async function callGeminiDirect(
 
   const contents: any[] = [];
 
-  // System 프롬프트 추가
   if (systemPrompt && systemPrompt.trim().length > 0) {
     contents.push({
       role: "user",
@@ -86,7 +227,6 @@ async function callGeminiDirect(
     });
   }
 
-  // 대화 기록 추가
   conversationHistory.forEach(msg => {
     let messageText = '';
     if (msg.content) {
@@ -103,13 +243,10 @@ async function callGeminiDirect(
     }
   });
 
-  // 현재 메시지 추가
   contents.push({
     role: "user",
     parts: [{ text: message }]
   });
-
-  console.log(`📤 총 ${contents.length}개 메시지`);
 
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -130,12 +267,11 @@ async function callGeminiDirect(
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`❌ Gemini API 오류 (${response.status}):`, errorText.substring(0, 300));
-    
-    // 지역 제한 오류인지 확인
+
     if (response.status === 400 && errorText.includes('User location is not supported')) {
       throw new Error(`LOCATION_RESTRICTED:${errorText.substring(0, 100)}`);
     }
-    
+
     throw new Error(`Gemini API 오류: ${response.status} - ${errorText.substring(0, 100)}`);
   }
 
@@ -157,18 +293,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   console.log(`🚀 [${requestId}] AI Chat 요청 시작`);
 
   try {
-    const apiKey = context.env.GOOGLE_GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "API 키가 설정되지 않았습니다",
-          requestId,
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    const geminiApiKey = context.env.GOOGLE_GEMINI_API_KEY;
+    const openAIApiKey = context.env.OPENAI_API_KEY;
+    const novitaApiKey = context.env.Novita_AI_API;
 
     const data: ChatRequest = await context.request.json();
 
@@ -204,64 +331,100 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const systemPrompt = (bot.systemPrompt as string) || "";
     const modelToUse = (bot.model as string) || "gemini-1.5-flash";
 
-    let aiResponse: string;
-    let usedWorkerProxy = false;
+    let aiResponse: string = '';
+    let usedProvider = 'gemini-direct';
 
-    // 1단계: Gemini 직접 호출 시도
-    try {
-      console.log(`🚀 [${requestId}] Gemini 직접 호출 시도 (모델: ${modelToUse})`);
-      aiResponse = await callGeminiDirect(
-        data.message,
-        systemPrompt,
-        data.conversationHistory || [],
-        apiKey,
-        modelToUse
-      );
-      console.log(`✅ [${requestId}] 직접 호출 성공`);
-    } catch (directError: any) {
-      console.warn(`⚠️ [${requestId}] 직접 호출 실패: ${directError.message}`);
-      
-      // 지역 제한 오류이거나 기타 오류 -> Worker 프록시로 fallback
-      if (directError.message.startsWith('LOCATION_RESTRICTED:') || directError.message.includes('400')) {
-        console.log(`🔄 [${requestId}] Worker 프록시로 fallback`);
-        try {
-          aiResponse = await callGeminiViaWorker(
-            data.message,
-            systemPrompt,
-            data.conversationHistory || [],
-            apiKey,
-            modelToUse
-          );
-          usedWorkerProxy = true;
-          console.log(`✅ [${requestId}] Worker 프록시 호출 성공`);
-        } catch (workerError: any) {
-          console.error(`❌ [${requestId}] Worker 프록시도 실패: ${workerError.message}`);
-          return new Response(
-            JSON.stringify({
-              success: false,
-              message: "서버 내부 오류가 발생했습니다.",
-              error: workerError.message,
-              requestId,
-              duration: Date.now() - requestStartTime,
-            }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-          );
-        }
-      } else {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: "서버 내부 오류가 발생했습니다.",
-            error: directError.message,
-            requestId,
-            duration: Date.now() - requestStartTime,
-          }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
+    // ===== 1단계: Gemini 직접 호출 =====
+    if (geminiApiKey) {
+      try {
+        console.log(`🚀 [${requestId}] [1단계] Gemini 직접 호출 (${modelToUse})`);
+        aiResponse = await callGeminiDirect(
+          data.message,
+          systemPrompt,
+          data.conversationHistory || [],
+          geminiApiKey,
+          modelToUse
         );
+        usedProvider = 'gemini-direct';
+        console.log(`✅ [${requestId}] [1단계] 성공`);
+      } catch (directError: any) {
+        console.warn(`⚠️ [${requestId}] [1단계] 직접 호출 실패: ${directError.message}`);
+
+        // ===== 2단계: Worker 프록시 fallback (지역 제한 우회 시도) =====
+        const isLocationError = directError.message.startsWith('LOCATION_RESTRICTED:')
+          || directError.message.includes('User location is not supported')
+          || directError.message.includes('400');
+
+        if (isLocationError) {
+          try {
+            console.log(`🔄 [${requestId}] [2단계] Worker 프록시 fallback`);
+            aiResponse = await callGeminiViaWorker(
+              data.message,
+              systemPrompt,
+              data.conversationHistory || [],
+              geminiApiKey,
+              modelToUse
+            );
+            usedProvider = 'gemini-worker-proxy';
+            console.log(`✅ [${requestId}] [2단계] Worker 프록시 성공`);
+          } catch (workerError: any) {
+            console.warn(`⚠️ [${requestId}] [2단계] Worker 프록시 실패: ${workerError.message}`);
+            // Worker도 실패 → 3단계 OpenAI로 계속
+          }
+        }
       }
     }
 
-    console.log(`✅ [${requestId}] AI 응답 생성 완료 (workerProxy: ${usedWorkerProxy})`);
+    // ===== 3단계: OpenAI fallback =====
+    if (!aiResponse && openAIApiKey) {
+      try {
+        console.log(`🔵 [${requestId}] [3단계] OpenAI fallback`);
+        aiResponse = await callOpenAI(
+          data.message,
+          systemPrompt,
+          data.conversationHistory || [],
+          openAIApiKey,
+          modelToUse
+        );
+        usedProvider = 'openai-fallback';
+        console.log(`✅ [${requestId}] [3단계] OpenAI 성공`);
+      } catch (openAIError: any) {
+        console.warn(`⚠️ [${requestId}] [3단계] OpenAI 실패: ${openAIError.message}`);
+      }
+    }
+
+    // ===== 4단계: Novita AI (DeepSeek) fallback =====
+    if (!aiResponse && novitaApiKey) {
+      try {
+        console.log(`🟣 [${requestId}] [4단계] Novita AI fallback`);
+        aiResponse = await callNovitaAI(
+          data.message,
+          systemPrompt,
+          data.conversationHistory || [],
+          novitaApiKey
+        );
+        usedProvider = 'novita-fallback';
+        console.log(`✅ [${requestId}] [4단계] Novita AI 성공`);
+      } catch (novitaError: any) {
+        console.warn(`⚠️ [${requestId}] [4단계] Novita AI 실패: ${novitaError.message}`);
+      }
+    }
+
+    // 모든 단계 실패
+    if (!aiResponse) {
+      console.error(`❌ [${requestId}] 모든 AI 호출 실패`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "AI 서비스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+          requestId,
+          duration: Date.now() - requestStartTime,
+        }),
+        { status: 503, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`✅ [${requestId}] AI 응답 완료 (provider: ${usedProvider})`);
 
     // 봇 사용 통계 업데이트 (실패해도 응답은 계속)
     try {
@@ -281,7 +444,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       JSON.stringify({
         success: true,
         response: aiResponse,
-        workerRAGUsed: usedWorkerProxy,
+        provider: usedProvider,
         ragContextCount: 0,
         requestId,
         duration,
@@ -293,7 +456,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
 
   } catch (error: any) {
-    console.error(`❌ 요청 처리 중 오류:`, error.message);
+    console.error(`❌ [${Date.now()}] 요청 처리 중 오류:`, error.message);
 
     return new Response(
       JSON.stringify({

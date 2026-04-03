@@ -3,6 +3,10 @@ main = "worker.js"
 compatibility_date = "2024-01-01"
 account_id = "117379ce5c9d9af026b16c9cf21b10d5"
 
+# Smart Placement: Gemini API 지역 제한 우회를 위해 최적 위치(미국/유럽)에서 실행
+[placement]
+mode = "smart"
+
 # Cloudflare AI 바인딩
 [ai]
 binding = "AI"
