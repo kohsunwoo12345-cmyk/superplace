@@ -20,18 +20,43 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // AI 대화 기록 테이블 생성 (없을 경우)
-    await DB.prepare(`
-      CREATE TABLE IF NOT EXISTS ai_chat_logs (
-        id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL,
-        botId TEXT,
-        botName TEXT,
-        message TEXT NOT NULL,
-        response TEXT,
-        model TEXT,
-        createdAt TEXT DEFAULT (datetime('now'))
-      )
-    `).run();
+    try {
+      await DB.prepare(`
+        CREATE TABLE IF NOT EXISTS ai_chat_logs (
+          id TEXT PRIMARY KEY,
+          userId TEXT NOT NULL,
+          botId TEXT,
+          botName TEXT,
+          message TEXT NOT NULL,
+          response TEXT,
+          model TEXT,
+          createdAt TEXT DEFAULT (datetime('now'))
+        )
+      `).run();
+    } catch (createErr: any) {
+      console.log('ℹ️ ai_chat_logs 테이블 생성 시도:', createErr.message);
+    }
+
+    // botId 컬럼 마이그레이션 (없을 경우 추가)
+    try {
+      await DB.prepare(`ALTER TABLE ai_chat_logs ADD COLUMN botId TEXT`).run();
+      console.log('✅ ai_chat_logs.botId 컬럼 추가됨');
+    } catch (alterErr: any) {
+      // 이미 존재하면 무시
+      if (!alterErr.message?.includes('duplicate column') && !alterErr.message?.includes('already exists')) {
+        console.log('ℹ️ ai_chat_logs.botId 컬럼 이미 존재');
+      }
+    }
+
+    // botName 컬럼 마이그레이션 (없을 경우 추가)
+    try {
+      await DB.prepare(`ALTER TABLE ai_chat_logs ADD COLUMN botName TEXT`).run();
+      console.log('✅ ai_chat_logs.botName 컬럼 추가됨');
+    } catch (alterErr: any) {
+      if (!alterErr.message?.includes('duplicate column') && !alterErr.message?.includes('already exists')) {
+        console.log('ℹ️ ai_chat_logs.botName 컬럼 이미 존재');
+      }
+    }
 
     // 채팅 로그 저장
     await DB.prepare(`

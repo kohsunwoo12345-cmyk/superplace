@@ -18,6 +18,58 @@ interface ChatSession {
   updatedAt: string;
 }
 
+// chat_sessions 테이블 마이그레이션 (누락된 컬럼 자동 추가)
+async function migratechatSessionsTable(db: D1Database): Promise<void> {
+  // 1. 테이블 생성 (없으면)
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        academyId TEXT DEFAULT 'default',
+        botId TEXT DEFAULT '',
+        title TEXT,
+        lastMessage TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+  } catch (e) {
+    console.log('⚠️ chat_sessions 테이블 생성 시도:', e);
+  }
+
+  // 2. botId 컬럼이 없으면 추가
+  try {
+    await db.prepare(`ALTER TABLE chat_sessions ADD COLUMN botId TEXT DEFAULT ''`).run();
+    console.log('✅ chat_sessions.botId 컬럼 추가됨');
+  } catch (e: any) {
+    // 이미 존재하면 무시
+    if (!e.message?.includes('duplicate column') && !e.message?.includes('already exists')) {
+      console.log('ℹ️ chat_sessions.botId 컬럼 이미 존재');
+    }
+  }
+
+  // 3. academyId 컬럼이 없으면 추가
+  try {
+    await db.prepare(`ALTER TABLE chat_sessions ADD COLUMN academyId TEXT DEFAULT 'default'`).run();
+    console.log('✅ chat_sessions.academyId 컬럼 추가됨');
+  } catch (e: any) {
+    if (!e.message?.includes('duplicate column') && !e.message?.includes('already exists')) {
+      console.log('ℹ️ chat_sessions.academyId 컬럼 이미 존재');
+    }
+  }
+
+  // 4. updatedAt 컬럼이 없으면 추가
+  try {
+    await db.prepare(`ALTER TABLE chat_sessions ADD COLUMN updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP`).run();
+    console.log('✅ chat_sessions.updatedAt 컬럼 추가됨');
+  } catch (e: any) {
+    if (!e.message?.includes('duplicate column') && !e.message?.includes('already exists')) {
+      console.log('ℹ️ chat_sessions.updatedAt 컬럼 이미 존재');
+    }
+  }
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const db = context.env.DB;
   
@@ -41,25 +93,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     console.log(`📂 세션 조회 시작: userId=${userId}`);
 
-    // 테이블 생성 (exec 대신 batch 사용)
-    try {
-      await db.batch([
-        db.prepare(`
-          CREATE TABLE IF NOT EXISTS chat_sessions (
-            id TEXT PRIMARY KEY,
-            userId TEXT NOT NULL,
-            academyId TEXT NOT NULL,
-            botId TEXT NOT NULL,
-            title TEXT,
-            lastMessage TEXT,
-            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-          )
-        `)
-      ]);
-    } catch (createError) {
-      console.log('⚠️ 테이블 생성 시도 중 오류 (이미 존재할 수 있음):', createError);
-    }
+    // 테이블 마이그레이션 (누락된 컬럼 자동 추가)
+    await migratechatSessionsTable(db);
 
     // 세션 조회
     const selectStmt = db.prepare(`
@@ -125,34 +160,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const data: Partial<ChatSession> = await context.request.json();
 
-    if (!data.id || !data.userId || !data.academyId || !data.botId) {
+    if (!data.id || !data.userId) {
       return new Response(
-        JSON.stringify({ success: false, message: "필수 필드가 누락되었습니다" }),
+        JSON.stringify({ success: false, message: "필수 필드가 누락되었습니다 (id, userId)" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     console.log(`💾 세션 저장/업데이트: ${data.id}`);
 
-    // 테이블 생성 (batch 사용)
-    try {
-      await db.batch([
-        db.prepare(`
-          CREATE TABLE IF NOT EXISTS chat_sessions (
-            id TEXT PRIMARY KEY,
-            userId TEXT NOT NULL,
-            academyId TEXT NOT NULL,
-            botId TEXT NOT NULL,
-            title TEXT,
-            lastMessage TEXT,
-            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-          )
-        `)
-      ]);
-    } catch (createError) {
-      console.log('⚠️ 테이블 생성 시도 중 오류 (이미 존재할 수 있음)');
-    }
+    // 테이블 마이그레이션 (누락된 컬럼 자동 추가)
+    await migratechatSessionsTable(db);
 
     // 기존 세션 확인
     const checkStmt = db.prepare(`SELECT id FROM chat_sessions WHERE id = ?`).bind(data.id);
@@ -168,7 +186,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       `).bind(
         data.title || "새로운 대화",
         data.lastMessage || "",
-        data.botId,
+        data.botId || "",
         data.id
       );
       
@@ -187,8 +205,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       `).bind(
         data.id,
         data.userId,
-        data.academyId,
-        data.botId,
+        data.academyId || "default",
+        data.botId || "",
         data.title || "새로운 대화",
         data.lastMessage || ""
       );
