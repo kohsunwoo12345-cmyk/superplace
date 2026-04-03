@@ -180,7 +180,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 봇 정보 조회
     const bot = await context.env.DB.prepare(
-      `SELECT * FROM ai_bots WHERE bot_id = ?`
+      `SELECT * FROM ai_bots WHERE id = ?`
     ).bind(data.botId).first();
 
     if (!bot) {
@@ -194,8 +194,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    const systemPrompt = bot.system_prompt || "";
-    const modelToUse = bot.ai_model || "gemini-1.5-flash";
+    const systemPrompt = bot.systemPrompt || "";
+    const modelToUse = bot.model || "gemini-1.5-flash";
     const attemptedModels: string[] = [modelToUse];
     
     console.log(`🚀 [${requestId}] 프록시를 통한 Gemini API 호출 (모델: ${modelToUse})`);
@@ -214,9 +214,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       // 봇 사용 통계 업데이트
       await context.env.DB.prepare(
         `UPDATE ai_bots 
-         SET total_messages = total_messages + 1, 
-             updated_at = datetime('now') 
-         WHERE bot_id = ?`
+         SET usageCount = usageCount + 1, 
+             updatedAt = datetime('now') 
+         WHERE id = ?`
       ).bind(data.botId).run();
 
       const duration = Date.now() - requestStartTime;
