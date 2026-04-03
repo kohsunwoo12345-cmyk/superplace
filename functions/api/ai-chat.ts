@@ -1,4 +1,4 @@
-// API: AI 챗봇 대화 (Gemini API 직접 호출)
+// API: AI 챗봇 대화 (Gemini API 직접 호출 + 지역 제한 시 Worker 프록시 fallback)
 // POST /api/ai-chat
 
 interface Env {
@@ -16,6 +16,50 @@ interface ChatRequest {
   userId?: string;
   sessionId?: string;
   imageUrl?: string;
+}
+
+const WORKER_URL = 'https://physonsuperplacestudy.kohsunwoo12345.workers.dev';
+const WORKER_API_KEY = 'gvZFnhFMNNfLesIhj_-WfDO84SqSnAYWDnzp6q6u';
+
+// Worker 프록시를 통한 Gemini API 호출 (지역 제한 우회)
+async function callGeminiViaWorker(
+  message: string,
+  systemPrompt: string,
+  conversationHistory: any[],
+  geminiApiKey: string,
+  model: string
+): Promise<string> {
+  console.log(`🔄 Worker 프록시를 통한 Gemini 호출 (모델: ${model})`);
+
+  const response = await fetch(`${WORKER_URL}/gemini-proxy`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': WORKER_API_KEY,
+    },
+    body: JSON.stringify({
+      message,
+      systemPrompt,
+      conversationHistory,
+      model,
+      geminiApiKey, // Pages Function의 유효한 API 키를 Worker에 전달
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`❌ Worker 프록시 오류 (${response.status}):`, errorText.substring(0, 200));
+    throw new Error(`Worker 프록시 오류: ${response.status} - ${errorText.substring(0, 100)}`);
+  }
+
+  const data: any = await response.json();
+
+  if (!data.success) {
+    throw new Error(data.error || 'Worker 프록시에서 응답을 생성할 수 없습니다.');
+  }
+
+  console.log(`✅ Worker 프록시 응답 받음: ${data.response?.length}자`);
+  return data.response;
 }
 
 // Gemini API 직접 호출 (Cloudflare Workers는 서버사이드이므로 직접 호출 가능)
@@ -67,13 +111,7 @@ async function callGeminiDirect(
 
   console.log(`📤 총 ${contents.length}개 메시지`);
 
-  // 모델별 API 버전 선택
-  let apiVersion = 'v1beta';
-  if (model.includes('gemini-1.0') || model.includes('gemini-1.5')) {
-    apiVersion = 'v1beta';
-  }
-
-  const geminiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const response = await fetch(geminiUrl, {
     method: "POST",
@@ -91,7 +129,13 @@ async function callGeminiDirect(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`❌ Gemini API 오류 (${response.status}):`, errorText.substring(0, 200));
+    console.error(`❌ Gemini API 오류 (${response.status}):`, errorText.substring(0, 300));
+    
+    // 지역 제한 오류인지 확인
+    if (response.status === 400 && errorText.includes('User location is not supported')) {
+      throw new Error(`LOCATION_RESTRICTED:${errorText.substring(0, 100)}`);
+    }
+    
     throw new Error(`Gemini API 오류: ${response.status} - ${errorText.substring(0, 100)}`);
   }
 
@@ -160,65 +204,93 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const systemPrompt = (bot.systemPrompt as string) || "";
     const modelToUse = (bot.model as string) || "gemini-1.5-flash";
 
-    console.log(`🚀 [${requestId}] Gemini 직접 호출 (모델: ${modelToUse})`);
+    let aiResponse: string;
+    let usedWorkerProxy = false;
 
+    // 1단계: Gemini 직접 호출 시도
     try {
-      const aiResponse = await callGeminiDirect(
+      console.log(`🚀 [${requestId}] Gemini 직접 호출 시도 (모델: ${modelToUse})`);
+      aiResponse = await callGeminiDirect(
         data.message,
         systemPrompt,
         data.conversationHistory || [],
         apiKey,
         modelToUse
       );
-
-      console.log(`✅ [${requestId}] AI 응답 생성 완료`);
-
-      // 봇 사용 통계 업데이트 (실패해도 응답은 계속)
-      try {
-        await context.env.DB.prepare(
-          `UPDATE ai_bots 
-           SET usageCount = COALESCE(usageCount, 0) + 1, 
-               updatedAt = datetime('now') 
-           WHERE id = ?`
-        ).bind(data.botId).run();
-      } catch (statsErr: any) {
-        console.warn('⚠️ 봇 사용 통계 업데이트 실패 (무시):', statsErr.message);
+      console.log(`✅ [${requestId}] 직접 호출 성공`);
+    } catch (directError: any) {
+      console.warn(`⚠️ [${requestId}] 직접 호출 실패: ${directError.message}`);
+      
+      // 지역 제한 오류이거나 기타 오류 -> Worker 프록시로 fallback
+      if (directError.message.startsWith('LOCATION_RESTRICTED:') || directError.message.includes('400')) {
+        console.log(`🔄 [${requestId}] Worker 프록시로 fallback`);
+        try {
+          aiResponse = await callGeminiViaWorker(
+            data.message,
+            systemPrompt,
+            data.conversationHistory || [],
+            apiKey,
+            modelToUse
+          );
+          usedWorkerProxy = true;
+          console.log(`✅ [${requestId}] Worker 프록시 호출 성공`);
+        } catch (workerError: any) {
+          console.error(`❌ [${requestId}] Worker 프록시도 실패: ${workerError.message}`);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              message: "서버 내부 오류가 발생했습니다.",
+              error: workerError.message,
+              requestId,
+              duration: Date.now() - requestStartTime,
+            }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      } else {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "서버 내부 오류가 발생했습니다.",
+            error: directError.message,
+            requestId,
+            duration: Date.now() - requestStartTime,
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
       }
-
-      const duration = Date.now() - requestStartTime;
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          response: aiResponse,
-          workerRAGUsed: false,
-          ragContextCount: 0,
-          requestId,
-          duration,
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-
-    } catch (error: any) {
-      console.error(`❌ [${requestId}] Gemini API 오류:`, error.message);
-
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "서버 내부 오류가 발생했습니다.",
-          error: error.message,
-          requestId,
-          duration: Date.now() - requestStartTime,
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
     }
+
+    console.log(`✅ [${requestId}] AI 응답 생성 완료 (workerProxy: ${usedWorkerProxy})`);
+
+    // 봇 사용 통계 업데이트 (실패해도 응답은 계속)
+    try {
+      await context.env.DB.prepare(
+        `UPDATE ai_bots 
+         SET usageCount = COALESCE(usageCount, 0) + 1, 
+             updatedAt = datetime('now') 
+         WHERE id = ?`
+      ).bind(data.botId).run();
+    } catch (statsErr: any) {
+      console.warn('⚠️ 봇 사용 통계 업데이트 실패 (무시):', statsErr.message);
+    }
+
+    const duration = Date.now() - requestStartTime;
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        response: aiResponse,
+        workerRAGUsed: usedWorkerProxy,
+        ragContextCount: 0,
+        requestId,
+        duration,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
   } catch (error: any) {
     console.error(`❌ 요청 처리 중 오류:`, error.message);

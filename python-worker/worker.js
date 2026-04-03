@@ -410,6 +410,123 @@ async function handleRequest(request, env, ctx) {
     }
   }
 
+  // 🌐 Gemini API 프록시 엔드포인트 (지역 제한 우회)
+  if (url.pathname === '/gemini-proxy' && request.method === 'POST') {
+    const apiKey = request.headers.get('X-API-Key');
+    const expectedKey = env.WORKER_API_KEY || env.API_KEY;
+    
+    if (!expectedKey || apiKey !== expectedKey) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: corsHeaders
+      });
+    }
+
+    try {
+      const body = await request.json();
+      const { 
+        message, 
+        systemPrompt = '', 
+        conversationHistory = [], 
+        model = 'gemini-2.5-flash',
+        geminiApiKey
+      } = body;
+
+      if (!message) {
+        return new Response(JSON.stringify({ error: 'message is required' }), {
+          status: 400,
+          headers: corsHeaders
+        });
+      }
+
+      const geminiKey = geminiApiKey || env.GOOGLE_GEMINI_API_KEY;
+      if (!geminiKey) {
+        return new Response(JSON.stringify({ error: 'Gemini API key not configured' }), {
+          status: 500,
+          headers: corsHeaders
+        });
+      }
+
+      console.log(`🤖 Gemini 프록시 요청: model=${model}, messageLen=${message.length}`);
+
+      // contents 배열 구성
+      const contents = [];
+
+      // System 프롬프트를 첫 user/model 교환으로 처리
+      if (systemPrompt && systemPrompt.trim().length > 0) {
+        contents.push({ role: 'user', parts: [{ text: systemPrompt }] });
+        contents.push({ role: 'model', parts: [{ text: '네, 이해했습니다. 그 역할을 수행하겠습니다.' }] });
+      }
+
+      // 대화 기록 추가
+      for (const msg of conversationHistory) {
+        let text = msg.content || (msg.parts && msg.parts[0] && msg.parts[0].text) || '';
+        if (text) {
+          contents.push({
+            role: msg.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text }]
+          });
+        }
+      }
+
+      // 현재 메시지 추가
+      contents.push({ role: 'user', parts: [{ text: message }] });
+
+      // Gemini API 버전 선택
+      let apiVersion = 'v1beta';
+
+      const geminiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${geminiKey}`;
+
+      const geminiResponse = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents,
+          generationConfig: {
+            temperature: 1.0,
+            maxOutputTokens: 8192
+          }
+        })
+      });
+
+      if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text();
+        console.error(`❌ Gemini API 오류 (${geminiResponse.status}):`, errorText.substring(0, 200));
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Gemini API 오류: ${geminiResponse.status}`,
+          details: errorText.substring(0, 300)
+        }), { status: geminiResponse.status, headers: corsHeaders });
+      }
+
+      const geminiData = await geminiResponse.json();
+      const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!responseText) {
+        console.error('❌ Gemini 응답에 텍스트 없음:', JSON.stringify(geminiData).substring(0, 200));
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'AI 응답을 생성할 수 없습니다.'
+        }), { status: 500, headers: corsHeaders });
+      }
+
+      console.log(`✅ Gemini 프록시 응답 완료: ${responseText.length}자`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        response: responseText,
+        model
+      }), { headers: corsHeaders });
+
+    } catch (error) {
+      console.error('❌ Gemini 프록시 오류:', error.message);
+      return new Response(JSON.stringify({
+        success: false,
+        error: error.message
+      }), { status: 500, headers: corsHeaders });
+    }
+  }
+
   return new Response(JSON.stringify({ error: 'Not Found' }), {
     status: 404,
     headers: corsHeaders
