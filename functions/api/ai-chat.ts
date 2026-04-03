@@ -94,8 +94,9 @@ async function callGeminiDirect(
   
   console.log(`📊 API 버전: ${apiVersion}`);
   
-  // 🌍 Gemini API 직접 호출
-  const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
+  // 🌍 AllOrigins 프록시를 통한 Gemini API 호출 (지역 제한 우회)
+  const geminiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
+  const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(geminiUrl)}`;
   const headers: any = { 
     "Content-Type": "application/json"
   };
