@@ -17,6 +17,26 @@ interface ChatMessage {
   createdAt: string;
 }
 
+// chat_messages 테이블 마이그레이션
+async function migrateChatMessagesTable(db: D1Database): Promise<void> {
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id TEXT PRIMARY KEY,
+        sessionId TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        imageUrl TEXT,
+        audioUrl TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+  } catch (e) {
+    console.log('ℹ️ chat_messages 테이블 이미 존재');
+  }
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const db = context.env.DB;
   
@@ -41,37 +61,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     console.log(`📖 메시지 조회: sessionId=${sessionId}`);
 
-    // 테이블 생성 (batch 사용)
-    try {
-      await db.batch([
-        db.prepare(`
-          CREATE TABLE IF NOT EXISTS chat_messages (
-            id TEXT PRIMARY KEY,
-            sessionId TEXT NOT NULL,
-            userId TEXT NOT NULL,
-            role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
-            content TEXT NOT NULL,
-            imageUrl TEXT,
-            audioUrl TEXT,
-            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-          )
-        `)
-      ]);
-    } catch (createError) {
-      console.log('⚠️ 테이블 생성 시도 중 오류 (이미 존재할 수 있음)');
-    }
+    // 테이블 마이그레이션
+    await migrateChatMessagesTable(db);
 
     // userId가 제공된 경우, 세션 소유자 확인
     if (userId) {
-      const checkStmt = db.prepare(`SELECT userId FROM chat_sessions WHERE id = ?`).bind(sessionId);
-      const sessionCheck = await checkStmt.first();
-      
-      if (sessionCheck && sessionCheck.userId !== userId) {
-        console.error(`⚠️ 권한 없음: 사용자 ${userId}가 세션 ${sessionId} 접근 시도`);
-        return new Response(
-          JSON.stringify({ success: false, message: "권한이 없습니다" }),
-          { status: 403, headers: { "Content-Type": "application/json" } }
-        );
+      try {
+        const checkStmt = db.prepare(`SELECT userId FROM chat_sessions WHERE id = ?`).bind(sessionId);
+        const sessionCheck = await checkStmt.first();
+        
+        if (sessionCheck && sessionCheck.userId !== userId) {
+          console.error(`⚠️ 권한 없음: 사용자 ${userId}가 세션 ${sessionId} 접근 시도`);
+          return new Response(
+            JSON.stringify({ success: false, message: "권한이 없습니다" }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      } catch (sessionErr: any) {
+        console.warn('⚠️ 세션 권한 확인 실패 (계속 진행):', sessionErr.message);
       }
     }
 
@@ -146,25 +153,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     console.log(`💾 메시지 저장: ${data.id}`);
 
-    // 테이블 생성 (batch 사용)
-    try {
-      await db.batch([
-        db.prepare(`
-          CREATE TABLE IF NOT EXISTS chat_messages (
-            id TEXT PRIMARY KEY,
-            sessionId TEXT NOT NULL,
-            userId TEXT NOT NULL,
-            role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
-            content TEXT NOT NULL,
-            imageUrl TEXT,
-            audioUrl TEXT,
-            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-          )
-        `)
-      ]);
-    } catch (createError) {
-      console.log('⚠️ 테이블 생성 시도 중 오류 (이미 존재할 수 있음)');
-    }
+    // 테이블 마이그레이션
+    await migrateChatMessagesTable(db);
 
     // 메시지 저장
     const insertStmt = db.prepare(`
@@ -182,14 +172,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     
     await insertStmt.run();
 
-    // 세션의 lastMessage 업데이트
-    const updateStmt = db.prepare(`
-      UPDATE chat_sessions 
-      SET lastMessage = ?, updatedAt = datetime('now')
-      WHERE id = ?
-    `).bind(data.content.substring(0, 100), data.sessionId);
-    
-    await updateStmt.run();
+    // 세션의 lastMessage 업데이트 (botId 컬럼 에러 방어)
+    try {
+      const updateStmt = db.prepare(`
+        UPDATE chat_sessions 
+        SET lastMessage = ?, updatedAt = datetime('now')
+        WHERE id = ?
+      `).bind(data.content.substring(0, 100), data.sessionId);
+      
+      await updateStmt.run();
+    } catch (updateErr: any) {
+      console.warn('⚠️ chat_sessions lastMessage 업데이트 실패 (무시):', updateErr.message);
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: "메시지가 저장되었습니다" }),

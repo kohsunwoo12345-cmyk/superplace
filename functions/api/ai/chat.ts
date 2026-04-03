@@ -74,20 +74,24 @@ async function buildStudentContext(
     }
     
     // 2. 최근 대화 기록 (최근 5개)
-    const recentChats = await DB.prepare(`
-      SELECT message, response, createdAt
-      FROM ai_chat_logs
-      WHERE userId = ? AND botId = ?
-      ORDER BY createdAt DESC
-      LIMIT 5
-    `).bind(userId, botId).all();
-    
-    if (recentChats.results && recentChats.results.length > 0) {
-      context += `\n💬 **최근 대화 기록:**\n`;
-      recentChats.results.reverse().forEach((chat: any, idx: number) => {
-        context += `[${idx + 1}] 학생: ${chat.message}\n`;
-        context += `    AI: ${chat.response}\n`;
-      });
+    try {
+      const recentChats = await DB.prepare(`
+        SELECT message, response, createdAt
+        FROM ai_chat_logs
+        WHERE userId = ? AND botId = ?
+        ORDER BY createdAt DESC
+        LIMIT 5
+      `).bind(userId, botId).all();
+      
+      if (recentChats.results && recentChats.results.length > 0) {
+        context += `\n💬 **최근 대화 기록:**\n`;
+        recentChats.results.reverse().forEach((chat: any, idx: number) => {
+          context += `[${idx + 1}] 학생: ${chat.message}\n`;
+          context += `    AI: ${chat.response}\n`;
+        });
+      }
+    } catch (chatLogError: any) {
+      console.log('⚠️ ai_chat_logs 조회 실패 (무시):', chatLogError.message);
     }
     
     // 3. 학생의 최근 숙제 (있다면)
@@ -600,6 +604,24 @@ ${knowledgeContext}
     // 🆕 사용량 기록 (학생 계정이고 DB, userId, botId가 있을 때)
     if (userRole === 'STUDENT' && userId && botId && DB) {
       try {
+        // bot_usage_logs 테이블 자동 생성 (없을 경우)
+        try {
+          await DB.prepare(`
+            CREATE TABLE IF NOT EXISTS bot_usage_logs (
+              id TEXT PRIMARY KEY,
+              assignmentId TEXT NOT NULL,
+              botId TEXT NOT NULL,
+              userId TEXT NOT NULL,
+              userType TEXT NOT NULL,
+              messageCount INTEGER DEFAULT 1,
+              usageDate TEXT NOT NULL,
+              createdAt TEXT DEFAULT (datetime('now'))
+            )
+          `).run();
+        } catch (createErr: any) {
+          console.log('ℹ️ bot_usage_logs 테이블 생성 시도:', createErr.message);
+        }
+
         // 할당 정보 조회
         const assignment = await DB.prepare(
           `SELECT id FROM ai_bot_assignments 
