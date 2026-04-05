@@ -409,9 +409,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       ).run();
 
       // Create or update user_subscriptions
+      let pricingPlan: any = null;
       if (approval.userId && approval.planId) {
         // Get pricing plan details
-        const pricingPlan = await DB.prepare(`
+        pricingPlan = await DB.prepare(`
           SELECT 
             id,
             name,
